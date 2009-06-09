@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: filter.c 254 2006-11-21 21:54:24Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: filter.c 293 2006-12-01 01:24:41Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -7025,7 +7025,21 @@ gf_wrap(FILTER_S *f, int flg)
 
 	      case_dfl :
 	      case DFL :
-		if(WRAP_SPEC(f, c)){
+    /*
+     * This was just if(WRAP_SPEC(f, c)) before the change to add
+     * the == 0 test. This isn't quite right, either. We should really
+     * be looking for special characters in the UCS characters, not
+     * in the incoming stream of UTF-8. It is not right to
+     * call this on bytes that are in the middle of a UTF-8 character,
+     * hence the == 0 test which restricts it to the first byte
+     * of a character. This isn't right, either, but it's closer.
+     * Also change the definition of WRAP_SPEC so that isspace only
+     * matches ascii characters, which will never be in the middle
+     * of a UTF-8 multi-byte character.
+     */
+		if(WRAP_UTF8(f)
+		   && (WRAP_UTF8BUFP(f) - &WRAP_UTF8BUF(f, 0)) == 0
+		   && WRAP_SPEC(f, c)){
 		    switch(c){
 		      default :
 			if(WRAP_QUOTED(f))
@@ -7403,7 +7417,7 @@ gf_wrap(FILTER_S *f, int flg)
 						 && WRAP_TAGS(f))
 					     || (i == ',' && WRAP_COMMA(f)
 						 && !WRAP_QUOTED(f))
-					     || isspace((unsigned char) i));
+					     || (i < 0x80 && isspace((unsigned char) i)));
 	WRAP_SPACES(f) = so_get(CharStar, NULL, EDIT_ACCESS);
 	if(WRAP_UTF8(f))
 	  WRAP_UTF8BUFP(f) = &WRAP_UTF8BUF(f, 0);

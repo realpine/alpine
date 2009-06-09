@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: color.c 165 2006-10-04 01:09:47Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: color.c 320 2006-12-12 22:40:05Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -40,7 +40,8 @@ struct color_table {
 /* useful definitions */
 #define	ANSI8_COLOR()	(color_options & COLOR_ANSI8_OPT)
 #define	ANSI16_COLOR()	(color_options & COLOR_ANSI16_OPT)
-#define	ANSI_COLOR()	(color_options & (COLOR_ANSI8_OPT | COLOR_ANSI16_OPT))
+#define	ANSI256_COLOR()	(color_options & COLOR_ANSI256_OPT)
+#define	ANSI_COLOR()	(color_options & (COLOR_ANSI8_OPT | COLOR_ANSI16_OPT | COLOR_ANSI256_OPT))
 #define	END_PSEUDO_REVERSE	"EndInverse"
 #define A_UNKNOWN	-1
 
@@ -372,16 +373,21 @@ tfgcolor(int color)
     
     if((ANSI8_COLOR()  && (color < 0 || color >= 8)) ||
        (ANSI16_COLOR() && (color < 0 || color >= 16)) ||
+       (ANSI256_COLOR() && (color < 0 || color >= 256)) ||
        (!ANSI_COLOR()  && (color < 0 || color >= _colors)))
       return(-1);
 
     if(ANSI_COLOR()){
-	char buf[10];
+	char buf[20];
 
-	if(color < 8)
-	  snprintf(buf, sizeof(buf), "\033[3%cm", color + '0');
-	else
-	  snprintf(buf, sizeof(buf), "\033[9%cm", (color-8) + '0');
+	if(ANSI256_COLOR())
+	  snprintf(buf, sizeof(buf), "\033[38;5;%dm", color);
+	else{
+	    if(color < 8)
+	      snprintf(buf, sizeof(buf), "\033[3%cm", color + '0');
+	    else
+	      snprintf(buf, sizeof(buf), "\033[9%cm", (color-8) + '0');
+	}
 	
 	putpad(buf);
     }
@@ -408,16 +414,21 @@ tbgcolor(int color)
     
     if((ANSI8_COLOR()  && (color < 0 || color >= 8)) ||
        (ANSI16_COLOR() && (color < 0 || color >= 16)) ||
+       (ANSI256_COLOR() && (color < 0 || color >= 256)) ||
        (!ANSI_COLOR()  && (color < 0 || color >= _colors)))
       return(-1);
 
     if(ANSI_COLOR()){
-	char buf[10];
+	char buf[20];
 
-	if(color < 8)
-	  snprintf(buf, sizeof(buf), "\033[4%cm",  color + '0');
-	else
-	  snprintf(buf, sizeof(buf), "\033[10%cm", (color-8) + '0');
+	if(ANSI256_COLOR())
+	  snprintf(buf, sizeof(buf), "\033[48;5;%dm", color);
+	else{
+	    if(color < 8)
+	      snprintf(buf, sizeof(buf), "\033[4%cm",  color + '0');
+	    else
+	      snprintf(buf, sizeof(buf), "\033[10%cm", (color-8) + '0');
+	}
 	
 	putpad(buf);
     }
@@ -470,10 +481,34 @@ init_color_table(void)
     else
       size = count;
 
-    if(size > 0 && size < 256){
+    if(size > 0 && size <= 256){
+	char   rgb[256][RGBLEN+1];
+	int    ind, graylevel;
+
 	ct = (struct color_table *)malloc((size+1)*sizeof(struct color_table));
 	if(ct)
 	  memset(ct, 0, (size+1) * sizeof(struct color_table));
+
+	if(size == 256){
+	    int red, green, blue, gray;
+
+	    for(red = 0; red < 6; red++)
+	      for(green = 0; green < 6; green++)
+		for(blue = 0; blue < 6; blue++){
+		    ind = 16 + 36*red + 6*green + blue;
+		    snprintf(rgb[ind], sizeof(rgb[ind]), "%3.3d,%3.3d,%3.3d",
+			     red ? (40*red + 55) : 0,
+			     green ? (40*green + 55) : 0,
+			     blue ? (40*blue + 55) : 0);
+		}
+
+	    for(gray = 0; gray < 24; gray++){
+		ind = gray + 232;
+		graylevel = 10*gray + 8;
+		snprintf(rgb[ind], sizeof(rgb[ind]), "%3.3d,%3.3d,%3.3d",
+			 graylevel, graylevel, graylevel);
+	    }
+	}
 
 	for(i = 0, t = ct; t && i < size; i++, t++){
 	    t->val = i % count;
@@ -518,35 +553,9 @@ init_color_table(void)
 
 	    t->namelen = strlen(colorname);
 	    t->name = (char *)malloc((t->namelen+1) * sizeof(char));
-	    if(t->name)
-	      strncpy(t->name, colorname, t->namelen+1);
-
-	    /*
-	     * For an 8 color terminal, canonical black == black, but
-	     * canonical red == color009, etc.
-	     *
-	     * This is weird. What we have is 16-color xterms where color 0
-	     * is black (fine, that matches) colors 1 - 7 are called
-	     * red, ..., white but they are set at 2/3rds brightness so that
-	     * bold can be brighter. Those 7 colors suck. Color 8 is some
-	     * sort of gray, colors 9 - 15 are real red, ..., white. On other
-	     * 8 color terminals and in PC-Pine, we want to equate color 0
-	     * with color 0 on 16-color, but color 1 (red) is really the
-	     * same as the 16-color color 9. So color 9 - 15 are the real
-	     * colors on a 16-color terminal and colors 1 - 7 are the real
-	     * colors on an 8-color terminal. We make that work by mapping
-	     * the 2nd eight into the first eight when displaying on an
-	     * 8-color terminal, and by using the canonical_name when
-	     * we modify and write out a color. The canonical name is set
-	     * to the "real* color (0, 9, 10, ..., 15 on 16-color terminal).
-	     */
-	    if(size == count || i == 0 || i > 7){
-		t->canonical_name = (char *)malloc((t->namelen+1)*sizeof(char));
-		strncpy(t->canonical_name, colorname, t->namelen+1);
-	    }
-	    else{
-		t->canonical_name = (char *)malloc(9*sizeof(char));
-		snprintf(t->canonical_name, 9, "color%03.3d", i+8);
+	    if(t->name){
+		strncpy(t->name, colorname, t->namelen+1);
+		t->name[t->namelen] = '\0';
 	    }
 
 	    t->rgb = (char *)malloc((RGBLEN+1) * sizeof(char));
@@ -608,7 +617,7 @@ init_color_table(void)
 		      break;
 		  }
 		}
-		else if(count == 16){
+		else if(count == 16 || count == 256){
 		  /*
 		   * This set of RGB values seems to come close to describing
 		   * what a 16-color xterm gives you.
@@ -679,7 +688,8 @@ init_color_table(void)
 		      t->rgb[RGBLEN] = '\0';
 		      break;
 		    default:
-		      snprintf(t->rgb, RGBLEN+1, "%d,%d,%d", 256+i, 256+i, 256+i);
+		      strncpy(t->rgb, rgb[i], RGBLEN+1);
+		      t->rgb[RGBLEN] = '\0';
 		      break;
 		  }
 		}
@@ -723,6 +733,66 @@ init_color_table(void)
 		  }
 		}
 	    }
+
+	    /*
+	     * For an 8 color terminal, canonical black == black, but
+	     * canonical red == color009, etc.
+	     *
+	     * This is weird. What we have is 16-color xterms where color 0
+	     * is black (fine, that matches) colors 1 - 7 are called
+	     * red, ..., white but they are set at 2/3rds brightness so that
+	     * bold can be brighter. Those 7 colors suck. Color 8 is some
+	     * sort of gray, colors 9 - 15 are real red, ..., white. On other
+	     * 8 color terminals and in PC-Pine, we want to equate color 0
+	     * with color 0 on 16-color, but color 1 (red) is really the
+	     * same as the 16-color color 9. So color 9 - 15 are the real
+	     * colors on a 16-color terminal and colors 1 - 7 are the real
+	     * colors on an 8-color terminal. We make that work by mapping
+	     * the 2nd eight into the first eight when displaying on an
+	     * 8-color terminal, and by using the canonical_name when
+	     * we modify and write out a color. The canonical name is set
+	     * to the "real* color (0, 9, 10, ..., 15 on 16-color terminal).
+	     */
+	    if(size == 256){
+		/*
+		 * Is this a good idea?
+		 * We use RGB to try to interoperate with PC Alpine.
+		 */
+		t->canonical_name = (char *)malloc((RGBLEN+1)*sizeof(char));
+		strncpy(t->canonical_name, t->rgb, RGBLEN+1);
+		t->canonical_name[RGBLEN] = '\0';
+
+		/*
+		 * This is an ugly hack to recognize PC-Alpine's
+		 * three gray colors and display them.
+		 */
+		if(i == 250 || i == 244 || i == 238){
+		    switch(i){
+		      case 250:
+			strncpy(t->name, "colorlgr", t->namelen+1);
+			t->name[t->namelen] = '\0';
+			break;
+		      case 244:
+			strncpy(t->name, "colormgr", t->namelen+1);
+			t->name[t->namelen] = '\0';
+			break;
+		      case 238:
+			strncpy(t->name, "colordgr", t->namelen+1);
+			t->name[t->namelen] = '\0';
+			break;
+		    }
+		}
+	    }
+	    else if(size == count || i == 0 || i > 7){
+		t->canonical_name = (char *)malloc((t->namelen+1)*sizeof(char));
+		strncpy(t->canonical_name, colorname, t->namelen+1);
+		t->canonical_name[t->namelen] = '\0';
+	    }
+	    else{
+		t->canonical_name = (char *)malloc(9*sizeof(char));
+		snprintf(t->canonical_name, 9, "color%03.3d", i+8);
+	    }
+
 	}
     }
 
@@ -830,6 +900,79 @@ color_to_val(char *s)
 	for(ct = color_tbl; ct->rgb; ct++)
 	  if(!strncmp(ct->rgb, s, RGBLEN))
 	    break;
+
+	/*
+	 * Didn't match any. Find "closest" to match.
+	 */
+	if(!ct->rgb){
+	    int r = -1, g = -1, b = -1;
+	    char *p, *comma, scopy[2*RGBLEN];
+
+	    strncpy(scopy, s, sizeof(scopy));
+	    scopy[sizeof(scopy)-1] = '\0';
+
+	    p = scopy;
+	    comma = strchr(p, ',');
+	    if(comma){
+	      *comma = '\0';
+	      r = atoi(p);
+	      p = comma+1;
+	      if(r >= 0 && r <= 255 && *p){
+		comma = strchr(p, ',');
+		if(comma){
+		  *comma = '\0';
+		  g = atoi(p);
+		  p = comma+1;
+		  if(g >= 0 && g <= 255 && *p){
+		    b = atoi(p);
+		  }
+		}
+	      }
+	    }
+
+	    if(r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255){
+		struct color_table *closest = NULL;
+		int closest_value = 1000000;
+		int tr, tg, tb;
+		int cv;
+
+		for(ct = color_tbl; ct->rgb; ct++){
+
+		    strncpy(scopy, ct->rgb, sizeof(scopy));
+		    scopy[sizeof(scopy)-1] = '\0';
+
+		    p = scopy;
+		    comma = strchr(p, ',');
+		    if(comma){
+		      *comma = '\0';
+		      tr = atoi(p);
+		      p = comma+1;
+		      if(tr >= 0 && tr <= 255 && *p){
+			comma = strchr(p, ',');
+			if(comma){
+			  *comma = '\0';
+			  tg = atoi(p);
+			  p = comma+1;
+			  if(tg >= 0 && tg <= 255 && *p){
+			    tb = atoi(p);
+			  }
+			}
+		      }
+		    }
+
+		    if(tr >= 0 && tr <= 255 && tg >= 0 && tg <= 255 && tb >= 0 && tb <= 255){
+			cv = (tr - r) * (tr - r) + (tg - g) * (tg - g) + (tb - b) * (tb - b);
+			if(cv < closest_value){
+			    closest_value = cv;
+			    closest = ct;
+			}
+		    }
+		}
+
+		if(closest)
+		  ct = closest;
+	    }
+	}
     }
     else{
 	for(ct = color_tbl; ct->name; ct++)
@@ -876,7 +1019,7 @@ free_color_table(struct color_table **ctbl)
 int
 pico_count_in_color_table(void)
 {
-    return(ANSI8_COLOR() ? 8 : ANSI16_COLOR() ? 16 : _colors);
+    return(ANSI8_COLOR() ? 8 : ANSI16_COLOR() ? 16 : ANSI256_COLOR() ? 256 : _colors);
 }
 
 

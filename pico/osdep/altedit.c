@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: altedit.c 259 2006-11-22 20:17:50Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: altedit.c 291 2006-11-30 22:05:58Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -77,11 +77,7 @@ alt_editor(int f, int n)
     RETSIGTYPE (*ohup)(int);
     RETSIGTYPE (*oint)(int);
     RETSIGTYPE (*osize)(int);
-#if	0
-    WAITSTATUS_T stat;
-#else
     int status;
-#endif
 
     if(gmode&MDSCUR){
 	emlwrite("Alternate %s not available in restricted mode",
@@ -249,13 +245,7 @@ alt_editor(int f, int n)
 	}
 #endif
 
-
-#if	0
-	while((pid = (int) wait(&stat)) != child)
-	  ;
-#else
 	trv = process_reap(child, &status, PR_NONE);
-#endif
 
 	signal(SIGHUP, ohup);	/* restore signals */
 	signal(SIGINT, oint);
@@ -266,7 +256,7 @@ alt_editor(int f, int n)
 	/*
 	 * Report child's unnatural or unhappy exit...
 	 */
-	if(trv == 0 && status == 0){
+	if(trv > 0 && status == 0){
 	  strncpy(result, "Alternate %s done", sizeof(result));
 	  result[sizeof(result)-1] = '\0';
 	}

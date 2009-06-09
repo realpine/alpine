@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pattern.c 229 2006-11-13 23:14:48Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pattern.c 312 2006-12-11 18:06:32Z hubert@u.washington.edu $";
 #endif
 /*
  * ========================================================================
@@ -962,7 +962,7 @@ parse_pat_file(char *filename)
       patline->readonly = 1;
 
     if(can_access(path, ACCESS_EXISTS) == 0){
-	if((fp = our_fopen(path, "r")) != NULL){
+	if((fp = our_fopen(path, "rb")) != NULL){
 	    /* Check to see if this is a valid patterns file */
 	    if(fp_file_size(fp) <= 0L)
 	      ok++;

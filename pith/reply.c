@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: reply.c 244 2006-11-18 01:19:19Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: reply.c 296 2006-12-02 01:47:06Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1603,32 +1603,18 @@ get_reply_data(ENVELOPE *env, ACTION_S *role, IndexColType type, char *buf, size
     buf[0] = '\0';
 
     switch(type){
-      case iRDate:
-      case iSDate:
-      case iSTime:
-      case iSDateTime:
-      case iS1Date:
-      case iS2Date:
-      case iS3Date:
-      case iS4Date:
-      case iDateIso:
-      case iDateIsoS:
-      case iTime24:
-      case iTime12:
-      case iDay:
-      case iDayOrdinal:
-      case iDay2Digit:
-      case iMonAbb:
-      case iMonLong:
-      case iMon:
-      case iMon2Digit:
-      case iYear:
-      case iYear2Digit:
-      case iDate:
-      case iLDate:
-      case iTimezone:
-      case iDayOfWeekAbb:
-      case iDayOfWeek:
+      case iRDate: case iSDate: case iSTime: case iSDateTime:
+      case iS1Date: case iS2Date: case iS3Date: case iS4Date:
+      case iSDateIso: case iSDateIsoS:
+      case iSDateS1: case iSDateS2: case iSDateS3: case iSDateS4: 
+      case iSDateTimeIso: case iSDateTimeIsoS:
+      case iSDateTimeS1: case iSDateTimeS2: case iSDateTimeS3: case iSDateTimeS4: 
+      case iDateIso: case iDateIsoS: case iTime24: case iTime12:
+      case iDay: case iDayOrdinal: case iDay2Digit:
+      case iMonAbb: case iMonLong: case iMon: case iMon2Digit:
+      case iYear: case iYear2Digit:
+      case iDate: case iLDate:
+      case iTimezone: case iDayOfWeekAbb: case iDayOfWeek:
 	if(env && env->date && env->date[0] && maxlen >= 20)
 	  date_str(env->date, type, 1, buf, maxlen+1);
 

@@ -23,7 +23,7 @@
  *		Internet: MRC@CAC.Washington.EDU
  *
  * Date:	20 December 1989
- * Last Edited:	13 November 2006
+ * Last Edited:	30 November 2006
  */
 
 
@@ -1087,8 +1087,9 @@ long unix_append (MAILSTREAM *stream,char *mailbox,append_t af,void *data)
   if (au && ret && tstream->uid_validity)
     (*au) (mailbox,tstream->uid_validity,dst);
   else mail_free_searchset (&dst);
-  unix_unlock (fd,NIL,lock);	/* unlock and close mailbox */
-  fclose (df);			/* note that unix_unlock() released the fd */
+  flock (fd,LOCK_UN);		/* unlock mailbox (can't use unix_unlock() */
+  if (lock && *lock) unlink (lock);
+  fclose (df);			/* close mailbox */
 				/* update last UID if we can */
   if (!tstream->rdonly) ((UNIXLOCAL *) tstream->local)->dirty = T;
   tstream = mail_close (tstream);

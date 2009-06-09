@@ -14,7 +14,7 @@ dnl  */
 
 AC_PREREQ([2.57])
 
-AC_REVISION([$Id: configure.ac 190 2006-10-18 21:33:25Z mikes@u.washington.edu $])
+AC_REVISION([$Id: configure.ac 307 2006-12-08 17:23:10Z mikes@u.washington.edu $])
 
 dnl Alpine Version Number is in $srcdir/VERSION
 AC_INIT(alpine, m4_normalize(m4_include([VERSION])), [alpine-contact@cac.washington.edu])
@@ -356,15 +356,15 @@ if test "x$with_ssl" = "xno" ; then
 else
   dnl preload c-client default locations/options
   case $host in
-    i*86-redhat-linux-*)
+    *-redhat-linux-*)
       alpine_SSLTYPE="nopwd"
       alpine_SSLDIR="/usr/share/ssl"
       ;;
-    i*86-suse-linux-*)
+    *-suse-linux-*)
       alpine_SSLTYPE="nopwd"
       alpine_SSLDIR="/usr/share/ssl"
       ;;
-    *-pc-linux-gnu)
+    *-linux-gnu)
       alpine_SSLTYPE="nopwd"
       alpine_SSLDIR="/usr"
       alpine_SSLCERTS="/etc/ssl/certs"
@@ -575,35 +575,21 @@ esac
 dnl provide LDAP support?
 if test "$alpine_with_ldap" = "yes" ; then
   alpine_has_ldap=
-  AC_SEARCH_LIBS(ldap_init,,
+  AC_SEARCH_LIBS(ldap_init,ldap_init,
     [
       alpine_has_ldap=yes
     ],
     [
-      AC_CHECK_LIB(ldap,ldap_init,
+      AC_SEARCH_LIBS(ldap_open,ldap,
 	[
-	  LIBS="$LIBS -lldap -llber"
 	  alpine_has_ldap=yes
-	],
-	[
-	  AC_SEARCH_LIBS(ldap_open,,
-	    [
-	      alpine_has_ldap=yes
-	    ],
-	    [
-	      AC_CHECK_LIB(ldap,ldap_open,
-		[
-		  LIBS="$LIBS -lldap -llber"
-		  alpine_has_ldap=yes
-		])
-	    ])
-	])
-    ])
+	], [-llber])
+    ],
+    [-llber])
 
   if test "$alpine_has_ldap" = "yes" ; then
     AC_MSG_NOTICE([Including LDAP Support])
     AC_DEFINE([ENABLE_LDAP], [], [Enable LDAP query support])
-    LIBS="$LIBS -lldap -llber"
   else
     AC_MSG_NOTICE([Cannot find LDAP functions!  Excluding LDAP support.])
   fi
@@ -630,13 +616,20 @@ fi
 
 dnl provide KRB5 support?
 if test "x$alpine_GSSTYPE" != "xnone" ; then
-  AC_SEARCH_LIBS(gss_init_sec_context,,,
-    [
-      AC_CHECK_LIB($alpine_GSSLIB,gss_init_sec_context,,
+  case x$alpine_GSSLIB in
+    x)
+      AC_SEARCH_LIBS(gss_init_sec_context,$alpine_GSSLIB,,
 	[
 	  alpine_GSSTYPE="none"
 	])
-    ])
+     ;;
+    *)
+      AC_CHECK_FUNC(gss_init_sec_context,,
+	[
+	  alpine_GSSTYPE="none"
+	])
+     ;;
+  esac
 fi
 
 dnl check for tcl libraries for Web Alpine
@@ -685,6 +678,7 @@ AC_HEADER_TIOCGWINSZ
 AC_UNISTD_H
 
 AC_CHECK_HEADERS([errno.h \
+		  ctype.h \
 		  fcntl.h \
 		  signal.h \
 		  setjmp.h \
@@ -886,7 +880,7 @@ case "$host" in
     alpine_path_delim="/"
     alpine_local_maildir="/usr/spool/mail"
     alpine_mode_readonly="(0600)"
-    LIBS="$LIBS -framework Carbon -framework ApplicationServices"
+    LIBS="$LIBS -framework Carbon -framework ApplicationServices -framework Security"
     CFLAGS="$CFLAGS -Dbsd"
     dnl SEE include/system.h
     AC_DEFINE([OSX_TARGET],[1],[OSX TARGET])
@@ -898,28 +892,28 @@ case "$host" in
         alpine_c_client_target="osx"
       ])
     ;;
-  i*86-redhat-linux-*)
+  *-redhat-linux-*)
     systype="LRH"
     alpine_path_delim="/"
     alpine_local_maildir="/var/spool/mail"
     alpine_mode_readonly="(0600)"
     alpine_c_client_target="lrh"
     ;;
-  i*86-suse-linux-*)
+  *-suse-linux-*)
     systype="LSU"
     alpine_path_delim="/"
     alpine_local_maildir="/var/spool/mail"
     alpine_mode_readonly="(0600)"
     alpine_c_client_target="lsu"
     ;;
-  *-pc-linux-gnu)
+  *-linux-gnu)
     systype="DEB"
     alpine_path_delim="/"
     alpine_local_maildir="/var/spool/mail"
     alpine_mode_readonly="(0600)"
     alpine_c_client_target="ldb"
     ;;
-  i*86-*-linux*)
+  *-linux*)
     systype="LNX"
     alpine_path_delim="/"
     alpine_local_maildir="/var/mail"
@@ -1001,6 +995,9 @@ case "$host" in
     alpine_local_maildir="/usr/spool/mail"
     alpine_mode_readonly="(0600)"
     alpine_c_client_target="a32"
+    ;;
+  *)
+    AC_ERROR([Unrecognized system: $host])
     ;;
 esac
 AC_DEFINE_UNQUOTED([SYSTYPE], "$systype", [Pine-Centric Host Specifier])

@@ -243,8 +243,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,8,0,0
- PRODUCTVERSION 0,8,0,0
+ FILEVERSION 0,81,0,0
+ PRODUCTVERSION 0,81,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -296,7 +296,7 @@ STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Alpine"
 FONT 8, "Helv", 0, 0, 0x1
 BEGIN
-    CTEXT           "Alpine for Windows%S\nVersion %d.%02d%S\nBuild (%S)",
+    CTEXT           "Alpine for Windows%S\nVersion %d.%d%S\nBuild (%S)",
                     IDD_VERSION,47,12,110,26,SS_NOPREFIX | NOT WS_GROUP,
                     WS_EX_TRANSPARENT
     LTEXT           "",IDD_BYLINE,21,46,172,56,SS_NOPREFIX | NOT WS_GROUP

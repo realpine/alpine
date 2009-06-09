@@ -1,5 +1,5 @@
 /*
- * $Id: pico.h 245 2006-11-18 02:46:41Z hubert@u.washington.edu $
+ * $Id: pico.h 316 2006-12-12 01:45:02Z jpf@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -377,7 +377,7 @@ typedef struct  KBSTREE {
  */
 #ifdef	maindef
 PICO	*Pmaster = NULL;		/* composer specific stuff */
-char	*version = "4.90";		/* PICO version number */
+char	*version = "4.91";		/* PICO version number */
 
 #else
 extern	PICO *Pmaster;			/* composer specific stuff */

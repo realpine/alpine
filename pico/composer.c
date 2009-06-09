@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: composer.c 272 2006-11-27 22:57:25Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: composer.c 294 2006-12-01 18:32:36Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -3858,6 +3858,8 @@ SaveHeaderLines(void)
     work_buf[work_buf_len] = '\0';
     empty[0]='\0';
     ods.p_ind = 0;
+
+    i = TRUE;
 
     /* insert text in HLSZ character chunks */
     while(work_buf_len + ods.p_ind > HLSZ) {

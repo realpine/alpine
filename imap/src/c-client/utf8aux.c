@@ -29,11 +29,7 @@
 
 #include <stdio.h>
 #include <ctype.h>
-#include "mail.h"
-#include "osdep.h"
-#include "misc.h"
-#include "rfc822.h"
-#include "utf8.h"
+#include "c-client.h"
 
 /* Convert charset labelled stringlist to UTF-8 in place
  * Accepts: string list

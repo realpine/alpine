@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailindx.c 252 2006-11-21 08:53:25Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: mailindx.c 301 2006-12-05 17:17:56Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -201,14 +201,37 @@ init_index_format(char *format, INDEX_COL_S **answer)
 	      case iSizeComma:
 		(*answer)[column].req_width = 8;
 		break;
-	      case iDescripSize:
 	      case iSDate:
 	      case iSDateTime:
+	        {
+		    /*
+		     * Format a date to see how long it is.
+		     * Make it as least as long as "Yesterday".
+		     * We should really use the width of the longest
+		     * of the translated yesterdays and friends but...
+		     */
+		    struct tm tm;
+		    char ss[100];
+
+		    memset(&tm, 0, sizeof(tm));
+		    tm.tm_year = 106;
+		    tm.tm_mon = 11;
+		    tm.tm_mday = 31;
+		    strftime(ss, sizeof(ss), "%x", &tm);
+		    (*answer)[column].req_width = MIN(MAX(9, utf8_width(ss)), 20);
+		}
+		break;
+	      case iDescripSize:
+	      case iSDateIsoS:
+	      case iSDateS1: case iSDateS2: case iSDateS3: case iSDateS4:
+	      case iSDateTimeIsoS:
+	      case iSDateTimeS1: case iSDateTimeS2: case iSDateTimeS3: case iSDateTimeS4:
 	      case iMonLong:
 	      case iDayOfWeek:
 		(*answer)[column].req_width = 9;
 		break;
 	      case iDateIso:
+	      case iSDateIso: case iSDateTimeIso:
 		(*answer)[column].req_width = 10;
 		break;
 	      case iLDate:
@@ -286,6 +309,18 @@ static INDEX_PARSE_T itokens[] = {
     {"SMARTDATE",	iSDate,		FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"SMARTTIME",	iSTime,		FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"SMARTDATETIME",	iSDateTime,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
+    {"SMARTDATEISO",	iSDateIso,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
+    {"SMARTDATESHORTISO",iSDateIsoS,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
+    {"SMARTDATES1",	iSDateS1,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
+    {"SMARTDATES2",	iSDateS2,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
+    {"SMARTDATES3",	iSDateS3,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
+    {"SMARTDATES4",	iSDateS4,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
+    {"SMARTDATETIMEISO",iSDateTimeIso,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
+    {"SMARTDATETIMESHORTISO",iSDateTimeIsoS,FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
+    {"SMARTDATETIMES1",	iSDateTimeS1,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
+    {"SMARTDATETIMES2",	iSDateTimeS2,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
+    {"SMARTDATETIMES3",	iSDateTimeS3,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
+    {"SMARTDATETIMES4",	iSDateTimeS4,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"TIME24",		iTime24,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"TIME12",		iTime12,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"TIMEZONE",	iTimezone,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
@@ -493,6 +528,10 @@ static IndexColType fixed_ctypes[] = {
     iMessNo, iStatus, iFStatus, iIStatus, iDate, iSDate, iSDateTime,
     iSTime, iLDate,
     iS1Date, iS2Date, iS3Date, iS4Date, iDateIso, iDateIsoS,
+    iSDateIso, iSDateIsoS,
+    iSDateS1, iSDateS2, iSDateS3, iSDateS4,
+    iSDateTimeIso, iSDateTimeIsoS,
+    iSDateTimeS1, iSDateTimeS2, iSDateTimeS3, iSDateTimeS4,
     iSize, iSizeComma, iSizeNarrow, iKSize, iDescripSize,
     iAtt, iTime24, iTime12, iTimezone, iMonAbb, iYear, iYear2Digit,
     iDay2Digit, iMon2Digit, iDayOfWeekAbb, iScore
@@ -686,8 +725,21 @@ setup_index_header_widths(MAILSTREAM *stream)
 
 		  case iSDate:
 		  case iSDateTime:
+		    cdesc->actual_length = cdesc->req_width;
+		    cdesc->adjustment = Left;
+		    break;
+
+		  case iSDateIsoS:
+		  case iSDateS1: case iSDateS2: case iSDateS3: case iSDateS4:
+		  case iSDateTimeIsoS:
+		  case iSDateTimeS1: case iSDateTimeS2: case iSDateTimeS3: case iSDateTimeS4:
+		  case iSDateIso: case iSDateTimeIso:
 		    set_format_includes_smartdate(stream);
-		    cdesc->actual_length = 9;
+		    if(cdesc->ctype == iSDateIso || cdesc->ctype == iSDateTimeIso)
+		      cdesc->actual_length = 10;
+		    else
+		      cdesc->actual_length = 9;
+
 		    cdesc->adjustment = Left;
 		    break;
 
@@ -1832,32 +1884,18 @@ format_index_index_line(INDEXDATA_S *idata)
 		snprintf(str, sizeof(str), "%ld", score != SCORE_UNDEF ? score : 0L);
 		break;
 
-	      case iDate:
-	      case iMonAbb:
-	      case iLDate:
-	      case iSDate:
-	      case iSTime:
-	      case iSDateTime:
-	      case iS1Date:
-	      case iS2Date:
-	      case iS3Date:
-	      case iS4Date:
-	      case iDateIso:
-	      case iDateIsoS:
-	      case iTime24:
-	      case iTime12:
-	      case iTimezone:
-	      case iYear:
-	      case iYear2Digit:
-	      case iRDate:
-	      case iDay:
-	      case iDay2Digit:
-	      case iMon2Digit:
-	      case iDayOrdinal:
-	      case iMon:
-	      case iMonLong:
-	      case iDayOfWeekAbb:
-	      case iDayOfWeek:
+	      case iDate: case iMonAbb: case iLDate:
+	      case iSDate: case iSTime: case iSDateTime:
+	      case iS1Date: case iS2Date: case iS3Date: case iS4Date:
+	      case iDateIso: case iDateIsoS: case iTime24: case iTime12:
+	      case iSDateIsoS: case iSDateIso:
+	      case iSDateS1: case iSDateS2: case iSDateS3: case iSDateS4:
+	      case iSDateTimeS1: case iSDateTimeS2: case iSDateTimeS3: case iSDateTimeS4:
+	      case iSDateTimeIsoS: case iSDateTimeIso:
+	      case iTimezone: case iYear: case iYear2Digit:
+	      case iRDate: case iDay: case iDay2Digit: case iMon2Digit:
+	      case iDayOrdinal: case iMon: case iMonLong:
+	      case iDayOfWeekAbb: case iDayOfWeek:
 		date_str(fetch_date(idata), cdesc->ctype, 0, str, sizeof(str));
 		break;
 
@@ -3334,6 +3372,7 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
 		timezone[6];	/* timezone, like -0800 or +... */
     int		hr12;
     int         curtype, lastmonthtype, lastyeartype;
+    int         sdatetimetype;
     struct	date d;
 #define TODAYSTR N_("Today")
 
@@ -3360,6 +3399,13 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
 	             type == iLstMonYear2Digit);
     lastyeartype =  (type == iLstYear ||
 	             type == iLstYear2Digit);
+    sdatetimetype = (type == iSDateTime ||
+	             type == iSDateTimeIso ||
+	             type == iSDateTimeIsoS ||
+	             type == iSDateTimeS1 ||
+	             type == iSDateTimeS2 ||
+	             type == iSDateTimeS3 ||
+	             type == iSDateTimeS4);
     if(str_len > 0)
       str[0] = '\0';
 
@@ -3427,7 +3473,7 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
 
     if(d.month > 0 && d.month < 10){
 	monzero[0] = '0';
-	strncpy(monzero+1, int2string(d.month), sizeof(monzero));
+	strncpy(monzero+1, int2string(d.month), sizeof(monzero)-1);
     }
     else if(d.month >= 10 && d.month <= 12)
       strncpy(monzero, int2string(d.month), sizeof(monzero));
@@ -3657,8 +3703,10 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
 		  (hour12[0] && minzero[0] && d.hour >= 12) ? "pm" :
 		    "  ");
 	break;
-      case iSDate:
-      case iSDateTime:
+      case iSDate: case iSDateIso: case iSDateIsoS:
+      case iSDateS1: case iSDateS2: case iSDateS3: case iSDateS4: 
+      case iSDateTime: case iSDateTimeIso: case iSDateTimeIsoS:
+      case iSDateTimeS1: case iSDateTimeS2: case iSDateTimeS3: case iSDateTimeS4: 
 	{ struct date now, last_day;
 	  char        dbuf[200];
 	  int         msg_day_of_year, now_day_of_year, today;
@@ -3719,14 +3767,68 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
 		    snprintf(str, str_len, "%3s %2s", monabb, day);
 	      }
 	      else{
-		  if(v)
-		    snprintf(str, str_len, "%s/%s/%s%s", mon, day, yearzero,
-			     diff < 0 ? "!" : "");
-		  else
-		    snprintf(str, str_len, "%s%s/%s/%s%s",
-			     (mon[0] && mon[1]) ? "" : " ",
-			     mon, dayzero, yearzero,
-			     diff < 0 ? "!" : "");
+		  switch(type){
+		    case iSDate: case iSDateTime:
+		      {
+			struct tm tm;
+
+			memset(&tm, 0, sizeof(tm));
+			tm.tm_year = d.year-1900;
+			tm.tm_mon = d.month-1;
+			tm.tm_mday = d.day;
+			strftime(str, str_len, "%x", &tm);
+		      }
+
+		      break;
+		    case iSDateS1: case iSDateTimeS1:
+		      if(v)
+			snprintf(str, str_len, "%s/%s/%s%s", mon, day, yearzero,
+				 diff < 0 ? "!" : "");
+		      else
+			snprintf(str, str_len, "%s%s/%s/%s%s",
+				 (mon[0] && mon[1]) ? "" : " ",
+				 mon, dayzero, yearzero,
+				 diff < 0 ? "!" : "");
+		      break;
+		    case iSDateS2: case iSDateTimeS2:
+		      if(v)
+			snprintf(str, str_len, "%s/%s/%s%s", day, mon, yearzero,
+				 diff < 0 ? "!" : "");
+		      else
+			snprintf(str, str_len, "%s%s/%s/%s%s",
+				 (day[0] && day[1]) ? "" : " ",
+				 day, monzero, yearzero,
+				 diff < 0 ? "!" : "");
+		      break;
+		    case iSDateS3: case iSDateTimeS3:
+		      if(v)
+			snprintf(str, str_len, "%s.%s.%s%s", day, mon, yearzero,
+				 diff < 0 ? "!" : "");
+		      else
+			snprintf(str, str_len, "%s%s.%s.%s%s",
+				 (day[0] && day[1]) ? "" : " ",
+				 day, monzero, yearzero,
+				 diff < 0 ? "!" : "");
+		      break;
+		    case iSDateS4: case iSDateTimeS4:
+		      if(v)
+			snprintf(str, str_len, "%s.%s.%s%s",
+				 yearzero, monzero, dayzero,
+				 diff < 0 ? "!" : "");
+		      else
+			snprintf(str, str_len, "%s.%s.%s%s",
+				 yearzero, monzero, dayzero,
+				 diff < 0 ? "!" : "");
+		      break;
+		    case iSDateIsoS: case iSDateTimeIsoS:
+		      snprintf(str, str_len, "%2s-%2s-%2s",
+			    yearzero, monzero, dayzero);
+		      break;
+		    case iSDateIso: case iSDateTimeIso:
+		      snprintf(str, str_len, "%4s-%2s-%2s",
+			    year4, monzero, dayzero);
+		      break;
+		  }
 	      }
 
 	  }
@@ -3745,7 +3847,7 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
     str[str_len-1] = '\0';
     
     if(type == iSTime ||
-       (type == iSDateTime && !strcmp(str, _(TODAYSTR)))){
+       (sdatetimetype && !strcmp(str, _(TODAYSTR)))){
 	struct date now, last_day;
 	char        dbuf[200], *Ddd, *ampm;
 	int         daydiff;

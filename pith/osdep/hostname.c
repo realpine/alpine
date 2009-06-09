@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: hostname.c 205 2006-10-26 23:04:44Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: hostname.c 312 2006-12-11 18:06:32Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -68,7 +68,7 @@ hostname(char *hostname, int size)
 	FILE    *fp;
 	char    *p;
 
-	if ((fp = our_fopen("/etc/systemid", "r")) != 0) {
+	if ((fp = our_fopen("/etc/systemid", "rb")) != 0) {
 	  fgets(buf, sizeof(buf) - 1, fp);
 	  fclose(fp);
 	  if ((p = strindex(buf, '\n')) != NULL)

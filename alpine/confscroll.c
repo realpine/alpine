@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: confscroll.c 245 2006-11-18 02:46:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: confscroll.c 320 2006-12-12 22:40:05Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1480,6 +1480,10 @@ text_toolit(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags, int look_
 	    lowrange = -10;
 	    hirange  = 30;
 	}
+	else if((*cl)->var == &ps->vars[V_ACTIVE_MSG_INTERVAL]){
+	    lowrange = 0;
+	    hirange  = 20;
+	}
 	else if((*cl)->var == &ps->vars[V_MAILCHECK] ||
 	        (*cl)->var == &ps->vars[V_INCCHECKINTERVAL] ||
 		(*cl)->var == &ps->vars[V_MAILCHECKNONCURR]){
@@ -2728,6 +2732,9 @@ radiobutton_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 			break;
 		      case COL_ANSI16:
 			pico_set_color_options(COLOR_ANSI16_OPT);
+			break;
+		      case COL_ANSI256:
+			pico_set_color_options(COLOR_ANSI256_OPT);
 			break;
 		    }
 
@@ -4370,18 +4377,13 @@ toggle_feature_bit(struct pine *ps, int index, struct variable *var, CONF_S *cl,
 	}
     }
 
-    /* keymenu is a unix pine concept so handle it here */
-    switch(f->id){
-      case F_USE_FK:
-      case F_BLANK_KEYMENU:
-	on_before = F_ON(f->id, ps);
-	break;
-    }
+    on_before = F_ON(f->id, ps);
 
     toggle_feature(ps, var, f, just_flip_value, ew);
 
     /*
-     * Handle any pine-specific features that need attention here...
+     * Handle any alpine-specific features that need attention here. Features
+     * that aren't alpine-specific should be handled in toggle_feature instead.
      */
     if(on_before != F_ON(f->id, ps))
       switch(f->id){
@@ -5138,6 +5140,17 @@ fix_side_effects(struct pine *ps, struct variable *var, int revert)
 	      q_status_message(SM_ORDER, 3, 5, tmp_20k_buf);
 	}
     }
+    else if(var == &ps->vars[V_ACTIVE_MSG_INTERVAL]){
+	if(SVAR_ACTIVEINTERVAL(ps, ps->active_status_interval, tmp_20k_buf, SIZEOF_20KBUF)){
+	    if(!revert)
+	      q_status_message(SM_ORDER, 3, 5, tmp_20k_buf);
+	}
+	else{
+	    busy_cue(_("Active Example"), NULL, 0);
+	    sleep(3);
+	    cancel_busy_cue(-1);
+	}
+    }
 #if !defined(DOS) && !defined(OS2) && !defined(LEAVEOUTFIFO)
     else if(var == &ps->vars[V_FIFOPATH]){
 	init_newmailfifo(ps->VAR_FIFOPATH);
@@ -5323,6 +5336,9 @@ fix_side_effects(struct pine *ps, struct variable *var, int revert)
 		break;
 	      case COL_ANSI16:
 		pico_set_color_options(COLOR_ANSI16_OPT);
+		break;
+	      case COL_ANSI256:
+		pico_set_color_options(COLOR_ANSI256_OPT);
 		break;
 	    }
 

@@ -23,19 +23,14 @@
  *		Internet: MRC@CAC.Washington.EDU
  *
  * Date:	22 November 1989
- * Last Edited:	27 November 2006
+ * Last Edited:	6 December 2006
  */
 
 
 #include <ctype.h>
 #include <stdio.h>
-#include "mail.h"
-#include "osdep.h"
 #include <time.h>
-#include "misc.h"
-#include "rfc822.h"
-#include "utf8.h"
-#include "smtp.h"
+#include "c-client.h"
 
 char *UW_copyright = "Copyright 1988-2006 University of Washington\n\nLicensed under the Apache License, Version 2.0 (the \"License\");\nyou may not use this file except in compliance with the License.\nYou may obtain a copy of the License at\n\n     http://www.apache.org/licenses/LICENSE-2.0\n";
 

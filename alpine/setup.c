@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: setup.c 173 2006-10-06 18:40:45Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: setup.c 295 2006-12-02 01:35:46Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -320,6 +320,7 @@ option_screen(struct pine *ps, int edit_exceptions)
 	       || vtmp == &ps->vars[V_DEADLETS]
 	       || vtmp == &ps->vars[V_NMW_WIDTH]
 	       || vtmp == &ps->vars[V_STATUS_MSG_DELAY]
+	       || vtmp == &ps->vars[V_ACTIVE_MSG_INTERVAL]
 	       || vtmp == &ps->vars[V_MAILCHECK]
 	       || vtmp == &ps->vars[V_MAILCHECKNONCURR]
 	       || vtmp == &ps->vars[V_MAILDROPCHECK]

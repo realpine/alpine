@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: send.c 248 2006-11-20 22:54:38Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: send.c 283 2006-11-30 15:57:11Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -5979,7 +5979,6 @@ valid_subject(char *given, char **expanded, char **error, BUILDER_ARG *fcc, int 
 }
 
 
-//xxx
 /*
  * This is the build_address used by the composer to check for an address
  * in the addrbook.
@@ -6707,7 +6706,6 @@ build_addr_lcc(char *lcc, char **full_lcc, char **error, BUILDER_ARG *barg, int 
     flush_status_messages(0);
     return(ret_val);
 }
-//xxx
 
 
 /*----------------------------------------------------------------------

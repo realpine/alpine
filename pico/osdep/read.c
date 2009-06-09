@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: read.c 219 2006-11-06 19:55:41Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: read.c 308 2006-12-08 20:14:42Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -36,6 +36,9 @@ static time_t _time_of_last_input;
 time_t
 time_of_last_input(void)
 {
+    if(_time_of_last_input == 0)
+      _time_of_last_input = time((time_t *) 0);
+
     return(_time_of_last_input);
 }
 

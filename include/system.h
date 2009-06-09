@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------
-  $Id: system.h 265 2006-11-23 00:51:10Z hubert@u.washington.edu $
+  $Id: system.h 306 2006-12-07 23:47:48Z hubert@u.washington.edu $
   ----------------------------------------------------------------------*/
 
 /* ========================================================================
@@ -32,6 +32,10 @@
 
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
+#endif
+
+#ifdef	HAVE_CTYPE_H
+# include <ctype.h>
 #endif
 
 #ifdef STDC_HEADERS
@@ -354,5 +358,11 @@ typedef int gid_t;
 #define utimbuf _utimbuf
 
 #endif /* _WINDOWS */
+
+#ifdef OSX_TARGET
+
+#define PASSFILE "dummy"
+
+#endif /* OSX_TARGET */
 
 #endif /* _SYSTEM_INCLUDED */

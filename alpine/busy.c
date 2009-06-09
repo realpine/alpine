@@ -48,24 +48,42 @@ static int       final_message_pri;
 
 static percent_done_t percent_done_ptr;
 
-static char *display_chars[] = {
-	"<\\> ",
-	"<|> ",
-	"</> ",
-	"<-> ",
-	"    ",
-	"<-> "
+#define	MAX_SPINNER_WIDTH	32
+#define	MAX_SPINNER_ELEMENTS	24
+
+static int spinner = 0;
+static struct _spinner {
+	int    width, 
+	       elements;
+	char *bars[MAX_SPINNER_ELEMENTS];
+} spinners[] = {
+    {4, 8, {"|   ", " /  ", " _  ", "  \\ ", "  | ", "  \\ ", " _  ", "/   "}},
+    {4, 8, {"_   ", "\\   ", " |  ", "  / ", "  _ ", "  \\ ", " |  ", "/   "}},
+    {4, 8, {"_   ", "\\   ", " |  ", "  / ", "  _ ", "  / ", " |  ", "\\   "}},
+    {4, 4, {" .  ", " o  ", " O  ", " o  "}},
+    {4, 4, {"... ", " .. ", ". . ", "..  "}},
+    {4, 4, {".oOo", "oOo.", "Oo.o", "o.oO"}},
+    {9, 10,{".       .", " .     . ", "  .   .  ", "   . .   ",
+            "    .    ", "    +    ", "    *    ", "    X    ",
+	    "    #    ", "         "}},
+    {4, 4, {". O ", "o o ", "O . ", "o o "}},
+    {4, 24,{"|   ", "/   ", "_   ", "\\   ", " |  ", " /  ", " _  ", " \\  ",
+            "  | ", "  / ", "  _ ", "  \\ ", "   |", "  \\ ", "  _ ", "  / ",
+	    "  | ", " \\  ", " _  ", " /  ", " |  ", "\\   ", "_   ", "/   "}},
+    {4, 8, {"*   ", "-*  ", "--* ", " --*", "  --", "   -", "    ", "    "}},
+    {4, 2, {"\\/\\/", "/\\/\\"}},
+    {4, 4, {"\\|/|", "|\\|/", "/|\\|", "|/|\\"}},
+    {4, 4, {"<|> ", "</> ", "<-> ", "<\\> "}}
 };
 
-#define DISPLAY_CHARS_ROWS 6
-#define DISPLAY_CHARS_COLS 4
 
 
 /*
  * various pauses in 100th's of second
  */
 #define	BUSY_PERIOD_SPIN	5	/* busy spinner */
-#define	BUSY_PERIOD_PERCENT	10	/* percent done update */
+#define	BUSY_PERIOD_PERCENT	25	/* percent done update */
+#define	BUSY_MSG_DONE		0	/* no more updates */
 #define	BUSY_MSG_RETRY		25	/* message line conflict */
 #define	BUSY_DELAY_PERCENT	33	/* pause before showing % */
 #define	BUSY_DELAY_SPINNER	100	/* second pause before spinner */
@@ -147,7 +165,7 @@ busy_cue(char *msg, percent_done_t pc_f, int delay)
 	else{
 	    dotcount++;
 	    snprintf(progress, sizeof(progress), "%s%*s", busy_message,
-		     DISPLAY_CHARS_COLS + 1, "");
+		     spinners[spinner].width + 1, "");
 	    progress[sizeof(progress)-1] = '\0';
 	}
 
@@ -180,13 +198,13 @@ busy_cue(char *msg, percent_done_t pc_f, int delay)
 	fflush(stdout);
     }
 
-    if(F_OFF(F_DISABLE_ACTIVE_MSGS, ps_global)){
-	*ap	     = new_afterstruct();
-	(*ap)->delay = (pc_f) ? BUSY_DELAY_PERCENT : BUSY_DELAY_SPINNER;
-	(*ap)->f     = do_busy_cue;
-	(*ap)->cf    = done_busy_cue;
-	ap	     = &(*ap)->next;
-    }
+    spinner = (random() % (sizeof(spinners)/sizeof(struct _spinner)));
+
+    *ap		 = new_afterstruct();
+    (*ap)->delay = (pc_f) ? BUSY_DELAY_PERCENT : BUSY_DELAY_SPINNER;
+    (*ap)->f	 = do_busy_cue;
+    (*ap)->cf	 = done_busy_cue;
+    ap		 = &(*ap)->next;
 
     start_after(a);		/* launch cue handler */
 
@@ -249,7 +267,7 @@ resume_busy_cue(unsigned int pause)
 int
 do_busy_cue(void *data)
 {
-    int space_left, slots_used, period = BUSY_PERIOD_SPIN;
+    int space_left, slots_used, period;
     char dbuf[MAX_SCREEN_COLS+1];
 
     /* Don't wipe out any displayed status message prematurely */
@@ -297,16 +315,16 @@ do_busy_cue(void *data)
 	period = BUSY_PERIOD_PERCENT;
     }
     else{
-	char b[DISPLAY_CHARS_COLS + 2];
-	int md = DISPLAY_CHARS_ROWS - 2;
+	char b[MAX_SPINNER_WIDTH + 2];
 	int ind;
 
-	ind = (dotcount == 0) ? md :
-	       (dotcount == 1) ? md + 1 : ((dotcount-2) % md);
+	ind = (dotcount % spinners[spinner].elements);
 
-	if(space_left >= DISPLAY_CHARS_COLS + 1){
+	if(space_left >= spinners[spinner].width + 1){
 	    b[0] = SPACE;
-	    strncpy(b+1, display_chars[ind], sizeof(b)-1);
+	    strncpy(b+1,
+		    (ps_global->active_status_interval > 0)
+		      ? spinners[spinner].bars[ind] : "... ", sizeof(b)-1);
 	    b[sizeof(b)-1] = '\0';
 	}
 	else if(space_left >= 2 && space_left < sizeof(b)){
@@ -320,6 +338,10 @@ do_busy_cue(void *data)
 
 	snprintf(dbuf, sizeof(dbuf), "%s%s", busy_message, b);
 	dbuf[sizeof(dbuf)-1] = '\0';
+
+	/* convert interval to delay in 100ths of second */
+	period = (ps_global->active_status_interval > 0)
+		  ? (100 / MIN(10, ps_global->active_status_interval)) : BUSY_MSG_DONE;
     }
 
     status_message_write(dbuf, 1);
@@ -356,7 +378,7 @@ done_busy_cue(void *data)
 	}
 	else{
 	    snprintf(progress, sizeof(progress), "%s%*sDONE", busy_message,
-		     DISPLAY_CHARS_COLS - 4 + 1, "");
+		     spinners[spinner].width - 4 + 1, "");
 	    progress[sizeof(progress)-1] = '\0';
 	    q_status_message(SM_ORDER,
 			     final_message_pri>=2 ? MAX(final_message_pri,3) : 0,

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: conf.c 258 2006-11-22 19:42:05Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: conf.c 321 2006-12-13 00:03:25Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -303,6 +303,8 @@ CONF_TXT_T cf_text_margin[] =		"Number of lines from top and bottom of screen wh
 
 CONF_TXT_T cf_text_stat_msg_delay[] =	"The number of seconds to sleep after writing a status message";
 
+CONF_TXT_T cf_text_active_msg_intvl[] =	"Number of times per-second to update active status messages";
+
 CONF_TXT_T cf_text_mailcheck[] =	"The approximate number of seconds between checks for new mail";
 
 CONF_TXT_T cf_text_mailchecknoncurr[] =	"The approximate number of seconds between checks for new mail in folders\n# other than the current folder and inbox.\n# Default is same as mail-check-interval";
@@ -564,6 +566,8 @@ static struct variable variables[] = {
 				cf_text_margin},
 {"status-message-delay",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
 				cf_text_stat_msg_delay},
+{"active-msg-updates-per-second",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+				cf_text_active_msg_intvl},
 {"mail-check-interval",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
 				cf_text_mailcheck},
 {"mail-check-interval-noncurrent",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
@@ -1512,6 +1516,7 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
     GLO_REPLY_INTRO		= cpystr(DEFAULT_REPLY_INTRO);
     GLO_EMPTY_HDR_MSG		= cpystr("undisclosed-recipients");
     GLO_STATUS_MSG_DELAY	= cpystr("0");
+    GLO_ACTIVE_MSG_INTERVAL	= cpystr("12");
     GLO_USERINPUTTIMEO		= cpystr("0");
     GLO_INCCHECKTIMEO		= cpystr("5");
     GLO_INCCHECKINTERVAL	= cpystr("180");
@@ -1964,6 +1969,13 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
       init_error(ps, SM_ORDER | SM_DING, 3, 5, tmp_20k_buf);
     else
       ps->status_msg_delay = i;
+
+    set_current_val(&vars[V_ACTIVE_MSG_INTERVAL], TRUE, TRUE);
+    ps->active_status_interval = i = 8;
+    if(SVAR_ACTIVEINTERVAL(ps, i, tmp_20k_buf, SIZEOF_20KBUF))
+      init_error(ps, SM_ORDER | SM_DING, 3, 5, tmp_20k_buf);
+    else
+      ps->active_status_interval = i;
 
     set_current_val(&vars[V_REMOTE_ABOOK_HISTORY], TRUE, TRUE);
     ps->remote_abook_history = i = atoi(DF_REMOTE_ABOOK_HISTORY);
@@ -2981,8 +2993,6 @@ feature_list(int index)
 /* Hidden Features */
 	{"old-growth",
 	 F_OLD_GROWTH, NO_HELP, PREF_NONE},
-	{"disable-active-status-messages",
-	 F_DISABLE_ACTIVE_MSGS, h_config_disable_active_msgs, PREF_HIDDEN},
 	{"allow-changing-from",
 	 F_ALLOW_CHANGING_FROM, h_config_allow_chg_from, PREF_HIDDEN},
 	{"disable-config-cmd",
@@ -3755,10 +3765,11 @@ NAMEVAL_S *
 col_style(int index)
 {
     static NAMEVAL_S col_styles[] = {
-	{"no-color",		NULL, COL_NONE}, 
-	{"use-termdef",		NULL, COL_TERMDEF},
-	{"force-ansi-8color",	NULL, COL_ANSI8},
-	{"force-ansi-16color",	NULL, COL_ANSI16}
+	{"no-color",			NULL, COL_NONE}, 
+	{"use-termdef",			NULL, COL_TERMDEF},
+	{"force-ansi-8color",		NULL, COL_ANSI8},
+	{"force-ansi-16color",		NULL, COL_ANSI16},
+	{"force-xterm-256color",	NULL, COL_ANSI256}
     };
 
     return((index >= 0 && index < (sizeof(col_styles)/sizeof(col_styles[0])))
@@ -4755,20 +4766,14 @@ read_pinerc(PINERC_S *prc, struct variable *vars, ParsePinerc which_vars)
 	  file += 3;
     }
     else{
-	if((file = read_remote_pinerc(prc, which_vars)) == NULL){
-	    snprintf(ps_global->last_error, sizeof(ps_global->last_error), "%s",
-		    ps_global->c_client_error[0]
-		      ? ps_global->c_client_error
-		      : _("Unable to read remote configuration"));
-	    return;
-	}
-	else
+	if((file = read_remote_pinerc(prc, which_vars)) != NULL)
 	  ps_global->c_client_error[0] = '\0';
 
 	free_file = file;
     }
 
     if(file == NULL || *file == '\0'){
+#ifdef	DEBUG
 	if(file == NULL){
           dprint((2, "Open failed: %s\n", error_description(errno)));
 	}
@@ -4780,6 +4785,7 @@ read_pinerc(PINERC_S *prc, struct variable *vars, ParsePinerc which_vars)
 	      dprint((1, "Read_pinerc: new remote pinerc\n"));
 	    }
 	}
+#endif /* DEBUG */
 
 	if(which_vars == ParsePers){
 	    /* problems getting remote config */
@@ -7358,6 +7364,8 @@ config_help(int var, int feature)
 	return(h_config_empty_hdr_msg);
       case V_STATUS_MSG_DELAY :
 	return(h_config_status_msg_delay);
+      case V_ACTIVE_MSG_INTERVAL :
+	return(h_config_active_msg_interval);
       case V_MAILCHECK :
 	return(h_config_mailcheck);
       case V_MAILCHECKNONCURR :

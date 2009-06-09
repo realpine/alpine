@@ -23,7 +23,7 @@
  *		Internet: MRC@CAC.Washington.EDU
  *
  * Date:	11 April 1989
- * Last Edited: 29 November 2006
+ * Last Edited: 3 December 2006
  */
 
 #include "ip_nt.c"
@@ -205,14 +205,13 @@ TCPSTREAM *tcp_open (char *host,char *service,unsigned long port)
 int tcp_socket_open (int family,void *adr,size_t adrlen,unsigned short port,
 		     char *tmp,char *hst)
 {
-  int sock;
-  char *s;
+  int sock,err;
+  char *s,errmsg[100];
   size_t len;
   DWORD eo;
   WSAEVENT event;
   WSANETWORKEVENTS events;
   unsigned long cmd = 0;
-  int err = 0;
   struct protoent *pt = getprotobyname ("tcp");
   struct sockaddr *sadr = ip_sockaddr (family,adr,adrlen,port,&len);
   sprintf (tmp,"Trying IP address [%s]",ip_sockaddrtostring (sadr));
@@ -226,22 +225,32 @@ int tcp_socket_open (int family,void *adr,size_t adrlen,unsigned short port,
 				/* set socket nonblocking */
     if (ttmo_open) WSAEventSelect (sock,event = WSACreateEvent (),FD_CONNECT);
     else event = 0;		/* no event */
-				/* open connection under timer if blocking */
-    if (connect (sock,sadr,len) == SOCKET_ERROR) {
-				/* need to block? */
-      if (event && ((err = WSAGetLastError ()) == WSAEWOULDBLOCK))
-	switch (eo = WSAWaitForMultipleEvents (1,&event,T,ttmo_open*1000,NIL)){
-	case WSA_WAIT_EVENT_0:	/* got an event? */
-	  err = (WSAEnumNetworkEvents (sock,event,&events) == SOCKET_ERROR) ?
-	    WSAGetLastError () : events.iErrorCode[FD_CONNECT_BIT];
-	  break;
-	default:		/* all other conditions */
-	  err = eo;		/* error from WSAWaitForMultipleEvents() */
-	  break;
-	}
-    }
+				/* open connection */
+    err = (connect (sock,sadr,len) == SOCKET_ERROR) ? WSAGetLastError () : NIL;
+				/* if timer in effect, wait for event */
+    if (event) while (err == WSAEWOULDBLOCK)
+      switch (eo = WSAWaitForMultipleEvents (1,&event,T,ttmo_open*1000,NIL)) {
+      case WSA_WAIT_EVENT_0:	/* got an event? */
+	err = (WSAEnumNetworkEvents (sock,event,&events) == SOCKET_ERROR) ?
+	  WSAGetLastError () : events.iErrorCode[FD_CONNECT_BIT];
+	break;
+      case WSA_WAIT_IO_COMPLETION:
+	break;			/* fAlertable is NIL so shouldn't happen */
+      default:			/* all other conditions */
+	err = eo;		/* error from WSAWaitForMultipleEvents() */
+	break;
+      }
 
-    switch (err) {		/* see what condition we're in */
+    switch (err) {		/* analyze result from connect and wait */
+    case 0:			/* got a connection */
+      s = NIL;
+      if (event) {		/* unset blocking mode */
+	WSAEventSelect (sock,event,NIL);
+	if (ioctlsocket (sock,FIONBIO,&cmd) == SOCKET_ERROR)
+	  sprintf (s = errmsg,"Can't set blocking mode (%d)",
+		   WSAGetLastError ());
+      }
+      break;
     case WSAECONNREFUSED:
       s = "Refused";
       break;
@@ -254,23 +263,14 @@ int tcp_socket_open (int family,void *adr,size_t adrlen,unsigned short port,
     case WSAEHOSTUNREACH:
       s = "Host unreachable";
       break;
-    case NIL:			/* good condition, set back to blocking mode */
-      if (event) {
-	WSAEventSelect (sock,event,NIL);
-	if (ioctlsocket (sock,FIONBIO,&cmd) == SOCKET_ERROR) {
-	  err = WSAGetLastError();/* oops */
-	  s = "Can't set blocking mode";
-	}
-	break;
-      }
     default:			/* horrible error 69 */
-      s = "Unknown error";
+      sprintf (s = errmsg,"Unknown error (%d)",err);
       break;
     }
 				/* flush event */
     if (event) WSACloseEvent (event);
-    if (err) {			/* got an error? */
-      sprintf (tmp,"Can't connect to %.80s,%ld: %s (%d)",hst,port,s,err);
+    if (s) {			/* got an error? */
+      sprintf (tmp,"Can't connect to %.80s,%ld: %.80s",hst,port,s);
       tcp_abort (&sock);	/* flush socket */
       sock = INVALID_SOCKET;
     }

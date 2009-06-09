@@ -33,7 +33,7 @@ goto fini
 echo PC-Pine for Windows/Winsock (Win32) build sequence
 set cclntmake=makefile.nt
 set alpinemake=makefile.wnt
-set extracflagsnq=/Zi -Od -I../../ldap/inckit -I../ldap/inckit -D_USE_32BIT_TIME_T -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE -DSPCL_REMARKS=\"\\\" with SSL\\\"\"
+set extracflagsnq=/Zi -Od -I../../ldap/inckit -I../ldap/inckit -D_USE_32BIT_TIME_T -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE -DSPCL_REMARKS=\"\\\"\\\"\"
 set extralibes=
 set extrarcflags="/D_PCP_WNT"
 set extramakecommand=
@@ -43,7 +43,7 @@ goto build
 echo Krb5ized PC-Pine for Windows/Winsock (Win32) build sequence
 set cclntmake=makefile.ntk
 set alpinemake=makefile.wnt
-set extracflagsnq=/I..\krb5\include /Zi -Od -I../../ldap/inckit -I../ldap/inckit -D_USE_32BIT_TIME_T -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE -DSPCL_REMARKS=\"\\\" with krb5 and SSL\\\"\"
+set extracflagsnq=/I..\krb5\include /Zi -Od -I../../ldap/inckit -I../ldap/inckit -D_USE_32BIT_TIME_T -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE -DSPCL_REMARKS=\"\\\" with krb5\\\"\"
 set extralibes="..\krb5\lib\comerr32.lib ..\krb5\lib\gssapi32.lib ..\krb5\lib\krb5_32.lib"
 set extrarcflags="/D_PCP_WNK"
 set extramakecommand=
@@ -53,7 +53,7 @@ goto build
 echo Krb5ized PC-Pine for Windows/Winsock (Win32) build sequence
 set cclntmake=makefile.w2k
 set alpinemake=makefile.wnt
-set extracflagsnq=/Zi -Od -I../../ldap/inckit -I../ldap/inckit -D_USE_32BIT_TIME_T -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE -DSPCFC_WINVER=\"\\\" 2000\\\"\" -DSPCL_REMARKS=\"\\\" with krb5 and SSL\\\"\"
+set extracflagsnq=/Zi -Od -I../../ldap/inckit -I../ldap/inckit -D_USE_32BIT_TIME_T -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE -DSPCFC_WINVER=\"\\\" 2000\\\"\" -DSPCL_REMARKS=\"\\\" with krb5\\\"\"
 set extralibes="secur32.lib"
 set extrarcflags="/D_PCP_W2K"
 set extramakecommand=

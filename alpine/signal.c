@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: signal.c 223 2006-11-07 01:14:55Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: signal.c 310 2006-12-09 01:06:08Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -261,7 +261,7 @@ hup_signal(void)
 void
 user_input_timeout_exit(int to_hours)
 {
-    char msg[40];
+    char msg[80];
 
     dprint((1,
 	   "\n\n** Exiting: user input timeout (%d hours) **\n\n\n\n",
@@ -571,6 +571,7 @@ pipe_callback(PIPE_S *syspipe, int flags, void *data)
 	 * So we need to re-set it to child_signal and then set it back
 	 * when we're done.
 	 */
+	child_signalled = child_jump = 0;
 	syspipe->chld   = signal(SIGCHLD, child_signal);
 #endif
 #endif /* UNIX */
@@ -608,8 +609,6 @@ pipe_callback(PIPE_S *syspipe, int flags, void *data)
 	 */
 	RETSIGTYPE (*alarm_sig)();
 	int	old_cue = F_ON(F_SHOW_DELAY_CUE, ps_global);
-
-	child_signalled = child_jump = 0;
 
 	/*
 	 * remember the current SIGALRM handler, and make sure it's

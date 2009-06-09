@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mimetype.c 205 2006-10-26 23:04:44Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mimetype.c 312 2006-12-11 18:06:32Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -196,7 +196,7 @@ mt_browse_types_file(MT_OPERATORPROC mt_operator, MT_MAP_T *mt_map, char *filena
     int   rv = 0;
     FILE *file;
 
-    if(file = our_fopen(filename, "r")){
+    if(file = our_fopen(filename, "rb")){
 	rv = (*mt_operator)(mt_map, file);
 	fclose(file);
     }

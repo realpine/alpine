@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: imap.c 254 2006-11-21 21:54:24Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: imap.c 305 2006-12-07 23:43:31Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -42,7 +42,18 @@ static char rcsid[] = "$Id: imap.c 254 2006-11-21 21:54:24Z hubert@u.washington.
 #include "../pith/news.h"
 #include "../pith/util.h"
 #ifdef _WINDOWS
-#include <wincred.h>
+ #if defined(WINVER) && WINVER >= 0x0501
+  #include <wincred.h>
+  #define TNAME     "UWash_Alpine_"
+  #define TNAMESTAR "UWash_Alpine_*"
+ #endif
+#endif
+
+#ifdef OSX_TARGET
+#include <Security/SecKeychain.h>
+#include <Security/SecKeychainItem.h>
+#include <Security/SecKeychainSearch.h>
+#define TNAME     "UWash_Alpine"
 #endif
 
 
@@ -62,11 +73,6 @@ void  write_passfile(char *, MMLOGIN_S *);
 
 
 static	char *details_cert, *details_host, *details_reason;
-
-
-#define TNAME     "UWash_Alpine_"
-#define TNAMESTAR "UWash_Alpine_*"
-
 
 
 /*----------------------------------------------------------------------
@@ -1805,7 +1811,7 @@ mm_expunged_current(long unsigned int rawno)
 
 static	int		xlate_key;
 static	MMLOGIN_S	*passfile_cache = NULL;
-static  int             using_passfile;
+static  int             using_passfile = -1;
 
 
 
@@ -1934,6 +1940,7 @@ read_passfile(pinerc, l)
     MMLOGIN_S **l;
 {
 #ifdef _WINDOWS
+ #if defined(WINVER) && WINVER >= 0x0501
     LPCTSTR lfilter = TEXT(TNAMESTAR);
     DWORD count, k;
     PCREDENTIAL *pcred;
@@ -1941,6 +1948,11 @@ read_passfile(pinerc, l)
     char *host, *user, *sflags, *passwd, *orighost;
     char *ui[5];
     int i, j;
+
+    if(using_passfile == 0)
+      return(using_passfile);
+
+    dprint((9, "read_passfile\n"));
 
     using_passfile = 1;
 
@@ -2010,15 +2022,163 @@ read_passfile(pinerc, l)
 
     return(1);
 
-#else /* _WINDOWS */
+ #else !XP
+    using_passfile = 0;
+    return(0);
+ #endif
+
+#elif OSX_TARGET
+
+    char  target[MAILTMPLEN];
+    char *tmp, *host, *user, *sflags, *passwd, *orighost;
+    char *ui[5];
+    int   i, j, k, rc;
+    SecKeychainAttributeList attrList;
+    SecKeychainSearchRef searchRef = NULL;
+    SecKeychainAttribute attrs[] = {
+	{ kSecAccountItemAttr, strlen(TNAME), TNAME }
+    };
+
+    if(using_passfile == 0)
+      return(using_passfile);
+
+    dprint((9, "read_passfile\n"));
+
+
+    /* search for only our items in the keychain */
+    attrList.count = 1;
+    attrList.attr = attrs;
+
+    using_passfile = 1;
+    if(!(rc=SecKeychainSearchCreateFromAttributes(NULL,
+					      kSecGenericPasswordItemClass,
+                                              &attrList,
+                                              &searchRef))){
+	dprint((10, "read_passfile: SecKeychainSearchCreate succeeded\n"));
+	if(searchRef){
+	    SecKeychainItemRef itemRef = NULL;
+	    SecKeychainAttributeInfo info;
+	    SecKeychainAttributeList *attrList = NULL;
+	    UInt32 blength = 0;
+	    char *blob = NULL;
+	    
+	    UInt32 tags[] = {kSecAccountItemAttr,
+			     kSecServiceItemAttr};
+	    UInt32 formats[] = {0,0};
+
+	    dprint((10, "read_passfile: searchRef not NULL\n"));
+	    info.count = 2;
+	    info.tag = tags;
+	    info.format = formats;
+
+	    /*
+	     * Go through each item we found and put it
+	     * into our list.
+	     */
+	    while(!(rc=SecKeychainSearchCopyNext(searchRef, &itemRef)) && itemRef){
+	        dprint((10, "read_passfile: SecKeychainSearchCopyNext got one\n"));
+		rc = SecKeychainItemCopyAttributesAndData(itemRef,
+						     &info, NULL,
+						     &attrList,
+						     &blength,
+						     (void **) &blob);
+		if(rc == 0 && attrList){
+		    dprint((10, "read_passfile: SecKeychainItemCopyAttributesAndData succeeded, count=%d\n", attrList->count));
+
+		    for(k = 0; k < attrList->count; k++){
+
+			host = user = sflags = passwd = orighost = NULL;
+			ui[0] = ui[1] = ui[2] = ui[3] = ui[4] = NULL;
+		
+			if(attrList->attr[k].length){
+			    strncpy(target,
+				    (char *) attrList->attr[k].data,
+				    MIN(attrList->attr[k].length,sizeof(target)));
+			    target[MIN(attrList->attr[k].length,sizeof(target)-1)] = '\0';
+			}
+
+			tmp = target;
+			for(i = 0, j = 0; tmp[i] && j < 3; j++){
+			    for(ui[j] = &tmp[i]; tmp[i] && tmp[i] != '\t'; i++)
+			      ;				/* find end of data */
+
+			    if(tmp[i])
+			      tmp[i++] = '\0';		/* tie off data */
+			}
+
+			host   = ui[0];
+			user   = ui[1];
+			sflags = ui[2];
+
+		        for(i = 0, j = 3; blob[i] && j < 5; j++){
+			    for(ui[j] = &blob[i]; blob[i] && blob[i] != '\t'; i++)
+			      ;					/* find end of data */
+
+			    if(blob[i])
+			      blob[i++] = '\0';			/* tie off data */
+		        }
+
+			passwd   = ui[3];
+			orighost = ui[4];
+		    }
+
+		    if(passwd && host && user){		/* valid field? */
+			STRLIST_S hostlist[2];
+			int	      flags = sflags ? atoi(sflags) : 0;
+
+			hostlist[0].name = host;
+			if(orighost){
+			    hostlist[0].next = &hostlist[1];
+			    hostlist[1].name = orighost;
+			    hostlist[1].next = NULL;
+			}
+			else{
+			    hostlist[0].next = NULL;
+			}
+
+			imap_set_passwd(l, passwd, user, hostlist, flags & 0x01, 0, 0);
+		    }
+
+		    SecKeychainItemFreeAttributesAndData(attrList, (void *) blob);
+		}
+		else{
+		    using_passfile = 0;
+		    dprint((10, "read_passfile: SecKeychainItemCopyAttributesAndData failed, rc=%d\n", rc));
+		}
+
+	        CFRelease(itemRef);
+	    }
+
+	    CFRelease(searchRef);
+	}
+	else{
+	    using_passfile = 0;
+	    dprint((10, "read_passfile: searchRef NULL\n"));
+        }
+    }
+    else{
+	using_passfile = 0;
+	dprint((10, "read_passfile: SecKeychainSearchCreateFromAttributes failed, rc=%d\n", rc));
+    }
+
+    return(using_passfile);
+
+#else /* generic unix */
+
     char  tmp[MAILTMPLEN], *ui[5];
     int   i, j, n;
     FILE *fp;
 
+    if(using_passfile == 0)
+      return(using_passfile);
+
     dprint((9, "read_passfile\n"));
+
     /* if there's no password to read, bag it!! */
-    if(!passfile_name(pinerc, tmp, sizeof(tmp)) || !(fp = our_fopen(tmp, "rb")))
-      return(0);
+    if(!passfile_name(pinerc, tmp, sizeof(tmp)) || !(fp = our_fopen(tmp, "rb"))){
+	using_passfile = 0;
+	return(using_passfile);
+    };
 
     using_passfile = 1;
     for(n = 0; fgets(tmp, sizeof(tmp), fp); n++){
@@ -2040,7 +2200,7 @@ read_passfile(pinerc, l)
 	      tmp[i++] = '\0';			/* tie off data */
 	}
 
-	dprint((9, "read_passfile: calling imap_set_passwd\n"));
+	dprint((10, "read_passfile: calling imap_set_passwd\n"));
 	if(ui[0] && ui[1] && ui[2]){		/* valid field? */
 	    STRLIST_S hostlist[2];
 	    int	      flags = ui[3] ? atoi(ui[3]) : 0;
@@ -2061,7 +2221,7 @@ read_passfile(pinerc, l)
 
     fclose(fp);
     return(1);
-#endif /* _WINDOWS */
+#endif /* generic unix */
 }
 
 
@@ -2072,10 +2232,16 @@ write_passfile(pinerc, l)
     MMLOGIN_S *l;
 {
 #ifdef _WINDOWS
+ #if defined(WINVER) && WINVER >= 0x0501
     char  target[MAILTMPLEN];
     char  blob[MAILTMPLEN];
     CREDENTIAL cred;
     LPTSTR ltarget = 0;
+
+    if(using_passfile == 0)
+      return;
+
+    dprint((9, "write_passfile\n"));
 
     for(; l; l = l->next){
 	snprintf(target, sizeof(target), "%s%s\t%s\t%d",
@@ -2104,17 +2270,83 @@ write_passfile(pinerc, l)
 	    fs_give((void **) &ltarget);
 	}
     }
+ #endif /* !XP */
 
-#else /* _WINDOWS */
+#elif OSX_TARGET
+
+    int   rc;
+    char  target[MAILTMPLEN];
+    char  blob[MAILTMPLEN];
+    SecKeychainItemRef itemRef = NULL;
+
+    if(using_passfile == 0)
+      return;
+
+    dprint((9, "write_passfile\n"));
+
+    for(; l; l = l->next){
+	snprintf(target, sizeof(target), "%s\t%s\t%d",
+		 (l->hosts && l->hosts->name) ? l->hosts->name : "",
+		 l->user ? l->user : "",
+		 l->altflag);
+
+	snprintf(blob, sizeof(blob), "%s%s%s",
+		 l->passwd ? l->passwd : "", 
+		 (l->hosts && l->hosts->next && l->hosts->next->name)
+			 ? "\t" : "",
+		 (l->hosts && l->hosts->next && l->hosts->next->name)
+			 ? l->hosts->next->name : "");
+	rc = SecKeychainAddGenericPassword(NULL,
+				  	   strlen(target), target,
+					   strlen(TNAME), TNAME,
+					   strlen(blob), blob,
+					   NULL);
+	if(rc==0){
+	    dprint((10, "write_passfile: SecKeychainAddGenericPassword succeeded\n"));
+	}
+	else{
+	    dprint((10, "write_passfile: SecKeychainAddGenericPassword returned rc=%d\n", rc));
+	}
+
+	if(rc == errSecDuplicateItem){
+	    /* fix existing entry */
+	    dprint((10, "write_passfile: SecKeychainAddGenericPassword found existing entry\n"));
+	    if(!(rc=SecKeychainFindGenericPassword(NULL,
+				  	   strlen(target), target,
+					   strlen(TNAME), TNAME,
+					   NULL, NULL,
+					   &itemRef)) && itemRef){
+
+	        rc = SecKeychainItemModifyAttributesAndData(itemRef, NULL, strlen(blob), blob);
+		if(!rc){
+	            dprint((10, "write_passfile: SecKeychainItemModifyAttributesAndData returned rc=%d\n", rc));
+		}
+	    }
+	    else{
+	        dprint((10, "write_passfile: SecKeychainFindGenericPassword returned rc=%d\n", rc));
+	    }
+	}
+
+	if(itemRef)
+	  CFRelease(itemRef);
+    }
+
+#else /* generic unix */
 
     char  tmp[MAILTMPLEN];
     int   i, n;
     FILE *fp;
 
-    dprint((9, "write_passfile\n"));
-    /* if there's no password to read, bag it!! */
-    if(!passfile_name(pinerc, tmp, sizeof(tmp)) || !(fp = our_fopen(tmp, "wb")))
+    if(using_passfile == 0)
       return;
+
+    dprint((9, "write_passfile\n"));
+
+    /* if there's no passfile to read, bag it!! */
+    if(!passfile_name(pinerc, tmp, sizeof(tmp)) || !(fp = our_fopen(tmp, "wb"))){
+	using_passfil= 0;
+        return;
+    }
 
     for(n = 0; l; l = l->next, n++){
 	/*** do any necessary ENcryption here ***/
@@ -2132,7 +2364,7 @@ write_passfile(pinerc, l)
     }
 
     fclose(fp);
-#endif /* _WINDOWS */
+#endif /* generic unix */
 }
 
 
@@ -2140,6 +2372,7 @@ write_passfile(pinerc, l)
 void
 erase_windows_credentials(void)
 {
+ #if defined(WINVER) && WINVER >= 0x0501
     LPCTSTR lfilter = TEXT(TNAMESTAR);
     DWORD count, k;
     PCREDENTIAL *pcred;
@@ -2152,6 +2385,7 @@ erase_windows_credentials(void)
 	    CredFree((PVOID) pcred);
 	}
     }
+ #endif /* !XP */
 }
 #endif /* _WINDOWS */
 
@@ -2168,7 +2402,7 @@ get_passfile_passwd(pinerc, passwd, user, hostlist, altflag)
     STRLIST_S *hostlist;
     int	       altflag;
 {
-    dprint((9, "get_passfile_passwd\n"));
+    dprint((10, "get_passfile_passwd\n"));
     return((passfile_cache || read_passfile(pinerc, &passfile_cache))
 	     ? imap_get_passwd(passfile_cache, passwd,
 			       user, hostlist, altflag)
@@ -2178,7 +2412,7 @@ get_passfile_passwd(pinerc, passwd, user, hostlist, altflag)
 int
 is_using_passfile()
 {
-    return(using_passfile ? 1 : 0);
+    return(using_passfile == 1);
 }
 
 /*
@@ -2197,6 +2431,12 @@ get_passfile_user(pinerc, hostlist)
 
 
 
+#ifdef _WINDOWS
+#define PRESERVE_PROMPT _("Preserve password for next login")
+#else
+#define PRESERVE_PROMPT _("Preserve password on DISK for next login")
+#endif
+
 /*
  * set_passfile_passwd - set the password file entry associated with
  *            cache.  The file is assumed to be in the same directory
@@ -2208,11 +2448,10 @@ set_passfile_passwd(pinerc, passwd, user, hostlist, altflag)
     STRLIST_S *hostlist;
     int	       altflag;
 {
-    dprint((9, "set_passfile_passwd\n"));
+    dprint((10, "set_passfile_passwd\n"));
     if((passfile_cache || read_passfile(pinerc, &passfile_cache))
        && !ps_global->nowrite_passfile
-       && want_to("Preserve password on DISK for next login", 'y', 'x',
-		  NO_HELP, WT_NORM) == 'y'){
+       && want_to(PRESERVE_PROMPT, 'y', 'x', NO_HELP, WT_NORM) == 'y'){
 	imap_set_passwd(&passfile_cache, passwd, user, hostlist, altflag, 0, 0);
 	write_passfile(pinerc, passfile_cache);
     }

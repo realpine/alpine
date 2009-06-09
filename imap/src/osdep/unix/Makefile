@@ -479,7 +479,7 @@ isc:	# Interactive
 	 RANLIB=true
 
 lnp:	# Linux Pluggable Authentication modules
-	$(BUILD) `$(CAT) SPECIALS` OS=lnx \
+	$(BUILD) `$(CAT) SPECIALS` OS=slx \
 	 SIGTYPE=psx CHECKPW=pam CRXTYPE=nfs \
 	 SPOOLDIR=/var/spool \
 	 ACTIVEFILE=/var/lib/news/active \

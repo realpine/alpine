@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: detach.c 245 2006-11-18 02:46:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: detach.c 310 2006-12-09 01:06:08Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -753,8 +753,15 @@ fetch_readc(unsigned char *c)
 		dprint((1,
   "partial_body returned less than asked for: asked=%lu got=%lu, continue...\n",
 		       g_fr_desc->chunksize, g_fr_desc->read - save_read));
-		q_status_message(SM_ORDER | SM_DING, 0, 3,
+		if(g_fr_desc->read - save_read > 0)
+		  q_status_message(SM_ORDER | SM_DING, 0, 3,
 		   _("Message size does not match expected size, continuing..."));
+		else{
+		    rv = 0;
+		    q_status_message(SM_ORDER | SM_DING, 3, 3,
+		     _("Server returns zero bytes, Quell-Partial-Fetch feature may help"));
+		}
+
 		g_fr_desc->size = g_fr_desc->read;
 	    }
 

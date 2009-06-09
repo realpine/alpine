@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: folder.c 220 2006-11-06 19:58:04Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: folder.c 311 2006-12-09 01:20:57Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -308,7 +308,8 @@ folder_name_exists(CONTEXT_S *cntxt, char *file, char **fullpath)
     memset(&ldata, 0, sizeof(ldata));
     ldata.filter = mail_list_exists;
 
-    ldata.stream = sp_stream_get(tmp, SP_SAME);
+    ldata.stream = sp_stream_get(context_apply(tmp, cntxt, file, sizeof(tmp)),
+				 SP_SAME);
 
     memset(ldata.data = &parms, 0, sizeof(EXISTDATA_S));
 

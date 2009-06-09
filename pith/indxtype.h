@@ -1,5 +1,5 @@
 /*
- * $Id: indxtype.h 252 2006-11-21 08:53:25Z mikes@u.washington.edu $
+ * $Id: indxtype.h 296 2006-12-02 01:47:06Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -53,6 +53,9 @@ typedef enum {iNothing, iStatus, iFStatus, iIStatus,
 	      iDate, iLDate, iS1Date, iS2Date, iS3Date, iS4Date, iSDate,
 	      iSDateTime,
 	      iDateIso, iDateIsoS,
+	      iSDateIso, iSDateIsoS, iSDateS1, iSDateS2, iSDateS3, iSDateS4,
+	      iSDateTimeIso, iSDateTimeIsoS, iSDateTimeS1,
+	      iSDateTimeS2, iSDateTimeS3, iSDateTimeS4,
 	      iRDate, iTimezone,
 	      iTime24, iTime12,
 	      iCurDate, iCurDateIso, iCurDateIsoS, iCurTime24, iCurTime12,

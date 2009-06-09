@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: execview.c 276 2006-11-28 22:53:58Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: execview.c 289 2006-11-30 19:42:10Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -30,12 +30,17 @@ static char rcsid[] = "$Id: execview.c 276 2006-11-28 22:53:58Z mikes@u.washingt
 #include "../../pith/osdep/temp_nam.h"
 #include "../../pith/osdep/color.h"
 
+#include "../../pith/charconv/utf8.h"
+
 #include "../pith/mailcap.h"
 
 #include "../status.h"
 #include "../radio.h"
 #include "../signal.h"
 
+#ifdef _WINDOWS
+#include "../../pico/osdep/mswin.h"
+#endif
 
 /* Useful structures */
 #if	OSX_TARGET
@@ -67,7 +72,89 @@ int		osx_launch_special_handling(MCAP_CMD_S *, char *);
 void
 exec_mailcap_cmd(MCAP_CMD_S *mc_cmd, char *image_file, int needsterminal)
 {
-#if	OSX_TARGET
+#ifdef _WINDOWS
+    STARTUPINFO		start_info;
+    PROCESS_INFORMATION	proc_info;
+    DWORD		exit_code;
+    WINHAND		childProcess;
+    int			success = 0;
+    char               *cmd;
+    LPTSTR              image_file_lpt = NULL;
+    LPTSTR              cmd_lpt = NULL;
+
+    /* no special handling yet, but could be used to replace '*' hack */
+    if(mc_cmd)
+      cmd = mc_cmd->command;
+    else
+      return;
+
+    dprint((9, "run_viewer: command=%s\n", cmd ? cmd : "?")) ;
+
+    if(image_file)
+      image_file_lpt = utf8_to_lptstr(image_file);
+
+    /* Set to READONLY so the viewer can't try to edit it and keep it around */
+    if(image_file_lpt)
+      SetFileAttributes(image_file_lpt, FILE_ATTRIBUTE_READONLY);
+
+    if(*cmd == '*' || (*cmd == '\"' && *(cmd+1) == '*')){
+	/*
+	 * It has been asked that there be the ability to do an 
+	 * "Open With..." on attachments like you can from the
+	 * Windows file browser.  After looking into this, it
+	 * seems that the only way to do this would be through
+	 * an undocumented hack.  Here, we would pass "openas" as
+	 * the verb to mswin_shell_exec (also some changes in
+	 * mswin_shell_exec).  Since this is the delicate world
+	 * of attachment handling, it seems right not to rely on
+	 * a hack.  The interface wouldn't be too clean anyways,
+	 * as we would have to download the attachment only to
+	 * display the "Open With..." dialog.  Go figure, some
+	 * things Microsoft just wants to keep to themselves.
+	 */
+	success = mswin_shell_exec(cmd, &childProcess) == 0;
+    }
+    else{
+	memset(&proc_info, 0, sizeof(proc_info));
+	memset(&start_info, 0, sizeof(start_info));
+	start_info.dwFlags	    = STARTF_FORCEONFEEDBACK;
+	start_info.wShowWindow  = SW_SHOWNORMAL;
+
+	if(cmd)
+	  cmd_lpt = utf8_to_lptstr(cmd);
+
+	if(CreateProcess(NULL, cmd_lpt, NULL, NULL, FALSE,
+			 CREATE_NEW_CONSOLE | CREATE_NEW_PROCESS_GROUP,
+			 NULL, NULL, &start_info, &proc_info) == TRUE){
+	    q_status_message(SM_ORDER, 0, 4, "VIEWER command completed");
+	    dprint ((3, "CreatProcess(%s)  Success.\n",
+		    cmd ? cmd : "?"));
+	    childProcess = proc_info.hProcess;
+	    success = 1;
+	}
+
+	if(cmd_lpt)
+	  fs_give((void **) &cmd_lpt);
+    }
+
+    if(!success){
+	int rc = (int) GetLastError();
+	if(image_file_lpt)
+	  SetFileAttributes(image_file_lpt, FILE_ATTRIBUTE_NORMAL);
+
+	our_unlink(image_file);
+	q_status_message2(SM_ORDER, 3, 4, "\007Can't start viewer. %s%s.",
+			  (rc == 2 || rc == 3) ? "Viewer not found:  " :
+			  (rc == 8) ? "Not enough memory" : "Windows error ",
+			  (rc == 2 || rc == 3) ? cmd :
+			  (rc == 8) ? "" : int2string(rc));
+    }
+
+    if(image_file_lpt)
+      fs_give((void **) &image_file_lpt);
+
+#elif	OSX_TARGET
+
     char   *command = NULL,
 	   *result_file = NULL,
 	   *p;
@@ -217,18 +304,24 @@ exec_mailcap_cmd(MCAP_CMD_S *mc_cmd, char *image_file, int needsterminal)
 int
 exec_mailcap_test_cmd(char *cmd)
 {
+#ifdef _WINDOWS
+    return((WinExec(cmd, SW_SHOWMINNOACTIVE) < 32) ? 1 : 0);
+#else
     PIPE_S *syspipe;
 
     return((syspipe = open_system_pipe(cmd, NULL, NULL, PIPE_SILENT, 0,
 				       pipe_callback, NULL))
 	     ? close_system_pipe(&syspipe, NULL, pipe_callback) : -1);
+#endif
 }
 
 
 char *
 url_os_specified_browser(char *url)
 {
-#if	OSX_TARGET
+#ifdef _WINDOWS
+    return(mswin_reg_default_browser(url));
+#elif	OSX_TARGET
     snprintf(tmp_20k_buf, SIZEOF_20KBUF, "open %.3000s", url);
     return(cpystr(tmp_20k_buf));
 #else
@@ -246,10 +339,29 @@ url_os_specified_browser(char *url)
 char *
 execview_pretty_command(MCAP_CMD_S *mc_cmd, int *free_ret)
 {
-#if	OSX_TARGET
-    char *str = NULL;
+    char *str;
     int rv_to_free = 0;
 
+    if(free_ret)
+      *free_ret = rv_to_free;
+
+    if(!mc_cmd)
+      return NULL;
+
+    str = mc_cmd->command;
+
+#ifdef _WINDOWS
+    if(*str == '*' || (*str == '\"' && str[1] == '*')){
+	if(!strncmp(str + ((*str == '\"') ? 2 : 1), "DDE*", 4))
+	  str = cpystr("via app already running");
+	else if(!strncmp(str + ((*str == '\"') ? 2 : 1),"ShellEx*",8))
+	  str = cpystr("via Explorer defined app");
+	else
+	  str = cpystr("via Windows-specific method");
+
+	rv_to_free = 1;
+    }
+#elif	OSX_TARGET
     if(mc_cmd->special_handling){
 	CFStringRef str_ref = NULL, kind_str_ref = NULL;
 	CFURLRef url_ref;
@@ -258,10 +370,13 @@ execview_pretty_command(MCAP_CMD_S *mc_cmd, int *free_ret)
 	if((str_ref = CFStringCreateWithCString(NULL, mc_cmd->command,
 					 kCFStringEncodingASCII)) == NULL)
 	  return "";
+
 	if((url_ref = CFURLCreateWithString(NULL, str_ref, NULL)) == NULL)
 	  return "";
+
 	if(LSCopyDisplayNameForURL(url_ref, &kind_str_ref) != noErr)
 	  return "";
+
 	if(CFStringGetCString(kind_str_ref, buf, (CFIndex)255,
 			      kCFStringEncodingASCII) == false)
 	  return "";
@@ -272,18 +387,14 @@ execview_pretty_command(MCAP_CMD_S *mc_cmd, int *free_ret)
 	if(kind_str_ref)
 	  CFRelease(kind_str_ref);
     }
-    else
-      str = mc_cmd->command;
-    if(free_ret)
-      *free_ret = rv_to_free;
-    return(str);
 #else
     /* always pretty */
-    if(free_ret)
-      *free_ret = 0;
-
-    return(mc_cmd->command);
 #endif
+
+    if(free_ret)
+      *free_ret = rv_to_free;
+
+    return(str);
 }
 
 

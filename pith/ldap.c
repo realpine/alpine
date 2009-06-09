@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: ldap.c 215 2006-11-02 01:43:37Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: ldap.c 284 2006-11-30 15:59:01Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -36,6 +36,7 @@ int wp_exit;
 int wp_nobail;
 
 
+#ifdef	ENABLE_LDAP
 /*
  * Hook to allow user input on whether or not to save chosen LDAP result
  */
@@ -45,7 +46,6 @@ void (*pith_opt_save_ldap_entry)(struct pine *, LDAP_SERV_RES_S *, int);
 /*
  * Internal prototypes
  */
-#ifdef	ENABLE_LDAP
 LDAP_SERV_RES_S *ldap_lookup(LDAP_SERV_S *, char *, CUSTOM_FILT_S *, WP_ERR_S *, int);
 int              ask_user_which_entry(LDAP_SERV_RES_S *, char *,
 				      LDAP_SERV_RES_S **, WP_ERR_S *, LDAPLookupStyle);

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: alpine.c 274 2006-11-28 02:35:11Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: alpine.c 318 2006-12-12 20:15:27Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -715,7 +715,7 @@ main(int argc, char **argv)
 	    if(pine_state->free_initial_cmds)
 	      fs_give((void **)&(pine_state->free_initial_cmds));
 
-	    pine_state->initial_cmds = 0;
+	    pine_state->initial_cmds = NULL;
 	}
 
 	/*======= Requested that we simply page the given file =======*/
@@ -840,7 +840,7 @@ main(int argc, char **argv)
 	    if(pine_state->free_initial_cmds)
 	      fs_give((void **) &(pine_state->free_initial_cmds));
 
-	    pine_state->initial_cmds = 0;
+	    pine_state->initial_cmds = NULL;
 	}
 
         /*----- Format the To: line with commas for the composer ---*/
@@ -914,7 +914,7 @@ main(int argc, char **argv)
 		clear_cursor_pos();
 		if(pine_state->free_initial_cmds)
 		  fs_give((void **) &(pine_state->free_initial_cmds));
-		pine_state->initial_cmds = 0;
+		pine_state->initial_cmds = NULL;
 	    }
 	    if(f = url_local_handler(args.url)){
 		if(args.data.mail.attachlist){
@@ -989,7 +989,7 @@ main(int argc, char **argv)
 		    if(pine_state->free_initial_cmds)
 		      fs_give((void **)&(pine_state->free_initial_cmds));
 
-		    pine_state->initial_cmds = 0;
+		    pine_state->initial_cmds = NULL;
 		}
 
 		F_SET(F_USE_FK,pine_state, pine_state->orig_use_fkeys);
@@ -3127,11 +3127,13 @@ goodnight_gracey(struct pine *pine_state, int exit_val)
 
     free_pine_struct(&pine_state);
 
-    dprint((2, "goodnight_gracey finished\n"));    
-
 #ifdef DEBUG
-    if(debugfile)
-      fclose(debugfile);
+    if(debugfile){
+	if(debug >= 2)
+	  fputs("goodnight_gracey finished\n", debugfile);
+
+	fclose(debugfile);
+    }
 #endif    
 
     exit(exit_val);

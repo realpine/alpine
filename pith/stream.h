@@ -1,5 +1,5 @@
 /*
- * $Id: stream.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: stream.h 296 2006-12-02 01:47:06Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -174,7 +174,6 @@ typedef struct pine_per_stream_data {
 /* these are for icache_flags */
 #define SP_NEED_FORMAT_SETUP         0x01
 #define SP_FORMAT_INCLUDES_MSGNO     0x02
-#define SP_FORMAT_INCLUDES_SMARTDATE 0x04
 #define SP_FORMAT_INCLUDES_SMARTDATE 0x04
 
 

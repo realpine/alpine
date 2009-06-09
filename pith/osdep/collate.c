@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: collate.c 152 2006-09-29 01:42:04Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: collate.c 296 2006-12-02 01:47:06Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -65,6 +65,10 @@ set_collation(int collation, int ctype)
   if(ctype){
     (void)setlocale(LC_CTYPE, "");
   }
+#endif
+
+#ifdef LC_TIME
+  setlocale(LC_TIME, "");
 #endif
 }
 

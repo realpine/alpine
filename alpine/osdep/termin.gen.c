@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: termin.gen.c 246 2006-11-20 20:53:45Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: termin.gen.c 302 2006-12-05 18:43:36Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1283,7 +1283,7 @@ int
 process_config_input(UCS *ch)
 {
     static char firsttime = (char) 1;
-    char c;
+    int c;
     unsigned long octets_so_far, remaining_octets, ret = 0;
     unsigned char *inputp;
     UCS ucs;
@@ -1304,13 +1304,13 @@ process_config_input(UCS *ch)
 	/*
 	 * Use enough bytes to make up a character and convert it to UCS-4.
 	 */
-	if(isascii(c)){
+	if(c < 0x80 || c > KEY_BASE){
 	    *ch = (UCS) c;
 	    ret = 1;
 	}
 	else{
 	    memset(inputbuf, 0, sizeof(inputbuf));
-	    inputbuf[0] = c;
+	    inputbuf[0] = (0xff & c);
 	    octets_so_far = 1;
 
 	    while(!ret){
@@ -1333,7 +1333,7 @@ process_config_input(UCS *ch)
 			ret = 1;
 		    }
 		    else
-		      inputbuf[octets_so_far++] = *ps_global->initial_cmds++;
+		      inputbuf[octets_so_far++] = (0xff & *ps_global->initial_cmds++);
 
 		    break;
 
@@ -1351,7 +1351,7 @@ process_config_input(UCS *ch)
 
 	if(!*ps_global->initial_cmds && ps_global->free_initial_cmds){
 	    fs_give((void **) &ps_global->free_initial_cmds);
-	    ps_global->initial_cmds = 0;
+	    ps_global->initial_cmds = NULL;
 	}
 
 	return(ret);

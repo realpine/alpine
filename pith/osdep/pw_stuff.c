@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pw_stuff.c 245 2006-11-18 02:46:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pw_stuff.c 287 2006-11-30 17:30:21Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -188,11 +188,12 @@ local_name_lookup(char *name)
     }
 
     if(pw != NULL){
-	char *gn, *s = NULL;
+	char   *gn, *s = NULL;
+	size_t  l;
 
 	if((gn = gcos_name(pw->pw_gecos, name)) != NULL
-	   && (s = (char *) malloc((strlen(gn) + 1) * sizeof(char))) != NULL)
-	  snprintf(s, sizeof(s), "%s", gn);
+	   && (s = (char *) malloc(l  = ((strlen(gn) + 1) * sizeof(char)))) != NULL)
+	  snprintf(s, l, "%s", gn);
 
 	return(s);
     }

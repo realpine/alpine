@@ -1,5 +1,5 @@
 /*
- * $Id: conftype.h 211 2006-11-01 00:34:10Z hubert@u.washington.edu $
+ * $Id: conftype.h 295 2006-12-02 01:35:46Z mikes@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -100,6 +100,7 @@ typedef	enum {    V_PERSONAL_NAME = 0
 		, V_OVERLAP
 		, V_MARGIN
 		, V_STATUS_MSG_DELAY
+		, V_ACTIVE_MSG_INTERVAL
 		, V_MAILCHECK
 		, V_MAILCHECKNONCURR
 		, V_MAILDROPCHECK
@@ -465,7 +466,6 @@ typedef enum {
 	F_SEND_CONFIRM_ON_EXPAND,
 	F_ENABLE_NEWMAIL_SOUND,
 	F_ENABLE_JUMP_CMD,
-	F_DISABLE_ACTIVE_MSGS,
 	F_USE_SYSTEM_TRANS,
 #ifdef	_WINDOWS
 	F_ENABLE_TRAYICON,

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: termout.unx.c 228 2006-11-13 20:22:03Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: termout.unx.c 320 2006-12-12 22:40:05Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -211,6 +211,9 @@ init_screen(void)
 	break;
       case COL_ANSI16:
 	pico_set_color_options(COLOR_ANSI16_OPT);
+	break;
+      case COL_ANSI256:
+	pico_set_color_options(COLOR_ANSI256_OPT);
 	break;
     }
 

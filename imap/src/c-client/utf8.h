@@ -23,7 +23,7 @@
  *		Internet: MRC@CAC.Washington.EDU
  *
  * Date:	11 June 1997
- * Last Edited:	6 November 2006
+ * Last Edited:	6 December 2006
  */
 
 /* UTF-8 size and conversion routines from UCS-2 values (thus in the BMP).
@@ -543,18 +543,3 @@ long ucs4_width (unsigned long c);
 long utf8_strwidth (unsigned char *s);
 long utf8_textwidth (SIZEDTEXT *utf8);
 unsigned long ucs4_decompose (unsigned long c,void **more);
-
-
-/* Following routines are in utf8aux.c as these depend upon c-client.  Splitting
- * these routines out makes it possible for pico to link with utf8.o and a few
- * rump routines (e.g., fs_get()) but not all the rest of c-client (which pico
- * does not need).
- */
-
-void utf8_searchpgm (SEARCHPGM *pgm,char *charset);
-long utf8_mime2text (SIZEDTEXT *src,SIZEDTEXT *dst,long flags);
-unsigned char *mime2_token (unsigned char *s,unsigned char *se,
-			    unsigned char **t);
-unsigned char *mime2_text (unsigned char *s,unsigned char *se);
-long mime2_decode (unsigned char *e,unsigned char *t,unsigned char *te,
-		   SIZEDTEXT *txt);

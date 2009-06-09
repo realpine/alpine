@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: alpined.c 272 2006-11-27 22:57:25Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: alpined.c 309 2006-12-08 21:18:44Z mikes@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -358,6 +358,7 @@ void	     ms_init(STRING *, void *, unsigned long);
 char	     ms_next(STRING *);
 void	     ms_setpos(STRING *, unsigned long);
 long	     peAppendMsg(MAILSTREAM *, void *, char **, char **, STRING **);
+int	     remote_pinerc_failure(void);
 
 
 /* Prototypes for Tcl-exported methods */
@@ -467,6 +468,7 @@ main(int argc, char *argv[])
     /*----------------------------------------------------------------------
            Initialize pith library
       ----------------------------------------------------------------------*/
+    pith_opt_remote_pinerc_failure = remote_pinerc_failure;
     setup_for_index_index_screen();
 
 
@@ -6073,6 +6075,12 @@ peIndexFormat(Tcl_Interp *interp)
 	  case iDate:     case iSDate:      case iSDateTime: case iSTime:     case iLDate:
 	  case iS1Date:   case iS2Date:     case iS3Date:    case iS4Date:    case iDateIso:
 	  case iDateIsoS: 
+	  case iSDateIso: case iSDateIsoS:
+	  case iSDateS1:  case iSDateS2:
+	  case iSDateS3:  case iSDateS4:
+	  case iSDateTimeIso:               case iSDateTimeIsoS:
+	  case iSDateTimeS1:                case iSDateTimeS2:
+	  case iSDateTimeS3:                case iSDateTimeS4:
 	    name = "Date";
 	    break;
 
@@ -13260,4 +13268,16 @@ ms_setpos(STRING *s, unsigned long i)
 				/* initial position and size */
   s->curpos = s->chunk + (i -= s->offset);
   s->cursize = s->chunksize - i;
+}
+
+
+int
+remote_pinerc_failure(void)
+{
+    snprintf(ps_global->last_error, sizeof(ps_global->last_error), "%s",
+	     ps_global->c_client_error[0]
+	       ? ps_global->c_client_error
+	       : _("Unable to read remote configuration"));
+
+    return(TRUE);
 }

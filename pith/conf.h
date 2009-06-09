@@ -1,5 +1,5 @@
 /*
- * $Id: conf.h 237 2006-11-16 04:08:15Z mikes@u.washington.edu $
+ * $Id: conf.h 320 2006-12-12 22:40:05Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -201,6 +201,8 @@
 #define GLO_KBLOCK_PASSWD_COUNT	     vars[V_KBLOCK_PASSWD_COUNT].global_val.p
 #define VAR_STATUS_MSG_DELAY	     vars[V_STATUS_MSG_DELAY].current_val.p
 #define GLO_STATUS_MSG_DELAY	     vars[V_STATUS_MSG_DELAY].global_val.p
+#define	VAR_ACTIVE_MSG_INTERVAL	     vars[V_ACTIVE_MSG_INTERVAL].current_val.p
+#define	GLO_ACTIVE_MSG_INTERVAL	     vars[V_ACTIVE_MSG_INTERVAL].global_val.p
 #define GLO_SENDMAIL_PATH	     vars[V_SENDMAIL_PATH].global_val.p
 #define FIX_SENDMAIL_PATH	     vars[V_SENDMAIL_PATH].fixed_val.p
 #define COM_SENDMAIL_PATH	     vars[V_SENDMAIL_PATH].cmdline_val.p
@@ -572,6 +574,7 @@
 #define	COL_TERMDEF	1
 #define	COL_ANSI8	2
 #define	COL_ANSI16	3
+#define	COL_ANSI256	4
 
 
 /* styles for apply_rev_color() */
@@ -620,6 +623,10 @@
 					 &(n), -10, 30, 0, (e),		  \
 					  (el), 			  \
 					"Status-Message-Delay")
+#define	SVAR_ACTIVEINTERVAL(ps,n,e,el)	strtoval((ps)->VAR_ACTIVE_MSG_INTERVAL, \
+					 &(n), 0, 20, 0, (e),		  \
+					  (el), 			  \
+					"Active-Msg-Updates-Per-Second")
 #define	SVAR_MAILCHK(ps,n,e,el)	strtoval((ps)->VAR_MAILCHECK,		  \
 					 &(n), 15, 30000, 0, (e),	  \
 					  (el), 			  \

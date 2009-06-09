@@ -1,5 +1,5 @@
 /*
- * $Id: state.h 248 2006-11-20 22:54:38Z mikes@u.washington.edu $
+ * $Id: state.h 295 2006-12-02 01:35:46Z mikes@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -282,6 +282,8 @@ struct pine {
     int		 printer_category;
 
     int		 status_msg_delay;
+
+    int		 active_status_interval;
 
     int		 composer_fillcol;
 

@@ -6002,7 +6002,7 @@ mswin_setwindow(char *fontName_utf8, char *fontSize_utf8, char *fontStyle_utf8,
     int			wXSize, wYSize;
     char		wp[WIN_POS_STR_MAX_LEN + 1];
     int			showWin = 1;
-    LPTSTR              fontName_lpt;
+    LPTSTR              fontName_lpt = NULL;
     LPTSTR              fontCharSet_lpt;
     
 #ifdef SDEBUG
@@ -6066,99 +6066,117 @@ mswin_setwindow(char *fontName_utf8, char *fontSize_utf8, char *fontStyle_utf8,
      * Where C is the number of columns, R is the number of rows,
      * and X and Y specify the top left corner of the window.
      */
-    if (windowPosition != NULL && *windowPosition != '\0') {
-	if (strlen(windowPosition) > WIN_POS_STR_MAX_LEN) return (0);
-	strcpy (wp, windowPosition);
+    if(windowPosition != NULL && *windowPosition != '\0'){
+	if(strlen(windowPosition) > sizeof(wp)-1)
+	  return(0);
+
+	strncpy(wp, windowPosition, sizeof(wp));
+	wp[sizeof(wp)-1] = '\0';
 	
-	/* Flag characters are at the end of the string.  Strip them
-	 * off till we get to a number. */
-	i = strlen (wp) - 1;
-	while (i > 0 && (*(wp+i) < '0' || *(wp+i) > '9')) {
-	    if (*(wp+i) == 't' || *(wp+i) == 'b') {
+	/*
+	 * Flag characters are at the end of the string.  Strip them
+	 * off till we get to a number.
+	 */
+	i = strlen(wp) - 1;
+	while(i > 0 && (*(wp+i) < '0' || *(wp+i) > '9')){
+	    if(*(wp+i) == 't' || *(wp+i) == 'b'){
 		toolBar = TRUE;
 		toolBarTop = (*(wp+i) == 't');
 	    }
-	    if (*(wp+i) == 'd')
-		gfUseDialogs = TRUE;
+
+	    if(*(wp+i) == 'd')
+	      gfUseDialogs = TRUE;
+
 #ifdef ACCELERATORS_OPT
-	    if (*(wp+i) == 'a')
-	        AccelCtl (ghTTYWnd, ACCEL_LOAD, FALSE);
+	    if(*(wp+i) == 'a')
+	        AccelCtl(ghTTYWnd, ACCEL_LOAD, FALSE);
 #endif	
+
 	    *(wp+i) = 0;
 	    --i;
         }
 
-	if (strcmp (wp, "MIN0") == 0) {
+	if(strcmp(wp, "MIN0") == 0){
 	    mswin_killsplash();
 	    showWin = 0;
-	    ShowWindow (ghTTYWnd, SW_MINIMIZE);
-	    if (toolBar) {
+	    ShowWindow(ghTTYWnd, SW_MINIMIZE);
+	    if(toolBar){
 		gpTTYInfo->toolBarTop = toolBarTop;
-		TBShow (ghTTYWnd);
+		TBShow(ghTTYWnd);
 	    }
 	}
-	else {
+	else{
 	    /* Look for Columns, deliminated by 'x'. */
 	    c = strchr (wp, 'x');
-	    if (c == NULL) return (0);
+	    if (c == NULL)
+	      return(0);
+
 	    *c = '\0';
-	    if (!ScanInt (wp, -999, 9999, &wColumns)) return (0);
+	    if(!ScanInt(wp, -999, 9999, &wColumns))
+	      return(0);
 
 	    /* Look for Rows, deliminated by '+'. */
 	    n = c + 1;
-	    c = strchr (n, '+');
-	    if (c == NULL) return (0);
+	    c = strchr(n, '+');
+	    if(c == NULL)
+	      return (0);
+
 	    *c = '\0';
-	    if (!ScanInt (n, -999, 9999, &wRows))	return (0);
+	    if(!ScanInt(n, -999, 9999, &wRows))
+	      return(0);
 
 	    /* Look for X position, deliminated by '+'. */
 	    n = c + 1;
-	    c = strchr (n, '+');
-	    if (c == NULL) return (0);
+	    c = strchr(n, '+');
+	    if(c == NULL)
+	      return(0);
+
 	    *c = '\0';
-	    if (!ScanInt (n, -999, 9999, &wXPos))	return (0);
+	    if(!ScanInt(n, -999, 9999, &wXPos))
+	      return(0);
 
 	    /* And get Y position, deliminated by end of string. */
 	    n = c + 1;
-	    if (!ScanInt (n, -999, 9999, &wYPos))	return (0);
+	    if(!ScanInt(n, -999, 9999, &wYPos))
+	      return(0);
 
 
 	    /* Constrain the window position and size. */
-	    if (wXPos < 0)
-		wXPos = 0;
-	    if (wYPos < 0)
-		wYPos = 0;
-	    GetWindowRect (GetDesktopWindow(), &wndRect);
-	    if (wXPos > wndRect.right - 20)
-		wXPos = wndRect.right - 100;
-	    if (wYPos > wndRect.bottom - 20)
-		wYPos = wndRect.bottom - 100;
+	    if(wXPos < 0)
+	      wXPos = 0;
+
+	    if(wYPos < 0)
+	      wYPos = 0;
+
+	    GetWindowRect(GetDesktopWindow(), &wndRect);
+	    if(wXPos > wndRect.right - 20)
+	      wXPos = wndRect.right - 100;
+
+	    if(wYPos > wndRect.bottom - 20)
+	      wYPos = wndRect.bottom - 100;
 
 	    /* Get the current window rect and client area. */
-	    GetWindowRect (ghTTYWnd, &wndRect);
-	    GetClientRect (ghTTYWnd, &cliRect);
-
+	    GetWindowRect(ghTTYWnd, &wndRect);
+	    GetClientRect(ghTTYWnd, &cliRect);
 
 	    /* Calculate boarder sizes. */
 	    wXBorder = wndRect.right - wndRect.left - cliRect.right;
 	    wYBorder = wndRect.bottom - wndRect.top - cliRect.bottom;
 
-
 	    /* Show toolbar before calculating content size. */
-	    if (toolBar) {
+	    if(toolBar){
 		gpTTYInfo->toolBarTop = toolBarTop;
-		TBShow (ghTTYWnd);
+		TBShow(ghTTYWnd);
 	    }
-
 
 	    /* Calculate new window pos and size. */
 	    wXSize = wXBorder + (wColumns * gpTTYInfo->xChar) + 
 						    (2 * gpTTYInfo->xOffset);
 	    wYSize = wYBorder + (wRows * gpTTYInfo->yChar) + 
 				    gpTTYInfo->toolBarSize + (2 * MARGINE_TOP);
-	    if (!gpTTYInfo->fMinimized) 
-		MoveWindow (ghTTYWnd, wXPos, wYPos, wXSize, wYSize, TRUE);
-	    else {
+	    if(!gpTTYInfo->fMinimized) 
+	      MoveWindow(ghTTYWnd, wXPos, wYPos, wXSize, wYSize, TRUE);
+	    else{
 		gpTTYInfo->fDesiredSize = TRUE;
 		gpTTYInfo->xDesPos = wXPos;
 		gpTTYInfo->yDesPos = wYPos;
@@ -6168,14 +6186,14 @@ mswin_setwindow(char *fontName_utf8, char *fontSize_utf8, char *fontStyle_utf8,
         }
     }
 
-    if (caretStyle != NULL && *caretStyle != '\0')
+    if(caretStyle != NULL && *caretStyle != '\0')
       for(i = 0; MSWinCaretTable[i].name; i++)
 	if(!strucmp(MSWinCaretTable[i].name, caretStyle)){
 	    CaretTTY(ghTTYWnd, MSWinCaretTable[i].style);
 	    break;
 	}
 
-    return (0);
+    return(0);
 }
 
 
@@ -8830,8 +8848,11 @@ mswin_multopenfile(char *dir_utf8, int nMaxDName, char *fName_utf8,
 	    cp = lptstr_to_utf8(p);
 	    if(cp){
 		sstrncpy(&q, cp, nMaxFName-(q-fName_utf8));
-		if(q-fName_utf8 < nMaxFName)
-		  *q++ = '\0';
+		if(q-fName_utf8 < nMaxFName){
+		    *q++ = '\0';
+		    if(q-fName_utf8 < nMaxFName)
+		      *q = '\0';		/* the double null if this is the end */
+		}
 		else
 		  fName_utf8[nMaxFName-1] = '\0';
 
@@ -10354,14 +10375,14 @@ mswin_shell_exec(char *command_utf8, HINSTANCE *pChildProc)
     int		      quoted = 0;
     DWORD	      rc;
     SHELLEXECUTEINFO  shell_info;
-    LPTSTR            command_lpt;
+    LPTSTR            command_lpt, free_command_lpt;
     LPTSTR            p, q, parm = NULL;
     TCHAR             buf[1024];
 
     if(!command_utf8)
       return(-1);
 
-    command_lpt = utf8_to_lptstr(command_utf8);
+    free_command_lpt = command_lpt = utf8_to_lptstr(command_utf8);
     if(!command_lpt)
       return(-1);
 
@@ -10384,13 +10405,16 @@ mswin_shell_exec(char *command_utf8, HINSTANCE *pChildProc)
 
 	  *q = '\0';
 	  buf_utf8 = lptstr_to_utf8(buf);
-	  if(*buf == '*' || fexist(buf_utf8, "x", (off_t *) NULL) == FIOSUC){
+	  if(*buf == '*' || (buf_utf8 && fexist(buf_utf8, "x", (off_t *) NULL) == FIOSUC)){
 	      parm = p;
-	      fs_give((void **) &buf_utf8);
+	      if(buf_utf8)
+	        fs_give((void **) &buf_utf8);
+
 	      break;
 	  }
 
-	  fs_give((void **) &buf_utf8);
+	  if(buf_utf8)
+	    fs_give((void **) &buf_utf8);
       }
       else if(quoted && *p == '\"'){
 	  parm = p;
@@ -10421,7 +10445,9 @@ mswin_shell_exec(char *command_utf8, HINSTANCE *pChildProc)
 	}
     }
     else{
-      fs_give((void **) &command_lpt);
+      if(free_command_lpt)
+        fs_give((void **) &free_command_lpt);
+
       return(-1);
     }
 
@@ -10442,11 +10468,15 @@ mswin_shell_exec(char *command_utf8, HINSTANCE *pChildProc)
 	if(pChildProc)
 	  *pChildProc = shell_info.hProcess;
 
-	fs_give((void **) &command_lpt);
+	if(free_command_lpt)
+	  fs_give((void **) &free_command_lpt);
+
 	return(0);		/* success! */
     }
 
-    fs_give((void **) &command_lpt);
+    if(free_command_lpt)
+      fs_give((void **) &free_command_lpt);
+
     return(-1);
 }
 

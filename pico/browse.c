@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: browse.c 257 2006-11-22 18:36:08Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: browse.c 292 2006-12-01 01:00:51Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -2700,7 +2700,7 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 	    char f[20000];
 	    size_t flen, dlen;
 
-	    f[0] = '\0';
+	    memset(f, 0, sizeof(f));
 
 	    rc = mswin_multopenfile(dir, dirlen, f, sizeof(f),
 		   (fb_flags & FB_ATTACH) ? NULL : "Text Files (*.txt)#*.txt");

@@ -1,5 +1,5 @@
 /*
- * $Id: estruct.h 179 2006-10-11 00:30:38Z jpf@u.washington.edu $
+ * $Id: estruct.h 320 2006-12-12 22:40:05Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -242,6 +242,7 @@ typedef	struct CELL {
 /* flags for color_options */
 #define COLOR_ANSI8_OPT		0x01
 #define COLOR_ANSI16_OPT	0x02
+#define COLOR_ANSI256_OPT	0x04
 
 /*
  * All text is kept in circularly linked lists of "LINE" structures. These

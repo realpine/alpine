@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: keymenu.c 444 2007-02-22 19:48:09Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: keymenu.c 529 2007-04-18 22:41:05Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1422,6 +1422,35 @@ struct key config_text_wshuf_keys[] =
 	NULL_MENU,
 	NULL_MENU};
 INST_KEY_MENU(config_text_wshuf_keymenu, config_text_wshuf_keys);
+
+
+struct key config_text_wshufandfldr_keys[] = 
+       {HELP_MENU,
+	OTHER_MENU,
+	EXIT_SETUP_MENU,
+	{"C", "[" N_("Change Val") "]", {MC_EDIT,3,{'c',ctrl('M'),ctrl('J')}}, KS_NONE},
+	PREV_MENU,
+	NEXT_MENU,
+	PREVPAGE_MENU,
+	NEXTPAGE_MENU,
+	{"A", N_("Add Value"), {MC_ADD,1,{'a'}}, KS_NONE},
+	{"D", N_("Delete Val"), {MC_DELETE,1,{'d'}}, KS_NONE},
+	PRYNTTXT_MENU,
+	WHEREIS_MENU,
+
+        HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	{"$", N_("Shuffle"), {MC_SHUFFLE,1,{'$'}}, KS_NONE},
+	{"T", N_("ToFldrs"), {MC_CHOICE,2,{'t', ctrl('T')}}, KS_NONE},
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU};
+INST_KEY_MENU(config_text_wshufandfldr_keymenu, config_text_wshufandfldr_keys);
 
 
 struct key config_role_file_keys[] = 

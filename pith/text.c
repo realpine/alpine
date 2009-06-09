@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: text.c 448 2007-02-23 01:55:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: text.c 547 2007-04-26 20:01:39Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -44,6 +44,9 @@ int	 charset_editorial(char *, long, HANDLE_S **, int, int, int, gf_io_t);
 int	 delete_quotes(long, char *, LT_INS_S **, void *);
 int	 replace_quotes(long, char *, LT_INS_S **, void *);
 void     mark_handles_in_line(char *, HANDLE_S **, int);
+void	 clear_html_risk(void);
+void	 set_html_risk(void);
+int	 get_html_risk(void);
 
 
 /*
@@ -56,6 +59,7 @@ typedef struct del_q_s {
     int        lines;		/* show this many lines (counting editorial) */
     int        indent_length;	/* skip over this indent                     */
     int        is_flowed;	/* message is labelled flowed                */
+    int        do_color;
     HANDLE_S **handlesp;
     int        in_quote;	/* dynamic data */
     char     **saved_line;	/*   "          */
@@ -67,8 +71,16 @@ typedef struct del_q_s {
 #define	CHARSET_DISCLAIMER_2	"display is set"
 #define	CHARSET_DISCLAIMER_3	\
        " for the \"%.40s\" character set. \015\012Some %.40scharacters may be displayed incorrectly."
-#define ENCODING_DISCLAIMER      \
+#define ENCODING_DISCLAIMER     \
         "The following text contains the unknown encoding type \"%.20s\". \015\012Some or all of the text may be displayed incorrectly."
+#define	HTML_WARNING		\
+	"The following HTML text may contain deceptive links.  Carefully note the destination URL before visiting any links."
+
+
+/*
+ * HTML risk state holder.
+ */
+static int _html_risk;
 
 
 
@@ -102,6 +114,7 @@ decode_text(ATTACH_S	    *att,
     int         filt_only_c0 = 0;
     char       *parmval;
     char       *free_this = NULL;
+    STORE_S    *warn_so = NULL;
     DELQ_S      dq;
 
     column = (flags & FM_DISPLAY) ? ps_global->ttyo->screen_cols : 80;
@@ -110,7 +123,6 @@ decode_text(ATTACH_S	    *att,
       flags |= FM_NOINDENT;
 
     wrapit = column;
-    ps_global->some_quoting_was_suppressed = 0;
 
     memset(filters, 0, sizeof(filters));
 
@@ -231,14 +243,28 @@ decode_text(ATTACH_S	    *att,
 	if(wrapit - 5 > 0)
 	  wrapit -= 5;
     }
-    else if(!strucmp(att->body->subtype, "html")
-	    && ps_global->full_header < 2){
+    else if(!strucmp(att->body->subtype, "html") && ps_global->full_header < 2){
 /*BUG:	    sniff the params for "version=2.0" ala draft-ietf-html-spec-01 */
-	int opts = 0;
+	int	 opts = 0;
+
+	clear_html_risk();
 
 	if(flags & FM_DISPLAY){
-	    if(handlesp)		/* pass on handles awareness */
-	      opts |= GFHP_HANDLES;
+	    gf_io_t	 warn_pc;
+
+	    if(handlesp){		/* pass on handles awareness */
+		opts |= GFHP_HANDLES;
+	    
+		if(F_OFF(F_QUELL_HOST_AFTER_URL, ps_global))
+		  opts |= GFHP_SHOW_SERVER;
+	    }
+
+	    warn_so = so_get(CharStar, NULL, EDIT_ACCESS);
+	    gf_set_so_writec(&warn_pc, warn_so);
+	    format_editorial(HTML_WARNING, column, flags, handlesp, warn_pc);
+	    gf_clear_so_writec(warn_so);
+	    so_puts(warn_so, "\015\012");
+	    so_writec('\0', warn_so);
 	}
 	else
 	  opts |= GFHP_STRIPPED;	/* don't embed anything! */
@@ -255,7 +281,13 @@ decode_text(ATTACH_S	    *att,
 						    (flags & FM_NOINDENT)
 						      ? 0
 						      : format_view_margin(),
-						    handlesp, opts);
+						    handlesp, set_html_risk, opts);
+
+	if(warn_so){
+	    filters[filtcnt].filter = gf_prepend_editorial;
+	    filters[filtcnt++].data = gf_prepend_editorial_opt(get_html_risk,
+							       (char *) so_text(warn_so));
+	}
     }
 
     /*
@@ -280,6 +312,7 @@ decode_text(ATTACH_S	    *att,
 	    dq.indent_length = 0;		/* indent didn't happen yet */
 	    dq.saved_line = &free_this;
 	    dq.handlesp   = handlesp;
+	    dq.do_color   = (!(flags & FM_NOCOLOR) && pico_usingcolor());
 
 	    filters[filtcnt].filter = gf_line_test;
 	    filters[filtcnt++].data = gf_line_test_opt(delete_quotes, &dq);
@@ -337,6 +370,7 @@ decode_text(ATTACH_S	    *att,
 			       : 0;
 	dq.saved_line = &free_this;
 	dq.handlesp   = handlesp;
+	dq.do_color   = (!(flags & FM_NOCOLOR) && pico_usingcolor());
 
 	filters[filtcnt].filter = gf_line_test;
 	filters[filtcnt++].data = gf_line_test_opt(delete_quotes, &dq);
@@ -394,6 +428,9 @@ decode_text(ATTACH_S	    *att,
     
     if(free_this)
       fs_give((void **) &free_this);
+
+    if(warn_so)
+      so_give(&warn_so);
     
     if(err) {
 	error_found++;
@@ -611,40 +648,62 @@ delete_quotes(long int linenum, char *line, LT_INS_S **ins, void *local)
 	if(not_a_quote){
 	    if(dq->in_quote > lines+1){
 	      char tmp[500];
+	      COLOR_PAIR *col = NULL;
+	      char cestart[2 * RGBLEN + 5];
+	      char ceend[2 * RGBLEN + 5];
 
 	      /*
 	       * Display how many lines were hidden.
 	       */
+
+	      cestart[0] = ceend[0] = '\0';
+	      if(dq->do_color
+		 && ps_global->VAR_METAMSG_FORE_COLOR
+		 && ps_global->VAR_METAMSG_BACK_COLOR
+		 && (col = new_color_pair(ps_global->VAR_METAMSG_FORE_COLOR,
+					  ps_global->VAR_METAMSG_BACK_COLOR)))
+	        if(!pico_is_good_colorpair(col))
+		  free_color_pair(&col);
+
+	      if(col){
+		  strncpy(cestart, color_embed(col->fg, col->bg), sizeof(cestart));
+		  cestart[sizeof(cestart)-1] = '\0';
+		  strncpy(ceend, color_embed(ps_global->VAR_NORM_FORE_COLOR,
+					     ps_global->VAR_NORM_BACK_COLOR), sizeof(ceend));
+		  ceend[sizeof(ceend)-1] = '\0';
+		  free_color_pair(&col);
+	      }
+
 	      snprintf(tmp, sizeof(tmp),
-		      "%.200s[ %d lines of quoted text hidden from view ]\r\n",
+		      "%s[ %s%d lines of quoted text hidden from view%s ]\r\n",
 		      repeat_char(dq->indent_length, SPACE),
-		      dq->in_quote - lines);
-	      if(strlen(tmp)-2 > ps_global->ttyo->screen_cols){
+		      cestart, dq->in_quote - lines, ceend);
+	      if(strlen(tmp)-strlen(cestart)-strlen(ceend)-2 > ps_global->ttyo->screen_cols){
 
-		snprintf(tmp, sizeof(tmp), "%.200s[ %d lines of quoted text hidden ]\r\n",
+		snprintf(tmp, sizeof(tmp), "%s[ %s%d lines of quoted text hidden%s ]\r\n",
 			repeat_char(dq->indent_length, SPACE),
-			dq->in_quote - lines);
+		        cestart, dq->in_quote - lines, ceend);
 
-		if(strlen(tmp)-2 > ps_global->ttyo->screen_cols){
-		  snprintf(tmp, sizeof(tmp), "%.200s[ %d lines hidden ]\r\n",
+		if(strlen(tmp)-strlen(cestart)-strlen(ceend)-2 > ps_global->ttyo->screen_cols){
+		  snprintf(tmp, sizeof(tmp), "%s[ %s%d lines hidden%s ]\r\n",
 			  repeat_char(dq->indent_length, SPACE),
-			  dq->in_quote - lines);
+		          cestart, dq->in_quote - lines, ceend);
 
-		  if(strlen(tmp)-2 > ps_global->ttyo->screen_cols){
-		    snprintf(tmp, sizeof(tmp), "%.200s[ %d hidden ]\r\n",
+		  if(strlen(tmp)-strlen(cestart)-strlen(ceend)-2 > ps_global->ttyo->screen_cols){
+		    snprintf(tmp, sizeof(tmp), "%s[ %s%d hidden%s ]\r\n",
 			    repeat_char(dq->indent_length, SPACE),
-			    dq->in_quote - lines);
+		            cestart, dq->in_quote - lines, ceend);
 		  
-		    if(strlen(tmp)-2 > ps_global->ttyo->screen_cols){
-		      snprintf(tmp, sizeof(tmp), "%.200s[...]\r\n",
+		    if(strlen(tmp)-strlen(cestart)-strlen(ceend)-2 > ps_global->ttyo->screen_cols){
+		      snprintf(tmp, sizeof(tmp), "%s[...]\r\n",
 			      repeat_char(dq->indent_length, SPACE));
 
 		      if(strlen(tmp)-2 > ps_global->ttyo->screen_cols){
-		        snprintf(tmp, sizeof(tmp), "%.200s...\r\n",
+		        snprintf(tmp, sizeof(tmp), "%s...\r\n",
 			        repeat_char(dq->indent_length, SPACE));
 
 			if(strlen(tmp)-2 > ps_global->ttyo->screen_cols){
-		          snprintf(tmp, sizeof(tmp), "%.200s\r\n",
+		          snprintf(tmp, sizeof(tmp), "%s\r\n",
 			      repeat_char(MIN(ps_global->ttyo->screen_cols,3),
 					  '.'));
 			}
@@ -889,4 +948,26 @@ mark_handles_in_line(char *line, HANDLE_S **handlesp, int used)
 	    }
 	}	
     }
+}
+
+
+/*
+ * parsed html risk state functions
+ */
+void
+clear_html_risk(void)
+{
+    _html_risk = 0;
+}
+
+void
+set_html_risk(void)
+{
+    _html_risk = 1;
+}
+
+int
+get_html_risk(void)
+{
+    return(_html_risk);
 }

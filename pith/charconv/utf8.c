@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: utf8.c 495 2007-03-29 17:50:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: utf8.c 520 2007-04-11 16:28:41Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -149,18 +149,12 @@ mbtow(void *input_cs, unsigned char **inputp, unsigned long *remaining_octets)
 	cast_input_cs = (CHARSET *) input_cs;
 
 	switch((ucs = (UCS) ucs4_cs_get(cast_input_cs, inputp, remaining_octets))){
-	  case U8G_BADCONT:
-	  case U8G_NOTUTF8:
-	  case U8G_INCMPLT:
-	  case UBOGON:
-	    return(CCONV_BADCHAR);
-
 	  case U8G_ENDSTRG:
 	  case U8G_ENDSTRI:
 	    return(CCONV_NEEDMORE);
 
 	  default:
-	    if(ucs & U8G_ERROR)
+	    if(ucs & U8G_ERROR || ucs == UBOGON)
 	      return(CCONV_BADCHAR);
 
 	    return(ucs);
@@ -346,7 +340,7 @@ convert_to_locale(char *utf8str)
 int
 utf8_to_locale(int c, CBUF_S *cb, unsigned char obuf[], size_t obuf_size)
 {
-    int  width = 0, outchars = 0, printable_ascii = 0;
+    int outchars = 0;
     
     if(!(cb && cb->cbufp))
       return(0);
@@ -359,95 +353,65 @@ utf8_to_locale(int c, CBUF_S *cb, unsigned char obuf[], size_t obuf_size)
 	*(cb->cbufp)++ = (unsigned char) c;
 	inputp = cb->cbuf;
 	remaining_octets = (cb->cbufp - cb->cbuf) * sizeof(unsigned char);
-	if(remaining_octets == 1 && (*cb->cbuf) < 0x80){
-	    /* shortcut common case */
-	    ucs = (UCS) *cb->cbuf;
-	    inputp++;
-	    printable_ascii++;		/* just for efficiency */
-	}
-	else
-	  /*
-	   * we could use mbtow(utf8_charset, ...)
-	   * here to lend an air of portability, then use the CCONV_
-	   * constants for the return values. However, we know we are
-	   * dealing with UTF-8 so we can skip straight to the
-	   * correct function instead.
-	   */
-	  ucs = (UCS) utf8_get(&inputp, &remaining_octets);
+	ucs = (UCS) utf8_get(&inputp, &remaining_octets);
 
 	switch(ucs){
-	  case U8G_BADCONT:	/* continuation at start of char */
-	  case U8G_NOTUTF8:	/* invalid character */
-	  case U8G_INCMPLT:	/* incomplete character */
-	  case UBOGON:
-	    /*
-	     * None of these cases is supposed to happen. If it
-	     * does happen then the input stream isn't UTF-8
-	     * so something is wrong. Treat each character in the
-	     * input buffer as a separate error character and
-	     * print a '?' for each.
-	     */
-	    for(inputp = cb->cbuf; inputp < cb->cbufp; inputp++)
-	      obuf[outchars++] = '?';
-
-	    cb->cbufp = cb->cbuf;
-	    break;
-
 	  case U8G_ENDSTRG:	/* incomplete character, wait */
 	  case U8G_ENDSTRI:	/* incomplete character, wait */
 	    break;
 
 	  default:
-	    /* got a character */
-	    if(printable_ascii)
-	      width = 1;
-	    else{
-		 if(ucs & U8G_ERROR)
-		   ucs = '?';
-
-		width = wcellwidth(ucs);
-	    }
-
-	    if(width < 0){
+	    if(ucs & U8G_ERROR || ucs == UBOGON){
 		/*
-		 * This happens when we have a UTF-8 character that
-		 * we aren't able to print in our locale. For example,
-		 * if the locale is setup with the terminal
-		 * expecting ISO-8859-1 characters then there are
-		 * lots of UTF-8 characters that can't be printed.
-		 * Print a '?' instead.
+		 * None of these cases is supposed to happen. If it
+		 * does happen then the input stream isn't UTF-8
+		 * so something is wrong. Treat each character in the
+		 * input buffer as a separate error character and
+		 * print a '?' for each.
 		 */
-		obuf[outchars++] = '?';
+		for(inputp = cb->cbuf; inputp < cb->cbufp; inputp++)
+		  obuf[outchars++] = '?';
+
+		cb->cbufp = cb->cbuf;
 	    }
 	    else{
-		/*
-		 * Convert the ucs into the multibyte
-		 * character that corresponds to the
-		 * ucs in the users locale.
-		 */
-		if(printable_ascii)
-		  obuf[outchars++] = *cb->cbuf;
+		if(ucs >= 0x80 && wcellwidth(ucs) < 0){
+		    /*
+		     * This happens when we have a UTF-8 character that
+		     * we aren't able to print in our locale. For example,
+		     * if the locale is setup with the terminal
+		     * expecting ISO-8859-1 characters then there are
+		     * lots of UTF-8 characters that can't be printed.
+		     * Print a '?' instead.
+		     */
+		    obuf[outchars++] = '?';
+		}
 		else{
+		    /*
+		     * Convert the ucs into the multibyte
+		     * character that corresponds to the
+		     * ucs in the users locale.
+		     */
 		    outchars = wtomb((char *) obuf, ucs);
 		    if(outchars < 0){
 			obuf[0] = '?';
 			outchars = 1;
 		    }
 		}
-	    }
 
-	    /* update the input buffer */
-	    if(inputp >= cb->cbufp)	/* this should be the case */
-	      cb->cbufp = cb->cbuf;
-	    else{		/* extra chars for some reason? */
-		unsigned char *q, *newcbufp;
+		/* update the input buffer */
+		if(inputp >= cb->cbufp)	/* this should be the case */
+		  cb->cbufp = cb->cbuf;
+		else{		/* extra chars for some reason? */
+		    unsigned char *q, *newcbufp;
 
-		newcbufp = (cb->cbufp - inputp) + cb->cbuf;
-		q = cb->cbuf;
-		while(inputp < cb->cbufp)
-		  *q++ = *inputp++;
+		    newcbufp = (cb->cbufp - inputp) + cb->cbuf;
+		    q = cb->cbuf;
+		    while(inputp < cb->cbufp)
+		      *q++ = *inputp++;
 
-		cb->cbufp = newcbufp;
+		    cb->cbufp = newcbufp;
+		}
 	    }
 
 	    break;
@@ -456,6 +420,7 @@ utf8_to_locale(int c, CBUF_S *cb, unsigned char obuf[], size_t obuf_size)
     else{			/* error */
 	obuf[0] = '?';
 	outchars = 1;
+	cb->cbufp = cb->cbuf;	/* start over */
     }
 
     return(outchars);
@@ -599,14 +564,16 @@ utf8_to_ucs4_cpystr(char *utf8src)
     remaining_octets = retsize-1;
     arrayindex = 0;
 
-    while(remaining_octets > 0 && *readptr){
+    while(remaining_octets > 0 && *readptr && arrayindex < retsize-1){
 	ucs = (UCS) utf8_get(&readptr, &remaining_octets);
 
-	if(ucs & U8G_ERROR)
+	if(ucs & U8G_ERROR || ucs == UBOGON)
 	  remaining_octets = 0;
-
-	ret[arrayindex++] = ucs;
+	else
+	  ret[arrayindex++] = ucs;
     }
+
+    ret[arrayindex] = '\0';
 
     /* get rid of excess size */
     if(arrayindex+1 < retsize)
@@ -812,7 +779,7 @@ lptstr_to_ucs4(LPTSTR arg_lptstr)
 int
 utf8_to_ucs4_oneatatime(int c, CBUF_S *cb, UCS *obuf, int *obufwidth)
 {
-    int  width = 0, outchars = 0, printable_ascii = 0;
+    int  width = 0, outchars = 0;
     
     if(!(cb && cb->cbufp))
       return(0);
@@ -825,91 +792,59 @@ utf8_to_ucs4_oneatatime(int c, CBUF_S *cb, UCS *obuf, int *obufwidth)
 	*cb->cbufp++ = (unsigned char) c;
 	inputp = cb->cbuf;
 	remaining_octets = (cb->cbufp - cb->cbuf) * sizeof(unsigned char);
-	if(remaining_octets == 1 && (*cb->cbuf) < 0x80){
-	    /* shortcut common case */
-	    ucs = (UCS) *cb->cbuf;
-	    inputp++;
-	    printable_ascii++;		/* just for efficiency */
-	}
-	else
-	  /*
-	   * we could use mbtow(utf8_charset, ...)
-	   * here to lend an air of portability, then use the CCONV_
-	   * constants for the return values. However, we know we are
-	   * dealing with UTF-8 so we can skip straight to the
-	   * correct function instead.
-	   */
-	  ucs = (UCS) utf8_get(&inputp, &remaining_octets);
+	ucs = (UCS) utf8_get(&inputp, &remaining_octets);
 
 	switch(ucs){
-	  case U8G_BADCONT:	/* continuation at start of char */
-	  case U8G_NOTUTF8:	/* invalid character */
-	  case U8G_INCMPLT:	/* incomplete character */
-	  case UBOGON:
-	    /*
-	     * None of these cases is supposed to happen. If it
-	     * does happen then the input stream isn't UTF-8
-	     * so something is wrong.
-	     */
-	    outchars++;
-	    *obuf = '?';
-	    cb->cbufp = cb->cbuf;
-	    width = 1;
-	    break;
-
 	  case U8G_ENDSTRG:	/* incomplete character, wait */
 	  case U8G_ENDSTRI:	/* incomplete character, wait */
 	    break;
 
 	  default:
-	    /* got a character */
-	    if(printable_ascii)
-	      width = 1;
-	    else{
-		 if(ucs & U8G_ERROR)
-		   ucs = '?';
-
-		width = wcellwidth(ucs);
-	    }
-
-	    outchars++;
-
-	    if(width < 0){
+	    if(ucs & U8G_ERROR || ucs == UBOGON){
 		/*
-		 * This happens when we have a UTF-8 character that
-		 * we aren't able to print in our locale. For example,
-		 * if the locale is setup with the terminal
-		 * expecting ISO-8859-1 characters then there are
-		 * lots of UTF-8 characters that can't be printed.
-		 * Print a '?' instead.
-		 * Don't think this should happen in Windows.
+		 * None of these cases is supposed to happen. If it
+		 * does happen then the input stream isn't UTF-8
+		 * so something is wrong.
 		 */
+		outchars++;
 		*obuf = '?';
+		cb->cbufp = cb->cbuf;
+		width = 1;
 	    }
 	    else{
-		/*
-		 * Convert the ucs into the multibyte
-		 * character that corresponds to the
-		 * ucs in the users locale.
-		 */
-		if(printable_ascii)
-		  *obuf = *cb->cbuf;
-		else
-		  *obuf = ucs;
-	    }
+		outchars++;
+		if(ucs < 0x80 && ucs >= 0x20)
+		  width = 1;
 
-	    /* update the input buffer */
-	    if(inputp >= cb->cbufp)	/* this should be the case */
-	      cb->cbufp = cb->cbuf;
-	    else{		/* extra chars for some reason? */
-		unsigned char *q, *newcbufp;
+		if(ucs >= 0x80 && (width=wcellwidth(ucs)) < 0){
+		    /*
+		     * This happens when we have a UTF-8 character that
+		     * we aren't able to print in our locale. For example,
+		     * if the locale is setup with the terminal
+		     * expecting ISO-8859-1 characters then there are
+		     * lots of UTF-8 characters that can't be printed.
+		     * Print a '?' instead.
+		     * Don't think this should happen in Windows.
+		     */
+		    *obuf = '?';
+		}
+		else{
+		    *obuf = ucs;
+		}
 
-		newcbufp = (cb->cbufp - inputp) + cb->cbuf;
-		q = cb->cbuf;
-		while(inputp < cb->cbufp)
-		  *q++ = *inputp++;
+		/* update the input buffer */
+		if(inputp >= cb->cbufp)	/* this should be the case */
+		  cb->cbufp = cb->cbuf;
+		else{		/* extra chars for some reason? */
+		    unsigned char *q, *newcbufp;
 
-		cb->cbufp = newcbufp;
+		    newcbufp = (cb->cbufp - inputp) + cb->cbuf;
+		    q = cb->cbuf;
+		    while(inputp < cb->cbufp)
+		      *q++ = *inputp++;
+
+		    cb->cbufp = newcbufp;
+		}
 	    }
 
 	    break;
@@ -919,6 +854,7 @@ utf8_to_ucs4_oneatatime(int c, CBUF_S *cb, UCS *obuf, int *obufwidth)
 	*obuf = '?';
 	outchars = 1;
 	width = 1;
+	cb->cbufp = cb->cbuf;	/* start over */
     }
 
     if(obufwidth)
@@ -1076,7 +1012,7 @@ utf8_width(char *str)
 
 	ucs = (UCS) utf8_get((unsigned char **) &readptr, &remaining_octets);
 
-	if(ucs & U8G_ERROR){
+	if(ucs & U8G_ERROR || ucs == UBOGON){
 	    /*
 	     * This should not happen, but do something to handle it anyway.
 	     * Treat each character as a single width character, which is what should
@@ -1177,7 +1113,7 @@ utf8_to_width_rhs(char *dst,		/* destination buffer */
 	 * happens as we back through the string. So we're just going to punt on the
 	 * error for now.
 	 */
-	if(!(ucs & U8G_ERROR)){
+	if(!(ucs & U8G_ERROR || ucs == UBOGON)){
 	    if(remaining_octets > 0){
 		/*
 		 * This means there are some bad octets after this good
@@ -1618,7 +1554,7 @@ utf8_to_width(char *dst,		/* destination buffer */
 	savereadptr = readptr;
 	ucs = (UCS) utf8_get((unsigned char **) &readptr, &remaining_octets);
 
-	if(ucs & U8G_ERROR)
+	if(ucs & U8G_ERROR || ucs == UBOGON)
 	  remaining_octets = 0;
 	else{
 	  this_width = wcellwidth(ucs);
@@ -1688,7 +1624,7 @@ utf8_count_forw_width(char *str, unsigned want_width, unsigned *got_width)
 
 	ucs = (UCS) utf8_get((unsigned char **) &readptr, &remaining_octets);
 
-	if(ucs & U8G_ERROR){
+	if(ucs & U8G_ERROR || ucs == UBOGON){
 	    /*
 	     * This should not happen, but do something to handle it anyway.
 	     * Treat each character as a single width character, which is what should
@@ -1757,7 +1693,7 @@ utf8_truncate(char *str, unsigned max_width)
 	savereadptr = readptr;
 	ucs = (UCS) utf8_get((unsigned char **) &readptr, &remaining_octets);
 
-	if(ucs & U8G_ERROR){
+	if(ucs & U8G_ERROR || ucs == UBOGON){
 	    /*
 	     * This should not happen, but do something to handle it anyway.
 	     * Treat each character as a single width character, which is what should
@@ -1896,7 +1832,7 @@ utf8_count_back_width(char *str, char *start_here, unsigned want_width, unsigned
 	remaining_octets = goodreadptr - ptr;
 	ucs = (UCS) utf8_get((unsigned char **) &ptr, &remaining_octets);
 
-	if(!(ucs & U8G_ERROR)){
+	if(!(ucs & U8G_ERROR || ucs == UBOGON)){
 	  if(remaining_octets > 0){
 	      /*
 	       * This means there are some bad octets after this good

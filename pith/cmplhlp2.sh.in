@@ -1,4 +1,4 @@
-#!/bin/sh
+#!@SHELL@
 #
 # $Id: cmplhlp2.sh 29 2006-02-03 19:21:07Z hubert $
 #
@@ -44,7 +44,7 @@
 #
 
 
-awk  ' BEGIN	{  printf("\n\n\t\t/*\n");
+@AWK@ 'BEGIN	{  printf("\n\n\t\t/*\n");
                    printf("\t\t * AUTMATICALLY GENERATED FILE!\n");
                    printf("\t\t * DO NOT EDIT!!\n\t\t */\n\n\n");
                    printf("#ifndef PITH_HELPTEXT_INCLUDED\n");
@@ -57,7 +57,3 @@ awk  ' BEGIN	{  printf("\n\n\t\t/*\n");
        /^====/  {  printf ("extern char *%s[] ; \n\n", $2 ); }
        END      {  printf ("\n\nextern struct help_texts h_texts[];\n\n");
                    printf ("#endif /* PITH_HELPTEXT_INCLUDED */\n\n");}'
-
-
-
-

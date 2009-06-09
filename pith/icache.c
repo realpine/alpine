@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: icache.c 409 2007-02-01 22:44:01Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: icache.c 526 2007-04-16 19:52:32Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -255,11 +255,13 @@ fetch_ice(MAILSTREAM *stream, long unsigned int rawno)
     if(!stream || rawno < 1L || rawno > stream->nmsgs)
       return NULL;
 
+    if(!(mc = mail_elt(stream, rawno)))
+      return NULL;
+
     /*
      * any private elt data yet?
      */
-    if((mc = mail_elt(stream, rawno))
-       && (*(peltp = (PINELT_S **) &mc->sparep) == NULL)){
+    if((*(peltp = (PINELT_S **) &mc->sparep) == NULL)){
 	*peltp = (PINELT_S *) fs_get(sizeof(PINELT_S));
 	memset(*peltp, 0, sizeof(PINELT_S));
     }

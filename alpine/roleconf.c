@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: roleconf.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: roleconf.c 529 2007-04-18 22:41:05Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -2683,10 +2683,11 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
                      cstm_act_var, smtp_act_var, nntp_act_var,
 		     sort_act_var, iform_act_var, startup_var,
 		     repl_type_var, forw_type_var, comp_type_var, score_act_var,
+		     hdrtok_act_var,
 		     rolecolor_vars[2], filter_type_var, folder_act_var,
 		     keyword_set_var, keyword_clr_var,
 		     filt_new_var, filt_del_var, filt_imp_var, filt_ans_var;
-    struct variable *v, *varlist[64], opt_var, inabook_type_var;
+    struct variable *v, *varlist[65], opt_var, inabook_type_var;
     char            *nick = NULL, *inick = NULL, *fldr_type_pat = NULL,
 		    *comment = NULL,
 		    *scorei_pat = NULL, *age_pat = NULL, *size_pat = NULL,
@@ -2701,6 +2702,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 		    *templ_act = NULL, *repl_type = NULL, *forw_type = NULL,
 		    *comp_type = NULL, *rc_fg = NULL, *rc_bg = NULL,
 		    *score_act = NULL, *filter_type = NULL,
+		    *hdrtok_act = NULL,
 		    *iform_act = NULL, *startup_act = NULL,
 		    *old_fg = NULL, *old_bg = NULL;
     char           **to_pat = NULL, **from_pat = NULL, **sender_pat = NULL,
@@ -2807,6 +2809,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
     varlist[++j] = &smtp_act_var;
     varlist[++j] = &nntp_act_var;
     varlist[++j] = &score_act_var;
+    varlist[++j] = &hdrtok_act_var;
     varlist[++j] = &repl_type_var;
     varlist[++j] = &forw_type_var;
     varlist[++j] = &comp_type_var;
@@ -3280,6 +3283,16 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
     }
 
     set_current_val(&score_act_var, FALSE, FALSE);
+
+    hdrtok_act_var.name       = cpystr(_("Score From Header"));
+    hdrtok_act_var.is_used    = 1;
+    hdrtok_act_var.is_user    = 1;
+    if(def && def->action && def->action->scorevalhdrtok){
+	apval = APVAL(&hdrtok_act_var, ew);
+	*apval = hdrtok_to_stringform(def->action->scorevalhdrtok);
+    }
+
+    set_current_val(&hdrtok_act_var, FALSE, FALSE);
 
     role_repl_ptr = &repl_type_var;		/* so radiobuttons can tell */
     /* TRANSLATORS: For these, Use is a now. This part of the rule describes how
@@ -3967,6 +3980,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	int roindent;
 
 	roindent = utf8_width(u_s_s);	/* the longest one */
+	roindent += 3;	/* width of ` = ' */
 
 	/* Blank line */
 	new_confline(&ctmp);
@@ -4182,7 +4196,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
     if(edit_score){
 	int sindent;
 
-	sindent = utf8_width(score_act_var.name) + 3;
+	sindent = MAX(utf8_width(score_act_var.name),utf8_width(hdrtok_act_var.name)) + 3;
 
 	/* Blank line */
 	new_confline(&ctmp);
@@ -4198,6 +4212,24 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	ctmp->tool      = text_tool;
 	ctmp->flags    |= CF_NUMBER;
 	utf8_snprintf(tmp, sizeof(tmp), "%-*.*w =", sindent-3, sindent-3, score_act_var.name);
+	tmp[sizeof(tmp)-1] = '\0';
+	ctmp->varname   = cpystr(tmp);
+	ctmp->varnamep  = ctmp;
+	ctmp->value     = pretty_value(ps, ctmp);
+
+	new_confline(&ctmp);
+	ctmp->flags    |= CF_NOSELECT;
+	ctmp->value     = cpystr("   OR");
+
+	/* Score From Header */
+	new_confline(&ctmp);
+	ctmp->help_title= _("HELP FOR SCORE VALUE FROM HEADER ACTION");
+	ctmp->var       = &hdrtok_act_var;
+	ctmp->valoffset = sindent;
+	ctmp->keymenu   = &config_text_keymenu;
+	ctmp->help      = h_config_role_scorehdrtok;
+	ctmp->tool      = text_tool;
+	utf8_snprintf(tmp, sizeof(tmp), "%-*.*w =", sindent-3, sindent-3, hdrtok_act_var.name);
 	tmp[sizeof(tmp)-1] = '\0';
 	ctmp->varname   = cpystr(tmp);
 	ctmp->varnamep  = ctmp;
@@ -5009,6 +5041,11 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	*apval = NULL;
 	removing_leading_and_trailing_white_space(score_act);
 
+	apval = APVAL(&hdrtok_act_var, ew);
+	hdrtok_act = *apval;
+	*apval = NULL;
+	removing_leading_and_trailing_white_space(hdrtok_act);
+
 	apval = APVAL(&repl_type_var, ew);
 	repl_type = *apval;
 	*apval = NULL;
@@ -5604,6 +5641,9 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	if(score_act && (j = atoi(score_act)) >= SCORE_MIN && j <= SCORE_MAX)
 	  (*result)->action->scoreval = (long) j;
 
+	if(hdrtok_act)
+	  (*result)->action->scorevalhdrtok = stringform_to_hdrtok(hdrtok_act);
+
 	if(repl_type && *repl_type){
 	    for(j = 0; f = role_repl_types(j); j++)
 	      if(!strucmp(repl_type, f->name)){
@@ -5760,6 +5800,8 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
       fs_give((void **)&templ_act);
     if(score_act)
       fs_give((void **)&score_act);
+    if(hdrtok_act)
+      fs_give((void **)&hdrtok_act);
     if(repl_type)
       fs_give((void **)&repl_type);
     if(forw_type)
@@ -7175,9 +7217,9 @@ role_text_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
       case MC_CHOICEE :
 	saved_screen = opt_screen;
 	if(cmd == MC_CHOICED)
-	  tmpfldr = folders_for_roles(FOR_PATTERN);
+	  tmpfldr = folder_for_config(FOR_PATTERN);
 	else
-	  tmpfldr = folders_for_roles(0);
+	  tmpfldr = folder_for_config(0);
 	
 	if(tmpfldr){
 	    fldr = add_comma_escapes(tmpfldr);
@@ -7604,14 +7646,14 @@ role_text_tool_inick(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 
 	opt_screen = saved_screen;
 	}
-	/* fall through */
+
+	ps->mangled_screen = 1;
+	break;
 
       case MC_EDIT :
       case MC_ADD :
       case MC_DELETE :
-	if(cmd != MC_CHOICE)
-	  rv = text_tool(ps, cmd, cl, flags);
-
+	rv = text_tool(ps, cmd, cl, flags);
 	ps->mangled_screen = 1;
 	break;
 

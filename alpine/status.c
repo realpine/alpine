@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: status.c 468 2007-03-02 23:04:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: status.c 508 2007-04-03 22:14:39Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -77,8 +77,8 @@ will not let messages fly past that the user can't see.
 static SMQ_T *message_queue = NULL;
 static short  needs_clearing = 0, /* Flag set by want_to()
                                               and optionally_enter() */
-	      prevstartcol;
-static char   prevstatusbuff[6*MAX_SCREEN_COLS+1];
+	      prevstartcol, prevendcol;
+static char   prevstatusbuf[6*MAX_SCREEN_COLS+1];
 static time_t displayed_time;
 
 
@@ -185,7 +185,8 @@ void
 mark_status_unknown(void)
 {
     prevstartcol = -1;
-    prevstatusbuff[0]  = '\0';
+    prevendcol = -1;
+    prevstatusbuf[0]  = '\0';
 }
 
 
@@ -536,7 +537,7 @@ status_message_write(char *message, int from_alarm_handler)
 {
     int  col, row, max_width, invert;
     int bytes;
-    char obuff[6*MAX_SCREEN_COLS + 1];
+    char newstatusbuf[6*MAX_SCREEN_COLS + 1];
     struct variable *vars = ps_global->vars;
     COLOR_PAIR *lastc = NULL, *newc;
 
@@ -549,25 +550,63 @@ status_message_write(char *message, int from_alarm_handler)
     /* Put [] around message and truncate to screen width */
     max_width = ps_global->ttyo != NULL ? ps_global->ttyo->screen_cols : 80;
     max_width = MIN(max_width, MAX_SCREEN_COLS);
-    obuff[0] = '[';
-    obuff[1] = '\0';
+    newstatusbuf[0] = '[';
+    newstatusbuf[1] = '\0';
 
-    bytes = utf8_to_width(obuff+1, message, sizeof(obuff)-1, max_width-2, NULL);
-    obuff[1+bytes] = ']';
-    obuff[1+bytes+1] = '\0';
+    bytes = utf8_to_width(newstatusbuf+1, message, sizeof(newstatusbuf)-1, max_width-2, NULL);
+    newstatusbuf[1+bytes] = ']';
+    newstatusbuf[1+bytes+1] = '\0';
 
-    if(prevstartcol == -1 || strcmp(obuff, prevstatusbuff)){
-	unsigned long l_obuf, l_pbuf;
+    if(prevstartcol == -1 || strcmp(newstatusbuf, prevstatusbuf)){
+	UCS *prevbuf = NULL, *newbuf = NULL;
+	size_t plen;
+
+	if(prevstartcol != -1){
+	    prevbuf = utf8_to_ucs4_cpystr(prevstatusbuf);
+	    newbuf  = utf8_to_ucs4_cpystr(newstatusbuf);
+	}
+
 	/*
 	 * Simple optimization.  If the strings are the same length
-	 * just skip leading and trailing strings of common
-	 * characters and only write whatever's in between.
+	 * and width just skip leading and trailing strings of common
+	 * characters and only write whatever's in between. Otherwise,
+	 * write out the whole thing.
+	 * We could do something more complicated but the odds of
+	 * getting any optimization goes way down if they aren't the
+	 * same length and width and the complexity goes way up.
 	 */
-	if(prevstartcol != -1
-	   && (l_obuf = strlen(obuff)) == (l_pbuf = strlen(prevstatusbuff))){
-	    char	  *p_obuf, *p_pbuf, *uneq_str, *eq_str, eq_byte;
-	    int		   column;
-	    UCS		   c_obuf, c_pbuf;
+	if(prevbuf && newbuf
+	   && (plen=ucs4_strlen(prevbuf)) == ucs4_strlen(newbuf)
+	   && ucs4_str_width(prevbuf) == ucs4_str_width(newbuf)){
+	    UCS *start_of_unequal, *end_of_unequal;
+	    UCS *pprev, *endnewbuf;
+	    char *to_screen = NULL;
+	    int column;
+
+	    pprev = prevbuf;
+	    start_of_unequal = newbuf;
+	    endnewbuf = newbuf + plen;
+	    col = column = prevstartcol;
+
+	    while(start_of_unequal < endnewbuf && (*start_of_unequal) == (*pprev)){
+		int w;
+
+		w = wcellwidth(*start_of_unequal);
+		if(w >= 0)
+		  column += w;
+
+		pprev++;
+		start_of_unequal++;
+	    }
+
+	    end_of_unequal = endnewbuf-1;
+	    pprev = prevbuf + plen - 1;
+
+	    while(end_of_unequal > start_of_unequal && (*end_of_unequal) == (*pprev)){
+		*end_of_unequal = '\0';
+		pprev--;
+		end_of_unequal--;
+	    }
 
 	    if(pico_usingcolor() && VAR_STATUS_FORE_COLOR &&
 	       VAR_STATUS_BACK_COLOR &&
@@ -584,65 +623,16 @@ status_message_write(char *message, int from_alarm_handler)
 	    else if(invert)
 	      StartInverse();
 
-	    p_obuf = uneq_str = obuff;
-	    p_pbuf = prevstatusbuff;
-	    col = column = prevstartcol;
+	    /* PutLine wants UTF-8 string */
+	    if(start_of_unequal && (*start_of_unequal))
+	      to_screen = ucs4_to_utf8_cpystr(start_of_unequal);
 
-	    /* skip over leading equal characters */
-	    while(*p_obuf){
-		c_obuf = (UCS) utf8_get((unsigned char **) &p_obuf, &l_obuf);
-		c_pbuf = (UCS) utf8_get((unsigned char **) &p_pbuf, &l_pbuf);
+	    if(to_screen){
+		PutLine0(row, column, to_screen);
+		fs_give((void **) &to_screen);
 
-		if((c_obuf & U8G_ERROR) || (c_pbuf & U8G_ERROR)){
-		    column = prevstartcol;
-		    uneq_str = obuff;
-		    break;
-		}
-		else if(c_obuf == c_pbuf){
-		    int w;
-
-		    uneq_str = p_obuf;
-		    w = wcellwidth(c_obuf);
-		    if(w >= 0)
-		      column += w;
-		}
-		else
-		  break;
-	    }
-
-	    if(*uneq_str){
-		/* skip over trailing equal characters */
-		eq_byte = '\0';
-		eq_str  = NULL;
-		while(*p_obuf){
-		    c_obuf = (UCS) utf8_get((unsigned char **) &p_obuf, &l_obuf);
-		    c_pbuf = (UCS) utf8_get((unsigned char **) &p_pbuf, &l_pbuf);
-
-		    if((c_obuf & U8G_ERROR) || (c_pbuf & U8G_ERROR)){
-			eq_str = NULL;
-			break;
-		    }
-		    else if(c_obuf == c_pbuf){
-			if(!eq_str)
-			  eq_str = p_obuf;
-		    }
-		    else
-		      eq_str = NULL;
-		}
-
-		/* tie off and draw the changed chars */
-		if(eq_str){
-		    eq_byte = *eq_str;
-		    *eq_str = '\0';
-		}
-
-		PutLine0(row, column, uneq_str);
-
-		if(eq_byte)
-		  *eq_str = eq_byte;
-
-		strncpy(prevstatusbuff, obuff, sizeof(prevstatusbuff));
-		prevstatusbuff[sizeof(prevstatusbuff)-1] = '\0';
+		strncpy(prevstatusbuf, newstatusbuf, sizeof(prevstatusbuf));
+		prevstatusbuf[sizeof(prevstatusbuf)-1] = '\0';
 	    }
 
 	    if(lastc){
@@ -686,7 +676,7 @@ status_message_write(char *message, int from_alarm_handler)
 		StartInverse();
 	    }
 
-	    col = Centerline(row, obuff);
+	    col = Centerline(row, newstatusbuf);
 
 	    if(lastc){
 		(void)pico_set_colorp(lastc, PSC_NONE);
@@ -697,17 +687,23 @@ status_message_write(char *message, int from_alarm_handler)
 
 	    MoveCursor(row, 0);
 	    fflush(stdout);
-	    strncpy(prevstatusbuff, obuff, sizeof(prevstatusbuff));
-	    prevstatusbuff[sizeof(prevstatusbuff)-1] = '\0';
+	    strncpy(prevstatusbuf, newstatusbuf, sizeof(prevstatusbuf));
+	    prevstatusbuf[sizeof(prevstatusbuf)-1] = '\0';
 	    prevstartcol = col;
+	    prevendcol = col + utf8_width(prevstatusbuf) - 1;
 	}
+
+	if(prevbuf)
+	  fs_give((void **) &prevbuf);
+
+	if(newbuf)
+	  fs_give((void **) &newbuf);
     }
     else
       col = prevstartcol;
 
     return(col);
 }
-
 
 
 /*----------------------------------------------------------------------
@@ -863,26 +859,22 @@ output_message(SMQ_T *mq_entry)
 void
 delay_cmd_cue(int on)
 {
-    int l, screen_edge = 0;
     COLOR_PAIR *lastc;
     struct variable *vars = ps_global->vars;
 
-    if(prevstartcol >= 0 && (l = strlen(prevstatusbuff))){
-	screen_edge = (prevstartcol == 0) || 
-	  (prevstartcol + l >= ps_global->ttyo->screen_cols);
+    if(prevstartcol >= 0 && prevendcol < ps_global->ttyo->screen_cols){
 	MoveCursor(ps_global->ttyo->screen_rows - FOOTER_ROWS(ps_global),
-		   prevstartcol ? MAX(prevstartcol - 1, 0) : 0);
+		   MAX(prevstartcol - 1, 0));
 	lastc = pico_set_colors(VAR_STATUS_FORE_COLOR, VAR_STATUS_BACK_COLOR,
 				PSC_REV|PSC_RET);
-
-	Write_to_screen(on ? (screen_edge ? ">" : "[>") : 
-			(screen_edge ? "[" : " ["));
+	Write_to_screen(on ? (prevstartcol ? "[>" : ">")
+			   : (prevstartcol ? " [" : "["));
 
 	MoveCursor(ps_global->ttyo->screen_rows - FOOTER_ROWS(ps_global),
-		   MIN(prevstartcol + l, ps_global->ttyo->screen_cols) - 1);
+		   prevendcol);
 
-	Write_to_screen(on ? (screen_edge ? "<" : "<]") : 
-			(screen_edge ? "]" : "] "));
+	Write_to_screen(on ? (prevendcol < ps_global->ttyo->screen_cols-1 ? "<]" : "<")
+			   : (prevendcol < ps_global->ttyo->screen_cols-1 ? "] " : "]"));
 
 	if(lastc){
 	    (void)pico_set_colorp(lastc, PSC_NONE);

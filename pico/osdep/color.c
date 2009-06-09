@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: color.c 414 2007-02-02 22:22:39Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: color.c 548 2007-04-27 19:21:20Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1317,8 +1317,8 @@ pico_set_normal_color(void)
 {
     if(!_nfcolor || !_nbcolor ||
        !pico_set_fg_color(_nfcolor) || !pico_set_bg_color(_nbcolor)){
-	(void)pico_set_fg_color(colorx(DEFAULT_NORM_FORE));
-	(void)pico_set_bg_color(colorx(DEFAULT_NORM_BACK));
+	(void)pico_set_fg_color(DEFAULT_NORM_FORE_RGB);
+	(void)pico_set_bg_color(DEFAULT_NORM_BACK_RGB);
     }
 }
 

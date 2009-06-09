@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcmd.c 491 2007-03-26 18:18:35Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailcmd.c 543 2007-04-26 04:06:02Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -60,6 +60,7 @@ static char rcsid[] = "$Id: mailcmd.c 491 2007-03-26 18:18:35Z hubert@u.washingt
 #include "../pith/keyword.h"
 #include "../pith/stream.h"
 #include "../pith/mailcmd.h"
+#include "../pith/hist.h"
 #ifdef _WINDOWS
 #include "../pico/osdep/mswin.h"
 #endif
@@ -80,7 +81,7 @@ int       cmd_export(struct pine *, MSGNO_S *, int, int);
 char	 *cmd_delete_action(struct pine *, MSGNO_S *, CmdWhere);
 char	 *cmd_delete_view(struct pine *, MSGNO_S *);
 char	 *cmd_delete_index(struct pine *, MSGNO_S *);
-long      get_level(int, int, SCROLL_S *);
+long      get_level(int, UCS, SCROLL_S *);
 long      closest_jump_target(long, MAILSTREAM *, MSGNO_S *, int, CmdWhere, char *, size_t);
 int	  update_folder_spec(char *, size_t, char *);
 int       cmd_print(struct pine *, MSGNO_S *, int, CmdWhere);
@@ -2424,7 +2425,7 @@ save_prompt(struct pine *state, CONTEXT_S **cntxt, char *nfldr, size_t len_nfldr
 	    char *nmsgs, ENVELOPE *env, long int rawmsgno, char *section,
 	    SaveDel *dela, int *notrealinbox)
 {
-    int		      rc, n, flags, last_rc = 0, saveable_count = 0, done = 0;
+    int		      rc, ku = -1, n, flags, last_rc = 0, saveable_count = 0, done = 0;
     int		      delindex, r;
     char	      prompt[6*MAX_SCREEN_COLS+1], *p, expanded[MAILTMPLEN];
     char              *buf = tmp_20k_buf;
@@ -2433,6 +2434,7 @@ save_prompt(struct pine *state, CONTEXT_S **cntxt, char *nfldr, size_t len_nfldr
     HelpType	      help;
     SaveDel           del = DontAsk;
     char             *deltext = NULL;
+    static HISTORY_S *history = NULL;
     CONTEXT_S	     *tc;
     ESCKEY_S	      ekey[9];
 
@@ -2441,6 +2443,8 @@ save_prompt(struct pine *state, CONTEXT_S **cntxt, char *nfldr, size_t len_nfldr
 
     if(notrealinbox)
       *notrealinbox = 0;
+
+    init_hist(&history, HISTSIZE);
 
     if(!(folder = save_get_default(state, env, rawmsgno, section, cntxt)))
       return(0);		/* message expunged! */
@@ -2494,7 +2498,7 @@ save_prompt(struct pine *state, CONTEXT_S **cntxt, char *nfldr, size_t len_nfldr
 	del = *dela;
     }
 
-    if(saveable_count > 1){
+    if(saveable_count > 1 && F_ON(F_DISABLE_INPUT_HISTORY, ps_global)){
 	ekey[rc].ch      = KEY_UP;
 	ekey[rc].rval    = 10;
 	ekey[rc].name    = "";
@@ -2502,6 +2506,18 @@ save_prompt(struct pine *state, CONTEXT_S **cntxt, char *nfldr, size_t len_nfldr
 
 	ekey[rc].ch      = KEY_DOWN;
 	ekey[rc].rval    = 11;
+	ekey[rc].name    = "";
+	ekey[rc++].label = "";
+    }
+    else if(F_OFF(F_DISABLE_INPUT_HISTORY, ps_global)){
+	ekey[rc].ch      = KEY_UP;
+	ekey[rc].rval    = 30;
+	ekey[rc].name    = "";
+	ku = rc;
+	ekey[rc++].label = "";
+
+	ekey[rc].ch      = KEY_DOWN;
+	ekey[rc].rval    = 31;
 	ekey[rc].name    = "";
 	ekey[rc++].label = "";
     }
@@ -2560,6 +2576,17 @@ save_prompt(struct pine *state, CONTEXT_S **cntxt, char *nfldr, size_t len_nfldr
 	if(del != DontAsk)
 	  ekey[delindex].label = (del == NoDel) ? "Delete" : "No Delete";
 
+	if(ku >= 0){
+	    if(items_in_hist(history) > 1){
+		ekey[ku].name  = HISTORY_UP_KEYNAME;
+		ekey[ku].label = HISTORY_UP_KEYLABEL;
+	    }
+	    else{
+		ekey[ku].name  = "";
+		ekey[ku].label = "";
+	    }
+	}
+
 	flags = OE_APPEND_CURRENT | OE_SEQ_SENSITIVE;
 	rc = optionally_enter(nfldr, -FOOTER_ROWS(state), 0, len_nfldr,
 			      prompt, ekey, help, &flags);
@@ -2583,6 +2610,9 @@ save_prompt(struct pine *state, CONTEXT_S **cntxt, char *nfldr, size_t len_nfldr
 		    strncpy(nfldr, folder, len_nfldr-1);
 		    nfldr[len_nfldr-1] = '\0';
 		}
+
+		save_hist(history, nfldr, 0, (void *) *cntxt);
+
 		if(!(name = folder_is_nick(nfldr, FOLDERS(*cntxt), 0)))
 		    name = nfldr;
 
@@ -2755,6 +2785,30 @@ save_prompt(struct pine *state, CONTEXT_S **cntxt, char *nfldr, size_t len_nfldr
 	  case 15 :			/* Delete / No Delete */
 	    del = (del == NoDel) ? Del : NoDel;
 	    deltext = (del == NoDel) ? " (no delete)" : " (and delete)";
+	    break;
+
+	  case 30 :
+	    if((p = get_prev_hist(history, nfldr, 0, (void *) *cntxt)) != NULL){
+		strncpy(nfldr, p, len_nfldr);
+		nfldr[len_nfldr-1] = '\0';
+		if(history->hist[history->curindex])
+		  *cntxt = (CONTEXT_S *) history->hist[history->curindex]->cntxt;
+	    }
+	    else
+	      Writechar(BELL, 0);
+
+	    break;
+
+	  case 31 :
+	    if((p = get_next_hist(history, nfldr, 0, (void *) *cntxt)) != NULL){
+		strncpy(nfldr, p, len_nfldr);
+		nfldr[len_nfldr-1] = '\0';
+		if(history->hist[history->curindex])
+		  *cntxt = (CONTEXT_S *) history->hist[history->curindex]->cntxt;
+	    }
+	    else
+	      Writechar(BELL, 0);
+
 	    break;
 
 	  default :
@@ -3088,6 +3142,7 @@ cmd_export(struct pine *state, MSGNO_S *msgmap, int qline, int aopt)
     STORE_S  *store;
     struct variable *vars = ps_global->vars;
     ESCKEY_S export_opts[5];
+    static HISTORY_S *history = NULL;
 
     if(ps_global->restricted){
 	q_status_message(SM_ORDER, 0, 3,
@@ -3169,7 +3224,7 @@ cmd_export(struct pine *state, MSGNO_S *msgmap, int qline, int aopt)
 
     r = get_export_filename(state, filename, NULL, full_filename,
 			    sizeof(filename), nmsgs, "EXPORT",
-			    export_opts, &rflags, qline, flags);
+			    export_opts, &rflags, qline, flags, &history);
 
     if(r < 0){
 	switch(r){
@@ -3541,6 +3596,7 @@ simple_export(struct pine *ps, void *srctext, SourceType srctype, char *prompt_m
     char     filename[MAXPATH+1], full_filename[MAXPATH+1];
     STORE_S *store = NULL;
     struct variable *vars = ps->vars;
+    static HISTORY_S *history = NULL;
     static ESCKEY_S simple_export_opts[] = {
 	{ctrl('T'), 10, "^T", N_("To Files")},
 	{-1, 0, NULL, NULL},
@@ -3565,7 +3621,7 @@ simple_export(struct pine *ps, void *srctext, SourceType srctype, char *prompt_m
 
     r = get_export_filename(ps, filename, NULL, full_filename, sizeof(filename),
 			    prompt_msg, lister_msg, simple_export_opts, &rflags,
-			    -FOOTER_ROWS(ps), GE_IS_EXPORT);
+			    -FOOTER_ROWS(ps), GE_IS_EXPORT, &history);
 
     if(r < 0)
       goto fini;
@@ -3698,24 +3754,27 @@ int
 get_export_filename(struct pine *ps, char *filename, char *deefault,
 		    char *full_filename, size_t len, char *prompt_msg,
 		    char *lister_msg, ESCKEY_S *optsarg, int *rflags,
-		    int qline, int flags)
+		    int qline, int flags, HISTORY_S **history)
 {
     char      dir[MAXPATH+1], dir2[MAXPATH+1];
     char      precolon[MAXPATH+1], postcolon[MAXPATH+1];
     char      filename2[MAXPATH+1], tmp[MAXPATH+1], *fn, *ill;
-    int       l, i, r, fatal, homedir = 0, was_abs_path=0, avail, ret = 0;
+    int       l, i, ku = -1, r, fatal, homedir = 0, was_abs_path=0, avail, ret = 0;
     int       allparts = 0;
     char      prompt_buf[400];
     char      def[500];
     ESCKEY_S *opts = NULL;
     struct variable *vars = ps->vars;
 
-    if(flags & GE_ALLPARTS){
+    if(flags & GE_ALLPARTS || history){
 	/*
 	 * Copy the opts and add one to the end of the list.
 	 */
 	for(i = 0; optsarg[i].ch != -1; i++)
 	  ;
+
+	if(history)
+	  i += 2;
 	
 	i++;
 
@@ -3735,8 +3794,24 @@ get_export_filename(struct pine *ps, char *filename, char *deefault,
 	opts[i].name    = "^P";
 	/* TRANSLATORS: Export all attachment parts */
 	opts[i++].label = N_("AllParts");
+
+	if(history){
+	    opts[i].ch      = KEY_UP;
+	    opts[i].rval    = 30;
+	    opts[i].name    = "";
+	    ku = i;
+	    opts[i++].label = "";
+
+	    opts[i].ch      = KEY_DOWN;
+	    opts[i].rval    = 31;
+	    opts[i].name    = "";
+	    opts[i++].label = "";
+	}
 	
 	opts[i].ch = -1;
+
+	if(history)
+	  init_hist(history, HISTSIZE);
     }
     else
       opts = optsarg;
@@ -3886,6 +3961,18 @@ get_export_filename(struct pine *ps, char *filename, char *deefault,
 
 	snprintf(prompt_buf, sizeof(prompt_buf), "%s%s%s%s%s", p1, p2, p3, p4, p5);
 	prompt_buf[sizeof(prompt_buf)-1] = '\0';
+
+	if(ku >= 0){
+	    if(items_in_hist(*history) > 0){
+		opts[ku].name  = HISTORY_UP_KEYNAME;
+		opts[ku].label = HISTORY_UP_KEYLABEL;
+	    }
+	    else{
+		opts[ku].name  = "";
+		opts[ku].label = "";
+	    }
+	}
+
 	oeflags = OE_APPEND_CURRENT |
 		  ((flags & GE_SEQ_SENSITIVE) ? OE_SEQ_SENSITIVE : 0);
 	r = optionally_enter(filename, qline, 0, len, prompt_buf,
@@ -4149,6 +4236,30 @@ get_export_filename(struct pine *ps, char *filename, char *deefault,
         else if(r == 4){
 	    continue;
 	}
+	else if(r == 30){
+	    char *p;
+
+	    if(history && (p = get_prev_hist(*history, filename, 0, NULL)) != NULL){
+		strncpy(filename, p, len);
+		filename[len-1] = '\0';
+	    }
+	    else
+	      Writechar(BELL, 0);
+
+	    continue;
+	}
+	else if(r == 31){
+	    char *p;
+
+	    if(history && (p = get_next_hist(*history, filename, 0, NULL)) != NULL){
+		strncpy(filename, p, len);
+		filename[len-1] = '\0';
+	    }
+	    else
+	      Writechar(BELL, 0);
+
+	    continue;
+	}
 	else if(r != 0){
 	    Writechar(BELL, 0);
 	    continue;
@@ -4165,6 +4276,9 @@ get_export_filename(struct pine *ps, char *filename, char *deefault,
 	    strncpy(filename, def, len-1);
 	    filename[len-1] = '\0';
 	}
+
+	if(history)
+	  save_hist(*history, filename, 0, NULL);
 
 #if	defined(DOS) || defined(OS2)
 	if(is_absolute_path(filename)){
@@ -4412,7 +4526,7 @@ bezerk_delimiter(ENVELOPE *env, MESSAGECACHE *mc, gf_io_t pc, int leading_newlin
 
  ----*/
 long
-jump_to(MSGNO_S *msgmap, int qline, int first_num, SCROLL_S *sparms, CmdWhere in_index)
+jump_to(MSGNO_S *msgmap, int qline, UCS first_num, SCROLL_S *sparms, CmdWhere in_index)
 {
     char     jump_num_string[80], *j, prompt[70];
     HelpType help;
@@ -4433,7 +4547,7 @@ jump_to(MSGNO_S *msgmap, int qline, int first_num, SCROLL_S *sparms, CmdWhere in
     if(!any_messages(msgmap, NULL, "to Jump to"))
       return(0L);
 
-    if(first_num && isdigit((unsigned char) first_num)){
+    if(first_num && first_num < 0x80 && isdigit((unsigned char) first_num)){
 	jump_num_string[0] = first_num;
 	jump_num_string[1] = '\0';
     }
@@ -4720,14 +4834,14 @@ advance_cur_after_delete(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap
 
 #ifdef DEBUG
 long
-get_level(int qline, int first_num, SCROLL_S *sparms)
+get_level(int qline, UCS first_num, SCROLL_S *sparms)
 {
     char     debug_num_string[80], *j, prompt[70];
     HelpType help;
     int      rc;
     long     debug_num;
 
-    if(first_num && isdigit((unsigned char)first_num)){
+    if(first_num && first_num < 0x80 && isdigit((unsigned char)first_num)){
 	debug_num_string[0] = first_num;
 	debug_num_string[1] = '\0';
 	debug_num = atol(debug_num_string);
@@ -4888,10 +5002,11 @@ broach_folder(int qline, int allow_list, int *notrealinbox, CONTEXT_S **context)
     static char newfolder[MAILTMPLEN];
     char        expanded[MAXPATH+1],
                 prompt[MAX_SCREEN_COLS+1],
-               *last_folder;
+               *last_folder, *p;
+    static HISTORY_S *history = NULL;
     CONTEXT_S  *tc, *tc2;
     ESCKEY_S    ekey[8];
-    int		rc, r, n, flags, last_rc = 0, inbox, done = 0;
+    int		rc, r, ku = -1, n, flags, last_rc = 0, inbox, done = 0;
 
     /*
      * the idea is to provide a clue for the context the file name
@@ -4904,6 +5019,8 @@ broach_folder(int qline, int allow_list, int *notrealinbox, CONTEXT_S **context)
     last_folder	   = NULL;
     if(notrealinbox)
       (*notrealinbox) = 0;
+
+    init_hist(&history, HISTSIZE);
 
     tc = broach_get_folder(context ? *context : NULL, &inbox, NULL);
 
@@ -4940,7 +5057,7 @@ broach_folder(int qline, int allow_list, int *notrealinbox, CONTEXT_S **context)
 	ekey[rc++].label = N_("ListMatches");
     }
 
-    if(ps_global->context_list->next){
+    if(ps_global->context_list->next && F_ON(F_DISABLE_INPUT_HISTORY, ps_global)){
 	ekey[rc].ch      = KEY_UP;
 	ekey[rc].rval    = 10;
 	ekey[rc].name    = "";
@@ -4948,6 +5065,18 @@ broach_folder(int qline, int allow_list, int *notrealinbox, CONTEXT_S **context)
 
 	ekey[rc].ch      = KEY_DOWN;
 	ekey[rc].rval    = 11;
+	ekey[rc].name    = "";
+	ekey[rc++].label = "";
+    }
+    else if(F_OFF(F_DISABLE_INPUT_HISTORY, ps_global)){
+	ekey[rc].ch      = KEY_UP;
+	ekey[rc].rval    = 30;
+	ekey[rc].name    = "";
+	ku = rc;
+	ekey[rc++].label = "";
+
+	ekey[rc].ch      = KEY_DOWN;
+	ekey[rc].rval    = 31;
 	ekey[rc].name    = "";
 	ekey[rc++].label = "";
     }
@@ -4990,6 +5119,17 @@ broach_folder(int qline, int allow_list, int *notrealinbox, CONTEXT_S **context)
 
 	prompt[sizeof(prompt)-1] = '\0';
 
+	if(ku >= 0){
+	    if(items_in_hist(history) > 1){
+		ekey[ku].name  = HISTORY_UP_KEYNAME;
+		ekey[ku].label = HISTORY_UP_KEYLABEL;
+	    }
+	    else{
+		ekey[ku].name  = "";
+		ekey[ku].label = "";
+	    }
+	}
+
 	flags = OE_APPEND_CURRENT;
         rc = optionally_enter(newfolder, qline, 0, sizeof(newfolder),
 			      prompt, ekey, help, &flags);
@@ -5009,6 +5149,8 @@ broach_folder(int qline, int allow_list, int *notrealinbox, CONTEXT_S **context)
 	    if(*newfolder){
 		char *name, *fullname = NULL;
 		int   exists, breakout = 0;
+
+		save_hist(history, newfolder, 0, tc);
 
 		if(!(name = folder_is_nick(newfolder, FOLDERS(tc),
 					   FN_WHOLE_NAME)))
@@ -5103,6 +5245,7 @@ broach_folder(int qline, int allow_list, int *notrealinbox, CONTEXT_S **context)
 	    else if(last_folder){
 		strncpy(newfolder, last_folder, sizeof(newfolder));
 		newfolder[sizeof(newfolder)-1] = '\0';
+		save_hist(history, newfolder, 0, tc);
 		done++;
 		break;
 	    }
@@ -5178,6 +5321,30 @@ broach_folder(int qline, int allow_list, int *notrealinbox, CONTEXT_S **context)
 	      done++;			/* bingo! */
 	    else
 	      rc = 0;			/* burn last_rc */
+
+	    break;
+
+	  case 30 :
+	    if((p = get_prev_hist(history, newfolder, 0, tc)) != NULL){
+		strncpy(newfolder, p, sizeof(newfolder));
+		newfolder[sizeof(newfolder)-1] = '\0';
+		if(history->hist[history->curindex])
+		  tc = history->hist[history->curindex]->cntxt;
+	    }
+	    else
+	      Writechar(BELL, 0);
+
+	    break;
+
+	  case 31 :
+	    if((p = get_next_hist(history, newfolder, 0, tc)) != NULL){
+		strncpy(newfolder, p, sizeof(newfolder));
+		newfolder[sizeof(newfolder)-1] = '\0';
+		if(history->hist[history->curindex])
+		  tc = history->hist[history->curindex]->cntxt;
+	    }
+	    else
+	      Writechar(BELL, 0);
 
 	    break;
 
@@ -5538,22 +5705,17 @@ cmd_pipe(struct pine *state, MSGNO_S *msgmap, int aopt)
     MESSAGECACHE  *mc;
     BODY	  *b;
     PIPE_S	  *syspipe;
-    char          *resultfilename = NULL, prompt[80];
+    char          *resultfilename = NULL, prompt[80], *p;
     int            done = 0, rv = 0;
     gf_io_t	   pc;
-    int		   next = 0;
+    int		   fourlabel = -1, j = 0, next = 0;
     int            pipe_rv; /* rv of proc to separate from close_system_pipe rv */
-    long           i, rawno;
-    static int	   capture = 1, raw = 0, delimit = 0, newpipe = 0;
-    static char    pipe_command[MAXPATH];
-    static ESCKEY_S pipe_opt[] = {
-	{0, 0, "", ""},
-	{ctrl('W'), 10, "^W", NULL},
-	{ctrl('Y'), 11, "^Y", NULL},
-	{ctrl('R'), 12, "^R", NULL},
-	{0, 13, "^T", NULL},
-	{-1, 0, NULL, NULL}
-    };
+    long           ku, i, rawno;
+    unsigned       flagsforhist = 1;	/* raw=8/delimit=4/newpipe=2/capture=1 */
+    static HISTORY_S *history = NULL;
+    int	           capture = 1, raw = 0, delimit = 0, newpipe = 0;
+    char           pipe_command[MAXPATH];
+    ESCKEY_S pipe_opt[8];
 
     if(ps_global->restricted){
 	q_status_message(SM_ORDER | SM_DING, 0, 4,
@@ -5563,14 +5725,68 @@ cmd_pipe(struct pine *state, MSGNO_S *msgmap, int aopt)
     else if(!any_messages(msgmap, NULL, "to Pipe"))
       return rv;
 
+    pipe_command[0] = '\0';
+    init_hist(&history, HISTSIZE);
+    flagsforhist = (raw ? 0x8 : 0) +
+		    (delimit ? 0x4 : 0) +
+		     (newpipe ? 0x2 : 0) +
+		      (capture ? 0x1 : 0);
+    if((p = get_prev_hist(history, "", flagsforhist, NULL)) != NULL){
+	strncpy(pipe_command, p, sizeof(pipe_command));
+	pipe_command[sizeof(pipe_command)-1] = '\0';
+	if(history->hist[history->curindex]){
+	    flagsforhist = history->hist[history->curindex]->flags;
+	    raw     = (flagsforhist & 0x8) ? 1 : 0;
+	    delimit = (flagsforhist & 0x4) ? 1 : 0;
+	    newpipe = (flagsforhist & 0x2) ? 1 : 0;
+	    capture = (flagsforhist & 0x1) ? 1 : 0;
+	}
+    }
+
+    pipe_opt[j].ch    = 0;
+    pipe_opt[j].rval  = 0;
+    pipe_opt[j].name  = "";
+    pipe_opt[j++].label = "";
+
+    pipe_opt[j].ch    = ctrl('W');
+    pipe_opt[j].rval  = 10;
+    pipe_opt[j].name  = "^W";
+    pipe_opt[j++].label = NULL;
+
+    pipe_opt[j].ch    = ctrl('Y');
+    pipe_opt[j].rval  = 11;
+    pipe_opt[j].name  = "^Y";
+    pipe_opt[j++].label = NULL;
+
+    pipe_opt[j].ch    = ctrl('R');
+    pipe_opt[j].rval  = 12;
+    pipe_opt[j].name  = "^R";
+    pipe_opt[j++].label = NULL;
+
     if(MCMD_ISAGG(aopt)){
 	if(!pseudo_selected(msgmap))
 	  return rv;
-	else
-	  pipe_opt[4].ch = ctrl('T');
+	else{
+	    fourlabel = j;
+	    pipe_opt[j].ch    = ctrl('T');
+	    pipe_opt[j].rval  = 13;
+	    pipe_opt[j].name  = "^T";
+	    pipe_opt[j++].label = NULL;
+	}
     }
-    else
-      pipe_opt[4].ch = -1;
+
+    pipe_opt[j].ch      = KEY_UP;
+    pipe_opt[j].rval    = 30;
+    pipe_opt[j].name    = "";
+    ku = j;
+    pipe_opt[j++].label = "";
+
+    pipe_opt[j].ch      = KEY_DOWN;
+    pipe_opt[j].rval    = 31;
+    pipe_opt[j].name    = "";
+    pipe_opt[j++].label = "";
+    
+    pipe_opt[j].ch = -1;
 
     while (!done) {
 	int flags;
@@ -5590,7 +5806,23 @@ cmd_pipe(struct pine *state, MSGNO_S *msgmap, int aopt)
 	pipe_opt[1].label = raw ? N_("Shown Text") : N_("Raw Text");
 	pipe_opt[2].label = capture ? N_("Free Output") : N_("Capture Output");
 	pipe_opt[3].label = delimit ? N_("No Delimiter") : N_("With Delimiter");
-	pipe_opt[4].label = newpipe ? N_("To Same Pipe") : N_("To Individual Pipes");
+	if(fourlabel > 0)
+	  pipe_opt[fourlabel].label = newpipe ? N_("To Same Pipe") : N_("To Individual Pipes");
+
+
+	/*
+	 * 2 is really 1 because there will be one real entry and
+	 * one entry of "" because of the get_prev_hist above.
+	 */
+	if(items_in_hist(history) > 2){
+	    pipe_opt[ku].name  = HISTORY_UP_KEYNAME;
+	    pipe_opt[ku].label = HISTORY_UP_KEYLABEL;
+	}
+	else{
+	    pipe_opt[ku].name  = "";
+	    pipe_opt[ku].label = "";
+	}
+
 	flags = OE_APPEND_CURRENT | OE_SEQ_SENSITIVE;
 	switch(optionally_enter(pipe_command, -FOOTER_ROWS(state), 0,
 				sizeof(pipe_command), prompt,
@@ -5617,8 +5849,57 @@ cmd_pipe(struct pine *state, MSGNO_S *msgmap, int aopt)
 	    newpipe = !newpipe;
 	    break;
 
+	  case 30 :
+	    flagsforhist = (raw ? 0x8 : 0) +
+	                    (delimit ? 0x4 : 0) +
+			     (newpipe ? 0x2 : 0) +
+			      (capture ? 0x1 : 0);
+	    if((p = get_prev_hist(history, pipe_command, flagsforhist, NULL)) != NULL){
+		strncpy(pipe_command, p, sizeof(pipe_command));
+		pipe_command[sizeof(pipe_command)-1] = '\0';
+		if(history->hist[history->curindex]){
+		    flagsforhist = history->hist[history->curindex]->flags;
+		    raw     = (flagsforhist & 0x8) ? 1 : 0;
+		    delimit = (flagsforhist & 0x4) ? 1 : 0;
+		    newpipe = (flagsforhist & 0x2) ? 1 : 0;
+		    capture = (flagsforhist & 0x1) ? 1 : 0;
+		}
+	    }
+	    else
+	      Writechar(BELL, 0);
+
+	    break;
+
+	  case 31 :
+	    flagsforhist = (raw ? 0x8 : 0) +
+	                    (delimit ? 0x4 : 0) +
+			     (newpipe ? 0x2 : 0) +
+			      (capture ? 0x1 : 0);
+	    if((p = get_next_hist(history, pipe_command, flagsforhist, NULL)) != NULL){
+		strncpy(pipe_command, p, sizeof(pipe_command));
+		pipe_command[sizeof(pipe_command)-1] = '\0';
+		if(history->hist[history->curindex]){
+		    flagsforhist = history->hist[history->curindex]->flags;
+		    raw     = (flagsforhist & 0x8) ? 1 : 0;
+		    delimit = (flagsforhist & 0x4) ? 1 : 0;
+		    newpipe = (flagsforhist & 0x2) ? 1 : 0;
+		    capture = (flagsforhist & 0x1) ? 1 : 0;
+		}
+	    }
+	    else
+	      Writechar(BELL, 0);
+
+	    break;
+
 	  case 0 :
 	    if(pipe_command[0]){
+
+		flagsforhist = (raw ? 0x8 : 0) +
+				(delimit ? 0x4 : 0) +
+				 (newpipe ? 0x2 : 0) +
+				  (capture ? 0x1 : 0);
+		save_hist(history, pipe_command, flagsforhist, NULL);
+
 		flags = PIPE_USER | PIPE_WRITE | PIPE_STDERR;
 		flags |= (raw ? PIPE_RAW : 0);
 		if(!capture){
@@ -5913,7 +6194,7 @@ list_mgmt_screen(STORE_S *html)
 
 	    gf_link_filter(gf_html2plain,
 			   gf_html2plain_opt(NULL, ps_global->ttyo->screen_cols,
-					     NULL, &handles, 0));
+					     NULL, &handles, NULL, 0));
 
 	    error = gf_pipe(gc, pc);
 
@@ -7024,13 +7305,15 @@ select_by_date(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct searc
 int
 select_by_text(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct search_set **limitsrch)
 {
-    int          r, type, not = 0, we_cancel = 0, flags, rv;
+    int          r, ku, type, not = 0, we_cancel = 0, flags, rv, ekeyi = 0;
     char         sstring[80], savedsstring[80], tmp[128];
-    char        *sval = NULL;
+    char        *p, *sval = NULL;
     char         buftmp[MAILTMPLEN];
-    ESCKEY_S     ekey[4];
+    ESCKEY_S     ekey[6];
     ENVELOPE    *env = NULL;
     HelpType     help;
+    unsigned     flagsforhist = 0;
+    static HISTORY_S *history = NULL;
     static char *recip = "RECIPIENTS";
     static char *partic = "PARTICIPANTS";
 
@@ -7067,28 +7350,28 @@ select_by_text(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct searc
 			  (type == 'f') ? "FROM" :
 			    (type == 'c') ? "CC" :
 			      (type == 'r') ? recip : partic;
-	ekey[0].ch    = ctrl('T');
-	ekey[0].name  = "^T";
-	ekey[0].rval  = 10;
+	ekey[ekeyi].ch    = ctrl('T');
+	ekey[ekeyi].name  = "^T";
+	ekey[ekeyi].rval  = 10;
 	/* TRANSLATORS: use Current To Address */
-	ekey[0].label = N_("Cur To");
-	ekey[1].ch    = ctrl('R');
-	ekey[1].name  = "^R";
-	ekey[1].rval  = 11;
+	ekey[ekeyi++].label = N_("Cur To");
+	ekey[ekeyi].ch    = ctrl('R');
+	ekey[ekeyi].name  = "^R";
+	ekey[ekeyi].rval  = 11;
 	/* TRANSLATORS: use Current From Address */
-	ekey[1].label = N_("Cur From");
-	ekey[2].ch    = ctrl('W');
-	ekey[2].name  = "^W";
-	ekey[2].rval  = 12;
-	ekey[2].label = N_("Cur Cc");
+	ekey[ekeyi++].label = N_("Cur From");
+	ekey[ekeyi].ch    = ctrl('W');
+	ekey[ekeyi].name  = "^W";
+	ekey[ekeyi].rval  = 12;
+	ekey[ekeyi++].label = N_("Cur Cc");
 	break;
 
       case 's' :
 	sval          = "SUBJECT";
-	ekey[0].ch    = ctrl('X');
-	ekey[0].name  = "^X";
-	ekey[0].rval  = 13;
-	ekey[0].label = N_("Cur Subject");
+	ekey[ekeyi].ch    = ctrl('X');
+	ekey[ekeyi].name  = "^X";
+	ekey[ekeyi].rval  = 13;
+	ekey[ekeyi++].label = N_("Cur Subject");
 	break;
 
       case 'a' :
@@ -7107,7 +7390,23 @@ select_by_text(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct searc
 	return(1);
     }
 
+    ekey[ekeyi].ch      = KEY_UP;
+    ekey[ekeyi].rval    = 30;
+    ekey[ekeyi].name    = "";
+    ku = ekeyi;
+    ekey[ekeyi++].label = "";
+
+    ekey[ekeyi].ch      = KEY_DOWN;
+    ekey[ekeyi].rval    = 31;
+    ekey[ekeyi].name    = "";
+    ekey[ekeyi++].label = "";
+
+    ekey[ekeyi].ch = -1;
+
     if(type != 'x'){
+
+	init_hist(&history, HISTSIZE);
+
 	if(ekey[0].ch > -1 && msgno > 0L
 	   && !(env=pine_mail_fetchstructure(stream,mn_m2raw(msgmap,msgno),
 					     NULL)))
@@ -7122,6 +7421,15 @@ select_by_text(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct searc
 	      snprintf(tmp, sizeof(tmp), "String in message %s to NOT match : ", sval);
 	    else
 	      snprintf(tmp, sizeof(tmp), "String in message %s to match : ", sval);
+
+	    if(items_in_hist(history) > 0){
+		ekey[ku].name  = HISTORY_UP_KEYNAME;
+		ekey[ku].label = HISTORY_UP_KEYLABEL;
+	    }
+	    else{
+		ekey[ku].name  = "";
+		ekey[ku].label = "";
+	    }
 
 	    flags = OE_APPEND_CURRENT | OE_KEEP_TRAILING_SPACE;
 	    r = optionally_enter(sstring, -FOOTER_ROWS(ps_global), 0,
@@ -7200,6 +7508,36 @@ select_by_text(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct searc
 
 		continue;
 
+	      case 30 :
+		flagsforhist = (not ? 0x1 : 0);
+		if((p = get_prev_hist(history, sstring, 0, NULL)) != NULL){
+		    strncpy(sstring, p, sizeof(sstring));
+		    sstring[sizeof(sstring)-1] = '\0';
+		    if(history->hist[history->curindex]){
+			flagsforhist = history->hist[history->curindex]->flags;
+			not = (flagsforhist & 0x1) ? 1 : 0;
+		    }
+		}
+		else
+		  Writechar(BELL, 0);
+
+		continue;
+
+	      case 31 :
+		flagsforhist = (not ? 0x1 : 0);
+		if((p = get_next_hist(history, sstring, 0, NULL)) != NULL){
+		    strncpy(sstring, p, sizeof(sstring));
+		    sstring[sizeof(sstring)-1] = '\0';
+		    if(history->hist[history->curindex]){
+			flagsforhist = history->hist[history->curindex]->flags;
+			not = (flagsforhist & 0x1) ? 1 : 0;
+		    }
+		}
+		else
+		  Writechar(BELL, 0);
+
+		continue;
+
 	      default :
 		break;
 	    }
@@ -7217,6 +7555,9 @@ select_by_text(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct searc
     }
 
     we_cancel = busy_cue("Busy Selecting", NULL, 1);
+
+    flagsforhist = (not ? 0x1 : 0);
+    save_hist(history, sstring, 0, NULL);
 
     rv = agg_text_select(stream, msgmap, type, not, sstring, "utf-8", limitsrch);
     if(we_cancel)

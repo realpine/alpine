@@ -94,6 +94,8 @@ ACLOCAL = @ACLOCAL@
 AMDEP_FALSE = @AMDEP_FALSE@
 AMDEP_TRUE = @AMDEP_TRUE@
 AMTAR = @AMTAR@
+AM_CFLAGS = @AM_CFLAGS@
+AM_LDFLAGS = @AM_LDFLAGS@
 AR = @AR@
 AUTOCONF = @AUTOCONF@
 AUTOHEADER = @AUTOHEADER@
@@ -159,6 +161,7 @@ PTHREAD_LIBS = @PTHREAD_LIBS@
 PWPROG = @PWPROG@
 RANLIB = @RANLIB@
 RM = @RM@
+SED = @SED@
 SENDMAIL = @SENDMAIL@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
@@ -466,7 +469,7 @@ distclean-tags:
 distdir: $(DISTFILES)
 	$(am__remove_distdir)
 	mkdir $(distdir)
-	$(mkdir_p) $(distdir)/include $(distdir)/m4 $(distdir)/po
+	$(mkdir_p) $(distdir)/include $(distdir)/m4 $(distdir)/pith $(distdir)/po
 	@srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`; \
 	topsrcdirstrip=`echo "$(top_srcdir)" | sed 's|.|.|g'`; \
 	list='$(DISTFILES)'; for file in $$list; do \
@@ -719,7 +722,7 @@ c-client.d:
 	if test ! -L c-client ; then $(LN_S) imap/c-client c-client ; fi
 
 c-client:
-	cd imap && $(MAKE) @C_CLIENT_TARGET@ @C_CLIENT_SPECIALS@
+	cd imap && $(MAKE) @C_CLIENT_TARGET@ "EXTRASPECIALS=@C_CLIENT_SPECIALS@"
 
 clean-local:
 	cd imap && $(MAKE) clean

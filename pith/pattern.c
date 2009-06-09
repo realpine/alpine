@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pattern.c 501 2007-03-30 00:16:53Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pattern.c 529 2007-04-18 22:41:05Z hubert@u.washington.edu $";
 #endif
 /*
  * ========================================================================
@@ -43,6 +43,7 @@ static char rcsid[] = "$Id: pattern.c 501 2007-03-30 00:16:53Z hubert@u.washingt
 #include "../pith/detoken.h"
 #include "../pith/busy.h"
 #include "../pith/indxtype.h"
+#include "../pith/mailindx.h"
 
 
 /*
@@ -1534,6 +1535,8 @@ parse_action_slash(char *str, ACTION_S *action)
 	    fs_give((void **)&p);
 	}
     }
+    else if(!strncmp(str, "/SCOREHDRTOK=", 13))
+      action->scorevalhdrtok = config_to_hdrtok(str+13);
     else if(!strncmp(str, "/FOLDER=", 8))
       action->folder = parse_pattern("FOLDER", str, 1);
     else if(!strncmp(str, "/KEYSET=", 8))
@@ -1946,6 +1949,267 @@ stringform_of_intvl(INTVL_S *intvl)
     }
 
     return(res);
+}
+
+
+char *
+hdrtok_to_stringform(HEADER_TOK_S *hdrtok)
+{
+    char  buf[1024], nbuf[10];
+    char *res = NULL;
+    char *p, *ptr;
+
+    if(hdrtok){
+	snprintf(nbuf, sizeof(nbuf), "%d", hdrtok->fieldnum); 
+	ptr = buf;
+	sstrncpy(&ptr, hdrtok->hdrname ? hdrtok->hdrname : "", sizeof(buf)-(ptr-buf));
+	sstrncpy(&ptr, "(", sizeof(buf)-(ptr-buf));
+	sstrncpy(&ptr, nbuf, sizeof(buf)-(ptr-buf));
+	sstrncpy(&ptr, ",\"", sizeof(buf)-(ptr-buf));
+	p = hdrtok->fieldseps;
+	while(p && *p){
+	    if((*p == '\"' || *p == '\\') && ptr-buf < sizeof(buf))
+	      *ptr++ = '\\';
+
+	    if(ptr-buf < sizeof(buf))
+	      *ptr++ = *p++;
+	}
+
+	sstrncpy(&ptr, "\")", sizeof(buf)-(ptr-buf));
+
+	if(ptr-buf < sizeof(buf))
+	  *ptr = '\0';
+	else
+	  buf[sizeof(buf)-1] = '\0';
+
+	res = cpystr(buf);
+    }
+
+    return(res);
+}
+
+
+HEADER_TOK_S *
+stringform_to_hdrtok(char *str)
+{
+    char  *p, *q, *w, hdrname[200];
+    HEADER_TOK_S *hdrtok = NULL;
+
+    if(str && *str){
+	p = str;
+	hdrname[0] = '\0';
+	w = hdrname;
+
+	if(*p == '\"'){				/* quoted name */
+	    p++;
+	    while(w < hdrname + sizeof(hdrname)-1 && *p != '\"'){
+		if(*p == '\\')
+		  p++;
+
+		*w++ = *p++;
+	    }
+
+	    *w = '\0';
+	    if(*p == '\"')
+	      p++;
+	}
+	else{
+	    while(w < hdrname + sizeof(hdrname)-1 &&
+		  !(!(*p & 0x80) && isspace((unsigned char)*p)) &&
+		  *p != '(')
+	      *w++ = *p++;
+
+	    *w = '\0';
+	}
+
+	if(hdrname[0])
+	  hdrtok = new_hdrtok(hdrname);
+
+	if(hdrtok){
+	    if(*p == '('){
+		p++;
+		
+		if(*p && isdigit((unsigned char) *p)){
+		    q = p;
+		    while(*p && isdigit((unsigned char) *p))
+		      p++;
+
+		    hdrtok->fieldnum = atoi(q);
+
+		    if(*p == ','){
+			int j;
+
+			p++;
+			/* don't use default */
+			if(*p && *p != ')' && hdrtok->fieldseps){
+			    hdrtok->fieldseps[0] = '\0';
+			    hdrtok->fieldsepcnt = 0;
+			}
+
+			j = 0;
+			if(*p == '\"' && strchr(p+1, '\"')){		/* quoted */
+			    p++;
+			    while(*p && *p != '\"'){
+				if(hdrtok->fieldseps)
+				  fs_resize((void **) &hdrtok->fieldseps, j+2);
+
+				if(*p == '\\' && *(p+1))
+				  p++;
+
+				if(hdrtok->fieldseps){
+				    hdrtok->fieldseps[j++] = *p++;
+				    hdrtok->fieldseps[j] = '\0';
+				    hdrtok->fieldsepcnt = j;
+				}
+			    }
+			}
+			else{
+			    while(*p && *p != ')'){
+				if(hdrtok->fieldseps)
+				  fs_resize((void **) &hdrtok->fieldseps, j+2);
+
+				if(*p == '\\' && *(p+1))
+				  p++;
+
+				if(hdrtok->fieldseps){
+				    hdrtok->fieldseps[j++] = *p++;
+				    hdrtok->fieldseps[j] = '\0';
+				    hdrtok->fieldsepcnt = j;
+				}
+			    }
+			}
+		    }
+		    else{
+			q_status_message(SM_ORDER | SM_DING, 3, 3, "Missing 2nd argument should be field number, a non-negative digit");
+		    }
+		}
+		else{
+		    q_status_message(SM_ORDER | SM_DING, 3, 3, "1st argument should be field number, a non-negative digit");
+		}
+	    }
+	    else{
+		q_status_message1(SM_ORDER | SM_DING, 3, 3, "Missing left parenthesis in %s", str);
+	    }
+	}
+	else{
+	    q_status_message1(SM_ORDER | SM_DING, 3, 3, "Missing header name in %s", str);
+	}
+    }
+
+    return(hdrtok);
+}
+
+
+char *
+hdrtok_to_config(HEADER_TOK_S *hdrtok)
+{
+    char *ptr, buf[1024], nbuf[10], *p1, *p2, *p3;
+    char *res = NULL;
+
+    if(hdrtok){
+	snprintf(nbuf, sizeof(nbuf), "%d", hdrtok->fieldnum); 
+	memset(buf, 0, sizeof(buf));
+	ptr = buf;
+	sstrncpy(&ptr, "/HN=", sizeof(buf)-(ptr-buf));
+	sstrncpy(&ptr, (p1=add_pat_escapes(hdrtok->hdrname ? hdrtok->hdrname : "")), sizeof(buf)-(ptr-buf));
+	sstrncpy(&ptr, "/FN=", sizeof(buf)-(ptr-buf));
+	sstrncpy(&ptr, (p2=add_pat_escapes(nbuf)), sizeof(buf)-(ptr-buf));
+	sstrncpy(&ptr, "/FS=", sizeof(buf)-(ptr-buf));
+	sstrncpy(&ptr, (p3=add_pat_escapes(hdrtok->fieldseps ? hdrtok->fieldseps : "")), sizeof(buf)-(ptr-buf));
+
+	buf[sizeof(buf)-1] = '\0';
+	res = add_pat_escapes(buf);
+
+	if(p1)
+	  fs_give((void **)&p1);
+
+	if(p2)
+	  fs_give((void **)&p2);
+
+	if(p3)
+	  fs_give((void **)&p3);
+    }
+
+    return(res);
+}
+
+
+HEADER_TOK_S *
+config_to_hdrtok(char *str)
+{
+    HEADER_TOK_S *hdrtok = NULL;
+    char *p, *q;
+    int j;
+
+    if(str && *str){
+	if((q = remove_pat_escapes(str)) != NULL){
+	    char *hn = NULL, *fn = NULL, *fs = NULL, *z;
+	    long i;
+
+	    if((z = srchstr(q, "/HN=")) != NULL)
+	      hn = remove_pat_escapes(z+4);
+	    if((z = srchstr(q, "/FN=")) != NULL)
+	      fn = remove_pat_escapes(z+4);
+	    if((z = srchstr(q, "/FS=")) != NULL)
+	      fs = remove_pat_escapes(z+4);
+
+	    hdrtok = new_hdrtok(hn);
+	    if(fn)
+	      hdrtok->fieldnum = atoi(fn);
+
+	    if(fs && *fs){
+		if(hdrtok->fieldseps){
+		    hdrtok->fieldseps[0] = '\0';
+		    hdrtok->fieldsepcnt = 0;
+		}
+
+		p = fs;
+		j = 0;
+		if(*p == '\"' && strchr(p+1, '\"')){
+		    p++;
+		    while(*p && *p != '\"'){
+			if(hdrtok->fieldseps)
+			  fs_resize((void **) &hdrtok->fieldseps, j+2);
+
+			if(*p == '\\' && *(p+1))
+			  p++;
+
+			if(hdrtok->fieldseps){
+			    hdrtok->fieldseps[j++] = *p++;
+			    hdrtok->fieldseps[j] = '\0';
+			    hdrtok->fieldsepcnt = j;
+			}
+		    }
+		}
+		else{
+		    while(*p){
+			if(hdrtok->fieldseps)
+			  fs_resize((void **) &hdrtok->fieldseps, j+2);
+
+			if(*p == '\\' && *(p+1))
+			  p++;
+
+			if(hdrtok->fieldseps){
+			    hdrtok->fieldseps[j++] = *p++;
+			    hdrtok->fieldseps[j] = '\0';
+			    hdrtok->fieldsepcnt = j;
+			}
+		    }
+		}
+	    }
+
+	    if(hn)
+	      fs_give((void **)&hn);
+	    if(fn)
+	      fs_give((void **)&fn);
+	    if(fs)
+	      fs_give((void **)&fs);
+
+	    fs_give((void **)&q);
+	}
+    }
+
+    return(hdrtok);
 }
 
 
@@ -3254,7 +3518,8 @@ data_for_patline(PAT_S *pat)
 		  *litsig_act = NULL, *cstm_act = NULL, *smtp_act = NULL,
                   *nntp_act = NULL, *comment = NULL,
 		  *repl_val = NULL, *forw_val = NULL, *comp_val = NULL,
-		  *incol_act = NULL, *inherit_nick = NULL, *score_act = NULL,
+		  *incol_act = NULL, *inherit_nick = NULL,
+		  *score_act = NULL, *hdrtok_act = NULL,
 		  *sort_act = NULL, *iform_act = NULL, *start_act = NULL,
 		  *folder_act = NULL, *filt_ifnotdel = NULL,
 		  *filt_nokill = NULL, *filt_del_val = NULL,
@@ -3532,10 +3797,15 @@ data_for_patline(PAT_S *pat)
     if(pat->action){
 	action = pat->action;
 
-	if(action->is_a_score && action->scoreval != 0L &&
-	   action->scoreval >= SCORE_MIN && action->scoreval <= SCORE_MAX){
-	    score_act = (char *) fs_get(5 * sizeof(char));
-	    snprintf(score_act, 5, "%ld", pat->action->scoreval);
+	if(action->is_a_score){
+	    if(action->scoreval != 0L &&
+	       action->scoreval >= SCORE_MIN && action->scoreval <= SCORE_MAX){
+		score_act = (char *) fs_get(5 * sizeof(char));
+		snprintf(score_act, 5, "%ld", pat->action->scoreval);
+	    }
+
+	    if(action->scorevalhdrtok)
+	      hdrtok_act = hdrtok_to_config(action->scorevalhdrtok);
 	}
 
 	if(action->is_a_role){
@@ -3796,6 +4066,7 @@ data_for_patline(PAT_S *pat)
 	strlen(sentdate ? sentdate : "") +
 	strlen(inherit_nick ? inherit_nick : "") +
 	strlen(score_act ? score_act : "") +
+	strlen(hdrtok_act ? hdrtok_act : "") +
 	strlen(from_act ? from_act : "") +
 	strlen(replyto_act ? replyto_act : "") +
 	strlen(fcc_act ? fcc_act : "") +
@@ -3814,9 +4085,9 @@ data_for_patline(PAT_S *pat)
 	(folder_act ? (strlen(folder_act) + 8) : 0) +
 	strlen(keyword_set ? keyword_set : "") +
 	strlen(keyword_clr ? keyword_clr : "") +
-	strlen(templ_act ? templ_act : "") + 520;
+	strlen(templ_act ? templ_act : "") + 540;
     /*
-     * The +520 above is larger than needed but not everything is accounted
+     * The +540 above is larger than needed but not everything is accounted
      * for with the strlens.
      */
     p = (char *) fs_get(l * sizeof(char));
@@ -4142,6 +4413,12 @@ data_for_patline(PAT_S *pat)
 	sstrncpy(&q, "/SCORE=", l-(q-p));
 	sstrncpy(&q, score_act, l-(q-p));
 	fs_give((void **)&score_act);
+    }
+
+    if(hdrtok_act){
+	sstrncpy(&q, "/SCOREHDRTOK=", l-(q-p));
+	sstrncpy(&q, hdrtok_act, l-(q-p));
+	fs_give((void **)&hdrtok_act);
     }
 
     if(from_act){
@@ -5086,7 +5363,7 @@ match_pattern_folder_specific(PATTERN_S *folders, MAILSTREAM *stream, int flags)
      */
     for(p = folders; !match && p; p = p->next){
 	free_this = NULL;
-	if(flags & FOR_FILT)
+	if(flags & FOR_FILTER)
 	  patfolder = free_this = detoken_src(p->substring, FOR_FILT, NULL,
 					      NULL, NULL, NULL);
 	else
@@ -5824,6 +6101,25 @@ calc_extra_hdrs(void)
       if(cdesc->ctype == iHeader && cdesc->hdrtok && cdesc->hdrtok->hdrname
          && cdesc->hdrtok->hdrname[0] && non_eh(cdesc->hdrtok->hdrname))
 	add_eh(&q, &p, cdesc->hdrtok->hdrname, &alloced_size);
+
+    /*
+     * Check for use of scorevalhdrtok in scoring patterns.
+     */
+    type = ROLE_SCORE;
+    if(nonempty_patterns(type, &pstate))
+      for(pat = first_pattern(&pstate);
+	  pat;
+	  pat = next_pattern(&pstate)){
+	  /*
+	   * This section wouldn't be necessary if sender was retreived
+	   * from the envelope. But if not, we do need to add it.
+	   */
+	  if(pat->action && pat->action->scorevalhdrtok
+	     && pat->action->scorevalhdrtok->hdrname
+	     && pat->action->scorevalhdrtok->hdrname[0]
+	     && non_eh(pat->action->scorevalhdrtok->hdrname))
+	    add_eh(&q, &p, pat->action->scorevalhdrtok->hdrname, &alloced_size);
+      }
     
     set_extra_hdrs(q);
     if(q)
@@ -6038,6 +6334,8 @@ free_action(ACTION_S **action)
 	  fs_give((void **)&(*action)->sig);
 	if((*action)->template)
 	  fs_give((void **)&(*action)->template);
+	if((*action)->scorevalhdrtok)
+	  free_hdrtok(&(*action)->scorevalhdrtok);
 	if((*action)->cstm)
 	  free_list_array(&(*action)->cstm);
 	if((*action)->smtp)
@@ -6417,6 +6715,16 @@ copy_action(ACTION_S *action)
 	if(action->incol)
 	  newaction->incol = new_color_pair(action->incol->fg,
 					    action->incol->bg);
+	if(action->scorevalhdrtok){
+	    newaction->scorevalhdrtok = new_hdrtok(action->scorevalhdrtok->hdrname);
+	    if(action->scorevalhdrtok && action->scorevalhdrtok->fieldseps){
+		if(newaction->scorevalhdrtok->fieldseps)
+		  fs_give((void **) &newaction->scorevalhdrtok->fieldseps);
+
+		newaction->scorevalhdrtok->fieldseps = cpystr(action->scorevalhdrtok->fieldseps);
+	    }
+	}
+	  
 	if(action->folder){
 	    p = pattern_to_string(action->folder);
 	    newaction->folder = string_to_pattern(p);
@@ -6727,7 +7035,7 @@ process_filter_patterns(MAILSTREAM *stream, MSGNO_S *msgmap, long int recent)
 	       && !trivial_patgrp(pat->patgrp)
 	       && match_pattern_folder(pat->patgrp, stream)
 	       && !match_pattern_folder_specific(pat->action->folder,
-						 stream, FOR_FILT)){
+						 stream, FOR_FILTER)){
 
 		/*
 		 * We could just keep track of spare6 accurately when
@@ -7208,7 +7516,7 @@ process_filter_patterns(MAILSTREAM *stream, MSGNO_S *msgmap, long int recent)
 				 && match_pattern_folder_specific(
 						 pat->action->folder,
 						 ps_global->mail_stream,
-						 FOR_FILT)){
+						 FOR_FILTER)){
 				  (void) pine_mail_ping(ps_global->mail_stream);
 			      }				
 			  }

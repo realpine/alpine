@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: msgno.c 492 2007-03-27 17:44:31Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: msgno.c 516 2007-04-09 21:07:44Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -818,12 +818,13 @@ calculate_some_scores(MAILSTREAM *stream, struct search_set *searchset, int no_f
     PAT_S         *pat = NULL;
     PAT_STATE      pstate;
     char          *savebits;
-    long           newscore, score;
+    long           newscore, addtoscore, score;
     int            error = 0;
     long           rflags = ROLE_SCORE;
     long           n, i;
     SEARCHSET     *s;
     MESSAGECACHE  *mc;
+    HEADER_TOK_S  *hdrtok;
 
     dprint((7, "calculate_some_scores\n"));
 
@@ -850,14 +851,25 @@ calculate_some_scores(MAILSTREAM *stream, struct search_set *searchset, int no_f
 		!error && pat;
 		pat = next_pattern(&pstate)){
 
+		newscore = pat->action->scoreval;
+		hdrtok = pat->action->scorevalhdrtok;
+
+		/*
+		 * This no_fetch probably isn't necessary since
+		 * we will actually have fetched this with
+		 * the envelope. Just making sure.
+		 */
+		if(hdrtok && no_fetch){
+		    error++;
+		    break;
+		}
+
 		switch(match_pattern(pat->patgrp, stream, searchset, NULL, NULL,
 				     (no_fetch ? MP_IN_CCLIENT_CB : 0)
 				      | (SE_NOSERVER|SE_NOPREFETCH))){
 		  case 1:
 		    if(!pat->action || pat->action->bogus)
 		      break;
-
-		    newscore = pat->action->scoreval;
 
 		    for(s = searchset; s; s = s->next)
 		      for(n = s->first; n <= s->last; n++)
@@ -866,7 +878,12 @@ calculate_some_scores(MAILSTREAM *stream, struct search_set *searchset, int no_f
 			    if((score = get_msg_score(stream,n)) == SCORE_UNDEF)
 			      score = 0L;
 			    
-			    score += newscore;
+			    if(hdrtok)
+			      addtoscore = scorevalfrommsg(stream, n, hdrtok, no_fetch);
+			    else
+			      addtoscore = newscore;
+
+			    score += addtoscore;
 			    set_msg_score(stream, n, score);
 			}
 

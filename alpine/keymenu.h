@@ -1,5 +1,5 @@
 /*
- * $Id: keymenu.h 380 2007-01-23 00:09:18Z hubert@u.washington.edu $
+ * $Id: keymenu.h 529 2007-04-18 22:41:05Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -601,6 +601,7 @@ extern struct key_menu	cancel_keymenu,
 			role_select_km,
 			role_conf_km,
 			config_text_wshuf_keymenu,
+			config_text_wshufandfldr_keymenu,
 			config_role_file_keymenu,
 			config_role_file_res_keymenu,
 			config_role_keyword_keymenu,

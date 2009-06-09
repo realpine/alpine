@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailview.c 450 2007-02-26 20:19:42Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailview.c 540 2007-04-25 17:58:55Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -56,6 +56,7 @@ static char rcsid[] = "$Id: mailview.c 450 2007-02-26 20:19:42Z hubert@u.washing
 #include "../pith/detoken.h"
 #include "../pith/editorial.h"
 #include "../pith/maillist.h"
+#include "../pith/hist.h"
 
 
 /*----------------------------------------------------------------------
@@ -248,6 +249,7 @@ mail_view_screen(struct pine *ps)
     do {
 
 	ps->user_says_cancel = 0;
+	ps->some_quoting_was_suppressed = 0;
 
 	/*
 	 * Check total to make sure there's something to view.  Check it
@@ -488,7 +490,7 @@ view_writec_destroy(void)
 	if(g_view_write->line && g_view_write->index)
 	  view_writec('\n');		/* flush pending output! */
 
-	while(g_view_write->screen_line <= g_view_write->last_screen_line)
+	while(g_view_write->screen_line < g_view_write->last_screen_line)
 	  ClearLine(g_view_write->screen_line++);
 
 	view_writec_killbuf();
@@ -1179,6 +1181,7 @@ scroll_handle_column(int line, int offset)
     limit = (offset > -1) ? offset : st->line_lengths[line];
 
     for(i = 0, col = 0; i < limit;){
+      if(st && st->text_lines && st->text_lines[line])
 	switch(st->text_lines[line][i]){
 	  case TAG_EMBED:
 	    i++;
@@ -3597,15 +3600,31 @@ int
 search_text(int q_line, long int start_line, int start_index, char **report,
 	    Pos *cursor_pos, int *offset_in_line)
 {
-    char        prompt[MAX_SEARCH+50], nsearch_string[MAX_SEARCH+1];
+    char        prompt[MAX_SEARCH+50], nsearch_string[MAX_SEARCH+1], *p;
     HelpType	help;
     int         rc, flags;
-    static char search_string[MAX_SEARCH+1] = { '\0' };
+    static HISTORY_S *history = NULL;
+    char search_string[MAX_SEARCH+1];
     static ESCKEY_S word_search_key[] = { { 0, 0, "", "" },
 					 {ctrl('Y'), 10, "^Y", N_("First Line")},
 					 {ctrl('V'), 11, "^V", N_("Last Line")},
+					 {KEY_UP,    30, "", ""},
+					 {KEY_DOWN,  31, "", ""},
 					 {-1, 0, NULL, NULL}
 					};
+#define KU_ST (3)	/* index of KEY_UP */
+
+    init_hist(&history, HISTSIZE);
+
+    /*
+     * Put the last one used in the default search_string,
+     * not in nsearch_string.
+     */
+    search_string[0] = '\0';
+    if((p = get_prev_hist(history, "", 0, NULL)) != NULL){
+	strncpy(search_string, p, sizeof(search_string));
+	search_string[sizeof(search_string)-1] = '\0';
+    }
 
     snprintf(prompt, sizeof(prompt), _("Word to search for [%s] : "), search_string);
     help = NO_HELP;
@@ -3613,6 +3632,19 @@ search_text(int q_line, long int start_line, int start_index, char **report,
 
     while(1) {
 	flags = OE_APPEND_CURRENT | OE_SEQ_SENSITIVE | OE_KEEP_TRAILING_SPACE;
+
+	/*
+	 * 2 is really 1 because there will be one real entry and
+	 * one entry of "" because of the get_prev_hist above.
+	 */
+	if(items_in_hist(history) > 2){
+	    word_search_key[KU_ST].name  = HISTORY_UP_KEYNAME;
+	    word_search_key[KU_ST].label = HISTORY_UP_KEYLABEL;
+	}
+	else{
+	    word_search_key[KU_ST].name  = "";
+	    word_search_key[KU_ST].label = "";
+	}
 	
         rc = optionally_enter(nsearch_string, q_line, 0, sizeof(nsearch_string),
                               prompt, word_search_key, help, &flags);
@@ -3633,9 +3665,31 @@ search_text(int q_line, long int start_line, int start_index, char **report,
 
 	    return(-5);
 	}
+	else if(rc == 30){
+	    if((p = get_prev_hist(history, nsearch_string, 0, NULL)) != NULL){
+		strncpy(nsearch_string, p, sizeof(nsearch_string));
+		nsearch_string[sizeof(nsearch_string)-1] = '\0';
+	    }
+	    else
+	      Writechar(BELL, 0);
 
-        if(rc != 4)
-          break;
+	    continue;
+	}
+	else if(rc == 31){
+	    if((p = get_next_hist(history, nsearch_string, 0, NULL)) != NULL){
+		strncpy(nsearch_string, p, sizeof(nsearch_string));
+		nsearch_string[sizeof(nsearch_string)-1] = '\0';
+	    }
+	    else
+	      Writechar(BELL, 0);
+
+	    continue;
+	}
+
+        if(rc != 4){			/* 4 is redraw */
+	    save_hist(history, nsearch_string, 0, NULL);
+	    break;
+	}
     }
 
     if(rc == 1 || (search_string[0] == '\0' && nsearch_string[0] == '\0'))
@@ -4115,7 +4169,7 @@ width_at_this_position(unsigned char *str, long unsigned int n)
     int            width = 0;
 
     ucs = (UCS) utf8_get(&inputp, &remaining_octets);
-    if(!(ucs & U8G_ERROR)){
+    if(!(ucs & U8G_ERROR || ucs == UBOGON)){
 	width = wcellwidth(ucs);
 	/* Writechar will print a '?' */
 	if(width < 0)
@@ -4722,9 +4776,10 @@ search_scroll_text(long int start_line, int start_index, char *word,
     }
 
     /* search in current line */
-    if((wh = search_scroll_line(SLINE(start_line), word,
-				start_index + strlen(word) - 2,
-				st->parms->text.handles != NULL)) != NULL){
+    if(start_line < st->num_lines
+       && (wh = search_scroll_line(SLINE(start_line), word,
+				   start_index + strlen(word) - 2,
+				   st->parms->text.handles != NULL)) != NULL){
 	cursor_pos->row = start_line;
 	cursor_pos->col = scroll_handle_column(SROW(start_line),
 				     *offset_in_line = wh - SLINE(start_line));
@@ -4733,7 +4788,8 @@ search_scroll_text(long int start_line, int start_index, char *word,
     }
 
     /* see if the only match is a repeat */
-    if(start_index > 0 && (wh = search_scroll_line(
+    if(start_index > 0 && start_line < st->num_lines
+		       && (wh = search_scroll_line(
 				SLINE(start_line) + start_index - 1,
 				word, strlen(word),
 				st->parms->text.handles != NULL)) != NULL){
@@ -4760,12 +4816,12 @@ search_scroll_text(long int start_line, int start_index, char *word,
 char *	    
 search_scroll_line(char *haystack, char *needle, int n, int handles)
 {
-    char *return_ptr = NULL, *found_it;
+    char *return_ptr = NULL, *found_it = NULL;
     char *haystack_copy, *p, *free_this = NULL, *end;
     char  buf[1000];
     int   state = 0, i = 0;
 
-    if(n > 0){
+    if(n > 0 && haystack){
 	if(n < sizeof(buf))
 	  haystack_copy = buf;
 	else

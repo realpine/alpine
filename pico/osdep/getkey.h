@@ -1,5 +1,5 @@
 /*
- * $Id: getkey.h 166 2006-10-04 01:42:12Z jpf@u.washington.edu $
+ * $Id: getkey.h 530 2007-04-19 02:37:54Z mikes@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -23,6 +23,7 @@
 
 /* exported prototypes */
 UCS	      GetKey(void);
+void	      kpinsert(char *, int, int);
 #if	TYPEAH
 int	      typahead(void);
 #endif /* TYPEAH */

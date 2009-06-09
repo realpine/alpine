@@ -244,8 +244,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,98,0,0
- PRODUCTVERSION 0,98,0,0
+ FILEVERSION 0,99,0,0
+ PRODUCTVERSION 0,99,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -263,20 +263,16 @@ BEGIN
             VALUE "Comments", "see http://www.washington.edu/alpine\0"
             VALUE "CompanyName", "University of Washington\0"
 #ifdef _PCP_W2K
-            VALUE "FileDescription", "Alpine with krb5 for Windows 2000\0"
-#else
-#ifdef _PCP_WNK
-            VALUE "FileDescription", "Alpine with krb5\0"
+            VALUE "FileDescription", "Alpine with krb5 for Windows\0"
 #else
             VALUE "FileDescription", "Alpine\0"
 #endif
-#endif
-            VALUE "FileVersion", "0.98\0"
+            VALUE "FileVersion", "0.99\0"
             VALUE "InternalName", "alpine\0"
             VALUE "LegalCopyright", "Copyright 2006-2007\0"
             VALUE "OriginalFilename", "alpine.exe\0"
             VALUE "ProductName", "alpine\0"
-            VALUE "ProductVersion", "0.98\0"
+            VALUE "ProductVersion", "0.99\0"
         END
     END
     BLOCK "VarFileInfo"
@@ -399,7 +395,7 @@ CAPTION "Alpine Configuration Setup"
 FONT 8, "MS Sans Serif"
 BEGIN
     ICON            ALPINEICON,IDC_STATIC,7,10,21,20
-    LTEXT           "Alpine was not able to locate your personal configuration file. Please specify where PC-Pine should look for (or create) it.",
+    LTEXT           "Alpine was not able to locate your personal configuration file. Please specify where Alpine should look for (or create) it.",
                     IDC_CONFTEXT,45,14,211,17
     GROUPBOX        "",IDC_STATIC,10,34,259,88
     CONTROL         "Use configuration file stored on IMAP server",
@@ -418,7 +414,7 @@ BEGIN
     LTEXT           "Configuration file name :",IDC_CONFFNTXT,34,148,76,8
     EDITTEXT        IDC_CONFEFN,113,146,89,14,ES_AUTOHSCROLL
     PUSHBUTTON      "Browse",IDC_CONFBROWSE,207,145,50,14
-    CONTROL         "Use this as the default PC-Pine Configuration",
+    CONTROL         "Use this as the default Alpine Configuration",
                     IDC_CONFDFLTSET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,178,
                     157,10
     DEFPUSHBUTTON   "OK",IDOK,65,196,50,14

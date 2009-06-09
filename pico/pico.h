@@ -1,5 +1,5 @@
 /*
- * $Id: pico.h 499 2007-03-29 22:03:14Z jpf@u.washington.edu $
+ * $Id: pico.h 537 2007-04-24 23:27:18Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -126,9 +126,6 @@ typedef struct bld_arg {
     struct bld_arg *next;
 } BUILDER_ARG;
 
-#define BUILDER_SCREEN_MANGLED 0x1
-#define BUILDER_MESSAGE_DISPLAYED 0x2
-
 
 /*
  * structure to keep track of header display
@@ -190,6 +187,7 @@ typedef struct pico_struct {
     char  *ctrlr_label;			/* Label for ^R in keymenu */
     char  *alt_spell;			/* Checker to use other than "spell" */
     char **alt_ed;			/* name of alternate editor or NULL */
+    UCS   *wordseps;			/* word separator characters other than space */
     int    fillcolumn;			/* where to wrap */
     int    menu_rows;			/* number of rows in menu (0 or 2) */
     long   edit_offset;			/* offset into hdr line or body */
@@ -254,6 +252,7 @@ typedef struct save_stuff {
     long                gmode;
     char               *alt_speller;	/* save pointer */
     UCS                *quote_str;      /* save pointer */
+    UCS                *wordseps;       /* save pointer */
     int                 currow,
 	                curcol,
 	                thisflag,
@@ -375,7 +374,7 @@ typedef struct  KBSTREE {
  */
 #ifdef	maindef
 PICO	*Pmaster = NULL;		/* composer specific stuff */
-char	*version = "4.94";		/* PICO version number */
+char	*version = "4.95";		/* PICO version number */
 
 #else
 extern	PICO *Pmaster;			/* composer specific stuff */

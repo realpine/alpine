@@ -14,7 +14,7 @@ dnl  */
 
 AC_PREREQ([2.57])
 
-AC_REVISION([$Id: configure.ac 502 2007-03-30 17:12:05Z mikes@u.washington.edu $])
+AC_REVISION([$Id: configure.ac 532 2007-04-19 21:05:30Z mikes@u.washington.edu $])
 
 dnl Alpine Version Number is in $srcdir/VERSION
 AC_INIT(alpine, m4_normalize(m4_include([VERSION])), [alpine-contact@cac.washington.edu])
@@ -53,7 +53,7 @@ AC_ARG_WITH(dmalloc-dir,
     if test "x$withval" != "xno" ; then
       enable_dmalloc = "yes"
       CPPFLAGS="$CPPFLAGS -I${withval}"
-      LDFLAGS="$LDFLAGS -L${withval}"
+      AM_LDFLAGS="$AM_LDFLAGS -L${withval}"
     fi
   ])
 
@@ -86,7 +86,9 @@ AC_ARG_WITH(include-path,
       yes)
         ;;
       *)
-	CPPFLAGS="$CPPFLAGS -I `echo ${withval} | sed 's/:/ -I /g'`"
+	new_cppflags="-I`echo ${withval} | ${SED} 's/:/ -I/g'`"
+	CPPFLAGS="$CPPFLAGS ${new_cppflags}"
+	alpine_c_client_cflags="${new_cppflags}"
 	;;
     esac
   ])
@@ -100,7 +102,8 @@ AC_ARG_WITH(lib-path,
       yes)
         ;;
       *)
-	LDFLAGS="-L `echo ${withval} | sed 's/:/ -L /g'`"
+      	new_ldflags="-L`echo ${withval} | ${SED} 's/:/ -L/g'`"
+      	AM_LDFLAGS="$AM_LDFLAGS $new_ldflags"
 	;;
     esac
   ])
@@ -132,7 +135,7 @@ AC_ARG_ENABLE(optimization, AC_HELP_STRING([--disable-optimization],[Exclude opt
 if test x$enable_optimization != "xno" ; then
   AC_MSG_RESULT([yes])
 else
-  CFLAGS="`echo $CFLAGS | sed -e 's/-O2//'`"
+  CFLAGS="`echo $AM_CFLAGS | ${SED} -e 's/-O2//'`"
   AC_MSG_RESULT([no])
 fi
 
@@ -460,6 +463,19 @@ else
       alpine_SSLTYPE="sco.nopwd"
       alpine_SSLDIR=/usr/local/ssl
       ;;
+    *-*-solaris*)
+      if test -d /usr/sfw/include/openssl ; then
+        alpine_SSLDIR="/usr/sfw"
+      elif test -d /opt/csw/include/openssl ; then
+        alpine_SSLDIR="/opt/csw"
+	if test -d /opt/csw/ssl/certs ; then
+	  alpine_SSLCERTS="/opt/csw/ssl/certs"
+	fi
+      fi
+      if test -z "$alpine_SSLCERTS" -a -d /etc/certs ; then
+        alpine_SSLCERTS="/etc/certs"
+      fi
+      ;;
     *)
       alpine_SSLTYPE="nopwd"
       alpine_SSLDIR=/usr/local/ssl
@@ -497,6 +513,17 @@ else
 	alpine_SSLLIB=$withval
       fi
     ])
+  dnl setup globals so tests below work
+  if test -n "$alpine_SSLINCLUDE" ; then
+    CPPFLAGS="-I$alpine_SSLINCLUDE $CPPFLAGS"
+  elif test -n "$alpine_SSLDIR" ; then
+    CPPFLAGS="-I${alpine_SSLDIR}/include $CPPFLAGS"
+  fi
+  if test -n "$alpine_SSLLIB" ; then
+    AM_LDFLAGS="-L$alpine_SSLLIB $AM_LDFLAGS"
+  elif test -n "$alpine_SSLDIR" ; then
+    AM_LDFLAGS="-L${alpine_SSLDIR}/lib $AM_LDFLAGS"
+  fi
 fi
 
 dnl Include Kerberos?
@@ -552,7 +579,7 @@ else
     [
       if test "x$withval" != "xno" ; then 
 	CPPFLAGS="$CPPFLAGS -I${withval}/include"
-	LDFLAGS="$LDFLAGS -L${withval}/lib"
+	AM_LDFLAGS="$AM_LDFLAGS -L${withval}/lib"
       fi
     ])
 
@@ -568,7 +595,25 @@ else
     AC_HELP_STRING([--with-ldap-lib-dir=DIR], [LDAP library path]),
     [
       if test "x$withval" != "xno" ; then
-	LDFLAGS="$LDFLAGS -L$withval"
+	AM_LDFLAGS="$AM_LDFLAGS -L$withval"
+      fi
+    ])
+fi
+
+dnl Include TCL?
+AC_ARG_WITH(tcl,
+  AC_HELP_STRING([--without-tcl],[Disable TCL, thus Web Alpine support]),
+  [ with_tcl=$withval ])
+
+if test "x$with_tcl" = "xno" ; then
+  WEB_BUILD=
+  AC_MSG_NOTICE([Excluding TCL Support, and thus Web Alpine Support])
+else
+  AC_ARG_WITH(tcl-lib,
+    AC_HELP_STRING([--with-tcl-lib=LIBRARY], [Specific TCL Library]),
+    [
+      if test "x$withval" != "xno" ; then 
+	alpine_TCLLIB=$withval
       fi
     ])
 fi
@@ -601,15 +646,15 @@ AC_PROG_CC_STDC
 AC_PROG_INSTALL
 AC_PROG_MAKE_SET
 AC_PROG_LN_S
+AC_PROG_AWK
 AC_PROG_RANLIB
 AC_PROG_LIBTOOL
 
 AC_PATH_PROG(AR, ar, ar)
 AC_PATH_PROG(RM, rm, rm)
 AC_PATH_PROG(CP, cp, cp)
+AC_PATH_PROG(SED, sed, sed)
 AC_PATH_PROG(MAKE, make)
-
-
 
 dnl CHECK LIBRARIES
 
@@ -693,12 +738,6 @@ if test "x$alpine_SSLTYPE" != "xnone" ; then
   AC_SEARCH_LIBS(SSL_library_init,ssl,
     [
       LIBS="$LIBS -lssl"
-    ],
-    [
-      AC_CHECK_LIB($alpine_SSLLIB,SSL_library_init,,
-	[
-	  alpine_SSLTYPE="none"
-	])
     ])
   if test "x$alpine_SSLTYPE" = "xnone" ; then
     AC_MSG_NOTICE([OpenSSL libraries NOT found])
@@ -726,7 +765,7 @@ if test "x$alpine_GSSTYPE" != "xnone" ; then
 fi
 
 dnl check for tcl libraries for Web Alpine
-AC_CHECK_LIB(tcl, Tcl_Eval,,
+AC_SEARCH_LIBS([Tcl_Eval],[$alpine_TCLLIB tcl],,
   [
     WEB_BUILD=
   ])
@@ -739,11 +778,11 @@ if test "x$with_pthread" != "xno" ; then
       case "$target" in
 	  *openbsd*)
 	    AC_MSG_NOTICE([WARNING: pthread support on OpenBSD is unstable!])
-	    CFLAGS="$CFLAGS -pthread"
+	    AM_CFLAGS="$AM_CFLAGS -pthread"
 	    ;;
       esac
       LIBS="$PTHREAD_LIBS $LIBS"
-      CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
+      AM_CFLAGS="$AM_CFLAGS $PTHREAD_CFLAGS"
       CC="$PTHREAD_CC"
       AC_DEFINE([HAVE_PTHREAD], [1], [System has pthread support])
     ],
@@ -784,7 +823,6 @@ AC_CHECK_HEADERS([errno.h \
 		  wchar.h \
 		  sys/poll.h \
 		  stropts.h \
-		  term.h \
 		  netdb.h \
 		  syslog.h \
 		  sys/syslog.h \
@@ -1008,7 +1046,7 @@ case "$host" in
     alpine_local_maildir="/usr/spool/mail"
     alpine_mode_readonly="(0600)"
     LIBS="$LIBS -framework Carbon -framework ApplicationServices -framework Security"
-    CFLAGS="$CFLAGS -Dbsd"
+    AM_CFLAGS="$AM_CFLAGS -Dbsd"
     dnl SEE include/system.h
     AC_DEFINE([OSX_TARGET],[1],[OSX TARGET])
     case "$alpine_os_credential_cache" in
@@ -1026,19 +1064,15 @@ case "$host" in
         alpine_c_client_target="osx"
       ])
     ;;
-  *-*-solaris2.[56789]*)
-    systype="SOL"
-    alpine_path_delim="/"
-    alpine_local_maildir="/usr/spool/mail"
-    alpine_mode_readonly="(0600)"
-    alpine_c_client_target="sol"
-    ;;
   *-*-solaris*)
-    systype="SOL"
+    systype="SOC"
     alpine_path_delim="/"
     alpine_local_maildir="/usr/spool/mail"
     alpine_mode_readonly="(0600)"
-    alpine_c_client_target="sol"
+    alpine_c_client_target="soc"
+    dnl possible other OS's need this.
+    dnl Use autoconf 2.61's AC_USE_SYSTEM_EXTENSIONS at some point
+    AC_DEFINE([__EXTENSIONS__], [1], [Enable extended pthread features on Solaris])
     ;;
   *-*-sunos4*)
     systype="SUN"
@@ -1140,6 +1174,10 @@ AC_DEFINE_UNQUOTED([MAILDIR],"$alpine_local_maildir",[Path to local inboxes for 
 AC_DEFINE_UNQUOTED([MODE_READONLY], $alpine_mode_readonly, [File mode used to set readonly access])
 
 specials=
+if test -n "$alpine_c_client_cflags" ; then
+  specials="EXTRACFLAGS=$alpine_c_client_cflags "
+fi
+
 dnl c-client make particulars
 AC_SUBST([C_CLIENT_TARGET], $alpine_c_client_target)
 if test "x$alpine_SSLTYPE" = "xnone" ; then 
@@ -1219,8 +1257,12 @@ fi
 AC_SUBST([WEB_BUILD])
 AC_SUBST([WEB_PUBCOOKIE_LIB])
 
+AC_SUBST([AM_CFLAGS])
+AC_SUBST([AM_LDFLAGS])
+
 AC_OUTPUT(m4/Makefile po/Makefile.in \
 	  pith/osdep/Makefile pith/charconv/Makefile pith/Makefile \
+	  pith/cmplhelp.sh pith/cmplhlp2.sh \
 	  pico/osdep/Makefile pico/Makefile \
 	  alpine/osdep/Makefile alpine/Makefile \
 	  web/src/pubcookie/Makefile web/src/alpined.d/Makefile \

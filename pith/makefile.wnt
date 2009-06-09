@@ -40,7 +40,7 @@ HFILES=	../include/system.h ../include/general.h \
 	abdlc.h ablookup.h addrbook.h addrstring.h adjtime.h adrbklib.h atttype.h \
 	bitmap.h bldaddr.h busy.h charset.h color.h conf.h conftype.h context.h \
 	copyaddr.h debug.h detach.h detoken.h editorial.h escapes.h filter.h filttype.h \
-	flag.h folder.h foldertype.h handle.h headers.h help.h helptext.h icache.h imap.h indxtype.h \
+	flag.h folder.h foldertype.h handle.h headers.h help.h helptext.h hist.h icache.h imap.h indxtype.h \
 	init.h keyword.h ldap.h list.h mailcap.h mailcmd.h mailindx.h maillist.h \
 	mailpart.h mailview.h margin.h mimedesc.h mimetype.h msgno.h newmail.h news.h \
 	options.h pattern.h pineelt.h pipe.h readfile.h remote.h remtype.h repltype.h reply.h \
@@ -50,7 +50,7 @@ HFILES=	../include/system.h ../include/general.h \
 
 OFILES=	ablookup.obj abdlc.obj addrbook.obj addrstring.obj adrbklib.obj bldaddr.obj charset.obj \
 	color.obj conf.obj context.obj copyaddr.obj detoken.obj detach.obj editorial.obj escapes.obj \
-	filter.obj flag.obj folder.obj handle.obj help.obj helptext.obj icache.obj imap.obj init.obj \
+	filter.obj flag.obj folder.obj handle.obj help.obj helptext.obj hist.obj icache.obj imap.obj init.obj \
 	keyword.obj ldap.obj list.obj mailcap.obj mailcmd.obj mailindx.obj maillist.obj mailview.obj \
 	margin.obj mimedesc.obj mimetype.obj msgno.obj newmail.obj news.obj pattern.obj pipe.obj \
 	readfile.obj remote.obj reply.obj rfc2231.obj save.obj search.obj sequence.obj send.obj sort.obj state.obj \

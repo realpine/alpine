@@ -1,5 +1,5 @@
 /*
- * $Id: color.h 380 2007-01-23 00:09:18Z hubert@u.washington.edu $
+ * $Id: color.h 548 2007-04-27 19:21:20Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -34,8 +34,8 @@ typedef struct COLOR_PAIR {
 #define COL_CYAN	6
 #define COL_WHITE	7
 
-#define DEFAULT_NORM_FORE	COL_BLACK
-#define DEFAULT_NORM_BACK	COL_CYAN
+#define DEFAULT_NORM_FORE_RGB	"000,000,000"
+#define DEFAULT_NORM_BACK_RGB	"255,255,255"
 
 /* flags for pico_set_color() */
 #define PSC_NONE	0x0

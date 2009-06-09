@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: folder.c 496 2007-03-29 18:13:45Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: folder.c 534 2007-04-23 22:20:32Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -735,13 +735,13 @@ folders_for_fcc(char **errmsg)
  
   ----*/     
 char *
-folders_for_roles(int flags)
+folder_for_config(int flags)
 {
     char      *rs = NULL;
     STRLIST_S *folders;
     FSTATE_S   fs;
 
-    dprint((1, "=== folders_for_roles called ====\n"));
+    dprint((1, "=== folder_for_config called ====\n"));
 
     /* Initialize folder state and dispatches */
     memset(&fs, 0, sizeof(FSTATE_S));
@@ -753,6 +753,10 @@ folders_for_roles(int flags)
     if(flags & FOR_PATTERN){
 	fs.f.help.text   = h_folder_pattern_roles;
 	fs.f.help.title  = _("HELP FOR SELECTING CURRENT FOLDER");
+    }
+    else if(flags & FOR_OPTIONSCREEN){
+	fs.f.help.text   = h_folder_stayopen_folders;
+	fs.f.help.title  = _("HELP FOR SELECTING FOLDER");
     }
     else{
 	fs.f.help.text   = h_folder_action_roles;
@@ -767,7 +771,7 @@ folders_for_roles(int flags)
 	    char *name = NULL;
 
 	    /* replace nickname with full name */
-	    if(!(flags & FOR_PATTERN))
+	    if(!(flags & (FOR_PATTERN | FOR_OPTIONSCREEN)))
 	      name = folder_is_nick((char *) folders->name,
 				    FOLDERS(fs.context), 0);
 
@@ -775,7 +779,7 @@ folders_for_roles(int flags)
 	      name = (char *) folders->name;
 
 	    if(context_isambig(name) &&
-	       !(flags & FOR_PATTERN &&
+	       !(flags & (FOR_PATTERN | FOR_OPTIONSCREEN) &&
 	         folder_is_nick(name, FOLDERS(fs.context), 0))){
 		char path_in_context[MAILTMPLEN];
 
@@ -1270,7 +1274,7 @@ build_namespace(char *server, char **server_too, char **error, BUILDER_ARG *barg
 	return(0);
     }
 
-    *mangled = 1;
+    *mangled |= BUILDER_SCREEN_MANGLED;
     fix_windsize(ps_global);
     init_sigwinch();
     clear_cursor_pos();
@@ -3298,6 +3302,7 @@ folder_export(SCROLL_S *sparms)
     CONTEXT_S  *savecntxt,
 	       *cntxt = (sparms && sparms->text.handles)
 			 ? sparms->text.handles->h.f.context : NULL;
+    static HISTORY_S *history = NULL;
 
     dprint((4, "\n - folder export -\n"));
 
@@ -3411,7 +3416,7 @@ folder_export(SCROLL_S *sparms)
 					    sizeof(filename)-20, fname, NULL,
 					    eopts, NULL,
 					    -FOOTER_ROWS(ps_global),
-					    GE_IS_EXPORT | GE_NO_APPEND);
+					    GE_IS_EXPORT | GE_NO_APPEND, &history);
 		    if(r < 0){
 			switch(r){
 			  default:
@@ -3523,6 +3528,7 @@ folder_import(SCROLL_S *sparms, char *add_folder, size_t len)
     int         r = 1, rv = 0;
     int         notrealinbox = 0;
     char        filename[MAXPATH+1], full_filename[MAXPATH+1];
+    static HISTORY_S *history = NULL;
     static ESCKEY_S eopts[] = {
 	{ctrl('T'), 10, "^T", N_("To Files")},
 	{-1, 0, NULL, NULL},
@@ -3544,7 +3550,7 @@ folder_import(SCROLL_S *sparms, char *add_folder, size_t len)
     r = get_export_filename(ps_global, filename, NULL, full_filename,
 			    sizeof(filename)-20, "messages", "IMPORT",
 			    eopts, NULL,
-			    -FOOTER_ROWS(ps_global), GE_IS_IMPORT);
+			    -FOOTER_ROWS(ps_global), GE_IS_IMPORT, &history);
     if(r < 0){
 	switch(r){
 	  default:

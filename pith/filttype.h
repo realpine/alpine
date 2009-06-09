@@ -1,5 +1,5 @@
 /*
- * $Id: filttype.h 435 2007-02-09 23:35:33Z hubert@u.washington.edu $
+ * $Id: filttype.h 543 2007-04-26 04:06:02Z mikes@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -53,6 +53,8 @@ typedef struct filter_insert_s {
 typedef int  (*gf_io_t)();	/* type of get and put char function     */
 typedef void (*filter_t)(FILTER_S *, int);
 typedef	int  (*linetest_t)(long, char *, LT_INS_S **, void *);
+typedef void (*htmlrisk_t)(void);
+typedef int  (*prepedtest_t)(void);
 
 typedef	struct filtlist_s {
     filter_t  filter;

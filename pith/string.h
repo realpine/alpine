@@ -1,5 +1,5 @@
 /*
- * $Id: string.h 473 2007-03-07 23:16:56Z hubert@u.washington.edu $
+ * $Id: string.h 549 2007-04-27 23:25:32Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -55,7 +55,8 @@ typedef enum {FrontDots, MidDots, EndDots} WhereDots;
                                 && (unsigned char) (c) < 0xA0)          \
                             && !ps_global->pass_ctrl_chars              \
 			    && !ps_global->pass_c1_ctrl_chars))         \
-			 && !(isspace((unsigned char) (c))		\
+			 && !((c) == SPACE				\
+			      || (c) == TAB				\
 			      || (c) == '\016'				\
 			      || (c) == '\017'))
 
@@ -74,6 +75,12 @@ struct date {
     int	 sec, minute, hour, day, month, 
 	 year, hours_off_gmt, min_off_gmt, wkday;
 };
+
+
+/* just a convenient place to put these so everything can access */
+#define BUILDER_SCREEN_MANGLED		0x1
+#define BUILDER_MESSAGE_DISPLAYED	0x2
+#define BUILDER_FOOTER_MANGLED		0x4
 
 
 /* exported protoypes */

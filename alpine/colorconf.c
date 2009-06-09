@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: colorconf.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: colorconf.c 550 2007-04-30 18:15:20Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1688,12 +1688,32 @@ color_setting_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 	 */
 	alval = ALVAL(&ps->vars[V_VIEW_HDR_COLORS], ew);
 	if(alval && *alval){
+	    SPEC_COLOR_S *global_hcolors = NULL, *hcg;
+
+	    v = &ps->vars[V_VIEW_HDR_COLORS];
+	    if(v->global_val.l && v->global_val.l[0])
+	      global_hcolors = spec_colors_from_varlist(v->global_val.l, 0);
+
 	    hcolors = spec_colors_from_varlist(*alval, 0);
 	    for(hc = hcolors; hc; hc = hc->next){
 		if(hc->fg)
 		  fs_give((void **)&hc->fg);
 		if(hc->bg)
 		  fs_give((void **)&hc->bg);
+
+		for(hcg = global_hcolors; hcg; hcg = hcg->next){
+		    if(hc->spec && hcg->spec && !strucmp(hc->spec, hcg->spec)){
+			hc->fg = hcg->fg;
+			hcg->fg = NULL;
+			hc->bg = hcg->bg;
+			hcg->bg = NULL;
+			if(hc->val && !hcg->val)
+			  fs_give((void **) &hc->val);
+		    }
+		}
+
+		if(global_hcolors)
+		  free_spec_colors(&global_hcolors);
 	    }
 
 	    free_list_array(alval);

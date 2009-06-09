@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: getkey.c 480 2007-03-09 22:34:47Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: getkey.c 530 2007-04-19 02:37:54Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -27,6 +27,8 @@ static char rcsid[] = "$Id: getkey.c 480 2007-03-09 22:34:47Z hubert@u.washingto
 
 #include "tty.h"
 #include "getkey.h"
+#include "read.h"
+#include "mouse.h"
 
 #ifdef _WINDOWS
 #include "mswin.h"
@@ -58,7 +60,6 @@ get_input_timeout(void)
 
 
 /* internal prototypes */
-void		kpinsert(char *, int, int);
 void		bail(void);
 int		ReadyForKey(int);
 

@@ -12,7 +12,7 @@
  */
 
 #define VER_MAJOR 4
-#define VER_MINOR 94
+#define VER_MINOR 95
 extern char datestamp[];
 
 

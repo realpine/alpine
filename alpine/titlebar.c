@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: titlebar.c 220 2006-11-06 19:58:04Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: titlebar.c 550 2007-04-30 18:15:20Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -186,7 +186,9 @@ set_titlebar(char *title, MAILSTREAM *stream, CONTEXT_S *cntxt, char *folder,
     as.stream_status = (!as.stream || (sp_dead_stream(as.stream)))
 			 ? Closed : as.stream->rdonly ? OnlyRead : Normal;
 
-    if(as.stream_status == Closed && VAR_TITLECLOSED_FORE_COLOR && VAR_TITLECLOSED_BACK_COLOR){
+    if(ps_global->first_open_was_attempted
+       && as.stream_status == Closed
+       && VAR_TITLECLOSED_FORE_COLOR && VAR_TITLECLOSED_BACK_COLOR){
 	memset(&as.titlecontainer.color, 0, sizeof(as.titlecontainer.color));
 	strncpy(as.titlecontainer.color.fg,
 		VAR_TITLECLOSED_FORE_COLOR, MAXCOLORLEN);

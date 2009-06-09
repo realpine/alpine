@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: adrbklib.c 495 2007-03-29 17:50:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: adrbklib.c 523 2007-04-13 23:01:32Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -2638,14 +2638,13 @@ adrbk_listdel(AdrBk *ab, a_c_arg_t entry_num, char *addr)
  *
  * Args: ab    -- the address book
  *   entry_num -- the address list we are deleting from
- *    write_it -- call adrbk_write when done changing
  *
  * Result: 0: Deletion complete, address book written
  *        -1: Address for deletion not found
  *        -2: Error writing address book. Check errno.
  */
 int
-adrbk_listdel_all(AdrBk *ab, a_c_arg_t entry_num, int write_it)
+adrbk_listdel_all(AdrBk *ab, a_c_arg_t entry_num)
 {
     char **p;
     AdrBk_Entry *ae;
@@ -2670,7 +2669,7 @@ adrbk_listdel_all(AdrBk *ab, a_c_arg_t entry_num, int write_it)
 
     ae->addr.list = NULL;
 
-    return(write_it ? adrbk_write(ab, 1, 0, 1) : 0);
+    return 0;
 }
 
 
@@ -3964,10 +3963,11 @@ backcompat_encoding_for_abook(char *buf1, size_t buf1len, char *buf2,
 	    memset(&dst, 0, sizeof(dst));
 	    if(utf8_cstext(&src, trythischarset, &dst, 0)){
 		if(dst.data){
-		    strncpy(buf1, dst.data, buf1len);
+		    strncpy(buf1, (char *) dst.data, buf1len);
 		    buf1[buf1len-1] = '\0';
 		    fs_give((void **) &dst.data);
-		    encoded = rfc1522_encode(buf2, buf2len, buf1, trythischarset);
+		    encoded = rfc1522_encode(buf2, buf2len,
+					     (unsigned char *) buf1, trythischarset);
 		    if(encoded)
 		      REPLACE_NEWLINES_WITH_SPACE(encoded);
 		}
@@ -4830,7 +4830,7 @@ sort_addr_list(char **list)
 int
 adrbk_sort(AdrBk *ab, a_c_arg_t current_entry_num, adrbk_cntr_t *new_entry_num, int be_quiet)
 {
-    adrbk_cntr_t *sort_array, *inv, moved_to = 0;
+    adrbk_cntr_t *sort_array, *inv;
     long i, j, hi, count;
     int result, skip_the_sort = 0, we_cancel = 0;
     AdrBk_Entry ae_tmp, *ae_i, *ae_hi;
@@ -4902,7 +4902,6 @@ adrbk_sort(AdrBk *ab, a_c_arg_t current_entry_num, adrbk_cntr_t *new_entry_num, 
 
     if(new_entry_num && (adrbk_cntr_t) current_entry_num >= 0
        && (adrbk_cntr_t) current_entry_num < count){
-	moved_to = inv[(adrbk_cntr_t) current_entry_num];
 	*new_entry_num = inv[(adrbk_cntr_t) current_entry_num];
     }
 
@@ -4946,8 +4945,7 @@ adrbk_sort(AdrBk *ab, a_c_arg_t current_entry_num, adrbk_cntr_t *new_entry_num, 
 	exp_free(ab->selects);
 	if(new_entry_num && (adrbk_cntr_t) current_entry_num >= 0
 	   && (adrbk_cntr_t) current_entry_num < count){
-	    moved_to = inv[(adrbk_cntr_t) current_entry_num];
-	    *new_entry_num = moved_to;
+	    *new_entry_num = inv[(adrbk_cntr_t) current_entry_num];
 	}
     }
     else if(result == -2){
@@ -4979,8 +4977,11 @@ skip_the_write_too:
     if(we_cancel)
       cancel_busy_cue(0);
 
-    fs_give((void **) &sort_array);
-    fs_give((void **) &inv);
+    if(sort_array)
+      fs_give((void **) &sort_array);
+
+    if(inv)
+      fs_give((void **) &inv);
 
     return(result);
 }

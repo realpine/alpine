@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: setup.c 295 2006-12-02 01:35:46Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: setup.c 529 2007-04-18 22:41:05Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -24,6 +24,7 @@ static char rcsid[] = "$Id: setup.c 295 2006-12-02 01:35:46Z mikes@u.washington.
 #include "reply.h"
 #include "radio.h"
 #include "listsel.h"
+#include "folder.h"
 #include "../pith/state.h"
 #include "../pith/conf.h"
 #include "../pith/util.h"
@@ -36,6 +37,7 @@ static char rcsid[] = "$Id: setup.c 295 2006-12-02 01:35:46Z mikes@u.washington.
  */
 int      inbox_path_text_tool(struct pine *, int, CONF_S **, unsigned);
 int      incoming_monitoring_list_tool(struct pine *, int, CONF_S **, unsigned);
+int      stayopen_list_tool(struct pine *, int, CONF_S **, unsigned);
 char   **adjust_list_of_monitored_incoming(CONTEXT_S *, EditWhich, int);
 
 
@@ -287,6 +289,10 @@ option_screen(struct pine *ps, int edit_exceptions)
 	    if(vtmp == &ps->vars[V_INCCHECKLIST]){
 		t_tool = incoming_monitoring_list_tool;
 		km     = &config_text_keymenu;
+	    }
+	    else if(vtmp == &ps->vars[V_PERMLOCKED]){
+		t_tool = stayopen_list_tool;
+		km     = &config_text_wshufandfldr_keymenu;
 	    }
 
 	    if(lval){
@@ -724,6 +730,7 @@ incoming_monitoring_list_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned in
     return(rv);
 }
 
+
 char **
 adjust_list_of_monitored_incoming(CONTEXT_S *cntxt, EditWhich which, int varnum)
 {
@@ -818,3 +825,89 @@ adjust_list_of_monitored_incoming(CONTEXT_S *cntxt, EditWhich which, int varnum)
 
     return(the_list);
 }
+
+
+int
+stayopen_list_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
+{
+    int	        rv = 0;
+    char      **newval = NULL;
+    char      **ltmp = NULL;
+    char       *folder = NULL;
+    void      (*prev_screen)(struct pine *) = ps->prev_screen,
+	      (*redraw)(void) = ps->redrawer;
+    OPT_SCREEN_S *saved_screen = NULL;
+
+    switch(cmd){
+      case MC_CHOICE:
+	if(fixed_var((*cl)->var, NULL, NULL))
+	  break;
+
+	ps->redrawer = NULL;
+	ps->next_screen = SCREEN_FUN_NULL;
+	saved_screen = opt_screen;
+	folder = folder_for_config(FOR_OPTIONSCREEN);
+	removing_leading_and_trailing_white_space(folder);
+	if(folder && *folder){
+	    ltmp    = (char **) fs_get(2 * sizeof(char *));
+	    ltmp[0] = cpystr(folder);
+	    ltmp[1] = NULL;
+
+	    config_add_list(ps, cl, ltmp, &newval, 0);
+
+	    if(ltmp)
+	      fs_give((void **) &ltmp);
+
+	    rv = 1;
+
+	    /* this stuff is from bottom of text_toolit() */
+
+	    /*
+	     * At this point, if changes occurred, var->user_val.X is set.
+	     * So, fix the current_val, and handle special cases...
+	     *
+	     * NOTE: we don't worry about the "fixed variable" case here, because
+	     *       editing such vars should have been prevented above...
+	     */
+
+	    /*
+	     * Now go and set the current_val based on user_val changes
+	     * above.  Turn off command line settings...
+	     */
+	    set_current_val((*cl)->var, TRUE, FALSE);
+	    fix_side_effects(ps, (*cl)->var, 0);
+
+	    /*
+	     * Delay setting the displayed value until "var.current_val" is set
+	     * in case current val get's changed due to a special case above.
+	     */
+	    if(newval){
+		if(*newval)
+		  fs_give((void **) newval);
+
+		*newval = pretty_value(ps, *cl);
+	    }
+
+	    exception_override_warning((*cl)->var);
+
+	    if(folder)
+	      fs_give((void **) &folder);
+	}
+	else{
+	    ps->next_screen = prev_screen;
+	    ps->redrawer = redraw;
+	    rv = 0;
+	}
+
+	opt_screen = saved_screen;
+	ps->mangled_screen = 1;
+        break;
+
+      default:
+	rv = text_tool(ps, cmd, cl, flags);
+	break;
+    }
+
+    return(rv);
+}
+

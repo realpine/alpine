@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: filter.c 448 2007-02-23 01:55:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: filter.c 546 2007-04-26 19:14:23Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -50,6 +50,7 @@ static char rcsid[] = "$Id: filter.c 448 2007-02-23 01:55:41Z hubert@u.washingto
 #include "../pith/status.h"
 #include "../pith/string.h"
 #include "../pith/util.h"
+#include "../pith/url.h"
 #include "../pith/init.h"
 #include "../pico/keydefs.h"
 
@@ -2785,6 +2786,7 @@ typedef struct handler_s {
     struct handler_s *below;
     html_f	      f;
     long	      x, y, z;
+    void	     *dp;
     unsigned char    *s;
 } HANDLER_S;
 
@@ -2877,8 +2879,10 @@ typedef	struct _html_opts {
     int	       columns,			/* Display columns */
 	       indent;			/* Right margin */
     HANDLE_S **handlesp;		/* Head of handles */
+    htmlrisk_t warnrisk_f;		/* Nasty link warning call */
     unsigned   strip:1;			/* Hilite TAGs allowed */
     unsigned   handles_loc:1;		/* Local handles requested? */
+    unsigned   showserver:1;		/* Display server after anchors */
     unsigned   outputted:1;		/* any */
     unsigned   no_relative_links:1;	/* Disable embeded relative links */
     unsigned   related_content:1;	/* Embeded related content */
@@ -2896,6 +2900,7 @@ typedef	struct _html_opts {
 #define	HANDLESP(X)	(((HTML_OPT_S *)(X)->opt)->handlesp)
 #define	DO_HANDLES(X)	((X)->opt && HANDLESP(X))
 #define	HANDLES_LOC(X)	((X)->opt && ((HTML_OPT_S *)(X)->opt)->handles_loc)
+#define	SHOWSERVER(X)	((X)->opt && ((HTML_OPT_S *)(X)->opt)->showserver)
 #define	NO_RELATIVE(X)	((X)->opt && ((HTML_OPT_S *)(X)->opt)->no_relative_links)
 #define	RELATED_OK(X)	((X)->opt && ((HTML_OPT_S *)(X)->opt)->related_content)
 #define	MAKE_LITERAL(C)	(HTML_LITERAL | ((C) & 0xff))
@@ -3156,6 +3161,7 @@ int	html_entity_collector(FILTER_S *, int, UCS *, char **);
 void	html_a_prefix(FILTER_S *);
 void	html_a_finish(HANDLER_S *);
 void	html_a_output_prefix(FILTER_S *, int);
+void	html_a_output_info(HANDLER_S *);
 void	html_a_relative(char *, char *, HANDLE_S *);
 int	html_href_relative(char *);
 int	html_indent(FILTER_S *, int, int);
@@ -4052,6 +4058,9 @@ html_a(HANDLER_S *hd, int ch, int cmd)
 {
     if(cmd == GF_DATA){
 	html_handoff(hd, ch);
+
+	if(hd->dp)		/* remember text within anchor tags */
+	  so_writec(ch, (STORE_S *) hd->dp);
     }
     else if(cmd == GF_RESET){
 	int	   i, n, x;
@@ -4159,12 +4168,14 @@ html_a(HANDLER_S *hd, int ch, int cmd)
 	    HD(hd->html_data)->prefix[x++] = TAG_EMBED;
 	    HD(hd->html_data)->prefix[x++] = TAG_HANDLE;
 
-	    snprintf(buf, sizeof(buf), "%d", h->key);
+	    snprintf(buf, sizeof(buf), "%d", hd->x = h->key);
 	    HD(hd->html_data)->prefix[x++] = n = strlen(buf);
 	    for(i = 0; i < n; i++)
 	      HD(hd->html_data)->prefix[x++] = buf[i];
 
 	    HD(hd->html_data)->prefix_used = x;
+
+	    hd->dp = (void *) so_get(CharStar, NULL, EDIT_ACCESS);
 	}
     }
     else if(cmd == GF_EOD){
@@ -4249,6 +4260,8 @@ html_a_finish(HANDLER_S *hd)
 
 	html_output(hd->html_data, TAG_EMBED);
 	html_output(hd->html_data, TAG_HANDLEOFF);
+
+	html_a_output_info(hd);
     }
 }
 
@@ -4268,6 +4281,133 @@ html_a_output_prefix(FILTER_S *f, int c)
 	html_output(f, c);
 	break;
     }
+}
+
+
+
+/*
+ * html_a_output_info - dump possibly deceptive link info into text.
+ *                      phark the phishers.
+ */
+void
+html_a_output_info(HANDLER_S *hd)
+{
+    int	      l, risky = 0, hl = 0, tl;
+    char     *hn = NULL, *txt;
+    HANDLE_S *h;
+
+    /* find host anchor references */
+    if((h = get_handle(*HANDLESP(hd->html_data), (int) hd->x)) != NULL
+       && h->h.url.path != NULL
+       && (hn = rfc1738_scan(h->h.url.path, &l)) != NULL
+       && (hn = srchstr(hn,"://")) != NULL){
+
+	for(hn += 3, hl = 0; hn[hl] && hn[hl] != '/' && hn[hl] != '?'; hl++)
+	  ;
+    }
+
+    if(hn && hl){
+	/*
+	 * look over anchor's text to see if there's a
+	 * mismatch between href target and url-ish
+	 * looking text.  throw a red flag if so.
+	 * similarly, toss one if the target's referenced
+	 * by a 
+	 */
+	if(hd->dp){
+	    so_writec('\0', (STORE_S *) hd->dp);
+
+	    if((txt = (char *) so_text((STORE_S *) hd->dp)) != NULL
+	       && (txt = rfc1738_scan(txt, &tl)) != NULL
+	       && (txt = srchstr(txt,"://")) != NULL){
+
+		for(txt += 3, tl = 0; txt[tl] && txt[tl] != '/' && txt[tl] != '?'; tl++)
+		  ;
+
+		if(tl != hl)
+		  risky++;
+		else
+		  /* look for non matching text */
+		  for(l = 0; l < tl && l < hl; l++)
+		    if(tolower((unsigned char) txt[l]) != tolower((unsigned char) hn[l])){
+			risky++;
+			break;
+		    }
+	    }
+
+	    so_give((STORE_S **) &hd->dp);
+	}
+
+	/* look for literal IP, anything possibly encoded or auth specifier */
+	if(!risky){
+	    int dots = 0, digits = 1;
+
+	    for(l = 0; l < hl; l++){
+		if(hn[l] == '@' || hn[l] == '%'){
+		    risky++;
+		    break;
+		}
+		else if(!(hn[l] == '.' || isdigit((unsigned char) hn[l])))
+		  digits = 0;
+	    }
+
+	    if(digits)
+	      risky++;
+	}
+
+	/* Insert text of link's domain */
+	if(SHOWSERVER(hd->html_data)){
+	    char *fg = NULL, *bg = NULL, *q;
+	    COLOR_PAIR *col = NULL, *colnorm = NULL;
+
+	    html_output(hd->html_data, ' ');
+	    html_output(hd->html_data, '[');
+
+	    if(pico_usingcolor()
+	       && ps_global->VAR_METAMSG_FORE_COLOR
+	       && ps_global->VAR_METAMSG_BACK_COLOR
+	       && (col = new_color_pair(ps_global->VAR_METAMSG_FORE_COLOR,
+					ps_global->VAR_METAMSG_BACK_COLOR))){
+		if(!pico_is_good_colorpair(col))
+		  free_color_pair(&col);
+
+		if(col){
+		    q = color_embed(col->fg, col->bg);
+
+		    for(l = 0; q[l]; l++)
+		      html_output(hd->html_data, q[l]);
+		}
+	    }
+
+	    for(l = 0; l < hl; l++)
+	      html_output(hd->html_data, hn[l]);
+
+	    if(col){
+		if(ps_global->VAR_NORM_FORE_COLOR
+		   && ps_global->VAR_NORM_BACK_COLOR
+		   && (colnorm = new_color_pair(ps_global->VAR_NORM_FORE_COLOR,
+						ps_global->VAR_NORM_BACK_COLOR))){
+		    if(!pico_is_good_colorpair(colnorm))
+		      free_color_pair(&colnorm);
+
+		    if(colnorm){
+			q = color_embed(colnorm->fg, colnorm->bg);
+			free_color_pair(&colnorm);
+
+			for(l = 0; q[l]; l++)
+			  html_output(hd->html_data, q[l]);
+		    }
+		}
+
+		free_color_pair(&col);
+	    }
+
+	    html_output(hd->html_data, ']');
+	}
+    }
+
+    if(risky && ((HTML_OPT_S *) hd->html_data->opt)->warnrisk_f)
+      (*((HTML_OPT_S *) hd->html_data->opt)->warnrisk_f)();
 }
 
 
@@ -6672,7 +6812,12 @@ html_putc(FILTER_S *f, int ch)
  * bound to a printer or composer.
  */
 void *
-gf_html2plain_opt(char *base, int columns, int *margin, HANDLE_S **handlesp, int flags)
+gf_html2plain_opt(char *base,
+		  int columns,
+		  int *margin,
+		  HANDLE_S **handlesp,
+		  htmlrisk_t risk_f,
+		  int flags)
 {
     HTML_OPT_S *op;
     int		margin_l, margin_r;
@@ -6687,6 +6832,8 @@ gf_html2plain_opt(char *base, int columns, int *margin, HANDLE_S **handlesp, int
     op->strip	    = ((flags & GFHP_STRIPPED) == GFHP_STRIPPED);
     op->handlesp    = handlesp;
     op->handles_loc = ((flags & GFHP_LOCAL_HANDLES) == GFHP_LOCAL_HANDLES);
+    op->showserver  = ((flags & GFHP_SHOW_SERVER) == GFHP_SHOW_SERVER);
+    op->warnrisk_f  = risk_f;
     op->no_relative_links = ((flags & GFHP_NO_RELATIVE) == GFHP_NO_RELATIVE);
     op->related_content	  = ((flags & GFHP_RELATED_CONTENT) == GFHP_RELATED_CONTENT);
     return((void *) op);
@@ -6888,6 +7035,7 @@ typedef struct wrap_col_s {
     unsigned	hard_nl:1;
     unsigned	leave_flowed:1;
     unsigned    use_color:1;
+    unsigned    for_compose:1;
     unsigned char  utf8buf[7];
     unsigned char *utf8bufp;
     COLOR_PAIR *color;
@@ -6925,6 +7073,7 @@ typedef struct wrap_col_s {
 #define	WRAP_HARD(F)	(((WRAP_S *)(F)->opt)->hard_nl)
 #define	WRAP_LV_FLD(F)	(((WRAP_S *)(F)->opt)->leave_flowed)
 #define	WRAP_USE_CLR(F)	(((WRAP_S *)(F)->opt)->use_color)
+#define	WRAP_FOR_CMPS(F) (((WRAP_S *)(F)->opt)->for_compose)
 #define	WRAP_UTF8BUF(F, C) (((WRAP_S *)(F)->opt)->utf8buf[C])
 #define	WRAP_UTF8BUFP(F)   (((WRAP_S *)(F)->opt)->utf8bufp)
 #define	WRAP_STATE(F)	(((WRAP_S *)(F)->opt)->state)
@@ -7556,42 +7705,40 @@ gf_wrap(FILTER_S *f, int flg)
 			    inputp = &WRAP_UTF8BUF(f, 0);
 			    ucs = (UCS) utf8_get(&inputp, &remaining_octets);
 			    switch(ucs){
-			      case U8G_BADCONT:
-			      case U8G_NOTUTF8:
-			      case U8G_INCMPLT:
-			      case UBOGON:
-				/*
-				 * None of these cases is supposed to happen. If it
-				 * does happen then the input stream isn't UTF-8
-				 * so something is wrong. Writechar will treat
-				 * each octet in the input buffer as a separate
-				 * error character and print a '?' for each,
-				 * so the width will be the number of octets.
-				 */
-				width = WRAP_UTF8BUFP(f) - &WRAP_UTF8BUF(f, 0);
-				full_character++;
-				break;
-
 			      case U8G_ENDSTRG:	/* incomplete character, wait */
 			      case U8G_ENDSTRI:	/* incomplete character, wait */
 				width = 0;
 				break;
 
 			      default:
-				/* got a character */
-				width = wcellwidth(ucs);
-				full_character++;
-
-				if(width < 0){
+			        if(ucs & U8G_ERROR || ucs == UBOGON){
 				    /*
-				     * This happens when we have a UTF-8 character that
-				     * we aren't able to print in our locale. For example,
-				     * if the locale is setup with the terminal
-				     * expecting ISO-8859-1 characters then there are
-				     * lots of UTF-8 characters that can't be printed.
-				     * Print a '?' instead.
+				     * None of these cases is supposed to happen. If it
+				     * does happen then the input stream isn't UTF-8
+				     * so something is wrong. Writechar will treat
+				     * each octet in the input buffer as a separate
+				     * error character and print a '?' for each,
+				     * so the width will be the number of octets.
 				     */
-				    width = 1;
+				    width = WRAP_UTF8BUFP(f) - &WRAP_UTF8BUF(f, 0);
+				    full_character++;
+				}
+				else{
+				    /* got a character */
+				    width = wcellwidth(ucs);
+				    full_character++;
+
+				    if(width < 0){
+					/*
+					 * This happens when we have a UTF-8 character that
+					 * we aren't able to print in our locale. For example,
+					 * if the locale is setup with the terminal
+					 * expecting ISO-8859-1 characters then there are
+					 * lots of UTF-8 characters that can't be printed.
+					 * Print a '?' instead.
+					 */
+					width = 1;
+				    }
 				}
 
 				break;
@@ -8105,7 +8252,7 @@ wrap_quote_insert(FILTER_S *f, unsigned char **ipp, unsigned char **eibp,
 	}
 
 	if(!WRAP_LV_FLD(f)){
-	    if(ps_global->VAR_QUOTE_REPLACE_STRING && prefix){
+	    if(!WRAP_FOR_CMPS(f) && ps_global->VAR_QUOTE_REPLACE_STRING && prefix){
 		for(i = 0; prefix[i]; i++)
 		  GF_PUTC_GLO(f->next, prefix[i]);
 		f->n += utf8_width(prefix);
@@ -8169,6 +8316,7 @@ gf_wrap_filter_opt(int width, int width_max, int *margin, int indent, int flags)
     wrap->leave_flowed = (GFW_FLOW_RESULT & flags) == GFW_FLOW_RESULT;
     wrap->delsp	       = (GFW_DELSP & flags) == GFW_DELSP;
     wrap->use_color    = (GFW_USECOLOR & flags) == GFW_USECOLOR;
+    wrap->for_compose  = (GFW_FORCOMPOSE & flags) == GFW_FORCOMPOSE;
 
     return((void *) wrap);
 }
@@ -8725,6 +8873,81 @@ gf_line_test_free_ins(LT_INS_S **ins)
 
 	fs_give((void **) ins);
     }
+}
+
+
+/*
+ * PREPEND EDITORIAL FILTER - conditionally prepend output text
+ *                            with editorial comment
+ */
+
+typedef struct _preped_s {
+    prepedtest_t  f;
+    char	 *text;
+} PREPED_S;
+
+
+/*
+ * gf_prepend_editorial - accumulate filtered text and prepend its 
+ *                        output with given text
+ * 
+ * 
+ */
+void
+gf_prepend_editorial(FILTER_S *f, int flg)
+{
+    GF_INIT(f, f->next);
+
+    if(flg == GF_DATA){
+	register unsigned char c;
+
+	while(GF_GETC(f, c)){
+	    so_writec(c, (STORE_S *) f->data);
+	}
+
+	GF_END(f, f->next);
+    }
+    else if(flg == GF_EOD){
+	unsigned char c;
+
+	if(!((PREPED_S *)(f)->opt)->f || (*((PREPED_S *)(f)->opt)->f)()){
+	    char *p = ((PREPED_S *)(f)->opt)->text;
+
+	    for( ; p && *p; p++)
+	      GF_PUTC(f->next, *p);
+	}
+
+	so_seek((STORE_S *) f->data, 0L, 0);
+	while(so_readc(&c, (STORE_S *) f->data)){
+	    GF_PUTC(f->next, c);
+	}
+
+	so_give((STORE_S **) &f->data);
+	fs_give((void **) &f->opt);
+	GF_FLUSH(f->next);
+	(*f->next->f)(f->next, GF_EOD);
+    }
+    else if(flg == GF_RESET){
+	dprint((9, "-- gf_reset line_test\n"));
+	f->data = (void *) so_get(CharStar, NULL, EDIT_ACCESS);
+    }
+}
+
+
+/*
+ * function called from the outside to setup prepending editorial
+ * to output text
+ */
+void *
+gf_prepend_editorial_opt(prepedtest_t test_f, char *text)
+{
+    PREPED_S *pep;
+
+    pep = (PREPED_S *) fs_get(sizeof(PREPED_S));
+    memset(pep, 0, sizeof(PREPED_S));
+    pep->f    = test_f;
+    pep->text = text;
+    return((void *) pep);
 }
 
 

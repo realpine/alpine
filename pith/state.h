@@ -1,5 +1,5 @@
 /*
- * $Id: state.h 487 2007-03-23 16:53:15Z hubert@u.washington.edu $
+ * $Id: state.h 550 2007-04-30 18:15:20Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -183,6 +183,7 @@ struct pine {
     unsigned	 dont_count_flagchanges:1;
     unsigned	 in_folder_screen:1;
     unsigned	 noticed_change_in_unseen:1;
+    unsigned	 first_open_was_attempted:1;
 
     unsigned	 phone_home:1;
     unsigned     painted_body_on_startup:1;

@@ -1,7 +1,7 @@
 
                             Alpine Technical Notes
 
-   Version 0.98, March 2007
+   Version 0.99, May 2007
 
 Table of Contents
 
@@ -1376,10 +1376,10 @@ General Configuration Variables
    _busy-cue-rate_
           When  _Alpine_  is  delayed for some reason it usually shows that
           something is happening with a small animated display in the status
-          line (the 3rd line up from the bottom of the screen). This option
-          sets how frequently the characters (for example, a spinning bar) in
-          the active status message lines are updated. At most, it can be set
-          to be udpated 20 times per second.
+          message line near the bottom of the screen. This option sets how
+          frequently the characters (for example, a spinning bar) in the active
+          status  message lines are updated. At most, it can be set to be
+          udpated 20 times per second.
           Setting this value to zero will prevent display of the animations
           altogether.
           The option busy-cue-spinner-only can be used to remove the randomness
@@ -1491,6 +1491,23 @@ General Configuration Variables
           (Kolor instead of Color because C means Config). Most categories of
           color  which _Alpine_ supports are configurable there. Index line
           color is configured separately.
+   _composer-word-separators_
+          This option affects how a "word" is defined in the composer. The
+          definition of a word is used when using the Forward Word and Backward
+          Word  commands in the composer, as well as when using the spell
+          checker.  Whitespace  is  always  considered  a word separator.
+          Punctuation (like question marks, periods, commas, and so on) is
+          always a word separator if it comes at the end of a word. By default,
+          a punctuation character which is in the middle of a word does not
+          break up that word as long as the character before and the character
+          after it are both alphanumeric. If you add a character to this option
+          it will be considered a word separator even when it occurs in the
+          middle of an alphanumeric word. For example, if you want to skip
+          through each part of an address instead of skipping the whole address
+          at once you might want to include"@" and "." in this list. If you
+          want the word-skipper to stop on each part of a UNIX filename you
+          could  add  "/"  to the list. The equal sign and dash are other
+          possibilities you might find helpful.
    _composer-wrap-column_
           This option specifies an aspect of _Alpine_'s Composer. This gives
           the maximum width that auto-wrapped lines will have. It's also the
@@ -2532,6 +2549,9 @@ index-format=STATUS MSGNO SMARTDATETIME FROMORTO(33%) SIZENARROW SUBJKEY(67%
           When twenty five minutes pass without any active use of an IMAP
           connection being saved for possible re-use, that connection will be
           shut down,
+   _meta-message-background-color_
+   _meta-message-foreground-color_
+          Meta-message Color.
    _mimetype-search-path_
           This variable is used to replace _Alpine_'s default mime.types file
           search path. It takes one or more file names (full paths must be
@@ -3904,10 +3924,10 @@ Configuration Features
    _busy-cue-spinner-only_
           When  _Alpine_  is  delayed for some reason it usually shows that
           something is happening with a small animated display in the status
-          line (the 3rd line up from the bottom of the screen). Setting this
-          feature will cause that animation to be the same each time instead of
-          having _Alpine_ choose a random animation. You may turn the animation
-          off altogether by setting the busy-cue-rate option to zero.
+          message line near the bottom of the screen. Setting this feature will
+          cause that animation to be the same each time instead of having
+          _Alpine_ choose a random animation. You may turn the animation off
+          altogether by setting the busy-cue-rate option to zero.
    _check-newmail-when-quitting_
           If  set, _Alpine_ will check for new mail after you give the Quit
           command. If new mail has arrived since the previous check, you will
@@ -4023,6 +4043,19 @@ Configuration Features
    _disable-config-cmd_
           If set, the configuration screen _Setup/Config_ will not be available
           at all.
+   _disable-input-history_
+          Many of the prompts that ask for input in the status line near the
+          bottom of the screen will respond to Up Arrow and Down Arrow with the
+          history of previous entries. For example, in the MESSAGE INDEX screen
+          when  you  use the WhereIs command the text you entered will be
+          remembered and can be recalled using the Up Arrow key. Setting this
+          option will disable this.
+          When this option is set the Up and Down arrows will be synonyms for
+          the Previous Collection and Next Collection (^P and ^N) commands in
+          the prompt for the name of a folder to Save to or in the prompt for
+          the name of a folder to GoTo. When it is not set (the default), ^P
+          and ^N will change the collection and the arrow keys will show the
+          history.
    _disable-keyboard-lock-cmd_
           In  the  Main  _Alpine_  menu there is a Keyboard locking command
           (_KBLock_). If this feature is set, that command won't be available to
@@ -5356,6 +5389,14 @@ John: on a job well done!
           _PC-Alpine_  only.  This  feature  quells  the  prompting  for  a
           personal-name.  This prompt normally happens before composing a
           message, and only happens when there is no personal name already set.
+   _quell-server-after-link-in-html_
+          By default, links in HTML text are displayed with the host the link
+          references  appended, within square brackets, to the link text.
+          _Alpine_  does  this to help indicate where a link will take you,
+          particularly  when  the  link  text  might  suggest a different
+          destination.
+          Setting this feature will prevent the server name from being appended
+          to the displayed text.
    _quell-ssl-largeblocks_
           This  feature (_PC-Alpine_ only) changes the behavior of fetching
           messages and attachments so that the message data is fetched in
@@ -7201,7 +7242,8 @@ Color Configuration
   General Colors
 
    _Normal Color_
-          This is the color which most of the screen is painted in.
+          This is the color which most of the screen is painted in. By default
+          this color is black characters on a white background.
    _Reverse Color_
           The color _Alpine_ uses for reverse video characters. Actually, the
           name is misleading. This used to be reverse video and so the name
@@ -7209,14 +7251,16 @@ Color Configuration
           but the color may be set to whatever you'd like.
    _Title Color_
           The  color  _Alpine_  uses  for the titlebar (the top line on the
-          screen). By default, the Title Color is the same as the Reverse
-          Color. The actual titlebar color may be different from the Title
+          screen). By default, the Title Color is black characters on a yellow
+          background. The actual titlebar color may be different from the Title
           Color if the option titlebar-color-style is set to some value other
-          than default.
+          than the default. It may also be different if the current folder is
+          closed and the Title Closed Color is set to something different from
+          the Title Color.
    _Title-closed Color_
           The color _Alpine_ uses for the titlebar (the top line on the screen)
-          when the current folder is closed. By default, the Title-closed Color
-          is the same as the Title Color.
+          when the current folder is closed. By default, the Title Color Closed
+          Color is white characters on a red background.
    _Status Color_
           The color _Alpine_ uses for messages written to the status message
           line near the bottom of the screen. By default, the Status Color is
@@ -7245,6 +7289,10 @@ Color Configuration
           The  color _Alpine_ uses for displaying selectable items, such as
           URLs. By default, the Selectable-item Color is the same as the Normal
           Color, except it is also Bold.
+   _Meta-message Color_
+          The color _Alpine_ uses in the MESSAGE VIEW for messages to you that
+          aren't part of the message itself. By default, the Meta-Message Color
+          is black characters on a yellow background.
    _Quote Colors_
           The colors _Alpine_ uses for coloring quoted text in the MESSAGE TEXT
           screen. If a line begins with a > character (or space followed by >)
@@ -7260,8 +7308,10 @@ Color Configuration
           Color3, Color1, Color2, Color3, ... If you only define the first two
           it would be Color1, Color2, Color1, Color2, ... If you define only
           the  Quote1  Color,  then  the entire quote would be that color
-          regardless of the quoting levels. By default, the Quote Colors are
-          not defined.
+          regardless of the quoting levels. By default, the Quote1 Color is
+          black characters on a greenish-blue background; the Quote2 Color is
+          black characters on a dull yellow background; and the Quote3 Color is
+          black characters on a green background.
    _Signature Color_
           The color _Alpine_ uses for coloring the signature in the MESSAGE
           TEXT  screen. According to USENET conventions, the signature is
@@ -7269,8 +7319,7 @@ Color Configuration
           special line consisting of the three characters "-- " (i.e., dash,
           dash, and space). _Alpine_ allows for one empty line right after the
           sigdashes to be considered as part of the signature. By default, the
-          Signature Color is not defined, so will be the same as the Normal
-          Color.
+          Signature Color is blue characters on a white background.
    _Prompt Color_
           The color _Alpine_ uses for confirmation prompts and questions which
           appear in the status message line near the bottom of the screen. By
@@ -7325,6 +7374,18 @@ Color Configuration
           drawing this opening text is given by this option. The coloring
           happens for all but the current index line, and this opening color
           appears to be in front of any color from an Index Color Rule.
+          By default the Index Opening Color is gray characters on a white
+          background.
+
+   The default colors for these symbols are:
+
+     Index-to-me     black on cyan
+     Index-important white on bright red
+     Index-deleted   same as Normal Color
+     Index-answered  bright red on yellow
+     Index-new       white on magenta
+     Index-recent    same as Normal Color
+     Index-unseen    same as Normal Color
 
   Header Colors
 
@@ -7344,6 +7405,11 @@ Color Configuration
 
    If  the  pattern you enter is a comma-separated list of patterns, then
    coloring happens if any of those patterns matches.
+
+   There is a default setting for Viewer Header Colors which colors Subject
+   lines with black characters on a green background. If you define any Viewer
+   Header Colors of your own they will replace that default, so if you still
+   wanted the Subject colored you would have to define it yourself.
 
   Keyword Colors
 
@@ -7880,7 +7946,9 @@ Scoring Configuration
    This is the value that will be added to the score for a message if the
    rule's Pattern is a match. Each individual Score Value is an integer between
    -100 and 100, and the values from matching rules are added together to get a
-   message's score.
+   message's score. There is also a way to extract the value from a particular
+   header  of each message. See the help text for Score Value for further
+   information.
 
 Other Rules Configuration
 

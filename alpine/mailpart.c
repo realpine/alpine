@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailpart.c 491 2007-03-26 18:18:35Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailpart.c 536 2007-04-23 23:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -175,6 +175,8 @@ attachment_screen(struct pine *ps)
 
     ps->prev_screen = attachment_screen;
     ps->next_screen = SCREEN_FUN_NULL;
+
+    ps->some_quoting_was_suppressed = 0;
 
     if(ps->ttyo->screen_rows - HEADER_ROWS(ps) - FOOTER_ROWS(ps) < 1){
 	q_status_message(SM_ORDER | SM_DING, 0, 3,
@@ -488,36 +490,36 @@ attachment_screen(struct pine *ps)
 	    ps->mangled_footer = 1;
 	    break;
 
-      case MC_FULLHDR :
-	ps->full_header++;
-	if(ps->full_header == 1){
-	    if(!(ps->quote_suppression_threshold
-	         && (ps->some_quoting_was_suppressed /* || in_index != View */)))
-	      ps->full_header++;
-	}
-	else if(ps->full_header > 2)
-	  ps->full_header = 0;
+	  case MC_FULLHDR :
+	    ps->full_header++;
+	    if(ps->full_header == 1){
+		if(!(ps->quote_suppression_threshold
+		     && (ps->some_quoting_was_suppressed /* || in_index != View */)))
+		  ps->full_header++;
+	    }
+	    else if(ps->full_header > 2)
+	      ps->full_header = 0;
 
-	switch(ps->full_header){
-	  case 0:
-	    q_status_message(SM_ORDER, 0, 3,
-			     _("Display of full headers is now off."));
+	    switch(ps->full_header){
+	      case 0:
+		q_status_message(SM_ORDER, 0, 3,
+				 _("Display of full headers is now off."));
+		break;
+
+	      case 1:
+		q_status_message1(SM_ORDER, 0, 3,
+			      _("Quotes displayed, use %s to see full headers"),
+			      F_ON(F_USE_FK, ps) ? "F9" : "H");
+		break;
+
+	      case 2:
+		q_status_message(SM_ORDER, 0, 3,
+				 _("Display of full headers is now on."));
+		break;
+
+	    }
+
 	    break;
-
-	  case 1:
-	    q_status_message1(SM_ORDER, 0, 3,
-			  _("Quotes displayed, use %s to see full headers"),
-			  F_ON(F_USE_FK, ps) ? "F9" : "H");
-	    break;
-
-	  case 2:
-	    q_status_message(SM_ORDER, 0, 3,
-			     _("Display of full headers is now on."));
-	    break;
-
-	}
-
-	break;
 
 	  case MC_EXIT :			/* exit attachment screen */
 	    ps->next_screen = mail_view_screen;
@@ -562,7 +564,6 @@ attachment_screen(struct pine *ps)
 	    else
 	      q_status_message(SM_ORDER, 0, 1,
 			       _("Already on last page of attachments"));
-	    
 
 	    break;
 
@@ -1280,6 +1281,7 @@ write_attachment(int qline, long int msgno, ATTACH_S *a, char *method)
     long        len, orig_size;
     gf_io_t     pc;
     STORE_S    *store;
+    static HISTORY_S *history = NULL;
     static ESCKEY_S att_save_opts[] = {
 	{ctrl('T'), 10, "^T", N_("To Files")},
 	{-1, 0, NULL, NULL},
@@ -1338,7 +1340,7 @@ write_attachment(int qline, long int msgno, ATTACH_S *a, char *method)
 
     r = get_export_filename(ps_global, filename, NULL, full_filename,
 			    sizeof(filename), "attachment", title_buf,
-			    att_save_opts, &rflags, qline, GE_SEQ_SENSITIVE);
+			    att_save_opts, &rflags, qline, GE_SEQ_SENSITIVE, &history);
 
     if(r < 0){
 	switch(r){
@@ -1703,6 +1705,7 @@ export_msg_att(long int msgno, ATTACH_S *a)
     int	      rv, rflags = GER_NONE, i = 1;
     ATTACH_S *ap = a;
     STORE_S  *store;
+    static HISTORY_S *history = NULL;
     static ESCKEY_S opts[] = {
 	{ctrl('T'), 10, "^T", N_("To Files")},
 	{-1, 0, NULL, NULL},
@@ -1722,7 +1725,7 @@ export_msg_att(long int msgno, ATTACH_S *a)
 			     /* TRANSLATORS: Message Attachment (a screen title) */
 			     _("MSG ATTACHMENT"), opts,
 			     &rflags, -FOOTER_ROWS(ps_global),
-			     GE_IS_EXPORT | GE_SEQ_SENSITIVE);
+			     GE_IS_EXPORT | GE_SEQ_SENSITIVE, &history);
 
     if(rv < 0){
 	switch(rv){
@@ -1780,6 +1783,7 @@ export_digest_att(long int msgno, ATTACH_S *a)
     int	      rv, rflags = GER_NONE, i = 1;
     long      count = 0L;
     ATTACH_S *ap;
+    static HISTORY_S *history = NULL;
     STORE_S  *store;
     static ESCKEY_S opts[] = {
 	{ctrl('T'), 10, "^T", N_("To Files")},
@@ -1798,7 +1802,7 @@ export_digest_att(long int msgno, ATTACH_S *a)
     rv = get_export_filename(ps_global, filename, NULL, full_filename,
 			     sizeof(filename), "digest", _("DIGEST ATTACHMENT"),
 			     opts, &rflags, -FOOTER_ROWS(ps_global),
-			     GE_IS_EXPORT | GE_SEQ_SENSITIVE);
+			     GE_IS_EXPORT | GE_SEQ_SENSITIVE, &history);
 
     if(rv < 0){
 	switch(rv){

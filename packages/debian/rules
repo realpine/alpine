@@ -23,7 +23,6 @@ build-all:
 clean: checkroot
 	$(checkdir)
 	-rm -f build-all
-	make clean
 	-rm -rf debian/tmp debian/files* core debian/substvars
 
 binary-indep: checkroot build-all

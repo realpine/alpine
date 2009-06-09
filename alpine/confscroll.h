@@ -1,5 +1,5 @@
 /*
- * $Id: confscroll.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: confscroll.h 529 2007-04-18 22:41:05Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -91,6 +91,19 @@ int	 checkbox_tool(struct pine *, int, CONF_S **, unsigned);
 int	 radiobutton_tool(struct pine *, int, CONF_S **, unsigned);
 int	 yesno_tool(struct pine *, int, CONF_S **, unsigned);
 char    *generalized_sort_pretty_value(struct pine *, CONF_S *, int);
+int	 exclude_config_var(struct pine *, struct variable *, int);
+int      config_exit_cmd(unsigned);
+int	 simple_exit_cmd(unsigned);
+int	 screen_exit_cmd(unsigned, char *);
+void	 config_add_list(struct pine *, CONF_S **, char **, char ***, int);
+void	 config_del_list_item(CONF_S **, char ***);
+void	 toggle_feature_bit(struct pine *, int, struct variable *, CONF_S *, int);
+int	 fixed_var(struct variable *, char *, char *);
+void     exception_override_warning(struct variable *);
+void     offer_to_fix_pinerc(struct pine *);
+void     fix_side_effects(struct pine *, struct variable *, int);
+void     revert_to_saved_config(struct pine *, SAVED_CONFIG_S *, int);
+void     free_saved_config(struct pine *, SAVED_CONFIG_S **, int);
 
 
 #endif /* PINE_CONFSCROLL_INCLUDED */

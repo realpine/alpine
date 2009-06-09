@@ -1,5 +1,5 @@
 /*
- * $Id: filter.h 435 2007-02-09 23:35:33Z hubert@u.washington.edu $
+ * $Id: filter.h 543 2007-04-26 04:06:02Z mikes@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -28,6 +28,7 @@
 #define GFHP_LOCAL_HANDLES	0x04
 #define GFHP_NO_RELATIVE	0x08
 #define GFHP_RELATED_CONTENT	0x10
+#define	GFHP_SHOW_SERVER	0x20
 
 
 /* gf_wrap flags */
@@ -38,6 +39,7 @@
 #define	GFW_FLOW_RESULT		0x08
 #define	GFW_DELSP		0x10
 #define GFW_USECOLOR		0x20
+#define GFW_FORCOMPOSE          0X40
 
 
 #define TAG_EMBED	'\377'	/* Announces embedded data in text string */
@@ -157,7 +159,7 @@ void	   *gf_rich2plain_opt(int *);
 void	    gf_enriched2plain(FILTER_S *, int);
 void	   *gf_enriched2plain_opt(int *);
 void	    gf_html2plain(FILTER_S *, int);
-void	   *gf_html2plain_opt(char *, int, int *, HANDLE_S **, int);
+void	   *gf_html2plain_opt(char *, int, int *, HANDLE_S **, htmlrisk_t, int);
 void	    gf_escape_filter(FILTER_S *, int);
 void	    gf_control_filter(FILTER_S *, int);
 void	   *gf_control_filter_opt(int *);
@@ -171,6 +173,8 @@ void	    gf_line_test(FILTER_S *, int);
 void	   *gf_line_test_opt(linetest_t, void *);
 LT_INS_S  **gf_line_test_new_ins(LT_INS_S **, char *, char *, int);
 void	    gf_line_test_free_ins(LT_INS_S **);
+void	    gf_prepend_editorial(FILTER_S *, int);
+void	   *gf_prepend_editorial_opt(prepedtest_t, char *);
 void	    gf_nvtnl_local(FILTER_S *, int);
 void	    gf_local_nvtnl(FILTER_S *, int);
 

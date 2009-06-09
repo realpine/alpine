@@ -1,5 +1,5 @@
 /*
- * $Id: pattern.h 429 2007-02-08 00:08:23Z hubert@u.washington.edu $
+ * $Id: pattern.h 529 2007-04-18 22:41:05Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -20,6 +20,7 @@
 #include "../pith/msgno.h"
 #include "../pith/sorttype.h"
 #include "../pith/string.h"
+#include "../pith/indxtype.h"
 
 
 /*
@@ -190,6 +191,7 @@ typedef struct action_s {
     COLOR_PAIR  *incol;		/* colors for index line		*/
 	    /* --- This is for scoring --- */
     long         scoreval;
+    HEADER_TOK_S *scorevalhdrtok;
 	    /* --- These are for filtering --- */
     int	 	 kill;
     long	 state_setting_bits;
@@ -332,7 +334,9 @@ typedef struct pat_state {
 
 
 /* match_pattern_folder_specific flags */
-#define FOR_PATTERN	0x01
+#define FOR_PATTERN		0x01
+#define FOR_FILTER		0x02
+#define FOR_OPTIONSCREEN	0x04
 
 
 extern PAT_HANDLE **cur_pat_h;
@@ -357,6 +361,10 @@ int         shuffle_pattern(int, int, long);
 PAT_LINE_S *parse_pat_file(char *);
 INTVL_S    *parse_intvl(char *);
 char       *stringform_of_intvl(INTVL_S *);
+char       *hdrtok_to_stringform(HEADER_TOK_S *);
+HEADER_TOK_S *stringform_to_hdrtok(char *);
+char       *hdrtok_to_config(HEADER_TOK_S *);
+HEADER_TOK_S *config_to_hdrtok(char *);
 int         scores_are_used(int);
 int         patgrp_depends_on_state(PATGRP_S *);
 int         patgrp_depends_on_active_state(PATGRP_S *);

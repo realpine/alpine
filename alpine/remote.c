@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: remote.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: remote.c 543 2007-04-26 04:06:02Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -141,7 +141,7 @@ rd_prompt_about_forged_remote_data(int reason, REMDATA_S *rd, char *extra)
 	gf_link_filter(gf_html2plain,
 		       gf_html2plain_opt(NULL,
 					 ps_global->ttyo->screen_cols, NULL,
-					 &handles, GFHP_LOCAL_HANDLES));
+					 &handles, NULL, GFHP_LOCAL_HANDLES));
 	gf_set_so_readc(&gc, in_store);
 	gf_set_so_writec(&pc, out_store);
 	gf_pipe(gc, pc);

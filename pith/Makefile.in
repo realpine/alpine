@@ -25,6 +25,7 @@
 #
 # ========================================================================
 
+
 srcdir = @srcdir@
 top_srcdir = @top_srcdir@
 VPATH = @srcdir@
@@ -48,7 +49,8 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 subdir = pith
-DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
+DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in \
+	$(srcdir)/cmplhelp.sh.in $(srcdir)/cmplhlp2.sh.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/acx_pthread.m4 \
 	$(top_srcdir)/m4/gettext.m4 $(top_srcdir)/m4/iconv.m4 \
@@ -60,7 +62,7 @@ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = $(top_builddir)/include/config.h
-CONFIG_CLEAN_FILES =
+CONFIG_CLEAN_FILES = cmplhelp.sh cmplhlp2.sh
 LIBRARIES = $(noinst_LIBRARIES)
 ARFLAGS = cru
 libpith_a_AR = $(AR) $(ARFLAGS)
@@ -72,21 +74,22 @@ am_libpith_a_OBJECTS = ablookup.$(OBJEXT) abdlc.$(OBJEXT) \
 	detoken.$(OBJEXT) detach.$(OBJEXT) editorial.$(OBJEXT) \
 	escapes.$(OBJEXT) filter.$(OBJEXT) flag.$(OBJEXT) \
 	folder.$(OBJEXT) handle.$(OBJEXT) help.$(OBJEXT) \
-	helpindx.$(OBJEXT) icache.$(OBJEXT) imap.$(OBJEXT) \
-	init.$(OBJEXT) keyword.$(OBJEXT) ldap.$(OBJEXT) list.$(OBJEXT) \
-	mailcap.$(OBJEXT) mailcmd.$(OBJEXT) mailindx.$(OBJEXT) \
-	maillist.$(OBJEXT) mailview.$(OBJEXT) margin.$(OBJEXT) \
-	mimedesc.$(OBJEXT) mimetype.$(OBJEXT) msgno.$(OBJEXT) \
-	newmail.$(OBJEXT) news.$(OBJEXT) pattern.$(OBJEXT) \
-	pipe.$(OBJEXT) readfile.$(OBJEXT) remote.$(OBJEXT) \
-	reply.$(OBJEXT) rfc2231.$(OBJEXT) save.$(OBJEXT) \
-	search.$(OBJEXT) sequence.$(OBJEXT) send.$(OBJEXT) \
-	sort.$(OBJEXT) state.$(OBJEXT) status.$(OBJEXT) \
+	helpindx.$(OBJEXT) hist.$(OBJEXT) icache.$(OBJEXT) \
+	imap.$(OBJEXT) init.$(OBJEXT) keyword.$(OBJEXT) ldap.$(OBJEXT) \
+	list.$(OBJEXT) mailcap.$(OBJEXT) mailcmd.$(OBJEXT) \
+	mailindx.$(OBJEXT) maillist.$(OBJEXT) mailview.$(OBJEXT) \
+	margin.$(OBJEXT) mimedesc.$(OBJEXT) mimetype.$(OBJEXT) \
+	msgno.$(OBJEXT) newmail.$(OBJEXT) news.$(OBJEXT) \
+	pattern.$(OBJEXT) pipe.$(OBJEXT) readfile.$(OBJEXT) \
+	remote.$(OBJEXT) reply.$(OBJEXT) rfc2231.$(OBJEXT) \
+	save.$(OBJEXT) search.$(OBJEXT) sequence.$(OBJEXT) \
+	send.$(OBJEXT) sort.$(OBJEXT) state.$(OBJEXT) status.$(OBJEXT) \
 	store.$(OBJEXT) stream.$(OBJEXT) string.$(OBJEXT) \
 	strlst.$(OBJEXT) takeaddr.$(OBJEXT) tempfile.$(OBJEXT) \
 	text.$(OBJEXT) thread.$(OBJEXT) adjtime.$(OBJEXT) \
 	url.$(OBJEXT) util.$(OBJEXT) helptext.$(OBJEXT)
 libpith_a_OBJECTS = $(am_libpith_a_OBJECTS)
+SCRIPTS = $(noinst_SCRIPTS)
 DEFAULT_INCLUDES = 
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -114,6 +117,8 @@ ACLOCAL = @ACLOCAL@
 AMDEP_FALSE = @AMDEP_FALSE@
 AMDEP_TRUE = @AMDEP_TRUE@
 AMTAR = @AMTAR@
+AM_CFLAGS = @AM_CFLAGS@
+AM_LDFLAGS = @AM_LDFLAGS@
 AR = @AR@
 AUTOCONF = @AUTOCONF@
 AUTOHEADER = @AUTOHEADER@
@@ -179,6 +184,7 @@ PTHREAD_LIBS = @PTHREAD_LIBS@
 PWPROG = @PWPROG@
 RANLIB = @RANLIB@
 RM = @RM@
+SED = @SED@
 SENDMAIL = @SENDMAIL@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
@@ -237,9 +243,10 @@ target_alias = @target_alias@
 SUBDIRS = osdep charconv
 noinst_LIBRARIES = libpith.a
 BUILT_SOURCES = helptext.h
+noinst_SCRIPTS = cmplhelp.sh cmplhlp2.sh
 libpith_a_SOURCES = ablookup.c abdlc.c addrbook.c addrstring.c adrbklib.c bldaddr.c charset.c \
 	color.c conf.c context.c copyaddr.c detoken.c detach.c editorial.c escapes.c \
-	filter.c flag.c folder.c handle.c help.c helpindx.c icache.c imap.c init.c \
+	filter.c flag.c folder.c handle.c help.c helpindx.c hist.c icache.c imap.c init.c \
 	keyword.c ldap.c list.c mailcap.c mailcmd.c mailindx.c maillist.c mailview.c \
 	margin.c mimedesc.c mimetype.c msgno.c newmail.c news.c pattern.c pipe.c \
 	readfile.c remote.c reply.c rfc2231.c save.c search.c sequence.c send.c sort.c \
@@ -247,7 +254,7 @@ libpith_a_SOURCES = ablookup.c abdlc.c addrbook.c addrstring.c adrbklib.c bldadd
 	thread.c adjtime.c url.c util.c helptext.c
 
 AM_CPPFLAGS = -I$(top_srcdir)/include
-CLEANFILES = helptext.c helptext.h
+CLEANFILES = helptext.c helptext.h cmplhelp.sh cmplhlp2.sh
 all: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 
@@ -282,6 +289,10 @@ $(top_srcdir)/configure:  $(am__configure_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
+cmplhelp.sh: $(top_builddir)/config.status $(srcdir)/cmplhelp.sh.in
+	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
+cmplhlp2.sh: $(top_builddir)/config.status $(srcdir)/cmplhlp2.sh.in
+	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
 
 clean-noinstLIBRARIES:
 	-test -z "$(noinst_LIBRARIES)" || rm -f $(noinst_LIBRARIES)
@@ -319,6 +330,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/help.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/helpindx.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/helptext.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hist.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/icache.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/imap.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/init.Po@am__quote@
@@ -568,7 +580,7 @@ distdir: $(DISTFILES)
 check-am: all-am
 check: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) check-recursive
-all-am: Makefile $(LIBRARIES)
+all-am: Makefile $(LIBRARIES) $(SCRIPTS)
 installdirs: installdirs-recursive
 installdirs-am:
 install: $(BUILT_SOURCES)
@@ -666,11 +678,11 @@ uninstall-info: uninstall-info-recursive
 	tags tags-recursive uninstall uninstall-am uninstall-info-am
 
 
-helptext.c: pine.hlp
-	./cmplhelp.sh < pine.hlp > $@
+helptext.c: cmplhelp.sh pine.hlp
+	$(SHELL) cmplhelp.sh < pine.hlp > $@
 
-helptext.h: pine.hlp
-	./cmplhlp2.sh < pine.hlp > $@
+helptext.h: cmplhlp2.sh pine.hlp
+	$(SHELL) cmplhlp2.sh < pine.hlp > $@
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

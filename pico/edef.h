@@ -1,5 +1,5 @@
 /*
- * $Id: edef.h 191 2006-10-18 21:58:04Z hubert@u.washington.edu $
+ * $Id: edef.h 537 2007-04-24 23:27:18Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -53,6 +53,8 @@ char   *glo_quote_str_orig = NULL;
 int     use_system_translation = FALSE;
 char   *display_character_set = NULL;
 char   *keyboard_character_set = NULL;
+UCS    *glo_wordseps = NULL;            /* points to word separators if set */
+char   *glo_wordseps_orig = NULL;
 
 /* uninitialized global definitions */
 int     currow;                 /* Cursor row                   */
@@ -105,6 +107,8 @@ extern  char   *glo_quote_str_orig;
 extern  int     use_system_translation;
 extern  char   *display_character_set;
 extern  char   *keyboard_character_set;
+extern  UCS    *glo_wordseps;
+extern  char   *glo_wordseps_orig;
 /* initialized global external declarations */
 extern  int     currow;                 /* Cursor row                   */
 extern  int     curcol;                 /* Cursor column                */

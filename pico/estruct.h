@@ -1,5 +1,5 @@
 /*
- * $Id: estruct.h 486 2007-03-22 18:38:38Z hubert@u.washington.edu $
+ * $Id: estruct.h 513 2007-04-05 21:45:30Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -81,6 +81,7 @@
 #define CFFILL  0x0004                  /* Last command was a fill      */
 #define	CFSRCH	0x0008			/* Last command was WhereIs	*/
 #define CFFLBF  0x0010                  /* Last cmd was full buf fill   */
+#define CFFLPA  0x0020                  /* Last cmd was paragraph fill  */
 
 /*
  * macros to help filter character input

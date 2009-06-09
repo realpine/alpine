@@ -1,12 +1,17 @@
-Last changed: 16 Feb 2007
+Last changed: 06 Apr 2007
 
 Building packages for Alpine
 
 Files in this directory:
   alpine.spec - spec file for building RPMs on RedHat and Fedora.
 		It should also work with Mandrake.
-  debian/* - files containing instructions for building .deb files
-             for use with dpkg
+  debian/*    - files containing instructions for building .deb files
+                for use with dpkg
+  windows/*   - files used to build the Windows Alpine installer. Upon
+		release, we set up directory dist.wnt.d with all of the
+		files to be installed, and we then run the command
+		binstaller wnt 0.98 (or whatever the current version is).
+		These scripts are used with Inno Setup 5.
   README - this file.
 
 

@@ -120,6 +120,8 @@ ACLOCAL = @ACLOCAL@
 AMDEP_FALSE = @AMDEP_FALSE@
 AMDEP_TRUE = @AMDEP_TRUE@
 AMTAR = @AMTAR@
+AM_CFLAGS = @AM_CFLAGS@
+AM_LDFLAGS = `cat $(top_srcdir)/c-client/LDFLAGS`
 AR = @AR@
 AUTOCONF = @AUTOCONF@
 AUTOHEADER = @AUTOHEADER@
@@ -185,6 +187,7 @@ PTHREAD_LIBS = @PTHREAD_LIBS@
 PWPROG = @PWPROG@
 RANLIB = @RANLIB@
 RM = @RM@
+SED = @SED@
 SENDMAIL = @SENDMAIL@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
@@ -264,7 +267,6 @@ loclib_LTLIBRARIES = libwpcomm.la
 libwpcomm_la_SOURCES = wpcomm.c
 libwpcomm_la_LDFLAGS = -rpath '$(loclibdir)' -version-info 1:0:0
 AM_CPPFLAGS = -I$(top_srcdir)/include
-AM_LDFLAGS = `cat $(top_srcdir)/c-client/LDFLAGS`
 CLEANFILES = local.c
 all: all-am
 

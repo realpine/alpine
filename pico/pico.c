@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pico.c 477 2007-03-08 19:50:00Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pico.c 537 2007-04-24 23:27:18Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -161,6 +161,11 @@ pico(PICO *pm)
     else
       glo_quote_str = NULL;
 
+    if(Pmaster->wordseps)
+      glo_wordseps = ucs4_cpystr(Pmaster->wordseps);
+    else
+      glo_wordseps = NULL;
+
     bindtokey(DEL, (gmode & P_DELRUBS) ? forwdel : backdel);
 
     if(pm->msgtext)
@@ -283,6 +288,8 @@ pico(PICO *pm)
 	      fs_give((void **) &pico_anchor);
 	    if(glo_quote_str)
 	      fs_give((void **) &glo_quote_str);
+	    if(glo_wordseps)
+	      fs_give((void **) &glo_wordseps);
 
 	    vttidy();			/* clean up tty modes */
 	    zotdisplay();		/* blast display buffers */
@@ -1649,7 +1656,7 @@ pico_writec(void *w, int c, int flags)
 	    static unsigned char cbuf[6];
 	    static unsigned char *cbufp = cbuf;
 	    UCS obuf[MAX(MB_LEN_MAX,32)];
-	    int  i, width = 0, outchars = 0, printable_ascii = 0;
+	    int  i, outchars = 0;
 
 	    if(cbufp < cbuf+sizeof(cbuf)){
 		unsigned char *inputp;
@@ -1659,92 +1666,64 @@ pico_writec(void *w, int c, int flags)
 		*cbufp++ = (unsigned char) c;
 		inputp = cbuf;
 		remaining_octets = (cbufp - cbuf) * sizeof(unsigned char);
-		if(remaining_octets == 1 && isascii(*cbuf)){
-		    /* shortcut common case */
-		    ucs = (UCS) *cbuf;
-		    inputp++;
-		    printable_ascii++;		/* just for efficiency */
-		}
-		else
-		  /*
-		   * we could use mbtow(utf8_charset, ...)
-		   * here to lend an air of portability, then use the CCONV_
-		   * constants for the return values. However, we know we are
-		   * dealing with UTF-8 so we can skip straight to the
-		   * correct function instead.
-		   */
-		  ucs = (UCS) utf8_get(&inputp, &remaining_octets);
+		ucs = (UCS) utf8_get(&inputp, &remaining_octets);
 
 		switch(ucs){
-		  case U8G_BADCONT:	/* continuation at start of char */
-		  case U8G_NOTUTF8:	/* invalid character */
-		  case U8G_INCMPLT:	/* incomplete character */
-		  case UBOGON:
-		    /*
-		     * None of these cases is supposed to happen. If it
-		     * does happen then the input stream isn't UTF-8
-		     * so something is wrong. Treat each character in the
-		     * input buffer as a separate error character and
-		     * print a '?' for each.
-		     */
-		    for(inputp = cbuf; inputp < cbufp; inputp++)
-		      obuf[outchars++] = '?';
-
-		    cbufp = cbuf;
-		    break;
-
 		  case U8G_ENDSTRG:	/* incomplete character, wait */
 		  case U8G_ENDSTRI:	/* incomplete character, wait */
 		    break;
 
 		  default:
-		    /* got a character */
-		    if(printable_ascii)
-		      width = 1;
-		    else{
-			if(ucs & U8G_ERROR)
-			  ucs = '?';
-
-			width = wcellwidth(ucs);
-		    }
-
-		    if(width < 0){
+		    if(ucs & U8G_ERROR || ucs == UBOGON){
 			/*
-			 * This happens when we have a UTF-8 character that
-			 * we aren't able to print in our locale. For example,
-			 * if the locale is setup with the terminal
-			 * expecting ISO-8859-1 characters then there are
-			 * lots of UTF-8 characters that can't be printed.
-			 * Print a '?' instead.
+			 * None of these cases is supposed to happen. If it
+			 * does happen then the input stream isn't UTF-8
+			 * so something is wrong. Treat each character in the
+			 * input buffer as a separate error character and
+			 * print a '?' for each.
+			 */
+			for(inputp = cbuf; inputp < cbufp; inputp++)
+			  obuf[outchars++] = '?';
+
+			cbufp = cbuf;
+		    }
+		    else{
+			/* got a character */
+			if(ucs >= 0x80 && wcellwidth(ucs) < 0){
+			    /*
+			     * This happens when we have a UTF-8 character that
+			     * we aren't able to print in our locale. For example,
+			     * if the locale is setup with the terminal
+			     * expecting ISO-8859-1 characters then there are
+			     * lots of UTF-8 characters that can't be printed.
+			     * Print a '?' instead.
  This may be the wrong thing to do. What happens if user
  is just forwarding and doesn't edit. We are going to lose
  the original value, aren't we? Maybe we do this only
  when printing to the screen instead.
-			 */
-			obuf[outchars++] = '?';
-		    }
-		    else{
-			/*
-			 * A regular ucs character
-			 */
-			if(printable_ascii)
-			  obuf[outchars++] = *cbuf;
-			else
-			  obuf[outchars++] = ucs;
-		    }
+			     */
+			    obuf[outchars++] = '?';
+			}
+			else{
+			    /*
+			     * A regular ucs character
+			     */
+			    obuf[outchars++] = ucs;
+			}
 
-		    /* update the input buffer */
-		    if(inputp >= cbufp)	/* this should be the case */
-		      cbufp = cbuf;
-		    else{		/* extra chars for some reason? */
-			unsigned char *q, *newcbufp;
+			/* update the input buffer */
+			if(inputp >= cbufp)	/* this should be the case */
+			  cbufp = cbuf;
+			else{		/* extra chars for some reason? */
+			    unsigned char *q, *newcbufp;
 
-			newcbufp = (cbufp - inputp) + cbuf;
-			q = cbuf;
-			while(inputp < cbufp)
-			  *q++ = *inputp++;
+			    newcbufp = (cbufp - inputp) + cbuf;
+			    q = cbuf;
+			    while(inputp < cbufp)
+			      *q++ = *inputp++;
 
-			cbufp = newcbufp;
+			    cbufp = newcbufp;
+			}
 		    }
 
 		    break;
@@ -1753,6 +1732,7 @@ pico_writec(void *w, int c, int flags)
 	    else{			/* error */
 		obuf[0] = '?';
 		outchars = 1;
+		cbufp = cbuf;		/* start over */
 	    }
 
 	    /*

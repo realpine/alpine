@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: arg.c 487 2007-03-23 16:53:15Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: arg.c 506 2007-04-03 00:54:05Z jpf@u.washington.edu $";
 #endif
 
 /*
@@ -136,9 +136,6 @@ N_("\t\ta remote folder."),
 N_(" -v \t\tVersion - show version information"),
 N_(" -version\tVersion - show version information"),
 N_(" -supported\tList supported options"),
-#if defined(OS2)
-N_(" -w <rows>\tSet window size in rows on startup"),
-#endif
 N_(" -url <url>\tOpen the given URL"),
 N_("\t\tNote: Can't be used if -f, -F"),
 N_("\t\tStandard input redirection is not allowed with URLs."),
@@ -203,27 +200,6 @@ pine_args(struct pine *pine_state, int argc, char **argv, ARGDATA_S *args)
     args->action = aaFolder;
 
     pine_state->pine_name = (lc = last_cmpnt(argv[0])) ? lc : (lc = argv[0]);
-#ifdef	OS2
-    /*
-     * argv0 is not reliable under OS2, so we have to get
-     * the executable path from the environment block
-     */
-    {
-      PTIB ptib;
-      PPIB ppib;
-      char * p;
-      DosGetInfoBlocks(&ptib, &ppib);
-      p = ppib->pib_pchcmd - 1;
-      while (*--p)
-	;
-      ++p;
-      strncpy(tmp_20k_buf, p, SIZEOF_20KBUF);
-      tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
-      if((p = strrchr(tmp_20k_buf, '\\'))!=NULL)
-	*++p = '\0';
-      pine_state->pine_dir = cpystr(tmp_20k_buf);
-    }
-#endif
 #ifdef	DOS
     snprintf(tmp_20k_buf, SIZEOF_20KBUF, "%.*s", pine_state->pine_name - argv[0], argv[0]);
     tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
@@ -574,9 +550,6 @@ Loop: while(--ac > 0)
 		    case 'f': case 'F': case 'p': case 'I':
 		    case 'c': case 'd': case 'P': case 'x':  /* string args */
 		    case 'n':				     /* integer args */
-#ifdef	OS2
-		    case 'w':
-#endif
 		      if(*++*av)
 			str = *av;
 		      else if(--ac)
@@ -720,20 +693,6 @@ Loop: while(--ac > 0)
 			    pine_state->start_entry = 1;
 
 			  break;
-#ifdef	OS2
-			case 'w':
-		        {
-			    USHORT nrows = (USHORT)atoi(str);
-			    if(nrows > 10 && nrows < 255) {
-				VIOMODEINFO mi;
-				mi.cb = sizeof(mi);
-				if(VioGetMode(&mi, 0)==0){
-				    mi.row = nrows;
-				    VioSetMode(&mi, 0);
-				}
-			    }
-		        }
-#endif
 		      }
 
 		      goto Loop;
@@ -864,7 +823,11 @@ Loop: while(--ac > 0)
     if(pinerc_file)
       dump_new_pinerc(pinerc_file);
 
-    if(ac <= 0)
+    /*
+     * Don't NULL out argv[0] or we might crash in unexpected ways.  In OS X, we were
+     * crashing when opening attachments because of this.
+     */
+    if(ac <= 0 && av != argv)
       *av = NULL;
 }
 

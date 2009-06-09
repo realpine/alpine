@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: random.c 486 2007-03-22 18:38:38Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: random.c 513 2007-04-05 21:45:30Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -390,7 +390,7 @@ yank(int f, int n)
 	}
     }
 
-    if(lastflag&CFFILL){            /* if last command was fillpara() */
+    if(lastflag&CFFLPA){            /* if last command was fill paragraph */
 	curwp->w_dotp = lforw(curwp->w_dotp);
 	curwp->w_doto = 0;
 

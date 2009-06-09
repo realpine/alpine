@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: terminal.c 486 2007-03-22 18:38:38Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: terminal.c 530 2007-04-19 02:37:54Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -28,6 +28,7 @@ static char rcsid[] = "$Id: terminal.c 486 2007-03-22 18:38:38Z hubert@u.washing
 
 #include "tty.h"
 #include "terminal.h"
+#include "getkey.h"
 
 #ifndef _WINDOWS
 extern long gmode;
@@ -810,7 +811,6 @@ static int      tcapclose(void);
 static void     setup_dflt_esc_seq(void);
 static void     tcapinsert(UCS);
 static void     tcapdelete(void);
-static void	putpad(char *);
 
 extern int      tput();
 extern char     *tgoto(char *, int, int);
@@ -1544,7 +1544,7 @@ tcapbeep(void)
 }
 
 
-static void
+void
 putpad(char *str)
 {
     tputs(str, 1, ttputc);

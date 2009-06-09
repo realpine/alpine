@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: composer.c 480 2007-03-09 22:34:47Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: composer.c 537 2007-04-24 23:27:18Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -45,6 +45,7 @@ static char rcsid[] = "$Id: composer.c 480 2007-03-09 22:34:47Z hubert@u.washing
 #include "headers.h"
 
 #include "osdep/terminal.h"
+#include "../pith/string.h"
 
 int              InitEntryText(char *, struct headerentry *);
 int              HeaderOffset(int);
@@ -1315,22 +1316,51 @@ nomore_to_complete:
 		    err = NULL;
                     if(headents[ods.cur_e].break_on_comma) {
                         /*--- Must be an address ---*/
+			
+			/*
+			 * If current line is empty and there are more
+			 * lines that follow, delete the empty lines
+			 * before adding the new address.
+			 */
+                        if(ods.cur_l->text[0] == '\0' && ods.cur_l->next){
+			    do {
+				KillHeaderLine(ods.cur_l, 1);
+				ods.p_len = ucs4_strlen(ods.cur_l->text);
+			    } while(ods.cur_l->text[0] == '\0' && ods.cur_l->next);
+			}
+
+			ods.p_ind = 0;
+
                         if(ods.cur_l->text[0] != '\0'){
-			    struct hdr_line *h, *hh;
-			    int             q = 0;
+			    struct hdr_line *h, *start_of_addr;
+			    int              q = 0;
 			    
-			    /*--- Check for continuation of previous line ---*/
-			    for(hh = h = headents[ods.cur_e].hd_text; 
-				h && h->next != ods.cur_l; h = h->next){
-				if(ucs4_strqchr(h->text, ',', &q, -1)){
-				    hh = h->next;
+			    /* cur is not first line */
+			    if(ods.cur_l != headents[ods.cur_e].hd_text){
+				/*
+				 * Protect against adding a new entry into
+				 * the middle of a long, continued entry.
+				 */
+				start_of_addr = NULL;	/* cur_l is a good place to be */
+				q = 0;
+				for(h = headents[ods.cur_e].hd_text; h; h = h->next){
+				    if(ucs4_strqchr(h->text, ',', &q, -1)){
+					start_of_addr = NULL;
+					q = 0;
+				    }
+				    else if(start_of_addr == NULL)
+				      start_of_addr = h;
+
+				    if(h->next == ods.cur_l)
+				      break;
+				}
+
+				if(start_of_addr){
+				    ods.cur_l = start_of_addr;
+				    ods.p_len = ucs4_strlen(ods.cur_l->text);
 				}
 			    }
-			    if(hh && hh != ods.cur_l){
-				/*--- Looks like a continuation ---*/
-				ods.cur_l = hh;
-				ods.p_len = ucs4_strlen(hh->text);
-			    }
+
 			    for(i = ++ods.p_len; i; i--)
 			      ods.cur_l->text[i] = ods.cur_l->text[i-1];
 
@@ -3713,6 +3743,12 @@ call_builder(struct headerentry *entry, int *mangled, char **err)
 	  mpresf = TRUE;
     }
 
+    if(mangled && *mangled & BUILDER_FOOTER_MANGLED){
+	*mangled &= ~ BUILDER_FOOTER_MANGLED;
+	sgarbk = TRUE;
+	pclear(term.t_nrow - 1, term.t_nrow + 1);
+    }
+
     if(retval >= 0){
 	if(strcmp(sbuf, s)){
 	    line = entry->hd_text;
@@ -4553,6 +4589,7 @@ save_pico_state(void)
     ret->gmode = gmode;
     ret->alt_speller = alt_speller;
     ret->quote_str = glo_quote_str;
+    ret->wordseps = glo_wordseps;
     ret->currow = currow;
     ret->curcol = curcol;
     ret->thisflag = thisflag;
@@ -4616,6 +4653,7 @@ restore_pico_state(VARS_TO_SAVE *state)
     gmode = state->gmode;
     alt_speller = state->alt_speller;
     glo_quote_str = state->quote_str;
+    glo_wordseps = state->wordseps;
     currow = state->currow;
     curcol = state->curcol;
     thisflag = state->thisflag;

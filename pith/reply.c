@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: reply.c 493 2007-03-27 21:51:48Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: reply.c 543 2007-04-26 04:06:02Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -2155,7 +2155,7 @@ forward_body(MAILSTREAM *stream, ENVELOPE *env, struct mail_bodystruct *orig_bod
 					 sect_prefix, env, pc, "");
 		}
 
-		if(!(get_body_part_text(stream, text_body,
+		if(!(get_body_part_text(stream, &orig_body->nested.part->body,
 					msgno, section, 0L, pc, NULL, &new_charset)
 		     && fetch_contents(stream, msgno, sect_prefix, body)))
 		  mail_free_body(&body);
@@ -2410,7 +2410,7 @@ int
 get_body_part_text(MAILSTREAM *stream, struct mail_bodystruct *body, long int msg_no,
 		   char *part_no, long partial, gf_io_t pc, char *prefix, char **ret_charset)
 {
-    int		i, we_cancel = 0, dashdata, wrapflags = 0, flow_res = 0;
+    int		i, we_cancel = 0, dashdata, wrapflags = GFW_FORCOMPOSE, flow_res = 0;
     FILTLIST_S  filters[11];
     long	len;
     char       *err, *charset, *prefix_p = NULL;
@@ -2566,8 +2566,8 @@ get_body_part_text(MAILSTREAM *stream, struct mail_bodystruct *body, long int ms
 	else if(strucmp(body->subtype,"html") == 0){
 	    filters[filtcnt].filter = gf_html2plain;
 	    filters[filtcnt++].data = gf_html2plain_opt(NULL,
-						  ps_global->ttyo->screen_cols,
-						  NULL, NULL, GFHP_STRIPPED);
+						ps_global->ttyo->screen_cols,
+						NULL, NULL, NULL, GFHP_STRIPPED);
 	}
     }
 

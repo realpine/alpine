@@ -1,8 +1,8 @@
 /*
- * $Id: mailcmd.h 473 2007-03-07 23:16:56Z hubert@u.washington.edu $
+ * $Id: mailcmd.h 534 2007-04-23 22:20:32Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,8 @@
 #include "../pith/msgno.h"
 #include "../pith/store.h"
 #include "../pith/filter.h"
+#include "../pith/string.h"
+#include "../pith/hist.h"
 
 
 #define USER_INPUT_TIMEOUT(ps) ((ps->hours_to_timeout > 0) && \
@@ -63,10 +65,10 @@ int	    expunge_prompt(MAILSTREAM *, char *, long);
 void	    expunge_and_close_begins(int, char *);
 int         simple_export(struct pine *, void *, SourceType, char *, char *);
 int         get_export_filename(struct pine *, char *, char *, char *, size_t, char *,
-				char *, ESCKEY_S *, int *, int, int);
+				char *, ESCKEY_S *, int *, int, int, HISTORY_S **);
 char	   *build_updown_cmd(char *, size_t, char *, char *, char*);
 int	    bezerk_delimiter(ENVELOPE *, MESSAGECACHE *, gf_io_t, int);
-long	    jump_to(MSGNO_S *, int, int, SCROLL_S *, CmdWhere);
+long	    jump_to(MSGNO_S *, int, UCS, SCROLL_S *, CmdWhere);
 char	   *broach_folder(int, int, int *, CONTEXT_S **);
 int	    ask_mailbox_reopen(struct pine *, int *);
 void	    visit_folder(struct pine *, char *, CONTEXT_S *, MAILSTREAM *, unsigned long);

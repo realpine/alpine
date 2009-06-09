@@ -1,6 +1,6 @@
-#!/bin/sh
+#!@SHELL@
 #
-# $Id: cmplhelp.sh 69 2006-06-05 23:22:41Z hubert@u.washington.edu $
+# $Id: cmplhelp.in 69 2006-06-05 23:22:41Z hubert@u.washington.edu $
 #
 #            T H E    P I N E    M A I L   S Y S T E M
 #
@@ -39,17 +39,16 @@
 
 
 # 
-# cmplhelp.sh -- This script take the pine.hlp file and turns it into
+# cmplhelp.in -- This script take the pine.hlp file and turns it into
 # a .c file defining lots of strings
 #
 
-sed '
-	s/\\"/-sed-backslash-quote-/g
-	s/"/\\"/g
-	s/-sed-backslash-quote-/\\"/g
-    ' |
+@SED@ 's/\\"/-sed-backslash-quote-/g
+      s/"/\\"/g
+      s/-sed-backslash-quote-/\\"/g
+     ' |
 
-awk 'BEGIN         {in_text = 0;
+@AWK@ 'BEGIN         {in_text = 0;
                     count = 0;
 		    first_one = 1;
                     printf("#include <stdio.h>\n#include \"headers.h\"\n#include \"../pith/helptext.h\"\n\n");

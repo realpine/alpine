@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: word.c 486 2007-03-22 18:38:38Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: word.c 537 2007-04-24 23:27:18Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -29,6 +29,7 @@ static char rcsid[] = "$Id: word.c 486 2007-03-22 18:38:38Z hubert@u.washington.
 int fpnewline(UCS *quote);
 int fillregion(UCS *qstr, REGION *addedregion);
 int setquotelevelinregion(int quotelevel, REGION *addedregion);
+int is_user_separator(UCS c);
 
 
 /* Word wrap on n-spaces. Back-over whatever precedes the point on the current
@@ -399,9 +400,10 @@ inword(void)
          {
              return(TRUE);
          }
-         else if(ucs4_ispunct(lgetc(curwp->w_dotp, curwp->w_doto).c))
+         else if(ucs4_ispunct(lgetc(curwp->w_dotp, curwp->w_doto).c)
+	         && !is_user_separator(lgetc(curwp->w_dotp, curwp->w_doto).c))
          {
-             if((curwp->w_doto > 1) &&
+             if((curwp->w_doto > 0) &&
                  ucs4_isalnum(lgetc(curwp->w_dotp, curwp->w_doto - 1).c) &&
                  (curwp->w_doto + 1 < llength(curwp->w_dotp)) &&
                  ucs4_isalnum(lgetc(curwp->w_dotp, curwp->w_doto + 1).c))
@@ -412,6 +414,20 @@ inword(void)
      }
 
      return(FALSE);
+}
+
+
+int
+is_user_separator(UCS c)
+{
+    UCS *u;
+
+    if(glo_wordseps)
+      for(u = glo_wordseps; *u; u++)
+	if(*u == c)
+	  return 1;
+
+    return 0;
 }
 
 
@@ -740,14 +756,14 @@ fillpara(int f, int n)
 	if(curwp->w_markp)		/* clear mark if already set */
 	  setmark(0,0);
 
+	if(gotoeop(FALSE, 1) == FALSE)
+	  return(FALSE);
+
 	/* determine if we're justifying quoted text or not */
 	qstr = (glo_quote_str
 		&& quote_match(glo_quote_str, 
 			       curwp->w_dotp, qstr2, NSTRING)
 		&& *qstr2) ? qstr2 : NULL;
-
-	if(gotoeop(FALSE, 1) == FALSE)
-	  return(FALSE);
 
 	setmark(0,0);			/* mark last line of para */
 
@@ -755,7 +771,7 @@ fillpara(int f, int n)
 	gotobop(FALSE, 1);
 
 	/* let yank() know that it may be restoring a paragraph */
-	thisflag |= CFFILL;
+	thisflag |= (CFFILL | CFFLPA);
 
 	if(!Pmaster)
 	  sgarbk = TRUE;
@@ -813,7 +829,7 @@ fillpara(int f, int n)
 int
 fillregion(UCS *qstr, REGION *addedregion)
 {
-    long    c, sz;
+    long    c, sz, last_char = 0;
     int	    i, j, qlen, same_word,
 	    spaces, word_len, word_ind, line_len, qn, ww;
     int     starts_midline = 0;
@@ -872,6 +888,7 @@ fillregion(UCS *qstr, REGION *addedregion)
 
     /* then digest the rest... */
     while((c = fremove(i++)) >= 0){
+	last_char = c;
 	switch(c){
 	  case '\n' :
 	    /* skip next quote string */
@@ -960,8 +977,11 @@ fillregion(UCS *qstr, REGION *addedregion)
 	  linsert(1, word[j]);
     }
 
-    if(ends_midline)
+    if(last_char == '\n')
       lnewline();
+
+    if(ends_midline)
+      (void) fpnewline(qstr);
 
     /*
      * Calculate the size of the region that was added.
@@ -983,6 +1003,17 @@ fillregion(UCS *qstr, REGION *addedregion)
     addedregion->r_size = sz;
 
     swapmark(0,1);
+
+    if(ends_midline){
+	/*
+	 * We want to back up to the end of the original
+	 * region instead of being here after the added newline.
+	 */
+	curwp->w_doto = 0;
+	backchar(0, 1);
+	unmarkbuffer();
+	markregion(1);
+    }
 
     return(TRUE);
 }
@@ -1013,6 +1044,7 @@ int
 setquotelevelinregion(int quotelevel, REGION *addedregion)
 {
     int     i, standards_based = 0;
+    int     quote_chars = 0, backuptoprevline = 0;
     int     starts_midline = 0, ends_midline = 0, offset_into_start;
     long    c, sz;
     UCS     qstr_def1[] = { '>', ' ', 0}, qstr_def2[] = { '>', 0};
@@ -1037,8 +1069,18 @@ setquotelevelinregion(int quotelevel, REGION *addedregion)
       starts_midline++;
 
     /* if region ends midline insert a newline at end */
-    if(curwp->w_marko > 0 && curwp->w_marko < llength(curwp->w_markp))
-      ends_midline++;
+    if(curwp->w_marko > 0 && curwp->w_marko < llength(curwp->w_markp)){
+	ends_midline++;
+	backuptoprevline++;
+	/* count quote chars for re-insertion */
+	for(i = 0; i < llength(curwp->w_markp); ++i)
+	  if(lgetc(curwp->w_markp, i).c != '>')
+	    break;
+
+	quote_chars = i;
+    }
+    else if(curwp->w_marko == 0)
+      backuptoprevline++;
 
     /* find the size of the region */
     getregion(&region, curwp->w_markp, curwp->w_marko);
@@ -1087,8 +1129,15 @@ setquotelevelinregion(int quotelevel, REGION *addedregion)
     }
 
     /* if region ends midline add a newline */
-    if(ends_midline)
-      lnewline();
+    if(ends_midline){
+	lnewline();
+	if(quote_chars){
+	    linsert(quote_chars, '>');
+	    if(curwp->w_doto < llength(curwp->w_dotp)
+	       && lgetc(curwp->w_dotp, curwp->w_doto).c != ' ')
+	      linsert(1, ' ');
+	}
+    }
 
     /*
      * Calculate the size of the region that was added.
@@ -1110,6 +1159,22 @@ setquotelevelinregion(int quotelevel, REGION *addedregion)
     addedregion->r_size = sz;
 
     swapmark(0,1);
+
+    /*
+     * This puts us at the end of the quoted region instead
+     * of on the following line. This makes it convenient
+     * for the user to follow a quotelevel adjustment with
+     * a Justify if desired.
+     */
+    if(backuptoprevline){
+	curwp->w_doto = 0;
+	backchar(0, 1);
+    }
+
+    if(ends_midline){	/* doesn't need fixing otherwise */
+	unmarkbuffer();
+	markregion(1);
+    }
 
     return (TRUE);
 }

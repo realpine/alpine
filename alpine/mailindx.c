@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailindx.c 484 2007-03-15 23:06:03Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailindx.c 540 2007-04-25 17:58:55Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -37,6 +37,7 @@ static char rcsid[] = "$Id: mailindx.c 484 2007-03-15 23:06:03Z hubert@u.washing
 #include "../pith/strlst.h"
 #include "../pith/sequence.h"
 #include "../pith/sort.h"
+#include "../pith/hist.h"
 
 struct save_thrdinfo {
     ICE_S    *(*format_index_line)(INDEXDATA_S *);
@@ -942,7 +943,11 @@ view_a_thread:
 	  case MC_GOTOBOL :
 	  case MC_GOTOEOL :
 	  case MC_UNKNOWN :
-	    bogus_command(ch, F_ON(F_USE_FK,state) ? "F1" : "?");
+	    if(cmd == MC_UNKNOWN && (ch == 'i' || ch == 'I'))
+	      q_status_message(SM_ORDER, 0, 1, "Already in Index");
+	    else
+	      bogus_command(ch, F_ON(F_USE_FK,state) ? "F1" : "?");
+
 	    break;
 
 
@@ -2907,17 +2912,29 @@ away.
 void
 index_search(struct pine *state, MAILSTREAM *stream, int command_line, MSGNO_S *msgmap)
 {
-    int         rc, select_all = 0, flags, sectnum;
+    int         rc, select_all = 0, flags, sectnum, prefetch;
     long        i, sorted_msg, selected = 0L;
     char        prompt[MAX_SEARCH+50], new_string[MAX_SEARCH+1];
-    char        buf[MAX_SCREEN_COLS+1];
+    char        buf[MAX_SCREEN_COLS+1], *p;
     HelpType	help;
-    static char search_string[MAX_SEARCH+1] = { '\0' };
+    char        search_string[MAX_SEARCH+1];
     ICE_S      *ice, *ic;
+    static HISTORY_S *history = NULL;
     static ESCKEY_S header_search_key[] = { {0, 0, NULL, NULL },
 					    {ctrl('Y'), 10, "^Y", N_("First Msg")},
 					    {ctrl('V'), 11, "^V", N_("Last Msg")},
+					    {KEY_UP,    30, "", ""},
+					    {KEY_DOWN,  31, "", ""},
 					    {-1, 0, NULL, NULL} };
+#define KU_IS (3)	/* index of KEY_UP */
+#define PREFETCH_THIS_MANY_LINES (50)
+
+    init_hist(&history, HISTSIZE);
+    search_string[0] = '\0';
+    if((p = get_prev_hist(history, "", 0, NULL)) != NULL){
+	strncpy(search_string, p, sizeof(search_string));
+	search_string[sizeof(search_string)-1] = '\0';
+    }
 
     dprint((4, "\n - search headers - \n"));
 
@@ -2947,6 +2964,19 @@ index_search(struct pine *state, MAILSTREAM *stream, int command_line, MSGNO_S *
 	else{
 	    header_search_key[0].ch   = header_search_key[0].rval  = 0;
 	    header_search_key[0].name = header_search_key[0].label = NULL;
+	}
+
+	/*
+	 * 2 is really 1 because there will be one real entry and
+	 * one entry of "" because of the get_prev_hist above.
+	 */
+	if(items_in_hist(history) > 2){
+	    header_search_key[KU_IS].name  = HISTORY_UP_KEYNAME;
+	    header_search_key[KU_IS].label = HISTORY_UP_KEYLABEL;
+	}
+	else{
+	    header_search_key[KU_IS].name  = "";
+	    header_search_key[KU_IS].label = "";
 	}
 	
 	flags = OE_APPEND_CURRENT | OE_KEEP_TRAILING_SPACE;
@@ -2996,9 +3026,31 @@ index_search(struct pine *state, MAILSTREAM *stream, int command_line, MSGNO_S *
 	    select_all = 1;
 	    break;
 	}
+	else if(rc == 30){
+	    if((p = get_prev_hist(history, new_string, 0, NULL)) != NULL){
+		strncpy(new_string, p, sizeof(new_string));
+		new_string[sizeof(new_string)-1] = '\0';
+	    }
+	    else
+	      Writechar(BELL, 0);
 
-        if(rc != 4)			/* redraw */
-          break; /* redraw */
+	    continue;
+	}
+	else if(rc == 31){
+	    if((p = get_next_hist(history, new_string, 0, NULL)) != NULL){
+		strncpy(new_string, p, sizeof(new_string));
+		new_string[sizeof(new_string)-1] = '\0';
+	    }
+	    else
+	      Writechar(BELL, 0);
+
+	    continue;
+	}
+
+        if(rc != 4){			/* 4 is redraw */
+	    save_hist(history, new_string, 0, NULL);
+	    break;
+	}
     }
 
     if(rc == 1 || (new_string[0] == '\0' && search_string[0] == '\0')) {
@@ -3018,13 +3070,17 @@ index_search(struct pine *state, MAILSTREAM *stream, int command_line, MSGNO_S *
     intr_handling_on();
 #endif
 
+    prefetch = 0;
     for(i = sorted_msg + ((select_all)?0:1);
 	i <= mn_get_total(msgmap) && !ps_global->intr_pending;
 	i++){
       if(msgline_hidden(stream, msgmap, i, 0))
 	continue;
 
-      ic = build_header_line(state, stream, msgmap, i, NULL);
+      if(prefetch <= 0)
+        prefetch = PREFETCH_THIS_MANY_LINES;
+
+      ic = build_header_work(state, stream, msgmap, i, i, prefetch--, NULL);
 
       ice = (ic && THRD_INDX() && ic->tice) ? ic->tice : ic;
 
@@ -3038,12 +3094,16 @@ index_search(struct pine *state, MAILSTREAM *stream, int command_line, MSGNO_S *
       }
     }
 
+    prefetch = 0;
     if(i > mn_get_total(msgmap)){
       for(i = 1; i < sorted_msg && !ps_global->intr_pending; i++){
         if(msgline_hidden(stream, msgmap, i, 0))
 	  continue;
 
-        ic = build_header_line(state, stream, msgmap, i, NULL);
+	if(prefetch <= 0)
+          prefetch = PREFETCH_THIS_MANY_LINES;
+
+        ic = build_header_work(state, stream, msgmap, i, i, prefetch--, NULL);
 
         ice = (ic && THRD_INDX() && ic->tice) ? ic->tice : ic;
 
@@ -3063,7 +3123,7 @@ index_search(struct pine *state, MAILSTREAM *stream, int command_line, MSGNO_S *
 	i = sorted_msg;
         if(!msgline_hidden(stream, msgmap, i, 0)){
 
-	    ic = build_header_line(state, stream, msgmap, i, NULL);
+	    ic = build_header_work(state, stream, msgmap, i, i, 1, NULL);
 
 	    ice = (ic && THRD_INDX() && ic->tice) ? ic->tice : ic;
 

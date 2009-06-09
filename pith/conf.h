@@ -1,5 +1,5 @@
 /*
- * $Id: conf.h 442 2007-02-16 23:01:28Z hubert@u.washington.edu $
+ * $Id: conf.h 548 2007-04-27 19:21:20Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -161,6 +161,7 @@
 #define GLO_DEADLETS		     vars[V_DEADLETS].global_val.p
 #define VAR_REPLY_STRING	     vars[V_REPLY_STRING].current_val.p
 #define GLO_REPLY_STRING	     vars[V_REPLY_STRING].global_val.p
+#define VAR_WORDSEPS		     vars[V_WORDSEPS].current_val.l
 #define VAR_QUOTE_REPLACE_STRING     vars[V_QUOTE_REPLACE_STRING].current_val.p
 #define GLO_QUOTE_REPLACE_STRING     vars[V_QUOTE_REPLACE_STRING].global_val.p
 #define VAR_REPLY_INTRO		     vars[V_REPLY_INTRO].current_val.p
@@ -354,27 +355,41 @@
 #define VAR_REV_BACK_COLOR	     vars[V_REV_BACK_COLOR].current_val.p
 #define GLO_REV_BACK_COLOR	     vars[V_REV_BACK_COLOR].global_val.p
 #define VAR_TITLE_FORE_COLOR	     vars[V_TITLE_FORE_COLOR].current_val.p
+#define GLO_TITLE_FORE_COLOR	     vars[V_TITLE_FORE_COLOR].global_val.p
 #define VAR_TITLE_BACK_COLOR	     vars[V_TITLE_BACK_COLOR].current_val.p
+#define GLO_TITLE_BACK_COLOR	     vars[V_TITLE_BACK_COLOR].global_val.p
 #define VAR_TITLECLOSED_FORE_COLOR   vars[V_TITLECLOSED_FORE_COLOR].current_val.p
+#define GLO_TITLECLOSED_FORE_COLOR   vars[V_TITLECLOSED_FORE_COLOR].global_val.p
 #define VAR_TITLECLOSED_BACK_COLOR   vars[V_TITLECLOSED_BACK_COLOR].current_val.p
+#define GLO_TITLECLOSED_BACK_COLOR   vars[V_TITLECLOSED_BACK_COLOR].global_val.p
 #define VAR_STATUS_FORE_COLOR	     vars[V_STATUS_FORE_COLOR].current_val.p
 #define VAR_STATUS_BACK_COLOR	     vars[V_STATUS_BACK_COLOR].current_val.p
 #define VAR_IND_PLUS_FORE_COLOR	     vars[V_IND_PLUS_FORE_COLOR].current_val.p
+#define GLO_IND_PLUS_FORE_COLOR	     vars[V_IND_PLUS_FORE_COLOR].global_val.p
 #define VAR_IND_PLUS_BACK_COLOR	     vars[V_IND_PLUS_BACK_COLOR].current_val.p
+#define GLO_IND_PLUS_BACK_COLOR	     vars[V_IND_PLUS_BACK_COLOR].global_val.p
 #define VAR_IND_IMP_FORE_COLOR	     vars[V_IND_IMP_FORE_COLOR].current_val.p
+#define GLO_IND_IMP_FORE_COLOR	     vars[V_IND_IMP_FORE_COLOR].global_val.p
 #define VAR_IND_IMP_BACK_COLOR	     vars[V_IND_IMP_BACK_COLOR].current_val.p
+#define GLO_IND_IMP_BACK_COLOR	     vars[V_IND_IMP_BACK_COLOR].global_val.p
 #define VAR_IND_DEL_FORE_COLOR	     vars[V_IND_DEL_FORE_COLOR].current_val.p
 #define VAR_IND_DEL_BACK_COLOR	     vars[V_IND_DEL_BACK_COLOR].current_val.p
 #define VAR_IND_ANS_FORE_COLOR	     vars[V_IND_ANS_FORE_COLOR].current_val.p
+#define GLO_IND_ANS_FORE_COLOR	     vars[V_IND_ANS_FORE_COLOR].global_val.p
 #define VAR_IND_ANS_BACK_COLOR	     vars[V_IND_ANS_BACK_COLOR].current_val.p
+#define GLO_IND_ANS_BACK_COLOR	     vars[V_IND_ANS_BACK_COLOR].global_val.p
 #define VAR_IND_NEW_FORE_COLOR	     vars[V_IND_NEW_FORE_COLOR].current_val.p
+#define GLO_IND_NEW_FORE_COLOR	     vars[V_IND_NEW_FORE_COLOR].global_val.p
 #define VAR_IND_NEW_BACK_COLOR	     vars[V_IND_NEW_BACK_COLOR].current_val.p
+#define GLO_IND_NEW_BACK_COLOR	     vars[V_IND_NEW_BACK_COLOR].global_val.p
 #define VAR_IND_REC_FORE_COLOR	     vars[V_IND_REC_FORE_COLOR].current_val.p
 #define VAR_IND_REC_BACK_COLOR	     vars[V_IND_REC_BACK_COLOR].current_val.p
 #define VAR_IND_UNS_FORE_COLOR	     vars[V_IND_UNS_FORE_COLOR].current_val.p
 #define VAR_IND_UNS_BACK_COLOR	     vars[V_IND_UNS_BACK_COLOR].current_val.p
 #define VAR_IND_OP_FORE_COLOR	     vars[V_IND_OP_FORE_COLOR].current_val.p
+#define GLO_IND_OP_FORE_COLOR	     vars[V_IND_OP_FORE_COLOR].global_val.p
 #define VAR_IND_OP_BACK_COLOR	     vars[V_IND_OP_BACK_COLOR].current_val.p
+#define GLO_IND_OP_BACK_COLOR	     vars[V_IND_OP_BACK_COLOR].global_val.p
 #define VAR_IND_ARR_FORE_COLOR	     vars[V_IND_ARR_FORE_COLOR].current_val.p
 #define VAR_IND_ARR_BACK_COLOR	     vars[V_IND_ARR_BACK_COLOR].current_val.p
 #define VAR_KEYLABEL_FORE_COLOR	     vars[V_KEYLABEL_FORE_COLOR].current_val.p
@@ -383,17 +398,30 @@
 #define VAR_KEYNAME_BACK_COLOR	     vars[V_KEYNAME_BACK_COLOR].current_val.p
 #define VAR_SLCTBL_FORE_COLOR	     vars[V_SLCTBL_FORE_COLOR].current_val.p
 #define VAR_SLCTBL_BACK_COLOR	     vars[V_SLCTBL_BACK_COLOR].current_val.p
+#define VAR_METAMSG_FORE_COLOR	     vars[V_METAMSG_FORE_COLOR].current_val.p
+#define GLO_METAMSG_FORE_COLOR	     vars[V_METAMSG_FORE_COLOR].global_val.p
+#define VAR_METAMSG_BACK_COLOR	     vars[V_METAMSG_BACK_COLOR].current_val.p
+#define GLO_METAMSG_BACK_COLOR	     vars[V_METAMSG_BACK_COLOR].global_val.p
 #define VAR_QUOTE1_FORE_COLOR	     vars[V_QUOTE1_FORE_COLOR].current_val.p
+#define GLO_QUOTE1_FORE_COLOR	     vars[V_QUOTE1_FORE_COLOR].global_val.p
 #define VAR_QUOTE1_BACK_COLOR	     vars[V_QUOTE1_BACK_COLOR].current_val.p
+#define GLO_QUOTE1_BACK_COLOR	     vars[V_QUOTE1_BACK_COLOR].global_val.p
 #define VAR_QUOTE2_FORE_COLOR	     vars[V_QUOTE2_FORE_COLOR].current_val.p
+#define GLO_QUOTE2_FORE_COLOR	     vars[V_QUOTE2_FORE_COLOR].global_val.p
 #define VAR_QUOTE2_BACK_COLOR	     vars[V_QUOTE2_BACK_COLOR].current_val.p
+#define GLO_QUOTE2_BACK_COLOR	     vars[V_QUOTE2_BACK_COLOR].global_val.p
 #define VAR_QUOTE3_FORE_COLOR	     vars[V_QUOTE3_FORE_COLOR].current_val.p
+#define GLO_QUOTE3_FORE_COLOR	     vars[V_QUOTE3_FORE_COLOR].global_val.p
 #define VAR_QUOTE3_BACK_COLOR	     vars[V_QUOTE3_BACK_COLOR].current_val.p
+#define GLO_QUOTE3_BACK_COLOR	     vars[V_QUOTE3_BACK_COLOR].global_val.p
 #define VAR_SIGNATURE_FORE_COLOR     vars[V_SIGNATURE_FORE_COLOR].current_val.p
+#define GLO_SIGNATURE_FORE_COLOR     vars[V_SIGNATURE_FORE_COLOR].global_val.p
 #define VAR_SIGNATURE_BACK_COLOR     vars[V_SIGNATURE_BACK_COLOR].current_val.p
+#define GLO_SIGNATURE_BACK_COLOR     vars[V_SIGNATURE_BACK_COLOR].global_val.p
 #define VAR_PROMPT_FORE_COLOR	     vars[V_PROMPT_FORE_COLOR].current_val.p
 #define VAR_PROMPT_BACK_COLOR	     vars[V_PROMPT_BACK_COLOR].current_val.p
 #define VAR_VIEW_HDR_COLORS	     vars[V_VIEW_HDR_COLORS].current_val.l
+#define GLO_VIEW_HDR_COLORS	     vars[V_VIEW_HDR_COLORS].global_val.l
 
 
 /*

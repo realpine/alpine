@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: alpined.c 483 2007-03-15 18:43:40Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: alpined.c 512 2007-04-05 17:14:45Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -11254,7 +11254,7 @@ PEAddressCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 			return(TCL_OK);
 		    }
 		    if(tag == List) {
-		      adrbk_listdel_all(ab, new_entry, 0);
+		      adrbk_listdel_all(ab, new_entry);
 		      adrbk_nlistadd(ab, new_entry, addrs, 0, 1, 1);
 		    }
 		    return(TCL_OK);

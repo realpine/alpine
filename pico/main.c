@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: main.c 418 2007-02-03 01:51:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: main.c 537 2007-04-24 23:27:18Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -112,6 +112,7 @@ N_("\t -t \t\tShutdown - enable special shutdown mode"),
 N_("\t -o <dir>\tOperation - specify the operating directory"),
 N_("\t -z \t\tSuspend - allow use of ^Z suspension"),
 N_("\t -w \t\tNoWrap - turn off word wrap"),
+N_("\t -W <wordseps> \tSet word separators other than whitespace"),
 N_("\t -dcs <display_character_set> \tdefault uses LANG or LC_CTYPE from environment"),
 N_("\t -kcs <keyboard_character_set> \tdefaults to display_character_set"),
 N_("\t -syscs\t\tuse system-supplied translation routines"),
@@ -246,6 +247,9 @@ main(int argc, char *argv[])
 
     if(glo_quote_str_orig)
       glo_quote_str = utf8_to_ucs4_cpystr(fname_to_utf8(glo_quote_str_orig));
+
+    if(glo_wordseps_orig)
+      glo_wordseps = utf8_to_ucs4_cpystr(fname_to_utf8(glo_wordseps_orig));
 
     if(file_to_edit)
       file_to_edit = cpstr(fname_to_utf8(file_to_edit));
@@ -631,6 +635,7 @@ Loop:
 	  case 's' :			/* speller */
 	  case 'o' :			/* operating tree */
 	  case 'Q' :                    /* Quote string */
+	  case 'W' :                    /* Word separators */
 	    if(*++*av)
 	      str = *av;
 	    else if(--ac)
@@ -658,6 +663,9 @@ Loop:
 		break;
 	      case 'Q':
 		glo_quote_str_orig = str;
+		break;
+	      case 'W':
+		glo_wordseps_orig = str;
 		break;
 
 	/* numeric args */

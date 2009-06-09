@@ -1,5 +1,5 @@
 /*
- * $Id: folder.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: folder.h 529 2007-04-18 22:41:05Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -29,7 +29,7 @@ void	    folder_config_screen(struct pine *, int);
 int	    folders_for_goto(struct pine *, CONTEXT_S **, char *, int);
 int	    folders_for_save(struct pine *, CONTEXT_S **, char *, int);
 char	   *folders_for_fcc(char **);
-char	   *folders_for_roles(int);
+char	   *folder_for_config(int);
 char	   *context_edit_screen(struct pine *, char *, char *, char *, char *, char *);
 int	    add_new_folder(CONTEXT_S *, EditWhich, int, char *, size_t, MAILSTREAM *, char *);
 char	   *next_folder(MAILSTREAM **, char *, size_t, char *, CONTEXT_S *, long *, int *);

@@ -1,5 +1,5 @@
 /*
- * $Id: alpine.h 190 2006-10-18 21:33:25Z mikes@u.washington.edu $
+ * $Id: alpine.h 537 2007-04-24 23:27:18Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -26,6 +26,7 @@ unsigned long pine_gets_bytes(int);
 void	      quit_screen(struct pine *);
 int	      panicking(void);
 int           rule_setup_type(struct pine *ps, int flags, char *prompt);
+UCS          *user_wordseps(char **);
 STORE_S	     *pine_pico_get(void);
 int	      pine_pico_give(STORE_S **);
 int	      pine_pico_writec(int, STORE_S *);

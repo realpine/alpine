@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: termout.gen.c 468 2007-03-02 23:04:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: termout.gen.c 509 2007-04-04 23:30:55Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -495,11 +495,10 @@ clear_cursor_pos(void)
          cursor position variables updated
   ----*/
 void
-Writechar(register unsigned int ch, int new_esc_len)
+Writechar(unsigned int ch, int new_esc_len)
 {
     static   unsigned char  cbuf[6];
     static   unsigned char *cbufp = cbuf;
-    int printable_ascii = 0;
 
     if(cbufp < cbuf+sizeof(cbuf)){
 	unsigned char *inputp;
@@ -509,77 +508,58 @@ Writechar(register unsigned int ch, int new_esc_len)
 	*cbufp++ = (unsigned char) ch;
 	inputp = cbuf;
 	remaining_octets = (cbufp - cbuf) * sizeof(unsigned char);
-	if(remaining_octets == 1 && isascii(*cbuf)
-	   && (isprint(*cbuf) || *cbuf == LINE_FEED
-	       || *cbuf == RETURN || *cbuf == BACKSPACE
-	       || *cbuf == BELL || *cbuf == TAB)){
-	    /* shortcut common case */
-	    ucs = (UCS) *cbuf;
-	    inputp++;
-	    printable_ascii++;		/* just for efficiency */
-	}
-	else
-	  /*
-	   * we could use mbtow(utf8_charset, ...)
-	   * here to lend an air of portability, then use the CCONV_
-	   * constants for the return values. However, we know we are
-	   * dealing with UTF-8 so we can skip straight to the
-	   * correct function instead.
-	   */
-	  ucs = (UCS) utf8_get(&inputp, &remaining_octets);
+	ucs = (UCS) utf8_get(&inputp, &remaining_octets);
 
 	switch(ucs){
-	  case U8G_BADCONT:	/* continuation at start of char */
-	  case U8G_NOTUTF8:	/* invalid character */
-	  case U8G_INCMPLT:	/* incomplete character */
-	  case UBOGON:
-	    /*
-	     * None of these cases is supposed to happen. If it
-	     * does happen then the input stream isn't UTF-8
-	     * so something is wrong. Treat each character in the
-	     * input buffer as a separate error character and
-	     * print a '?' for each.
-	     */
-	    for(inputp = cbuf; inputp < cbufp; inputp++){
-		int width = 0;
-
-		if(_col + width < ps_global->ttyo->screen_cols){
-		    Writewchar('?');
-		    width++;
-		}
-	    }
-
-	    cbufp = cbuf;	/* start over */
-	    break;
-
 	  case U8G_ENDSTRG:	/* incomplete character, wait */
 	  case U8G_ENDSTRI:	/* incomplete character, wait */
 	    break;
 
 	  default:
-	     if(ucs & U8G_ERROR)
-	       ucs = '?';
+	    if(ucs & U8G_ERROR || ucs == UBOGON){
+		/*
+		 * None of these cases is supposed to happen. If it
+		 * does happen then the input stream isn't UTF-8
+		 * so something is wrong. Treat each character in the
+		 * input buffer as a separate error character and
+		 * print a '?' for each.
+		 */
+		for(inputp = cbuf; inputp < cbufp; inputp++){
+		    int width = 0;
 
-	    /* got a character */
-	    Writewchar(ucs);
+		    if(_col + width < ps_global->ttyo->screen_cols){
+			Writewchar('?');
+			width++;
+		    }
+		}
 
-	    /* update the input buffer */
-	    if(inputp >= cbufp)	/* this should be the case */
-	      cbufp = cbuf;
-	    else{		/* extra chars for some reason? */
-		unsigned char *q, *newcbufp;
+		cbufp = cbuf;	/* start over */
+	    }
+	    else{
 
-		newcbufp = (cbufp - inputp) + cbuf;
-		q = cbuf;
-		while(inputp < cbufp)
-		  *q++ = *inputp++;
+		/* got a good character */
+		Writewchar(ucs);
 
-		cbufp = newcbufp;
+		/* update the input buffer */
+		if(inputp >= cbufp)	/* this should be the case */
+		  cbufp = cbuf;
+		else{		/* extra chars for some reason? */
+		    unsigned char *q, *newcbufp;
+
+		    newcbufp = (cbufp - inputp) + cbuf;
+		    q = cbuf;
+		    while(inputp < cbufp)
+		      *q++ = *inputp++;
+
+		    cbufp = newcbufp;
+		}
 	    }
 
 	    break;
 	}
     }
-    else			/* error */
-      Writewchar('?');
+    else{			/* error */
+	Writewchar('?');
+	cbufp = cbuf;		/* start over */
+    }
 }

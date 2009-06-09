@@ -1,5 +1,5 @@
 /*
- * $Id: adrbklib.h 473 2007-03-07 23:16:56Z hubert@u.washington.edu $
+ * $Id: adrbklib.h 512 2007-04-05 17:14:45Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -819,7 +819,7 @@ int            adrbk_append(AdrBk *, char *, char *, char *,
 			    char *, char *, Tag, adrbk_cntr_t *);
 int            adrbk_delete(AdrBk *, a_c_arg_t, int, int, int, int);
 int            adrbk_listdel(AdrBk *, a_c_arg_t, char *);
-int            adrbk_listdel_all(AdrBk *, a_c_arg_t, int);
+int            adrbk_listdel_all(AdrBk *, a_c_arg_t);
 int            adrbk_nlistadd(AdrBk *, a_c_arg_t, char **,int,int,int);
 void           adrbk_check_validity(AdrBk *, long);
 MAILSTREAM    *adrbk_handy_stream(char *);

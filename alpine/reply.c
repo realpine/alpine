@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: reply.c 442 2007-02-16 23:01:28Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: reply.c 537 2007-04-24 23:27:18Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -2165,6 +2165,7 @@ standard_picobuf_setup(PICO *pbf)
     pbf->fillcolumn	= ps_global->composer_fillcol;
     pbf->menu_rows	= FOOTER_ROWS(ps_global) - 1;
     pbf->colors		= colors_for_pico();
+    pbf->wordseps	= user_wordseps(ps_global->VAR_WORDSEPS);
     pbf->helper		= helper;
     pbf->showmsg	= display_message_for_pico;
     pbf->suspend	= do_suspend;
@@ -2212,6 +2213,7 @@ standard_picobuf_setup(PICO *pbf)
 	pbf->oper_dir    = ps_global->VAR_OPER_DIR;
 	pbf->pine_flags |= P_TREE;
     }
+
     pbf->home_dir = ps_global->home_dir;
 }
 
@@ -2222,6 +2224,9 @@ standard_picobuf_teardown(PICO *pbf)
     if(pbf){
 	if(pbf->colors)
 	  free_pcolors(&pbf->colors);
+
+	if(pbf->wordseps)
+	  fs_give((void **) &pbf->wordseps);
     }
 }
 

@@ -1,5 +1,5 @@
 /*
- * $Id: terminal.h 185 2006-10-12 20:12:20Z jpf@u.washington.edu $
+ * $Id: terminal.h 530 2007-04-19 02:37:54Z mikes@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -42,7 +42,7 @@
 
 /* exported prototypes */
 unsigned tthascap(void);
-#if	HAS_TERMINFO
+#if	HAS_TERMINFO || HAS_TERMCAP
 void	 putpad(char *);
 #endif
 

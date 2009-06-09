@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: adrbkcmd.c 473 2007-03-07 23:16:56Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: adrbkcmd.c 534 2007-04-23 22:20:32Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1202,7 +1202,7 @@ _("\n to use single quotation marks; for example: George 'Husky' Washington."));
 		/*
 		 * need to delete old list members and add new members below
 		 */
-		rc = adrbk_listdel_all(abook, (a_c_arg_t) old_entry_num, 0);
+		rc = adrbk_listdel_all(abook, (a_c_arg_t) old_entry_num);
 	    }
 	    else{
 		/* don't need new_addrarray */
@@ -1345,12 +1345,19 @@ verify_nick(char *given, char **expanded, char **error, BUILDER_ARG *fcc, int *m
 
     if(nickname_check(tmp, error)){
 	fs_give((void **)&tmp);
+	if(mangled){
+	    if(ps_global->mangled_screen)
+	      *mangled |= BUILDER_SCREEN_MANGLED;
+	    else if(ps_global->mangled_footer)
+	      *mangled |= BUILDER_FOOTER_MANGLED;
+	}
+
 	return -2;
     }
 
     if(ps_global->remote_abook_validity > 0 &&
        adrbk_check_and_fix_all(ab_nesting_level == 0, 0, 0) && mangled)
-      *mangled = 1;
+      *mangled |= BUILDER_SCREEN_MANGLED;
 
     ab_nesting_level++;
     if(strucmp(tmp, nick_saved_for_pico_check) != 0
@@ -1368,6 +1375,13 @@ verify_nick(char *given, char **expanded, char **error, BUILDER_ARG *fcc, int *m
 	
 	ab_nesting_level--;
 	fs_give((void **)&tmp);
+	if(mangled){
+	    if(ps_global->mangled_screen)
+	      *mangled |= BUILDER_SCREEN_MANGLED;
+	    else if(ps_global->mangled_footer)
+	      *mangled |= BUILDER_FOOTER_MANGLED;
+	}
+	
 	return -2;
     }
 
@@ -1380,6 +1394,13 @@ verify_nick(char *given, char **expanded, char **error, BUILDER_ARG *fcc, int *m
     /* This is so pico will erase any old message */
     if(error)
       *error = cpystr("");
+
+    if(mangled){
+	if(ps_global->mangled_screen)
+	  *mangled |= BUILDER_SCREEN_MANGLED;
+	else if(ps_global->mangled_footer)
+	  *mangled |= BUILDER_FOOTER_MANGLED;
+    }
 
     return 0;
 }
@@ -1456,12 +1477,12 @@ verify_addr(char *to, char **full_to, char **error, BUILDER_ARG *fcc, int *mangl
 
     if(ps_global->remote_abook_validity > 0 &&
        adrbk_check_and_fix_all(ab_nesting_level == 0, 0, 0) && mangled)
-      *mangled = 1;
+      *mangled |= BUILDER_SCREEN_MANGLED;
 
     ab_nesting_level++;
 
     ret_val = build_address_internal(bldto, full_to, error, NULL, NULL, NULL,
-				     save_and_restore, 1, NULL);
+				     save_and_restore, 1, mangled);
 
     ab_nesting_level--;
     if(save_nesting_level)
@@ -4141,6 +4162,7 @@ ab_export(struct pine *ps, long int cur_line, int command_line, int agg)
     BuildTo  bldto;
     char    *p;
     int      good_addr, plur, vcard = 0, tab = 0;
+    static HISTORY_S *history = NULL;
     AdrBk_Entry *abe;
     VCARD_INFO_S *vinfo;
     static ESCKEY_S ab_export_opts[] = {
@@ -4220,7 +4242,7 @@ ab_export(struct pine *ps, long int cur_line, int command_line, int agg)
     r = get_export_filename(ps, filename, NULL, full_filename, sizeof(filename),
 			    plur ? _("addresses") : _("address"),
 			    _("EXPORT"), ab_export_opts,
-			    &retflags, command_line, GE_IS_EXPORT);
+			    &retflags, command_line, GE_IS_EXPORT, &history);
 
     if(r < 0){
 	switch(r){

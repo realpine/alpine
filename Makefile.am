@@ -28,7 +28,7 @@ c-client.d:
 	if test ! -L c-client ; then $(LN_S) imap/c-client c-client ; fi
 
 c-client:
-	cd imap && $(MAKE) @C_CLIENT_TARGET@ @C_CLIENT_SPECIALS@
+	cd imap && $(MAKE) @C_CLIENT_TARGET@ "EXTRASPECIALS=@C_CLIENT_SPECIALS@"
 
 clean-local:
 	cd imap && $(MAKE) clean

@@ -1,5 +1,5 @@
 /*
- * $Id: mailindx.h 483 2007-03-15 18:43:40Z hubert@u.washington.edu $
+ * $Id: mailindx.h 516 2007-04-09 21:07:44Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -21,6 +21,7 @@
 #include "../pith/msgno.h"
 #include "../pith/state.h"
 #include "../pith/pattern.h"
+#include "../pith/flag.h"
 
 
 extern ICE_S	       *(*format_index_line)(INDEXDATA_S *);
@@ -49,6 +50,9 @@ ADDRESS	      *fetch_cc(INDEXDATA_S *);
 void	       index_data_env(INDEXDATA_S *, ENVELOPE *);
 void	       date_str(char *, IndexColType, int, char *, size_t, int);
 ADDRESS	      *fetch_to(INDEXDATA_S *);
+char          *get_fieldval(INDEXDATA_S *, HEADER_TOK_S *);
+long           scorevalfrommsg(MAILSTREAM *, MsgNo, HEADER_TOK_S *, int);
+HEADER_TOK_S  *new_hdrtok(char *);
 
 
 #endif /* PITH_MAILINDX_INCLUDED */

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: addrbook.c 473 2007-03-07 23:16:56Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: addrbook.c 540 2007-04-25 17:58:55Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -46,6 +46,7 @@ static char rcsid[] = "$Id: addrbook.c 473 2007-03-07 23:16:56Z hubert@u.washing
 #include "../pith/remote.h"
 #include "../pith/util.h"
 #include "../pith/thread.h"
+#include "../pith/hist.h"
 
 
 HelpType    gAbookHelp = NO_HELP;
@@ -6271,43 +6272,77 @@ erase_selections(void)
 int
 search_book(long int cur_line, int command_line, long int *new_line, int *wrapped, int *warped)
 {
-    int          find_result, rc, flags;
-    static char  search_string[MAX_SEARCH + 1] = { '\0' };
-    char         prompt[MAX_SEARCH + 50], nsearch_string[MAX_SEARCH+1];
+    int          i=0, find_result, rc, flags, ku;
+    static HISTORY_S *history = NULL;
+    char         search_string[MAX_SEARCH + 1];
+    char         prompt[MAX_SEARCH + 50], nsearch_string[MAX_SEARCH+1], *p;
     HelpType	 help;
-    ESCKEY_S     ekey[4];
+    ESCKEY_S     ekey[6];
     PerAddrBook *pab;
     long         nl;
 
     dprint((7, "- search_book -\n"));
+
+    init_hist(&history, HISTSIZE);
+
+    search_string[0] = '\0';
+    if((p = get_prev_hist(history, "", 0, NULL)) != NULL){
+	strncpy(search_string, p, sizeof(search_string));
+	search_string[sizeof(search_string)-1] = '\0';
+    }
 
     snprintf(prompt, sizeof(prompt), _("Word to search for [%.*s]: "), MAX_SEARCH, search_string);
     prompt[sizeof(prompt)-1] = '\0';
     help              = NO_HELP;
     nsearch_string[0] = '\0';
 
-    ekey[0].ch    = 0;
-    ekey[0].rval  = 0;
-    ekey[0].name  = "";
-    ekey[0].label = "";
+    ekey[i].ch    = 0;
+    ekey[i].rval  = 0;
+    ekey[i].name  = "";
+    ekey[i++].label = "";
 
-    ekey[1].ch    = ctrl('Y');
-    ekey[1].rval  = 10;
-    ekey[1].name  = "^Y";
+    ekey[i].ch    = ctrl('Y');
+    ekey[i].rval  = 10;
+    ekey[i].name  = "^Y";
     /* TRANSLATORS: User is searching in address book. One of the options is to
        search for the First Address */
-    ekey[1].label = _("First Adr");
+    ekey[i++].label = _("First Adr");
 
-    ekey[2].ch    = ctrl('V');
-    ekey[2].rval  = 11;
-    ekey[2].name  = "^V";
+    ekey[i].ch    = ctrl('V');
+    ekey[i].rval  = 11;
+    ekey[i].name  = "^V";
     /* TRANSLATORS: Last Address */
-    ekey[2].label = _("Last Adr");
+    ekey[i++].label = _("Last Adr");
 
-    ekey[3].ch    = -1;
+    ekey[i].ch      = KEY_UP;
+    ekey[i].rval    = 30;
+    ekey[i].name    = "";
+    ku = i;
+    ekey[i++].label = "";
+
+    ekey[i].ch      = KEY_DOWN;
+    ekey[i].rval    = 31;
+    ekey[i].name    = "";
+    ekey[i++].label = "";
+
+    ekey[i].ch    = -1;
 
     flags = OE_APPEND_CURRENT | OE_KEEP_TRAILING_SPACE;
     while(1){
+
+	/*
+	 * 2 is really 1 because there will be one real entry and
+	 * one entry of "" because of the get_prev_hist above.
+	 */
+	if(items_in_hist(history) > 2){
+	    ekey[ku].name  = HISTORY_UP_KEYNAME;
+	    ekey[ku].label = HISTORY_UP_KEYLABEL;
+	}
+	else{
+	    ekey[ku].name  = "";
+	    ekey[ku].label = "";
+	}
+
         rc = optionally_enter(nsearch_string, command_line, 0,
 			      sizeof(nsearch_string),
                               prompt, ekey, help, &flags);
@@ -6341,9 +6376,31 @@ search_book(long int cur_line, int command_line, long int *new_line, int *wrappe
 		return -1;
 	    }
 	}
+	else if(rc == 30){
+	    if((p = get_prev_hist(history, nsearch_string, 0, NULL)) != NULL){
+		strncpy(nsearch_string, p, sizeof(nsearch_string));
+		nsearch_string[sizeof(nsearch_string)-1] = '\0';
+	    }
+	    else
+	      Writechar(BELL, 0);
 
-        if(rc != 4)
-          break;
+	    continue;
+	}
+	else if(rc == 31){
+	    if((p = get_next_hist(history, nsearch_string, 0, NULL)) != NULL){
+		strncpy(nsearch_string, p, sizeof(nsearch_string));
+		nsearch_string[sizeof(nsearch_string)-1] = '\0';
+	    }
+	    else
+	      Writechar(BELL, 0);
+
+	    continue;
+	}
+
+        if(rc != 4){			/* 4 is redraw */
+	    save_hist(history, nsearch_string, 0, NULL);
+	    break;
+	}
     }
 
         

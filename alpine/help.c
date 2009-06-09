@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: help.c 469 2007-03-05 17:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: help.c 543 2007-04-26 04:06:02Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -159,7 +159,7 @@ helper_internal(HelpType text, char *frag, char *title, int flags)
 	      gf_link_filter(gf_html2plain,
 			     gf_html2plain_opt("x-alpine-help:",
 					       ps_global->ttyo->screen_cols, NULL,
-					       &handles, GFHP_LOCAL_HANDLES));
+					       &handles, NULL, GFHP_LOCAL_HANDLES));
 	    else
 	      gf_link_filter(gf_wrap, gf_wrap_filter_opt(
 						  ps_global->ttyo->screen_cols,
@@ -460,7 +460,7 @@ print_help(char **text)
 
 	gf_link_filter(gf_html2plain,
 		       gf_html2plain_opt(NULL,80,NULL,
-					 NULL,GFHP_STRIPPED));
+					 NULL,NULL,GFHP_STRIPPED));
 	for(i = 1; i <= 5 && text[i]; i++)
 	  if(!struncmp(text[i], "<title>", 7)
 	     && (p = srchstr(text[i] + 7, "</title>"))
@@ -1300,7 +1300,7 @@ pcpine_help(HelpType section)
 	    gf_link_filter(gf_html2plain,
 			   gf_html2plain_opt(NULL,
 					     ps_global->ttyo->screen_cols,
-					     NULL, NULL, GFHP_STRIPPED));
+					     NULL, NULL, NULL, GFHP_STRIPPED));
 
 	    if(!gf_pipe(helper_getc, pc)){
 		help_text  = (char *) store->txt;

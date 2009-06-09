@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailindx.c 501 2007-03-30 00:16:53Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailindx.c 526 2007-04-16 19:52:32Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -380,6 +380,23 @@ free_index_format(INDEX_COL_S **disp_format)
 }
 
 
+HEADER_TOK_S *
+new_hdrtok(char *hdrname)
+{
+    HEADER_TOK_S *hdrtok;
+
+    hdrtok = (HEADER_TOK_S *) fs_get(sizeof(HEADER_TOK_S));
+    memset(hdrtok, 0, sizeof(HEADER_TOK_S));
+    hdrtok->hdrname = hdrname ? cpystr(hdrname) : NULL;
+    hdrtok->fieldnum = 0;
+    hdrtok->adjustment = Left;
+    hdrtok->fieldsepcnt = 1;
+    hdrtok->fieldseps = cpystr(" ");
+
+    return(hdrtok);
+}
+
+
 void
 free_hdrtok(HEADER_TOK_S **hdrtok)
 {
@@ -656,18 +673,7 @@ parse_index_format(char *format_str, INDEX_COL_S **answer)
 		}
 
 		if(hdrname[0]){
-		    HEADER_TOK_S *hdrtok;
-
-		    hdrtok = (HEADER_TOK_S *) fs_get(sizeof(HEADER_TOK_S));
-		    cdesc[column].hdrtok = hdrtok;
-		    memset(hdrtok, 0, sizeof(HEADER_TOK_S));
-		    hdrtok->hdrname = cpystr(hdrname);
-		    if(pt->ctype == iHeader){
-			hdrtok->fieldnum = 0;		/* default */
-			hdrtok->adjustment = Left;	/* default */
-			hdrtok->fieldsepcnt = 1;	/* default */
-			hdrtok->fieldseps = cpystr(" ");/* default */
-		    }
+		    cdesc[column].hdrtok = new_hdrtok(hdrname);
 		}
 		else{
 		    if(pt->ctype == iHeader){
@@ -753,14 +759,38 @@ parse_index_format(char *format_str, INDEX_COL_S **answer)
 			      cdesc[column].hdrtok->fieldseps[0] = '\0';
 
 			    j = 0;
-			    while(*p && *p != ')' && *p != ','){
-				fs_resize((void **) &cdesc[column].hdrtok->fieldseps, j+2);
-				if(*p == '\\' && (*(p+1) == ',' || *(p+1) == '\\'))
-				  p++;
+			    if(*p == '\"' && strchr(p+1, '\"')){
+				p++;
+				while(*p && *p != ')' && *p != '\"' && *p != ','){
+				    if(cdesc[column].hdrtok->fieldseps)
+				      fs_resize((void **) &cdesc[column].hdrtok->fieldseps, j+2);
 
-				cdesc[column].hdrtok->fieldseps[j++] = *p++;
-				cdesc[column].hdrtok->fieldseps[j] = '\0';
-				cdesc[column].hdrtok->fieldsepcnt = j;
+				    if(*p == '\\' && *(p+1))
+				      p++;
+
+				    if(cdesc[column].hdrtok->fieldseps){
+					cdesc[column].hdrtok->fieldseps[j++] = *p++;
+					cdesc[column].hdrtok->fieldseps[j] = '\0';
+					cdesc[column].hdrtok->fieldsepcnt = j;
+				    }
+				}
+
+				if(*p == '\"')
+				  p++;
+			    }
+			    else{
+				while(*p && *p != ')' && *p != ','){
+				    if(cdesc[column].hdrtok->fieldseps)
+				      fs_resize((void **) &cdesc[column].hdrtok->fieldseps, j+2);
+				    if(*p == '\\' && *(p+1))
+				      p++;
+
+				    if(cdesc[column].hdrtok->fieldseps){
+					cdesc[column].hdrtok->fieldseps[j++] = *p++;
+					cdesc[column].hdrtok->fieldseps[j] = '\0';
+					cdesc[column].hdrtok->fieldsepcnt = j;
+				    }
+				}
 			    }
 
 			    /* optional 4th argument, left or right adjust */
@@ -1466,13 +1496,27 @@ build_header_work(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
 	if(THRD_INDX()){
 	    ICE_S *ic;
 
+	    count = i = 0;
+
+	    /*
+	     * First add the msgno we're asking for in case it
+	     * isn't visible.
+	     */
+	    thrd = fetch_thread(stream,	mn_m2raw(msgmap, msgno));
+	    if(msgno <= mn_get_total(msgmap)
+	       && !((ic=fetch_ice(stream,thrd->rawno)->tice)
+	       && ic->ifield)){
+		count += mark_msgs_in_thread(stream, thrd, msgmap);
+	    }
+
+
 	    thrd = fetch_thread(stream,	mn_m2raw(msgmap, top_msgno));
+
 	    /*
 	     * Loop through visible threads, marking them for fetching.
 	     * Stop at end of screen or sooner if we run out of visible
 	     * threads.
 	     */
-	    count = i = 0;
 	    while(thrd){
 		n = mn_raw2m(msgmap, thrd->rawno);
 		if(n >= msgno
@@ -1500,6 +1544,35 @@ build_header_work(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
 	}
 	else{
 	    count = i = 0;
+
+	    /*
+	     * First add the msgno we're asking for in case it
+	     * isn't visible.
+	     */
+	    if(msgno > 0L && msgno <= mn_get_total(msgmap)
+	       && !fetch_ice(stream, (rawno=mn_m2raw(msgmap,msgno)))->ifield){
+		if(thrd = fetch_thread(stream, rawno)){
+		    /*
+		     * If we're doing a MUTTLIKE display the index line
+		     * may depend on the thread parent, and grandparent,
+		     * and further back. So just fetch the whole thread
+		     * in that case.
+		     */
+		    if(THREADING()
+		       && ps_global->thread_disp_style == THREAD_MUTTLIKE
+		       && thrd->top)
+		      thrd = fetch_thread(stream, thrd->top);
+
+		    count += mark_msgs_in_thread(stream, thrd, msgmap);
+		}
+		else if(rawno > 0L && rawno <= stream->nmsgs
+			&& (mc = mail_elt(stream,rawno))
+			&& !mc->private.msg.env){
+		    mc->sequence = 1;
+		    count++;
+		}
+	    }
+
 	    n = top_msgno;
 	    while(1){
 		if(n >= msgno
@@ -1845,7 +1918,7 @@ format_index_index_line(INDEXDATA_S *idata)
     IELEM_S      *ielem;
     struct variable *vars = ps_global->vars;
 
-    dprint((8, "=== format_index_line(%ld,%ld) ===\n",
+    dprint((8, "=== format_index_line(msgno=%ld,rawno=%ld) ===\n",
 	       idata ? idata->msgno : -1, idata ? idata->rawno : -1));
 
 
@@ -3420,6 +3493,10 @@ fetch_firsttext(INDEXDATA_S *idata)
 				    was_space_for_eol++;
 				}
 			    }
+			    else if(c == '\t'){
+				if(!was_space_for_eol)
+				  *p++ = SPACE;
+			    }
 			    else{
 				was_space_for_eol = 0;
 				*p++ = c;
@@ -4440,7 +4517,7 @@ key_str(INDEXDATA_S *idata, SubjKW kwtype, ICE_S *ice)
 		remaining_octets = strlen(word);
 		inputp = (unsigned char *) word;
 		ucs = (UCS) utf8_get(&inputp, &remaining_octets);
-		if(!(ucs & U8G_ERROR)){
+		if(!(ucs & U8G_ERROR || ucs == UBOGON)){
 		    ielem = new_ielem(&ourifield->ielem);
 		    ielem->freedata = 1;
 		    ielem->datalen = (unsigned) (inputp - (unsigned char *) word);
@@ -4525,9 +4602,7 @@ header_str(INDEXDATA_S *idata, HEADER_TOK_S *hdrtok, ICE_S *ice)
 {
     IFIELD_S     *ourifield = NULL;
     IELEM_S      *ielem = NULL;
-    int           sep, fieldnum;
-    char         *hdrval = NULL, *p, *testval;
-    char         *fieldval = NULL, *firstval;
+    char         *fieldval = NULL;
 
     if(ice && ice->ifield){
 	/* move to last ifield, the one we're working */
@@ -4540,6 +4615,32 @@ header_str(INDEXDATA_S *idata, HEADER_TOK_S *hdrtok, ICE_S *ice)
     if(!ourifield)
       return;
 
+    fieldval = get_fieldval(idata, hdrtok);
+
+    if(fieldval){
+	ielem = new_ielem(&ourifield->ielem);
+	ielem->freedata = 1;
+	ielem->data = fieldval;
+	ielem->datalen = strlen(fieldval);
+	fieldval = NULL;
+	ourifield->leftadj = (hdrtok->adjustment == Left) ? 1 : 0;
+    }
+
+    set_ielem_widths_in_field(ourifield);
+}
+
+
+char *
+get_fieldval(INDEXDATA_S *idata, HEADER_TOK_S *hdrtok)
+{
+    int           sep, fieldnum;
+    char         *hdrval = NULL, *p, *testval;
+    char         *fieldval = NULL, *firstval;
+    char         *retfieldval = NULL;
+
+    if(!hdrtok)
+      return(retfieldval);
+
     if(hdrtok && hdrtok->hdrname && hdrtok->hdrname[0])
       hdrval = fetch_header(idata, hdrtok ? hdrtok->hdrname : "");
 
@@ -4550,7 +4651,7 @@ header_str(INDEXDATA_S *idata, HEADER_TOK_S *hdrtok, ICE_S *ice)
 
 	firstval = NULL;
 	for(sep = 0; sep < hdrtok->fieldsepcnt; sep++){
-	    testval = strchr(fieldval, hdrtok->fieldseps[sep]);
+	    testval = hdrtok->fieldseps ? strchr(fieldval, hdrtok->fieldseps[sep]) : NULL;
 	    if(testval && (!firstval || testval < firstval))
 	      firstval = testval;
 	}
@@ -4564,7 +4665,7 @@ header_str(INDEXDATA_S *idata, HEADER_TOK_S *hdrtok, ICE_S *ice)
     if(fieldval && *fieldval && hdrtok->fieldnum > 0){
 	firstval = NULL;
 	for(sep = 0; sep < hdrtok->fieldsepcnt; sep++){
-	    testval = strchr(fieldval, hdrtok->fieldseps[sep]);
+	    testval = hdrtok->fieldseps ? strchr(fieldval, hdrtok->fieldseps[sep]) : NULL;
 	    if(testval && (!firstval || testval < firstval))
 	      firstval = testval;
 	}
@@ -4576,18 +4677,44 @@ header_str(INDEXDATA_S *idata, HEADER_TOK_S *hdrtok, ICE_S *ice)
     if(!fieldval)
       fieldval = "";
 
-    if(fieldval){
-	ielem = new_ielem(&ourifield->ielem);
-	ielem->freedata = 1;
-	ielem->data = cpystr(fieldval);
-	ielem->datalen = strlen(fieldval);
-	ourifield->leftadj = (hdrtok->adjustment == Left) ? 1 : 0;
-    }
+    retfieldval = cpystr(fieldval);
 
     if(hdrval)
       fs_give((void **) &hdrval);
 
-    set_ielem_widths_in_field(ourifield);
+    return(retfieldval);
+}
+
+
+long
+scorevalfrommsg(MAILSTREAM *stream, MsgNo rawno, HEADER_TOK_S *hdrtok, int no_fetch)
+{
+    INDEXDATA_S   idata;
+    MESSAGECACHE *mc;
+    char         *fieldval = NULL;
+    long          retval = 0L;
+
+    memset(&idata, 0, sizeof(INDEXDATA_S));
+    idata.stream   = stream;
+    idata.no_fetch = no_fetch;
+    idata.msgno    = mn_raw2m(sp_msgmap(stream), rawno);
+    idata.rawno    = rawno;
+    if(stream && idata.rawno > 0L && idata.rawno <= stream->nmsgs
+       && (mc = mail_elt(stream, idata.rawno))){
+	idata.size = mc->rfc822_size;
+	index_data_env(&idata, pine_mail_fetchenvelope(stream,idata.rawno));
+    }
+    else
+      idata.bogus = 2;
+
+    fieldval = get_fieldval(&idata, hdrtok);
+
+    if(fieldval){
+	retval = atol(fieldval);
+	fs_give((void **) &fieldval);
+    }
+
+    return(retval);
 }
 
 
@@ -5093,7 +5220,7 @@ prepend_keyword_subject(MAILSTREAM *stream, long int rawno, char *subject,
 		    remaining_octets = strlen(str);
 		    inputp = (unsigned char *) str;
 		    ucs = (UCS) utf8_get(&inputp, &remaining_octets);
-		    if(!(ucs & U8G_ERROR)){
+		    if(!(ucs & U8G_ERROR || ucs == UBOGON)){
 			len += (unsigned) (inputp - (unsigned char *) str);
 		    }
 		  }
@@ -5140,7 +5267,7 @@ prepend_keyword_subject(MAILSTREAM *stream, long int rawno, char *subject,
 		    remaining_octets = strlen(str);
 		    inputp = (unsigned char *) str;
 		    ucs = (UCS) utf8_get(&inputp, &remaining_octets);
-		    if(!(ucs & U8G_ERROR)){
+		    if(!(ucs & U8G_ERROR || ucs == UBOGON)){
 			if(len-(p-retsubj) > 0){
 			    sstrncpy(&p, str, MIN(inputp - (unsigned char *) str,len-(p-retsubj)));
 			    if(p > next_piece && ielemp && pico_usingcolor()

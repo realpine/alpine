@@ -1,4 +1,4 @@
-# $Id: pine.hlp 495 2007-03-29 17:50:41Z hubert@u.washington.edu $
+# $Id: pine.hlp 551 2007-05-01 17:44:08Z hubert@u.washington.edu $
 #
 #        T H E   A L P I N E    M E S S A G E   S Y S T E M
 #
@@ -166,6 +166,43 @@ addresses bugs found in previous releases and has a few additions as well.
 Additions include:
 <P>
 <UL>
+   <LI> Added a <A HREF="h_config_role_scorehdrtok">method</A>
+        to use a number embedded in a header as an Alpine score
+   <LI> New color option <A HREF="h_config_metamsg_color">Meta-Message Color</A>
+   <LI> Added a history mechanism for many of the commands which use the text input
+	field near the bottom of the screen (WhereIs, Pipe, Save, Export, GoTo,
+	Bounce, Select by text). This can be turned off with the option
+	<A HREF="h_config_input_history">Disable-Input-History</A>.
+   <LI> Configurable <A HREF="h_config_wordseps">Composer-Word-Separators</A>
+   <LI> Added editorial comment to start of displayed HTML when a link's text
+        appears to be a URL but does not match the HREF target, or when the
+        target is specified by IP address.
+   <LI> Added server name <A HREF="h_config_quell_host_after_url">decoration</A>
+        to link display in HTML text.
+</UL>
+
+<P>
+Bugs that have been addressed in this release include:
+<P>
+
+<UL>
+   <LI> IndexColor rules and Score rules were broken in 0.98
+   <LI> Crash searching message index
+   <LI> Crash in OS X when opening attachments and no command line
+	arguments were given to Alpine
+   <LI> Paragraph justify was broken in 0.98
+   <LI> Crash searching help text on MacOS PowerPC
+   <LI> <A HREF="h_config_quote_replace_string">quote-replace-string</A> was switching
+	out quotes in the composer even though it should only be done when viewing a message
+</UL>
+
+<P>
+Version 0.98
+addressed bugs found in previous releases and had a few additions as well.
+<P>
+Additions included:
+<P>
+<UL>
    <LI> Added a little bit of localization in the month and day names in the
         MESSAGE INDEX when the locale is known. Disable this with the option
 	<A HREF="h_config_disable_index_locale_dates">Disable-Index-Locale-Dates</A>
@@ -191,7 +228,7 @@ Additions include:
 </UL>
 
 <P>
-Bugs that have been addressed in this release include:
+Bugs addressed in the 0.98 release included:
 <P>
 
 <UL>
@@ -221,6 +258,8 @@ Bugs that have been addressed in this release include:
 <P>
 Version 0.83
 addressed bugs found in previous releases and had a few additions as well.
+<P>
+Additions included:
 <P>
 <UL>
    <LI> Tab-completion of address book nicknames when <A HREF="h_config_enable_tab_complete">Enable-Tab-Completion</A> feature is turned on
@@ -2909,12 +2948,13 @@ There are also additional details on
 <li><a href="h_config_compose_rejects_unqual">FEATURE: Compose-Rejects-Unqualified-Addrs</a>
 <li><a href="h_config_send_filter_dflt">FEATURE: Compose-Send-Offers-First-Filter</a>
 <li><a href="h_config_compose_news_wo_conf">FEATURE: Compose-Sets-Newsgroup-Without-Confirm</a>
-<li><a href="h_config_confirm_role">FEATURE: Confirm-Role-Even-for-Default</a>
+<li><a href="h_config_confirm_role">FEATURE: Confirm-Role-Even-For-Default</a>
 <li><a href="h_config_tab_no_prompt">FEATURE: Continue-Tab-Without-Confirm</a>
 <li><a href="h_config_del_skips_del">FEATURE: Delete-Skips-Deleted</a>
 <li><a href="h_config_disable_config_cmd">FEATURE: Disable-Config-Cmd</a>
 <li><a href="h_config_disable_active_msgs">FEATURE: Disable-Active-Status-Messages</a>
 <li><a href="h_config_disable_index_locale_dates">FEATURE: Disable-Index-Locale-Dates</a>
+<li><a href="h_config_input_history">FEATURE: Disable-Input-History</a>
 <li><a href="h_config_disable_kb_lock">FEATURE: Disable-Keyboard-Lock-Cmd</a>
 <li><a href="h_config_blank_keymenu">FEATURE: Disable-Keymenu</a>
 <li><a href="h_config_disable_password_caching">FEATURE: Disable-Password-Caching</a>
@@ -2999,7 +3039,7 @@ There are also additional details on
 <li><a href="h_config_add_ldap">FEATURE: LDAP-Result-to-Addrbook-Add</a>
 <li><a href="h_config_maildrops_preserve_state">FEATURE: Maildrops-Preserve-State</a>
 <li><a href="h_config_mark_fcc_seen">FEATURE: Mark-Fcc-Seen</a>
-<li><a href="h_config_mark_for_cc">FEATURE: Mark-For-CC</a>
+<li><a href="h_config_mark_for_cc">FEATURE: Mark-For-Cc</a>
 <li><a href="h_config_mulnews_as_typed">FEATURE: Mult-Newsrc-Hostnames-as-Typed</a>
 <li><a href="h_config_news_uses_recent">FEATURE: News-Approximates-New-Status</a>
 <li><a href="h_config_news_cross_deletes">FEATURE: News-Deletes-Across-Groups</a>
@@ -3007,8 +3047,8 @@ There are also additional details on
 <li><a href="h_config_post_wo_validation">FEATURE: News-Post-Without-Validation</a>
 <li><a href="h_config_read_in_newsrc_order">FEATURE: News-Read-in-Newsrc-Order</a>
 <li><a href="h_config_next_thrd_wo_confirm">FEATURE: Next-Thread-Without-Confirm</a>
-<li><a href="h_config_expunge_inbox">FEATURE: Offer-Expunge-Of-Inbox</a>
-<li><a href="h_config_expunge_stayopens">FEATURE: Offer-Expunge-Of-Stayopen-Folders</a>
+<li><a href="h_config_expunge_inbox">FEATURE: Offer-Expunge-of-Inbox</a>
+<li><a href="h_config_expunge_stayopens">FEATURE: Offer-Expunge-of-Stayopen-Folders</a>
 <li><a href="h_config_pass_c1_control">FEATURE: Pass-C1-Control-Characters-as-is</a>
 <li><a href="h_config_pass_control">FEATURE: Pass-Control-Characters-as-is</a>
 <li><a href="h_config_predict_nntp_server">FEATURE: Predict-NNTP-Server</a>
@@ -3033,7 +3073,7 @@ There are also additional details on
 <li><a href="h_config_quell_folder_internal_msg">FEATURE: Quell-Folder-Internal-Msg</a>
 <li><a href="h_config_quell_flowed_text">FEATURE: Quell-Flowed-Text</a>
 <li><a href="h_config_quell_full_hdr_reset">FEATURE: Quell-Full-Header-Auto-Reset</a>
-<li><a href="h_config_quell_imap_env">FEATURE: Quell-IMAP-envelope-update</a>
+<li><a href="h_config_quell_imap_env">FEATURE: Quell-IMAP-Envelope-Update</a>
 <li><a href="h_config_quell_lock_failure_warnings">FEATURE: Quell-Lock-Failure-Warnings</a>
 <li><a href="h_config_quell_checks_comp">FEATURE: Quell-Mailchecks-Composing-Except-Inbox</a>
 <li><a href="h_config_quell_checks_comp_inbox">FEATURE: Quell-Mailchecks-Composing-Inbox</a>
@@ -3041,12 +3081,14 @@ There are also additional details on
 <li><a href="h_config_quell_news_env">FEATURE: Quell-News-Envelope-Update</a>
 <li><a href="h_config_quell_partial">FEATURE: Quell-Partial-Fetching</a>
 <li><a href="h_config_quell_personal_name_prompt">FEATURE: Quell-Personal-Name-Prompt</a>
+<li><a href="h_config_quell_host_after_url">FEATURE: Quell-Server-After-Link-in-HTML</a>
 <li><a href="h_config_quell_ssl_largeblocks">FEATURE: Quell-SSL-Largeblocks</a>
 <li><a href="h_config_quell_beeps">FEATURE: Quell-Status-Message-Beeping</a>
 <li><a href="h_config_quell_tz_comment">FEATURE: Quell-Timezone-Comment-When-Sending</a>
 <li><a href="h_config_quell_user_id_prompt">FEATURE: Quell-User-ID-Prompt</a>
 <li><a href="h_config_quell_local_lookup">FEATURE: Quell-User-Lookup-In-Passwd-File</a>
 <li><a href="h_config_quit_wo_confirm">FEATURE: Quit-Without-Confirm</a>
+<li><a href="h_config_quote_replace_noflow">FEATURE: Quote-Replace-Nonflowed</a>
 <li><a href="h_config_auto_reply_to">FEATURE: Reply-Always-Uses-Reply-To</a>
 <li><a href="h_config_inbox_no_confirm">FEATURE: Return-to-Inbox-Without-Confirm</a>
 <li><a href="h_config_save_aggregates">FEATURE: Save-Aggregates-Copy-Sequence</a>
@@ -3065,7 +3107,7 @@ There are also additional details on
 <li><a href="h_config_single_list">FEATURE: Single-Column-Folder-List</a>
 <li><a href="h_config_sig_at_bottom">FEATURE: Signature-At-Bottom</a>
 <li><a href="h_config_slash_coll_entire">FEATURE: Slash-Collapses-Entire-Thread</a>
-<li><a href="h_config_sort_fcc_alpha">FEATURE: Sort-Default-FCC-Alpha</a>
+<li><a href="h_config_sort_fcc_alpha">FEATURE: Sort-Default-Fcc-Alpha</a>
 <li><a href="h_config_sort_save_alpha">FEATURE: Sort-Default-Save-Alpha</a>
 <li><a href="h_config_always_spell_check">FEATURE: Spell-Check-Before-Sending</a>
 <li><a href="h_config_winpos_in_config">FEATURE: Store-Window-Position-in-Config</a>
@@ -3080,9 +3122,9 @@ There are also additional details on
 <li><a href="h_config_unsel_wont_advance">FEATURE: Unselect-Will-Not-Advance</a>
 <li><a href="h_config_use_current_dir">FEATURE: Use-Current-Dir</a>
 <li><a href="h_config_use_fk">FEATURE: Use-Function-Keys</a>
-<li><a href="h_config_use_reg_start_for_stayopen">FEATURE: Use-Regular-Startup-Rule-for-Stayopen-Folders</a>
+<li><a href="h_config_use_reg_start_for_stayopen">FEATURE: Use-Regular-Startup-Rule-For-Stayopen-Folders</a>
 <li><a href="h_config_use_sender_not_x">FEATURE: Use-Sender-Not-X-Sender</a>
-<li><a href="h_config_suspend_spawns">FEATURE: Use-Subshell-for-Suspend</a>
+<li><a href="h_config_suspend_spawns">FEATURE: Use-Subshell-For-Suspend</a>
 <li><a href="h_config_use_system_translation">FEATURE: Use-System-Translation</a>
 <li><a href="h_config_vertical_list">FEATURE: Vertical-Folder-List</a>
 <li><a href="h_config_warn_if_subj_blank">FEATURE: Warn-if-Blank-Subject</a>
@@ -3157,6 +3199,7 @@ There are also additional details on
 <li><a href="h_config_alt_addresses">OPTION: Alt-Addresses</a>
 <li><a href="h_config_active_msg_interval">OPTION: Busy-Cue-Rate</a>
 <li><a href="h_config_color_style">OPTION: Color-Style</a>
+<li><a href="h_config_wordseps">OPTION: Composer-Word-Separators</a>
 <li><a href="h_config_composer_wrap_column">OPTION: Composer-Wrap-Column</a>
 <li><a href="h_config_index_color_style">OPTION: Current-Indexline-Style</a>
 <li><a href="h_config_cursor_style">OPTION: Cursor-Style</a>
@@ -3164,7 +3207,7 @@ There are also additional details on
 <li><a href="h_config_deadlets">OPTION: Dead-Letter-Files</a>
 <li><a href="h_config_dflt_color">OPTION: Default Color</a>
 <li><a href="h_config_comp_hdrs">OPTION: Default-Composer-Headers</a>
-<li><a href="h_config_default_fcc">OPTION: Default-FCC (File Carbon Copy)</a>
+<li><a href="h_config_default_fcc">OPTION: Default-Fcc (File Carbon Copy)</a>
 <li><a href="h_config_def_save_folder">OPTION: Default-Saved-Msg-Folder</a>
 <li><a href="h_config_disable_auths">OPTION: Disable-These-Authenticators</a>
 <li><a href="h_config_disable_drivers">OPTION: Disable-These-Drivers</a>
@@ -3174,7 +3217,7 @@ There are also additional details on
 <li><a href="h_config_download_prefix">OPTION: Download-Command-Prefix</a>
 <li><a href="h_config_editor">OPTION: Editor</a>
 <li><a href="h_config_empty_hdr_msg">OPTION: Empty-Header-Message</a>
-<li><a href="h_config_fcc_rule">OPTION: FCC-Name-Rule</a>
+<li><a href="h_config_fcc_rule">OPTION: Fcc-Name-Rule</a>
 <li><a href="h_config_file_dir">OPTION: File-Directory</a>
 <li><a href="h_config_folder_spec">OPTION: Folder-Collections</a>
 <li><a href="h_config_reopen_rule">OPTION: Folder-Reopen-Rule</a>
@@ -3213,6 +3256,7 @@ There are also additional details on
 <li><a href="h_config_mailcap_path">OPTION: Mailcap-Search-Path</a>
 <li><a href="h_config_maildropcheck">OPTION: MailDrop-Check-Minimum</a>
 <li><a href="h_config_maxremstream">OPTION: Max-Remote-Connections</a>
+<li><a href="h_config_metamsg_color">OPTION: Meta-Message Color</a>
 <li><a href="h_config_mimetype_path">OPTION: Mimetype-Search-Path</a>
 <li><a href="h_config_new_ver_quell">OPTION: New-Version-Threshold</a>
 <li><a href="h_config_fifopath">OPTION: NewMail-FIFO-Path</a>
@@ -3246,6 +3290,7 @@ There are also additional details on
 <li><a href="h_config_pruned_folders">OPTION: Pruned-folders</a>
 <li><a href="h_config_pruning_rule">OPTION: Pruning-Rule</a>
 <li><a href="h_config_quote_color">OPTION: Quote Colors</a>
+<li><a href="h_config_quote_replace_string">OPTION: Quote-Replace-String</a>
 <li><a href="h_config_quote_suppression">OPTION: Quote-Suppression-Threshold</a>
 <li><a href="h_config_read_message_folder">OPTION: Read-Message-Folder</a>
 <li><a href="h_config_remote_abook_history">OPTION: Remote-Abook-History</a>
@@ -3273,17 +3318,17 @@ There are also additional details on
 <li><a href="h_config_status_color">OPTION: Status Color</a>
 <li><a href="h_config_status_msg_delay">OPTION: Status-Message-Delay</a>
 <li><a href="h_config_permlocked">OPTION: Stay-Open-Folders</a>
-<li><a href="h_config_tcp_open_timeo">OPTION: Tcp-Open-Timeout</a>
-<li><a href="h_config_tcp_query_timeo">OPTION: Tcp-Query-Timeout</a>
-<li><a href="h_config_tcp_readwarn_timeo">OPTION: Tcp-Read-Warning-Timeout</a>
-<li><a href="h_config_tcp_writewarn_timeo">OPTION: Tcp-Write-Warning-Timeout</a>
+<li><a href="h_config_tcp_open_timeo">OPTION: TCP-Open-Timeout</a>
+<li><a href="h_config_tcp_query_timeo">OPTION: TCP-Query-Timeout</a>
+<li><a href="h_config_tcp_readwarn_timeo">OPTION: TCP-Read-Warning-Timeout</a>
+<li><a href="h_config_tcp_writewarn_timeo">OPTION: TCP-Write-Warning-Timeout</a>
 <li><a href="h_config_thread_disp_style">OPTION: Threading-Display-Style</a>
 <li><a href="h_config_thread_exp_char">OPTION: Threading-Expanded-Character</a>
 <li><a href="h_config_thread_index_style">OPTION: Threading-Index-Style</a>
 <li><a href="h_config_thread_indicator_char">OPTION: Threading-Indicator-Character</a>
 <li><a href="h_config_thread_lastreply_char">OPTION: Threading-Lastreply-Character</a>
 <li><a href="h_config_title_color">OPTION: Title Color</a>
-<li><a href="h_config_titleclosed_color">OPTION: Title Color Closed</a>
+<li><a href="h_config_titleclosed_color">OPTION: Title Closed Color</a>
 <li><a href="h_config_titlebar_color_style">OPTION: Titlebar-Color-Style</a>
 <li><a href="h_config_upload_cmd">OPTION: Upload-Command</a>
 <li><a href="h_config_upload_prefix">OPTION: Upload-Command-Prefix</a>
@@ -3354,6 +3399,7 @@ There are also additional details on
 <li><a href="h_config_role_usenntp">PATTERNS ROLE ACTION: Use NNTP Server</a>
 <li><a href="h_config_role_usesmtp">PATTERNS ROLE ACTION: Use SMTP Server</a>
 <li><a href="h_config_role_scoreval">PATTERNS SCORE ACTION: Score Value</a>
+<li><a href="h_config_role_scorehdrtok">PATTERNS SCORE ACTION: Score Value From Header</a>
 <li><a href="h_config_filt_opts_nonterm">PATTERNS FEATURE: Dont-Stop-Even-if-Rule-Matches</a>
 <li><a href="h_config_filt_opts_notdel">PATTERNS FEATURE: Move-Only-if-Not-Deleted</a>
 <li><a href="h_config_filt_opts_sentdate">PATTERNS FEATURE: Use-Date-Header-For-Age</a>
@@ -4051,7 +4097,7 @@ thread:
   <LI> &quot;-&quot; for cc-to-you. The &quot;-&quot; indicates that a
 	message in the thread was sent to you as a cc:. This symbol can only show up if
 	you have turned on the feature
-	&quot;<A HREF="h_config_mark_for_cc">Mark-For-CC</A>&quot;.
+	&quot;<A HREF="h_config_mark_for_cc">Mark-For-Cc</A>&quot;.
   <LI> &quot;X&quot; for selected.  You have selected at least one message in the thread by using the
 	&quot;select&quot; command.  (Some systems may optionally allow selected
 	messages to be denoted by the index line being displayed in bold
@@ -4197,7 +4243,7 @@ message:
   <LI> &quot;-&quot; for cc-to-you. The &quot;-&quot; indicates that a
 	message was sent to you as a cc:. This symbol can only show up if
 	you have turned on the feature
-	&quot;<A HREF="h_config_mark_for_cc">Mark-For-CC</A>&quot;.
+	&quot;<A HREF="h_config_mark_for_cc">Mark-For-Cc</A>&quot;.
   <LI> &quot;X&quot; for selected.  You have selected the message by using the
 	&quot;select&quot; command.  (Some systems may optionally allow selected
 	messages to be denoted by the index line being displayed in bold
@@ -9239,6 +9285,8 @@ This is the value that will be added to the score for a message if the
 rule's Pattern is a match.
 Each individual Score Value is an integer between -100 and 100, and the
 values from matching rules are added together to get a message's score.
+There is also a way to extract the value from a particular header of each
+message. See the help text for Score Value for further information.
 
 <H2>Command Descriptions</H2>
 
@@ -10180,6 +10228,56 @@ FOR MORE INFORMATION: See the section on
 This screen is designed to allow you to quickly and easily survey your
 folders and select one to use as the specific Current Folder
 in a Pattern.
+<P>
+
+<!--chtml if pinemode="function_key"-->
+<PRE>
+Navigating the List of Folders             General Alpine Commands
+------------------------------             ---------------------
+F5   Move to previous folder               F1  Show this help text
+F6   Move to next folder
+F7   Show previous screen of folders
+F8   Show next screen of folders
+F12  WhereIs (search folder names)
+
+Folder Selection Commands
+-------------------------
+F3   Exit the Folder Select menu (without selecting a folder)
+F4   Select the currently highlighted folder
+F11  AddNew folder (just like Select, but you type in a new folder name)
+</PRE>
+<!--chtml else-->
+<PRE>
+Navigating the List of Folders             General Alpine Commands
+------------------------------             ---------------------
+ P   Move to previous folder               ?  Show this help text
+ N   Move to next folder
+ -   Show previous screen of folders
+Spc  (space bar) Show next screen of folders
+ W   WhereIs (search folder names)
+
+Folder Selection Commands
+-------------------------
+ E   Exit the Folder Select menu (without selecting a folder)
+ S   Select the currently highlighted folder
+ A   AddNew folder (just like Select, but you type in a new folder name)
+</PRE>
+<!--chtml endif-->
+<P>
+FOR MORE INFORMATION: See the section on
+<A HREF="h_valid_folder_names">Valid Folder Names</A>.
+<P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+===== h_folder_stayopen_folders =====
+<HTML>
+<HEAD>
+<TITLE>Folder Select Explained</TITLE>
+</HEAD>
+<BODY>
+This screen is designed to allow you to quickly and easily survey your
+folders and select one to use as a Stay-Open folder.
 <P>
 
 <!--chtml if pinemode="function_key"-->
@@ -12647,7 +12745,7 @@ to make it visible.
 <P>
 <EM>Be aware</EM> that when you post to a newsgroup thousands of
 people will be reading your message.  Also, you or your system manager
-must have defined a &quot;NNTP-Server&quot; in your Alpine configuration
+must have defined an &quot;NNTP-Server&quot; in your Alpine configuration
 in order for you to be able to post.
 <P>
 For help with message header editing
@@ -12668,7 +12766,7 @@ commands, check the <A HREF="h_composer_to">Help for the To:</A> header.
 <H1>THE MESSAGE COMPOSER'S FCC FIELD</H1>
 The FCC (File Carbon Copy) specifies the folder used to keep a copy of
 each outgoing message.  The default value can be configured with the
-&quot;Default-FCC&quot; and &quot;FCC-Name-Rule&quot; options.  You can change or remove
+&quot;Default-Fcc&quot; and &quot;Fcc-Name-Rule&quot; options.  You can change or remove
 the file carbon copy on any message you send by editing the FCC header.<p>
 
 You may type ^T to get a list of all your folders and select one to use as
@@ -16614,7 +16712,7 @@ the default value of the Fcc field.
 For many roles, perhaps most, it may make more sense for you to use the
 other Alpine facilities for setting the Fcc.
 In particular, if you want the Fcc to depend on who you are sending the
-message to then the <A HREF="h_config_fcc_rule">&quot;FCC-Name-Rule&quot;</A>
+message to then the <A HREF="h_config_fcc_rule">&quot;Fcc-Name-Rule&quot;</A>
 is probably more useful.
 In that case, you would want to leave the Fcc field here blank.
 However, if you have a role that depends on who the message you are replying
@@ -17127,6 +17225,92 @@ The value you give here is the Score Value associated with this rule.
 A Score Value is an integer between -100 and 100, with the default
 value of zero.
 <P>
+Alternatively, if the
+<A HREF="h_config_role_scorehdrtok">&quot;Score From Header&quot;</A>
+field is defined
+(on the line right below the &quot;Score Value&quot; field)
+then the &quot;Score Value&quot; is ignored and
+the &quot;Score From Header&quot; field is used instead.
+<P>
+Look <A HREF="h_edit_nav_cmds">here</A>
+to see the available Editing and Navigation commands.
+<P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+======= h_config_role_scorehdrtok =======
+<HTML>
+<HEAD>
+<TITLE>Score Value From Header Explained</TITLE>
+</HEAD>
+<BODY>
+<H1>Score Value From Header Explained</H1>
+
+This option provides a way to use a number that appears in the headers of your
+messages as the message's score, or as a component of that score.
+If this field is defined then it is used instead of the &quot;Score Value&quot;.
+The idea behind this option is that there may be a score embedded in the
+headers of messages that has already been calculated outside of Alpine.
+For example, messages delivered to you may contain an &quot;X-Spam&quot; header and
+somewhere in that header there is a score.
+<P>
+The value for this option is the name of the header followed by parentheses
+with two arguments inside:
+<P>
+<CENTER><SAMP>HeaderName(field_number,field_separators)</SAMP></CENTER>
+<P>
+No space is allowed between the comma and the start of the field_separators.
+It would be interpreted as the first separator if it was there.
+Field 0 is the whole line, Field 1 is the data up to the first separator, Field 2
+starts after that and goes to the second separator, and so on.
+It's easier to explain with examples.
+<P>
+<CENTER><SAMP>X-Spam(2,&quot;&nbsp;&quot;)</SAMP></CENTER>
+<P>
+In the above example the header that is used is the &quot;X-Spam&quot; header.
+The value of that header (the part after the colon and the space) is split
+into fields separated by spaces.
+<P>
+<CENTER><SAMP>Field1 &lt;space&gt; Field2 &lt;space&gt; Field3 ...</SAMP></CENTER>
+<P>
+The second field is selected and converted to an integer. It only makes sense
+if Field2 really is an integer.
+<P>
+Here's an example of a SpamAssassin header.
+The exact look of the header will vary, but if your incoming mail
+contains headers that look like the following
+<P>
+<CENTER><SAMP>X-Spam-Status: Yes, hits=10.6 tagged_above=-999.0 required=7.0 tests=BAYE...</SAMP></CENTER>
+<P>
+you might want to use the hits value as a score.
+Since the score is an integer value you can't make use of the decimal part of
+the number, but
+you might split off the hits=10 part as a score by using the characters &quot;=&quot;
+and &quot;.&quot; as your separators.
+<P>
+<CENTER><SAMP>X-Spam-Status(2,&quot;=.&quot;)</SAMP></CENTER>
+<P>
+The first field starts with the Y in Yes and goes until the &quot;=&quot; after
+hits.
+The second field is &quot;10&quot; so the score value would be 10.
+<P>
+Another example we've seen has headers that look like
+<P>
+<CENTER><SAMP>X-Spam: Gauge=IIIIIII, Probability=7%, Report=...</SAMP></CENTER>
+<P>
+Because there are two equals before the 7% the value
+<P>
+<CENTER><SAMP>X-Spam(3,&quot;=%&quot;)</SAMP></CENTER>
+<P>
+should capture the probability as the score.
+<P>
+The Score From Header scoring value actually works just like the
+regular Score Value in that the rest of the pattern has to match before
+it is used and the scores from all the different scoring rules that
+match for a particular message are added together.
+When using the Score From Header method it may (or may not) make sense to
+use only a single scoring rule with a pattern that matches every message.
+<P>
 Look <A HREF="h_edit_nav_cmds">here</A>
 to see the available Editing and Navigation commands.
 <P>
@@ -17164,7 +17348,7 @@ manually change the role to any one of your other roles.
 You won't be prompted for confirmation if none of your role Patterns
 match the message being replied to.
 This is independent of the value of the current option.
-The <A HREF="h_config_confirm_role">Confirm-Role-Even-for-Default</A>
+The <A HREF="h_config_confirm_role">Confirm-Role-Even-For-Default</A>
 feature may be used to change this behavior.
 <P>
 &lt;End of help on this topic&gt;
@@ -17201,7 +17385,7 @@ manually change the role to any one of your other roles.
 You won't be prompted for confirmation if none of your role Patterns
 match the message being forwarded.
 This is independent of the value of the current option.
-The <A HREF="h_config_confirm_role">Confirm-Role-Even-for-Default</A>
+The <A HREF="h_config_confirm_role">Confirm-Role-Even-For-Default</A>
 feature may be used to change this behavior.
 <P>
 &lt;End of help on this topic&gt;
@@ -17256,7 +17440,7 @@ are reading, or the type of folder you are reading.
 You won't be prompted for confirmation if none of your role Patterns
 are a match.
 This is independent of the value of the current option.
-The <A HREF="h_config_confirm_role">Confirm-Role-Even-for-Default</A>
+The <A HREF="h_config_confirm_role">Confirm-Role-Even-For-Default</A>
 feature may be used to change this behavior.
 <P>
 &lt;End of help on this topic&gt;
@@ -17787,7 +17971,7 @@ a '*' for message marked Important, or a '+' indicating a message
 addressed directly to you (as opposed to your having received it via a
 mailing list, for example).
 When the feature
-&quot;<A HREF="h_config_mark_for_cc">Mark-For-CC</A>&quot;
+&quot;<A HREF="h_config_mark_for_cc">Mark-For-Cc</A>&quot;
 is set, if the first character would have been
 blank then it will instead be a '-' if the message is cc'd to you.
 The second character is typically blank,
@@ -18155,7 +18339,7 @@ Another example we've seen has headers that look like
 Because there are two equals and a comma before the 7% and a comma
 after it, the token
 <P>
-<CENTER><SAMP>HEADER:X-Spam-Status(3,4,=&#92;,R)</SAMP></CENTER>
+<CENTER><SAMP>HEADER:X-Spam(3,4,=&#92;,R)</SAMP></CENTER>
 <P>
 should display the probability (for example 7% or 83%) right justified
 in a 3-wide field.
@@ -20047,16 +20231,16 @@ configuration option.
 ====== h_config_default_fcc =====
 <HTML>
 <HEAD>
-<TITLE>OPTION: Default-FCC (File Carbon Copy)</TITLE>
+<TITLE>OPTION: Default-Fcc (File Carbon Copy)</TITLE>
 </HEAD>
 <BODY>
-<H1>OPTION: Default-FCC (File Carbon Copy)</H1>
+<H1>OPTION: Default-Fcc (File Carbon Copy)</H1>
 
 This value specifies where a copy of outgoing mail should be saved.  If
 this is not a path name, it will be in the default collection for saves.
 Any valid folder specification, local or IMAP, is allowed.  This default
 folder carbon copy only applies when the 
-<A HREF="h_config_fcc_rule">&quot;FCC-Name-Rule&quot;</A> 
+<A HREF="h_config_fcc_rule">&quot;Fcc-Name-Rule&quot;</A> 
 is set to use the default folder.  
 <!--chtml if pinemode="os_windows"-->
 PC-Alpine default is &quot;SENTMAIL&quot; (normally stored as SENTMAIL.MTX)
@@ -20072,7 +20256,7 @@ must be in a folder collection. See <A HREF="h_what_are_collections">Folder Coll
 for more information). An example:<p>
 <CENTER><SAMP>{monet.art.example.com}mail/sent-mail</SAMP></CENTER>
 <P>
-To suppress saving of outgoing mail, set: Default-FCC=&quot;&quot;
+To suppress saving of outgoing mail, set: Default-Fcc=&quot;&quot;
 <P>
 See the section on <A HREF="h_valid_folder_names">Valid Folder Names</A> for
 details on the syntax of folder definitions.
@@ -20982,10 +21166,10 @@ That is, it would be &quot;flint&quot;
 ====== h_config_fcc_rule =====
 <HTML>
 <HEAD>
-<TITLE>OPTION: FCC-Name-Rule</TITLE>
+<TITLE>OPTION: Fcc-Name-Rule</TITLE>
 </HEAD>
 <BODY>
-<H1>OPTION: FCC-Name-Rule</H1>
+<H1>OPTION: Fcc-Name-Rule</H1>
 
 This option determines the default name for folder carbon copy. Choose
 one:
@@ -20993,7 +21177,7 @@ one:
 <DL>
 <DT>default-fcc</DT>
 <DD>This is the normal default, the value of which is set in the
-&quot;Default-FCC&quot; variable as specified earlier in this
+&quot;Default-Fcc&quot; variable as specified earlier in this
 configuration.
 </DD>
 
@@ -21006,7 +21190,7 @@ used in the fcc field
 <DD>Means that Alpine will use the nickname
 from your address book that matches the first address in the To line.
 If there is no match, it will use the value of the
-&quot;Default-FCC&quot; variable.
+&quot;Default-Fcc&quot; variable.
 </DD>
 
 <DT>by-recipient</DT>
@@ -21024,7 +21208,7 @@ by-recipient).
 <DT>current-folder</DT>
 <DD>Causes a copy to be written to
 the currently open folder, unless that is the INBOX.  In the case
-where the current folder is the INBOX, the &quot;Default-FCC&quot; is
+where the current folder is the INBOX, the &quot;Default-Fcc&quot; is
 used instead.
 </DD>
 </DL>
@@ -22319,10 +22503,10 @@ but are causing delays due to firewalls or some other reason.
 ====== h_config_tcp_open_timeo =====
 <HTML>
 <HEAD>
-<TITLE>OPTION: Tcp-Open-Timeout</TITLE>
+<TITLE>OPTION: TCP-Open-Timeout</TITLE>
 </HEAD>
 <BODY>
-<H1>OPTION: Tcp-Open-Timeout</H1>
+<H1>OPTION: TCP-Open-Timeout</H1>
 
 Sets the time in seconds that Alpine will
 attempt to open a network connection. The default is 30, the minimum is 5,
@@ -22339,10 +22523,10 @@ failed connection.
 ====== h_config_tcp_readwarn_timeo =====
 <HTML>
 <HEAD>
-<TITLE>OPTION: Tcp-Read-Warning-Timeout</TITLE>
+<TITLE>OPTION: TCP-Read-Warning-Timeout</TITLE>
 </HEAD>
 <BODY>
-<H1>OPTION: Tcp-Read-Warning-Timeout</H1>
+<H1>OPTION: TCP-Read-Warning-Timeout</H1>
 
 Sets the time in seconds that Alpine will
 wait for a network read before warning you that things are moving slowly
@@ -22350,7 +22534,7 @@ and possibly giving you the option to break the connection.
 The default is 15 seconds. The minimum is 5 seconds and the maximumn is
 1000 seconds.
 <P>
-Related option: <A HREF="h_config_tcp_query_timeo">Tcp-Query-Timeout</A>.
+Related option: <A HREF="h_config_tcp_query_timeo">TCP-Query-Timeout</A>.
 <P>
 <UL>   
 <LI><A HREF="h_finding_help">Finding more information and requesting help</A>
@@ -22361,10 +22545,10 @@ Related option: <A HREF="h_config_tcp_query_timeo">Tcp-Query-Timeout</A>.
 ====== h_config_tcp_writewarn_timeo =====
 <HTML>
 <HEAD>
-<TITLE>OPTION: Tcp-Write-Warning-Timeout</TITLE>
+<TITLE>OPTION: TCP-Write-Warning-Timeout</TITLE>
 </HEAD>
 <BODY>
-<H1>OPTION: Tcp-Write-Warning-Timeout</H1>
+<H1>OPTION: TCP-Write-Warning-Timeout</H1>
 
 Sets the time in seconds that Alpine will
 wait for a network write before warning you that things are moving slowly
@@ -22372,7 +22556,7 @@ and possibly giving you the option to break the connection.
 The default is 0 which means it is unset. If set to a non-zero value, the
 minimum is 5 and the maximum is 1000.
 <P>
-Related option: <A HREF="h_config_tcp_query_timeo">Tcp-Query-Timeout</A>.
+Related option: <A HREF="h_config_tcp_query_timeo">TCP-Query-Timeout</A>.
 <P>
 <UL>   
 <LI><A HREF="h_finding_help">Finding more information and requesting help</A>
@@ -22383,10 +22567,10 @@ Related option: <A HREF="h_config_tcp_query_timeo">Tcp-Query-Timeout</A>.
 ====== h_config_tcp_query_timeo =====
 <HTML>
 <HEAD>
-<TITLE>OPTION: Tcp-Query-Timeout</TITLE>
+<TITLE>OPTION: TCP-Query-Timeout</TITLE>
 </HEAD>
 <BODY>
-<H1>OPTION: Tcp-Query-Timeout</H1>
+<H1>OPTION: TCP-Query-Timeout</H1>
 
 When Alpine times out a network read or write it will normally just display
 a message saying &quot;Still waiting&quot;.
@@ -22434,7 +22618,7 @@ commands in the FOLDER LIST for the Incoming Message Folders collection.
 This is a list of one or more collections where saved mail is stored. 
 The first collection in this list is the default
 collection for <EM>Save</EM>s,
-including <A HREF="h_config_default_fcc">Default-FCC</A>.
+including <A HREF="h_config_default_fcc">Default-Fcc</A>.
 <P>
 This variable is normally manipulated using the Setup/collectionList screen.
 <P>
@@ -23390,7 +23574,7 @@ There is no default value for this option.
 It is related to the options
 <A HREF="h_config_preopen_stayopens">&quot;Preopen-Stayopen-Folders&quot;</A>,
 <A HREF="h_config_maxremstream">&quot;Max-Remote-Connections&quot;</A>,
-and <A HREF="h_config_expunge_stayopens">&quot;Offer-Expunge-Of-Stayopen-Folders&quot;</A>.
+and <A HREF="h_config_expunge_stayopens">&quot;Offer-Expunge-of-Stayopen-Folders&quot;</A>.
 
 <P>
 Note: changes made to this list take effect the next time you open a
@@ -23430,7 +23614,7 @@ was when you left the folder.
 The above special behavior is thought to be useful.
 However, it is special and different from what you might at first expect.
 The feature
-<A HREF="h_config_use_reg_start_for_stayopen">Use-Regular-Startup-Rule-for-Stayopen-Folders</A>
+<A HREF="h_config_use_reg_start_for_stayopen">Use-Regular-Startup-Rule-For-Stayopen-Folders</A>
 may be used to turn off this special treatment.
 <P>
 If the message that was current when you left the folder no longer exists,
@@ -23488,6 +23672,38 @@ By default, this variable is zero, indicating that scrolling happens
 when you move up or down to select an item immediately off the display's
 top or bottom edge.
 
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_wordseps =====
+<HTML>
+<HEAD>
+<TITLE>OPTION: Composer-Word-Separators</TITLE>
+</HEAD>
+<BODY>
+<H1>OPTION: Composer-Word-Separators</H1>
+
+This option affects how a &quot;word&quot; is defined in the composer.
+The definition of a word is used when using the Forward Word and Backward
+Word commands in the composer, as well as when using the spell checker.
+Whitespace is always considered a word separator.
+Punctuation (like question marks, periods, commas, and so on) is always
+a word separator if it comes at the end of a word.
+By default, a punctuation character which is in the middle of a word does
+not break up that word as long as the character before and the character
+after it are both alphanumeric.
+If you add a character to this option it will be considered a
+word separator even when it occurs in the middle of an alphanumeric word.
+For example, if you want to skip through each part of an address instead
+of skipping the whole address at once you might want to include&quot;@&quot;
+and &quot;.&quot; in this list.
+If you want the word-skipper to stop on each part of a UNIX filename you
+could add &quot;/&quot; to the list.
+The equal sign and dash are other possibilities you might find helpful.
 <P>
 <UL>   
 <LI><A HREF="h_finding_help">Finding more information and requesting help</A>
@@ -23773,7 +23989,7 @@ the risk of missing the message.
 
 When Alpine is delayed for some reason it usually shows that
 something is happening with a small animated display in the status
-line (the 3rd line up from the bottom of the screen).
+message line near the bottom of the screen.
 This option sets how frequently the characters (for example, a spinning bar)
 in the active status message lines are updated.
 At most, it can be set to be udpated 20 times per second. 
@@ -25141,7 +25357,7 @@ the display of all headers in the message and the normal edited view of
 headers.  The Full Header command also controls which headers are included
 for Export, Pipe, Print, Forward, and Reply functions.  (For Reply, the
 Full Header mode will respect the
-<A HREF="h_config_include_header">&quot;include-headers-in-reply&quot;</A>
+<A HREF="h_config_include_header">&quot;Include-Headers-in-Reply&quot;</A>
 feature setting.)
 <P>
 If Full Header mode has been turned on and you Forward a message, you will
@@ -25571,7 +25787,7 @@ for new mail and such.  Normally, you type a command, such
 as &quot;fg&quot; at your system prompt to return to your Alpine session.
 
 <P>
-The <A HREF="h_config_suspend_spawns">Use-Subshell-for-Suspend</A> feature
+The <A HREF="h_config_suspend_spawns">Use-Subshell-For-Suspend</A> feature
 adjusts whether Alpine is placed into the background of the shell its 
 running in or starts a news shell.
 <!--chtml endif-->
@@ -25860,10 +26076,10 @@ opened at startup, at the same time that the INBOX is opened.
 ====== h_config_expunge_inbox ======
 <HTML>
 <HEAD>
-<TITLE>FEATURE: Offer-Expunge-Of-Inbox</TITLE>
+<TITLE>FEATURE: Offer-Expunge-of-Inbox</TITLE>
 </HEAD>
 <BODY>
-<H1>FEATURE: Offer-Expunge-Of-Inbox</H1>
+<H1>FEATURE: Offer-Expunge-of-Inbox</H1>
 
 The INBOX is normally treated differently from regular folders in several
 ways.
@@ -25894,10 +26110,10 @@ end of the session.
 ====== h_config_expunge_stayopens ======
 <HTML>
 <HEAD>
-<TITLE>FEATURE: Offer-Expunge-Of-Stayopen-Folders</TITLE>
+<TITLE>FEATURE: Offer-Expunge-of-Stayopen-Folders</TITLE>
 </HEAD>
 <BODY>
-<H1>FEATURE: Offer-Expunge-Of-Stayopen-Folders</H1>
+<H1>FEATURE: Offer-Expunge-of-Stayopen-Folders</H1>
 
 This feature is related to the option
 <A HREF="h_config_permlocked">&quot;Stay-Open-Folders&quot;</A>.
@@ -25924,7 +26140,7 @@ end of the session.
 This feature does not affect the INBOX, which will still only be processed
 when you exit Alpine.
 However, there is a similar feature that affects only the INBOX called
-<A HREF="h_config_expunge_inbox">&quot;Offer-Expunge-Of-Inbox&quot;</A>.
+<A HREF="h_config_expunge_inbox">&quot;Offer-Expunge-of-Inbox&quot;</A>.
 
 <P>
 &lt;End of help on this topic&gt;
@@ -27486,6 +27702,27 @@ no longer be there.
 &lt;End of help on this topic&gt;
 </BODY>
 </HTML>
+====== h_config_quell_host_after_url =====
+<HTML>
+<HEAD>
+<TITLE>FEATURE: Quell-Server-After-Link-in-HTML</TITLE>
+</HEAD>
+<BODY>
+<H1>FEATURE: Quell-Server-After-Link-in-HTML</H1>
+
+By default, links in HTML text are displayed with the host the link
+references appended, within square brackets, to the link text.  Alpine
+does this to help indicate where a link will take you, particularly when
+the link text might suggest a different destination.
+
+<P>
+Setting this feature will prevent the server name from being appended
+to the displayed text.
+
+<P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
 ====== h_config_prefer_plain_text =====
 <HTML>
 <HEAD>
@@ -27625,10 +27862,10 @@ to draw your attention to an "interesting" spot on the screen.
 ====== h_config_sort_fcc_alpha =====
 <HTML>
 <HEAD>
-<TITLE>FEATURE: Sort-Default-FCC-Alpha</TITLE>
+<TITLE>FEATURE: Sort-Default-Fcc-Alpha</TITLE>
 </HEAD>
 <BODY>
-<H1>FEATURE: Sort-Default-FCC-Alpha</H1>
+<H1>FEATURE: Sort-Default-Fcc-Alpha</H1>
 
 This feature controls an aspect of Alpine's FOLDER LIST screen.
 If set, the default FCC folder will be sorted alphabetically with the other
@@ -28187,13 +28424,42 @@ It will be assumed that you do want to continue.
 &lt;End of help on this topic&gt;
 </BODY>
 </HTML>
+====== h_config_input_history =====
+<HTML>
+<HEAD>
+<TITLE>FEATURE: Disable-Input-History</TITLE>
+</HEAD>
+<BODY>
+<H1>FEATURE: Disable-Input-History</H1>
+
+Many of the prompts that ask for input in the status line near the
+bottom of the screen will respond to Up Arrow and Down Arrow
+with the history of previous entries.
+For example, in the MESSAGE INDEX screen when you use the WhereIs
+command the text you entered will be remembered and can be recalled
+using the Up Arrow key.
+Setting this option will disable this.
+<P>
+When this option is set the Up and Down arrows will be synonyms for the
+Previous Collection and Next Collection (^P and ^N) commands in the
+prompt for the name of a folder to Save to or in the prompt for the
+name of a folder to GoTo.
+When it is not set (the default), ^P and ^N will change the collection and
+the arrow keys will show the history.
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
 ====== h_config_confirm_role =====
 <HTML>
 <HEAD>
-<TITLE>FEATURE: Confirm-Role-Even-for-Default</TITLE>
+<TITLE>FEATURE: Confirm-Role-Even-For-Default</TITLE>
 </HEAD>
 <BODY>
-<H1>FEATURE: Confirm-Role-Even-for-Default</H1>
+<H1>FEATURE: Confirm-Role-Even-For-Default</H1>
 
 If you have roles, when you Reply to or Forward a message, or Compose
 a new message, Alpine
@@ -28425,10 +28691,10 @@ If this feature is set, you will not be asked.
 ====== h_config_use_reg_start_for_stayopen =====
 <HTML>
 <HEAD>
-<TITLE>FEATURE: Use-Regular-Startup-Rule-for-Stayopen-Folders</TITLE>
+<TITLE>FEATURE: Use-Regular-Startup-Rule-For-Stayopen-Folders</TITLE>
 </HEAD>
 <BODY>
-<H1>FEATURE: Use-Regular-Startup-Rule-for-Stayopen-Folders</H1>
+<H1>FEATURE: Use-Regular-Startup-Rule-For-Stayopen-Folders</H1>
 
 This feature affects which message is selected as the current message
 when you enter a
@@ -28524,7 +28790,7 @@ it has been copied to the designated folder.
 
 When Alpine is delayed for some reason it usually shows that
 something is happening with a small animated display in the status
-line (the 3rd line up from the bottom of the screen).
+message line near the bottom of the screen.
 Setting this feature will cause that animation to be the same
 each time instead of having Alpine choose a random animation.
 You may turn the animation off altogether by setting the
@@ -29111,6 +29377,7 @@ and the feature is irrelevant.
 Sets the color Alpine normally uses.
 The foreground color is the color of the actual character and the
 background color is the color of the area behind the character.
+By default this color is black characters on a white background.
 <P>
 <A HREF="h_color_setup">Descriptions of the available commands</A>
 <P>
@@ -29151,14 +29418,15 @@ to see the available Editing and Navigation commands.
 Sets the color Alpine uses for the titlebar (the top line on the screen).
 The foreground color is the color of the actual character and the
 background color is the color of the area behind the character.
-By default, the Title Color is the same as the Reverse Color.
+By default, the Title Color is black characters on a yellow background.
 <P>
 The actual titlebar color may be different from the Title Color if
-either of the options
+the option
 <A HREF="h_config_titlebar_color_style">&quot;Titlebar-Color-Style&quot;</A>
-or
-<A HREF="h_config_titleclosed_color">Title Color Closed</A>
-is set to something other than the default.
+is set to some value other than the default.
+It may also be different if the current folder is closed and the
+<A HREF="h_config_titleclosed_color">Title Closed Color</A>
+color is set to something different from the Title Color.
 <P>
 <A HREF="h_color_setup">Descriptions of the available commands</A>
 <P>
@@ -29171,16 +29439,16 @@ to see the available Editing and Navigation commands.
 ====== h_config_titleclosed_color =====
 <HTML>
 <HEAD>
-<TITLE>OPTION: Title Color Closed</TITLE>
+<TITLE>OPTION: Title Closed Color</TITLE>
 </HEAD>
 <BODY>
-<H1>OPTION: Title Color Closed</H1>
+<H1>OPTION: Title Closed Color</H1>
 
 Sets the color Alpine uses for the titlebar (the top line on the screen)
 when the current folder is closed.
 The foreground color is the color of the actual character and the
 background color is the color of the area behind the character.
-By default, the Title Color Closed is the same as the Title Color.
+By default, the Title Color Closed Color is white characters on a red background.
 <P>
 By setting this color to something noticeable you will be alerted to the
 fact that the current folder is closed, perhaps unexpectedly.
@@ -29227,6 +29495,8 @@ to include one of the Subject tokens which causes this behavior
 this opening text with this option.
 This coloring takes place for all but the current index line, and the Opening
 Color appears to be in front of any color from an Index Color Rule.
+<P>
+By default the Index Opening Color is gray characters on a white background.
 
 <P>
 <A HREF="h_color_setup">Descriptions of the available commands</A>
@@ -29287,6 +29557,17 @@ These two colors will only be used if you have configured your
 &quot;<A HREF="h_config_index_format">Index-Format</A>&quot; option
 to include the &quot;IMAPSTATUS&quot; token.
 <P>
+The default colors for these symbols are:
+<TABLE>
+<TR> <TD> &nbsp;&nbsp;Index-to-me&nbsp;&nbsp;&nbsp;&nbsp; </TD> <TD> black on cyan </TD> </TR>
+<TR> <TD> &nbsp;&nbsp;Index-important </TD> <TD> white on bright red </TD> </TR>
+<TR> <TD> &nbsp;&nbsp;Index-deleted&nbsp;&nbsp; </TD> <TD> same as Normal Color </TD> </TR>
+<TR> <TD> &nbsp;&nbsp;Index-answered&nbsp; </TD> <TD> bright red on yellow </TD> </TR>
+<TR> <TD> &nbsp;&nbsp;Index-new&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </TD> <TD> white on magenta </TD> </TR>
+<TR> <TD> &nbsp;&nbsp;Index-recent&nbsp;&nbsp;&nbsp; </TD> <TD> same as Normal Color </TD> </TR>
+<TR> <TD> &nbsp;&nbsp;Index-unseen&nbsp;&nbsp;&nbsp; </TD> <TD> same as Normal Color </TD> </TR>
+</TABLE>
+<P>
 Besides coloring the message status symbols, you may also color the
 entire index line.
 This is done by using the
@@ -29302,6 +29583,42 @@ Setup/Kolor screen (<A HREF="h_config_kw_color">Keyword Colors</A>);
 the <A HREF="h_config_index_arrow_color">ARROW</A> cursor;
 and the
 <A HREF="h_config_index_opening_color">Index Opening</A> text.
+<P>
+<A HREF="h_color_setup">Descriptions of the available commands</A>
+<P>
+Look <A HREF="h_edit_nav_cmds">here</A>
+to see the available Editing and Navigation commands.
+<P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_metamsg_color =====
+<HTML>
+<HEAD>
+<TITLE>OPTION: Meta-Message Color</TITLE>
+</HEAD>
+<BODY>
+<H1>OPTION: Meta-Message Color</H1>
+
+Sets the color Alpine uses in the MESSAGE VIEW for messages to you
+that aren't part of the message itself.
+For example, an attachment that isn't shown might produce a meta
+message something like:
+<P>
+<CENTER><SAMP> [ Part 2, &quot;comment&quot; Text/PLAIN (Name: &quot;file&quot;) ]</SAMP></CENTER>
+<P>
+If you set the
+<A HREF="h_config_quote_suppression">Quote-Suppression-Threshold</A>
+option you might see
+<P>
+<CENTER><SAMP>[ 12 lines of quoted text hidden from view ]</SAMP></CENTER>
+<P>
+Warnings about suspicious looking URLs in HTML will also be colored
+with this color.
+<P>
+The foreground color is the color of the actual character and the
+background color is the color of the area behind the character.
+By default, the Meta-Message Color is black characters on a yellow background.
 <P>
 <A HREF="h_color_setup">Descriptions of the available commands</A>
 <P>
@@ -29420,8 +29737,9 @@ If you only define the first two it would be
 Color1, Color2, Color1, Color2, ...
 If you define only the Quote1 Color, then the entire quote would be that
 color regardless of the quoting levels.
-By default, the Quote Colors are not defined, so will be the same as
-the Normal Color.
+By default, the Quote1 Color is black characters on a greenish-blue background;
+the Quote2 Color is black characters on a dull yellow background; and
+the Quote3 Color is black characters on a green background.
 <P>
 <A HREF="h_color_setup">Descriptions of the available commands</A>
 <P>
@@ -29446,8 +29764,7 @@ consisting of the three characters
 &quot;--&nbsp;&quot; (i.e., dash, dash, and space). Alpine allows for one
 empty line right after the sigdashes to be considered as part of the
 signature.
-By default, the Signature Color is not defined, so will be the same as
-the Normal Color.
+By default, the Signature Color is blue characters on a white background.
 <P>
 <A HREF="h_color_setup">Descriptions of the available commands</A>
 <P>
@@ -29515,8 +29832,8 @@ Setting default will cause the color to be the default color.
 Unsetting default is normally done by choosing a color, but in some cases
 you may want to declare the current default color to be your non-default
 choice.
-For example, the default Title Color is the same as the Reverse Color.
-Whenever the Reverse Color changes the Title Color will also change, unless
+For example, the default Keyname Color is the same as the Reverse Color.
+Whenever the Reverse Color changes the Keyname Color will also change, unless
 you've changed it or unset the default box.
 <P>
 <A HREF="h_color_setup">Descriptions of the available commands</A>
@@ -29605,6 +29922,12 @@ contain the word &quot;important&quot; will be colored.
 <P>
 If the pattern you enter is a comma-separated list of patterns, then coloring
 happens if any of those patterns matches.
+<P>
+There is a default setting for Viewer Header Colors which colors Subject
+lines with black characters on a green background.
+If you define any Viewer Header Colors of your own they will replace that
+default, so if you still wanted the Subject colored you would have to
+define it yourself.
 <P>
 <A HREF="h_color_setup">Descriptions of the available commands</A>
 <P>
@@ -30296,10 +30619,10 @@ If this feature is set, the warning is turned off.
 ====== h_config_quell_imap_env =====
 <HTML>
 <HEAD>
-<TITLE>FEATURE: Quell-IMAP-envelope-update</TITLE>
+<TITLE>FEATURE: Quell-IMAP-Envelope-Update</TITLE>
 </HEAD>
 <BODY>
-<H1>FEATURE: Quell-IMAP-envelope-update</H1>
+<H1>FEATURE: Quell-IMAP-Envelope-Update</H1>
 
 In the MESSAGE INDEX screen, if the open folder is being accessed
 using IMAP, Alpine normally tries to paint the index lines on the screen
@@ -30614,10 +30937,10 @@ need to be set.
 ====== h_config_suspend_spawns =====
 <HTML>
 <HEAD>
-<TITLE>FEATURE: Use-Subshell-for-Suspend</TITLE>
+<TITLE>FEATURE: Use-Subshell-For-Suspend</TITLE>
 </HEAD>
 <BODY>
-<H1>FEATURE: Use-Subshell-for-Suspend</H1>
+<H1>FEATURE: Use-Subshell-For-Suspend</H1>
 
 This feature affects Alpine's behavior when process suspension is enabled
 and then activated via the Ctrl-Z key.  Alpine suspension allows one to
@@ -30721,10 +31044,10 @@ messages.
 ====== h_config_mark_for_cc =====
 <HTML>
 <HEAD>
-<TITLE>FEATURE: Mark-For-CC</TITLE>
+<TITLE>FEATURE: Mark-For-Cc</TITLE>
 </HEAD>
 <BODY>
-<H1>FEATURE: Mark-For-CC</H1>
+<H1>FEATURE: Mark-For-Cc</H1>
 
 This feature affects Alpine's MESSAGE INDEX display.
 By default, a '+' is displayed in the first column if the

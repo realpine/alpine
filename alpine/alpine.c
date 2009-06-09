@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: alpine.c 393 2007-01-25 19:50:20Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: alpine.c 550 2007-04-30 18:15:20Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1888,6 +1888,11 @@ setup_case :
 
 	    /*------ Bogus Input ------*/
           case MC_UNKNOWN :
+	    if(ch == 'm' || ch == 'M'){
+		q_status_message(SM_ORDER, 0, 1, "Already in Main Menu");
+		break;
+	    }
+
 	  default:
 	    bogus_command(ch, F_ON(F_USE_FK,pine_state) ? "F1" : "?");
 	    break;
@@ -2857,6 +2862,75 @@ process_init_cmds(struct pine *ps, char **list)
 }
 
 
+UCS *
+user_wordseps(char **list)
+ {
+    char **p;
+    int i = 0;
+    int j;
+#define MAX_SEPARATORS 500
+    /*
+     * This is just a temporary stack array, the real one is allocated below.
+     * This is supposed to be way large enough.
+     */
+    UCS seps[MAX_SEPARATORS+1];
+    UCS *u;
+    UCS *return_array = NULL;
+    size_t l;
+  
+    seps[0] = '\0';
+
+    if(list){
+	for(p = list; *p; p++){
+	    if(i >= MAX_SEPARATORS){
+		q_status_message(SM_ORDER | SM_DING, 3, 3,
+			  "Warning: composer-word-separators list is too long");
+		break;
+	    }
+
+	    u = utf8_to_ucs4_cpystr(*p);
+
+	    if(u){
+		if(ucs4_strlen(u) == 1)
+		  seps[i++] = *u;
+		else if(*u == '"' && u[l = ucs4_strlen(u) - 1] == '"'){
+		    if(l + i - 1 > MAX_SEPARATORS){
+			q_status_message(SM_ORDER | SM_DING, 3, 3,
+				  "Warning: composer-word-separators list is too long");
+			break;                   /* Bail out of this loop! */
+		    }
+		    else{
+			for(j = 1; j < l; j++)
+			  seps[i++] = u[j];
+		    }
+		}
+		else{
+		    l = ucs4_strlen(u);
+		    if(l + i > MAX_SEPARATORS){
+			q_status_message(SM_ORDER | SM_DING, 3, 3,
+				  "Warning: composer-word-separators list is too long");
+			break;                   /* Bail out of this loop! */
+		    }
+		    else{
+			for(j = 0; j < l; j++)
+			  seps[i++] = u[j];
+		    }
+		}
+
+		fs_give((void **) &u);
+	    }
+	}
+    }
+
+    seps[i] = '\0';
+
+    if(i > 0)
+      return_array = ucs4_cpystr(seps);
+
+    return(return_array);
+}
+
+
 /*
  * Make sure any errors during initialization get queued for display
  */
@@ -3061,6 +3135,8 @@ goodnight_gracey(struct pine *pine_state, int exit_val)
 #endif
 
     free_pine_struct(&pine_state);
+
+    free_histlist();
 
 #ifdef DEBUG
     if(debugfile){

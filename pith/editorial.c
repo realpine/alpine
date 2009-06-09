@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: editorial.c 435 2007-02-09 23:35:33Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: editorial.c 527 2007-04-17 20:11:23Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -46,6 +46,7 @@ typedef struct _editorial_s {
     int	 prelen;
     char postfix[EDITORIAL_MAX];
     int	 postlen;
+    int  do_color;
 } EDITORIAL_S;
 
 
@@ -100,6 +101,8 @@ format_editorial(char *s, int width, int flags, HANDLE_S **handlesp, gf_io_t pc)
 	es.postlen = 1;
     }
 
+    es.do_color = (!(flags & FM_NOCOLOR) && (flags & FM_DISPLAY) && pico_usingcolor());
+
     gf_filter_init();
 
     /* catch urls */
@@ -125,9 +128,65 @@ format_editorial(char *s, int width, int flags, HANDLE_S **handlesp, gf_io_t pc)
 int
 quote_editorial(long int linenum, char *line, LT_INS_S **ins, void *local)
 {
+    COLOR_PAIR *col = NULL;
+
     ins = gf_line_test_new_ins(ins, line,
 			       ((EDITORIAL_S *)local)->prefix,
 			       ((EDITORIAL_S *)local)->prelen);
+    if(((EDITORIAL_S *)local)->do_color
+       && ps_global->VAR_METAMSG_FORE_COLOR
+       && ps_global->VAR_METAMSG_BACK_COLOR
+       && (col = new_color_pair(ps_global->VAR_METAMSG_FORE_COLOR,
+				  ps_global->VAR_METAMSG_BACK_COLOR))){
+	if(!pico_is_good_colorpair(col))
+	  free_color_pair(&col);
+
+	if(col){
+	    char *p;
+	    char normal_embed[(2 * RGBLEN) + 5];
+	    char quote_color_embed[(2 * RGBLEN) + 5];
+
+	    strncpy(quote_color_embed,
+		    color_embed(col->fg, col->bg),
+		    sizeof(quote_color_embed));
+	    quote_color_embed[sizeof(quote_color_embed)-1] = '\0';
+
+	    ins = gf_line_test_new_ins(ins, line,
+				       quote_color_embed, (2 * RGBLEN) + 4);
+
+	    /*
+	     * If there was already a color change back to normal color
+	     * in the line that was passed in, then instead of allowing
+	     * that color change back to normal we want to change that
+	     * to a color change back to our METAMSG color instead.
+	     * Search line for that and modify it.
+	     */
+
+	    strncpy(normal_embed,
+		    color_embed(ps_global->VAR_NORM_FORE_COLOR,
+			        ps_global->VAR_NORM_BACK_COLOR),
+		    sizeof(normal_embed));
+	    normal_embed[sizeof(normal_embed)-1] = '\0';
+
+	    for(p = line; (p = strstr(p, normal_embed)); p++){
+
+		/*
+		 * Replace the normal color with our special quoting
+		 * color. No need to change it if there are no
+		 * characters after the color change because we're
+		 * going to change the color to normal right below
+		 * this anyway.
+		 */
+		if(strlen(p) > strlen(quote_color_embed))
+		  rplstr(p, strlen(p)+1, strlen(quote_color_embed), quote_color_embed);
+	    }
+
+	    ins = gf_line_test_new_ins(ins, line+strlen(line),
+				       normal_embed, (2 * RGBLEN) + 4);
+	    free_color_pair(&col);
+	}
+    }
+
     ins = gf_line_test_new_ins(ins, line + strlen(line),
 			       ((EDITORIAL_S *)local)->postfix,
 			       ((EDITORIAL_S *)local)->postlen);

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: confscroll.c 481 2007-03-13 22:16:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: confscroll.c 540 2007-04-25 17:58:55Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -39,6 +39,7 @@ static char rcsid[] = "$Id: confscroll.c 481 2007-03-13 22:16:32Z hubert@u.washi
 #include "../pith/sort.h"
 #include "../pith/thread.h"
 #include "../pith/color.h"
+#include "../pith/hist.h"
 #include "../pith/charconv/utf8.h"
 
 
@@ -114,18 +115,12 @@ typedef NAMEVAL_S *(*PTR_TO_RULEFUNC)(int);
  */
 PTR_TO_RULEFUNC rulefunc_from_var(struct pine *, struct variable *);
 void     set_radio_pretty_vals(struct pine *, CONF_S **);
-int	 exclude_config_var(struct pine *, struct variable *, int);
 int      save_include(struct pine *, struct variable *, int);
 void	 config_scroll_up(long);
 void	 config_scroll_down(long);
 void	 config_scroll_to_pos(long);
 CONF_S  *config_top_scroll(struct pine *, CONF_S *);
 int      text_toolit(struct pine *, int, CONF_S **, unsigned, int);
-int      config_exit_cmd(unsigned);
-int	 simple_exit_cmd(unsigned);
-int	 screen_exit_cmd(unsigned, char *);
-void	 config_add_list(struct pine *, CONF_S **, char **, char ***, int);
-void	 config_del_list_item(CONF_S **, char ***);
 void	 update_option_screen(struct pine *, OPT_SCREEN_S *, Pos *);
 void	 print_option_screen(OPT_SCREEN_S *, char *);
 void	 option_screen_redrawer(void);
@@ -139,16 +134,9 @@ char    *sort_pretty_value(struct pine *, CONF_S *);
 COLOR_PAIR *sample_color(struct pine *, struct variable *);
 COLOR_PAIR *sampleexc_color(struct pine *, struct variable *);
 void     clear_feature(char ***, char *);
-void	 toggle_feature_bit(struct pine *, int, struct variable *, CONF_S *, int);
 void	 snip_confline(CONF_S **);
 void	 free_conflines(CONF_S **);
 CONF_S	*last_confline(CONF_S *);
-int	 fixed_var(struct variable *, char *, char *);
-void     exception_override_warning(struct variable *);
-void     offer_to_fix_pinerc(struct pine *);
-void     fix_side_effects(struct pine *, struct variable *, int);
-void     revert_to_saved_config(struct pine *, SAVED_CONFIG_S *, int);
-void     free_saved_config(struct pine *, SAVED_CONFIG_S **, int);
 #ifdef	_WINDOWS
 int	 config_scroll_callback(int, long);
 #endif
@@ -1042,14 +1030,25 @@ no_down:
 #define FOUND_NOSELECT 0x08
 #define FOUND_ABOVE    0x10
 	     char *result = NULL, buf[64];
-	     static char last[64];
+	     char *p, last[64];
+	     static HISTORY_S *history = NULL;
 	     HelpType help;
 	     static ESCKEY_S ekey[] = {
 		{0, 0, "", ""},
 		/* TRANSLATORS: go to Top of screen */
 		{ctrl('Y'), 10, "^Y", N_("Top")},
 		{ctrl('V'), 11, "^V", N_("Bottom")},
+		{KEY_UP,    30, "", ""},
+		{KEY_DOWN,  31, "", ""},
 		{-1, 0, NULL, NULL}};
+#define KU_WI (3)	/* index of KEY_UP */
+
+	     init_hist(&history, HISTSIZE);
+	     last[0] = '\0';
+	     if((p = get_prev_hist(history, "", 0, NULL)) != NULL){
+		strncpy(last, p, sizeof(last));
+		last[sizeof(last)-1] = '\0';
+	     }
 
 	     ps->mangled_footer = 1;
 	     buf[0] = '\0';
@@ -1062,10 +1061,43 @@ no_down:
 	     while(1){
 		 int flags = OE_APPEND_CURRENT;
 
+		/*
+		 * 2 is really 1 because there will be one real entry and
+		 * one entry of "" because of the get_prev_hist above.
+		 */
+		if(items_in_hist(history) > 2){
+		    ekey[KU_WI].name  = HISTORY_UP_KEYNAME;
+		    ekey[KU_WI].label = HISTORY_UP_KEYLABEL;
+		}
+		else{
+		    ekey[KU_WI].name  = "";
+		    ekey[KU_WI].label = "";
+		}
+
 		 rc = optionally_enter(buf,-FOOTER_ROWS(ps),0,sizeof(buf),
 					 tmp,ekey,help,&flags);
 		 if(rc == 3)
 		   help = help == NO_HELP ? h_config_whereis : NO_HELP;
+		 else if(rc == 30){
+		    if((p = get_prev_hist(history, buf, 0, NULL)) != NULL){
+			strncpy(buf, p, sizeof(buf));
+			buf[sizeof(buf)-1] = '\0';
+		    }
+		    else
+		      Writechar(BELL, 0);
+
+		    continue;
+		 }
+		 else if(rc == 31){
+		    if((p = get_next_hist(history, buf, 0, NULL)) != NULL){
+			strncpy(buf, p, sizeof(buf));
+			buf[sizeof(buf)-1] = '\0';
+		    }
+		    else
+		      Writechar(BELL, 0);
+
+		    continue;
+		 }
 		 else if(rc == 0 || rc == 1 || rc == 10 || rc == 11 || !buf[0]){
 		     if(rc == 0 && !buf[0] && last[0])
 		       strncpy(buf, last, 64);
@@ -1077,6 +1109,8 @@ no_down:
 	     screen->current->flags &= ~CF_VAR2;
 	     if(rc == 0 && buf[0]){
 		 CONF_S *started_here;
+
+		 save_hist(history, buf, 0, NULL);
 
 		 ch   = KEY_DOWN;
 		 ctmpa = screen->current;
@@ -4610,6 +4644,7 @@ last_confline(CONF_S *p)
 /*
  *
  */
+int
 fixed_var(struct variable *v, char *action, char *name)
 {
     char **lval;

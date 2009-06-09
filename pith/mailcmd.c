@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcmd.c 501 2007-03-30 00:16:53Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailcmd.c 550 2007-04-30 18:15:20Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -753,6 +753,9 @@ do_broach_folder(char *newfolder, CONTEXT_S *new_context, MAILSTREAM **streamp,
 	openmode |= OP_READONLY;
 	ps_global->open_readonly_on_startup = 0;
     }
+
+    if(!(flags & DB_NOVISIT))
+      ps_global->first_open_was_attempted = 1;
 
     openmode |= SP_USEPOOL;
 

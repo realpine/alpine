@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: termin.gen.c 384 2007-01-24 01:22:15Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: termin.gen.c 520 2007-04-11 16:28:41Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -289,7 +289,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
     dprint((9, "passwd:%d   utf8prompt:\"%s\"   label:\"%s\"\n",
                (flags && *flags & OE_PASSWD),
 	       utf8prompt ? utf8prompt : "",
-	       (escape_list && escape_list[0].ch != -1)
+	       (escape_list && escape_list[0].ch != -1 && escape_list[0].label)
 		 ? escape_list[0].label: ""));
 
     if(!ps_global->ttyo)
@@ -1100,14 +1100,6 @@ process_config_input(UCS *ch)
 		inputp = inputbuf;
 		ucs = (UCS) utf8_get(&inputp, &remaining_octets);
 		switch(ucs){
-		  case U8G_BADCONT:	/* continuation at start of char */
-		  case U8G_NOTUTF8:	/* invalid character */
-		  case U8G_INCMPLT:	/* incomplete character */
-		  case UBOGON:
-		    *ch = BADESC;
-		    ret = 1;
-		    break;
-
 		  case U8G_ENDSTRG:	/* incomplete character, wait */
 		  case U8G_ENDSTRI:	/* incomplete character, wait */
 		    if(!*ps_global->initial_cmds || octets_so_far >= sizeof(inputbuf)){
@@ -1120,7 +1112,7 @@ process_config_input(UCS *ch)
 		    break;
 
 		  default:
-		    if(ucs & U8G_ERROR)
+		    if(ucs & U8G_ERROR || ucs == UBOGON)
 		      *ch = BADESC;
 		    else
 		      *ch = ucs;

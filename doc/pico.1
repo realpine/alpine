@@ -1,4 +1,4 @@
-.TH pico 1 "Version 4.94"
+.TH pico 1 "Version 4.95"
 .SH Name
 pico \- simple text editor in the style of the Alpine Composer
 .SH Syntax
@@ -127,6 +127,10 @@ between devices that operate at different speeds.
 Set the quote string.  Especially useful when composing email, setting this 
 allows the quote string to be checked for when Justifying paragraphs.
 A common quote string is "> ".
+.IP \fB-W\ \fIword_separators\fB\fR
+If characters listed here appear in the middle of a word surrounded by
+alphanumeric characters that word is split into two words. This is used by
+the Forward and Backward word commands and by the spell checker.
 .IP \fB-q\fR
 Termcap or terminfo definition for input escape sequences are used in
 preference to sequences defined by default.  This option is only available

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: bldaddr.c 452 2007-02-26 22:45:47Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: bldaddr.c 521 2007-04-11 23:55:43Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -308,7 +308,21 @@ start:
 	if(tmp)
 	  fs_give((void **)&tmp);
 
+	if(mangled){
+	    if(ps_global->mangled_screen)
+	      *mangled |= BUILDER_SCREEN_MANGLED;
+	    else if(ps_global->mangled_footer)
+	      *mangled |= BUILDER_FOOTER_MANGLED;
+	}
+	  
         return -1;
+    }
+
+    if(mangled){
+	if(ps_global->mangled_screen)
+	  *mangled |= BUILDER_SCREEN_MANGLED;
+	else if(ps_global->mangled_footer)
+	  *mangled |= BUILDER_FOOTER_MANGLED;
     }
 
     /*
@@ -472,7 +486,6 @@ expand_address(BuildTo to, char *userdomain, char *localdomain, int *loop_detect
 	(to.type == Str) ? (to.arg.str ? to.arg.str : "nul")
 			 : (to.arg.abe->nickname ? to.arg.abe->nickname
 						: "no nick")));
-
     /*
      * We use the domain "@" to detect an unqualified address.  If it comes
      * back from rfc822_parse_adrlist with the host part set to "@", then

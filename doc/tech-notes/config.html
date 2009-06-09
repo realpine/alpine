@@ -289,7 +289,7 @@ report commands which can be accessed from some of the Help screens.
 
 <DD> When <EM>Alpine</EM> is delayed for some reason it usually shows that
 something is happening with a small animated display in the status
-line (the 3rd line up from the bottom of the screen).
+message line near the bottom of the screen.
 This option sets how frequently the characters (for example, a spinning bar)
 in the active status message lines are updated.
 At most, it can be set to be udpated 20 times per second. 
@@ -437,6 +437,27 @@ for Kolor to enter the color configuration screen (Kolor instead of Color
 because C means Config).
 Most categories of color which <EM>Alpine</EM> supports are configurable there.
 <A HREF="#index-color-config">Index line color</A> is configured separately.
+<P>
+
+<DT> <A NAME="composer-word-separators"><EM>composer-word-separators</EM></A>
+
+<DD> This option affects how a &quot;word&quot; is defined in the composer.
+The definition of a word is used when using the Forward Word and Backward
+Word commands in the composer, as well as when using the spell checker.
+Whitespace is always considered a word separator.
+Punctuation (like question marks, periods, commas, and so on) is always
+a word separator if it comes at the end of a word.
+By default, a punctuation character which is in the middle of a word does
+not break up that word as long as the character before and the character
+after it are both alphanumeric.
+If you add a character to this option it will be considered a
+word separator even when it occurs in the middle of an alphanumeric word.
+For example, if you want to skip through each part of an address instead
+of skipping the whole address at once you might want to include&quot;@&quot;
+and &quot;.&quot; in this list.
+If you want the word-skipper to stop on each part of a UNIX filename you
+could add &quot;/&quot; to the list.
+The equal sign and dash are other possibilities you might find helpful.
 <P>
 
 <DT> <A NAME="composer-wrap-column"><EM>composer-wrap-column</EM></A>
@@ -1979,6 +2000,12 @@ avoiding those costs as well.
 <P>
 When twenty five minutes pass without any active use of an IMAP connection
 being saved for possible re-use, that connection will be shut down,
+<P>
+
+<DT> <A NAME="meta-message-background-color"><EM>meta-message-background-color</EM></A>
+<DT> <A NAME="meta-message-foreground-color"><EM>meta-message-foreground-color</EM></A>
+
+<DD> <A HREF="#meta-message-color"><EM>Meta-message Color</EM></A>.
 <P>
 
 <DT> <A NAME="mimetype-search-path"><EM>mimetype-search-path</EM></A>
@@ -3989,7 +4016,7 @@ perform a <EM>Zoom</EM> after the <EM>select</EM> is complete.
 
 <DD> When <EM>Alpine</EM> is delayed for some reason it usually shows that
 something is happening with a small animated display in the status
-line (the 3rd line up from the bottom of the screen).
+message line near the bottom of the screen.
 Setting this feature will cause that animation to be the same
 each time instead of having <EM>Alpine</EM> choose a random animation.
 You may turn the animation off altogether by setting the
@@ -4188,6 +4215,24 @@ deleted.
 
 <DD> If set, the configuration
 screen <EM>Setup/Config</EM> will not be available at all.
+<P>
+
+<DT> <A NAME="disable-input-history"><EM>disable-input-history</EM></A>
+
+<DD> Many of the prompts that ask for input in the status line near the
+bottom of the screen will respond to Up Arrow and Down Arrow
+with the history of previous entries.
+For example, in the MESSAGE INDEX screen when you use the WhereIs
+command the text you entered will be remembered and can be recalled
+using the Up Arrow key.
+Setting this option will disable this.
+<P>
+When this option is set the Up and Down arrows will be synonyms for the
+Previous Collection and Next Collection (^P and ^N) commands in the
+prompt for the name of a folder to Save to or in the prompt for the
+name of a folder to GoTo.
+When it is not set (the default), ^P and ^N will change the collection and
+the arrow keys will show the history.
 <P>
 
 <DT> <A NAME="disable-kblock"><EM>disable-keyboard-lock-cmd</EM></A>
@@ -6240,6 +6285,18 @@ fetching is used. Turning on this feature will turn off partial fetching.
 <A HREF="#personal-name">personal-name</A>.  This prompt normally happens
 before composing a message, and only happens when there is no personal name
 already set.
+<P>
+
+<DT> <A NAME="quell-server-after-link-in-html"><EM>quell-server-after-link-in-html</EM></A>
+
+<DD> By default, links in HTML text are displayed with the host the link
+references appended, within square brackets, to the link text.  <EM>Alpine</EM>
+does this to help indicate where a link will take you, particularly when
+the link text might suggest a different destination.
+
+<P>
+Setting this feature will prevent the server name from being appended
+to the displayed text.
 <P>
 
 <DT> <A NAME="quell-ssl-largeblocks"><EM>quell-ssl-largeblocks</EM></A>
@@ -8917,6 +8974,7 @@ the index line itself will have).
 <DT> <A NAME="normal-color"><EM>Normal Color</EM></A>
 
 <DD> This is the color which most of the screen is painted in.
+By default this color is black characters on a white background.
 <P>
 
 <DT> <A NAME="reverse-color"><EM>Reverse Color</EM></A>
@@ -8931,18 +8989,21 @@ screen but the color may be set to whatever you'd like.
 
 <DD> The color <EM>Alpine</EM> uses for the titlebar (the top line on the
 screen).
-By default, the Title Color is the same as the Reverse Color.
+By default, the Title Color is black characters on a yellow background.
 The actual titlebar color may be different from the Title Color if
 the option
 <A HREF="#titlebar-color-style"><EM>titlebar-color-style</EM></A>
-is set to some value other than default.
+is set to some value other than the default.
+It may also be different if the current folder is closed and the
+<A HREF="#title-closed-color">Title Closed Color</A>
+is set to something different from the Title Color.
 <P>
 
 <DT> <A NAME="title-closed-color"><EM>Title-closed Color</EM></A>
 
 <DD> The color <EM>Alpine</EM> uses for the titlebar (the top line on the
 screen) when the current folder is closed.
-By default, the Title-closed Color is the same as the Title Color.
+By default, the Title Color Closed Color is white characters on a red background.
 <P>
 
 <DT> <A NAME="status-color"><EM>Status Color</EM></A>
@@ -8989,6 +9050,13 @@ By default, the Selectable-item Color is the same as the Normal Color, except
 it is also Bold.
 <P>
 
+<DT> <A NAME="meta-message-color"><EM>Meta-message Color</EM></A>
+
+<DD> The color <EM>Alpine</EM> uses in the MESSAGE VIEW for messages to you
+that aren't part of the message itself.
+By default, the Meta-Message Color is black characters on a yellow background.
+<P>
+
 <DT> <A NAME="quote-colors"><EM>Quote Colors</EM></A>
 
 <DD> The colors <EM>Alpine</EM> uses for coloring quoted text in the
@@ -9007,7 +9075,9 @@ If you only define the first two it would be Color1, Color2,
 Color1, Color2, ...
 If you define only the Quote1 Color, then the entire quote would be
 that color regardless of the quoting levels.
-By default, the Quote Colors are not defined.
+By default, the Quote1 Color is black characters on a greenish-blue background;
+the Quote2 Color is black characters on a dull yellow background; and
+the Quote3 Color is black characters on a green background.
 <P>
 
 <DT> <A NAME="signature-color"><EM>Signature Color</EM></A>
@@ -9019,8 +9089,7 @@ consisting of the three characters
 &quot;--&nbsp;&quot; (i.e., dash, dash, and space). <EM>Alpine</EM> allows for one
 empty line right after the sigdashes to be considered as part of the
 signature.
-By default, the Signature Color is not defined, so will be the same as
-the Normal Color.
+By default, the Signature Color is blue characters on a white background.
 <P>
 
 <DT> <A NAME="prompt-color"><EM>Prompt Color</EM></A>
@@ -9121,8 +9190,21 @@ The color used for drawing this opening text is given by this option.
 The coloring happens for all but the current index line, and this opening
 color appears to be in front of any color from an Index Color Rule.
 <P>
+By default the Index Opening Color is gray characters on a white background.
+<P>
 
 </DL>
+<P>
+The default colors for these symbols are:
+<TABLE>
+<TR> <TD> &nbsp;&nbsp;Index-to-me&nbsp;&nbsp;&nbsp;&nbsp; </TD> <TD> black on cyan </TD> </TR>
+<TR> <TD> &nbsp;&nbsp;Index-important </TD> <TD> white on bright red </TD> </TR>
+<TR> <TD> &nbsp;&nbsp;Index-deleted&nbsp;&nbsp; </TD> <TD> same as Normal Color </TD> </TR>
+<TR> <TD> &nbsp;&nbsp;Index-answered&nbsp; </TD> <TD> bright red on yellow </TD> </TR>
+<TR> <TD> &nbsp;&nbsp;Index-new&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </TD> <TD> white on magenta </TD> </TR>
+<TR> <TD> &nbsp;&nbsp;Index-recent&nbsp;&nbsp;&nbsp; </TD> <TD> same as Normal Color </TD> </TR>
+<TR> <TD> &nbsp;&nbsp;Index-unseen&nbsp;&nbsp;&nbsp; </TD> <TD> same as Normal Color </TD> </TR>
+</TABLE>
 
 <H3><A NAME="header-colors"></A>Header Colors</H3>
 
@@ -9145,6 +9227,12 @@ addresses which match the pattern to be colored.
 <P>
 If the pattern you enter is a comma-separated list of patterns, then coloring
 happens if any of those patterns matches.
+<P>
+There is a default setting for Viewer Header Colors which colors Subject
+lines with black characters on a green background.
+If you define any Viewer Header Colors of your own they will replace that
+default, so if you still wanted the Subject colored you would have to
+define it yourself.
 <P>
 
 <H3><A NAME="keyword-colors"></A>Keyword Colors</H3>
@@ -9781,6 +9869,8 @@ This is the value that will be added to the score for a message if the
 rule's Pattern is a match.
 Each individual Score Value is an integer between -100 and 100, and the
 values from matching rules are added together to get a message's score.
+There is also a way to extract the value from a particular header of each
+message. See the help text for Score Value for further information.
 
 <H2><A NAME="other-config"></A>Other Rules Configuration</H2>
 

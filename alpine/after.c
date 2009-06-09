@@ -52,7 +52,8 @@ start_after(AFTER_S *a)
     if(a){
 #if	defined(HAVE_PTHREAD) && defined(HAVE_NANOSLEEP)
 	pthread_attr_t attr;
-	int rc, stack;
+	int rc;
+	size_t stack;
 
 	if(after_active)
 	  stop_after(1);

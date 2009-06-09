@@ -1,5 +1,5 @@
 /*
- * $Id: conftype.h 483 2007-03-15 18:43:40Z hubert@u.washington.edu $
+ * $Id: conftype.h 543 2007-04-26 04:06:02Z mikes@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -78,6 +78,7 @@ typedef	enum {    V_PERSONAL_NAME = 0
 		, V_REPLY_STRING
 		, V_REPLY_INTRO
 		, V_QUOTE_REPLACE_STRING
+		, V_WORDSEPS
 		, V_EMPTY_HDR_MSG
 		, V_IMAGE_VIEWER
 		, V_USE_ONLY_DOMAIN_NAME
@@ -203,6 +204,8 @@ typedef	enum {    V_PERSONAL_NAME = 0
 		, V_KEYNAME_BACK_COLOR
 		, V_SLCTBL_FORE_COLOR
 		, V_SLCTBL_BACK_COLOR
+		, V_METAMSG_FORE_COLOR
+		, V_METAMSG_BACK_COLOR
 		, V_QUOTE1_FORE_COLOR
 		, V_QUOTE1_BACK_COLOR
 		, V_QUOTE2_FORE_COLOR
@@ -349,6 +352,7 @@ typedef enum {
 	F_SEND_WO_CONFIRM,
 	F_USE_SENDER_NOT_X,
 	F_BLANK_KEYMENU,
+	F_DISABLE_INPUT_HISTORY,
 	F_CUSTOM_PRINT,
 	F_DEL_FROM_DOT,
 	F_AUTO_ZOOM,
@@ -469,6 +473,7 @@ typedef enum {
 	F_ENABLE_NEWMAIL_SOUND,
 	F_ENABLE_JUMP_CMD,
 	F_USE_SYSTEM_TRANS,
+	F_QUELL_HOST_AFTER_URL,
 #ifdef	_WINDOWS
 	F_ENABLE_TRAYICON,
 	F_QUELL_SSL_LARGEBLOCKS,

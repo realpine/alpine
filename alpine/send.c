@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: send.c 497 2007-03-29 18:37:44Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: send.c 540 2007-04-25 17:58:55Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -52,6 +52,7 @@ static char rcsid[] = "$Id: send.c 497 2007-03-29 18:37:44Z hubert@u.washington.
 #include "../pith/mailcmd.h"
 #include "../pith/ablookup.h"
 #include "../pith/reply.h"
+#include "../pith/hist.h"
 
 
 typedef struct body_particulars {
@@ -1072,19 +1073,22 @@ pine_simple_send(ENVELOPE *outgoing,	/* envelope for outgoing message */
 		 char **used_tobufval,
 		 int flagsarg)
 {
-    char     **tobufp;
+    char     **tobufp, *p;
     void      *messagebuf;
     int        done = 0, retval = 0, x;
-    int	       lastrc, rc = 0, i, resize_len, result, fcc_result;
+    int	       lastrc, rc = 0, ku, i, resize_len, result, fcc_result;
     int        og2s_done = 0;
     HelpType   help;
-    ESCKEY_S   ekey[3];
+    static HISTORY_S *history = NULL;
+    ESCKEY_S   ekey[5];
     BUILDER_ARG ba_fcc;
     METAENV   *header;
 
     dprint((1,"\n === simple send called === \n"));
 
     memset(&ba_fcc, 0, sizeof(BUILDER_ARG));
+
+    init_hist(&history, HISTSIZE);
 
     header = pine_simple_send_header(outgoing, &ba_fcc.tptr, &tobufp);
 
@@ -1126,6 +1130,17 @@ pine_simple_send(ENVELOPE *outgoing,	/* envelope for outgoing message */
 	ekey[i++].label = N_("Complete");
     }
 
+    ekey[i].ch      = KEY_UP;
+    ekey[i].rval    = 30;
+    ekey[i].name    = "";
+    ku = i;
+    ekey[i++].label = "";
+
+    ekey[i].ch      = KEY_DOWN;
+    ekey[i].rval    = 31;
+    ekey[i].name    = "";
+    ekey[i++].label = "";
+
     ekey[i].ch    = -1;
 
     /*----------------------------------------------------------------------
@@ -1149,6 +1164,15 @@ pine_simple_send(ENVELOPE *outgoing,	/* envelope for outgoing message */
 	    resize_len = MAX(MAXPATH, strlen(*tobufp));
 	    fs_resize((void **) tobufp, resize_len+1);
 
+	    if(items_in_hist(history) > 0){
+		ekey[ku].name  = HISTORY_UP_KEYNAME;
+		ekey[ku].label = HISTORY_UP_KEYLABEL;
+	    }
+	    else{
+		ekey[ku].name  = "";
+		ekey[ku].label = "";
+	    }
+
 	    flags = OE_APPEND_CURRENT;
 
 	    rc = optionally_enter(*tobufp, -FOOTER_ROWS(ps_global),
@@ -1169,6 +1193,26 @@ pine_simple_send(ENVELOPE *outgoing,	/* envelope for outgoing message */
 			     "Internal problem encountered");
 	    retval = -1;
 	    done++;
+	    break;
+
+	  case 30 :
+	    if((p = get_prev_hist(history, *tobufp, 0, NULL)) != NULL){
+		strncpy(*tobufp, p, resize_len);
+		(*tobufp)[resize_len-1] = '\0';
+	    }
+	    else
+	      Writechar(BELL, 0);
+
+	    break;
+
+	  case 31 :
+	    if((p = get_next_hist(history, *tobufp, 0, NULL)) != NULL){
+		strncpy(*tobufp, p, resize_len);
+		(*tobufp)[resize_len-1] = '\0';
+	    }
+	    else
+	      Writechar(BELL, 0);
+
 	    break;
 
 	  case 2: /* ^T */
@@ -1211,6 +1255,8 @@ pine_simple_send(ENVELOPE *outgoing,	/* envelope for outgoing message */
 	    if(*tobufp && **tobufp != '\0'){
 		char *errbuf, *addr;
 		int   tolen;
+
+		save_hist(history, *tobufp, 0, NULL);
 
 		errbuf = NULL;
 
@@ -1746,6 +1792,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
     BODY_PARTICULARS_S *bp;
     STORE_S	       *orig_so = NULL;
     PICO	        pbuf1, *save_previous_pbuf;
+    CustomType          ct;
     REDRAFT_POS_S      *local_redraft_pos = NULL;
 #ifdef	DOS
     char               *reserve;
@@ -2109,6 +2156,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 
 		    *he->realaddr = pf->textbuf;
 		    pf->textbuf = NULL;
+		    he->sticky = 1;
 		    break;
 
 		  case Combine:
@@ -2130,6 +2178,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 			    *he->realaddr = combined_hdr;
 			    q_status_message(SM_ORDER, 3, 3,
 					     "Adding newsgroup from role");
+			    he->sticky = 1;
 			}
 		    }
 		    else{
@@ -2366,7 +2415,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 	       && (index == N_TO || index == N_CC
 		   || index == N_BCC || index == N_LCC)
 	       && (pf->addr && !*pf->addr)){
-		if(set_default_hdrval(pf, custom) >= UseAsDef &&
+		if((ct=set_default_hdrval(pf, custom)) >= UseAsDef &&
 		   pf->textbuf && *pf->textbuf){
 		    removing_trailing_white_space(pf->textbuf);
 		    (void)removing_double_quotes(pf->textbuf);
@@ -2374,6 +2423,8 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 		    rfc822_parse_adrlist(pf->addr, addr,
 					 ps_global->maildomain);
 		    fs_give((void **)&addr);
+		    if(ct > UseAsDef)
+		      he->sticky = 1;
 		}
 		else
 		  he->rich_header = 1; /* hide */
@@ -2384,7 +2435,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 	     * for a default value assigned by the user.
 	     */
 	    else if(pf->addr && !*pf->addr){
-		if(set_default_hdrval(pf, custom) >= UseAsDef &&
+		if((ct=set_default_hdrval(pf, custom)) >= UseAsDef &&
 		   (index != N_FROM ||
 		    (!ps_global->never_allow_changing_from &&
 		     F_ON(F_ALLOW_CHANGING_FROM, ps_global))) &&
@@ -2395,6 +2446,8 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 		    rfc822_parse_adrlist(pf->addr, addr,
 					 ps_global->maildomain);
 		    fs_give((void **)&addr);
+		    if(ct > UseAsDef)
+		      he->sticky = 1;
 		}
 
 		/* if we still don't have a from */
@@ -2457,6 +2510,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 		    build_address(pf->textbuf, &addr, NULL, NULL, NULL);
 		    rfc822_parse_adrlist(pf->addr, addr, ps_global->maildomain);
 		    fs_give((void **)&addr);
+		    he->sticky = 1;
 		    break;
 
 		  case Combine:
@@ -2465,6 +2519,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 		    build_address(pf->textbuf, &addr, NULL, NULL, NULL);
 		    rfc822_parse_adrlist(&a, addr, ps_global->maildomain);
 		    fs_give((void **)&addr);
+		    he->sticky = 1;
 		    if(a){
 			for(tail = pf->addr; *tail; tail = &(*tail)->next)
 			  ;
@@ -2496,6 +2551,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 		    build_address(pf->textbuf, &addr, NULL, NULL, NULL);
 		    rfc822_parse_adrlist(pf->addr, addr, ps_global->maildomain);
 		    fs_give((void **)&addr);
+		    he->sticky = 1;
 		    break;
 
 		  case UseAsDef:
@@ -2553,6 +2609,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 	      case Combine:
 		pf->scratch = pf->textbuf;
 		pf->textbuf = NULL;
+		he->sticky = 1;
 		if(outgoing->subject)
 		  fs_give((void **)&outgoing->subject);
 
@@ -5987,7 +6044,7 @@ build_address(char *to, char **full_to, char **error, BUILDER_ARG *barg, int *ma
 
     if(ps_global->remote_abook_validity > 0 &&
        adrbk_check_and_fix_all(ab_nesting_level == 0, 0, 0) && mangled)
-      *mangled = 1;
+      *mangled |= BUILDER_SCREEN_MANGLED;
 
     /*
      * If we end up jumping back here because somebody else changed one of
@@ -6359,7 +6416,7 @@ build_addr_lcc(char *lcc, char **full_lcc, char **error, BUILDER_ARG *barg, int 
 
     if(ps_global->remote_abook_validity > 0 &&
        adrbk_check_and_fix_all(ab_nesting_level == 0, 0, 0) && mangled)
-      *mangled = 1;
+      *mangled |= BUILDER_SCREEN_MANGLED;
 
     /*
      * If we end up jumping back here because somebody else changed one of

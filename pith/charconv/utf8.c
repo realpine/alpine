@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: utf8.c 440 2007-02-14 23:33:00Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: utf8.c 495 2007-03-29 17:50:41Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -66,7 +66,7 @@ int
 wcellwidth(UCS ucs)
 {
     char dummy[32];
-    int w;
+    long w;
 
     /*
      * We believe that on modern unix systems wchar_t is a UCS-4 character.
@@ -75,14 +75,14 @@ wcellwidth(UCS ucs)
 
     if(native_utf8){			/* display is UTF-8 capable */
 	w = ucs4_width((unsigned long) ucs);
-	return(w >= U4W_ERROR ? -1 : w);
+	return((w & U4W_ERROR) ? -1 : w);
     }
     else if(display_data){
 	if(wtomb(dummy, ucs) < 0)
 	  return(-1);
 	else{
 	    w = ucs4_width((unsigned long) ucs);
-	    return(w >= U4W_ERROR ? -1 : w);
+	    return((w & U4W_ERROR) ? -1 : w);
 	}
     }
 #ifndef _WINDOWS
@@ -114,7 +114,7 @@ wtomb(char *dest, UCS ucs)
 	unsigned char *newdptr;
 
 	newdptr = utf8_put((unsigned char *) dest, (unsigned long) ucs);
-	return(newdptr - (unsigned char *) dest);
+	return((newdptr == (unsigned char *) dest) ? -1 : newdptr - (unsigned char *) dest);
     }
     else if(display_data){
 	unsigned long ucs4;
@@ -124,6 +124,8 @@ wtomb(char *dest, UCS ucs)
 	ret = ucs4_rmaplen(&ucs4, 1, (unsigned short *) display_data, 0);
 	if(ret >= 0)
 	  ucs4_rmapbuf((unsigned char *) dest, &ucs4, 1, (unsigned short *) display_data, 0);
+	else
+	  ret = -1;
 
 	return(ret);
     }
@@ -399,8 +401,12 @@ utf8_to_locale(int c, CBUF_S *cb, unsigned char obuf[], size_t obuf_size)
 	    /* got a character */
 	    if(printable_ascii)
 	      width = 1;
-	    else
-	      width = wcellwidth(ucs);
+	    else{
+		 if(ucs & U8G_ERROR)
+		   ucs = '?';
+
+		width = wcellwidth(ucs);
+	    }
 
 	    if(width < 0){
 		/*
@@ -859,8 +865,12 @@ utf8_to_ucs4_oneatatime(int c, CBUF_S *cb, UCS *obuf, int *obufwidth)
 	    /* got a character */
 	    if(printable_ascii)
 	      width = 1;
-	    else
-	      width = wcellwidth(ucs);
+	    else{
+		 if(ucs & U8G_ERROR)
+		   ucs = '?';
+
+		width = wcellwidth(ucs);
+	    }
 
 	    outchars++;
 
@@ -2196,12 +2206,13 @@ utf8_to_charset(char *orig, char *charset, int report_err)
      * This works for ISO-2022-JP because of special code in utf8_cstext
      * but not for other 2022 charsets.
      */
+    memset(&dst, 0, sizeof(dst));
     if(utf8_cstext(&src, charset, &dst, report_err ? 0 : '?') && dst.size > 0 && dst.data)
       ret = (char *) dst.data;		/* c-client already null terminates it */
     else
       ret = NULL;
 
-    if(ret && (unsigned char *) ret != dst.data && dst.data)
+    if((unsigned char *) ret != dst.data && dst.data)
       fs_give((void **) &dst.data);
 
     return ret;

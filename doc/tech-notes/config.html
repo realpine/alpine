@@ -870,7 +870,8 @@ feature is set.  <P>
 
 <DT> <A NAME="empty-header-message"><EM>empty-header-message</EM></A>
 
-<DD> When sending, if all of the To, Cc, and Newsgroups fields are empty,
+<DD> When sending, if both the To and Cc fields are empty and you
+are sending the message to a Bcc,
 <EM>Alpine</EM> will put a special address in the To line. The default value is
 "undisclosed-recipients: ;". The reason for this is to avoid
 embarrassment caused by some Internet mail transfer software that
@@ -1470,6 +1471,15 @@ What you are most likely to do with this configuration option is to
 specify which fields appear at all, which order they appear in, and the
 percentage of screen that is used for the from and subject fields if you
 don't like the 2 to 1 default.
+<P>
+If you want to retain the default format that <EM>Pine</EM> 4.64 had, use
+
+<P>
+<CENTER><SAMP>Index-Format=STATUS MSGNO DATE FROMORTO(33%) SIZE SUBJKEY(67%)</SAMP></CENTER>
+<P>
+
+<EM>and</EM> set the feature
+<A HREF="#disable-index-locale-dates"><EM>Disable-Index-Locale-Dates</EM></A>.
 
 <P>
 
@@ -4201,6 +4211,7 @@ will disappear if any other command is typed.
 <P>
 
 <DT> <A NAME="disable-password-caching"><EM>disable-password-caching</EM></A>
+<P>
 
 <DD> Normally, loginname/password combinations are cached in <EM>Alpine</EM>
 so that the user does not have to enter the same password more than once
@@ -4835,6 +4846,21 @@ The features
 <A HREF="#incoming-check-list"><EM>incoming-check-list</EM></A>, and
 <A HREF="#incoming-check-timeout"><EM>incoming-check-timeout</EM></A>
 all affect how this feature behaves.
+<P>
+
+<DT> <A NAME="disable-index-locale-dates"><EM>Disable-Index-Locale-Dates</EM></A>
+
+<DD> This feature affects the display of dates in the MESSAGE INDEX.
+Normally an attempt is made to localize the dates
+used in the MESSAGE INDEX display to your locale.
+This is controlled with the
+LC_TIME locale setting on a UNIX system.
+On Windows the Regional Options control panel may be used to set the date format.
+At the programming level, <EM>Alpine</EM> is using the strftime routine
+to print the parts of a date.
+<P>
+If this feature is set, dates are displayed in English and
+with the conventions of the United States.
 <P>
 
 <DT> <A NAME="enable-jump-shortcut"><EM>enable-jump-shortcut</EM></A>
@@ -5629,22 +5655,28 @@ when you exit <EM>Alpine</EM>.
 
 <DT> <A NAME="pass-c1-control-characters-as-is"><EM>pass-c1-control-characters-as-is</EM></A>
 
-<DD> It is probably not useful to set this feature.
-<P>UNIX <EM>Alpine</EM> only.
+<DD> It is probably not useful to set this option.
+This is a legacy option left behind &quot;just in case&quot;.
+Multi-byte characters which have an octet which has the same
+value as a control character are permitted through whether or not
+this option is turned on.
+<P>
 If the feature <A HREF="#pass-control-characters-as-is">pass-control-characters-as-is</A>
 is set, then this feature has no effect.
 However, if you wish to filter out regular control characters but pass the
 so-called C1 control characters (0x80 <= char < 0xA0) through unchanged, then
 you may leave <A HREF="#pass-control-characters-as-is">pass-control-characters-as-is</A>
 unset and set this feature.
-This feature is not available in PC-Alpine where control characters
-are never suppressed.
 <P>
 
 <DT> <A NAME="pass-control-characters-as-is"><EM>pass-control-characters-as-is</EM></A>
 
-<DD> It is probably not useful to set this feature.
-<P>UNIX <EM>Alpine</EM> only (this feature is automatically on with <EM>PC-Alpine</EM>).
+<DD> It is probably not useful to set this option.
+This is a legacy option left behind &quot;just in case&quot;.
+Multi-byte characters which have an octet which has the same
+value as a control character are permitted through whether or not
+this option is turned on.
+<P>
 If set, all characters in a message will be sent to the
 screen. Normally, control characters are automatically suppressed in
 order to avoid inadvertently changing terminal setup parameters.
@@ -5670,8 +5702,6 @@ a question mark is substituted for the control character.
 If you wish to filter out regular control characters but pass the
 so-called C1 control characters (0x80 <= char < 0xA0) through unchanged, then
 you may leave this feature unset and set the feature <A HREF="#pass-c1-control-characters-as-is">pass-c1-control-characters-as-is</A> instead.
-This feature is not available in PC-Alpine where control characters
-are never suppressed.
 <P>
 
 <DT> <A NAME="predict-nntp-server"><EM>predict-nntp-server</EM></A>
@@ -7452,11 +7482,15 @@ to format the date string. It may end up formatting dates so that they look
 like DATEISO tokens, or SHORTDATE2 tokens, or something else entirely.
 If you want more control you may use one of the following.
   <DL>
-  <DT>SMARTDATE</DT> <DD>Locale specific. Control this with the
+  <DT>SMARTDATE</DT> <DD>If the option
+<A HREF="#disable-index-locale-dates"><EM>Disable-Index-Locale-Dates</EM></A> is not set
+then this will be locale specific. Control this with the
 LC_TIME locale setting on a UNIX system. On Windows
 the Regional Options control panel may be used to set the Short date
-format. At the programming level, the strftime routine is what Alpine
-uses to print the date.</DD>
+format. At the programming level, the strftime routine is what <EM>Alpine</EM>
+uses to print the date.
+If the Disable-Index-Locale-Dates option is set then this is equivalent
+to SMARTDATES1.</DD>
   <DT>SMARTDATEISO</DT> <DD>DATEISO format. See text above.</DD>
   <DT>SMARTDATESHORTISO</DT> <DD>SHORTDATEISO format.</DD>
   <DT>SMARTDATES1</DT> <DD>SHORTDATE1 format.</DD>
@@ -7483,6 +7517,15 @@ LC_TIME locale setting on a UNIX system. On Windows
 the Regional Options control panel may be used to set the Short date
 format. At the programming level, the strftime routine is what Alpine
 uses to print the date.</DD>
+  <DT>SMARTDATETIME</DT> <DD>If the option
+<A HREF="#disable-index-locale-dates"><EM>Disable-Index-Locale-Dates</EM></A> is not set
+then this will be locale specific. Control this with the
+LC_TIME locale setting on a UNIX system. On Windows
+the Regional Options control panel may be used to set the Short date
+format. At the programming level, the strftime routine is what <EM>Alpine</EM>
+uses to print the date.
+If the Disable-Index-Locale-Dates option is set then this is equivalent
+to SMARTDATETIMES1.</DD>
   <DT>SMARTDATETIME24</DT> <DD>Use TIME24 for Today</DD>
   <DT>SMARTDATETIMEISO</DT> <DD>DATEISO format. See text above.</DD>
   <DT>SMARTDATETIMEISO24</DT> <DD>Use TIME24 for Today</DD>
@@ -7901,6 +7944,113 @@ When a message is from you, doesn't have a To or Cc, and does have
 a Newsgroups header; this token will be your name instead of the name
 of the newsgroup (like it would be with FROMORTO).
 </DD>
+
+<DT>TEXT</DT>
+<DD>
+This is a different sort of token.
+It allows you to display a label within each index line.
+It will be the same fixed text for each line.
+It is different from all the other tokens in that there is no space column
+displayed after this token.
+Instead, it is butted up against the following field.
+It also has a different syntax.
+The text to display is given following a colon after the
+word &quot;TEXT&quot;.
+For example,
+<P>
+<CENTER><SAMP>TEXT:abc=</SAMP></CENTER>
+<P>
+would insert the literal text &quot;abc=&quot; (without the quotes)
+into the index display line.
+You must quote the text if it includes space characters, like
+<P>
+<CENTER><SAMP>TEXT:&quot;abc&nbsp;=&nbsp;&quot;</SAMP></CENTER>
+<P>
+</DD>
+
+<DT>HEADER</DT>
+<DD>
+This allows you to display the text from a particular header line in the
+message.
+The syntax for this token is substantially different from all the others
+in order that you might be able to display a portion of the text following
+a particular header.
+The header name you are interested in is given following a colon
+after the word &quot;HEADER&quot;.
+For example,
+<P>
+<CENTER><SAMP>HEADER:X-Spam</SAMP></CENTER>
+<P>
+would display the text of the X-Spam header, if any.
+Like for other index tokens a width field may (and probably should)
+follow this.
+<P>
+<CENTER><SAMP>HEADER:X-Spam(10)</SAMP></CENTER>
+<P>
+displays the first ten characters of the X-Spam header.
+Unlike other index tokens, the syntax for HEADER is more flexible.
+An optional second argument comes after a comma inside the parentheses.
+It specifies the &quot;field&quot; number.
+By default, the field separator is a space character.
+No extra space characters are allowed in the argument list.
+<P>
+<CENTER><SAMP>HEADER:X-Spam(10,2)</SAMP></CENTER>
+<P>
+would display the second field, left-justified, in a 10 character
+wide field.
+The second field would consist of all the text after the first space
+up to the next space or the end of the header.
+The default field number is zero, which stands for the entire line.
+There is also an optional third argument which is a list of field
+separators. It defaults to a space character.
+The example
+<P>
+<CENTER><SAMP>HEADER:X-Spam(10,2,:%&nbsp;)</SAMP></CENTER>
+<P>
+would cause the field separators to be any of colon, percent,
+or space (there is a space character between the percent and the
+right parenthesis).
+The first field runs from the start of the header value up to the first
+colon, percent, or space; the second goes from there to the next; and so on.
+In order to use a comma character as a field separator you must escape
+it by preceding it with a backslash (&#92;).
+The same is true of the backslash character itself.
+There is one further optional argument.
+It is an R or an L to specify right or left adjustment of the text
+within the field.
+The default is to left justify, however if you are displaying numbers
+you might prefer to right justify.
+<P>
+Here's an example of a SpamAssassin header.
+The exact look of the header will vary, but if your incoming mail
+contains headers that look like the following
+<P>
+<CENTER><SAMP>X-Spam-Status: Yes, hits=10.6 tagged_above=-999.0 required=7.0 tests=BAYE...</SAMP></CENTER>
+<P>
+you might want to display the hits value.
+The first field starts with the Y in Yes.
+To get what you're interested in you might use &quot;=&quot; and
+space as the field separators and display the third field, like
+<P>
+<CENTER><SAMP>HEADER:X-Spam-Status(4,3,=&nbsp;)</SAMP></CENTER>
+<P>
+or maybe you would break at the dot instead
+<P>
+<CENTER><SAMP>HEADER:X-Spam-Status(2,2,=.,R)</SAMP></CENTER>
+<P>
+Another example we've seen has headers that look like
+<P>
+<CENTER><SAMP>X-Spam: Gauge=IIIIIII, Probability=7%, Report=...</SAMP></CENTER>
+<P>
+Because there are two equals and a comma before the 7% and a comma
+after it, the token
+<P>
+<CENTER><SAMP>HEADER:X-Spam-Status(3,4,=&#92;,R)</SAMP></CENTER>
+<P>
+should display the probability (for example 7% or 83%) right justified
+in a 3-wide field.
+</DD>
+
 
 <DT>ARROW</DT>
 <DD>

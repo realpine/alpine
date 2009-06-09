@@ -1,5 +1,5 @@
 /*
- * $Id: state.h 295 2006-12-02 01:35:46Z mikes@u.washington.edu $
+ * $Id: state.h 487 2007-03-23 16:53:15Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -217,8 +217,8 @@ struct pine {
     unsigned 	 debug_imap:3;
     unsigned 	 debug_nfiles:5;
     unsigned     debugmem:1;
-#ifdef PASSFILE
-    unsigned     nowrite_passfile:1;
+#ifdef	LOCAL_PASSWD_CACHE
+    unsigned     nowrite_password_cache:1;
 #endif
 
     unsigned     convert_sigs:1;

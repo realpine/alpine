@@ -23,8 +23,11 @@
  * support dprint regardless so we leave at least a few
  * footsteps in syslog
  */
-#undef    dprint(x)
+#undef    dprint
 #define   dprint(x)	{ output_debug_msg x ; }
+
+/* alpined-scoped debugging level */
+extern int debug;
 #endif
 
 

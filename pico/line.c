@@ -1,10 +1,10 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: line.c 418 2007-02-03 01:51:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: line.c 486 2007-03-22 18:38:38Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -755,4 +755,23 @@ int
 ksize(void)
 {
     return(kbufp ? (int) kbufp->total : 0);
+}
+
+
+static REGION last_region_added;
+
+void
+set_last_region_added(REGION *region)
+{
+    if(region)
+      last_region_added = (*region);
+    else
+      memset(&last_region_added, 0, sizeof(last_region_added));
+}
+
+
+REGION *
+get_last_region_added(void)
+{
+    return(&last_region_added);
 }

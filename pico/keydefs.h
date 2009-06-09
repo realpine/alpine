@@ -1,5 +1,5 @@
 /*
- * $Id: keydefs.h 380 2007-01-23 00:09:18Z hubert@u.washington.edu $
+ * $Id: keydefs.h 480 2007-03-09 22:34:47Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -64,6 +64,10 @@
 #define KEY_KERMIT	(KEY_BASE+0x115)
 #define KEY_JUNK	(KEY_BASE+0x116)
 #define KEY_RESIZE	(KEY_BASE+0x117)
+#define CTRL_KEY_UP	(KEY_BASE+0x118)
+#define CTRL_KEY_DOWN	(KEY_BASE+0x119)
+#define CTRL_KEY_RIGHT	(KEY_BASE+0x11a)
+#define CTRL_KEY_LEFT	(KEY_BASE+0x11b)
 
 /*
  * Don't think we are using the fact that this is zero anywhere,

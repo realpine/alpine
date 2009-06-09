@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailindx.c 429 2007-02-08 00:08:23Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailindx.c 501 2007-03-30 00:16:53Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -85,8 +85,10 @@ char	       *fetch_date(INDEXDATA_S *);
 long		fetch_size(INDEXDATA_S *);
 BODY	       *fetch_body(INDEXDATA_S *);
 char           *fetch_firsttext(INDEXDATA_S *idata);
+char           *fetch_header(INDEXDATA_S *idata, char *hdrname);
 void		subj_str(INDEXDATA_S *, int, char *, SubjKW, int, ICE_S *);
 void		key_str(INDEXDATA_S *, SubjKW, ICE_S *);
+void		header_str(INDEXDATA_S *, HEADER_TOK_S *, ICE_S *);
 void		from_str(IndexColType, INDEXDATA_S *, int, char *, ICE_S *);
 int             day_of_week(struct date *);
 int             day_of_year(struct date *);
@@ -97,6 +99,7 @@ char           *format_str(int, int);
 char           *copy_format_str(int, int, char *, int);
 void            set_print_format(IELEM_S *, int, int);
 void            set_ielem_widths_in_field(IFIELD_S *);
+void            free_hdrtok(HEADER_TOK_S **);
 
 
 #define BIGWIDTH 2047
@@ -113,7 +116,8 @@ void            set_ielem_widths_in_field(IFIELD_S *);
 void
 init_index_format(char *format, INDEX_COL_S **answer)
 {
-    int column = 0;
+    char *p;
+    int i, w, monabb_width = 0, column = 0;
 
     /*
      * Record the fact that SCORE appears in some index format. This
@@ -142,16 +146,42 @@ init_index_format(char *format, INDEX_COL_S **answer)
 	};
 
 	if(*answer)
-	  fs_give((void **)answer);
+	  free_index_format(answer);
 
 	*answer = (INDEX_COL_S *)fs_get(sizeof(answer_default));
 	memcpy(*answer, answer_default, sizeof(answer_default));
     }
 
     /*
+     * Test to see how long the month abbreviations are.
+     */
+    for(i = 1; i <= 12; i++){
+	p = month_abbrev_locale(i);
+	monabb_width = MAX(utf8_width(p), monabb_width);
+    }
+
+    monabb_width = MIN(MAX(2, monabb_width), 5);
+
+    /*
      * Fill in req_width's for WeCalculate items.
      */
     for(column = 0; (*answer)[column].ctype != iNothing; column++){
+
+	/* don't use strftime if we're not trying to use the LC_TIME stuff */
+	if(F_ON(F_DISABLE_INDEX_LOCALE_DATES, ps_global)){
+	    switch((*answer)[column].ctype){
+	      case iSDate:
+		(*answer)[column].ctype = iS1Date;
+		break;
+	      case iSDateTime:
+		(*answer)[column].ctype = iSDateTimeS1;
+		break;
+	      case iSDateTime24:
+		(*answer)[column].ctype = iSDateTimeS124;
+		break;
+	    }
+	}
+
 	if((*answer)[column].wtype == WeCalculate){
 	    switch((*answer)[column].ctype){
 	      case iAtt:
@@ -167,9 +197,7 @@ init_index_format(char *format, INDEX_COL_S **answer)
 		break;
 	      case iStatus:
 	      case iMessNo:
-	      case iMonAbb:
 	      case iInit:
-	      case iDayOfWeekAbb:
 		(*answer)[column].req_width = 3;
 		break;
 	      case iYear:
@@ -183,7 +211,6 @@ init_index_format(char *format, INDEX_COL_S **answer)
 		break;
 	      case iFStatus:
 	      case iIStatus:
-	      case iDate:
 	      case iScore:
 		(*answer)[column].req_width = 6;
 		break;
@@ -200,6 +227,56 @@ init_index_format(char *format, INDEX_COL_S **answer)
 	      case iDateIsoS:
 	      case iSizeComma:
 		(*answer)[column].req_width = 8;
+		break;
+	      case iMonAbb:
+		(*answer)[column].req_width = monabb_width;
+		(*answer)[column].monabb_width = monabb_width;
+		break;
+	      case iDayOfWeekAbb:
+	        {
+		    w = 0;
+
+		    /*
+		     * Test to see how long it is.
+		     */
+		    for(i = 0; i < 7; i++){
+			p = day_abbrev_locale(i);
+			w = MAX(utf8_width(p), w);
+		    }
+
+		    (*answer)[column].req_width = MIN(MAX(2, w), 5);
+		}
+		break;
+	      case iDate:
+		(*answer)[column].req_width = monabb_width + 3;
+		(*answer)[column].monabb_width = monabb_width;
+		break;
+	      case iMonLong:
+	        {
+		    w = 0;
+
+		    /*
+		     * Test to see how long it is.
+		     */
+		    for(i = 1; i <= 12; i++){
+			p = month_name_locale(i);
+			w = MAX(utf8_width(p), w);
+		    }
+
+		    (*answer)[column].req_width = MIN(MAX(3, w), 12);
+		}
+		break;
+	      case iDayOfWeek:
+	        {
+		    w = 0;
+
+		    for(i = 0; i < 7; i++){
+			p = day_name_locale(i);
+			w = MAX(utf8_width(p), w);
+		    }
+
+		    (*answer)[column].req_width = MIN(MAX(3, w), 12);
+		}
 		break;
 	      case iSDate:
 	      case iSDateTime:
@@ -218,10 +295,13 @@ init_index_format(char *format, INDEX_COL_S **answer)
 		    tm.tm_year = 106;
 		    tm.tm_mon = 11;
 		    tm.tm_mday = 31;
-		    strftime(ss, sizeof(ss), "%x", &tm);
+		    our_strftime(ss, sizeof(ss), "%x", &tm);
 		    (*answer)[column].req_width = MIN(MAX(9, utf8_width(ss)), 20);
 		}
+
+		(*answer)[column].monabb_width = monabb_width;
 		break;
+
 	      case iDescripSize:
 	      case iSDateIsoS:
 	      case iSDateS1: case iSDateS2: case iSDateS3: case iSDateS4:
@@ -229,8 +309,6 @@ init_index_format(char *format, INDEX_COL_S **answer)
 	      case iSDateTimeS1: case iSDateTimeS2: case iSDateTimeS3: case iSDateTimeS4:
 	      case iSDateTimeIsoS24:
 	      case iSDateTimeS124: case iSDateTimeS224: case iSDateTimeS324: case iSDateTimeS424:
-	      case iMonLong:
-	      case iDayOfWeek:
 	        /*
 		 * These SDates are 8 wide but they need to be 9 for "Yesterday".
 		 */
@@ -242,6 +320,7 @@ init_index_format(char *format, INDEX_COL_S **answer)
 		break;
 	      case iLDate:
 		(*answer)[column].req_width = 12;
+		(*answer)[column].monabb_width = monabb_width;
 		break;
 	      case iRDate:
 		(*answer)[column].req_width = 16;
@@ -249,6 +328,11 @@ init_index_format(char *format, INDEX_COL_S **answer)
 	    }
 	}
     }
+
+    calc_extra_hdrs();
+    if(get_extra_hdrs())
+      (void) mail_parameters(NULL, SET_IMAPEXTRAHEADERS,
+			     (void *) get_extra_hdrs());
 }
 
 
@@ -278,6 +362,36 @@ reset_index_format(void)
     if(!we_set_it)
       init_index_format(ps_global->VAR_INDEX_FORMAT,
 		        &ps_global->index_disp_format);
+}
+
+
+void
+free_index_format(INDEX_COL_S **disp_format)
+{
+    INDEX_COL_S	 *cdesc = NULL;
+
+    if(disp_format && *disp_format){
+	for(cdesc = (*disp_format); cdesc->ctype != iNothing; cdesc++)
+	  if(cdesc->hdrtok)
+	    free_hdrtok(&cdesc->hdrtok);
+
+	fs_give((void **) disp_format);
+    }
+}
+
+
+void
+free_hdrtok(HEADER_TOK_S **hdrtok)
+{
+    if(hdrtok && *hdrtok){
+	if((*hdrtok)->hdrname)
+	  fs_give((void **) &(*hdrtok)->hdrname);
+
+	if((*hdrtok)->fieldseps)
+	  fs_give((void **) &(*hdrtok)->fieldseps);
+
+	fs_give((void **) hdrtok);
+    }
 }
 
 
@@ -390,6 +504,8 @@ static INDEX_PARSE_T itokens[] = {
 					FOR_REPLY_INTRO|FOR_TEMPLATE|FOR_FILT},
     {"LASTYEAR",	iLstYear,	FOR_REPLY_INTRO|FOR_TEMPLATE|FOR_FILT},
     {"LASTYEAR2DIGIT",	iLstYear2Digit,	FOR_REPLY_INTRO|FOR_TEMPLATE|FOR_FILT},
+    {"HEADER",		iHeader,	FOR_INDEX},
+    {"TEXT",		iText,		FOR_INDEX},
     {"ARROW",		iArrow,		FOR_INDEX},
     {"CURSORPOS",	iCursorPos,	FOR_TEMPLATE},
     {NULL,		iNothing,	FOR_NOTHING}
@@ -423,11 +539,12 @@ itoktype(char *txt, int flags)
      */
     v = txt;
     w = token;
-    while(w < token+100 &&
+    while(w < token+sizeof(token)-1 &&
 	  *v &&
-	  !isspace((unsigned char)*v) &&
+	  !(!(*v & 0x80) && isspace((unsigned char)*v)) &&
 	  !(flags & DELIM_USCORE && *v == '_') &&
-	  !(flags & DELIM_PAREN && *v == '('))
+	  !(flags & DELIM_PAREN && *v == '(') &&
+	  !(flags & DELIM_COLON && *v == ':'))
       *w++ = *v++;
     
     *w = '\0';
@@ -454,7 +571,7 @@ parse_index_format(char *format_str, INDEX_COL_S **answer)
     while(p && *p && column < 200-1){
 	/* skip leading white space for next word */
 	p = skip_white_space(p);
-	pt = itoktype(p, FOR_INDEX | DELIM_PAREN);
+	pt = itoktype(p, FOR_INDEX | DELIM_PAREN | DELIM_COLON);
 	
 	/* ignore unrecognized word */
 	if(!pt){
@@ -474,30 +591,223 @@ parse_index_format(char *format_str, INDEX_COL_S **answer)
 
 	cdesc[column].ctype = pt->ctype;
 
-	/* skip over name and look for parens */
-	p += strlen(pt->name);
+	if(pt->ctype == iHeader || pt->ctype == iText){
+	    /*
+	     * iHeader field has special syntax.
+	     *
+	     * HEADER:hdrname(width,fieldnum,field_separators,L_or_R)
+	     *
+	     * where width is the regular width or percentage width or
+	     * left out for default width, fieldnum defaults to 0 for
+	     * whole thing, 1 for first field, ...
+	     * and field_separators is a list of characters which separate
+	     * the fields. The whole parenthesized part is optional. If used
+	     * the arguments can be dropped from the right, so
+	     *
+	     * HEADER:hdrname		or
+	     * HEADER:hdrname(10)	or
+	     * HEADER:hdrname(10%)	or
+	     * HEADER:hdrname(10,2)	or
+	     * HEADER:hdrname(,2)	or
+	     * HEADER:hdrname(10,2, )	or
+	     * HEADER:hdrname(10,2,\,:)	or
+	     * HEADER:hdrname(10,2,\,:,R)
+	     *
+	     * iText field uses the hdrtok field for convenience. It has syntax
+	     *
+	     * TEXT:text		or
+	     * TEXT:text(10)		or
+	     * TEXT:text(10%)
+	     *
+	     * and the literal text goes into the index line. It is also special
+	     * because there is no 1 column space after this field.
+	     */
+
+	    /* skip over name */
+	    p += strlen(pt->name);
+
+	    /* look for header name */
+	    if(*p == ':'){
+		char *w, hdrname[200];
+
+		hdrname[0] = '\0';
+		w = hdrname;
+		p++;
+		if(*p == '\"'){				/* quoted name */
+		    p++;
+		    while(w < hdrname + sizeof(hdrname)-1 && *p != '\"'){
+			if(*p == '\\')
+			  p++;
+
+			*w++ = *p++;
+		    }
+
+		    *w = '\0';
+		    if(*p == '\"')
+		      p++;
+		}
+		else{
+		    while(w < hdrname + sizeof(hdrname)-1 &&
+			  !(!(*p & 0x80) && isspace((unsigned char)*p)) &&
+			  *p != '(')
+		      *w++ = *p++;
+
+		    *w = '\0';
+		}
+
+		if(hdrname[0]){
+		    HEADER_TOK_S *hdrtok;
+
+		    hdrtok = (HEADER_TOK_S *) fs_get(sizeof(HEADER_TOK_S));
+		    cdesc[column].hdrtok = hdrtok;
+		    memset(hdrtok, 0, sizeof(HEADER_TOK_S));
+		    hdrtok->hdrname = cpystr(hdrname);
+		    if(pt->ctype == iHeader){
+			hdrtok->fieldnum = 0;		/* default */
+			hdrtok->adjustment = Left;	/* default */
+			hdrtok->fieldsepcnt = 1;	/* default */
+			hdrtok->fieldseps = cpystr(" ");/* default */
+		    }
+		}
+		else{
+		    if(pt->ctype == iHeader){
+			dprint((1, "parse_index_token: HEADER should be followed by :hdrname\n"));
+			q_status_message(SM_ORDER | SM_DING, 0, 3, "index token HEADER should be followed by :hdrname");
+		    }
+		    else{
+			dprint((1, "parse_index_token: TEXT should be followed by :text\n"));
+			q_status_message(SM_ORDER | SM_DING, 0, 3, "index token TEXT should be followed by :text");
+		    }
+		}
+	    }
+	    else{
+		if(pt->ctype == iHeader){
+		    dprint((1, "parse_index_token: HEADER should be followed by :hdrname, not %s\n", p));
+		    q_status_message(SM_ORDER | SM_DING, 0, 3, "index token HEADER should be followed by :hdrname");
+		}
+		else{
+		    dprint((1, "parse_index_token: TEXT should be followed by :text, not %s\n", p));
+		    q_status_message(SM_ORDER | SM_DING, 0, 3, "index token TEXT should be followed by :text");
+		}
+
+		/* skip over rest of bogus config */
+		while(!(!(*p & 0x80) && isspace((unsigned char)*p)) &&
+		      *p != '(')
+		  *p++;
+	    }
+	}
+	else{
+	    /* skip over name and look for parens */
+	    p += strlen(pt->name);
+	}
+
 	if(*p == '('){
 	    p++;
 	    q = p;
 	    while(p && *p && isdigit((unsigned char) *p))
 	      p++;
 	    
-	    if(p && *p && *p == ')' && p > q){
-		cdesc[column].wtype = Fixed;
-		cdesc[column].req_width = atoi(q);
-	    }
-	    else if(p && *p && *p == '%' && p > q){
-		cdesc[column].wtype = Percent;
-		cdesc[column].req_width = atoi(q);
+	    if(pt->ctype == iHeader){
+		/* first argument is width or width percentage, like for others */
+		if(p && *p && (*p == ')' || *p == ',')){
+		    if(p > q){
+			cdesc[column].wtype = Fixed;
+			cdesc[column].req_width = atoi(q);
+		    }
+		    else{
+			cdesc[column].wtype = WeCalculate;
+			cdesc[column].req_width = 0;
+		    }
+		}
+		else if(p && *p && *p == '%' && p > q){
+		    cdesc[column].wtype = Percent;
+		    cdesc[column].req_width = atoi(q);
+		    p++;
+		}
+		else{
+		    cdesc[column].wtype = WeCalculate;
+		    cdesc[column].req_width = 0;
+		}
+
+		/* optional 2nd argument is field number, 0 whole thing, 1, 2, ... */
+		if(p && *p && *p == ','){
+		    p++;
+		    /* no space allowed between arguments */
+		    if(*p && isdigit((unsigned char) *p)){
+			q = p;
+			while(*p && isdigit((unsigned char) *p))
+			  p++;
+
+			cdesc[column].hdrtok->fieldnum = atoi(q);
+
+			/*
+			 * Optional 3rd argument is field separators.
+			 * Comma is \, and backslash is \\.
+			 */
+			if(*p == ','){
+			    int j;
+
+			    p++;
+			    /* don't use default */
+			    if(*p && *p != ')' && *p != ',' && cdesc[column].hdrtok->fieldseps)
+			      cdesc[column].hdrtok->fieldseps[0] = '\0';
+
+			    j = 0;
+			    while(*p && *p != ')' && *p != ','){
+				fs_resize((void **) &cdesc[column].hdrtok->fieldseps, j+2);
+				if(*p == '\\' && (*(p+1) == ',' || *(p+1) == '\\'))
+				  p++;
+
+				cdesc[column].hdrtok->fieldseps[j++] = *p++;
+				cdesc[column].hdrtok->fieldseps[j] = '\0';
+				cdesc[column].hdrtok->fieldsepcnt = j;
+			    }
+
+			    /* optional 4th argument, left or right adjust */
+			    if(*p == ','){
+				p++;
+				if(*p == 'L' || *p == 'l')
+				  cdesc[column].hdrtok->adjustment = Left;
+				else if(*p == 'R' || *p == 'r')
+				  cdesc[column].hdrtok->adjustment = Right;
+				else{
+				    dprint((1, "parse_index_token: HEADER 4th argument should be L or R, not\n", *p ? p : "<null>"));
+				    q_status_message(SM_ORDER | SM_DING, 0, 3, "HEADER 4th argument should be L or R");
+				}
+			    }
+			}
+		    }
+		    else{
+			dprint((1, "parse_index_token: HEADER 2nd argument should be field number, not\n", *p ? p : "<null>"));
+			q_status_message(SM_ORDER | SM_DING, 0, 3, "HEADER 2nd argument should be field number, a non-negative digit");
+		    }
+		}
 	    }
 	    else{
-		cdesc[column].wtype = WeCalculate;
-		cdesc[column].req_width = 0;
+		if(p && *p && *p == ')' && p > q){
+		    cdesc[column].wtype = Fixed;
+		    cdesc[column].req_width = atoi(q);
+		}
+		else if(p && *p && *p == '%' && p > q){
+		    cdesc[column].wtype = Percent;
+		    cdesc[column].req_width = atoi(q);
+		}
+		else{
+		    cdesc[column].wtype = WeCalculate;
+		    cdesc[column].req_width = 0;
+		}
 	    }
 	}
 	else{
-	    cdesc[column].wtype     = WeCalculate;
-	    cdesc[column].req_width = 0;
+	    /* if they left out width for iText we can figure it out */
+	    if(pt->ctype == iText && cdesc[column].hdrtok && cdesc[column].hdrtok->hdrname){
+		cdesc[column].wtype = Fixed;
+		cdesc[column].req_width = utf8_width(cdesc[column].hdrtok->hdrname);
+	    }
+	    else{
+		cdesc[column].wtype     = WeCalculate;
+		cdesc[column].req_width = 0;
+	    }
 	}
 
 	column++;
@@ -519,7 +829,7 @@ parse_index_format(char *format_str, INDEX_COL_S **answer)
 
     /* free up old answer */
     if(*answer)
-      fs_give((void **)answer);
+      free_index_format(answer);
 
     /* allocate space for new answer */
     *answer = (INDEX_COL_S *)fs_get((column+1)*sizeof(INDEX_COL_S));
@@ -549,7 +859,7 @@ static IndexColType fixed_ctypes[] = {
     iSDateTimeS124, iSDateTimeS224, iSDateTimeS324, iSDateTimeS424,
     iSize, iSizeComma, iSizeNarrow, iKSize, iDescripSize,
     iAtt, iTime24, iTime12, iTimezone, iMonAbb, iYear, iYear2Digit,
-    iDay2Digit, iMon2Digit, iDayOfWeekAbb, iScore
+    iDay2Digit, iMon2Digit, iDayOfWeekAbb, iScore, iMonLong, iDayOfWeek
 };
 
 
@@ -576,7 +886,8 @@ ctype_is_fixed_length(IndexColType ctype)
 void
 setup_index_header_widths(MAILSTREAM *stream)
 {
-    int		 j, columns, some_to_calculate;
+    int		 colspace;	/* for reserving space between columns */
+    int		 j, some_to_calculate;
     int		 space_left, screen_width, width, fix, col;
     int		 keep_going, tot_pct, was_sl;
     long         max_msgno;
@@ -590,7 +901,8 @@ setup_index_header_widths(MAILSTREAM *stream)
     clear_icache_flags(stream);
     screen_width = ps_global->ttyo->screen_cols;
     space_left	 = screen_width;
-    columns	 = some_to_calculate = 0;
+    some_to_calculate = 0;
+    colspace	 = -1;
 
     /*
      * Calculate how many fields there are so we know how many spaces
@@ -605,22 +917,28 @@ setup_index_header_widths(MAILSTREAM *stream)
 	if(cdesc->wtype == Fixed){
 	  cdesc->width = cdesc->req_width;
 	  if(cdesc->width > 0)
-	    columns++;
+	    colspace++;
 	}
 	else if(cdesc->wtype == Percent){
 	    cdesc->width = 0; /* calculated later */
-	    columns++;
+	    colspace++;
 	}
 	else{ /* WeCalculate */
 	    cdesc->width = cdesc->req_width; /* reserve this for now */
 	    some_to_calculate++;
-	    columns++;
+	    colspace++;
 	}
+
+	/* no space after iText */
+	if(cdesc->ctype == iText)
+	  colspace--;
 
 	space_left -= cdesc->width;
     }
 
-    space_left -= (columns - 1); /* space between columns */
+    colspace = MAX(colspace, 0);
+
+    space_left -= colspace; /* space between columns */
 
     ps_global->display_keywords_in_subject = 0;
     ps_global->display_keywordinits_in_subject = 0;
@@ -663,8 +981,6 @@ setup_index_header_widths(MAILSTREAM *stream)
 		    break;
 
 		  case iStatus:
-		  case iMonAbb:
-		  case iDayOfWeekAbb:
 		    cdesc->actual_length = 3;
 		    cdesc->adjustment = Left;
 		    break;
@@ -701,7 +1017,6 @@ setup_index_header_widths(MAILSTREAM *stream)
 
 		  case iFStatus:
 		  case iIStatus:
-		  case iDate:
 		    cdesc->actual_length = 6;
 		    cdesc->adjustment = Left;
 		    break;
@@ -741,6 +1056,11 @@ setup_index_header_widths(MAILSTREAM *stream)
 		  case iSDate:
 		  case iSDateTime:
 		  case iSDateTime24:
+		  case iMonAbb:
+		  case iDayOfWeekAbb:
+		  case iDayOfWeek:
+		  case iDate:
+		  case iMonLong:
 		    cdesc->actual_length = cdesc->req_width;
 		    cdesc->adjustment = Left;
 		    break;
@@ -783,6 +1103,8 @@ setup_index_header_widths(MAILSTREAM *stream)
 		    break;
 		}
 	    }
+	    else if(cdesc->ctype == iHeader)
+	      cdesc->adjustment = cdesc->hdrtok ? cdesc->hdrtok->adjustment : Left;
 	    else
 	      cdesc->adjustment = Left;
 	}
@@ -849,7 +1171,7 @@ setup_index_header_widths(MAILSTREAM *stream)
 	  if(cdesc->wtype == Percent){
 	      /* The 2, 200, and +100 are because we're rounding */
 	      fix = ((2*cdesc->req_width *
-		      (screen_width-(columns-1)))+100) / 200;
+		      (screen_width-colspace))+100) / 200;
 	      tot_requested += fix;
 	  }
 	}
@@ -863,7 +1185,7 @@ setup_index_header_widths(MAILSTREAM *stream)
 	    if(cdesc->wtype == Percent){
 	        /* The 2, 200, and +100 are because we're rounding */
 	        fix = ((2*cdesc->req_width *
-		        (screen_width-(columns-1)))+100) / 200;
+		        (screen_width-colspace))+100) / 200;
 		fix = (2 * fix * multiplier + 100) / 200;
 	        fix = MIN(fix, space_left);
 	        cdesc->width += fix;
@@ -878,7 +1200,7 @@ setup_index_header_widths(MAILSTREAM *stream)
 	    if(cdesc->wtype == Percent){
 	        /* The 2, 200, and +100 are because we're rounding */
 	        fix = ((2*cdesc->req_width *
-		        (screen_width-(columns-1)))+100) / 200;
+		        (screen_width-colspace))+100) / 200;
 	        fix = MIN(fix, space_left);
 	        cdesc->width += fix;
 	        space_left -= fix;
@@ -1477,9 +1799,6 @@ static int daytab[2][13] = {
     {0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
 };
 
-static char *day_name[] = {N_("Sunday"),N_("Monday"),N_("Tuesday"),N_("Wednesday"),
-			   N_("Thursday"),N_("Friday"),N_("Saturday")};
-
 int
 day_of_year(struct date *d)
 {
@@ -1918,7 +2237,7 @@ format_index_index_line(INDEXDATA_S *idata)
 	      case iRDate: case iDay: case iDay2Digit: case iMon2Digit:
 	      case iDayOrdinal: case iMon: case iMonLong:
 	      case iDayOfWeekAbb: case iDayOfWeek:
-		date_str(fetch_date(idata), cdesc->ctype, 0, str, sizeof(str));
+		date_str(fetch_date(idata), cdesc->ctype, 0, str, sizeof(str), cdesc->monabb_width);
 		break;
 
 	      case iFromTo:
@@ -2365,6 +2684,14 @@ format_index_index_line(INDEXDATA_S *idata)
 
 		break;
 
+	      case iHeader:
+		header_str(idata, cdesc->hdrtok, ice);
+		break;
+
+	      case iText:
+		strncpy(str, (cdesc->hdrtok && cdesc->hdrtok->hdrname) ? cdesc->hdrtok->hdrname : "", sizeof(str));
+		str[sizeof(str)-1] = '\0';
+		break;
 	    }
 
 	  /*
@@ -2524,7 +2851,7 @@ format_thread_index_line(INDEXDATA_S *idata)
 	p = buffer;
 	space_left--;
 
-	date_str(fetch_date(idata), iDate, 0, p, sizeof(buffer));
+	date_str(fetch_date(idata), iDate, 0, p, sizeof(buffer), 0);
 	if(sizeof(buffer) > 6)
 	  p[6] = '\0';
 
@@ -3101,8 +3428,16 @@ fetch_firsttext(INDEXDATA_S *idata)
 
 			*p = '\0';
 
-			if(p > buf)
-			  firsttext = cpystr(buf);
+			if(p > buf){
+			    size_t l;
+
+			    l = strlen(buf);
+			    l += 100;
+			    firsttext = fs_get((l+1) * sizeof(char));
+			    firsttext[0] = '\0';
+			    iutf8ncpy(firsttext, buf, l);
+			    firsttext[l] = '\0';
+			}
 		    }
 
 		    so_give(&so);
@@ -3131,6 +3466,69 @@ fetch_date(INDEXDATA_S *idata)
 	/* c-client call's just cache access at this point */
 	if(env = pine_mail_fetchenvelope(idata->stream, idata->rawno))
 	  return((char *) env->date);
+
+	idata->bogus = 1;
+    }
+
+    return(NULL);
+}
+
+
+/*
+ * fetch_header - called to get at the index entry's "Hdrname:" field
+ */
+char *
+fetch_header(INDEXDATA_S *idata, char *hdrname)
+{
+    if(idata->no_fetch)
+      idata->bogus = 1;
+    else if(idata->bogus)
+      idata->bogus = 2;
+    else{
+	char *h, *p, *q, *decoded, *fields[2];
+	size_t retsize, decsize;
+	char *ret = NULL;
+	unsigned char *decode_buf = NULL;
+
+	fields[0] = hdrname;
+	fields[1] = NULL;
+	if(hdrname && hdrname[0]
+	   && (h = pine_fetchheader_lines(idata->stream, idata->rawno,
+					  NULL, fields))){
+				      
+	    /* skip "hdrname:" */
+	    for(p = h + strlen(hdrname) + 1;
+		*p && isspace((unsigned char)*p); p++)
+		;
+
+	    decsize = 4 * strlen(p);
+	    decode_buf = (unsigned char *) fs_get(decsize * sizeof(unsigned char));
+	    decoded = (char *) rfc1522_decode_to_utf8(decode_buf, decsize, p);
+	    p = decoded;
+
+	    retsize = strlen(decoded);
+	    q = ret = (char *) fs_get((retsize+1) * sizeof(char));
+
+	    *q = '\0';
+	    while(q-ret < retsize && *p){
+		if(*p == '\015' || *p == '\012')
+		  p++;
+		else if(*p == '\t'){
+		  *q++ = SPACE;
+		  p++;
+		}
+		else
+		  *q++ = *p++;
+	    }
+
+	    *q = '\0';
+
+	    fs_give((void **) &h);
+	    if(decode_buf)
+	      fs_give((void **) &decode_buf);
+
+	    return(ret);
+	}
 
 	idata->bogus = 1;
     }
@@ -3197,8 +3595,11 @@ set_index_addr(INDEXDATA_S	   *idata,
 	       char		   *s)
 {
     ADDRESS *atmp;
-    char    *p;
+    char    *p, *stmp = NULL, *sptr;
     char    *save_personal = NULL;
+    int      orig_width;
+
+    s[0] = '\0';
 
     for(atmp = addr; idata->stream && atmp; atmp = atmp->next)
       if(atmp->host && atmp->host[0] == '.'){
@@ -3206,7 +3607,7 @@ set_index_addr(INDEXDATA_S	   *idata,
 	  
 	  if(idata->no_fetch){
 	      idata->bogus = 1;
-	      break;
+	      return(TRUE);
 	  }
 
 	  fields[0] = field;
@@ -3218,10 +3619,13 @@ set_index_addr(INDEXDATA_S	   *idata,
 		  *p && isspace((unsigned char)*p); p++)
 		;
 
+	      orig_width = width;
+	      sptr = stmp = (char *) fs_get((orig_width+1) * sizeof(char));
+
 	      /* add prefix */
 	      for(pref = prefix; pref && *pref; pref++)
 		if(width){
-		    *s++ = *pref;
+		    *sptr++ = *pref;
 		    width--;
 		}
 		else
@@ -3231,11 +3635,21 @@ set_index_addr(INDEXDATA_S	   *idata,
 		if(*p == '\015' || *p == '\012')
 		  p++;				/* skip CR LF */
 		else if(!*p)
-		  *s++ = ' ';
+		  *sptr++ = ' ';
+		else if(*p == '\t'){
+		    *sptr++ = ' ';
+		    p++;
+		}
 		else
-		  *s++ = *p++;
+		  *sptr++ = *p++;
 
-	      *s = '\0';			/* tie off return string */
+	      *sptr = '\0';			/* tie off return string */
+
+	      if(stmp){
+		  iutf8ncpy(s, stmp, orig_width+1);
+		  s[orig_width] = '\0';
+		  fs_give((void **) &stmp);
+	      }
 
 	      fs_give((void **) &h);
 	      return(TRUE);
@@ -3328,9 +3742,17 @@ index_data_env(INDEXDATA_S *idata, ENVELOPE *env)
  *          type -- What type of output we want
  *             v -- If set, variable width output is ok. (Oct 9 not Oct  9)
  *           str -- Put the answer here.
+ *       str_len -- Length of str
+ *  monabb_width -- This is a hack to get dates to line up right. For
+ *                  example, in French (but without accents here)
+ *                          dec.  21
+ *                          fevr. 23
+ *                          mars   7
+ *                     For this monabb_width would be 5.
  */
 void
-date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
+date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len,
+	 int monabb_width)
 {
     char	year4[5],	/* 4 digit year			*/
 		yearzero[3],	/* zero padded, 2-digit year	*/
@@ -3339,7 +3761,8 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
 		dayzero[3],	/* zero padded, 2-digit day	*/
 		day[3],		/* 1 or 2-digit day, no pad	*/
 		dayord[3],	/* 2-letter ordinal label	*/
-		monabb[4],	/* 3-letter month abbrev	*/
+		monabb[10],	/* 3-letter month abbrev	*/
+				    /* actually maybe not 3 if localized */
 		hour24[3],	/* 2-digit, 24 hour clock hour	*/
 		hour12[3],	/* 12 hour clock hour, no pad	*/
 		minzero[3],	/* zero padded, 2-digit minutes */
@@ -3420,13 +3843,16 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
       parse_date(datesrc, &d);
 
     strncpy(monabb, (d.month > 0 && d.month < 13)
-		    ? month_abbrev(d.month) : "", sizeof(monabb));
+		    ? month_abbrev_locale(d.month) : "", sizeof(monabb));
+    monabb[sizeof(monabb)-1] = '\0';
 
     strncpy(mon, (d.month > 0 && d.month < 13)
 		    ? int2string(d.month) : "", sizeof(mon));
+    mon[sizeof(mon)-1] = '\0';
 
     strncpy(day, (d.day > 0 && d.day < 32)
 		    ? int2string(d.day) : "", sizeof(day));
+    day[sizeof(day)-1] = '\0';
 
     strncpy(dayord,
 	   (d.day <= 0 || d.day > 31) ? "" :
@@ -3434,8 +3860,6 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
 	     (d.day == 2 || d.day == 22 ) ? "nd" :
 	      (d.day == 3 || d.day == 23 ) ? "rd" : "th", sizeof(dayord));
 
-    monabb[sizeof(monabb)-1] = '\0';
-    day[sizeof(day)-1] = '\0';
     dayord[sizeof(dayord)-1] = '\0';
 
     strncpy(year4, (d.year >= 1000 && d.year < 10000)
@@ -3545,18 +3969,18 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
     switch(type){
       case iRDate:
 	snprintf(str, str_len, "%s%s%s %s %s",
-		(d.wkday != -1) ? week_abbrev(d.wkday) : "",
+		(d.wkday != -1) ? day_abbrev_locale(d.wkday) : "",
 		(d.wkday != -1) ? ", " : "",
 		day, monabb, year4);
 	break;
       case iDayOfWeekAbb:
       case iCurDayOfWeekAbb:
-	strncpy(str, (d.wkday >= 0 && d.wkday <= 6) ? week_abbrev(d.wkday) : "", str_len);
+	strncpy(str, (d.wkday >= 0 && d.wkday <= 6) ? day_abbrev_locale(d.wkday) : "", str_len);
 	str[str_len-1] = '\0';
 	break;
       case iDayOfWeek:
       case iCurDayOfWeek:
-	strncpy(str, (d.wkday >= 0 && d.wkday <= 6) ? _(day_name[d.wkday]) : "", str_len);
+	strncpy(str, (d.wkday >= 0 && d.wkday <= 6) ? day_name_locale(d.wkday) : "", str_len);
 	str[str_len-1] = '\0';
 	break;
       case iYear:
@@ -3606,14 +4030,19 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
       case iCurMonLong:
       case iLstMonLong:
 	strncpy(str, (d.month > 0 && d.month < 13)
-			? month_name(d.month) : "", str_len);
+			? month_name_locale(d.month) : "", str_len);
 	break;
       case iDate:
       case iCurDate:
 	if(v)
 	  snprintf(str, str_len, "%s%s%s", monabb, (monabb[0] && day[0]) ? " " : "", day);
-	else
-	  snprintf(str, str_len, "%3s %2s", monabb, day);
+	else{
+	    if(monabb_width > 0)
+	      utf8_snprintf(str, str_len, "%-*.*w %2s",
+			    monabb_width, monabb_width, monabb, day);
+	    else
+	      snprintf(str, str_len, "%s %2s", monabb, day);
+	}
 
 	break;
       case iLDate:
@@ -3622,10 +4051,18 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
 	          (monabb[0] && day[0]) ? " " : "", day,
 	          ((monabb[0] || day[0]) && year4[0]) ? ", " : "",
 		  year4);
-	else
-	  snprintf(str, str_len, "%3s %2s%c %4s", monabb, day,
-		  (monabb[0] && day[0] && year4[0]) ? ',' : ' ',
-		  year4);
+	else{
+	    if(monabb_width > 0)
+	      utf8_snprintf(str, str_len, "%-*.*w %2s%c %4s",
+			    monabb_width, monabb_width,
+			    monabb, day,
+			    (monabb[0] && day[0] && year4[0]) ? ',' : ' ', year4);
+	    else
+	      snprintf(str, str_len, "%s %2s%c %4s", monabb, day,
+		       (monabb[0] && day[0] && year4[0]) ? ',' : ' ',
+		       year4);
+	}
+
 	break;
       case iS1Date:
       case iS2Date:
@@ -3739,20 +4176,25 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
 	      else if(diff == 1)
 		strncpy(str, _("Yesterday"), str_len);
 	      else if(diff > 1 && diff < 7)
-		snprintf(str, str_len, "%s", _(day_name[(today - diff) % 7]));
+		snprintf(str, str_len, "%s", day_name_locale((today - diff) % 7));
 	      else if(diff == -1)
 		strncpy(str, _("Tomorrow"), str_len);
 	      else if(diff < -1 && diff > -7)
 		snprintf(str, str_len, _("Next %.3s!"),
-			 _(day_name[(today - diff) % 7]));
+			 day_name_locale((today - diff) % 7));
 	      else if(diff > 0
 		      && (ydiff == 0
 		          || (ydiff == 1 && 12 + now.month - d.month < 6))){
 		  if(v)
 		    snprintf(str, str_len, "%s%s%s", monabb,
 			     (monabb[0] && day[0]) ? " " : "", day);
-		  else
-		    snprintf(str, str_len, "%3s %2s", monabb, day);
+		  else{
+		      if(monabb_width > 0)
+			utf8_snprintf(str, str_len, "%-*.*w %2s",
+				      monabb_width, monabb_width, monabb, day);
+		      else
+			snprintf(str, str_len, "%s %2s", monabb, day);
+		  }
 	      }
 	      else{
 		  if(msg_day_of_year == -1 && (type == iSDate || type == iSDateTime))
@@ -3767,7 +4209,7 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
 			tm.tm_year = MAX(d.year-1900, 0);
 			tm.tm_mon = d.month-1;
 			tm.tm_mday = d.day;
-			strftime(str, str_len, "%x", &tm);
+			our_strftime(str, str_len, "%x", &tm);
 		      }
 
 		      break;
@@ -3827,8 +4269,13 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
 	      if(v)
 		snprintf(str, str_len, "%s%s%s", monabb,
 			(monabb[0] && day[0]) ? " " : "", day);
-	      else
-		snprintf(str, str_len, "%3s %2s", monabb, day);
+	      else{
+		  if(monabb_width > 0)
+		    utf8_snprintf(str, str_len, "%-*.*w %2s",
+				  monabb_width, monabb_width, monabb, day);
+		  else
+		    snprintf(str, str_len, "%s %2s", monabb, day);
+	      }
 	  }
 	}
 
@@ -3903,7 +4350,7 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
 
 	    if(d.month >= 1 && d.day >= 1 && d.year >= 0 &&
 	       d.month <= 12 && d.day <= 31 && d.year <= 9999)
-	      Ddd = week_abbrev(day_of_week(&d));
+	      Ddd = day_abbrev_locale(day_of_week(&d));
 	    else
 	      Ddd = "???";
 
@@ -3911,7 +4358,7 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
 	}
 	else{		       /* date is old or future, "ddMmmyy" */
 	    strncpy(monabb, (d.month >= 1 && d.month <= 12)
-			     ? month_abbrev(d.month) : "???", sizeof(monabb));
+			     ? month_abbrev_locale(d.month) : "???", sizeof(monabb));
 	    monabb[sizeof(monabb)-1] = '\0';
 
 	    if(d.day >= 1 && d.day <= 31)
@@ -4069,6 +4516,77 @@ key_str(INDEXDATA_S *idata, SubjKW kwtype, ICE_S *ice)
     }
 
     ourifield->leftadj = 1;
+    set_ielem_widths_in_field(ourifield);
+}
+
+
+void
+header_str(INDEXDATA_S *idata, HEADER_TOK_S *hdrtok, ICE_S *ice)
+{
+    IFIELD_S     *ourifield = NULL;
+    IELEM_S      *ielem = NULL;
+    int           sep, fieldnum;
+    char         *hdrval = NULL, *p, *testval;
+    char         *fieldval = NULL, *firstval;
+
+    if(ice && ice->ifield){
+	/* move to last ifield, the one we're working */
+	for(ourifield = ice->ifield;
+	    ourifield && ourifield->next;
+	    ourifield = ourifield->next)
+	  ;
+    }
+
+    if(!ourifield)
+      return;
+
+    if(hdrtok && hdrtok->hdrname && hdrtok->hdrname[0])
+      hdrval = fetch_header(idata, hdrtok ? hdrtok->hdrname : "");
+
+    /* find start of fieldnum'th field */
+    fieldval = hdrval;
+    for(fieldnum = MAX(hdrtok->fieldnum-1, 0);
+	fieldnum > 0 && fieldval && *fieldval; fieldnum--){
+
+	firstval = NULL;
+	for(sep = 0; sep < hdrtok->fieldsepcnt; sep++){
+	    testval = strchr(fieldval, hdrtok->fieldseps[sep]);
+	    if(testval && (!firstval || testval < firstval))
+	      firstval = testval;
+	}
+
+	fieldval = firstval;
+	if(fieldval && *fieldval)
+	  fieldval++;
+    }
+
+    /* tie off end of field */
+    if(fieldval && *fieldval && hdrtok->fieldnum > 0){
+	firstval = NULL;
+	for(sep = 0; sep < hdrtok->fieldsepcnt; sep++){
+	    testval = strchr(fieldval, hdrtok->fieldseps[sep]);
+	    if(testval && (!firstval || testval < firstval))
+	      firstval = testval;
+	}
+
+	if(firstval)
+	  *firstval = '\0';
+    }
+
+    if(!fieldval)
+      fieldval = "";
+
+    if(fieldval){
+	ielem = new_ielem(&ourifield->ielem);
+	ielem->freedata = 1;
+	ielem->data = cpystr(fieldval);
+	ielem->datalen = strlen(fieldval);
+	ourifield->leftadj = (hdrtok->adjustment == Left) ? 1 : 0;
+    }
+
+    if(hdrval)
+      fs_give((void **) &hdrval);
+
     set_ielem_widths_in_field(ourifield);
 }
 

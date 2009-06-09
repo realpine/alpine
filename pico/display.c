@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: display.c 421 2007-02-05 22:53:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: display.c 486 2007-03-22 18:38:38Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -765,7 +765,6 @@ out:
             vp2 = pscreen[i];
 
             updateline(i, &vp1->v_text[0], &vp2->v_text[0], &vp1->v_flag);
-
 	}
     }
 
@@ -970,7 +969,12 @@ updateline(int row,			/* row on screen */
 	    }
 
 	    if (cp7==cp2 && cp4-cp2 > 3){
-		o_insert((int)cp1->c);  /* insert the char */
+		int ww;
+
+		(*term.t_rev)(cp1->a);	/* set inverse for this char */
+		o_insert((UCS) cp1->c);  /* insert the char */
+		ww = wcellwidth((UCS) cp1->c);
+		ttcol += (ww >= 0 ? ww : 1);
 		display = FALSE;        /* only do it once!! */
 	    }
 	}
@@ -2152,6 +2156,10 @@ unknown_command(UCS c)
       case KEY_DOWN  : s = "Down Arrow";	break;
       case KEY_RIGHT : s = "Right Arrow";	break;
       case KEY_LEFT  : s = "Left Arrow";	break;
+      case CTRL|KEY_UP    : s = "Ctrl-Up Arrow";	break;
+      case CTRL|KEY_DOWN  : s = "Ctrl-Down Arrow";	break;
+      case CTRL|KEY_RIGHT : s = "Ctrl-Right Arrow";	break;
+      case CTRL|KEY_LEFT  : s = "Ctrl-Left Arrow";	break;
       case KEY_PGUP  : s = "Prev Page";		break;
       case KEY_PGDN  : s = "Next Page";		break;
       case KEY_HOME  : s = "Home";		break;
@@ -2708,7 +2716,7 @@ pinsert(CELL c)
     int   i, ind = 0, wid = 0, ww;
     CELL *p;
 
-    if(o_insert((int) c.c)){		/* if we've got it, use it! */
+    if(o_insert((UCS) c.c)){		/* if we've got it, use it! */
 	p = pscreen[ttrow]->v_text;	/* then clean up physical screen */
 
 	ind = index_from_col(ttrow, ttcol);

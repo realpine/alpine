@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pattern.c 429 2007-02-08 00:08:23Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pattern.c 501 2007-03-30 00:16:53Z hubert@u.washington.edu $";
 #endif
 /*
  * ========================================================================
@@ -42,6 +42,7 @@ static char rcsid[] = "$Id: pattern.c 429 2007-02-08 00:08:23Z hubert@u.washingt
 #include "../pith/sequence.h"
 #include "../pith/detoken.h"
 #include "../pith/busy.h"
+#include "../pith/indxtype.h"
 
 
 /*
@@ -4784,8 +4785,7 @@ find_charsets_in_messages(MAILSTREAM *stream, struct search_set *searchset,
 	      scripts |= script->script;
 	    else{
 		/* add it to list as a specific character set */
-		newsl = new_strlist();
-		newsl->name = cpystr(cs->substring);
+		newsl = new_strlist(cs->substring);
 		if(compare_strlists_for_match(sl, newsl))  /* already in list */
 		  free_strlist(&newsl);
 		else{
@@ -4811,8 +4811,7 @@ find_charsets_in_messages(MAILSTREAM *stream, struct search_set *searchset,
 		      continue;
 
 		    /* add cset->name to the list */
-		    newsl = new_strlist();
-		    newsl->name = cpystr(cset->name);
+		    newsl = new_strlist(cset->name);
 		    if(compare_strlists_for_match(sl, newsl))
 		      free_strlist(&newsl);
 		    else{
@@ -4951,8 +4950,7 @@ collect_charsets_from_subj(ENVELOPE *env, STRLIST_S **listptr)
 	       (e = strchr(text+2,'?'))){
 		*e = '\0';			/* tie off charset name */
 
-		newsl = new_strlist();
-		newsl->name = cpystr(text+2);
+		newsl = new_strlist(text+2);
 		*e = '?';
 
 		if(compare_strlists_for_match(*listptr, newsl))
@@ -4999,8 +4997,7 @@ collect_charsets_from_body(struct mail_bodystruct *body, STRLIST_S **listptr)
 	    if(cset){
 		STRLIST_S *newsl;
 
-		newsl = new_strlist();
-		newsl->name = cpystr(cset);
+		newsl = new_strlist(cset);
 
 		if(compare_strlists_for_match(*listptr, newsl))
 		  free_strlist(&newsl);
@@ -5761,6 +5758,7 @@ calc_extra_hdrs(void)
     ARBHDR_S *a;
     PAT_STATE pstate;
     char     *q, *p = NULL, *hdrs[MLCMD_COUNT + 1], **pp;
+    INDEX_COL_S *cdesc;
 #define INITIALSIZE 1000
 
     q = (char *)fs_get((INITIALSIZE+1) * sizeof(char));
@@ -5818,6 +5816,14 @@ calc_extra_hdrs(void)
 	      if(a->field && a->field[0] && a->p && non_eh(a->field))
 		add_eh(&q, &p, a->field, &alloced_size);
       }
+
+    /*
+     * Check for use of HEADER in index-format.
+     */
+    for(cdesc = ps_global->index_disp_format; cdesc->ctype != iNothing; cdesc++)
+      if(cdesc->ctype == iHeader && cdesc->hdrtok && cdesc->hdrtok->hdrname
+         && cdesc->hdrtok->hdrname[0] && non_eh(cdesc->hdrtok->hdrname))
+	add_eh(&q, &p, cdesc->hdrtok->hdrname, &alloced_size);
     
     set_extra_hdrs(q);
     if(q)

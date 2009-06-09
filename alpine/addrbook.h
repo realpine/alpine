@@ -1,5 +1,5 @@
 /*
- * $Id: addrbook.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: addrbook.h 473 2007-03-07 23:16:56Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -43,6 +43,7 @@ char          *addr_book_takeaddr(void);
 char          *addr_book_nick_for_edit(char **);
 char          *addr_book_selnick(void);
 char          *abook_select_screen(struct pine *);
+int            abook_nickname_complete(char *, char **, int, unsigned);
 
 
 #endif /* PINE_ADDRBOOK_INCLUDED */

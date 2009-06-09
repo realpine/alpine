@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcmd.c 453 2007-02-27 00:10:47Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailcmd.c 491 2007-03-26 18:18:35Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -100,7 +100,6 @@ char     *choose_a_rule(int);
 int	  select_by_keyword(MAILSTREAM *, SEARCHSET **);
 char     *choose_a_keyword(void);
 int	  select_sort(struct pine *, int, SortOrder *, int *);
-char     *choose_item_from_list(char **, char *, char *, HelpType, char *);
 void      free_list_sel(LIST_SEL_S **);
 int       print_index(struct pine *, MSGNO_S *, int);
 
@@ -5621,6 +5620,7 @@ cmd_pipe(struct pine *state, MSGNO_S *msgmap, int aopt)
 	  case 0 :
 	    if(pipe_command[0]){
 		flags = PIPE_USER | PIPE_WRITE | PIPE_STDERR;
+		flags |= (raw ? PIPE_RAW : 0);
 		if(!capture){
 #ifndef	_WINDOWS
 		    ClearScreen();

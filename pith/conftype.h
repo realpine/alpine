@@ -1,8 +1,8 @@
 /*
- * $Id: conftype.h 446 2007-02-22 22:58:09Z hubert@u.washington.edu $
+ * $Id: conftype.h 483 2007-03-15 18:43:40Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -302,6 +302,7 @@ typedef enum {
 	F_SHOW_DELAY_CUE,
 	F_CANCEL_CONFIRM,
 	F_AUTO_OPEN_NEXT_UNREAD,
+	F_DISABLE_INDEX_LOCALE_DATES,
 	F_SELECTED_SHOWN_BOLD,
 	F_QUOTE_ALL_FROMS,
 	F_AUTO_INCLUDE_IN_REPLY,

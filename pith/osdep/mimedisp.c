@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mimedisp.c 422 2007-02-06 04:22:16Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: mimedisp.c 485 2007-03-20 04:56:39Z jpf@u.washington.edu $";
 #endif
 
 /*
@@ -19,6 +19,9 @@ static char rcsid[] = "$Id: mimedisp.c 422 2007-02-06 04:22:16Z jpf@u.washington
 #include <general.h>
 #include "mimedisp.h"
 #include "../charconv/utf8.h"
+#ifdef OSX_TARGET
+#include <Security/AuthSession.h>
+#endif
 
 
 /*
@@ -56,7 +59,21 @@ mime_os_specific_access(void)
     return 1;
 #elif OSX_TARGET
 # ifdef AVAILABLE_MAC_OS_X_VERSION_10_2_AND_LATER
-    return 1;
+    {
+	/* 
+	 * if we don't have the WidowSession then we should avoid using
+	 * frameworks unless they call themselves daemon-safe
+	 */
+	SecuritySessionId session_id;
+	SessionAttributeBits session_bits;
+
+	if((SessionGetInfo(callerSecuritySession, &session_id, &session_bits)
+	    == errSessionSuccess)
+	   && session_bits & sessionHasGraphicAccess)
+	  return 1;
+	else
+	  return 0;
+    }
 # else
     return 0;
 # endif
@@ -105,6 +122,9 @@ mime_get_os_mimetype_command(char *mime_type, char *mime_ext, char *cmd,
      * the mime-type of mime_ext and seeing if that matches
      * with our mime-type, which is safe for opening
      */
+    if(!mime_os_specific_access())
+      return(0);
+
     return(osx_build_mime_type_cmd(mime_type, cmd, clen, sp_hndlp)
 	   || (chk && mime_ext && *mime_ext &&
 	       osx_build_mime_ext_cmd(mime_ext, cmd, clen, sp_hndlp)));
@@ -167,6 +187,8 @@ mime_get_os_mimetype_from_ext(char *file_ext, char *mime_type, int mime_type_len
 
 #elif	OSX_TARGET
 
+    if(!mime_os_specific_access())
+      return(0);
 #ifdef AVAILABLE_MAC_OS_X_VERSION_10_3_AND_LATER
     CFStringRef mime_ref = NULL, type_id_ref = NULL, ext_ref = NULL;
     char buf[1024];
@@ -260,6 +282,8 @@ mime_get_os_ext_from_mimetype(char *mime_type, char *file_ext, int file_ext_len)
 
 #elif	OSX_TARGET
 
+    if(!mime_os_specific_access())
+      return(0);
 #ifdef AVAILABLE_MAC_OS_X_VERSION_10_3_AND_LATER
     CFStringRef mime_ref = NULL, type_id_ref = NULL, ext_ref = NULL;
 
@@ -380,6 +404,9 @@ osx_build_mime_type_cmd(mime_type, cmd, cmdlen, sp_hndlp)
     int   cmdlen, *sp_hndlp;
 {
     int rv = 0;
+
+    if(!mime_os_specific_access())
+      return(0);
 #ifdef AVAILABLE_MAC_OS_X_VERSION_10_2_AND_LATER
     CFStringRef str_ref = NULL, ret_str_ref = NULL;
     CFURLRef url_ref = NULL;
@@ -414,6 +441,10 @@ osx_build_mime_ext_cmd(mime_ext, cmd, cmdlen, sp_hndlp)
     int   cmdlen, *sp_hndlp;
 {
     int rv = 0;
+
+    if(!mime_os_specific_access())
+      return 0;
+
 #ifdef AVAILABLE_MAC_OS_X_VERSION_10_2_AND_LATER
     CFStringRef str_ref = NULL, ret_str_ref = NULL;
     CFURLRef url_ref = NULL;

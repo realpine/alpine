@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: msgno.c 429 2007-02-08 00:08:23Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: msgno.c 492 2007-03-27 17:44:31Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -475,10 +475,6 @@ msgno_add_raw(MSGNO_S *msgs, long int n)
 	msgs->sel_cnt   = 1L;
 	msgs->sel_cur   = 0L;
 	msgs->select[0] = 1L;
-    }
-
-    {	char b[100];
-	snprintf(b, sizeof(b), "isort validity: msgno_add_raw: n=%ld\n", n);
     }
 }
 

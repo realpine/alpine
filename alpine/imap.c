@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: imap.c 448 2007-02-23 01:55:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: imap.c 487 2007-03-23 16:53:15Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -42,7 +42,7 @@ static char rcsid[] = "$Id: imap.c 448 2007-02-23 01:55:41Z hubert@u.washington.
 #include "../pith/news.h"
 #include "../pith/util.h"
 
-#if defined(_WINDOWS) && defined(WINVER) && WINVER >= 0x0501
+#if	(WINCRED > 0)
 #include <wincred.h>
 #define TNAME     "UWash_Alpine_"
 #define TNAMESTAR "UWash_Alpine_*"
@@ -68,9 +68,9 @@ CREDENUMERATEW   *g_CredEnumerateW;
 CREDDELETEW      *g_CredDeleteW;
 CREDFREE         *g_CredFree;
 
-#endif
+#endif	/* WINCRED */
 
-#ifdef OSX_TARGET
+#ifdef	APPLEKEYCHAIN
 #include <Security/SecKeychain.h>
 #include <Security/SecKeychainItem.h>
 #include <Security/SecKeychainSearch.h>
@@ -81,7 +81,7 @@ int   macos_store_pass_prompt(void);
 void  macos_set_store_pass_prompt(int);
 
 static int storepassprompt = -1;
-#endif
+#endif	/* APPLEKEYCHAIN */
 
 
 /*
@@ -90,15 +90,26 @@ static int storepassprompt = -1;
 void  mm_login_alt_cue(NETMBX *);
 long  pine_tcptimeout_noscreen(long, long);
 int   answer_cert_failure(int, MSGNO_S *, SCROLL_S *);
+
+#ifdef	LOCAL_PASSWD_CACHE
+int   read_passfile(char *, MMLOGIN_S **);
+void  write_passfile(char *, MMLOGIN_S *);
+int   preserve_prompt(void);
+void  update_passfile_hostlist(char *, char *, STRLIST_S *, int);
+
+static	MMLOGIN_S	*passfile_cache = NULL;
+static  int             using_passfile = -1;
+#endif	/* LOCAL_PASSWD_CACHE */
+
 #ifdef	PASSFILE
 char  xlate_in(int);
 char  xlate_out(char);
 char *passfile_name(char *, char *, size_t);
-int   read_passfile(char *, MMLOGIN_S **);
-void  write_passfile(char *, MMLOGIN_S *);
-int   preserve_prompt(void);
-void  ask_erase_credentials(void);
 #endif	/* PASSFILE */
+
+#if	(WINCRED > 0)
+void  ask_erase_credentials(void);
+#endif	/* WINCRED */
 
 
 static	char *details_cert, *details_host, *details_reason;
@@ -414,7 +425,7 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 	    return;
 	}
 
-#ifdef	PASSFILE
+#ifdef	LOCAL_PASSWD_CACHE
 	/* check to see if there's a password left over from last session */
 	if(get_passfile_passwd(ps_global->pinerc, pwd,
 			       user, hostlist, (mb->sslflag||mb->tlsflag))){
@@ -425,7 +436,7 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 	    dprint((9, "mm_login: found a password in passfile to try\n"));
 	    return;
 	}
-#endif	/* PASSFILE */
+#endif	/* LOCAL_PASSWD_CACHE */
 
 	/*
 	 * If no explicit user name supplied and we've not logged in
@@ -434,10 +445,10 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 	 */
 	if(!*mb->user &&
 	   ((last = imap_get_user(mm_login_list, hostlist))
-#ifdef	PASSFILE
+#ifdef	LOCAL_PASSWD_CACHE
 	    ||
 	    (last = get_passfile_user(ps_global->pinerc, hostlist))
-#endif	/* PASSFILE */
+#endif	/* LOCAL_PASSWD_CACHE */
 								   )){
 	    strncpy(user, last, NETMAXUSER);
 	    user[NETMAXUSER-1] = '\0';
@@ -453,7 +464,7 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 		return;
 	    }
 
-#ifdef	PASSFILE
+#ifdef	LOCAL_PASSWD_CACHE
 	    /* check to see if there's a password left over from last session */
 	    if(get_passfile_passwd(ps_global->pinerc, pwd,
 				   user, hostlist, (mb->sslflag||mb->tlsflag))){
@@ -466,7 +477,7 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 		  user ? user : "?"));
 		return;
 	    }
-#endif	/* PASSFILE */
+#endif	/* LOCAL_PASSWD_CACHE */
 	}
 
 #if !defined(DOS) && !defined(OS2)
@@ -486,7 +497,7 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 		return;
 	    }
 
-#ifdef	PASSFILE
+#ifdef	LOCAL_PASSWD_CACHE
 	    /* check to see if there's a password left over from last session */
 	    if(get_passfile_passwd(ps_global->pinerc, pwd,
 				   user, hostlist, (mb->sslflag||mb->tlsflag))){
@@ -497,7 +508,7 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 		dprint((9, "mm_login:ui: found a password in passfile to try\n"));
 		return;
 	    }
-#endif	/* PASSFILE */
+#endif	/* LOCAL_PASSWD_CACHE */
 	}
 #endif
     }
@@ -669,9 +680,9 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 	    }
 
 	    rc = os_login_dialog(mb, user, NETMAXUSER, pwd, NETMAXPASSWD,
-#ifdef PASSFILE
+#ifdef	LOCAL_PASSWD_CACHE
 				 is_using_passfile() ? 1 :
-#endif	/* PASSFILE */
+#endif	/* LOCAL_PASSWD_CACHE */
 				 0, 0, &preserve_password);
 	    ps_global->dont_use_init_cmds = save_dont_use;
 	    if(rc == 0 && *user && *pwd)
@@ -724,28 +735,28 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 	   (mb->sslflag||mb->tlsflag)))
 	  return;
 
-#ifdef	PASSFILE
+#ifdef	LOCAL_PASSWD_CACHE
 	if(get_passfile_passwd(ps_global->pinerc, pwd,
 			       user, hostlist, (mb->sslflag||mb->tlsflag))){
 	    imap_set_passwd(&mm_login_list, pwd, user,
 			    hostlist, (mb->sslflag||mb->tlsflag), 0, 0);
 	    return;
 	}
-#endif	/* PASSFILE */
+#endif	/* LOCAL_PASSWD_CACHE */
     }
     else if(trial == 0 && altuserforcache){
 	if(imap_get_passwd(mm_login_list, pwd, altuserforcache, hostlist,
 	   (mb->sslflag||mb->tlsflag)))
 	  return;
 
-#ifdef	PASSFILE
+#ifdef	LOCAL_PASSWD_CACHE
 	if(get_passfile_passwd(ps_global->pinerc, pwd,
 			       altuserforcache, hostlist, (mb->sslflag||mb->tlsflag))){
 	    imap_set_passwd(&mm_login_list, pwd, altuserforcache,
 			    hostlist, (mb->sslflag||mb->tlsflag), 0, 0);
 	    return;
 	}
-#endif	/* PASSFILE */
+#endif	/* LOCAL_PASSWD_CACHE */
     }
 
     /*
@@ -939,14 +950,14 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
       imap_set_passwd(&mm_login_list, pwd,
 		      altuserforcache ? altuserforcache : user, hostlist,
 		      (mb->sslflag||mb->tlsflag), 0, 0);
-#ifdef	PASSFILE
+#ifdef	LOCAL_PASSWD_CACHE
     /* if requested, remember it on disk for next session */
     set_passfile_passwd(ps_global->pinerc, pwd,
 		        altuserforcache ? altuserforcache : user, hostlist,
 			(mb->sslflag||mb->tlsflag),
 			(preserve_password == -1 ? 0
 			 : (preserve_password == 0 ? 2 :1)));
-#endif	/* PASSFILE */
+#endif	/* LOCAL_PASSWD_CACHE */
 }
 
 
@@ -1835,7 +1846,9 @@ mm_expunged_current(long unsigned int rawno)
     }
 }
 
+
 #ifdef	PASSFILE
+
 /* 
  * Specific functions to support caching username/passwd/host
  * triples on disk for use from one session to the next...
@@ -1846,17 +1859,13 @@ mm_expunged_current(long unsigned int rawno)
 #define	TABSZ		(LASTCH - FIRSTCH + 1)
 
 static	int		xlate_key;
-static	MMLOGIN_S	*passfile_cache = NULL;
-static  int             using_passfile = -1;
-
 
 
 /*
  * xlate_in() - xlate_in the given character
  */
 char
-xlate_in(c)
-    int	c;
+xlate_in(int c)
 {
     register int  eti;
 
@@ -1871,13 +1880,11 @@ xlate_in(c)
 }
 
 
-
 /*
  * xlate_out() - xlate_out the given character
  */
 char
-xlate_out(c)
-    char c;
+xlate_out(char c)
 {
     register int  dti;
     register int  xch;
@@ -1895,11 +1902,8 @@ xlate_out(c)
 }
 
 
-
 char *
-passfile_name(pinerc, path, len)
-    char *pinerc, *path;
-    size_t len;
+passfile_name(char *pinerc, char *path, size_t len)
 {
     struct stat  sbuf;
     char	*p = NULL;
@@ -1948,7 +1952,10 @@ passfile_name(pinerc, path, len)
 #endif
 }
 
+#endif	/* PASSFILE */
 
+
+#ifdef	LOCAL_PASSWD_CACHE
 
 /*
  * For UNIX:
@@ -1975,8 +1982,8 @@ read_passfile(pinerc, l)
     char       *pinerc;
     MMLOGIN_S **l;
 {
-#ifdef _WINDOWS
- #if defined(WINVER) && WINVER >= 0x0501
+#ifdef	WINCRED
+# if	(WINCRED > 0)
     LPCTSTR lfilter = TEXT(TNAMESTAR);
     DWORD count, k;
     PCREDENTIAL *pcred;
@@ -2065,12 +2072,12 @@ read_passfile(pinerc, l)
 
     return(1);
 
- #else !XP
+# else /* old windows */
     using_passfile = 0;
     return(0);
- #endif
+# endif
 
-#elif OSX_TARGET
+#elif	APPLEKEYCHAIN
 
     char  target[MAILTMPLEN];
     char *tmp, *host, *user, *sflags, *passwd, *orighost;
@@ -2215,7 +2222,7 @@ read_passfile(pinerc, l)
 
     return(using_passfile);
 
-#else /* generic unix */
+#else /* PASSFILE */
 
     char  tmp[MAILTMPLEN], *ui[5];
     int   i, j, n;
@@ -2273,7 +2280,7 @@ read_passfile(pinerc, l)
 
     fclose(fp);
     return(1);
-#endif /* generic unix */
+#endif /* PASSFILE */
 }
 
 
@@ -2283,8 +2290,8 @@ write_passfile(pinerc, l)
     char      *pinerc;
     MMLOGIN_S *l;
 {
-#ifdef _WINDOWS
- #if defined(WINVER) && WINVER >= 0x0501
+#ifdef	WINCRED
+# if	(WINCRED > 0)
     char  target[MAILTMPLEN];
     char  blob[MAILTMPLEN];
     CREDENTIAL cred;
@@ -2322,9 +2329,9 @@ write_passfile(pinerc, l)
 	    fs_give((void **) &ltarget);
 	}
     }
- #endif /* !XP */
+ #endif	/* WINCRED > 0 */
 
-#elif OSX_TARGET
+#elif	APPLEKEYCHAIN
 
     int   rc;
     char  target[MAILTMPLEN];
@@ -2381,7 +2388,7 @@ write_passfile(pinerc, l)
 	}
     }
 
-#else /* generic unix */
+#else /* PASSFILE */
 
     char  tmp[MAILTMPLEN];
     int   i, n;
@@ -2414,15 +2421,16 @@ write_passfile(pinerc, l)
     }
 
     fclose(fp);
-#endif /* generic unix */
+#endif /* PASSFILE */
 }
 
+#endif	/* LOCAL_PASSWD_CACHE */
 
-#ifdef _WINDOWS
+
+#if	(WINCRED > 0)
 void
 erase_windows_credentials(void)
 {
- #if defined(WINVER) && WINVER >= 0x0501
     LPCTSTR lfilter = TEXT(TNAMESTAR);
     DWORD count, k;
     PCREDENTIAL *pcred;
@@ -2435,7 +2443,6 @@ erase_windows_credentials(void)
 	    g_CredFree((PVOID) pcred);
 	}
     }
- #endif /* !XP */
 }
 
 void
@@ -2449,9 +2456,10 @@ ask_erase_credentials(void)
       q_status_message(SM_ORDER, 3, 3, "Previously preserved passwords will not be erased");
 }
 
-#endif /* _WINDOWS */
+#endif	/* WINCRED */
 
 
+#ifdef	LOCAL_PASSWD_CACHE
 
 /*
  * get_passfile_passwd - return the password contained in the special passord
@@ -2492,11 +2500,11 @@ get_passfile_user(pinerc, hostlist)
 }
 
 
-
 int
 preserve_prompt(void)
 {
-#ifdef _WINDOWS
+#ifdef	WINCRED
+# if	(WINCRED > 0)
     /* 
      * This prompt was going to be able to be turned on and off via a registry
      * setting controlled from the config menu.  We decided to always use the
@@ -2511,7 +2519,12 @@ preserve_prompt(void)
       return(1);
     else
       return(0);
-#elif OSX_TARGET
+# else
+    return(0);
+# endif
+
+#elif	APPLEKEYCHAIN
+
     int rc;
     if(rc = macos_store_pass_prompt()){
 	if(want_to(_("Preserve password for next login"),
@@ -2532,16 +2545,17 @@ preserve_prompt(void)
 	return(0);
     }
     return(0);
-#else /* generic unix */
+#else /* PASSFILE */
     return(want_to(_("Preserve password on DISK for next login"), 
 		   'y', 'x', NO_HELP, WT_NORM)
 	   == 'y');
-#endif /* !_WINDOWS */
-
+#endif /* PASSFILE */
 }
 
+#endif	/* LOCAL_PASSWD_CACHE */
 
-#ifdef	OSX_TARGET
+
+#ifdef	APPLEKEYCHAIN
 
 /*
  *  Returns:
@@ -2655,8 +2669,9 @@ macos_erase_keychain(void)
     }
 }
 
-#endif /* OSX_TARGET */
+#endif	/* APPLEKEYCHAIN */
 
+#ifdef	LOCAL_PASSWD_CACHE
 
 /*
  * set_passfile_passwd - set the password file entry associated with
@@ -2674,7 +2689,7 @@ set_passfile_passwd(pinerc, passwd, user, hostlist, altflag, already_prompted)
 {
     dprint((10, "set_passfile_passwd\n"));
     if((passfile_cache || read_passfile(pinerc, &passfile_cache))
-       && !ps_global->nowrite_passfile
+       && !ps_global->nowrite_password_cache
        && ((already_prompted == 0 && preserve_prompt())
 	   || already_prompted == 1)){
 	imap_set_passwd(&passfile_cache, passwd, user, hostlist, altflag, 0, 0);
@@ -2698,9 +2713,9 @@ update_passfile_hostlist(pinerc, user, hostlist, altflag)
     STRLIST_S *hostlist;
     int        altflag;
 {
-#ifdef	 _WINDOWS
+#ifdef	 WINCRED
     return;
-#else /* !_WINDOWS */
+#else /* !WINCRED */
     MMLOGIN_S *l;
     STRLIST_S *h1, *h2;
     
@@ -2714,17 +2729,17 @@ update_passfile_hostlist(pinerc, user, hostlist, altflag)
     
     if(l && l->hosts && hostlist && !l->hosts->next && hostlist->next
        && hostlist->next->name
-       && !ps_global->nowrite_passfile){
-	l->hosts->next = (STRLIST_S *)fs_get(sizeof(STRLIST_S));
-	l->hosts->next->name = cpystr(hostlist->next->name);
-	l->hosts->next->next = NULL;
+       && !ps_global->nowrite_password_cache){
+	l->hosts->next = new_strlist(hostlist->next->name);
 	write_passfile(pinerc, passfile_cache);
     }
-#endif /* !_WINDOWS */
+#endif /* !WINCRED */
 }
 
+#endif	/* LOCAL_PASSWD_CACHE */
 
-#if defined(_WINDOWS) && defined(WINVER) && WINVER >= 0x0501
+
+#if	(WINCRED > 0)
 /*
  * Load and init the WinCred structure.
  * This gives us a way to skip the WinCred code
@@ -2770,6 +2785,4 @@ init_wincred_funcs()
     return g_CredInited;
 }
 
-#endif	 /* _WINDOWS */
-
-#endif	/* PASSFILE */
+#endif	 /* WINCRED */

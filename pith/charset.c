@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: charset.c 412 2007-02-02 02:18:12Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: charset.c 469 2007-03-05 17:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -195,7 +195,8 @@ rfc1522_decode_to_utf8(unsigned char *d, size_t len, char *s)
 	     * source while waiting to see if we have to copy at all.
 	     */
 	    if(rv == d && s != start){
-		rfc1522_copy_and_transliterate(rv, &d, len, start, sw - start, NULL);
+		rfc1522_copy_and_transliterate(rv, &d, len, (unsigned char *) start,
+					       sw - start, NULL);
 		s = sw;
 	    }
 
@@ -267,7 +268,8 @@ rfc1522_decode_to_utf8(unsigned char *d, size_t len, char *s)
 		break;
 
 	      default:
-		rfc1522_copy_and_transliterate(rv, &d, len, txt, strlen(txt), NULL);
+		rfc1522_copy_and_transliterate(rv, &d, len, (unsigned char *) txt,
+					       strlen(txt), NULL);
 		dprint((1, "RFC1522_decode: Unknown ENCODING: %s\n",
 		       enc ? enc : "?"));
 		break;
@@ -291,7 +293,7 @@ rfc1522_decode_to_utf8(unsigned char *d, size_t len, char *s)
 
 	    /* if already copying to destn, copy it */
 	    if(rv){
-		rfc1522_copy_and_transliterate(rv, &d, len, s, l, NULL);
+		rfc1522_copy_and_transliterate(rv, &d, len, (unsigned char *) s, l, NULL);
 		*d = '\0';
 		s += l;				/* advance s beyond intro */
 	    }
@@ -302,13 +304,13 @@ rfc1522_decode_to_utf8(unsigned char *d, size_t len, char *s)
 
     if(rv){
 	if(s && *s){				/* copy remaining text */
-	    rfc1522_copy_and_transliterate(rv, &d, len, s, strlen(s), NULL);
+	    rfc1522_copy_and_transliterate(rv, &d, len, (unsigned char *) s, strlen(s), NULL);
 	    rv[len-1] = '\0';
 	}
     }
     else if(s){
 	rv = d;
-	rfc1522_copy_and_transliterate(rv, &d, len, s, strlen(s), NULL);
+	rfc1522_copy_and_transliterate(rv, &d, len, (unsigned char *) s, strlen(s), NULL);
 	rv[len-1] = '\0';
     }
 

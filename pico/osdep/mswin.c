@@ -404,6 +404,9 @@ int app_main (int argc, char *argv[]);
 
 void		WinExit (void);
 
+LOCAL void	mswin_invalidparameter(const wchar_t *, const wchar_t *,
+				       const wchar_t *, unsigned int, uintptr_t);
+
 LOCAL BOOL	InitApplication (HANDLE);
 LOCAL HWND	InitInstance (HANDLE, int);
 LOCAL void	MakeArgv (HINSTANCE hInstance, LPSTR cmdLine, int *pargc,
@@ -796,6 +799,13 @@ wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	if (!InitApplication( hInstance ))
 	    return ( FALSE ) ;
 
+    /*
+     * Instead of crashing into Dr. Watson on invalid parameter calls
+     * into the C library, just return the error indication that these
+     * functions are normally expected to return.
+     */
+    _set_invalid_parameter_handler (mswin_invalidparameter);
+
 #ifdef OWN_DEBUG_FILE	/* Want to write to seperate memdebug.txt file. */
     mswin_debugfile = fopen ("memdebug.txt", "w");
     fprintf (mswin_debugfile, "Beginning of mswin debug log\n");
@@ -833,6 +843,17 @@ wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
     app_main (argc, (char **)argv);
 
     return (TRUE);
+}
+
+
+LOCAL void
+mswin_invalidparameter(const wchar_t *expression,
+		       const wchar_t *function,
+		       const wchar_t *file,
+		       unsigned int line,
+		       uintptr_t reserved)
+{
+    /* do nothing for now */
 }
 
 

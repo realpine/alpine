@@ -1,5 +1,5 @@
 /*
- * $Id: addrstring.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: addrstring.h 493 2007-03-27 21:51:48Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -15,6 +15,9 @@
 
 #ifndef PITH_ADDRSTRING_INCLUDED
 #define PITH_ADDRSTRING_INCLUDED
+
+
+#define RAWFIELD "-RAW-FIELD-"
 
 
 /* exported protoypes */

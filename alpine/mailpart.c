@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailpart.c 444 2007-02-22 19:48:09Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailpart.c 491 2007-03-26 18:18:35Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -2427,7 +2427,7 @@ display_digest_att(long int msgno, ATTACH_S *a, int flags)
 	    char *errstr;
 
 	    if(ap->body->subtype && strucmp(ap->body->subtype, "rfc822")){
-		unsigned char *tsub;
+		char *tsub;
 
 		tsub = cpystr(ap->body->subtype);
 		convert_possibly_encoded_str_to_utf8((char **) &tsub);
@@ -3495,6 +3495,7 @@ pipe_attachment(long int msgno, ATTACH_S *a)
 	    }
 
 	    flags = PIPE_USER | PIPE_WRITE | PIPE_STDERR;
+	    flags |= (raw ? PIPE_RAW : 0);
 	    if(!capture){
 #ifndef	_WINDOWS
 		ClearScreen();
@@ -3509,7 +3510,8 @@ pipe_attachment(long int msgno, ATTACH_S *a)
 				   (flags&PIPE_RESET) ? NULL : &resultfilename,
 				   NULL, flags, 0, pipe_callback, pipe_report_error)){
 		gf_io_t  pc;		/* wire up a generic putchar */
-		gf_set_writec(&pc, syspipe, 0L, PipeStar, WRITE_TO_LOCALE);
+		gf_set_writec(&pc, syspipe, 0L, PipeStar,
+			      (flags & PIPE_RAW) ? 0 : WRITE_TO_LOCALE);
 
 		/*------ Write the image to a temporary file ------*/
 		if(raw){		/* pipe raw text */

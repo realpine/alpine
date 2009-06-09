@@ -1,5 +1,5 @@
 /*
- * $Id: reply.h 440 2007-02-14 23:33:00Z hubert@u.washington.edu $
+ * $Id: reply.h 481 2007-03-13 22:16:32Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -20,7 +20,7 @@
 #define ALLOWED_SUBTYPE(st) (!strucmp((st), "plain")		\
 			     || !strucmp((st), "html")		\
 			     || !strucmp((st), "enriched")	\
-			     || !strucmp((st), "richstext"))
+			     || !strucmp((st), "richtext"))
 
 
 #include "../pith/repltype.h"

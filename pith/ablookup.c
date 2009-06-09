@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: ablookup.c 406 2007-01-31 00:36:05Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: ablookup.c 473 2007-03-07 23:16:56Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -906,7 +906,7 @@ addr_lookup(char *nickname, int *which_addrbook, int not_here)
  *                                      completing the last one.
  *
  * Returns    0 -- no nickname has prefix as a prefix
- *            1  -- more than one nickname begins with
+ *            1 -- more than one nickname begins with
  *                              the answer being returned
  *            2 -- the returned answer is a complete
  *                              nickname and there are no longer nicknames

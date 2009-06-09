@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: help.c 448 2007-02-23 01:55:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: help.c 469 2007-03-05 17:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1034,8 +1034,10 @@ gripe_newbody(ps, body, msgno, flags)
 		gf_puts(hoststamp, pc);
 		gf_puts("\n", pc);
 
+#ifdef DEBUG
 		dump_pine_struct(ps, pc);
 		dump_config(ps, pc, 0);
+#endif /* DEBUG */
 
 		pb->size.bytes = strlen((char *) so_text(store));
 		gf_clear_so_writec(store);

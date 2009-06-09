@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: string.c 392 2007-01-25 18:56:49Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: string.c 483 2007-03-15 18:43:40Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -621,7 +621,7 @@ iutf8ncpy(char *d, char *s, int n)
       if((unsigned char)(*s) < 0x80 && FILTER_THIS(*s)){
 	  if(i+1 < n){
 	      d[i]   = '^';
-	      d[++i] = *s + '@';
+	      d[++i] = (*s == 0x7f) ? '?' : *s + '@';
 	  }
 	  else{
 	      d[i] = '\0';
@@ -760,6 +760,67 @@ month_abbrev(int month_num)
 }
 
 char *
+month_abbrev_locale(int month_num)
+{
+#ifndef DISABLE_LOCALE_DATES
+    if(F_OFF(F_DISABLE_INDEX_LOCALE_DATES, ps_global)){
+	if(month_num < 1 || month_num > 12)
+	  return("xxx");
+	else{
+	    static char buf[20];
+	    struct tm tm;
+
+	    memset(&tm, 0, sizeof(tm));
+	    tm.tm_year = 107;
+	    tm.tm_mon = month_num-1;
+	    our_strftime(buf, sizeof(buf), "%b", &tm);
+
+	    /*
+	     * If it is all digits, then use the English
+	     * words instead. Look for
+	     *    "<digit>"
+	     *    "<digit><digit>"    or
+	     *    "<space><digit>"
+	     */
+	    if((buf[0] && !(buf[0] & 0x80)
+	         && isdigit((unsigned char)buf[0]) && !buf[1])
+	       ||
+	       (buf[0] && !(buf[0] & 0x80)
+	         && (isdigit((unsigned char)buf[0]) || buf[0] == ' ')
+		 && buf[1] && !(buf[1] & 0x80)
+		 && isdigit((unsigned char)buf[1]) && !buf[2]))
+	      return(month_abbrev(month_num));
+
+	    /*
+	     * If buf[0] is a digit then assume that there should be a leading
+	     * space if it leads off with a single digit.
+	     */
+	    if(buf[0] && !(buf[0] & 0x80) && isdigit((unsigned char) buf[0])
+	       && !(buf[1] && !(buf[1] & 0x80) && isdigit((unsigned char) buf[1]))){
+		char *p;
+
+		/* insert space at start of buf */
+		p = buf+strlen(buf) + 1;
+		if(p > buf + sizeof(buf) - 1)
+		  p = buf + sizeof(buf) - 1;
+
+		for(; p > buf; p--)
+		  *p = *(p-1);
+
+		buf[0] = ' ';
+	    }
+
+	    return(buf);
+	}
+    }
+    else
+      return(month_abbrev(month_num));
+#else /* DISABLE_LOCALE_DATES */
+    return(month_abbrev(month_num));
+#endif /* DISABLE_LOCALE_DATES */
+}
+
+char *
 month_name(int month_num)
 {
     static char *months[] = {"January", "February", "March", "April",
@@ -771,11 +832,121 @@ month_name(int month_num)
 }
 
 char *
-week_abbrev(int week_day)
+month_name_locale(int month_num)
 {
-    if(week_day < 0 || week_day > 6)
+#ifndef DISABLE_LOCALE_DATES
+    if(F_OFF(F_DISABLE_INDEX_LOCALE_DATES, ps_global)){
+	if(month_num < 1 || month_num > 12)
+	  return("");
+	else{
+	    static char buf[20];
+	    struct tm tm;
+
+	    memset(&tm, 0, sizeof(tm));
+	    tm.tm_year = 107;
+	    tm.tm_mon = month_num-1;
+	    our_strftime(buf, sizeof(buf), "%B", &tm);
+	    return(buf);
+	}
+    }
+    else
+      return(month_name(month_num));
+#else /* DISABLE_LOCALE_DATES */
+    return(month_name(month_num));
+#endif /* DISABLE_LOCALE_DATES */
+}
+
+
+char *
+day_abbrev(int day_of_week)
+{
+    if(day_of_week < 0 || day_of_week > 6)
       return("???");
-    return(xdays[week_day]);
+    return(xdays[day_of_week]);
+}
+
+char *
+day_abbrev_locale(int day_of_week)
+{
+#ifndef DISABLE_LOCALE_DATES
+    if(F_OFF(F_DISABLE_INDEX_LOCALE_DATES, ps_global)){
+	if(day_of_week < 0 || day_of_week > 6)
+	  return("???");
+	else{
+	    static char buf[20];
+	    struct tm tm;
+
+	    memset(&tm, 0, sizeof(tm));
+	    tm.tm_wday = day_of_week;
+	    our_strftime(buf, sizeof(buf), "%a", &tm);
+	    return(buf);
+	}
+    }
+    else
+      return(day_abbrev(day_of_week));
+#else /* DISABLE_LOCALE_DATES */
+    return(day_abbrev(day_of_week));
+#endif /* DISABLE_LOCALE_DATES */
+}
+
+char *
+day_name(int day_of_week)
+{
+    static char *days[] = {"Sunday", "Monday", "Tuesday", "Wednesday",
+		"Thursday", "Friday", "Saturday", NULL};
+    if(day_of_week < 0 || day_of_week > 6)
+      return("");
+    return(days[day_of_week]);
+}
+
+char *
+day_name_locale(int day_of_week)
+{
+#ifndef DISABLE_LOCALE_DATES
+    if(F_OFF(F_DISABLE_INDEX_LOCALE_DATES, ps_global)){
+	if(day_of_week < 0 || day_of_week > 6)
+	  return("");
+	else{
+	    static char buf[20];
+	    struct tm tm;
+
+	    memset(&tm, 0, sizeof(tm));
+	    tm.tm_wday = day_of_week;
+	    our_strftime(buf, sizeof(buf), "%A", &tm);
+	    return(buf);
+	}
+    }
+    else
+      return(day_name(day_of_week));
+#else /* DISABLE_LOCALE_DATES */
+    return(day_name(day_of_week));
+#endif /* DISABLE_LOCALE_DATES */
+}
+
+
+size_t
+our_strftime(char *dst, size_t dst_size, char *format, struct tm *tm)
+{
+#ifdef _WINDOWS
+    LPTSTR lptbuf, lptformat;
+    char *u;
+
+    lptbuf = (LPTSTR) fs_get(dst_size * sizeof(TCHAR));
+    lptbuf[0] = '\0';
+    lptformat = utf8_to_lptstr((LPSTR) format);
+
+    _tcsftime(lptbuf, dst_size, lptformat, tm);
+    u = lptstr_to_utf8(lptbuf);
+    if(u){
+	strncpy(dst, u, dst_size);
+	dst[dst_size-1] = '\0';
+	fs_give((void **) &u);
+    }
+
+    return(strlen(dst));
+#else
+    return(strftime(dst, dst_size, format, tm));
+#endif
 }
 
 
@@ -2508,10 +2679,13 @@ isxpair(char *s)
 
 
 STRLIST_S *
-new_strlist(void)
+new_strlist(char *name)
 {
     STRLIST_S *sp = (STRLIST_S *) fs_get(sizeof(STRLIST_S));
     memset(sp, 0, sizeof(STRLIST_S));
+    if(name)
+      sp->name = cpystr(name);
+
     return(sp);
 }
 
@@ -2541,6 +2715,30 @@ copy_strlist(STRLIST_S *src)
     }
 
     return(ret);
+}
+
+
+/*
+ * Add the second list to the end of the first.
+ */
+void
+combine_strlists(STRLIST_S **first, STRLIST_S *second)
+{
+    STRLIST_S *sl;
+
+    if(!second)
+      return;
+
+    if(first){
+	if(*first){
+	    for(sl = *first; sl->next; sl = sl->next)
+	      ;
+
+	    sl->next = second;
+	}
+	else
+	  *first = second;
+    }
 }
 
 

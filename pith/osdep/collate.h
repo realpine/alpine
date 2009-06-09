@@ -1,5 +1,5 @@
 /*
- * $Id: collate.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: collate.h 473 2007-03-07 23:16:56Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -24,6 +24,7 @@ void	  set_collation(int, int);
 int	  strucmp(char *, char *);
 int	  struncmp(char *, char *, int);
 int	(*pcollator)();
+int       sstrcasecmp(const qsort_t *, const qsort_t *);
 
 
 #endif /* PITH_OSDEP_COLLATE_INCLUDED */

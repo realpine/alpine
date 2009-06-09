@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailindx.c 453 2007-02-27 00:10:47Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailindx.c 484 2007-03-15 23:06:03Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1612,7 +1612,7 @@ paint_index_line(ICE_S *argice, int line, long int msgno, IndexColType sfld,
 {
   COLOR_PAIR *lastc = NULL, *base_color = NULL;
   ICE_S      *ice;
-  IFIELD_S   *ifield;
+  IFIELD_S   *ifield, *previfield = NULL;
   IELEM_S    *ielem;
   int         save_schar1 = -1, save_schar2 = -1, save_pchar = -1, save, i;
   int         draw_whole_line = 0, draw_partial_line = 0;
@@ -1651,7 +1651,7 @@ paint_index_line(ICE_S *argice, int line, long int msgno, IndexColType sfld,
       for(ifield = ice->ifield; ifield && p-draw < n; ifield = ifield->next){
 
 	/* space between fields */
-	if(ifield != ice->ifield)
+	if(ifield != ice->ifield && !(previfield && previfield->ctype == iText))
 	  *p++ = ' ';
 
 	/* message number string is generated on the fly */
@@ -1772,6 +1772,8 @@ paint_index_line(ICE_S *argice, int line, long int msgno, IndexColType sfld,
 	  if(ielem && ielem->datalen > 0)
 	    ielem->data[0] = save_pchar;
 	}
+
+	previfield = ifield;
       }
 
       *p = '\0';
@@ -1923,7 +1925,7 @@ paint_index_line(ICE_S *argice, int line, long int msgno, IndexColType sfld,
         }
 
 	/* space between fields */
-	if(ifield != ice->ifield){
+	if(ifield != ice->ifield && !(previfield && previfield->ctype == iText)){
 	  if(inverse_hack)
 	    StartInverse();
 
@@ -2000,6 +2002,8 @@ paint_index_line(ICE_S *argice, int line, long int msgno, IndexColType sfld,
 	  if(ielem && ielem->datalen > 0)
 	    ielem->data[0] = save_pchar;
 	}
+
+	previfield = ifield;
       }
 
       if(doing_bold)
@@ -2041,7 +2045,7 @@ setup_index_state(int threaded)
 	    current_index_state->plus_fld    = iNothing;
 	    current_index_state->arrow_fld   = iNothing;
 	} else {
-	    INDEX_COL_S	 *cdesc;
+	    INDEX_COL_S	 *cdesc, *prevcdesc = NULL;
 	    IndexColType  sfld, altfld, plusfld, arrowfld;
 	    int           width, fld, col, pluscol, scol, altcol;
 
@@ -2059,7 +2063,7 @@ setup_index_state(int threaded)
 		  continue;
 
 		/* space between columns */
-		if(col > 0)
+		if(col > 0 && !(prevcdesc && prevcdesc->ctype == iText))
 		  col++;
 
 		if(cdesc->ctype == iStatus){
@@ -2081,6 +2085,7 @@ setup_index_state(int threaded)
 
 		col += width;
 		fld++;
+		prevcdesc = cdesc;
 	    }
 
 	    if(sfld == iNothing){
@@ -2094,13 +2099,13 @@ setup_index_state(int threaded)
 	    }
 
 
-
 	    current_index_state->status_col  = scol;
 	    current_index_state->status_fld  = sfld;
 
 	    col = 0;
 	    plusfld = iNothing;
 	    pluscol = -1;
+	    prevcdesc = NULL;
 	    /* figure out which column to use for threading '+' */
 	    if(THREADING()
 	       && ps_global->thread_disp_style != THREAD_NONE
@@ -2114,7 +2119,7 @@ setup_index_state(int threaded)
 		    continue;
 
 		  /* space between columns */
-		  if(col > 0)
+		  if(col > 0 && !(prevcdesc && prevcdesc->ctype == iText))
 		    col++;
 
 		  if((cdesc->ctype == iSubject
@@ -2147,12 +2152,11 @@ setup_index_state(int threaded)
 
 		  col += width;
 		  fld++;
+		  prevcdesc = cdesc;
 	      }
 
 	    current_index_state->plus_fld    = plusfld;
 	    current_index_state->plus_col    = pluscol;
-
-
 
 	    arrowfld = iNothing;
 	    /* figure out which field is arrow field, if any */
@@ -2813,7 +2817,7 @@ warn_other_cmds(void)
     if(((ps_global->first_time_user || ps_global->show_new_version) &&
 	      other_cmds % 3 == 0 && other_cmds < 10) || other_cmds % 20 == 0)
         q_status_message(SM_ASYNC, 0, 9,
-			 "Remember the \"O\" command is always optional");
+			 _("Remember the \"O\" command is always optional"));
 }
 
 
@@ -2998,7 +3002,7 @@ index_search(struct pine *state, MAILSTREAM *stream, int command_line, MSGNO_S *
     }
 
     if(rc == 1 || (new_string[0] == '\0' && search_string[0] == '\0')) {
-	cmd_cancelled("Search");
+	cmd_cancelled(_("Search"));
         return;
     }
 
@@ -3054,9 +3058,26 @@ index_search(struct pine *state, MAILSTREAM *stream, int command_line, MSGNO_S *
       }
     }
 
+    /* search current line */
+    if(!select_all && !selected){
+	i = sorted_msg;
+        if(!msgline_hidden(stream, msgmap, i, 0)){
+
+	    ic = build_header_line(state, stream, msgmap, i, NULL);
+
+	    ice = (ic && THRD_INDX() && ic->tice) ? ic->tice : ic;
+
+	    if(srchstr(simple_index_line(buf, sizeof(buf),
+					 ps_global->ttyo->screen_cols, ice, i),
+		       search_string)){
+		selected++;
+	    }
+	}
+    }
+
     if(ps_global->intr_pending){
-	q_status_message1(SM_ORDER, 0, 3, "Search cancelled.%s",
-			  select_all ? " Selected set may be incomplete.":"");
+	q_status_message1(SM_ORDER, 0, 3, _("Search cancelled.%s"),
+			  select_all ? _(" Selected set may be incomplete."):"");
     }
     else if(select_all){
 	if(selected
@@ -3069,9 +3090,9 @@ index_search(struct pine *state, MAILSTREAM *stream, int command_line, MSGNO_S *
 			  long2string(selected));
     }
     else if(selected){
-	q_status_message1(SM_ORDER, 0, 3, "Word found%s",
-			  (i <= sorted_msg)
-			    ? ". Search wrapped to beginning" : "");
+	q_status_message1(SM_ORDER, 0, 3, _("Word found%s"),
+			  (i < sorted_msg) ? _(". Search wrapped to beginning") :
+			   (i == sorted_msg) ? _(". Current line contains only match") : "");
 	mn_set_cur(msgmap, i);
     }
     else

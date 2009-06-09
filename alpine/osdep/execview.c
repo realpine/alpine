@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: execview.c 437 2007-02-12 19:05:08Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: execview.c 485 2007-03-20 04:56:39Z jpf@u.washington.edu $";
 #endif
 
 /*
@@ -29,6 +29,7 @@ static char rcsid[] = "$Id: execview.c 437 2007-02-12 19:05:08Z hubert@u.washing
 
 #include "../../pith/osdep/temp_nam.h"
 #include "../../pith/osdep/color.h"
+#include "../../pith/osdep/mimedisp.h"
 
 #include "../../pith/charconv/utf8.h"
 
@@ -177,17 +178,12 @@ exec_mailcap_cmd(MCAP_CMD_S *mc_cmd, char *image_file, int needsterminal)
     if(mc_cmd->special_handling){
 	char *rhost;
 
-	if((rhost = getenv("REMOTEHOST")) && *rhost){
-	    if(want_to("Connection from remote host detected.  Really try opening locally",
-		       'n', 0, NO_HELP, WT_NORM) == 'y')
-	      osx_launch_special_handling(mc_cmd, image_file);
-	    else{
-		q_status_message(SM_ORDER, 0, 4, "VIEWER command cancelled");
-		our_unlink(image_file);
-	    }
-	}
-	else
+	if(mime_os_specific_access())
 	  osx_launch_special_handling(mc_cmd, image_file);
+	else{
+	  q_status_message(SM_ORDER, 0, 4, "VIEWER command cancelled");
+	  our_unlink(image_file);
+	}
     }
     else {
 	char *cmd = mc_cmd->command;
@@ -332,8 +328,10 @@ url_os_specified_browser(char *url)
 #ifdef _WINDOWS
     return(mswin_reg_default_browser(url));
 #elif	OSX_TARGET
-    snprintf(tmp_20k_buf, SIZEOF_20KBUF, "open %.3000s", url);
-    return(cpystr(tmp_20k_buf));
+    if(mime_os_specific_access()){
+	snprintf(tmp_20k_buf, SIZEOF_20KBUF, "open %.3000s", url);
+	return(cpystr(tmp_20k_buf));
+    }
 #else
     /* do nothing here */
     return(NULL);

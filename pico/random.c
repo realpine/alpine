@@ -1,10 +1,10 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: random.c 154 2006-09-29 18:00:57Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: random.c 486 2007-03-22 18:38:38Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -324,8 +324,9 @@ killtext(int f, int n)
 int
 yank(int f, int n)
 {
-    register int    c;
-    register int    i;
+    int    c, i;
+    REGION region, *added_region;
+    LINE  *dotp;
 
     if (curbp->b_mode&MDVIEW)	/* don't allow this command if	*/
       return(rdonly());	/* we are in read only mode	*/
@@ -350,22 +351,24 @@ yank(int f, int n)
     }
 
     if(lastflag & CFFILL){		/* if last command was fillpara() */
-	REGION region;
-	LINE *dotp;
-
 	if(lastflag & CFFLBF){
 	    gotoeob(FALSE, 1);
 	    dotp = curwp->w_dotp;
 	    gotobob(FALSE, 1);
+	    curwp->w_doto = 0;
+	    getregion(&region, dotp, llength(dotp));
 	}
 	else{
-	    backchar(FALSE, 1);
-	    dotp = curwp->w_dotp;
-	    gotobop(FALSE, 1);		/* then go to the top of the para */
+	    added_region = get_last_region_added();
+	    if(added_region){
+		curwp->w_dotp = added_region->r_linep;
+		curwp->w_doto = added_region->r_offset;
+		region = (*added_region);
+	    }
+	    else
+	      return(FALSE);
 	}
 
-	curwp->w_doto = 0;
-	getregion(&region, dotp, llength(dotp));
 	if(!ldelete(region.r_size, NULL))
 	  return(FALSE);
     }					/* then splat out the saved buffer */

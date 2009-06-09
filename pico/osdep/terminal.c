@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: terminal.c 165 2006-10-04 01:09:47Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: terminal.c 486 2007-03-22 18:38:38Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,7 +71,7 @@ static int      tinfoopen(void);
 static int      tinfoterminalinfo(int);
 static int      tinfoclose(void);
 static void     setup_dflt_esc_seq(void);
-static void     tinfoinsert(int);
+static void     tinfoinsert(UCS);
 static void     tinfodelete(void);
 
 extern int      tput();
@@ -240,6 +240,13 @@ setup_dflt_esc_seq(void)
     kpinsert("\033?t", KEY_LEFT, 1);
     kpinsert("\033?v", KEY_RIGHT, 1);
     kpinsert("\033?x", KEY_UP, 1);
+
+
+    kpinsert("\033[5A", CTRL_KEY_UP, 1);
+    kpinsert("\033[5B", CTRL_KEY_DOWN, 1);
+    kpinsert("\033[5C", CTRL_KEY_RIGHT, 1);
+    kpinsert("\033[5D", CTRL_KEY_LEFT, 1);
+
 
     /*
      * Sun Console sequences.
@@ -530,7 +537,7 @@ tinfoclose(void)
  *               _insertchar takes precedence.
  */
 static void
-tinfoinsert(int ch)
+tinfoinsert(UCS ch)
 {
     if(_insertchar != NULL){
 	putpad(_insertchar);
@@ -655,7 +662,7 @@ o_scrollup(int row, int n)
  *            returns: true if it optimized output, false otherwise
  */
 int
-o_insert(int c)
+o_insert(UCS c)
 {
     if(term_capabilities & TT_INSCHAR){
 	tinfoinsert(c);
@@ -801,7 +808,7 @@ static int      tcapopen(void);
 static int      tcapterminalinfo(int);
 static int      tcapclose(void);
 static void     setup_dflt_esc_seq(void);
-static void     tcapinsert(int);
+static void     tcapinsert(UCS);
 static void     tcapdelete(void);
 static void	putpad(char *);
 
@@ -957,6 +964,13 @@ setup_dflt_esc_seq(void)
     kpinsert("\033[B", KEY_DOWN, 1);
     kpinsert("\033[C", KEY_RIGHT, 1);
     kpinsert("\033[D", KEY_LEFT, 1);
+
+
+    kpinsert("\033[5A", CTRL_KEY_UP, 1);
+    kpinsert("\033[5B", CTRL_KEY_DOWN, 1);
+    kpinsert("\033[5C", CTRL_KEY_RIGHT, 1);
+    kpinsert("\033[5D", CTRL_KEY_LEFT, 1);
+
 
     /*
      * DEC vt52 mode.
@@ -1282,7 +1296,7 @@ tcapclose(void)
  *              _insertchar takes precedence.
  */
 static void
-tcapinsert(int ch)
+tcapinsert(UCS ch)
 {
     if(_insertchar != NULL){
 	putpad(_insertchar);
@@ -1407,7 +1421,7 @@ o_scrollup(int row, int n)
  *            returns: true if it optimized output, false otherwise
  */
 int
-o_insert(int c)
+o_insert(UCS c)
 {
     if(term_capabilities & TT_INSCHAR){
 	tcapinsert(c);
@@ -1685,7 +1699,7 @@ tthascap(void)
  * o_insert - optimize screen insert of char c
  */
 int
-o_insert(int c)
+o_insert(UCS c)
 {
     return(0);
 }

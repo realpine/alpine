@@ -131,7 +131,7 @@ do_after(void *data)
     /* make sure we don't end up with SIGCHLD */
     sigemptyset(&sigs);
     sigaddset(&sigs, SIGCHLD);
-    pthread_sigmask(SIG_IGN, &sigs, NULL);
+    pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
 #endif
 
     /* prepare for the finish */

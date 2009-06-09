@@ -138,7 +138,7 @@ cmd_pipe_open(char *cmd, char **result, int flags, gf_io_t *pc)
 
     if(pipe = open_system_pipe(cmd, result, NULL, flags, 0,
 			       pipe_callback, pipe_report_error))
-      gf_set_writec(pc, pipe, 0L, PipeStar, WRITE_TO_LOCALE);
+      gf_set_writec(pc, pipe, 0L, PipeStar, (flags & PIPE_RAW) ? 0 : WRITE_TO_LOCALE);
     else{
 	/* TRANSLATORS: The argument is the command name being piped to. */
 	snprintf(err, sizeof(err), _("Error opening pipe: %s"), cmd ? cmd : "?");

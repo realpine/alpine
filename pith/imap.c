@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: imap.c 394 2007-01-25 20:29:45Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: imap.c 473 2007-03-07 23:16:56Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -993,11 +993,9 @@ imap_set_passwd(MMLOGIN_S **l, char *passwd, char *user, STRLIST_S *hostlist,
 	  ;
 
 	if(!*listp){
-	    *listp = (STRLIST_S *)fs_get(sizeof(STRLIST_S));
-	    (*listp)->name = cpystr(hostlist->name);
+	    *listp = new_strlist(hostlist->name);
 	    dprint((9, "imap_set_passwd: host=%s\n",
 		       (*listp)->name ? (*listp)->name : "?"));
-	    (*listp)->next = NULL;
 	}
     }
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: adrbklib.c 409 2007-02-01 22:44:01Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: adrbklib.c 495 2007-03-29 17:50:41Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -99,6 +99,7 @@ adrbk_cntr_t   lookup_nickname_in_trie(AdrBk *, char *);
 adrbk_cntr_t   lookup_address_in_trie(AdrBk *, char *);
 adrbk_cntr_t   lookup_in_abook_trie(AdrBk_Trie *, char *);
 void           free_abook_trie(AdrBk_Trie **);
+void           gather_nick_list(AdrBk_Trie *, char *, STRLIST_S **);
 adrbk_cntr_t   re_sort_particular_entry(AdrBk *, a_c_arg_t);
 void           move_ab_entry(AdrBk *, a_c_arg_t, a_c_arg_t);
 void           insert_ab_entry(AdrBk *, a_c_arg_t, AdrBk_Entry *, int);
@@ -381,6 +382,10 @@ bootstrap_nocheck_policy:
     if(!ab->fp)
       goto bail_out;
 
+    ab->sort_rule = sort_rule;
+    if(pab->access == ReadOnly)
+      ab->sort_rule = AB_SORT_RULE_NONE;
+      
     if(ab){
 	/* allocate header for expanded lists list */
 	ab->exp      = (EXPANDED_S *)fs_get(sizeof(EXPANDED_S));
@@ -1066,7 +1071,7 @@ add_entry_to_trie(AdrBk_Trie **head, char *str, a_c_arg_t entry_num)
 
     /* add as lower case */
 
-    for(p = str; *p && !(*p & 0x80) && islower((unsigned char) *p); p++)
+    for(p = str; *p && ((*p & 0x80) || !isupper((unsigned char) *p)); p++)
       ;
 
     if(*p){
@@ -1148,6 +1153,7 @@ lookup_nickname_in_trie(AdrBk *ab, char *nickname)
 adrbk_cntr_t
 lookup_address_in_trie(AdrBk *ab, char *address)
 {
+    dprint((9, "lookup_address_in_trie: %s\n", ab ? (ab->addr_trie ? (address ? address : "?") : "null addr_trie") : "null ab"));
     if(!ab || !address || !ab->addr_trie)
       return(-1L);
 
@@ -1240,6 +1246,7 @@ adrbk_longest_unambig_nick(AdrBk *ab, char *prefix, char **answer)
     if(answer)
       *answer = NULL;
 
+    ans[0] = '\0';
     t = ab->nick_trie;
 
     /* make lookup case independent */
@@ -1311,6 +1318,132 @@ adrbk_longest_unambig_nick(AdrBk *ab, char *prefix, char **answer)
     }
 
     return(ret);
+}
+
+
+/*
+ * Look in this address book for all nicknames which begin
+ * with the prefix prefix, and return an allocated, null-terminated
+ * list of them.
+ */
+STRLIST_S *
+adrbk_list_of_possible_nicks(AdrBk *ab, char *prefix)
+{
+    AdrBk_Trie *t;
+    int          k;
+    char        *p, *lookthisup;
+    char         buf[1000];
+    char         ans[1000];
+    STRLIST_S   *list = NULL;
+
+    if(!ab || !prefix || !ab->nick_trie)
+      return(list);
+
+    t = ab->nick_trie;
+
+    /* make lookup case independent */
+
+    for(p = prefix; *p && !(*p & 0x80) && islower((unsigned char) *p); p++)
+      ;
+
+    if(*p){
+	strncpy(buf, prefix, sizeof(buf));
+	buf[sizeof(buf)-1] = '\0';
+	for(p = buf; *p; p++)
+	  if(!(*p & 0x80) && isupper((unsigned char) *p))
+	    *p = tolower(*p);
+
+	lookthisup = buf;
+    }
+    else
+      lookthisup = prefix;
+
+    p = lookthisup;
+
+    while(*p){
+	/* search for character at this level */
+	while(t->value != *p){
+	    if(t->right == NULL)
+	      return(list);		/* no match */
+
+	    t = t->right;
+	}
+
+	if(*++p == '\0')		/* matched through end of prefix */
+	  break;
+
+	/* need to go down to match next character */
+	if(t->down == NULL)		/* no match */
+	  return(list);
+
+	t = t->down;
+    }
+
+    /*
+     * If we get here that means we found at least
+     * one entry that matches up through prefix.
+     * Gather_nick_list recursively adds the nicknames starting at
+     * this node.
+     */
+    if(t->entrynum != NO_NEXT){
+	/*
+	 * This is a nickname. Add it to the list.
+	 * The nickname is ans.
+	 */
+	list = new_strlist(prefix);
+    }
+
+    gather_nick_list(t->down, prefix, &list);
+
+    return(list);
+}
+
+
+void
+gather_nick_list(AdrBk_Trie *node, char *prefix, STRLIST_S **list)
+{
+  char *next_prefix = NULL;
+  size_t l;
+  STRLIST_S *newlist = NULL;
+
+  if(node){
+    if(node->entrynum != NO_NEXT || node->down || node->right){
+      l = strlen(prefix ? prefix : "");
+      if(node->entrynum != NO_NEXT){
+	/*
+	 * This is a nickname. Add it to the list.
+	 * The nickname is prefix + t->value.
+	 */
+	newlist = new_strlist(NULL);
+	newlist->name = (char *) fs_get((l+2) * sizeof(char));
+	strncpy(newlist->name, prefix ? prefix : "", l+2);
+	newlist->name[l] = node->value;
+	newlist->name[l+1] = '\0';
+	combine_strlists(list, newlist);
+      }
+
+      /* same prefix for node->right */
+      if(node->right)
+        gather_nick_list(node->right, prefix, list);
+
+      /* prefix is one longer for node->down */
+      if(node->down){
+	if(newlist)
+	  next_prefix = newlist->name;
+	else{
+	  next_prefix = (char *) fs_get((l+2) * sizeof(char));
+	  strncpy(next_prefix, prefix ? prefix : "", l+2);
+	  next_prefix[l] = node->value;
+	  next_prefix[l+1] = '\0';
+	}
+
+	gather_nick_list(node->down, next_prefix, list);
+
+	if(next_prefix && !(newlist && next_prefix == newlist->name))
+	  fs_give((void **) &next_prefix);
+      }
+    }
+  }
 }
 
 
@@ -3828,22 +3961,23 @@ backcompat_encoding_for_abook(char *buf1, size_t buf1len, char *buf2,
 
 	    src.data = (unsigned char *) srcstr;
 	    src.size = strlen(srcstr);
-	    dst.data = (unsigned char *) buf1;
-	    dst.size = buf1len;
+	    memset(&dst, 0, sizeof(dst));
 	    if(utf8_cstext(&src, trythischarset, &dst, 0)){
-		if(dst.size < buf1len)
-		  dst.data[dst.size] = '\0';
-
-		dst.data[buf1len-1] = '\0';
-
-		encoded = rfc1522_encode(buf2, buf2len, dst.data, trythischarset);
-		REPLACE_NEWLINES_WITH_SPACE(encoded);
+		if(dst.data){
+		    strncpy(buf1, dst.data, buf1len);
+		    buf1[buf1len-1] = '\0';
+		    fs_give((void **) &dst.data);
+		    encoded = rfc1522_encode(buf2, buf2len, buf1, trythischarset);
+		    if(encoded)
+		      REPLACE_NEWLINES_WITH_SPACE(encoded);
+		}
 	    }
 	}
 
 	if(!encoded){
 	    encoded = rfc1522_encode(buf1, buf1len, (unsigned char *) srcstr, "UTF-8");
-	    REPLACE_NEWLINES_WITH_SPACE(encoded);
+	    if(encoded)
+	      REPLACE_NEWLINES_WITH_SPACE(encoded);
 	}
     }
 

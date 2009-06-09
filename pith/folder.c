@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: folder.c 311 2006-12-09 01:20:57Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: folder.c 473 2007-03-07 23:16:56Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -2227,8 +2227,7 @@ folder_select_preserve(CONTEXT_S *context)
 
 	for(i = 0; i < folder_n; i++)
 	  if((fp = folder_entry(i, FOLDERS(context)))->selected){
-	      *slpp = new_strlist();
-	      (*slpp)->name = cpystr(fp->name);
+	      *slpp = new_strlist(fp->name);
 	      slpp = &(*slpp)->next;
 	  }
 

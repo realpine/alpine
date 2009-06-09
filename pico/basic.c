@@ -1,10 +1,10 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: basic.c 404 2007-01-30 18:54:06Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: basic.c 486 2007-03-22 18:38:38Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -755,13 +755,15 @@ setmark(int f, int n)
     if(!curwp->w_markp){
         curwp->w_markp = curwp->w_dotp;
         curwp->w_marko = curwp->w_doto;
-	emlwrite("Mark Set", NULL);
+	if(n)
+	  emlwrite("Mark Set", NULL);
     }
     else{
 	/* clear inverse chars between here and dot */
 	markregion(0);
 	curwp->w_markp = NULL;
-	emlwrite("Mark UNset", NULL);
+	if(n)
+	  emlwrite("Mark UNset", NULL);
     }
 
 #ifdef	_WINDOWS
@@ -842,6 +844,47 @@ swapimark(int f, int n)
     return (TRUE);
 }
 
+
+/*
+ * If dot comes before mark, do nothing.
+ * If mark comes before dot, swap them.
+ */
+void
+swap_mark_and_dot_if_mark_comes_first(void)
+{
+    LINE *blp, *flp;
+
+    if(!(curwp && curwp->w_dotp && curwp->w_markp))
+      return;
+
+    if(curwp->w_dotp == curwp->w_markp){	/* they are in the same line */
+	if(curwp->w_doto > curwp->w_marko)
+	  swapmark(0,1);
+
+	return;
+    }
+
+    /*
+     * Search forward and backward from dot to see if mark
+     * is less than or greater than dot.
+     */
+    flp = blp = curwp->w_dotp;
+    while(flp != curbp->b_linep || lback(blp) != curbp->b_linep){
+	if(flp != curbp->b_linep){
+	    flp = lforw(flp);
+	    if(flp == curwp->w_markp)		/* dot already less than mark */
+	      return;
+	}
+
+	if(lback(blp) != curbp->b_linep){
+	    blp = lback(blp);
+	    if(blp == curwp->w_markp){
+		swapmark(0, 1);
+		return;
+	    }
+	}
+    }
+}
 
 
 #ifdef MOUSE

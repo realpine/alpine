@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcmd.c 430 2007-02-08 20:31:55Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailcmd.c 501 2007-03-30 00:16:53Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -969,7 +969,7 @@ do_broach_folder(char *newfolder, CONTEXT_S *new_context, MAILSTREAM **streamp,
     if(IS_NEWS(ps_global->mail_stream) && ps_global->mail_stream->rdonly)
       msgno_exclude_deleted(ps_global->mail_stream, ps_global->msgmap);
 
-    if(we_cancel)
+    if(we_cancel && F_OFF(F_QUELL_FILTER_MSGS, ps_global))
       cancel_busy_cue(0);
 
     /*
@@ -979,6 +979,14 @@ do_broach_folder(char *newfolder, CONTEXT_S *new_context, MAILSTREAM **streamp,
      */
     if(!sp_flagged(ps_global->mail_stream, SP_FILTERED))
       process_filter_patterns(ps_global->mail_stream, ps_global->msgmap, 0L);
+
+    /*
+     * If no filtering messages wait until here to cancel the busy cue
+     * because the user will be waiting for that filtering with nothing
+     * showing the activity otherwise.
+     */
+    if(we_cancel && F_ON(F_QUELL_FILTER_MSGS, ps_global))
+      cancel_busy_cue(0);
 
     q_status_message6(SM_ORDER, 0, 4,
 		    "%.20s \"%.200s\" opened with %.20s message%.20s%.20s%.20s",

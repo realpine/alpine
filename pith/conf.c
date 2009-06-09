@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: conf.c 465 2007-03-02 18:30:56Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: conf.c 495 2007-03-29 17:50:41Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -2732,6 +2732,8 @@ feature_list(int index)
 	 F_TAB_NO_CONFIRM, h_config_tab_no_prompt, PREF_INDX},
 	{"delete-skips-deleted",
 	 F_DEL_SKIPS_DEL, h_config_del_skips_del, PREF_INDX},
+	{"disable-index-locale-dates",
+	 F_DISABLE_INDEX_LOCALE_DATES, h_config_disable_index_locale_dates, PREF_INDX},
 	{"enable-cruise-mode",
 	 F_ENABLE_SPACE_AS_TAB, h_config_cruise_mode, PREF_INDX},
 	{"enable-cruise-mode-delete",
@@ -2764,13 +2766,11 @@ feature_list(int index)
 	 F_VIEW_SEL_URL_HOST, h_config_enable_view_web_host, PREF_VIEW},
 	{"prefer-plain-text",
 	 F_PREFER_PLAIN_TEXT, h_config_prefer_plain_text, PREF_VIEW},
-#ifndef	_WINDOWS
 	/* set to TRUE for windows */
 	{"pass-c1-control-characters-as-is",
 	 F_PASS_C1_CONTROL_CHARS, h_config_pass_c1_control, PREF_VIEW},
 	{"pass-control-characters-as-is",
 	 F_PASS_CONTROL_CHARS, h_config_pass_control, PREF_VIEW},
-#endif
 	{"quell-charset-warning",
 	 F_QUELL_CHARSET_WARNING, h_config_quell_charset_warning, PREF_VIEW},
 
@@ -3183,12 +3183,10 @@ process_feature_list(struct pine *ps, char **list, int old_growth, int hir, int 
     l = F_ON(F_MULNEWSRC_HOSTNAMES_AS_TYPED,ps_global) ? 0L : 1L;
     mail_parameters(NULL, SET_NEWSRCCANONHOST, (void *) l);
 
-#ifdef	_WINDOWS
-    ps->pass_ctrl_chars = 1;
-#else
     ps->pass_ctrl_chars = F_ON(F_PASS_CONTROL_CHARS,ps_global) ? 1 : 0;
     ps->pass_c1_ctrl_chars = F_ON(F_PASS_C1_CONTROL_CHARS,ps_global) ? 1 : 0;
 
+#ifndef	_WINDOWS
     if(F_ON(F_QUELL_BEZERK_TIMEZONE,ps_global))
       mail_parameters(NULL, SET_NOTIMEZONES, (void *) 1);
 #endif
@@ -5750,15 +5748,14 @@ backcompat_convert_from_utf8(char *buf, size_t buflen, char *srcstr)
 
 	    src.data = (unsigned char *) srcstr;
 	    src.size = strlen(srcstr);
-	    dst.data = (unsigned char *) buf;
-	    dst.size = buflen;
+	    memset(&dst, 0, sizeof(dst));
 	    if(utf8_cstext(&src, trythischarset, &dst, 0)){
-		if(dst.size < buflen)
-		  dst.data[dst.size] = '\0';
-
-		dst.data[buflen-1] = '\0';
-
-		converted = (char *) dst.data;
+		if(dst.data){
+		    strncpy(buf, dst.data, buflen);
+		    buf[buflen-1] = '\0';
+		    fs_give((void **) &dst.data);
+		    converted = buf;
+		}
 	    }
 	}
 
@@ -6698,6 +6695,11 @@ toggle_feature(struct pine *ps, struct variable *var, FEATURE_S *f,
 	break;
 
       case F_COLOR_LINE_IMPORTANT :
+	clear_index_cache(ps->mail_stream, 0);
+	break;
+
+      case F_DISABLE_INDEX_LOCALE_DATES :
+	reset_index_format();
 	clear_index_cache(ps->mail_stream, 0);
 	break;
 

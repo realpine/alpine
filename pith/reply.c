@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: reply.c 442 2007-02-16 23:01:28Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: reply.c 493 2007-03-27 21:51:48Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -258,7 +258,7 @@ reply_cp_addr(struct pine *ps, long int msgno, char *section, char *field,
 		  snprintf(ret->mailbox, ll, "&%s", p);
 		  ret->mailbox[ll-1] = '\0';
 		  fs_give((void **) &p);
-		  ret->host = cpystr(".RAW-FIELD.");
+		  ret->host = cpystr(RAWFIELD);
 	      }
 	  }
 
@@ -1593,7 +1593,7 @@ get_reply_data(ENVELOPE *env, ACTION_S *role, IndexColType type, char *buf, size
       case iDate: case iLDate:
       case iTimezone: case iDayOfWeekAbb: case iDayOfWeek:
 	if(env && env->date && env->date[0] && maxlen >= 20)
-	  date_str((char *) env->date, type, 1, buf, maxlen+1);
+	  date_str((char *) env->date, type, 1, buf, maxlen+1, 0);
 
 	break;
 
@@ -1621,7 +1621,7 @@ get_reply_data(ENVELOPE *env, ACTION_S *role, IndexColType type, char *buf, size
       case iLstYear:
       case iLstYear2Digit:
 	if(maxlen >= 20)
-	  date_str(NULL, type, 1, buf, maxlen+1);
+	  date_str(NULL, type, 1, buf, maxlen+1, 0);
 
 	break;
 
@@ -1780,7 +1780,7 @@ reply_delimiter(ENVELOPE *env, ACTION_S *role, gf_io_t pc)
 	if(include_date){
 	    gf_puts("On ", pc);			/* All delims have... */
 	    if(d.wkday != -1){			/* "On day, date month year" */
-		gf_puts(week_abbrev(d.wkday), pc);	/* in common */
+		gf_puts(day_abbrev(d.wkday), pc);	/* in common */
 		gf_puts(", ", pc);
 	    }
 

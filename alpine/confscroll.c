@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: confscroll.c 451 2007-02-26 20:43:44Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: confscroll.c 481 2007-03-13 22:16:32Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -4441,6 +4441,7 @@ toggle_feature_bit(struct pine *ps, int index, struct variable *var, CONF_S *cl,
 	  mswin_trayicon(F_ON(f->id,ps));
 	  break;
 #endif
+
 #if !defined(DOS) && !defined(OS2)
 	case F_ALLOW_TALK :
 	  if(F_ON(f->id, ps))
@@ -4449,6 +4450,7 @@ toggle_feature_bit(struct pine *ps, int index, struct variable *var, CONF_S *cl,
 	    disallow_talk(ps);
 
 	  break;
+#endif
 
 	case F_PASS_CONTROL_CHARS :
 	  ps->pass_ctrl_chars = F_ON(F_PASS_CONTROL_CHARS,ps_global) ? 1 : 0;
@@ -4457,7 +4459,7 @@ toggle_feature_bit(struct pine *ps, int index, struct variable *var, CONF_S *cl,
 	case F_PASS_C1_CONTROL_CHARS :
 	  ps->pass_c1_ctrl_chars = F_ON(F_PASS_C1_CONTROL_CHARS,ps_global) ? 1 : 0;
 	  break;
-#endif
+
 #ifdef	MOUSE
 	case F_ENABLE_MOUSE :
 	  if(F_ON(f->id, ps))

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: rfc2231.c 440 2007-02-14 23:33:00Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: rfc2231.c 476 2007-03-08 18:35:28Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -290,9 +290,9 @@ rfc2231_list_params(PARMLIST_S *plist)
 
 	    if(!*ppp){
 		plist->list = pp->next;
-		/* add to seen list */
-		set_parameter(ppp, plist->attrib,
-			      rfc2231_get_param(pp,plist->attrib,NULL,NULL));
+		*ppp = mail_newbody_parameter();	/* add to seen list */
+		(*ppp)->attribute = cpystr(plist->attrib);
+		plist->value = rfc2231_get_param(pp,plist->attrib,NULL,NULL);
 		return(TRUE);
 	    }
 

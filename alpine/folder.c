@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: folder.c 406 2007-01-31 00:36:05Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: folder.c 496 2007-03-29 18:13:45Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -2538,7 +2538,7 @@ folder_lister_choice(SCROLL_S *sparms)
 			n++;
 			if((*FPROC(sparms)->fs->f.valid)(fp,
 							 FPROC(sparms)->fs)){
-			    *slp = new_strlist();
+			    *slp = new_strlist(NULL);
 			    (*slp)->name = folder_lister_fullname(
 				FPROC(sparms)->fs, FLDR_NAME(fp));
 
@@ -2583,7 +2583,7 @@ folder_lister_finish(SCROLL_S *sparms, CONTEXT_S *cntxt, int index)
 	 * Package up the selected folder names and return...
 	 */
 	FPROC(sparms)->fs->context = cntxt;
-	FPROC(sparms)->rv = new_strlist();
+	FPROC(sparms)->rv = new_strlist(NULL);
 	FPROC(sparms)->rv->name = folder_lister_fullname(FPROC(sparms)->fs,
 							 FLDR_NAME(f));
 	FPROC(sparms)->done = rv = 1;
@@ -2650,7 +2650,7 @@ folder_lister_addmanually(SCROLL_S *sparms)
 
     if(*addname){
 	FPROC(sparms)->fs->context = cntxt;
-	FPROC(sparms)->rv = new_strlist();
+	FPROC(sparms)->rv = new_strlist(NULL);
 	FPROC(sparms)->rv->name = folder_lister_fullname(FPROC(sparms)->fs,
 							 addname);
 	FPROC(sparms)->done = rv = 1;
@@ -4418,10 +4418,11 @@ skip_over_folder_input:
 	if(maildropfolder){
 	    char *delims = " +-_:!|ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 	    char *c;
+	    size_t len;
 
-	    maildroplongname = (char *) fs_get((5+2+1+strlen(maildropfolder)+
-					        strlen(add_folder)) *
-					       sizeof(char));
+	    len = 5 + 2 + strlen(maildropfolder) + strlen(add_folder);
+	    maildroplongname = (char *) fs_get((len+1) * sizeof(char));
+
 	    for(c = delims; *c; c++){
 		if(!strindex(maildropfolder, *c) &&
 		   !strindex(add_folder, *c))
@@ -4429,16 +4430,12 @@ skip_over_folder_input:
 	    }
 
 	    if(*c){
-		snprintf(maildroplongname, sizeof(maildroplongname), "#move%c%.*s%c%.*s",
-			*c, strlen(maildropfolder), maildropfolder,
-			*c, strlen(add_folder), add_folder);
-		maildroplongname[sizeof(maildroplongname)-1] = '\0';
+		snprintf(maildroplongname, len+1, "#move%c%s%c%s",
+			 *c, maildropfolder, *c, add_folder);
 		if(strlen(maildroplongname) < add_folderlen){
 		    strncpy(add_folder, maildroplongname, add_folderlen);
 		    add_folder[add_folderlen-1] = '\0';
 		}
-
-		fs_give((void **) &maildroplongname);
 	    }
 	    else{
 		q_status_message2(SM_ORDER,0,2,
@@ -4448,9 +4445,6 @@ skip_over_folder_input:
 		    "Can't find delimiter for \"#move %s %s\"",
 		    maildropfolder ? maildropfolder : "?",
 		    add_folder ? add_folder : "?"));
-
-		if(maildroplongname)
-		  fs_give((void **) &maildroplongname);
 
 		if(maildropfolder)
 		  fs_give((void **) &maildropfolder);
@@ -4471,6 +4465,9 @@ skip_over_folder_input:
 
 		return(FALSE);
 	    }
+
+	    if(maildroplongname)
+	      fs_give((void **) &maildroplongname);
 	}
 
 	if(inbox)

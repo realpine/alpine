@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: arg.c 456 2007-02-28 20:06:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: arg.c 487 2007-03-23 16:53:15Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -95,7 +95,8 @@ N_(" -k \t\tKeys - Force use of function keys"),
 N_(" -z \t\tSuspend - allow use of ^Z suspension"),
 N_(" -r \t\tRestricted - can only send mail to oneself"),
 N_(" -sort <sort>\tSort - Specify sort order of folder:"),
-N_("\t\t       arrival, subject, threaded, orderedsubject, date, from, size, score, to, cc, /reverse"),
+N_("\t\t\tarrival, subject, threaded, orderedsubject, date,"),
+N_("\t\t\tfrom, size, score, to, cc, /reverse"),
 N_(" -i\t\tIndex - Go directly to index, bypassing main menu"),
 N_(" -I <keystroke_list>   Initial keystrokes to be executed"),
 N_(" -n <number>\tEntry in index to begin on"),
@@ -113,15 +114,21 @@ N_(" -aux <aux_files_dir>\tUse this with remote pinerc"),
 N_(" -P <pine.conf>\tUse pine.conf file for default settings"),
 N_(" -nosplash \tDisable the PC-Alpine splash screen"),
 #endif
-#ifdef PASSFILE
-#if defined(_WINDOWS) || defined(OSX_TARGET)
+
+#if defined(APPLEKEYCHAIN) || (WINCRED > 0)
 N_(" -erase_stored_passwords\tEliminate any stored passwords"),
-#else /* !(_WINDOWS|OSX_TARGET) */
+#endif
+
+#ifdef	PASSFILE
 N_(" -passfile <fully_qualified_filename>\tSet the password file to something other"),
 N_("\t\tthan the default"),
-#endif /* !_WINDOWS */
-N_(" -nowrite_passfile\tRead from a passfile if there is one, but never offer to write a password to the passfile"),
-#endif /* PASSFILE */
+#endif	/* PASSFILE */
+
+#ifdef	LOCAL_PASSWD_CACHE
+N_(" -nowrite_password_cache\tRead from a password cache if there is one, but"),
+N_("\t\t\t\tnever offer to write a password to the cache"),
+#endif /* LOCAL_PASSWD_CACHE */
+
 N_(" -x <config>\tUse configuration exceptions in <config>."),
 N_("\t\tExceptions are used to override your default pinerc"),
 N_("\t\tsettings for a particular platform, can be a local file or"),
@@ -263,17 +270,19 @@ Loop: while(--ac > 0)
 	      else if(strcmp(*av, "nosplash") == 0)
 		goto Loop;   /* already taken care of in WinMain */
 #endif
-#ifdef PASSFILE
-#if defined(_WINDOWS) || defined(OSX_TARGET)
+
+#if defined(APPLEKEYCHAIN) || (WINCRED > 0)
 	      else if(strcmp(*av, "erase_stored_passwords") == 0){
-#ifdef _WINDOWS
+#if	(WINCRED > 0)
 		  erase_windows_credentials();
 #else
 		  macos_erase_keychain();
 #endif
 		  goto Loop;
 	      }
-#else /* !(_WINDOWS or OSX_TARGET) */
+#endif /* defined(APPLEKEYCHAIN) || (WINCRED > 0) */
+
+#ifdef	PASSFILE
 	      else if(strcmp(*av, "passfile") == 0){
 		  if(--ac){
 		      if((str = *++av) != NULL){
@@ -297,12 +306,15 @@ Loop: while(--ac > 0)
 
 		  goto Loop;
 	      }
-#endif /* !_WINDOWS */
-	      else if(strcmp(*av, "nowrite_passfile") == 0){
-		  ps_global->nowrite_passfile = 1;
+#endif	/* PASSFILE */
+
+#ifdef  LOCAL_PASSWD_CACHE
+	      else if(strcmp(*av, "nowrite_password_cache") == 0){
+		  ps_global->nowrite_password_cache = 1;
 		  goto Loop;
 	      }
-#endif  /* PASSFILE */
+#endif  /* LOCAL_PASSWD_CACHE */
+
 	      else if(strcmp(*av, "convert_sigs") == 0){
 		  ps_global->convert_sigs = 1;
 		  goto Loop;
@@ -742,8 +754,7 @@ Loop: while(--ac > 0)
 
 	  args->action = aaMail;
 
-	  stp	    = new_strlist();
-	  stp->name = cpystr(*av);
+	  stp	    = new_strlist(*av);
 
 	  for(slp = &args->data.mail.addrlist; *slp; slp = &(*slp)->next)
 	    ;

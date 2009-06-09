@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: termin.unx.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: termin.unx.c 480 2007-03-09 22:34:47Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -429,6 +429,26 @@ read_char(int time_out)
       case  PF11	:
       case  PF12	:
         dprint((9, "Read char returning: 0x%x %s\n", status, pretty_command(status)));
+	return(status);
+
+      case  CTRL_KEY_UP	:
+	status = KEY_UP;
+        dprint((9, "Read char returning: 0x%x %s (for CTRL_KEY_UP)\n", status, pretty_command(status)));
+	return(status);
+
+      case  CTRL_KEY_DOWN	:
+	status = KEY_DOWN;
+        dprint((9, "Read char returning: 0x%x %s (for CTRL_KEY_DOWN)\n", status, pretty_command(status)));
+	return(status);
+
+      case  CTRL_KEY_RIGHT	:
+	status = KEY_RIGHT;
+        dprint((9, "Read char returning: 0x%x %s (for CTRL_KEY_RIGHT)\n", status, pretty_command(status)));
+	return(status);
+
+      case  CTRL_KEY_LEFT	:
+	status = KEY_LEFT;
+        dprint((9, "Read char returning: 0x%x %s (for CTRL_KEY_LEFT)\n", status, pretty_command(status)));
 	return(status);
 
       case KEY_SWALLOW_Z:

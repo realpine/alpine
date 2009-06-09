@@ -1,8 +1,8 @@
 /*
- * $Id: efunc.h 421 2007-02-05 22:53:41Z hubert@u.washington.edu $
+ * $Id: efunc.h 486 2007-03-22 18:38:38Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,6 +62,7 @@ extern	int swapmark(int, int);
 extern	int setimark(int, int);
 extern	int swapimark(int, int);
 extern	int mousepress(int, int);
+extern	void swap_mark_and_dot_if_mark_comes_first(void);
 
 /* bind.c */
 extern	UCS normalize_cmd(UCS c, UCS list[][2], int sc);
@@ -178,9 +179,11 @@ extern	int ksize(void);
 extern	void fdelete(void);
 extern	int finsert(UCS);
 extern	long fremove(int);
+extern	void set_last_region_added(REGION *);
+extern	REGION *get_last_region_added(void);
 
 /* os.c */
-extern	int o_insert(int);
+extern	int o_insert(UCS);
 extern	int o_delete(void);
 
 /* pico.c */

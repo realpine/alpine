@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: getkey.c 404 2007-01-30 18:54:06Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: getkey.c 480 2007-03-09 22:34:47Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -143,7 +143,39 @@ GetKey(void)
 	if(!ReadyForKey(5))
 	  return(BADESC);		/* user typed ESC ESC, then stopped */
 	else
-	  ch = (*term.t_getchar)(NODATA, NULL, bail);
+	    switch(status = kbseq(simple_ttgetc, NULL, bail, input_cs, &ch)){
+	      case  KEY_UP		:
+	      case  KEY_DOWN		:
+	      case  KEY_RIGHT		:
+	      case  KEY_LEFT		:
+	      case  KEY_PGUP		:
+	      case  KEY_PGDN		:
+	      case  KEY_HOME		:
+	      case  KEY_END		:
+	      case  KEY_DEL		:
+	      case F1  :
+	      case F2  :
+	      case F3  :
+	      case F4  :
+	      case F5  :
+	      case F6  :
+	      case F7  :
+	      case F8  :
+	      case F9  :
+	      case F10 :
+	      case F11 :
+	      case F12 :
+		return(CTRL | status);
+		break;
+
+	      case 0: 	/* regular character */
+		break;
+
+	      default:				/* punt the whole thing	*/
+		(*term.t_beep)();
+		return(BADESC);
+		break;
+	    }
 
 	ch &= 0x7f;
 	if(isdigit((unsigned char)ch)){
@@ -234,6 +266,15 @@ GetKey(void)
       case F11 :
       case F12 :
 	return(status);
+
+      case  CTRL_KEY_UP		:
+	return(CTRL | KEY_UP);
+      case  CTRL_KEY_DOWN	:
+	return(CTRL | KEY_DOWN);
+      case  CTRL_KEY_RIGHT	:
+	return(CTRL | KEY_RIGHT);
+      case  CTRL_KEY_LEFT	:
+	return(CTRL | KEY_LEFT);
 
       case KEY_SWALLOW_Z:
 	status = BADESC;

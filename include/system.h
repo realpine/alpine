@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------
-  $Id: system.h 337 2006-12-20 00:41:10Z hubert@u.washington.edu $
+  $Id: system.h 487 2007-03-23 16:53:15Z hubert@u.washington.edu $
   ----------------------------------------------------------------------*/
 
 /* ========================================================================
@@ -329,8 +329,6 @@ struct	sockaddr_un {
 
 #define	_WIN32_WINNT	WINVER
 
-#define PASSFILE "dummy"
-
 /*-------- Standard windows defines and then our window module defines. */
 #include	<dos.h>
 #include	<direct.h>
@@ -346,6 +344,13 @@ struct	sockaddr_un {
 #include <tchar.h>
 #include <wchar.h>
 #include <assert.h>
+
+#if defined(WINVER) && WINVER >= 0x0501
+# define WINCRED 1	/* WINCRED will work */
+#else
+# define WINCRED 0	/* too old for WINCRED to work */
+#endif
+
 #undef ERROR
 
 typedef int mode_t;
@@ -361,10 +366,19 @@ typedef int gid_t;
 
 #endif /* _WINDOWS */
 
-#ifdef OSX_TARGET
 
-#define PASSFILE "dummy"
+#if defined(PASSFILE) && defined(APPLEKEYCHAIN)
+#  error "Cant define both PASSFILE and APPLEKEYCHAIN"
+#endif
+#if defined(PASSFILE) && defined(WINCRED)
+#  error "Cant define both PASSFILE and WINCRED"
+#endif
+#if defined(APPLEKEYCHAIN) && defined(WINCRED)
+#  error "Cant define both APPLEKEYCHAIN and WINCRED"
+#endif
 
-#endif /* OSX_TARGET */
+#if defined(PASSFILE) || defined(APPLEKEYCHAIN) || defined(WINCRED)
+# define LOCAL_PASSWD_CACHE
+#endif
 
 #endif /* _SYSTEM_INCLUDED */

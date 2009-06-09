@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: termout.gen.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: termout.gen.c 468 2007-03-02 23:04:18Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -557,6 +557,9 @@ Writechar(register unsigned int ch, int new_esc_len)
 	    break;
 
 	  default:
+	     if(ucs & U8G_ERROR)
+	       ucs = '?';
+
 	    /* got a character */
 	    Writewchar(ucs);
 

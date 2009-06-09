@@ -1,5 +1,5 @@
 /*
- * $Id: estruct.h 417 2007-02-03 01:33:25Z hubert@u.washington.edu $
+ * $Id: estruct.h 486 2007-03-22 18:38:38Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -78,7 +78,7 @@
 
 #define CFCPCN  0x0001                  /* Last command was C-P, C-N    */
 #define CFKILL  0x0002                  /* Last command was a kill      */
-#define CFFILL  0x0004                  /* Last command was a kill      */
+#define CFFILL  0x0004                  /* Last command was a fill      */
 #define	CFSRCH	0x0008			/* Last command was WhereIs	*/
 #define CFFLBF  0x0010                  /* Last cmd was full buf fill   */
 

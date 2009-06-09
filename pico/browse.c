@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: browse.c 421 2007-02-05 22:53:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: browse.c 473 2007-03-07 23:16:56Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -104,7 +104,6 @@ int    LikelyASCII(char *);
 int    fcell_is_selected(struct fcell *, struct bmaster *);
 void   add_cell_to_lmlist(struct fcell *, struct bmaster *);
 void   del_cell_from_lmlist(struct fcell *, struct bmaster *);
-int    sstrcasecmp(const qsort_t *, const qsort_t *);
 
 
 static	KEYMENU menu_browse[] = {
@@ -2860,16 +2859,6 @@ zotlmlist(LMLIST *lm)
 	tp->next = NULL;
 	free((char *) tp);
     }
-}
-
-
-/*
- * sstrcasecmp - compare two pointers to strings case independently
- */
-int
-sstrcasecmp(const qsort_t *s1, const qsort_t *s2)
-{
-    return((*pcollator)(*(char **)s1, *(char **)s2));
 }
 
 

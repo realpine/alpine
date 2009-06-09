@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: takeaddr.c 211 2006-11-01 00:34:10Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: takeaddr.c 493 2007-03-27 21:51:48Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -903,7 +903,7 @@ add_addresses_to_talist(struct pine *ps, long int msgno, char *field,
 		    new_addr->mailbox = (char *) fs_get((ll+1) * sizeof(char));
 		    snprintf(new_addr->mailbox, ll+1, "&%s", p);
 		    fs_give((void **)&p);
-		    new_addr->host = cpystr(".RAW-FIELD.");
+		    new_addr->host = cpystr(RAWFIELD);
 		    fill_in_ta(old_current, new_addr, 0, (char *)NULL);
 		    mail_free_address(&new_addr);
 		}

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: adrbkcmd.c 442 2007-02-16 23:01:28Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: adrbkcmd.c 473 2007-03-07 23:16:56Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -845,7 +845,7 @@ static struct headerentry headents_for_edit[]={
   {"Nickname  : ",  N_("Nickname"),  h_composer_abook_nick, 12, 0, NULL,
    /* TRANSLATORS: To AddrBk is a command that takes the user to
       the address book screen to select an entry from there. */
-   verify_nick,   NULL, NULL, addr_book_nick_for_edit, N_("To AddrBk"), NULL, adrbk_nick_complete,
+   verify_nick,   NULL, NULL, addr_book_nick_for_edit, N_("To AddrBk"), NULL, abook_nickname_complete,
    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"Fullname  : ",  N_("Fullname"),  h_composer_abook_full, 12, 0, NULL,
    NULL,          NULL, NULL, view_message_for_pico,   N_("To Message"), NULL, NULL,
@@ -860,7 +860,7 @@ static struct headerentry headents_for_edit[]={
    NULL,          NULL, NULL, view_message_for_pico,   N_("To Message"), NULL, NULL,
    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"Addresses : ",  N_("Addresses"), h_composer_abook_addrs, 12, 0, NULL,
-   verify_addr,   NULL, NULL, addr_book_change_list,   N_("To AddrBk"), NULL, adrbk_nick_complete,
+   verify_addr,   NULL, NULL, addr_book_change_list,   N_("To AddrBk"), NULL, abook_nickname_complete,
    1, 1, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {NULL, NULL, NO_HELP, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE}

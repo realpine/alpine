@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mouse.c 217 2006-11-04 02:52:05Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: mouse.c 477 2007-03-08 19:50:00Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -330,7 +330,7 @@ checkmouse (unsigned long *ch, int ddd, int xxx, int yyy)
     if(mp){
 
 	r = (*mp->action)(mouse.event, mrow, mcol, mouse.button, mouse.keys);
-	if (r & 0xffff){
+	if (r){
 	    *ch = r;
 	    rv  = TRUE;
 	}

@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pico.c 421 2007-02-05 22:53:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pico.c 477 2007-03-08 19:50:00Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1279,7 +1279,7 @@ doubleclick = (lrow == row && lcol == col
 		 * because that would mess up layering. */
 		if (curwp->w_marko)
 		    setmark (0,1);
-		rv = ((unsigned long)KEY_MOUSE << 16) | TRUE;
+		rv = (unsigned long) KEY_MOUSE;
 	    }
         }
 	else {
@@ -1701,8 +1701,12 @@ pico_writec(void *w, int c, int flags)
 		    /* got a character */
 		    if(printable_ascii)
 		      width = 1;
-		    else
-		      width = wcellwidth(ucs);
+		    else{
+			if(ucs & U8G_ERROR)
+			  ucs = '?';
+
+			width = wcellwidth(ucs);
+		    }
 
 		    if(width < 0){
 			/*

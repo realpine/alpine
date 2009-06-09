@@ -14,7 +14,7 @@ dnl  */
 
 AC_PREREQ([2.57])
 
-AC_REVISION([$Id: configure.ac 438 2007-02-12 21:17:18Z mikes@u.washington.edu $])
+AC_REVISION([$Id: configure.ac 502 2007-03-30 17:12:05Z mikes@u.washington.edu $])
 
 dnl Alpine Version Number is in $srcdir/VERSION
 AC_INIT(alpine, m4_normalize(m4_include([VERSION])), [alpine-contact@cac.washington.edu])
@@ -389,10 +389,36 @@ AC_ARG_WITH(passfile,
 	yes)
 	  ;;
 	*)
-	  AC_DEFINE_UNQUOTED([PASSFILE], "$withval", [Password cache file (NOT secure. NOT recommended)])
+	  alpine_PASSFILE=$withval
 	  ;;
       esac
     ])
+
+dnl os-specific credential cache?
+AC_ARG_WITH(local-password-cache,
+ AC_HELP_STRING([--without-local-password-cache],[Disable OS-specific password cache, if supported]),
+   [
+     alpine_os_credential_cache=$withval
+   ])
+
+dnl Particular os-specific credential cache?
+AC_ARG_WITH(local-password-cache-method,
+ AC_HELP_STRING([--with-local-password-cache-method],[OS-specific credential cache (OSX=APPLEKEYCHAIN, Windows=WINCRED)]),
+   [
+     alpine_os_credential_cache_method=$withval
+   ])
+
+if test -n "$alpine_PASSFILE" ; then
+  case $alpine_os_credential_cache in
+    no)
+      ;;
+    *)
+      alpine_os_credential_cache="no"
+      AC_MSG_NOTICE([--with-passfile definition overrides OS-Specific password caching])
+      ;;
+  esac
+  AC_DEFINE_UNQUOTED([PASSFILE], "$alpine_PASSFILE", [Password cache file (NOT secure. NOT recommended)])
+fi
 
 dnl Include SSL?
 dnl Set SSLDIR for c-client make
@@ -934,11 +960,19 @@ case "$host" in
     alpine_mode_readonly="(0600)"
     if test -f /etc/fedora-release ; then  
       systype="LFD"
-      alpine_c_client_target="lrh"
+      if test -d /etc/pki/tls ; then  
+	alpine_c_client_target="lfd"
+      else
+	alpine_c_client_target="lrh"
+      fi
       alpine_local_maildir="/var/spool/mail"
     elif test -f /etc/redhat-release -o -f /etc/redhat_version ; then
       systype="LRH"
-      alpine_c_client_target="lrh"
+      if test -d /etc/pki/tls ; then  
+	alpine_c_client_target="lr5"
+      else
+	alpine_c_client_target="lrh"
+      fi
       alpine_local_maildir="/var/spool/mail"
     elif test -f /etc/debian_release -o -f /etc/debian_version ; then
       systype="DEB"
@@ -977,6 +1011,13 @@ case "$host" in
     CFLAGS="$CFLAGS -Dbsd"
     dnl SEE include/system.h
     AC_DEFINE([OSX_TARGET],[1],[OSX TARGET])
+    case "$alpine_os_credential_cache" in
+      no)
+	;;
+      *)
+	AC_DEFINE([APPLEKEYCHAIN], [1], [Use Apple OS X key chain for credential caching])
+	;;
+    esac
     AC_CHECK_LIB(pam, pam_start,
       [
         alpine_c_client_target="oxp"

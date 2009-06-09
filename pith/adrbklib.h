@@ -1,5 +1,5 @@
 /*
- * $Id: adrbklib.h 406 2007-01-31 00:36:05Z hubert@u.washington.edu $
+ * $Id: adrbklib.h 473 2007-03-07 23:16:56Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -20,6 +20,7 @@
 #include "../pith/indxtype.h"
 #include "../pith/remtype.h"
 #include "../pith/store.h"
+#include "../pith/string.h"
 
 
 /*
@@ -807,6 +808,7 @@ AdrBk_Entry   *adrbk_get_ae(AdrBk *, a_c_arg_t);
 AdrBk_Entry   *adrbk_lookup_by_nick(AdrBk *, char *, adrbk_cntr_t *);
 AdrBk_Entry   *adrbk_lookup_by_addr(AdrBk *, char *, adrbk_cntr_t *);
 int            adrbk_longest_unambig_nick(AdrBk *, char *, char **);
+STRLIST_S     *adrbk_list_of_possible_nicks(AdrBk *, char *);
 char          *adrbk_formatname(char *, char **, char **);
 void           adrbk_clearrefs(AdrBk *);
 AdrBk_Entry   *adrbk_newentry(void);

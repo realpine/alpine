@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: addrbook.c 409 2007-02-01 22:44:01Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: addrbook.c 473 2007-03-07 23:16:56Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -93,6 +93,7 @@ int            find_in_book(long, char *, long *, int *);
 int            search_in_one_line(AddrScrn_Disp *, AdrBk_Entry *, char *, char *);
 int            nickname_check(char *, char **);
 int            abook_select_tool(struct pine *, int, CONF_S **, unsigned);
+char          *choose_a_nickname_with_prefix(char *);
 #ifdef	_WINDOWS
 int	       addr_scroll_up(long);
 int	       addr_scroll_down(long);
@@ -6879,6 +6880,172 @@ abook_select_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
       ps->mangled_body = 1;
 
     return(retval);
+}
+
+
+/*
+ * Look in all of the address books for the longest unambiguous prefix
+ * of a nickname which begins with the characters in "prefix".
+ *
+ * Args    prefix  -- The part of the nickname that has been typed so far
+ *         answer  -- The answer is returned here.
+ *         tabtab  -- If the answer returned from adrbk_nick_complete is
+ *                    ambiguous and tabtab is set, then offer up a
+ *                    selector screen among all the possible answers.
+ *          flags  -- ANC_AFTERCOMMA -- This means that the passed in
+ *                                      prefix may be a list of comma
+ *                                      separated addresses and we're only
+ *                                      completing the last one.
+ *
+ * Returns    0 -- no nickname has prefix as a prefix
+ *            1 -- more than one nickname begins with
+ *                              the answer being returned
+ *            2 -- the returned answer is a complete
+ *                              nickname and there are no longer nicknames
+ *                              which begin with the same characters
+ *
+ * Allocated answer is returned in answer argument.
+ * Caller needs to free the answer.
+ */
+int
+abook_nickname_complete(char *prefix, char **answer, int tabtab, unsigned flags)
+{
+    int ambiguity;
+
+    ambiguity = adrbk_nick_complete(prefix, answer, flags);
+
+    if(ambiguity == 1 && tabtab){
+	char *ambig_beg = NULL, *ambig_pref = NULL;
+	char *saved_beginning = NULL;
+	char *chosen_nickname = NULL;
+
+	if(answer && *answer){
+	    ambig_beg = *answer;
+	    *answer = NULL;
+	}
+	else
+	  ambig_beg = cpystr(prefix);
+
+	ambig_pref = ambig_beg;
+
+	if(flags & ANC_AFTERCOMMA){
+	    char *lastnick;
+
+	    /*
+	     * Find last comma, save the part before that, operate
+	     * only on the last address.
+	     */
+	    if((lastnick = strrchr(ambig_beg ? ambig_beg : "", ',')) != NULL){
+		lastnick++;
+		while(!(*lastnick & 0x80) && isspace((unsigned char) (*lastnick)))
+		  lastnick++;
+
+		saved_beginning = cpystr(ambig_beg);
+		saved_beginning[lastnick-ambig_beg] = '\0';
+		ambig_pref = lastnick;
+	    }
+	}
+
+	chosen_nickname = choose_a_nickname_with_prefix(ambig_pref);
+	if(ambig_beg)
+	  fs_give((void **) &ambig_beg);
+
+	if(answer && *answer)
+	  fs_give((void **) answer);
+
+	if(chosen_nickname){
+	    ambiguity = 2;
+	    if(answer){
+		size_t l1, l2;
+
+		if(saved_beginning){
+		    l1 = strlen(saved_beginning);
+		    l2 = strlen(chosen_nickname);
+		    *answer = (char *) fs_get((l1+l2+1) * sizeof(char));
+		    strncpy(*answer, saved_beginning, l1+l2);
+		    strncpy(*answer+l1, chosen_nickname, l2);
+		    (*answer)[l1+l2] = '\0';
+		    fs_give((void **) &saved_beginning);
+		    fs_give((void **) &chosen_nickname);
+		}
+		else
+		  *answer = chosen_nickname;
+	    }
+	    else
+	      fs_give((void **) &chosen_nickname);
+	}
+    }
+
+    return(ambiguity);
+}
+
+
+/*
+ * Returns an allocated nickname choice from user that begins with
+ * prefix.
+ */
+char *
+choose_a_nickname_with_prefix(char *prefix)
+{
+    char *chosen_nickname = NULL;
+    char **lp, **possible_nicks = NULL;
+    STRLIST_S *list, *list2, *biglist = NULL;
+    PerAddrBook *pab;
+    int i;
+    size_t cnt = 0;
+
+    /*
+     * Build a list of nicknames to choose from.
+     */
+
+    for(i = 0; i < as.n_addrbk; i++){
+	pab = &as.adrbks[i];
+	list = adrbk_list_of_possible_nicks(pab ? pab->address_book : NULL, prefix);
+	combine_strlists(&biglist, list);
+    }
+
+    /*
+     * Eliminate duplicates by zeroing out the names.
+     */
+    for(list = biglist; list; list = list->next)
+      /* eliminate any dups further along in the list */
+      if(list->name)
+	for(list2 = list->next; list2; list2 = list2->next)
+	  if(list->name && list2->name && !strcmp(list->name, list2->name))
+	    fs_give((void **) &list2->name);
+
+    /*
+     * Count how many and allocate an array for choose_item_from_list.
+     */
+    for(cnt = 0, list = biglist; list; list = list->next)
+      if(list->name)
+        cnt++;
+
+    /*
+     * Copy biglist into an array.
+     */
+    if(cnt > 0){
+	lp = possible_nicks = (char **) fs_get((cnt+1) * sizeof(*possible_nicks));
+	memset(possible_nicks, 0, (cnt+1) * sizeof(*possible_nicks));
+	for(list = biglist; list; list = list->next)
+	  if(list->name)
+	    *lp++ = cpystr(list->name ? list->name : "?");
+
+	qsort((qsort_t *) possible_nicks, cnt, sizeof(char *), sstrcasecmp);
+    }
+
+    free_strlist(&biglist);
+
+    if(possible_nicks){
+	chosen_nickname = choose_item_from_list(possible_nicks,
+						_("SELECT A NICKNAME"),
+						_("nicknames"),
+						h_select_nickname_screen,
+						_("HELP FOR SELECTING A NICKNAME"));
+	free_list_array(&possible_nicks);
+    }
+
+    return(chosen_nickname);
 }
 
 

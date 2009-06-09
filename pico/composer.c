@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: composer.c 421 2007-02-05 22:53:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: composer.c 480 2007-03-09 22:34:47Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -49,7 +49,7 @@ static char rcsid[] = "$Id: composer.c 421 2007-02-05 22:53:41Z hubert@u.washing
 int              InitEntryText(char *, struct headerentry *);
 int              HeaderOffset(int);
 int              HeaderFocus(int, int);
-UCS              LineEdit(int);
+UCS              LineEdit(int, UCS *);
 int              header_downline(int, int);
 int              header_upline(int);
 int              FormatLines(struct hdr_line *, char *, int, int, int);
@@ -473,7 +473,7 @@ int
 HeaderEditor(int f, int n)
 {
     register  int	i;
-    UCS                 ch;
+    UCS                 ch = 0, lastch;
     register  char	*bufp;
     struct headerentry *h;
     int                 cur_e, mangled, retval = -1,
@@ -548,6 +548,7 @@ HeaderEditor(int f, int n)
     sgarbk = 1;
 
     do{
+	lastch = ch;
 	if(km_popped){
 	    km_popped--;
 	    if(km_popped == 0)
@@ -572,7 +573,7 @@ HeaderEditor(int f, int n)
 	    }
 	}
 
-	ch = LineEdit(!(gmode&MDVIEW));		/* work on the current line */
+	ch = LineEdit(!(gmode&MDVIEW), &lastch);	/* work on the current line */
 
 	if(km_popped)
 	  switch(ch){
@@ -826,9 +827,11 @@ HeaderEditor(int f, int n)
 		UCS *start = NULL, *end = NULL, *before_start = NULL;
 		UCS *uprefix = NULL, *up1, *up2;
 		char *prefix = NULL, *saveprefix = NULL, *insert = NULL;
+		char *ambig = NULL;
 		int offset, prefixlen, add_a_comma = 0;
 		size_t l, l1, l2;
-		int ambiguity;
+		int ambiguity, fallthru = 1;
+		EML eml;
 
 		strng = ods.cur_l->text;
 		offset = HeaderOffset(ods.cur_e);
@@ -867,7 +870,14 @@ HeaderEditor(int f, int n)
 		    prefix = ucs4_to_utf8_cpystr(uprefix);
 		    fs_give((void **) &uprefix);
 
-		    ambiguity = (*(headents[ods.cur_e].nickcmpl))(prefix, &new_nickname, 0);
+		    ambiguity = (*(headents[ods.cur_e].nickcmpl))(prefix,
+					    &new_nickname, (lastch == ch), 0);
+
+		    if(ambiguity != 1)
+		      lastch = 0;
+
+		    if(ambiguity == 0)
+		      goto nomore_to_complete;
 
 		    if(new_nickname){
 			if(strlen(new_nickname) > strlen(prefix)){
@@ -880,6 +890,7 @@ HeaderEditor(int f, int n)
 			     */
 
 			    /* save part before start */
+			    fallthru = 0;
 			    before_start = strng;
 			    uprefix = (UCS *) fs_get((start-before_start+1) * sizeof(UCS));
 			    ucs4_strncpy(uprefix, before_start, start-before_start);
@@ -951,25 +962,60 @@ HeaderEditor(int f, int n)
 			    HeaderFocus(ods.cur_e, offset);
 			}
 
-			fs_give((void **) &new_nickname);
+			ambig = new_nickname;
+			new_nickname = NULL;
+		    }
+
+		    if(!ambig && prefix){
+			ambig = prefix;
+			prefix = NULL;
+		    }
+
+
+		    if(ambiguity == 2 && fallthru){
+			if(prefix)
+			  fs_give((void **) &prefix);
+
+			if(new_nickname)
+			  fs_give((void **) &new_nickname);
+
+			if(ambig)
+			  fs_give((void **) &ambig);
+
+			UpdateHeader(0);
+			PaintBody(0);
+			goto nomore_to_complete;
+		    }
+
+		    UpdateHeader(0);
+		    PaintBody(0);
+
+		    /* ambiguous */
+		    if(lastch == ch){
+			eml.s = ambig;
+			if(headents[ods.cur_e].selector != NULL)
+			  emlwrite(_("%s is ambiguous, try ^T"), &eml);
+			else
+			  emlwrite(_("%s is ambiguous"), &eml);
 		    }
 
 		    if(prefix)
 		      fs_give((void **) &prefix);
 
-		    if(ambiguity != 2)
-		      (*term.t_beep)();
+		    if(new_nickname)
+		      fs_give((void **) &new_nickname);
 
-		    UpdateHeader(0);
-		    PaintBody(0);
+		    if(ambig)
+		      fs_give((void **) &ambig);
 		}
 		else{
-		    (*term.t_beep)();
+		    goto nomore_to_complete;
 		}
 
 		break;
 	    }
 	    else{
+nomore_to_complete:
 		ods.p_ind = 0;			/* fall through... */
 	    }
 
@@ -1773,7 +1819,7 @@ AppendAttachment(char *fn, char *sz, char *cmt)
  *		length, and HALLOC() will probably have to become a func.
  */
 UCS
-LineEdit(int allowedit)
+LineEdit(int allowedit, UCS *lastch)
 {
     register struct	hdr_line   *lp;		/* temporary line pointer    */
     register int	i;
@@ -1805,6 +1851,8 @@ LineEdit(int allowedit)
 	  HeaderPaintCursor();
 
 	last_key = ch;
+	if(ch && lastch)
+	  *lastch = ch;
 
 	(*term.t_flush)();			/* get everything out */
 
@@ -1968,7 +2016,30 @@ LineEdit(int allowedit)
         }
         else {					/* interpret ch as a command */
             switch (ch = normalize_cmd(ch, ckm, 2)) {
+              case (CTRL|KEY_LEFT):     /* word skip left */
+                if(ods.p_ind > 0)       /* Scoot one char left if possible */
+                  ods.p_ind--;
+
+                if(ods.p_ind == 0)
+                {
+	          if(ods.p_line != COMPOSER_TOP_LINE)
+		    ods.p_ind = 1000;		/* put cursor at end of line */
+		  return(KEY_UP);
+                }
+
+		while(ods.p_ind > 0 && !ucs4_isalnum(strng[ods.p_ind]))
+		  ods.p_ind--;		/* skip any whitespace we're in */
+
+		while(ods.p_ind > 0) {
+                  /* Bail if the character right before this one is whitespace */
+                  if(ods.p_ind > 1 && !ucs4_isalnum(strng[ods.p_ind - 1]))
+                    break;
+		  ods.p_ind--;
+                }
+                continue;
+
 	      case (CTRL|'@') :		/* word skip */
+              case (CTRL|KEY_RIGHT):
 		while(ucs4_isalnum(strng[ods.p_ind]))
 		  ods.p_ind++;		/* skip any text we're in */
 

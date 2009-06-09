@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: collate.c 296 2006-12-02 01:47:06Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: collate.c 473 2007-03-07 23:16:56Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -70,6 +70,16 @@ set_collation(int collation, int ctype)
 #ifdef LC_TIME
   setlocale(LC_TIME, "");
 #endif
+}
+
+
+/*
+ * sstrcasecmp - compare two pointers to strings case independently
+ */
+int
+sstrcasecmp(const qsort_t *s1, const qsort_t *s2)
+{
+    return((*pcollator)(*(char **)s1, *(char **)s2));
 }
 
 

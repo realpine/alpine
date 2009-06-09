@@ -1,5 +1,5 @@
 /*
- * $Id: string.h 392 2007-01-25 18:56:49Z hubert@u.washington.edu $
+ * $Id: string.h 473 2007-03-07 23:16:56Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -96,8 +96,14 @@ char	   *strrindex(char *, int);
 char	   *iutf8ncpy(char *, char *, int);
 char	   *istrncpy(char *, char *, int);
 char	   *month_abbrev(int);
+char	   *month_abbrev_locale(int);
 char	   *month_name(int);
-char	   *week_abbrev(int);
+char	   *month_name_locale(int);
+char	   *day_abbrev(int);
+char	   *day_abbrev_locale(int);
+char	   *day_name(int);
+char	   *day_name_locale(int);
+size_t      our_strftime(char *, size_t, char *, struct tm *);
 int	    month_num(char *);
 void	    parse_date(char *, struct date *);
 char	   *repeat_char(int, int);
@@ -126,8 +132,9 @@ void	    vcard_unfold(char *);
 char       *add_escapes(char *, char *, int, char *, char *);
 char       *copy_quoted_string_asis(char *);
 int	    isxpair(char *);
-STRLIST_S  *new_strlist(void);
+STRLIST_S  *new_strlist(char *);
 STRLIST_S  *copy_strlist(STRLIST_S *);
+void	    combine_strlists(STRLIST_S **, STRLIST_S *);
 void	    free_strlist(STRLIST_S **);
 
 

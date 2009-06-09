@@ -1,8 +1,8 @@
 /*
- * $Id: mailindx.h 394 2007-01-25 20:29:45Z hubert@u.washington.edu $
+ * $Id: mailindx.h 483 2007-03-15 18:43:40Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ int	       msgline_hidden(MAILSTREAM *, MSGNO_S *, long, int);
 void	       adjust_cur_to_visible(MAILSTREAM *, MSGNO_S *);
 unsigned long  line_hash(char *);
 void	       init_index_format(char *, INDEX_COL_S **);
+void	       free_index_format(INDEX_COL_S **);
 void	       reset_index_format(void);
 INDEX_PARSE_T *itoktype(char *, int);
 char	      *prepend_keyword_subject(MAILSTREAM *, long, char *, SubjKW, IELEM_S **, char *);
@@ -46,7 +47,7 @@ int	       resent_to_us(INDEXDATA_S *);
 int	       parsed_resent_to_us(char *);
 ADDRESS	      *fetch_cc(INDEXDATA_S *);
 void	       index_data_env(INDEXDATA_S *, ENVELOPE *);
-void	       date_str(char *, IndexColType, int, char *, size_t);
+void	       date_str(char *, IndexColType, int, char *, size_t, int);
 ADDRESS	      *fetch_to(INDEXDATA_S *);
 
 

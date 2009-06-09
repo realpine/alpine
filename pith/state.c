@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: state.c 172 2006-10-06 17:00:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: state.c 482 2007-03-14 21:27:23Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -28,6 +28,7 @@ static char rcsid[] = "$Id: state.c 172 2006-10-06 17:00:18Z hubert@u.washington
 #include "../pith/sort.h"
 #include "../pith/atttype.h"
 #include "../pith/util.h"
+#include "../pith/mailindx.h"
 
 
 /*
@@ -125,8 +126,7 @@ free_pine_struct(struct pine **pps)
     if((*pps)->ui.fullname)
       fs_give((void **)&(*pps)->ui.fullname);
 
-    if((*pps)->index_disp_format)
-      fs_give((void **)&(*pps)->index_disp_format);
+    free_index_format(&(*pps)->index_disp_format);
 
     if((*pps)->conv_table){
 	if((*pps)->conv_table->table)

@@ -1,10 +1,10 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: word.c 404 2007-01-30 18:54:06Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: word.c 486 2007-03-22 18:38:38Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,8 @@ static char rcsid[] = "$Id: word.c 404 2007-01-30 18:54:06Z hubert@u.washington.
 
 
 int fpnewline(UCS *quote);
+int fillregion(UCS *qstr, REGION *addedregion);
+int setquotelevelinregion(int quotelevel, REGION *addedregion);
 
 
 /* Word wrap on n-spaces. Back-over whatever precedes the point on the current
@@ -525,12 +527,10 @@ fillbuf(int f, int n)
 int
 fillpara(int f, int n)
 {
-    int	    i, j, c, qlen, word[NSTRING], same_word,
-	    spaces, word_len, word_ind, line_len, qn, ww;
-    UCS     line_last;
-    UCS    *qstr, qstr2[NSTRING];
-    LINE   *eopline;
-    REGION  region;
+    UCS    *qstr, qstr2[NSTRING], c;
+    int     quotelevel = -1;
+    REGION  addedregion;
+    char    action = 'P';
 
     if(curbp->b_mode&MDVIEW){		/* don't allow this command if	*/
 	return(rdonly());		/* we are in read only mode	*/
@@ -539,42 +539,315 @@ fillpara(int f, int n)
 	mlwrite_utf8("No fill column set", NULL);
 	return(FALSE);
     }
-    else if(curwp->w_dotp == curbp->b_linep) /* don't wrap! */
+    else if(curwp->w_dotp == curbp->b_linep && !curwp->w_markp) /* don't wrap! */
       return(FALSE);
 
-    /* record the pointer to the line just past the EOP */
-    if(gotoeop(FALSE, 1) == FALSE)
-      return(FALSE);
+    /*
+     * If there is already a region set, then we may use it
+     * instead of the current paragraph.
+     */
 
-    eopline = curwp->w_dotp;		/* first line of para */
+    if(curwp->w_markp){
+	int k, rv;
+	KEYMENU menu_justify[12];
+	char prompt[100];
 
-    /* and back to the beginning of the paragraph */
-    gotobop(FALSE, 1);
+	for(k = 0; k < 12; k++){
+	    menu_justify[k].name = NULL;
+	    KS_OSDATASET(&menu_justify[k], KS_NONE);
+	}
 
-    /* determine if we're justifying quoted text or not */
-    qstr = (glo_quote_str
-	    && quote_match(glo_quote_str, 
-			   curwp->w_dotp, qstr2, NSTRING)
-	    && *qstr2) ? qstr2 : NULL;
-    qlen = qstr ? ucs4_strlen(qstr) : 0;
+	menu_justify[1].name  = "R";
+	menu_justify[1].label = "[" N_("Region") "]";
+	menu_justify[6].name  = "^C";
+	menu_justify[6].label = N_("Cancel");
+	menu_justify[7].name  = "P";
+	menu_justify[7].label = N_("Paragraph");
+	menu_justify[2].name  = "Q";
+	menu_justify[2].label = N_("Quotelevel");
 
-    /* let yank() know that it may be restoring a paragraph */
-    thisflag |= CFFILL;
+	wkeyhelp(menu_justify);		/* paint menu */
+	sgarbk = TRUE;
+	if(Pmaster && curwp)
+	  curwp->w_flag |= WFMODE;
 
-    if(!Pmaster)
-      sgarbk = TRUE;
-    
-    curwp->w_flag |= WFMODE;
+	strncpy(prompt, "justify Region, Paragraph; or fix Quotelevel ? ", sizeof(prompt));
+	prompt[sizeof(prompt)-1] = '\0';
+	mlwrite_utf8(prompt, NULL);
+	(*term.t_rev)(1);
+	rv = -1;
+	while(1){
+	    switch(c = GetKey()){
+
+	      case (CTRL|'C') :		/* Bail out! */
+	      case F2         :
+		pputs_utf8(_("ABORT"), 1);
+		rv = ABORT;
+		emlwrite("", NULL);
+		break;
+
+	      case (CTRL|'M') :		/* default */
+	      case 'r' :
+	      case 'R' :
+	      case F3  :
+		pputs_utf8(_("Region"), 1);
+		rv = 'R';
+		break;
+
+	      case 'p' :
+	      case 'P' :
+	      case F7  :
+		pputs_utf8(_("Paragraph"), 1);
+		rv = 'P';
+		break;
+
+	      case 'q' :
+	      case 'Q' :
+	      case F8  :
+	      case '0' : case '1' : case '2' : case '3' : case '4' :
+	      case '5' : case '6' : case '7' : case '8' : case '9' :
+		pputs_utf8(_("Quotelevel"), 1);
+		while(rv == -1){
+		  switch(c){
+		    case 'q' :
+		    case 'Q' :
+		    case F8  :
+		     {char num[20];
+
+		      num[0] = '\0';
+		      switch(mlreplyd_utf8("Quote Level ? ", num, sizeof(num), QNORML, NULL)){
+		        case TRUE:
+			  if(isdigit(num[0])){
+			      quotelevel = atoi(num);
+			      if(quotelevel < 0){
+				  emlwrite("Quote Level cannot be negative", NULL);
+				  sleep(3);
+			      }
+			      else if(quotelevel > 20){
+				  emlwrite("Quote Level should be less than 20", NULL);
+				  rv = ABORT;
+			      }
+			      else{
+				  rv = 'Q';
+			      }
+			  }
+			  else if(num[0]){
+			      emlwrite("Quote Level should be a number", NULL);
+			      sleep(3);
+			  }
+
+			  break;
+
+		        case HELPCH:
+			  emlwrite("Enter the number of quotes you want before the text", NULL);
+			  sleep(3);
+			  break;
+
+		        default:
+			  emlwrite("Quote Level is a number", NULL);
+			  rv = ABORT;
+			  break;
+		      }
+		     }
+
+		      break;
+
+		    case '0' : case '1' : case '2' : case '3' : case '4' :
+		    case '5' : case '6' : case '7' : case '8' : case '9' :
+		      rv = 'Q';
+		      quotelevel = (int) (c - '0');
+		      break;
+		  }
+		}
+
+		break;
+
+	      case (CTRL|'G') :
+		if(term.t_mrow == 0 && km_popped == 0){
+		    movecursor(term.t_nrow-2, 0);
+		    peeol();
+		    term.t_mrow = 2;
+		    (*term.t_rev)(0);
+		    wkeyhelp(menu_justify);
+		    mlwrite_utf8(prompt, NULL);
+		    (*term.t_rev)(1);
+		    sgarbk = TRUE;			/* mark menu dirty */
+		    km_popped++;
+		    break;
+		}
+		/* else fall through */
+
+	      default:
+		(*term.t_beep)();
+
+	      case NODATA :
+		break;
+	    }
+
+	    (*term.t_flush)();
+	    if(rv != -1){
+		(*term.t_rev)(0);
+		if(km_popped){
+		    term.t_mrow = 0;
+		    movecursor(term.t_nrow, 0);
+		    peeol();
+		    sgarbf = 1;
+		    km_popped = 0;
+		}
+
+		action = rv;
+		break;
+	    }
+	}
+
+	if(action != ABORT)
+	  emlwrite("", NULL);
+    }
+
+    if(action == 'R' && curwp->w_markp){
+	/* let yank() know that it may be restoring a paragraph */
+	thisflag |= CFFILL;
+
+	if(!Pmaster)
+	  sgarbk = TRUE;
+	
+	curwp->w_flag |= WFMODE;
+
+	swap_mark_and_dot_if_mark_comes_first();
+
+	/* determine if we're justifying quoted text or not */
+	qstr = (glo_quote_str
+		&& quote_match(glo_quote_str, 
+			       curwp->w_doto > 0 ? curwp->w_dotp->l_fp : curwp->w_dotp,
+			       qstr2, NSTRING)
+		&& *qstr2) ? qstr2 : NULL;
+
+
+	/*
+	 * Fillregion moves dot to the end of the filled region.
+	 */
+	if(!fillregion(qstr, &addedregion))
+	  return(FALSE);
+
+	set_last_region_added(&addedregion);
+    }
+    else if(action == 'P'){
+
+	/*
+	 * Justfiy the current paragraph.
+	 */
+
+	if(curwp->w_markp)		/* clear mark if already set */
+	  setmark(0,0);
+
+	/* determine if we're justifying quoted text or not */
+	qstr = (glo_quote_str
+		&& quote_match(glo_quote_str, 
+			       curwp->w_dotp, qstr2, NSTRING)
+		&& *qstr2) ? qstr2 : NULL;
+
+	if(gotoeop(FALSE, 1) == FALSE)
+	  return(FALSE);
+
+	setmark(0,0);			/* mark last line of para */
+
+	/* jump back to the beginning of the paragraph */
+	gotobop(FALSE, 1);
+
+	/* let yank() know that it may be restoring a paragraph */
+	thisflag |= CFFILL;
+
+	if(!Pmaster)
+	  sgarbk = TRUE;
+	
+	curwp->w_flag |= WFMODE;
+
+	curwp->w_doto = 0;		/* start region at beginning of line */
+
+	/*
+	 * Fillregion moves dot to the end of the filled region.
+	 */
+	if(!fillregion(qstr, &addedregion))
+	  return(FALSE);
+
+	set_last_region_added(&addedregion);
+
+	/* Leave cursor on first char of first line after justified region */
+	curwp->w_dotp = lforw(curwp->w_dotp);
+	curwp->w_doto = 0;
+
+	if(curwp->w_markp)
+	  setmark(0,0);			/* clear mark */
+    }
+    else if(action == 'Q'){
+	/* let yank() know that it may be restoring a paragraph */
+	thisflag |= CFFILL;
+
+	if(!Pmaster)
+	  sgarbk = TRUE;
+	
+	curwp->w_flag |= WFHARD;
+
+	swap_mark_and_dot_if_mark_comes_first();
+
+	if(!setquotelevelinregion(quotelevel, &addedregion))
+	  return(FALSE);
+
+	set_last_region_added(&addedregion);
+    }
+    else{
+	/* abort */
+    }
+
+    return(TRUE);
+}
+
+
+/*
+ * The region we're filling is the region from dot to mark.
+ * We cut out that region and then put it back in filled.
+ * The cut out part is saved in the ldelete call and the
+ * reinstalled region is noted in addedregion, so that yank()
+ * can delete it and restore the saved part.
+ */
+int
+fillregion(UCS *qstr, REGION *addedregion)
+{
+    long    c, sz;
+    int	    i, j, qlen, same_word,
+	    spaces, word_len, word_ind, line_len, qn, ww;
+    int     starts_midline = 0;
+    int     ends_midline = 0;
+    int     offset_into_start;
+    LINE   *line_before_start, *lp;
+    UCS     line_last, word[NSTRING];
+    REGION  region;
+
+    /* if region starts midline insert a newline */
+    if(curwp->w_doto > 0 && curwp->w_doto < llength(curwp->w_dotp))
+      starts_midline++;
+
+    /* if region ends midline insert a newline at end */
+    if(curwp->w_marko > 0 && curwp->w_marko < llength(curwp->w_markp))
+      ends_midline++;
 
     /* cut the paragraph into our fill buffer */
     fdelete();
-    curwp->w_doto = 0;
-    getregion(&region, eopline, llength(eopline));
+    if(!getregion(&region, curwp->w_markp, curwp->w_marko))
+      return(FALSE);
+
     if(!ldelete(region.r_size, finsert))
       return(FALSE);
 
+    line_before_start = lback(curwp->w_dotp);
+    offset_into_start = curwp->w_doto;
+
+    if(starts_midline)
+      lnewline();
+
     /* Now insert it back wrapped */
     spaces = word_len = word_ind = line_len = same_word = 0;
+    qlen = qstr ? ucs4_strlen(qstr) : 0;
 
     /* Beginning with leading quoting... */
     if(qstr){
@@ -588,17 +861,27 @@ fillpara(int f, int n)
 	line_last = ' ';			/* no word-flush space! */
     }
 
-    /* ...and leading white space */
-    for(i = qlen; (c = fremove(i)) == ' ' || c == TAB; i++){
-	linsert(1, line_last = c);
-	line_len += ((c == TAB) ? (~line_len & 0x07) + 1 : 1);
-    }
+    /* remove first leading quotes if any */
+    if(starts_midline)
+      i = 0;
+    else
+      for(i = qlen; (c = fremove(i)) == ' ' || c == TAB; i++){
+	  linsert(1, line_last = (UCS) c);
+	  line_len += ((c == TAB) ? (~line_len & 0x07) + 1 : 1);
+      }
 
     /* then digest the rest... */
-    while((c = fremove(i++)) > 0){
+    while((c = fremove(i++)) >= 0){
 	switch(c){
 	  case '\n' :
-	    i += qlen;				/* skip next quote string */
+	    /* skip next quote string */
+	    j = 0;
+	    while(j < qlen && ((c = fremove(i+j)) == qstr[j] || c == ' '))
+	      j++;
+
+	    i += j;
+
+
 	    if(!spaces)
 	      spaces++;
 	    same_word = 0;
@@ -656,8 +939,8 @@ fillpara(int f, int n)
 		line_last = ' ';
 	    }
 
-	    word[word_ind++] = c;
-	    ww = wcellwidth(c);
+	    word[word_ind++] = (UCS) c;
+	    ww = wcellwidth((UCS) c);
 	    word_len += (ww >= 0 ? ww : 1);
 
 	    break;
@@ -677,9 +960,29 @@ fillpara(int f, int n)
 	  linsert(1, word[j]);
     }
 
-    /* Leave cursor on first char of first line after paragraph */
-    curwp->w_dotp = lforw(curwp->w_dotp);
-    curwp->w_doto = 0;
+    if(ends_midline)
+      lnewline();
+
+    /*
+     * Calculate the size of the region that was added.
+     */
+    swapmark(0,1);	/* mark current location after adds */
+    addedregion->r_linep = lforw(line_before_start);
+    addedregion->r_offset = offset_into_start;
+    lp = addedregion->r_linep;
+    sz = llength(lp) - addedregion->r_offset;
+    if(lforw(lp) != curwp->w_markp->l_fp){
+	lp = lforw(lp);
+	while(lp != curwp->w_markp->l_fp){
+	    sz += llength(lp) + 1;
+	    lp = lforw(lp);
+	}
+    }
+
+    sz -= llength(curwp->w_markp) - curwp->w_marko;
+    addedregion->r_size = sz;
+
+    swapmark(0,1);
 
     return(TRUE);
 }
@@ -703,4 +1006,110 @@ fpnewline(UCS *quote)
     }
 
     return(len);
+}
+
+
+int
+setquotelevelinregion(int quotelevel, REGION *addedregion)
+{
+    int     i, standards_based = 0;
+    int     starts_midline = 0, ends_midline = 0, offset_into_start;
+    long    c, sz;
+    UCS     qstr_def1[] = { '>', ' ', 0}, qstr_def2[] = { '>', 0};
+    LINE   *lp, *line_before_start;
+    REGION  region;
+
+    if(curbp->b_mode&MDVIEW)		/* don't allow this command if	*/
+      return(rdonly());			/* we are in read only mode	*/
+
+    if(!glo_quote_str
+       || !ucs4_strcmp(glo_quote_str, qstr_def1)
+       || !ucs4_strcmp(glo_quote_str, qstr_def2))
+      standards_based++;
+
+    if(!standards_based){
+	emlwrite("Quote level setting only works with standard \"> \" quotes", NULL);
+	return(FALSE);
+    }
+
+    /* if region starts midline insert a newline */
+    if(curwp->w_doto > 0 && curwp->w_doto < llength(curwp->w_dotp))
+      starts_midline++;
+
+    /* if region ends midline insert a newline at end */
+    if(curwp->w_marko > 0 && curwp->w_marko < llength(curwp->w_markp))
+      ends_midline++;
+
+    /* find the size of the region */
+    getregion(&region, curwp->w_markp, curwp->w_marko);
+
+    /* cut the paragraph into our fill buffer */
+    fdelete();
+    if(!ldelete(region.r_size, finsert))
+      return(FALSE);
+
+    line_before_start = lback(curwp->w_dotp);
+    offset_into_start = curwp->w_doto;
+
+    /* if region starts midline add a newline */
+    if(starts_midline)
+      lnewline();
+
+    i = 0;
+    while(fremove(i) >= 0){
+
+	/* remove all quote strs from current line */
+	if(standards_based){
+	    while((c = fremove(i)) == '>')
+	      i++;
+
+	    if(c == ' ')
+	      i++;
+	}
+	else{
+	}
+
+	/* insert quotelevel quote strs */
+	if(standards_based){
+            linsert(quotelevel, '>');
+	    if(quotelevel > 0)
+              linsert(1, ' ');
+	}
+	else{
+	}
+
+	/* put back the actual line */
+	while((c = fremove(i++)) >= 0 && c != '\n')
+	  linsert(1, (UCS) c);
+
+	if(c == '\n')
+	  lnewline();
+    }
+
+    /* if region ends midline add a newline */
+    if(ends_midline)
+      lnewline();
+
+    /*
+     * Calculate the size of the region that was added.
+     */
+    swapmark(0,1);	/* mark current location after adds */
+    addedregion->r_linep = lforw(line_before_start);
+    addedregion->r_offset = offset_into_start;
+    lp = addedregion->r_linep;
+    sz = llength(lp) - addedregion->r_offset;
+    if(lforw(lp) != curwp->w_markp->l_fp){
+	lp = lforw(lp);
+	while(lp != curwp->w_markp->l_fp){
+	    sz += llength(lp) + 1;
+	    lp = lforw(lp);
+	}
+    }
+
+    sz -= llength(curwp->w_markp) - curwp->w_marko;
+    addedregion->r_size = sz;
+
+    swapmark(0,1);
+
+    return (TRUE);
 }

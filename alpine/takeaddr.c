@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: takeaddr.c 409 2007-02-01 22:44:01Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: takeaddr.c 493 2007-03-27 21:51:48Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -120,7 +120,7 @@ edit_nickname(AdrBk *abook, AddrScrn_Disp *dl, int command_line, char *orig,
 {
     char         edit_buf[MAX_NICKNAME + 1];
     HelpType     help;
-    int          i, flags, rc;
+    int          i, flags, lastrc, rc;
     AdrBk_Entry *check, *passed_in_ae;
     ESCKEY_S     ekey[3];
     SAVE_STATE_S state;  /* For saving state of addrbooks temporarily */
@@ -170,6 +170,7 @@ edit_nickname(AdrBk *abook, AddrScrn_Disp *dl, int command_line, char *orig,
 		    _("Already an entry with nickname \"%s\""), edit_buf);
 	}
 
+	lastrc = rc;
 	if(rc == 3)
           help = (help == NO_HELP ? this_help : NO_HELP);
 
@@ -210,7 +211,8 @@ edit_nickname(AdrBk *abook, AddrScrn_Disp *dl, int command_line, char *orig,
 	      int l;
 	      int ambiguity;
 
-	      ambiguity = adrbk_nick_complete(edit_buf, &new_nickname, 0);
+	      ambiguity = abook_nickname_complete(edit_buf, &new_nickname,
+				  (lastrc==rc && !(flags & OE_USER_MODIFIED)), 0);
 	      if(new_nickname){
 		if(*new_nickname){
 		  strncpy(edit_buf, new_nickname, sizeof(edit_buf));
@@ -322,7 +324,7 @@ add_abook_entry(TA_S *ta_entry, char *nick, char *fullname, char *fcc,
 	rbuf.end = scratch+es-1;
 	rfc822_output_address_list(&rbuf, addr, 0L, NULL);
 	*rbuf.cur = '\0';
-	if(p = srchstr(scratch, "@.RAW-FIELD.")){
+	if(p = srchstr(scratch, "@" RAWFIELD)){
 	  for(t = p; ; t--)
 	    if(*t == '&'){		/* find "leading" token */
 		*t++ = ' ';		/* replace token */
@@ -2239,7 +2241,7 @@ take_without_edit(TA_S *ta_list, int num_in_list, int command_line, TA_STATE_S *
 		rbuf.end = scratch+es-1;
 		rfc822_output_address_list(&rbuf, sw->ta->addr, 0L, NULL);
 		*rbuf.cur = '\0';
-		if(p = srchstr(scratch, "@.RAW-FIELD.")){
+		if(p = srchstr(scratch, "@" RAWFIELD)){
 		  for(t = p; ; t--)
 		    if(*t == '&'){		/* find "leading" token */
 			*t++ = ' ';		/* replace token */
@@ -2329,7 +2331,7 @@ take_without_edit(TA_S *ta_list, int num_in_list, int command_line, TA_STATE_S *
 		    rbuf.end = scratch+es-1;
 		    rfc822_output_address_list(&rbuf, a, 0L, NULL);
 		    *rbuf.cur = '\0';
-		    if(p = srchstr(scratch, "@.RAW-FIELD.")){
+		    if(p = srchstr(scratch, "@" RAWFIELD)){
 		      for(t = p; ; t--)
 			if(*t == '&'){		/* find "leading" token */
 			    *t++ = ' ';		/* replace token */

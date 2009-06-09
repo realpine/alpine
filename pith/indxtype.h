@@ -1,5 +1,5 @@
 /*
- * $Id: indxtype.h 409 2007-02-01 22:44:01Z mikes@u.washington.edu $
+ * $Id: indxtype.h 483 2007-03-15 18:43:40Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -80,6 +80,7 @@ typedef enum {iNothing, iStatus, iFStatus, iIStatus,
 	      iDay2Digit, iMon2Digit, iYear2Digit,
 	      iSTime, iKSize,
 	      iRoleNick,
+	      iHeader, iText,
 	      iScore, iDayOfWeekAbb, iDayOfWeek,
 	      iDay, iDayOrdinal, iMonAbb, iMonLong, iMon, iYear} IndexColType;
 
@@ -104,18 +105,29 @@ typedef struct index_parse_tokens {
 #define FOR_FILT	0x08
 #define DELIM_USCORE	0x10
 #define DELIM_PAREN	0x20
+#define DELIM_COLON	0x40
 
 
 #define DEFAULT_REPLY_INTRO "default"
 
 
+typedef struct hdr_token_description {
+    char  *hdrname;
+    int    fieldnum;
+    int    fieldsepcnt;
+    ColAdj adjustment;
+    char  *fieldseps;
+} HEADER_TOK_S;
+
 typedef struct col_description {
-    IndexColType ctype;
-    WidthType    wtype;
-    int		 req_width;
-    int		 width;
-    int		 actual_length;
-    ColAdj	 adjustment;
+    IndexColType  ctype;
+    WidthType     wtype;
+    int		  req_width;
+    int		  width;
+    int		  actual_length;
+    int		  monabb_width;		/* hack */
+    ColAdj	  adjustment;
+    HEADER_TOK_S *hdrtok;
 } INDEX_COL_S;
 
 

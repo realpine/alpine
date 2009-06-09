@@ -1,5 +1,5 @@
 /*
- * $Id: imap.h 380 2007-01-23 00:09:18Z hubert@u.washington.edu $
+ * $Id: imap.h 487 2007-03-23 16:53:15Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -27,17 +27,20 @@ long    pine_sslcertquery(char *, char *, char *);
 char   *pine_newsrcquery(MAILSTREAM *, char *, char *);
 int     url_local_certdetails(char *);
 void    pine_sslfailure(char *, char *, unsigned long);
-#ifdef	PASSFILE
+
+#ifdef	LOCAL_PASSWD_CACHE
 int     get_passfile_passwd(char *, char *, char *, STRLIST_S *, int);
 int     is_using_passfile();
 void    set_passfile_passwd(char *, char *, char *, STRLIST_S *, int, int);
 char   *get_passfile_user(char *, STRLIST_S *);
-void    update_passfile_hostlist(char *, char *, STRLIST_S *, int);
-#ifdef	_WINDOWS
+#endif	/* LOCAL_PASSWD_CACHE */
+
+#if	(WINCRED > 0)
 void    erase_windows_credentials(void);
-#elif	OSX_TARGET
-void    macos_erase_keychain(void);
 #endif
+
+#ifdef	APPLEKEYCHAIN
+void    macos_erase_keychain(void);
 #endif
 
 

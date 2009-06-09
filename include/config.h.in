@@ -3,6 +3,9 @@
 /* Default configuration value */
 #undef ANSI_PRINTER
 
+/* Use Apple OS X key chain for credential caching */
+#undef APPLEKEYCHAIN
+
 /* Enable background posting support */
 #undef BACKGROUND_POST
 

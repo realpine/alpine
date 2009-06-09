@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: sort.c 429 2007-02-08 00:08:23Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: sort.c 492 2007-03-27 17:44:31Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -85,7 +85,8 @@ Args: msgmap --
     causes the sort to happen if it is still needed.
   ----*/
 void
-sort_folder(MAILSTREAM *stream, MSGNO_S *msgmap, SortOrder new_sort, int new_rev, unsigned int flags)
+sort_folder(MAILSTREAM *stream, MSGNO_S *msgmap, SortOrder new_sort,
+	    int new_rev, unsigned int flags)
 {
     long	   raw_current, i, j;
     unsigned long *sort = NULL;
@@ -108,8 +109,7 @@ sort_folder(MAILSTREAM *stream, MSGNO_S *msgmap, SortOrder new_sort, int new_rev
      * sorts (other than just a rev switch) then erase the information
      * about the threaded state (collapsed and so forth).
      */
-    if(stream && stream->spare
-       && (current_sort != new_sort))
+    if(stream && stream->spare && (current_sort != new_sort))
       erase_threading_info(stream, msgmap);
 
     if(mn_get_total(msgmap) <= 1L
@@ -142,10 +142,10 @@ sort_folder(MAILSTREAM *stream, MSGNO_S *msgmap, SortOrder new_sort, int new_rev
 	mn_set_revsort(msgmap, new_rev);
 
 	if(current_sort != new_sort || current_rev != new_rev ||
-	   any_lflagged(ps_global->msgmap, MN_EXLD))
+	   any_lflagged(msgmap, MN_EXLD))
 	  clear_index_cache(stream, 0);
 
-	if(any_lflagged(ps_global->msgmap, MN_EXLD)){
+	if(any_lflagged(msgmap, MN_EXLD)){
 	    /*
 	     * BEWARE: "exclusion" may leave holes in the unsorted sort order
 	     * so we have to do a real sort if that is the case.

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: stream.c 428 2007-02-07 23:04:27Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: stream.c 494 2007-03-28 18:03:58Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -91,7 +91,7 @@ pine_mail_open(MAILSTREAM *stream, char *mailbox, long int openflags, long int *
     DRIVER     *d;
     int         permlocked = 0, is_inbox = 0, usepool = 0, tempuse = 0, uf = 0;
     unsigned long flags;
-    char      **lock_these;
+    char      **lock_these, *target = NULL;
     static unsigned long streamcounter = 0;
 
     dprint((7,
@@ -168,8 +168,7 @@ pine_mail_open(MAILSTREAM *stream, char *mailbox, long int openflags, long int *
      * An implication of doing only imap here is that sp_stream_get will only
      * be concerned with imap streams.
      */
-    if((d = mail_valid (NIL, mailbox, (char *) NIL))
-       && !strcmp(d->name, "imap")){
+    if((d = mail_valid (NIL, mailbox, (char *) NIL)) && !strcmp(d->name, "imap")){
 	usepool = openflags & SP_USEPOOL;
 	tempuse = openflags & SP_TEMPUSE;
     }
@@ -222,7 +221,7 @@ pine_mail_open(MAILSTREAM *stream, char *mailbox, long int openflags, long int *
     }
 
     if(F_ON(F_ENABLE_MULNEWSRCS, ps_global)){
-	char source[MAILTMPLEN], *target = NULL;
+	char source[MAILTMPLEN];
 	if(check_for_move_mbox(mailbox, source, sizeof(source), &target)){
 	    DRIVER *d;
 	    if((d = mail_valid(NIL, source, (char *) NIL))
@@ -273,6 +272,27 @@ pine_mail_open(MAILSTREAM *stream, char *mailbox, long int openflags, long int *
 
 	    pine_mail_close(stream);
 	    stream = NULL;
+	}
+    }
+
+    /*
+     * Maildrops are special. The mailbox name will be a #move name. If the
+     * target of the maildrop is an IMAP folder we want to be sure it isn't
+     * already open in another cached stream, to avoid double opens. This
+     * could have happened if the user opened it manually as the target
+     * instead of as a maildrop. It could also be a side-effect of marking
+     * an answered flag after a reply.
+     */
+    target = NULL;
+    if(check_for_move_mbox(mailbox, NULL, 0, &target)){
+	MAILSTREAM *targetstream = NULL;
+
+	if((d = mail_valid (NIL, target, (char *) NIL)) && !strcmp(d->name, "imap")){
+	    targetstream = sp_stream_get(target, SP_MATCH | SP_RO_OK);
+	    if(targetstream){
+		dprint((9, "pine_mail_open: close previously opened target of maildrop\n"));
+		pine_mail_actually_close(targetstream);
+	    }
 	}
     }
 

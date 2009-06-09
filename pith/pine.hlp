@@ -1,4 +1,4 @@
-# $Id: pine.hlp 465 2007-03-02 18:30:56Z hubert@u.washington.edu $
+# $Id: pine.hlp 495 2007-03-29 17:50:41Z hubert@u.washington.edu $
 #
 #        T H E   A L P I N E    M E S S A G E   S Y S T E M
 #
@@ -166,6 +166,63 @@ addresses bugs found in previous releases and has a few additions as well.
 Additions include:
 <P>
 <UL>
+   <LI> Added a little bit of localization in the month and day names in the
+        MESSAGE INDEX when the locale is known. Disable this with the option
+	<A HREF="h_config_disable_index_locale_dates">Disable-Index-Locale-Dates</A>
+   <LI> Two new tokens for the
+	<A HREF="h_config_index_format">Index-Format</A> option.
+	The tokens are HEADER and TEXT. HEADER is motivated by the
+	desire to display spam scores in the MESSAGE INDEX.
+   <LI> Some improvements in tab-completion of address book nicknames
+   <LI> UNIX Alpine now also recognizes Ctrl-Left in the composer if Ctrl-Left
+	produces the &quot;standard&quot; ESC [ 5D escape sequence. ESC ESC
+	Left arrow also produces Ctrl-Left. Ctrl-Left is back one word and
+	Ctrl-Right is forward one word.
+   <LI> When composing, if a <A HREF="h_compose_markcutpaste">Mark</A>
+        has been set the <A HREF="h_compose_justify">Justify</A>
+	command will now offer the possibility of adjusting the quote level
+	of the marked text. For example, Ctrl-J followed by a 3 will set the quote level
+	(the number of &gt; characters at the start of the lines) of the
+	selected region to three.
+   <LI> Make it possible to configure Alpine to use a passfile on Mac OS X instead
+        of using Apple Keychain (configure option). Changed the name of the
+	Alpine argument -nowrite_passfile to -nowrite_password_cache to
+	better reflect its purpose.
+</UL>
+
+<P>
+Bugs that have been addressed in this release include:
+<P>
+
+<UL>
+   <LI> Address book sort was broken
+   <LI> WhereIs search in MESSAGE INDEX did not find match on current line
+   <LI> About Attachment command didn't show parameter values in last version
+   <LI> Mouse click in headers while composing was broken
+   <LI> Crash in attachment and URL opening under Mac OS X when not viewed
+	locally
+   <LI> Crash when reading Indic test into composer
+   <LI> Crash when bouncing a message and send fails
+   <LI> Reverse Arrival sort could occasionally result in Alpine becoming
+	confused about which message goes with which message number. One
+	possible symptom was new messages arriving but not showing up in
+	the index, or filtered messages appearing even though they had
+	been filtered.
+   <LI> When replying to a mangled address that looked like &lt;@domain&gt;
+	an address consisting of what looked like random characters was
+	used instead of the bad address
+   <LI> When piping a RAW message to the display the message was being interpreted
+	as if it was encoded as UTF-8 instead of just leaving the bits alone
+   <LI> The Recent flag was lost when Saving to unix format local folders
+   <LI> Some address book crashes fixed
+   <LI> Minor problem with maildrops together with reply and reopen
+</UL>
+
+<P>
+Version 0.83
+addressed bugs found in previous releases and had a few additions as well.
+<P>
+<UL>
    <LI> Tab-completion of address book nicknames when <A HREF="h_config_enable_tab_complete">Enable-Tab-Completion</A> feature is turned on
    <LI> For Windows version when composing Ctrl-Left is back one word, Ctrl-Home
         moves to beginning of body, and Ctrl-End moves to the end
@@ -182,7 +239,7 @@ Additions include:
 </UL>
 
 <P>
-Bugs that have been addressed in this release include:
+Bugs addressed in the 0.83 release included:
 <P>
 
 <UL>
@@ -567,7 +624,7 @@ For example, if
 
 <P><CENTER><SAMP>$VAR</SAMP></CENTER><P>
 
-appears in the value of a Alpine configuration option it is looked up in the
+appears in the value of an Alpine configuration option it is looked up in the
 environent (using getenv(&quot;VAR&quot;)) and its
 looked-up value replaces the <SAMP>$VAR</SAMP> part of the option value.
 To include a literal dollar sign you may precede the dollar sign with another
@@ -1174,7 +1231,7 @@ SPECIAL REQUEST:
 This software is made available world-wide as a public service of the
 University of Washington in Seattle.  In order to justify continuing
 development, it is helpful to have an idea of how many people are using
-Alpine.  Are you willing to be counted as a Alpine user?  Pressing 
+Alpine.  Are you willing to be counted as an Alpine user?  Pressing 
 <A HREF="X-Alpine-Phone-Home:">Return</A>
 will send an anonymous (meaning, your real email address will not be revealed) 
 message to the Alpine development team at the University of Washington for 
@@ -1617,7 +1674,7 @@ LDAP (Lightweight Directory Access Protocol) is a standard means of accessing
 an organization's shared
 directories. Essentially, using LDAP, Alpine is able to find email addresses in 
 large address
-books, rather like the White Pages provided by the phone company. As a Alpine 
+books, rather like the White Pages provided by the phone company. As an Alpine 
 user, it is not
 necessary to know much about how this works, only how to use it and how to 
 configure
@@ -2857,6 +2914,7 @@ There are also additional details on
 <li><a href="h_config_del_skips_del">FEATURE: Delete-Skips-Deleted</a>
 <li><a href="h_config_disable_config_cmd">FEATURE: Disable-Config-Cmd</a>
 <li><a href="h_config_disable_active_msgs">FEATURE: Disable-Active-Status-Messages</a>
+<li><a href="h_config_disable_index_locale_dates">FEATURE: Disable-Index-Locale-Dates</a>
 <li><a href="h_config_disable_kb_lock">FEATURE: Disable-Keyboard-Lock-Cmd</a>
 <li><a href="h_config_blank_keymenu">FEATURE: Disable-Keymenu</a>
 <li><a href="h_config_disable_password_caching">FEATURE: Disable-Password-Caching</a>
@@ -5739,7 +5797,7 @@ this help.
 <BODY>
 <H1>Export Message File Selection</H1>
 
-You are Exporting a message from a Alpine mail folder
+You are Exporting a message from an Alpine mail folder
 to a plain text file.
 You also have the option of exporting all of the attachments associated
 with the message.
@@ -5881,7 +5939,7 @@ program, use &quot;Export&quot;.
 When you Save a message, it is put into an existing folder or into a new
 folder in one of your existing folder collections.  The message stays in
 email format and can be read by Alpine again.  Alpine may use a special format
-for its mail folders -- never edit a Alpine folder by hand or with any
+for its mail folders -- never edit an Alpine folder by hand or with any
 program other than Alpine.  The exact behavior of the Save command can be
 configured with the
 <A HREF="h_config_quote_all_froms">&quot;Save-Will-Quote-Leading-Froms&quot;</A>,
@@ -6264,6 +6322,16 @@ the text is already justified as typed with auto-wrap, no justification will
 be done.
 
 <P>
+If you have set a <A HREF="h_compose_markcutpaste">mark</A> to select a
+block of text, the Justify command is modified.
+Instead of automatically justifying the current paragraph you will be
+asked if you want to justify the paragraph, justify the selected region,
+or adjust the quote level of the selected region.
+Adjusting the quote level only works if you are using standard
+&quot;&gt;&nbsp;&quot; or &quot;&gt;&quot; quotes, which is the default if you haven't
+changed &quot;<A HREF="h_config_reply_indent_string">Reply-Indent-String</A>&quot;.
+
+<P>
 When composing a reply containing included text, the justify command
 will reformat text to the right of the 
 &quot;<A HREF="h_config_reply_indent_string">Reply-Indent-String</A>&quot;,
@@ -6272,6 +6340,12 @@ by a blank line, a line containing only the Reply-Indent-String, or a
 line containing the indent string and one or more blank spaces.
 Included text that was previously indented (or &quot;quoted&quot;) is
 not preserved.
+
+<P>
+Because of the introduction of <A HREF="h_config_quell_flowed_text">Flowed Text</A>
+in 1999 and its wide-spread adoption since then, you will usually be better off if you
+use the standard
+&quot;&gt;&nbsp;&quot; or &quot;&gt;&quot; quotes.
 
 <P>
 &lt;End of help on this topic&gt;
@@ -7205,6 +7279,56 @@ to hold your folders.
 You can use the 
 <A HREF="h_collection_maint">Setup/collectionList screen</A>, called up from 
 the MAIN MENU, to manage your collection list.  
+<P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+===== h_select_nickname_screen =====
+<HTML>
+<HEAD>
+<TITLE>SELECT A NICKNAME SCREEN</TITLE>
+</HEAD>
+<BODY>
+<H1>SELECT A NICKNAME SCREEN</H1>
+<H2>COMMANDS</H2>
+<!--chtml if pinemode="function_key"-->
+<PRE>
+Available  Commands                        
+-------------------------------            
+F1  Show Help Text
+F3  Exit without selecting anything
+F4  Select the highlighted nickname
+F5  Move highlight to previous nickname
+F6  Move highlight to next nickname
+F7  Previous page of nicknames
+F8  Next page of nicknames
+F11 Print
+F12 WhereIs
+</PRE>
+<!--chtml else-->
+<PRE>
+Navigation                     General Alpine Commands
+-----------------------        ---------------------
+ P  Prev Nickname               ?  Display this help text
+ N  Next Nickname               E  Exit without selecting anything
+ -  Previous page               %  Print
+Spc (space bar) Next page
+ W  WhereIs
+
+Select Command
+------------------------------------------------
+ S  Select the highlighted nickname
+</PRE>
+<!--chtml endif-->
+
+<H2>Description of the Select Nickname Screen</H2>
+
+This screen just gives you an easy way to select a nickname from all of your
+address book nicknames which match the prefix typed so far.
+
+<P><UL>
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL>
 <P>
 &lt;End of help on this topic&gt;
 </BODY>
@@ -9547,7 +9671,7 @@ display.  However, understanding the complete syntax for folder names,
 both local and remote, is handy when using the Goto command and when
 you are adding new folder collections via the Setups/collectionList screen.
 <P>
-A Alpine folder name looks like
+An Alpine folder name looks like
 
 <P>
 <CENTER><SAMP>[{&lt;remote-specification&gt;}][#&lt;namespace&gt;]&lt;namespace-specific-part&gt;</SAMP></CENTER>
@@ -9645,7 +9769,7 @@ store incoming mail for you on that particular host.
 <BODY>
 <H1>Folder Name Namespaces Explained</H1>
 
-A Alpine folder name looks like
+An Alpine folder name looks like
 
 <P>
 <CENTER><SAMP>[{&lt;remote-specification&gt;}][#&lt;namespace&gt;][&lt;namespace-specific-part&gt;]</SAMP></CENTER>
@@ -10196,7 +10320,7 @@ This screen lets you add, delete, modify, or change the order of your
 address books.  The &quot;Add Abook&quot; command brings up a blank form to 
 fill in.  If you are adding a remote address book on an IMAP server
 you should fill in the name of the IMAP server.  Otherwise, leave
-that field blank.  (Note that remote IMAP address books are a Alpine
+that field blank.  (Note that remote IMAP address books are an Alpine
 concept and are unlikely to interoperate with other mail clients.)
 For a remote address book, fill in the name of the remote folder
 in the Folder field.  This should be a folder which is used only for
@@ -15132,7 +15256,7 @@ assumption being that the spam will reveal itself in those characters)
 <CENTER><SAMP>Character Limit = 50000</SAMP></CENTER>
 <P>
 
-You would probably use bogofilter in a Alpine Filter Rule, and have the action
+You would probably use bogofilter in an Alpine Filter Rule, and have the action
 be to move the message to a spam folder.
 It would usually be wise to also check the &quot;Message is Recent&quot;
 part of the rule so that messages are only checked when they first arrive,
@@ -17473,11 +17597,15 @@ to format the date string. It may end up formatting dates so that they look
 like DATEISO tokens, or SHORTDATE2 tokens, or something else entirely.
 If you want more control you may use one of the following.
   <DL>
-  <DT>SMARTDATE</DT> <DD>Locale specific. Control this with the
+  <DT>SMARTDATE</DT> <DD>If the option
+<A HREF="h_config_disable_index_locale_dates">Disable-Index-Locale-Dates</A> is not set
+then this will be locale specific. Control this with the
 LC_TIME locale setting on a UNIX system. On Windows
 the Regional Options control panel may be used to set the Short date
 format. At the programming level, the strftime routine is what Alpine
-uses to print the date.</DD>
+uses to print the date.
+If the Disable-Index-Locale-Dates option is set then this is equivalent
+to SMARTDATES1.</DD>
   <DT>SMARTDATEISO</DT> <DD>DATEISO format. See text above.</DD>
   <DT>SMARTDATESHORTISO</DT> <DD>SHORTDATEISO format.</DD>
   <DT>SMARTDATES1</DT> <DD>SHORTDATE1 format.</DD>
@@ -17499,11 +17627,15 @@ to format the date string. It may end up formatting dates so that they look
 like DATEISO tokens, or SHORTDATE2 tokens, or something else entirely.
 The possible choices are:
   <DL>
-  <DT>SMARTDATETIME</DT> <DD>Locale specific. Control this with the
+  <DT>SMARTDATETIME</DT> <DD>If the option
+<A HREF="h_config_disable_index_locale_dates">Disable-Index-Locale-Dates</A> is not set
+then this will be locale specific. Control this with the
 LC_TIME locale setting on a UNIX system. On Windows
 the Regional Options control panel may be used to set the Short date
 format. At the programming level, the strftime routine is what Alpine
-uses to print the date.</DD>
+uses to print the date.
+If the Disable-Index-Locale-Dates option is set then this is equivalent
+to SMARTDATETIMES1.</DD>
   <DT>SMARTDATETIME24</DT> <DD>Use TIME24 for Today</DD>
   <DT>SMARTDATETIMEISO</DT> <DD>DATEISO format. See text above.</DD>
   <DT>SMARTDATETIMEISO24</DT> <DD>Use TIME24 for Today</DD>
@@ -17923,6 +18055,112 @@ a Newsgroups header; this token will be your name instead of the name
 of the newsgroup (like it would be with FROMORTO).
 </DD>
 
+<DT>TEXT</DT>
+<DD>
+This is a different sort of token.
+It allows you to display a label within each index line.
+It will be the same fixed text for each line.
+It is different from all the other tokens in that there is no space column
+displayed after this token.
+Instead, it is butted up against the following field.
+It also has a different syntax.
+The text to display is given following a colon after the
+word &quot;TEXT&quot;.
+For example,
+<P>
+<CENTER><SAMP>TEXT:abc=</SAMP></CENTER>
+<P>
+would insert the literal text &quot;abc=&quot; (without the quotes)
+into the index display line.
+You must quote the text if it includes space characters, like
+<P>
+<CENTER><SAMP>TEXT:&quot;abc&nbsp;=&nbsp;&quot;</SAMP></CENTER>
+<P>
+</DD>
+
+<DT>HEADER</DT>
+<DD>
+This allows you to display the text from a particular header line in the
+message.
+The syntax for this token is substantially different from all the others
+in order that you might be able to display a portion of the text following
+a particular header.
+The header name you are interested in is given following a colon
+after the word &quot;HEADER&quot;.
+For example,
+<P>
+<CENTER><SAMP>HEADER:X-Spam</SAMP></CENTER>
+<P>
+would display the text of the X-Spam header, if any.
+Like for other index tokens a width field may (and probably should)
+follow this.
+<P>
+<CENTER><SAMP>HEADER:X-Spam(10)</SAMP></CENTER>
+<P>
+displays the first ten characters of the X-Spam header.
+Unlike other index tokens, the syntax for HEADER is more flexible.
+An optional second argument comes after a comma inside the parentheses.
+It specifies the &quot;field&quot; number.
+By default, the field separator is a space character.
+No extra space characters are allowed in the argument list.
+<P>
+<CENTER><SAMP>HEADER:X-Spam(10,2)</SAMP></CENTER>
+<P>
+would display the second field, left-justified, in a 10 character
+wide field.
+The second field would consist of all the text after the first space
+up to the next space or the end of the header.
+The default field number is zero, which stands for the entire line.
+There is also an optional third argument which is a list of field
+separators. It defaults to a space character.
+The example
+<P>
+<CENTER><SAMP>HEADER:X-Spam(10,2,:%&nbsp;)</SAMP></CENTER>
+<P>
+would cause the field separators to be any of colon, percent,
+or space (there is a space character between the percent and the
+right parenthesis).
+The first field runs from the start of the header value up to the first
+colon, percent, or space; the second goes from there to the next; and so on.
+In order to use a comma character as a field separator you must escape
+it by preceding it with a backslash (&#92;).
+The same is true of the backslash character itself.
+There is one further optional argument.
+It is an R or an L to specify right or left adjustment of the text
+within the field.
+The default is to left justify, however if you are displaying numbers
+you might prefer to right justify.
+<P>
+Here's an example of a SpamAssassin header.
+The exact look of the header will vary, but if your incoming mail
+contains headers that look like the following
+<P>
+<CENTER><SAMP>X-Spam-Status: Yes, hits=10.6 tagged_above=-999.0 required=7.0 tests=BAYE...</SAMP></CENTER>
+<P>
+you might want to display the hits value.
+The first field starts with the Y in Yes.
+To get what you're interested in you might use &quot;=&quot; and
+space as the field separators and display the third field, like
+<P>
+<CENTER><SAMP>HEADER:X-Spam-Status(4,3,=&nbsp;)</SAMP></CENTER>
+<P>
+or maybe you would break at the dot instead
+<P>
+<CENTER><SAMP>HEADER:X-Spam-Status(2,2,=.,R)</SAMP></CENTER>
+<P>
+Another example we've seen has headers that look like
+<P>
+<CENTER><SAMP>X-Spam: Gauge=IIIIIII, Probability=7%, Report=...</SAMP></CENTER>
+<P>
+Because there are two equals and a comma before the 7% and a comma
+after it, the token
+<P>
+<CENTER><SAMP>HEADER:X-Spam-Status(3,4,=&#92;,R)</SAMP></CENTER>
+<P>
+should display the probability (for example 7% or 83%) right justified
+in a 3-wide field.
+</DD>
+
 <DT>ARROW</DT>
 <DD>
 This gives an alternative way to display the current message in the
@@ -18162,7 +18400,7 @@ This token does not work with Filter Rule folder names.
 <DT>CURSORPOS</DT>
 <DD>
 This token is different from the others.
-When it is replaced it is replaced with nothing, but it sets a Alpine
+When it is replaced it is replaced with nothing, but it sets an Alpine
 internal variable which tells the composer to start with the cursor
 positioned at the position where this token was.
 If both the template file and the signature file contain
@@ -20700,7 +20938,7 @@ folder when no match is found in the address book.
 <P>
 Choosing the option called &quot;last-folder-used&quot;, causes Alpine
 to save to the folder that you saved to the last time you saved a
-message.  The first time you save a message in a Alpine session, Alpine
+message.  The first time you save a message in an Alpine session, Alpine
 attempts to save the message to the default folder.
 
 <P>
@@ -21819,8 +22057,8 @@ The list of available tokens is
 <P>
 
 Spaces are used to separate listed tokens.  Additionally, you can
-specify how much of the screen's width the taken's associated data
-should occupy on the index line by appending the token with a pair of
+specify how much of the screen's width the token's associated data
+should occupy on the index line by appending to the token a pair of
 parentheses enclosing either a number or percentage.  For example,
 &quot;SUBJECT(13)&quot; means to allocate 13 characters of space to the subject
 column, and &quot;SUBJECT(20%)&quot; means to
@@ -21867,8 +22105,9 @@ If you want to retain the default format that Pine 4.64 had, use
 
 <P>
 <CENTER><SAMP>Index-Format=STATUS MSGNO DATE FROMORTO(33%) SIZE SUBJKEY(67%)</SAMP></CENTER>
-
 <P>
+<EM>and</EM> set the feature
+<A HREF="h_config_disable_index_locale_dates">Disable-Index-Locale-Dates</A>.
 <UL>   
 <LI><A HREF="h_finding_help">Finding more information and requesting help</A>
 </UL><P>
@@ -22818,7 +23057,7 @@ the fourth is for the connection method (typically <CODE>imap</CODE>).
 When a new version of Alpine is run for the first time it offers a
 special explanatory screen to the user upon startup.  This option
 helps control when and if that special screen appears for users that
-have previously run Alpine.  It takes as its value a Alpine version
+have previously run Alpine.  It takes as its value an Alpine version
 number.  Alpine versions less than the specified value will supress this
 special screen while versions equal to or greater than that specified
 will behave normally.
@@ -23266,10 +23505,16 @@ top or bottom edge.
 
 This option specifies an aspect of Alpine's Reply command.
 When a message is replied to and the text of the message is included, the
-included text usually has the string &quot;&gt; &quot; prepended
+included text usually has the string &quot;&gt;&nbsp;&quot; prepended
 to each line indicating it is quoted text.
 (In case you haven't seen this before, &quot;string&quot; is a technical term
 which means chunk of text.)
+
+<P>
+Because of the introduction of <A HREF="h_config_quell_flowed_text">Flowed Text</A>
+in 1999 and its wide-spread adoption since then, you will usually be better off if you
+use one of the standard values,
+&quot;&gt;&nbsp;&quot; or &quot;&gt;&quot;, for this option.
 
 <P>
 This option specifies a different value for that string.
@@ -23332,15 +23577,15 @@ set to the default value.
 
 This option specifies what string to use as a quote when <b>viewing</b> a
 message.  The standard way of quoting messages when replying is the string
-&quot;&gt; &quot; (quote space).
+&quot;&gt;&nbsp;&quot; (quote space).
 With this variable set, viewing a message will
 replace occurrences of 
-&quot;&gt; &quot; and &quot;&gt;&quot; with the replacement string.
+&quot;&gt;&nbsp;&quot; and &quot;&gt;&quot; with the replacement string.
 This setting works best when
 <A HREF="h_config_reply_indent_string">Reply-Indent-String</A>
 or the equivalent setting in your correspondents' mail programs
 is set to the default
-&quot;&gt; &quot;, but it will also work fine with the
+&quot;&gt;&nbsp;&quot;, but it will also work fine with the
 Reply-Indent-String set to &quot;&gt;&quot;.
 <P>
 By default, this setting will only work on messages that are flowed, which is
@@ -23351,7 +23596,7 @@ to also have quote-replacement performed on non-flowed messages.
 <P>
 
 Setting this option will replace  &quot;&gt;&quot; and 
-&quot;&gt; &quot; with the new setting. This string may include trailing
+&quot;&gt;&nbsp;&quot; with the new setting. This string may include trailing
 spaces. To preserve those spaces enclose the full string in double quotes.
 <P>
 No padding to separate the text of the message from the quote string is
@@ -23365,7 +23610,7 @@ last string will be used for padding. For example, setting this variable to
 a space from the last quote string to make it more readable.
 <P>
 One possible setting for this variable could be
-&quot;    &quot; (four spaces wrapped in quotes), which
+&quot;&nbsp;&nbsp;&nbsp;&nbsp;&quot; (four spaces wrapped in quotes), which
 would have the effect of indenting each level of quoting four spaces and
 removing the &quot;&gt;&quot;'s.  Different levels of quoting could be made
 more discernible by setting colors for quoted text.
@@ -23388,7 +23633,8 @@ messages that are being composed.
 <BODY>
 <H1>OPTION: Empty-Header-Message</H1>
 
-When sending, if all of the To, Cc, and Newsgroups fields are empty,
+When sending, if both the To and Cc fields are empty and you
+are sending the message to a Bcc,
 Alpine will put a special address in the To line.  The default value is:
 
 <P>
@@ -24645,7 +24891,7 @@ If no messages are marked Important, then it will be the last message.
 Messages are marked Important by <EM>you</EM>, not by the sender, using
 the
 <A HREF="h_common_flag">Flag command</A>.
-Or they may be marked Important by a Alpine
+Or they may be marked Important by an Alpine
 <A HREF="h_mainhelp_filtering">Filter</A>
 which you have set up.
 </DD>
@@ -24842,7 +25088,7 @@ that application, or perhaps in a new window of that application.
 application without those command line options, but this time using the 
 _TEST(...)_ token to check whether the environment variable &quot;DISPLAY&quot;
 is defined.
-<LI> If you may be using Alpine (with the same .pinerc file) outside of the X 
+<LI> If you will be using Alpine (with the same .pinerc file) outside of the X 
 windows environment (for instance, using VT-100 terminal emulation), you 
 may wish to specify a non-X windows URL-viewer application such as Lynx
 as the last entry.
@@ -25001,6 +25247,7 @@ Feature-List option.
 <HEAD>
 <TITLE>FEATURE: Enable-Tab-Completion</TITLE>
 </HEAD>
+<BODY>
 <H1>FEATURE: Enable-Tab-Completion</H1>
 
 This feature enables the TAB key when at a prompt for a filename. In this
@@ -27281,14 +27528,17 @@ the plain text version.
 <H1>FEATURE: Pass-Control-Characters-as-is</H1>
 
 It is probably not useful to set this option.
-<P>
-UNIX Alpine only (this feature is automatically on with PC-Alpine).
+This is a legacy option left behind &quot;just in case&quot;.
+Multi-byte characters which have an octet which has the same
+value as a control character are permitted through whether or not
+this option is turned on.
 <P>
 This feature controls how certain characters contained in messages are
 displayed.
 If set, all characters in a message will be sent to the
-screen. Normally, control characters are automatically suppressed in
-order to avoid inadvertently changing terminal setup parameters.
+screen. Normally, control characters are displayed as shown below to
+avoid a garbled screen and to 
+avoid inadvertently changing terminal setup parameters.
 Control characters are usually displayed as two character sequences like
 <P><CENTER><SAMP> ^C </SAMP></CENTER><P>
 for Control-C,
@@ -27311,8 +27561,6 @@ a question mark is substituted for the control character.
 If you wish to filter out regular control characters but pass the
 so-called C1 control characters (0x80 <= char < 0xA0) through unchanged, then
 you may leave this feature unset and set the feature <A HREF="h_config_pass_c1_control">Pass-C1-Control-Characters-as-is</A> instead.
-This feature is not available in PC-Alpine where control characters
-are never suppressed.
 <P>
 &lt;End of help on this topic&gt;
 </BODY>
@@ -27326,8 +27574,10 @@ are never suppressed.
 <H1>FEATURE: Pass-C1-Control-Characters-as-is</H1>
 
 It is probably not useful to set this option.
-<P>
-UNIX Alpine only.
+This is a legacy option left behind &quot;just in case&quot;.
+Multi-byte characters which have an octet which has the same
+value as a control character are permitted through whether or not
+this option is turned on.
 <P>
 If the feature <A HREF="h_config_pass_control">Pass-Control-Characters-as-is</A>
 is set, then this feature has no effect.
@@ -27335,8 +27585,6 @@ However, if you wish to filter out regular control characters but pass the
 so-called C1 control characters (0x80 <= char < 0xA0) through unchanged, then
 you may leave <A HREF="h_config_pass_control">Pass-Control-Characters-as-is</A>
 unset and set this feature.
-This feature is not available in PC-Alpine where control characters
-are never suppressed.
 <P>
 &lt;End of help on this topic&gt;
 </BODY>
@@ -28581,6 +28829,33 @@ current message in the MESSAGE INDEX.
 <P>
 Lines in the MESSAGE INDEX may also be colored.
 Use Setup Rules to get to the Indexcolor configuration screen.
+<P>
+
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_disable_index_locale_dates =====
+<HTML>
+<HEAD>
+<TITLE>FEATURE: Disable-Index-Locale-Dates</TITLE>
+</HEAD>
+<BODY>
+<H1>FEATURE: Disable-Index-Locale-Dates</H1>
+
+This feature affects the display of dates in the MESSAGE INDEX.
+Normally an attempt is made to localize the dates
+used in the MESSAGE INDEX display to your locale.
+This is controlled with the
+LC_TIME locale setting on a UNIX system.
+On Windows the Regional Options control panel may be used to set the date format.
+At the programming level, Alpine is using the strftime routine
+to print the parts of a date.
+<P>
+If this feature is set, dates are displayed in English and
+with the conventions of the United States.
 <P>
 
 <UL>   

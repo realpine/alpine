@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: send.c 442 2007-02-16 23:01:28Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: send.c 495 2007-03-29 17:50:41Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -2777,18 +2777,18 @@ pine_header_line(char *field, METAENV *header, char *text, soutr_t f, void *s,
 	    *rbuf.cur = '\0';
 	}
 
-	if(value){
+	if(value && folded){
 	    if(writehdr && f)
 	      ret = (*f)(s, folded);
 	    
 	    if(ret && localcopy && lmc.so && !lmc.all_written)
 	      ret = so_puts(lmc.so, folded);
-
-	    if(folded)
-	      fs_give((void **)&folded);
 	}
 
-	if(converted != text)
+	if(folded)
+	  fs_give((void **)&folded);
+
+	if(converted && converted != text)
 	  fs_give((void **) &converted);
     }
     else
@@ -2955,7 +2955,7 @@ pine_address_line(char *field, METAENV *header, struct mail_address *alist,
 	    if(converted){
 		alist->mailbox = cpystr(rfc1522_encode(tmp_20k_buf, SIZEOF_20KBUF,
 							(unsigned char *) converted, cs));
-		if(converted != buftmp)
+		if(converted && converted != buftmp)
 		  fs_give((void **) &converted);
 	    }
 	    else{
@@ -2976,7 +2976,7 @@ pine_address_line(char *field, METAENV *header, struct mail_address *alist,
 	if(converted){
 	    alist->personal = cpystr(rfc1522_encode(tmp_20k_buf, SIZEOF_20KBUF,
 						    (unsigned char *) converted, cs));
-	    if(converted != buftmp)
+	    if(converted && converted != buftmp)
 	      fs_give((void **) &converted);
 	}
 	else{
@@ -3095,7 +3095,7 @@ pine_address_line(char *field, METAENV *header, struct mail_address *alist,
 	if(converted){
 	    alist->personal = cpystr(rfc1522_encode(tmp_20k_buf, SIZEOF_20KBUF,
 						    (unsigned char *) converted, cs));
-	    if(converted != buftmp)
+	    if(converted && converted != buftmp)
 	      fs_give((void **) &converted);
 	}
 	else{
@@ -4008,7 +4008,7 @@ pine_write_header_line(char *hdr, char *val, STORE_S *so)
 
     rv = (so_puts(so, hdr) && so_puts(so, vp) && so_puts(so, "\015\012"));
 
-    if(cv != val)
+    if(cv && cv != val)
       fs_give((void **) &cv);
 
 
@@ -4032,7 +4032,7 @@ pine_write_params(PARAMETER *param, STORE_S *so)
 	rv = (so_puts(so, "; ")
 	      && rfc2231_output(so, param->attribute, cv, (char *) tspecials, cs));
 
-	if(cv != param->value)
+	if(cv && cv != param->value)
 	  fs_give((void **) &cv);
 
 	if(!rv)

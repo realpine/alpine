@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: alpined.c 442 2007-02-16 23:01:28Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: alpined.c 483 2007-03-15 18:43:40Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -269,7 +269,6 @@ int	     peAppendIndexColor(Tcl_Interp *, imapuid_t, Tcl_Obj *, int *);
 int	     peMessageStatusBits(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
 char	    *peMsgStatBitString(struct pine *, MAILSTREAM *, MSGNO_S *, long, long, long, int *);
 int	     peNewMailResult(Tcl_Interp *);
-void	     peMarkInputTime(void);
 int	     peMessageSize(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
 int	     peMessageDate(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
 int	     peMessageSubject(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
@@ -604,7 +603,7 @@ main(int argc, char *argv[])
 			    }
 			    else{
 				buf[o] = '\0';
-#ifdef	DEBUG
+
 				/* Log every Eval if somebody *really* wants to see it. */
 				if(debug > 6){
 				    char dbuf[5120];
@@ -625,7 +624,6 @@ main(int argc, char *argv[])
 
 				    dprint((1, dbuf));
 				}
-#endif
 
 				switch(Tcl_Eval(interp, &buf[co])){
 				  case TCL_OK	  : peReturn(cs, "OK", interp->result); break;
@@ -8707,7 +8705,6 @@ peLoadConfig(struct pine *pine_state)
      * Various options we want to make sure are set OUR way
      */
     F_TURN_ON(F_QUELL_IMAP_ENV_CB, pine_state);
-    F_TURN_ON(F_PASS_CONTROL_CHARS, pine_state);
     F_TURN_ON(F_SLCTBL_ITEM_NOBOLD, pine_state);
 
     /*
@@ -9557,7 +9554,7 @@ PEPostponeCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONS
 
 				peAppListF(interp, objEnv, "%s%a", "to", env->to);
 
-				date_str(env->date, iSDate, 1, tmp_20k_buf, SIZEOF_20KBUF);
+				date_str(env->date, iSDate, 1, tmp_20k_buf, SIZEOF_20KBUF, 0);
 
 				peAppListF(interp, objEnv, "%s%s", "date", tmp_20k_buf);
 
@@ -9853,8 +9850,7 @@ peMsgCollector(Tcl_Interp *interp,
 		if(nField == 2
 		   && (id = Tcl_GetStringFromObj(objField[1], NULL))
 		   && (a = peGetAttachID(id))){
-		    tp = new_strlist();
-		    tp->name = cpystr(id);
+		    tp = new_strlist(id);
 		    if(lp = md.attach){
 			do
 			  if(!lp->next){

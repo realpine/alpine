@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: send.c 442 2007-02-16 23:01:28Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: send.c 497 2007-03-29 18:37:44Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -846,7 +846,8 @@ redraft(MAILSTREAM **streamp, ENVELOPE **outgoing, struct mail_bodystruct **body
 
 	return(redraft_cleanup(streamp, FALSE, flags));
     }
-    else if(stream == ps_global->mail_stream){
+    else if(stream == ps_global->mail_stream
+	    && ps_global->prev_screen == mail_index_screen){
 	/*
 	 * Since the user's got this folder already opened and they're
 	 * on a selected message, pick that one rather than rebuild
@@ -940,19 +941,19 @@ static struct headerentry he_template[]={
    NULL,          NULL, NULL, NULL,                 NULL, NULL, NULL,
    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"From    : ",  "From",        h_composer_from,       10, 0, NULL,
-   build_address, NULL, NULL, addr_book_compose,    "To AddrBk", NULL, adrbk_nick_complete,
+   build_address, NULL, NULL, addr_book_compose,    "To AddrBk", NULL, abook_nickname_complete,
    0, 1, 0, 1, 0, 1, 0, 0, 0, 0, KS_TOADDRBOOK},
   {"Reply-To: ",  "Reply To",    h_composer_reply_to,   10, 0, NULL,
-   build_address, NULL, NULL, addr_book_compose,    "To AddrBk", NULL, adrbk_nick_complete,
+   build_address, NULL, NULL, addr_book_compose,    "To AddrBk", NULL, abook_nickname_complete,
    0, 1, 0, 1, 0, 1, 0, 0, 0, 0, KS_TOADDRBOOK},
   {"To      : ",  "To",          h_composer_to,         10, 0, NULL,
-   build_address, NULL, NULL, addr_book_compose,    "To AddrBk", NULL, adrbk_nick_complete,
+   build_address, NULL, NULL, addr_book_compose,    "To AddrBk", NULL, abook_nickname_complete,
    0, 1, 0, 0, 0, 1, 0, 0, 0, 0, KS_TOADDRBOOK},
   {"Cc      : ",  "Cc",          h_composer_cc,         10, 0, NULL,
-   build_address, NULL, NULL, addr_book_compose,    "To AddrBk", NULL, adrbk_nick_complete,
+   build_address, NULL, NULL, addr_book_compose,    "To AddrBk", NULL, abook_nickname_complete,
    0, 1, 0, 0, 0, 1, 0, 0, 0, 0, KS_TOADDRBOOK},
   {"Bcc     : ",  "Bcc",         h_composer_bcc,        10, 0, NULL,
-   build_address, NULL, NULL, addr_book_compose,    "To AddrBk", NULL, adrbk_nick_complete,
+   build_address, NULL, NULL, addr_book_compose,    "To AddrBk", NULL, abook_nickname_complete,
    0, 1, 0, 1, 0, 1, 0, 0, 0, 0, KS_TOADDRBOOK},
   {"Newsgrps: ",  "Newsgroups",  h_composer_news,        10, 0, NULL,
    news_build,    NULL, NULL, news_group_selector,  "To NwsGrps", NULL, NULL,
@@ -961,7 +962,7 @@ static struct headerentry he_template[]={
    NULL,          NULL, NULL, folders_for_fcc,      "To Fldrs", NULL, NULL,
    0, 0, 0, 1, 1, 1, 0, 0, 0, 0, KS_NONE},
   {"Lcc     : ",  "Lcc",         h_composer_lcc,        10, 0, NULL,
-   build_addr_lcc, NULL, NULL, addr_book_compose_lcc,"To AddrBk", NULL, adrbk_nick_complete,
+   build_addr_lcc, NULL, NULL, addr_book_compose_lcc,"To AddrBk", NULL, abook_nickname_complete,
    0, 1, 0, 1, 0, 1, 0, 0, 0, 0, KS_NONE},
   {"Attchmnt: ",  "Attchmnt",    h_composer_attachment, 10, 0, NULL,
    NULL,          NULL, NULL, NULL,                 "To Files", NULL, NULL,
@@ -1018,7 +1019,7 @@ static struct headerentry he_template[]={
 
 static struct headerentry he_custom_addr_templ={
    NULL,          NULL,          h_composer_custom_addr,10, 0, NULL,
-   build_address, NULL, NULL, addr_book_compose,    "To AddrBk", NULL, adrbk_nick_complete,
+   build_address, NULL, NULL, addr_book_compose,    "To AddrBk", NULL, abook_nickname_complete,
    0, 1, 0, 1, 0, 1, 0, 0, 0, 0, KS_TOADDRBOOK};
 
 static struct headerentry he_custom_free_templ={
@@ -1074,7 +1075,7 @@ pine_simple_send(ENVELOPE *outgoing,	/* envelope for outgoing message */
     char     **tobufp;
     void      *messagebuf;
     int        done = 0, retval = 0, x;
-    int	       i, resize_len, result, fcc_result;
+    int	       lastrc, rc = 0, i, resize_len, result, fcc_result;
     int        og2s_done = 0;
     HelpType   help;
     ESCKEY_S   ekey[3];
@@ -1140,13 +1141,17 @@ pine_simple_send(ENVELOPE *outgoing,	/* envelope for outgoing message */
 	    outgoing2strings(header, *body, &messagebuf, NULL);
 	}
 
+	lastrc = rc;
 	if(flagsarg & SS_PROMPTFORTO){
+	    if(!*tobufp)
+	      *tobufp = cpystr("");
+
 	    resize_len = MAX(MAXPATH, strlen(*tobufp));
 	    fs_resize((void **) tobufp, resize_len+1);
 
 	    flags = OE_APPEND_CURRENT;
 
-	    i = optionally_enter(*tobufp, -FOOTER_ROWS(ps_global),
+	    rc = optionally_enter(*tobufp, -FOOTER_ROWS(ps_global),
 				 0, resize_len,
 				 prmpt_who
 				   ? prmpt_who
@@ -1156,9 +1161,9 @@ pine_simple_send(ENVELOPE *outgoing,	/* envelope for outgoing message */
 				 ekey, help, &flags);
 	}
 	else
-	  i = 0;
+	  rc = 0;
 
-	switch(i){
+	switch(rc){
 	  case -1:
 	    q_status_message(SM_ORDER | SM_DING, 3, 4,
 			     "Internal problem encountered");
@@ -1172,7 +1177,7 @@ pine_simple_send(ENVELOPE *outgoing,	/* envelope for outgoing message */
 	    char  *returned_addr = NULL;
 	    int    len, l;
 
-	    if(i == 2){
+	    if(rc == 2){
 		int got_something = 0;
 
 		push_titlebar_state();
@@ -1614,7 +1619,8 @@ pine_simple_send(ENVELOPE *outgoing,	/* envelope for outgoing message */
 	      int l;
 	      int ambiguity;
 
-	      ambiguity = adrbk_nick_complete(*tobufp, &new_nickname, ANC_AFTERCOMMA);
+	      ambiguity = abook_nickname_complete(*tobufp, &new_nickname,
+			      (lastrc==rc && !(flags & OE_USER_MODIFIED)), ANC_AFTERCOMMA);
 	      if(new_nickname){
 		if(*new_nickname){
 		  if((l=strlen(new_nickname)) > resize_len){
@@ -3627,7 +3633,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 	    /*
 	     * Turn on "undisclosed recipients" header if no To or cc.
 	     */
-            if(!(outgoing->to || outgoing->cc || outgoing->newsgroups)
+            if(!(outgoing->to || outgoing->cc)
 	      && (outgoing->bcc || lcc_addr) && pf_nobody && pf_nobody->addr){
 		pf_nobody->writehdr  = 1;
 		pf_nobody->localcopy = 1;
@@ -5369,7 +5375,7 @@ outgoing2strings(METAENV *header, struct mail_bodystruct *bod, void **text, PATM
 		 * reply.c:reply_cp_addr to package up the bogus stuff
 		 * is required.
 		 */
-		for(p = pf->scratch; p = strstr(p, "@.RAW-FIELD."); )
+		for(p = pf->scratch; p = strstr(p, "@" RAWFIELD); )
 		  for(t = p; ; t--)
 		    if(*t == '&'){		/* find "leading" token */
 			int replacelen;
@@ -5388,10 +5394,13 @@ outgoing2strings(METAENV *header, struct mail_bodystruct *bod, void **text, PATM
 			u = rfc822_base64((unsigned char *) t,
 					  (unsigned long) strlen(t),
 					  (unsigned long *) &l);
+			if(!u)
+			  u = "";
+
 			replacelen = strlen(t);
 			*p = '@';		/* restore 'p' */
 			rplstr(p, strlen(p), 12, "");	/* clear special token */
-			rplstr(t, strlen(u)-replacelen+1, replacelen, u);  /* NULL u handled in func */
+			rplstr(t, strlen(u)-replacelen+1, replacelen, u);
 			if(u)
 			  fs_give((void **) &u);
 

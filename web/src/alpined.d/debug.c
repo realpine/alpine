@@ -30,10 +30,11 @@ static char rcsid[] = "$Id: wimap.c 73 2006-06-13 16:46:59Z hubert@u.washington.
 #define	MAX_DEBUG_FMT	1024
 
 
-#ifdef	DEBUG
-# define DTEST(L)	((L) <= debug)
-#else
-# define DTEST(L)	(0)
+#ifndef	DEBUG
+/*
+ * Preserve debug for syslog trace
+ */
+int	debug;
 #endif
 
 
@@ -50,7 +51,7 @@ void
 output_debug_msg(int dlevel, char *fmt, ...)
 {
     /* always write SYSDBG */
-    if((dlevel & SYSDBG) || DTEST(dlevel)){
+    if((dlevel & SYSDBG) || dlevel <= debug){
 #if	HAVE_SYSLOG
 	va_list args;
 	char    fmt2[MAX_DEBUG_FMT], *p, *q, *trailing = NULL;

@@ -1,5 +1,5 @@
 /*
- * $Id: pipe.h 165 2006-10-04 01:09:47Z jpf@u.washington.edu $
+ * $Id: pipe.h 491 2007-03-26 18:18:35Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -41,6 +41,7 @@
 #define	PIPE_DESC	0x0080			/* no stdio desc wrapping  */
 #define	PIPE_SILENT	0x0100			/* no screen clear, etc	   */
 #define PIPE_RUNNOW     0x0200			/* don't wait for child (PC-Pine) */
+#define PIPE_RAW        0x0400			/* don't convert to locale */
 
 #ifdef _WINDOWS
 /*

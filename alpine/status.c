@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: status.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: status.c 468 2007-03-02 23:04:18Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -593,14 +593,18 @@ status_message_write(char *message, int from_alarm_handler)
 		c_obuf = (UCS) utf8_get((unsigned char **) &p_obuf, &l_obuf);
 		c_pbuf = (UCS) utf8_get((unsigned char **) &p_pbuf, &l_pbuf);
 
-		if((c_obuf & U8G_ERROR) || (c_obuf & U8G_ERROR)){
+		if((c_obuf & U8G_ERROR) || (c_pbuf & U8G_ERROR)){
 		    column = prevstartcol;
 		    uneq_str = obuff;
 		    break;
 		}
 		else if(c_obuf == c_pbuf){
+		    int w;
+
 		    uneq_str = p_obuf;
-		    column += ucs4_width(c_obuf);
+		    w = wcellwidth(c_obuf);
+		    if(w >= 0)
+		      column += w;
 		}
 		else
 		  break;
@@ -614,7 +618,7 @@ status_message_write(char *message, int from_alarm_handler)
 		    c_obuf = (UCS) utf8_get((unsigned char **) &p_obuf, &l_obuf);
 		    c_pbuf = (UCS) utf8_get((unsigned char **) &p_pbuf, &l_pbuf);
 
-		    if((c_obuf & U8G_ERROR) || (c_obuf & U8G_ERROR)){
+		    if((c_obuf & U8G_ERROR) || (c_pbuf & U8G_ERROR)){
 			eq_str = NULL;
 			break;
 		    }

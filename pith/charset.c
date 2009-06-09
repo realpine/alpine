@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: charset.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: charset.c 412 2007-02-02 02:18:12Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -33,50 +33,11 @@ int	       rfc1522_token(char *, int (*)(int), char *, char **);
 int	       rfc1522_valtok(int);
 int	       rfc1522_valenc(int);
 int	       rfc1522_valid(char *, char **, char **, char **, char **);
+void	       rfc1522_copy_and_transliterate(unsigned char *, unsigned char **, size_t,
+					      unsigned char *, unsigned long, char *);
 unsigned char *rfc1522_encoded_word(unsigned char *, int, char *);
 char	      *rfc1522_8bit(void *, int);
 char	      *rfc1522_binary(void *, int);
-char	      *charset_alias(char *);
-
-
-/*
- * utf8able = should given charset get transliterated into utf8
- *
- *  returns: TRUE if cs can be converted
- *	     FALSE if already utf-8/us-ascii or 
- */
-int
-utf8able(char *cs)
-{
-    /* NOTE: does NOT test for cs == utf-8 or us-ascii already */
-    return(utf8_charset(charset_alias(cs)) != NULL);
-}
-
-
-/*
- * charset_alias - some equivalent charset names aren't recognized in
- *		   c-client/utf8.c:utf8_charset
- */
-char *
-charset_alias(char *cs)
-{
-    static struct  cs_alias {
-	    char *alias;
-	    char *canonical;
-    } cs_aliases[] = {
-	{"unicode-1-1-utf-7", "utf-7"},
-    };
-
-    if(cs){
-	int i;
-
-	for(i = 0; i < (sizeof(cs_aliases) / sizeof(cs_aliases[0])); i++)
-	  if(!strucmp(cs, cs_aliases[i].alias))
-	    return(cs_aliases[i].canonical);
-    }
-
-    return(cs);
-}
 
 
 char *
@@ -187,36 +148,17 @@ trans_euc_to_2022_jp(unsigned char *src)
 #define	RFC1522_TERM_L	2
 #define	RFC1522_DLIM	"?"
 #define	RFC1522_DLIM_L	1
-#define	RFC1522_MAXW	75
+#define	RFC1522_MAXW	256	/* RFC's say 75, but no senders seem to care*/
 #define	ESPECIALS	"()<>@,;:\"/[]?.="
 #define	RFC1522_OVERHEAD(S)	(RFC1522_INIT_L + RFC1522_TERM_L +	\
 				 (2 * RFC1522_DLIM_L) + strlen(S) + 1);
 #define	RFC1522_ENC_CHAR(C)	(((C) & 0x80) || !rfc1522_valtok(C)	\
 				 || (C) == '_' )
 
-
 /*
- * rfc1522_decode - try to decode the given source string ala RFC 2047
- *                  (obsoleted RFC 1522) into the given destination buffer.
- *
- * The 'charset' parameter works this way:
- *
- * If charset is NULL and an 'encoded-word' which does not match pine's
- * charset is found, a description of the charset of the encoded word
- * is inserted in that place into the destination buffer, eg: [iso-2022-jp]
- *
- * If charset is non-NULL, instead of the above, a copy of the
- * charset string is allocated and a pointer to this string is written
- * at the address where charset points to, but of course this allocate
- * and copy is only done for the first not matching charset. remaining
- * 'encoded-word's are also decoded silently, even if they are encoded
- * with different charsets.
- *
- * In all cases, charset translation is only attempted from the first
- * not matching charset, so translation may be wrong for the remaining.
- *
- * If charset is set and no non-matching charset is found,
- * NULL is written at the address pointed by 'charset'.
+ * rfc1522_decode_to_utf8 - try to decode the given source string ala RFC 2047
+ *                  (obsoleted RFC 1522) into the given destination buffer,
+ *		    encoded in UTF-8.
  *
  * How large should d be? The decoded string of octets will fit in
  * the same size string as the source string. However, because we're
@@ -230,21 +172,17 @@ trans_euc_to_2022_jp(unsigned char *src)
  * Returns: pointer to either the destination buffer containing the
  *	    decoded text, or a pointer to the source buffer if there was
  *          no valid 'encoded-word' found during scanning.
- *          In addition, '*charset' is set as described above.
  */
 unsigned char *
-rfc1522_decode(unsigned char *d, size_t len, char *s, char **charset)
-                        	/* length of d */
+rfc1522_decode_to_utf8(unsigned char *d, size_t len, char *s)
 {
     unsigned char *rv = NULL, *p;
     char	  *start = s, *sw, *enc, *txt, *ew, **q, *lang;
-    char          *cset, *xlit = NULL;
+    char          *cset;
     unsigned long  l;
-    int		   i, described_charset_once = 0;
+    int		   i;
 
     *d = '\0';					/* init destination */
-    if(charset)
-      *charset = NULL;
 
     while(s && (sw = strstr(s, RFC1522_INIT))){
 	/* validate the rest of the encoded-word */
@@ -257,12 +195,7 @@ rfc1522_decode(unsigned char *d, size_t len, char *s, char **charset)
 	     * source while waiting to see if we have to copy at all.
 	     */
 	    if(rv == d && s != start){
-		strncpy((char *) d, start,
-			(int) MIN((l = (sw - start)), len-1));
-		d += l;				/* advance d, tie off text */
-		if(d-rv > len-1)
-		  d = rv+len-1;
-		*d = '\0';
+		rfc1522_copy_and_transliterate(rv, &d, len, start, sw - start, NULL);
 		s = sw;
 	    }
 
@@ -272,7 +205,6 @@ rfc1522_decode(unsigned char *d, size_t len, char *s, char **charset)
 		  while(s < sw && d-rv<len-1)
 		    *d++ = (unsigned char) *s++;
 
-		  described_charset_once = 0;
 		  break;
 	      }
 
@@ -280,32 +212,6 @@ rfc1522_decode(unsigned char *d, size_t len, char *s, char **charset)
 
 	    if(lang = strchr(cset, '*'))
 	      *lang++ = '\0';
-
-	    if(strucmp((char *) cset, "us-ascii") && strucmp((char *) cset, "utf-8")){
-
-		dprint((5, "RFC1522_decode: charset mismatch: %s\n",
-		       cset ? cset : "?"));
-
-		if(utf8able(cset)){
-		    xlit = cpystr(cset);
-		}
-		else if(charset){
-		    if(!*charset)		/* only write first charset */
-		      *charset = cpystr(cset);
-		}
-		else if(!described_charset_once++){
-		    if(F_OFF(F_QUELL_CHARSET_WARNING, ps_global)){
-			if(d-rv<len-1)
-			  *d++ = '[';
-
-			sstrncpy((char **) &d, cset, len-1-(d-rv));
-			if(d-rv<len-1)
-			  *d++ = ']';
-			if(d-rv<len-1)
-			  *d++ = SPACE;
-		    }
-		}
-	    }
 
 	    /* based on encoding, write the encoded text to output buffer */
 	    switch(*enc){
@@ -330,12 +236,8 @@ rfc1522_decode(unsigned char *d, size_t len, char *s, char **charset)
 		  q = NULL;
 
 		if(p = rfc822_qprint((unsigned char *)txt, strlen(txt), &l)){
-		    strncpy((char *) d, (char *) p, MIN(l,len-1-(d-rv)));
-		    d[MIN(l,len-1-(d-rv))] = '\0';
+		    rfc1522_copy_and_transliterate(rv, &d, len, p, l, cset);
 		    fs_give((void **)&p);	/* free encoded buf */
-		    d += l;			/* advance dest ptr to EOL */
-		    if(d-rv > len-1)
-		      d = rv+len-1;
 		}
 		else{
 		    if(q)
@@ -356,21 +258,8 @@ rfc1522_decode(unsigned char *d, size_t len, char *s, char **charset)
 	      case 'B' :			/* 'B' encoding */
 	      case 'b' :
 		if(p = rfc822_base64((unsigned char *) txt, strlen(txt), &l)){
-		    /*
-		     * C-client's rfc822_base64 was changed so that it now
-		     * does do null termination of the returned value.
-		     * As long as there are no nulls in the rest of the
-		     * string, we could now get rid of worrying about the
-		     * l length arg in the next two lines. In fact, since
-		     * embedded nulls don't make sense in this context and
-		     * won't work correctly anyway, it is really a no-op.
-		     */
-		    strncpy((char *) d, (char *) p, MIN(l,len-1-(d-rv)));
-		    d[MIN(l,len-1-(d-rv))] = '\0';
+		    rfc1522_copy_and_transliterate(rv, &d, len, p, l, cset);
 		    fs_give((void **)&p);	/* free encoded buf */
-		    d += l;			/* advance dest ptr to EOL */
-		    if(d-rv > len-1)
-		      d = rv+len-1;
 		}
 		else
 		  goto bogus;
@@ -378,7 +267,7 @@ rfc1522_decode(unsigned char *d, size_t len, char *s, char **charset)
 		break;
 
 	      default:
-		sstrncpy((char **) &d, txt, len-1-(d-rv));
+		rfc1522_copy_and_transliterate(rv, &d, len, txt, strlen(txt), NULL);
 		dprint((1, "RFC1522_decode: Unknown ENCODING: %s\n",
 		       enc ? enc : "?"));
 		break;
@@ -402,12 +291,7 @@ rfc1522_decode(unsigned char *d, size_t len, char *s, char **charset)
 
 	    /* if already copying to destn, copy it */
 	    if(rv){
-		strncpy((char *) d, s,
-			(int) MIN((l = (sw - s) + RFC1522_INIT_L),
-			len-1-(d-rv)));
-		d += l;				/* advance d, tie off text */
-		if(d-rv > len-1)
-		  d = rv+len-1;
+		rfc1522_copy_and_transliterate(rv, &d, len, s, l, NULL);
 		*d = '\0';
 		s += l;				/* advance s beyond intro */
 	    }
@@ -416,45 +300,17 @@ rfc1522_decode(unsigned char *d, size_t len, char *s, char **charset)
 	}
     }
 
-    if(rv && *s){				/* copy remaining text */
-      strncat((char *) rv, s, len - 1 - strlen((char *) rv));
-      rv[len-1] = '\0';
-    }
-
-    if(rv && xlit){
-	char	  *newcharset = NULL;
-	SIZEDTEXT  text, ctext;
-
-	text.size = strlen((char *) rv);
-	text.data = rv;
-	memset(&ctext, 0, sizeof(SIZEDTEXT));
-	if(utf8_text(&text, xlit, &ctext, 0L)){
-	    char *ntc;
-
-	    /* make null terminated copy */
-	    ntc = (char *) fs_get((ctext.size+1) * sizeof(char));
-	    snprintf(ntc, ctext.size+1, "%s", ctext.data);
-
-	    if(text.data != ctext.data)
-	      fs_give((void **) &ctext.data);
-
-	    /* copy up to <len> bytes of whole characters */
-	    iutf8ncpy((char *) rv, ntc, len);
+    if(rv){
+	if(s && *s){				/* copy remaining text */
+	    rfc1522_copy_and_transliterate(rv, &d, len, s, strlen(s), NULL);
 	    rv[len-1] = '\0';
-
-	    fs_give((void **) &ntc);
-
-	    if(charset){
-		if(*charset)
-		  fs_give((void **) charset);
-
-		*charset = cpystr("UTF-8");
-	    }
 	}
     }
-
-    if(xlit)
-      fs_give((void **) &xlit);
+    else if(s){
+	rv = d;
+	rfc1522_copy_and_transliterate(rv, &d, len, s, strlen(s), NULL);
+	rv[len-1] = '\0';
+    }
 
     return(rv ? rv : (unsigned char *) start);
 
@@ -541,6 +397,95 @@ rfc1522_valid(char *s, char **charset, char **enc, char **txt, char **endp)
 
     return(rv);
 }
+
+
+/*
+ * rfc1522_copy_and_transliterate - copy given buf to destination buffer
+ *				    as UTF-8 characters
+ */
+void
+rfc1522_copy_and_transliterate(unsigned char  *rv,
+			       unsigned char **d,
+			       size_t	       len,
+			       unsigned char  *s,
+			       unsigned long   l,
+			       char	      *cset)
+{
+    unsigned long i;
+    SIZEDTEXT	  src, xsrc;
+
+    src.data = s;
+    src.size = l;
+    memset(&xsrc, 0, sizeof(SIZEDTEXT));
+
+    /* transliterate decoded segment to utf-8 */
+    if(cset){
+	if(strucmp((char *) cset, "us-ascii")
+	   && strucmp((char *) cset, "utf-8")){
+	    if(utf8_charset(cset)){
+		if(!utf8_text(&src, cset, &xsrc, 0L)){
+		    /* should not happen */
+		    panic("c-client failed to transliterate recognized characterset");
+		}
+	    }
+	    else{
+		/* non-xlatable charset */
+		for(i = 0; i < l; i++)
+		  if(src.data[i] & 0x80){
+		      xsrc.data = (unsigned char *) fs_get((l+1) * sizeof(unsigned char));
+		      xsrc.size = l;
+		      for(i = 0; i < l; i++)
+			xsrc.data[i] = (src.data[i] & 0x80) ? '?' : src.data[i];
+
+		      break;
+		  }
+	    }
+	}
+    }
+    else{
+	const CHARSET *cs;
+
+	src.data = s;
+	src.size = strlen((char *) s);
+
+	if((cs = utf8_infercharset(&src))){
+	    if(!(cs->type == CT_ASCII || cs->type == CT_UTF8)){
+		if(!utf8_text_cs(&src, cs, &xsrc, 0L, 0L)){
+		    /* should not happen */
+		    panic("c-client failed to transliterate recognized characterset");
+		}
+	    }
+	}
+	else{
+	    /* unknown bytes - mask off high bit chars */
+	    for(i = 0; i < l; i++)
+	      if(src.data[i] & 0x80){
+		  xsrc.data = (unsigned char *) fs_get((l+1) * sizeof(unsigned char));
+		  xsrc.size = l;
+		  for(i = 0; i < l; i++)
+		    xsrc.data[i] = (src.data[i] & 0x80) ? '?' : src.data[i];
+
+		  break;
+	      }
+	}
+    }
+
+    if(xsrc.data){
+	s = xsrc.data;
+	l = xsrc.size;
+    }
+
+    i = MIN(l,len-1-((*d)-rv));
+    strncpy((char *) (*d), (char *) s, i);
+    (*d)[i] = '\0';
+    *d += l;			/* advance dest ptr to EOL */
+    if((*d)-rv > len-1)
+      *d = rv+len-1;
+
+    if(src.data != xsrc.data)
+      fs_give((void **) &xsrc.data);
+}
+
 
 
 /*
@@ -943,7 +888,7 @@ void
 convert_possibly_encoded_str_to_utf8(char **strp)
 {
     size_t     len, lensrc, lenresult;
-    char      *bufp, *charset = NULL, *decoded, *new;
+    char      *bufp, *decoded, *new;
 
     if(!strp || !*strp || **strp == '\0')
       return;
@@ -951,19 +896,11 @@ convert_possibly_encoded_str_to_utf8(char **strp)
     len = 4 * strlen(*strp) + 1;
     bufp = (char *) fs_get(len);
 
-    decoded = (char *) rfc1522_decode((unsigned char *) bufp, len, *strp, &charset);
-    if(decoded == (*strp) || charset && strucmp(charset, "utf-8")){
-	new = convert_to_utf8(*strp, charset, 0);
-	if(new){
-	    fs_give((void **) strp);
-	    *strp = new;
-	}
-	/* else, already UTF-8 */
-    }
-    else{
+    decoded = (char *) rfc1522_decode_to_utf8((unsigned char *) bufp, len, *strp);
+    if(decoded != (*strp)){	/* unchanged */
 	if((lensrc=strlen(*strp)) >= (lenresult=strlen(decoded))){
 	    strncpy(*strp, decoded, lensrc);
-	    (*strp)[lensrc-1] = '\0';
+	    (*strp)[lensrc] = '\0';
 	}
 	else{
 	    fs_give((void **) strp);
@@ -977,9 +914,7 @@ convert_possibly_encoded_str_to_utf8(char **strp)
 	    }
 	}
     }
-
-    if(charset)
-      fs_give((void **) &charset);
+    /* else, already UTF-8 */
 
     if(bufp)
       fs_give((void **) &bufp);

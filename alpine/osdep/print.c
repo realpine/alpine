@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: print.c 254 2006-11-21 21:54:24Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: print.c 435 2007-02-09 23:35:33Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -34,6 +34,7 @@ static char rcsid[] = "$Id: print.c 254 2006-11-21 21:54:24Z hubert@u.washington
 #include "../../pith/debug.h"
 #include "../../pith/conf.h"
 #include "../../pith/store.h"
+#include "../../pith/filttype.h"
 
 #include "../../pico/estruct.h"	/* for ctrl() */
 #include "../../pico/keydefs.h"	/* for KEY_* */
@@ -67,9 +68,7 @@ static char rcsid[] = "$Id: print.c 254 2006-11-21 21:54:24Z hubert@u.washington
 #ifndef _WINDOWS
 static char *trailer;  /* so both open and close_printer can see it */
 static int   ansi_off;
-static unsigned char  cbuf[6];
-static unsigned char *cbufp;
-static unsigned char *cbufend;
+static CBUF_S cb;
 #endif /* !_WINDOWS */
 
 
@@ -360,9 +359,9 @@ open_printer(char *desc)
 	fs_give((void **)&init);
     }
 
-    cbuf[0] = '\0';
-    cbufp   = cbuf;
-    cbufend = cbuf;
+    cb.cbuf[0] = '\0';
+    cb.cbufp   = cb.cbuf;
+    cb.cbufend = cb.cbuf;
 #else /* _WINDOWS */
     int status;
     LPTSTR desclpt = NULL;
@@ -458,7 +457,7 @@ print_char(int c)
     unsigned char obuf[MAX(MB_LEN_MAX,32)];
 
     if(!ps_global->print->err
-       && (outchars = utf8_to_locale(c, cbuf, sizeof(cbuf), &cbufp, obuf, sizeof(obuf)))){
+       && (outchars = utf8_to_locale(c, &cb, obuf, sizeof(obuf)))){
 	for(i = 0; i < outchars && !ps_global->print->err; i++)
 	  if(putc(obuf[i], ps_global->print->fp) == EOF)
 	    ps_global->print->err = 1;

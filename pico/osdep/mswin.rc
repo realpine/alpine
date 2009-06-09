@@ -189,8 +189,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 4,92,0,0
- PRODUCTVERSION 4,92,0,0
+ FILEVERSION 4,93,0,0
+ PRODUCTVERSION 4,93,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -208,12 +208,12 @@ BEGIN
             VALUE "Comments", "see http://www.washington.edu/pine\0"
             VALUE "CompanyName", "University of Washington\0"
             VALUE "FileDescription", "Pico\0"
-            VALUE "FileVersion", "4.92\0"
+            VALUE "FileVersion", "4.93\0"
             VALUE "InternalName", "pico\0"
             VALUE "LegalCopyright", "Copyright 2006-2007\0"
             VALUE "OriginalFilename", "pico.exe\0"
             VALUE "ProductName", "  pico\0"
-            VALUE "ProductVersion", "4.92\0"
+            VALUE "ProductVersion", "4.93\0"
         END
     END
     BLOCK "VarFileInfo"

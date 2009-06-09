@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mimedesc.c 389 2007-01-24 22:49:09Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mimedesc.c 409 2007-02-01 22:44:01Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -175,15 +175,15 @@ describe_mime(struct mail_bodystruct *body, char *prefix, int num,
 	tmp2[sizeof(tmp2)-1] = '\0';
 
 	description = (body->description)
-		        ? (char *) rfc1522_decode((unsigned char *)tmp_20k_buf,
-						  SIZEOF_20KBUF, tmp1, NULL)
+		        ? (char *) rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+							  SIZEOF_20KBUF, tmp1)
 			: (body->type == TYPEMESSAGE
 			   && body->encoding <= ENCBINARY
 			   && body->subtype
 			   && strucmp(body->subtype, "rfc822") == 0
 			   && body->nested.msg->env
 			   && body->nested.msg->env->subject)
-			   ? (char *) rfc1522_decode((unsigned char *)tmp_20k_buf, SIZEOF_20KBUF, tmp2, NULL)
+			   ? (char *) rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf, SIZEOF_20KBUF, tmp2)
 			   : (body->type == TYPEMESSAGE
 			      && body->subtype
 			      && !strucmp(body->subtype, "delivery-status"))
@@ -664,8 +664,7 @@ part_desc(char *number, BODY *body, int type, int width, int flags, gf_io_t pc)
             number,
             body->description == NULL ? "" : "\"",
             body->description == NULL ? ""
-	      : (char *)rfc1522_decode((unsigned char *)tmp_20k_buf,
-				       10000, buftmp, NULL),
+	      : (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf, 10000, buftmp),
             body->description == NULL ? "" : "\"  ",
             type_desc(body->type, body->subtype, body->parameter, NULL, 1),
             body->type == TYPETEXT ? comatose(body->size.lines) :

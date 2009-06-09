@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mimedisp.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mimedisp.c 422 2007-02-06 04:22:16Z jpf@u.washington.edu $";
 #endif
 
 /*
@@ -54,8 +54,12 @@ mime_os_specific_access(void)
 {
 #ifdef	_WINDOWS
     return 1;
-#elif	defined(MAC_OS_X_VERSION_MIN_REQUIRED) && defined(MAC_OS_X_VERSION_10_3) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_3
+#elif OSX_TARGET
+# ifdef AVAILABLE_MAC_OS_X_VERSION_10_2_AND_LATER
     return 1;
+# else
+    return 0;
+# endif
 #else
     return 0;
 #endif
@@ -163,7 +167,7 @@ mime_get_os_mimetype_from_ext(char *file_ext, char *mime_type, int mime_type_len
 
 #elif	OSX_TARGET
 
-#if defined(MAC_OS_X_VERSION_MIN_REQUIRED) && defined(MAC_OS_X_VERSION_10_3) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_3
+#ifdef AVAILABLE_MAC_OS_X_VERSION_10_3_AND_LATER
     CFStringRef mime_ref = NULL, type_id_ref = NULL, ext_ref = NULL;
     char buf[1024];
 
@@ -195,7 +199,7 @@ mime_get_os_mimetype_from_ext(char *file_ext, char *mime_type, int mime_type_len
     return 1;
 #else
     return 0;
-#endif /* MAC_OS_X_VERSION_10_3 */
+#endif /* AVAILABLE_MAC_OS_X_VERSION_10_3_AND_LATER */
 
 #else
     return 0;
@@ -256,7 +260,7 @@ mime_get_os_ext_from_mimetype(char *mime_type, char *file_ext, int file_ext_len)
 
 #elif	OSX_TARGET
 
-#if defined(MAC_OS_X_VERSION_MIN_REQUIRED) && defined(MAC_OS_X_VERSION_10_3) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_3
+#ifdef AVAILABLE_MAC_OS_X_VERSION_10_3_AND_LATER
     CFStringRef mime_ref = NULL, type_id_ref = NULL, ext_ref = NULL;
 
     if(!mime_type || !*mime_type)
@@ -284,7 +288,7 @@ mime_get_os_ext_from_mimetype(char *mime_type, char *file_ext, int file_ext_len)
     return 1;
 #else
     return 0;
-#endif /* MACOS_X_VERSION_10_3 */
+#endif /* AVAILABLE_MAC_OS_X_VERSION_10_3_AND_LATER */
 
 #else
     return 0;
@@ -376,7 +380,7 @@ osx_build_mime_type_cmd(mime_type, cmd, cmdlen, sp_hndlp)
     int   cmdlen, *sp_hndlp;
 {
     int rv = 0;
-#if defined(MAC_OS_X_VERSION_MIN_REQUIRED) && defined(MAC_OS_X_VERSION_10_2) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_2
+#ifdef AVAILABLE_MAC_OS_X_VERSION_10_2_AND_LATER
     CFStringRef str_ref = NULL, ret_str_ref = NULL;
     CFURLRef url_ref = NULL;
 
@@ -385,7 +389,7 @@ osx_build_mime_type_cmd(mime_type, cmd, cmdlen, sp_hndlp)
     if((str_ref = CFStringCreateWithCString(NULL, mime_type, 
 					kCFStringEncodingASCII)) == NULL)
       return 0;
-    if(LSCopyApplicationForMIMEType(str_ref, kLSRolesViewer, &url_ref)
+    if(LSCopyApplicationForMIMEType(str_ref, kLSRolesAll, &url_ref)
        != kLSApplicationNotFoundErr){
 	if((ret_str_ref = CFURLGetString(url_ref)) == NULL)
 	  return 0;
@@ -398,7 +402,7 @@ osx_build_mime_type_cmd(mime_type, cmd, cmdlen, sp_hndlp)
 	if(url_ref)
 	  CFRelease(url_ref);
     }
-#endif /* MAC_OS_X_VERSION_10_2 */
+#endif /* AVAILABLE_MAC_OS_X_VERSION_10_2_AND_LATER */
     return rv;
 }
 
@@ -410,11 +414,12 @@ osx_build_mime_ext_cmd(mime_ext, cmd, cmdlen, sp_hndlp)
     int   cmdlen, *sp_hndlp;
 {
     int rv = 0;
-#if defined(MAC_OS_X_VERSION_MIN_REQUIRED) && defined(MAC_OS_X_VERSION_10_2) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_2
+#ifdef AVAILABLE_MAC_OS_X_VERSION_10_2_AND_LATER
     CFStringRef str_ref = NULL, ret_str_ref = NULL;
     CFURLRef url_ref = NULL;
 
-    if((str_ref = CFStringCreateWithCString(NULL, mime_ext,
+    if((str_ref = CFStringCreateWithCString(NULL, (*mime_ext) == '.' 
+					    ? mime_ext+1 : mime_ext,
 					kCFStringEncodingASCII)) == NULL)
       return 0;
     if(LSGetApplicationForInfo(kLSUnknownType, kLSUnknownCreator,

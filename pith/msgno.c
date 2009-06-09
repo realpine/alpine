@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: msgno.c 203 2006-10-26 17:23:46Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: msgno.c 429 2007-02-08 00:08:23Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -856,7 +856,7 @@ calculate_some_scores(MAILSTREAM *stream, struct search_set *searchset, int no_f
 
 		switch(match_pattern(pat->patgrp, stream, searchset, NULL, NULL,
 				     (no_fetch ? MP_IN_CCLIENT_CB : 0)
-				      | (SO_NOSERVER|SE_NOPREFETCH))){
+				      | (SE_NOSERVER|SE_NOPREFETCH))){
 		  case 1:
 		    if(!pat->action || pat->action->bogus)
 		      break;

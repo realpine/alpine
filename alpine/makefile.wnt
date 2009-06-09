@@ -25,7 +25,7 @@ RC=rc
 CDEBUG= #-Zi -Od
 LDEBUG= /DEBUG /DEBUGTYPE:CV
 
-STDCFLAGS= -I..\include -nologo -MT -DWIN32 -DDOS -D_WINDOWS -DJOB_CONTROL -DMSC_MALLOC
+STDCFLAGS= -I..\include -nologo -MT -DWIN32 -DDOS -D_WINDOWS -DMSC_MALLOC
 
 CFLAGS=	$(CDEBUG) $(STDCFLAGS) $(NET) $(EXTRACFLAGS)
 
@@ -35,7 +35,6 @@ RCFLAGS =
 
 STDLIBS=oldnames.lib kernel32.lib advapi32.lib ws2_32.lib user32.lib gdi32.lib \
 	shell32.lib comdlg32.lib winmm.lib crypt32.lib
-LDAPLIBS=	../ldap/lib/ldap32.lib
 SPELLLIBS=
 
 LIBER=lib
@@ -61,7 +60,7 @@ OURLIBS= ../c-client/cclient.lib osdep/libalpineosd.lib osdep/mswin.res \
 
 LIBS= $(STDLIBS) $(LDAPLIBS) $(SPELLLIBS) $(OURLIBS) $(EXTRALIBES)
 
-all:	alpine.exe
+all:	alpine.exe rpload.exe rpdump.exe
 
 .c.obj:
 	$(CC) -c $(CFLAGS) $(MAKEDIR)\$*.c
@@ -71,6 +70,12 @@ $(OFILES):	$(HFILES)
 libalpine.lib:	$(OFILES)
 		$(RM) libalpine.lib || rem
 		$(LIBER) /out:libalpine.lib $(OFILES)
+
+rpload.exe: rpload.obj ..\c-client\cclient.lib
+	link /subsystem:console /out:rpload.exe $(LFLAGS) rpload.obj bdate.obj $(LIBS)
+
+rpdump.exe: rpdump.obj ..\c-client\cclient.lib
+	link /subsystem:console /out:rpdump.exe $(LFLAGS) rpdump.obj bdate.obj $(LIBS)
 
 alpine.exe: $(OFILES) $(OURLIBS)
 	..\pico\blddate > bdate.c

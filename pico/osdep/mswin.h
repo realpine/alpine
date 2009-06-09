@@ -119,37 +119,17 @@ typedef char *(*cbstr_t)(char *);
 #define PATH_MAX		128	/* Max size of a directory path. */
 #endif
 
-
-#define MSWIN_RANGE_START	0x7001
-#define MSWIN_KEY_UP		0x7001
-#define MSWIN_KEY_DOWN		0x7002
-#define MSWIN_KEY_RIGHT		0x7003
-#define MSWIN_KEY_LEFT		0x7004
-#define MSWIN_KEY_PREVPAGE	0x7005
-#define MSWIN_KEY_NEXTPAGE	0x7006
-#define MSWIN_KEY_HOME		0x7007
-#define MSWIN_KEY_END		0x7008
-#define MSWIN_KEY_DELETE	0x7009
-#define MSWIN_KEY_F1		0x700a
-#define MSWIN_KEY_F2		0x700b
-#define MSWIN_KEY_F3		0x700c
-#define MSWIN_KEY_F4		0x700d
-#define MSWIN_KEY_F5		0x700e
-#define MSWIN_KEY_F6		0x700f
-#define MSWIN_KEY_F7		0x7010
-#define MSWIN_KEY_F8		0x7011
-#define MSWIN_KEY_F9		0x7012
-#define MSWIN_KEY_F10		0x7013
-#define MSWIN_KEY_F11		0x7014
-#define MSWIN_KEY_F12		0x7015
-#define MSWIN_KEY_NODATA	0x7016
-#define MSWIN_KEY_SCROLLUPLINE		0x7017
-#define MSWIN_KEY_SCROLLDOWNLINE	0x7018
-#define MSWIN_KEY_SCROLLUPPAGE		0x7019
-#define MSWIN_KEY_SCROLLDOWNPAGE	0x701a
-#define MSWIN_KEY_SCROLLTO		0x701b
-
-#define MSWIN_RANGE_END		0x701b
+/*
+ * Scroll callback values. Used to be mapped in the MSWIN_RANGE_START..END
+ *  range, but now are mapped directly to keydefs.h values. Except two of
+ *  them which don't have map values in keydefs.h so they're still in the
+ *  MSWIN_RANGE_START..END 0x7000 range.
+ */
+#define MSWIN_KEY_SCROLLUPPAGE		0x7000
+#define MSWIN_KEY_SCROLLDOWNPAGE	0x7001
+#define MSWIN_KEY_SCROLLUPLINE		KEY_SCRLUPL
+#define MSWIN_KEY_SCROLLDOWNLINE	KEY_SCRLDNL
+#define MSWIN_KEY_SCROLLTO		    KEY_SCRLTO
 
 #define	MSWIN_PASTE_DISABLE	0
 #define	MSWIN_PASTE_FULL	1
@@ -168,6 +148,7 @@ typedef char *(*cbstr_t)(char *);
 					 * window closes. */
 #define MSWIN_DT_USEALTWINDOW   0x0002	/* Put text in alt window if already
 					 * open. Open if not. */
+#define MSWIN_DT_FILLFROMFILE   0x0004	/* pText_utf8 is a filename. */
 
 /*
  * functions from mswin.c
@@ -228,7 +209,6 @@ void		mswin_getprintfont (char *, size_t, char *, size_t,
 				    char *, size_t, char *, size_t);
 int		mswin_yeild (void);
 int		mswin_charavail (void);
-UCS		mswin_getc (void);
 UCS		mswin_getc_fast (void);
 void		mswin_flush_input (void);
 int		mswin_showcursor (int show);
@@ -332,6 +312,7 @@ BOOL		MSWRPeek(HKEY hRootKey, LPTSTR subkey, LPTSTR valstr,
 			 LPTSTR data, DWORD *dlen);
 int             mswin_store_pass_prompt(void);
 void            mswin_set_erasecreds_callback(cbvoid_t);
+void		mswin_setviewinwindcallback (cbvoid_t);
 
 #ifdef	MSC_MALLOC
 /*

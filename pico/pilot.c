@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pilot.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pilot.c 417 2007-02-03 01:33:25Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -196,9 +196,12 @@ main(int argc, char *argv[])
 #endif	/* USE_TERMCAP/USE_TERMINFO/VMS */
 
     curbp->b_mode |= gmode;		/* and set default modes*/
-    if(get_input_timeout())
-      emlwrite(_("Checking for new mail every %s seconds"),
-	        comatose(get_input_timeout()));
+    if(get_input_timeout()){
+	EML eml;
+
+	eml.s = comatose(get_input_timeout());
+	emlwrite(_("Checking for new mail every %s seconds"), &eml);
+    }
 
 
     set_browser_title(PILOT_VERSION);

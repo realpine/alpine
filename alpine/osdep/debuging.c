@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: debuging.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: debuging.c 453 2007-02-27 00:10:47Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -244,6 +244,9 @@ do_debug(FILE *debug_fp)
     static int counter = CHECK_EVERY_N_TIMES;
     static int ok = 1;
     long filesize;
+
+    if(!debugfile)
+      return(0);
 
     if(debug <= DEFAULT_DEBUG
        && !ps_global->debug_flush

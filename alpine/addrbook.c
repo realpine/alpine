@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: addrbook.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: addrbook.c 409 2007-02-01 22:44:01Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -3230,7 +3230,7 @@ select:
 		  (void)our_build_address(bldto, &addr, &error, NULL, save_and_restore);
 		  /* Have to rfc1522_decode the addr */
 		  if(addr){
-		      char    *tmp_a_string, *p, *dummy = NULL;
+		      char    *tmp_a_string, *p;
 		      ADDRESS *a = NULL;
 
 		      if(style == SelectAddrNoFull){
@@ -3261,17 +3261,12 @@ select:
 			  size_t len;
 			  len = 4*strlen(addr)+1;
 			  p = (char *)fs_get(len * sizeof(char));
-			  if(rfc1522_decode((unsigned char *)p,
-					    len, addr, &dummy)
-						      == (unsigned char *)p){
+			  if(rfc1522_decode_to_utf8((unsigned char *)p, len, addr) == (unsigned char *)p){
 			      fs_give((void **)&addr);
 			      addr = p;
 			  }
 			  else
 			    fs_give((void **)&p);
-			  
-			  if(dummy)
-			    fs_give((void **)&dummy);
 		      }
 		  }
 
@@ -5620,8 +5615,8 @@ match_check(AdrBk_Entry *abe, int type, char *string)
 	if(abe &&
 	   abe->fullname &&
 	   abe->fullname[0] &&
-	   srchstr((char *)rfc1522_decode((unsigned char *)tmp_20k_buf,
-					  SIZEOF_20KBUF, abe->fullname, NULL),
+	   srchstr((char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+						  SIZEOF_20KBUF, abe->fullname),
 		   string))
 	  return(match);
     }
@@ -5631,8 +5626,8 @@ match_check(AdrBk_Entry *abe, int type, char *string)
 	   abe->tag == Single &&
 	   abe->addr.addr &&
 	   abe->addr.addr[0] &&
-	   srchstr((char *)rfc1522_decode((unsigned char *)tmp_20k_buf,
-					  SIZEOF_20KBUF, abe->addr.addr, NULL),
+	   srchstr((char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+						  SIZEOF_20KBUF, abe->addr.addr),
 		   string))
 	  return(match);
 	else if(abe &&
@@ -5641,8 +5636,8 @@ match_check(AdrBk_Entry *abe, int type, char *string)
 	    char **p;
 
 	    for(p = abe->addr.list; p != NULL && *p != NULL; p++){
-		if(srchstr((char *)rfc1522_decode((unsigned char *)tmp_20k_buf,
-						  SIZEOF_20KBUF, *p, NULL),
+		if(srchstr((char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+							  SIZEOF_20KBUF, *p),
 		   string))
 		  return(match);
 	    }
@@ -5653,8 +5648,8 @@ match_check(AdrBk_Entry *abe, int type, char *string)
 	if(abe &&
 	   abe->fcc &&
 	   abe->fcc[0] &&
-	   srchstr((char *)rfc1522_decode((unsigned char *)tmp_20k_buf,
-					  SIZEOF_20KBUF, abe->fcc, NULL),
+	   srchstr((char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+						  SIZEOF_20KBUF, abe->fcc),
 		   string))
 	  return(match);
     }
@@ -5673,7 +5668,7 @@ match_check(AdrBk_Entry *abe, int type, char *string)
 	    p = (unsigned char *)tmp_20k_buf;
 	}
 
-        if(srchstr((char *)rfc1522_decode(p, len, abe->extra, NULL), string))
+        if(srchstr((char *)rfc1522_decode_to_utf8(p, len, abe->extra), string))
 	  found_it++;
 
 	if(tmp)
@@ -6646,9 +6641,8 @@ search_in_one_line(AddrScrn_Disp *dl, AdrBk_Entry *abe, char *listaddr, char *st
 	    case Simple:
 	    case ListHead:
 	      if(abe && srchstr(
-			(char *)rfc1522_decode((unsigned char *)tmp_20k_buf,
-					       SIZEOF_20KBUF,
-					       abe->fullname, NULL),
+			(char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+						       SIZEOF_20KBUF, abe->fullname),
 			string))
 		ret_val |= MATCH_FULL;
 	  }
@@ -6665,8 +6659,8 @@ search_in_one_line(AddrScrn_Disp *dl, AdrBk_Entry *abe, char *listaddr, char *st
 
 	    case ListEnt:
 	      if(srchstr(
-		 (char *)rfc1522_decode((unsigned char *)tmp_20k_buf,
-					SIZEOF_20KBUF, listaddr, NULL), string))
+		 (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+						SIZEOF_20KBUF, listaddr), string))
 		ret_val |= MATCH_LISTMEM;
 
 	      break;
@@ -6733,7 +6727,7 @@ search_in_one_line(AddrScrn_Disp *dl, AdrBk_Entry *abe, char *listaddr, char *st
 		      p = (unsigned char *)tmp_20k_buf;
 		  }
 
-		  if(srchstr((char *)rfc1522_decode(p, len, abe->extra, NULL),
+		  if(srchstr((char *)rfc1522_decode_to_utf8(p, len, abe->extra),
 			     string))
 		    ret_val |= MATCH_COMMENT;
 		  

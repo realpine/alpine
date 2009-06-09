@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: sort.c 272 2006-11-27 22:57:25Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: sort.c 429 2007-02-08 00:08:23Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -721,7 +721,7 @@ reset_sort_order(unsigned int flags)
     if(ps_global->mail_stream && nonempty_patterns(rflags, &pstate)){
 	for(pat = first_pattern(&pstate); pat; pat = next_pattern(&pstate)){
 	    if(match_pattern(pat->patgrp, ps_global->mail_stream, NULL,
-			     NULL, NULL, SO_NOSERVER|SE_NOPREFETCH))
+			     NULL, NULL, SE_NOSERVER|SE_NOPREFETCH))
 	      break;
 	}
 

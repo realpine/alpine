@@ -1,5 +1,5 @@
 /*
- * $Id: color.h 113 2006-09-01 21:54:31Z hubert@u.washington.edu $
+ * $Id: color.h 408 2007-02-01 00:14:18Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -26,6 +26,7 @@ int	 StartBold(void);
 void	 EndBold(void);
 void	 StartUnderline(void);
 void	 EndUnderline(void);
+int      pico_trans_color(void);
 
 
 #endif /* PICO_OSDEP_COLOR_INCLUDED */

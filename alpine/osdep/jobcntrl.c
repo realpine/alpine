@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: jobcntrl.c 202 2006-10-25 23:31:02Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: jobcntrl.c 400 2007-01-29 18:52:56Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -28,11 +28,7 @@ static char rcsid[] = "$Id: jobcntrl.c 202 2006-10-25 23:31:02Z jpf@u.washington
 int
 have_job_control(void)
 {
-#ifdef _WINDOWS
-    return 0;
-#else
     return 1;
-#endif
 }
 
 

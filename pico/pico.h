@@ -1,5 +1,5 @@
 /*
- * $Id: pico.h 381 2007-01-23 02:07:14Z jpf@u.washington.edu $
+ * $Id: pico.h 462 2007-03-01 23:53:05Z jpf@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -88,6 +88,7 @@ struct headerentry {
         char   *(*selector)();       /* Browser for possible values         */
         char     *key_label;         /* Key label for key to call browser   */
         char   *(*fileedit)();       /* Editor for file named in header     */
+        int     (*nickcmpl)();       /* routine that helps with nickname completion */
         unsigned  display_it:1;	     /* field is to be displayed by default */
         unsigned  break_on_comma:1;  /* Field breaks on commas              */
         unsigned  is_attach:1;       /* Special case field for attachments  */
@@ -374,7 +375,7 @@ typedef struct  KBSTREE {
  */
 #ifdef	maindef
 PICO	*Pmaster = NULL;		/* composer specific stuff */
-char	*version = "4.92";		/* PICO version number */
+char	*version = "4.93";		/* PICO version number */
 
 #else
 extern	PICO *Pmaster;			/* composer specific stuff */

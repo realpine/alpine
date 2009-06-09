@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: spell.c 336 2006-12-20 00:20:33Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: spell.c 418 2007-02-03 01:51:18Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -89,6 +89,7 @@ spell(int f, int n)
     char   ccb[NLINE], *sp, *fn;
     UCS   *b;
     UCS    wb[NLINE], cb[NLINE];
+    EML    eml;
 
     setimark(0, 1);
     emlwrite(_("Checking spelling..."), NULL); 	/* greetings */
@@ -105,7 +106,8 @@ spell(int f, int n)
       sp = SPELLER;
 
     if(fexist(sp, "x", (off_t *)NULL) != FIOSUC){
-        emlwrite(_("\007Spell-checking file \"%s\" not found"), sp);
+	eml.s = sp;
+        emlwrite(_("\007Spell-checking file \"%s\" not found"), &eml);
 	return(-1);
     }
 

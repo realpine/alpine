@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: main.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: main.c 418 2007-02-03 01:51:18Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -311,8 +311,11 @@ main(int argc, char *argv[])
 	    bp->b_fname[sizeof(bp->b_fname)-1] = '\0';
 	    if ((gmode&MDTREE) && !in_oper_tree(file_to_edit) ||
 		readin(file_to_edit, (viewflag==FALSE), TRUE) == ABORT) {
-		if ((gmode&MDTREE) && !in_oper_tree(file_to_edit))
-		  emlwrite(_("Can't read file from outside of %s"), opertree);
+		if ((gmode&MDTREE) && !in_oper_tree(file_to_edit)){
+		    EML eml;
+		    eml.s = opertree;
+		    emlwrite(_("Can't read file from outside of %s"), &eml);
+		}
 
 		file_to_edit = NULL;
 	    }
@@ -338,9 +341,12 @@ main(int argc, char *argv[])
 
     curwp->w_flag |= WFMODE;		/* and force an update	*/
 
-    if(timeoutset)
-      emlwrite(_("Checking for new mail every %s seconds"),
-	       comatose(get_input_timeout()));
+    if(timeoutset){
+	EML eml;
+
+	eml.s = comatose(get_input_timeout());
+	emlwrite(_("Checking for new mail every %s seconds"), &eml);
+    }
 
 
     forwline(0, starton - 1);		/* move dot to specified line */
@@ -734,10 +740,13 @@ pico_file_drop(int x, int y, char *filename)
 	bp->b_doto = 0;
     }
     else{
+	EML eml;
+
 	ifile(filename);
 	curwp->w_flag |= WFHARD;
 	update();
-	emlwrite("Inserted dropped file \"%s\"", filename);
+	eml.s = filename;
+	emlwrite("Inserted dropped file \"%s\"", &eml);
     }
 
     curwp->w_flag |= WFHARD;

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: getkey.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: getkey.c 404 2007-01-30 18:54:06Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -519,48 +519,7 @@ GetKey(void)
     }
 
     
-    return (MapMSKEYtoPK (mswin_getc_fast()));
-}
-
-static int
-MapMSKEYtoPK (int c)
-{
-    switch (c) {
-	case MSWIN_KEY_UP:		return (KEY_UP);
-	case MSWIN_KEY_DOWN:		return (KEY_DOWN);
-	case MSWIN_KEY_RIGHT:		return (KEY_RIGHT);
-	case MSWIN_KEY_LEFT:		return (KEY_LEFT);
-	case MSWIN_KEY_SCROLLUPPAGE:
-	case MSWIN_KEY_PREVPAGE:	return (KEY_PGUP);
-	case MSWIN_KEY_SCROLLDOWNPAGE:
-	case MSWIN_KEY_NEXTPAGE:	return (KEY_PGDN);
-	case MSWIN_KEY_HOME:		return (KEY_HOME);
-	case MSWIN_KEY_END:		return (KEY_END);
-	case MSWIN_KEY_DELETE:		return (KEY_DEL);
-	case MSWIN_KEY_F1:		return (F1);
-	case MSWIN_KEY_F2:		return (F2);
-	case MSWIN_KEY_F3:		return (F3);
-	case MSWIN_KEY_F4:		return (F4);
-	case MSWIN_KEY_F5:		return (F5);
-	case MSWIN_KEY_F6:		return (F6);
-	case MSWIN_KEY_F7:		return (F7);
-	case MSWIN_KEY_F8:		return (F8);
-	case MSWIN_KEY_F9:		return (F9);
-	case MSWIN_KEY_F10:		return (F10);
-	case MSWIN_KEY_F11:		return (F11);
-	case MSWIN_KEY_F12:		return (F12);
-	case MSWIN_KEY_SCROLLUPLINE:	return (KEY_SCRLUPL);
-	case MSWIN_KEY_SCROLLDOWNLINE:	return (KEY_SCRLDNL);
-	case MSWIN_KEY_SCROLLTO:	return (KEY_SCRLTO);
-	case MSWIN_KEY_NODATA:		return (NODATA);
-    }
-
-    /* Control keys. */
-    if (c < ' ') 
-	return (CTRL | (c + '@'));
-    
-    /* Normal keys. */
-    return (c);
+    return (mswin_getc_fast());
 }
 
 #endif /* _WINDOWS */

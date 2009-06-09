@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailview.c 394 2007-01-25 20:29:45Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailview.c 459 2007-02-28 23:46:02Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -114,7 +114,6 @@ void        pine_rfc822_address(ADDRESS *, gf_io_t);
 void        pine_rfc822_cat(char *, const char *, gf_io_t);
 void	    format_newsgroup_string(char *, char *, int, gf_io_t);
 int	    format_raw_hdr_string(char *, char *, gf_io_t, char *, int);
-void	    format_header_charset(char *, char **, int);
 int	    format_env_puts(char *, gf_io_t);
 int	    find_field(char **, char *, size_t);
 void	    embed_color(COLOR_PAIR *, gf_io_t);
@@ -195,7 +194,6 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
     if(body == NULL 
        || (ps_global->full_header == 2
 	   && F_ON(F_ENABLE_FULL_HDR_AND_TEXT, ps_global))) {
-	int wrapit;
 	char *charset;
 
         /*--- Server is not an IMAP2bis, It can't parse MIME
@@ -209,7 +207,7 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 
  	    if(!gf_puts(NEWLINE, pc))		/* write delimiter */
 	      goto write_error;
-	    gf_set_readc(&gc, text2, (unsigned long)strlen(text2), CharStar);
+	    gf_set_readc(&gc, text2, (unsigned long)strlen(text2), CharStar, 0);
 	    gf_filter_init();
 
 	    /*
@@ -227,30 +225,19 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 	    else
 	      charset = ps_global->display_charmap;
 
-	    wrapit = 1;
-	    if(flgs & (FM_UTF8 | FM_DISPLAY)){
-		flgs |= FM_UTF8;
-		if(strucmp((char *) charset, "us-ascii") && strucmp((char *) charset, "utf-8")){
-		    /* translate message text to UTF-8 */
-		    if(utf8able(charset)){
-			gf_link_filter(gf_utf8, gf_utf8_opt(charset));
-		    }
-		    else{
-			/* BUG: what if we can't transliterate? */
-			flgs &= ~FM_UTF8;
-		    }
-		}
+	    if(strucmp(charset, "us-ascii") && strucmp(charset, "utf-8")){
+		/* transliterate message text to UTF-8 */
+		gf_link_filter(gf_utf8, gf_utf8_opt(charset));
 	    }
-	    else
-	      wrapit = 0;
 
 	    /* link in filters, similar to what is done in decode_text() */
 	    if(!ps_global->pass_ctrl_chars){
 		gf_link_filter(gf_escape_filter, NULL);
-		filt_only_c0 = (ps_global->pass_c1_ctrl_chars || (flgs & FM_UTF8)) ? 1 : 0;
+		filt_only_c0 = 1;
 		gf_link_filter(gf_control_filter,
 			       gf_control_filter_opt(&filt_only_c0));
 	    }
+
 	    gf_link_filter(gf_tag_filter, NULL);
 
 	    if((F_ON(F_VIEW_SEL_URL, ps_global)
@@ -276,8 +263,8 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 		gf_link_filter(gf_line_test, gf_line_test_opt(color_a_quote, NULL));
 	    }
 
-	    if(wrapit && !(flgs & FM_NOWRAP) && (flgs & (FM_DISPLAY | FM_UTF8))){
-		wrapflags = GFW_UTF8 | ((flgs & FM_DISPLAY) ? GFW_HANDLES : 0);
+	    if(!(flgs & FM_NOWRAP)){
+		wrapflags = (flgs & FM_DISPLAY) ? GFW_HANDLES : GFW_NONE;
 		if(flgs & FM_DISPLAY
 		   && !(flgs & FM_NOCOLOR)
 		   && pico_usingcolor())
@@ -587,7 +574,8 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 	       && !(flgs & FM_NOEDITORIAL)){
 		tmp1 = a->body->description ? a->body->description
 					      : "Attached Text";
-	    	description = iutf8ncpy((char *)(tmp_20k_buf+10000), (char *)rfc1522_decode((unsigned char *)(tmp_20k_buf+15000), 5000, tmp1, NULL), 5000);
+	    	description = iutf8ncpy((char *)(tmp_20k_buf+10000),
+					(char *)rfc1522_decode_to_utf8((unsigned char *)(tmp_20k_buf+15000), 5000, tmp1), 5000);
 		
 		snprintf(tmp_20k_buf, SIZEOF_20KBUF, "Part %s: \"%.1024s\"", a->number,
 			description);
@@ -608,7 +596,8 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 		      : (strucmp(a->body->subtype, "delivery-status") == 0)
 		          ? "Delivery Status"
 			  : "Included Message";
-	    description = iutf8ncpy((char *)(tmp_20k_buf+10000), (char *)rfc1522_decode((unsigned char *)(tmp_20k_buf+15000), 5000, tmp1, NULL), 5000);
+	    description = iutf8ncpy((char *)(tmp_20k_buf+10000),
+				    (char *)rfc1522_decode_to_utf8((unsigned char *)(tmp_20k_buf+15000), 5000, tmp1), 5000);
 	    
             snprintf(tmp_20k_buf, SIZEOF_20KBUF, "Part %s: \"%.1024s\"", a->number,
 		    description);
@@ -907,7 +896,7 @@ handle_start_color(char *colorstring, size_t buflen, int *len)
 	}
 
 	if(F_OFF(F_SLCTBL_ITEM_NOBOLD, ps_global)){
-	    strncpy(colorstring + (*len), url_embed(TAG_BOLDON), MIN(2,buflen-(*len)));
+	    strncpy(colorstring + (*len), url_embed(TAG_BOLDON), MIN(3,buflen-(*len)));
 	    *len += 2;
 	}
     }
@@ -944,7 +933,7 @@ handle_end_color(char *colorstring, size_t buflen, int *len)
 	  bg = ps_global->VAR_NORM_BACK_COLOR;
 
 	if(F_OFF(F_SLCTBL_ITEM_NOBOLD, ps_global)){
-	    strncpy(colorstring, url_embed(TAG_BOLDOFF), MIN(2,buflen));
+	    strncpy(colorstring, url_embed(TAG_BOLDOFF), MIN(3,buflen));
 	    *len = 2;
 	}
 
@@ -962,8 +951,9 @@ handle_end_color(char *colorstring, size_t buflen, int *len)
 char *
 url_embed(int embed)
 {
-    static char buf[2] = {TAG_EMBED};
+    static char buf[3] = {TAG_EMBED};
     buf[1] = embed;
+    buf[2] = '\0';
     return(buf);
 }
 
@@ -1681,12 +1671,12 @@ url_imap_folder(char *true_url, char **folder, imapuid_t *uid_val,
 	l = strlen(server) + 8 + (mailbox ? strlen(mailbox) : 0)
 				   + (user ? (strlen(user)+2) : 9);
 	*folder = (char *) fs_get((l+1) * sizeof(char));
-	snprintf(*folder, l+1, "{%s%s%s%s%s}%s%s", server,
-		(user || !(auth && strucmp(auth, "anonymous"))) ? "/" : "",
-		user ? "user=\"" : ((auth && strucmp(auth, "anonymous")) ? "" : "Anonymous"),
-		user ? user : "",
-		user ? "\"" : "",
-		user ? "" : (strchr(mailbox, '/') ? "/" : ""), mailbox);
+	snprintf(*folder, l+1, "{%s%s%s%s%s}%s", server,
+		 (user || !(auth && strucmp(auth, "anonymous"))) ? "/" : "",
+		 user ? "user=\"" : ((auth && strucmp(auth, "anonymous")) ? "" : "Anonymous"),
+		 user ? user : "",
+		 user ? "\"" : "",
+		 mailbox);
 	(*folder)[l] = '\0';
     }
 
@@ -1967,23 +1957,27 @@ format_header(MAILSTREAM *stream, long int msgno, char *section, ENVELOPE *env,
 	}
 
 	if(!rv){
-	    int margin = 0;
+	    int margin = 0, wrapflags = GFW_ONCOMMA;
 
 	    gf_filter_init();
 	    gf_link_filter(gf_local_nvtnl, NULL);
 	    if((F_ON(F_VIEW_SEL_URL, ps_global)
 		|| F_ON(F_VIEW_SEL_URL_HOST, ps_global)
 		|| F_ON(F_SCAN_ADDR, ps_global))
-	       && handlesp)
-	      gf_link_filter(gf_line_test,
-			     gf_line_test_opt(url_hilite_hdr, handlesp));
+	       && handlesp){
+		gf_link_filter(gf_line_test,
+			       gf_line_test_opt(url_hilite_hdr, handlesp));
+		wrapflags |= GFW_HANDLES;
+	    }
 
 	    if((flags & FM_DISPLAY)
 	       && !(flags & FM_NOCOLOR)
 	       && pico_usingcolor()
-	       && ps_global->hdr_colors)
-	      gf_link_filter(gf_line_test,
-			     gf_line_test_opt(color_headers, NULL));
+	       && ps_global->hdr_colors){
+		gf_link_filter(gf_line_test,
+			       gf_line_test_opt(color_headers, NULL));
+		wrapflags |= GFW_HANDLES;
+	    }
 
 	    if(prefix && *prefix)
 	      column = MAX(column-strlen(prefix), 50);
@@ -1991,9 +1985,8 @@ format_header(MAILSTREAM *stream, long int msgno, char *section, ENVELOPE *env,
 	    if(!(flags & FM_NOWRAP))
 	      gf_link_filter(gf_wrap,
 			     gf_wrap_filter_opt(column, column,
-					        (flags & FM_NOINDENT)
-						  ? NULL : format_view_margin(), 4,
-				 GFW_UTF8 | GFW_ONCOMMA | (handlesp ? GFW_HANDLES : 0)));
+					        (flags & FM_NOINDENT) ? NULL : format_view_margin(),
+						4, wrapflags));
 
 	    if(prefix && *prefix)
 	      gf_link_filter(gf_prefix, gf_prefix_opt(prefix));
@@ -2098,7 +2091,7 @@ void
 format_envelope(MAILSTREAM *s, long int n, char *sect, ENVELOPE *e, gf_io_t pc,
 		long int which, char *oacs, int flags)
 {
-    char *q, *p2, *charset, buftmp[MAILTMPLEN];
+    char *q, *p2, buftmp[MAILTMPLEN];
 
     if(!e)
       return;
@@ -2107,12 +2100,11 @@ format_envelope(MAILSTREAM *s, long int n, char *sect, ENVELOPE *e, gf_io_t pc,
 	q = "Date: ";
 	snprintf(buftmp, sizeof(buftmp), "%s", e->date);
 	buftmp[sizeof(buftmp)-1] = '\0';
-	p2 = (char *)rfc1522_decode((unsigned char *) tmp_20k_buf,
-				    SIZEOF_20KBUF, buftmp, &charset);
+	p2 = (char *)rfc1522_decode_to_utf8((unsigned char *) tmp_20k_buf,
+					    SIZEOF_20KBUF, buftmp);
 	gf_puts(q, pc);
 	format_env_puts(p2, pc);
 	gf_puts(NEWLINE, pc);
-	format_header_charset(oacs, &charset, 1);
     }
 
     if((which & FE_FROM) && e->from)
@@ -2147,8 +2139,7 @@ format_envelope(MAILSTREAM *s, long int n, char *sect, ENVELOPE *e, gf_io_t pc,
 	q = "Subject: ";
 	gf_puts(q, pc);
 
-	p2 = iutf8ncpy((char *)(tmp_20k_buf+10000), (char *)rfc1522_decode((unsigned char *)tmp_20k_buf, 10000, e->subject, &charset), SIZEOF_20KBUF-10000);
-	format_header_charset(oacs, &charset, 1);
+	p2 = iutf8ncpy((char *)(tmp_20k_buf+10000), (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf, 10000, e->subject), SIZEOF_20KBUF-10000);
 
 	if(flags & FM_DISPLAY
 	   && (ps_global->display_keywords_in_subject
@@ -2181,8 +2172,7 @@ format_envelope(MAILSTREAM *s, long int n, char *sect, ENVELOPE *e, gf_io_t pc,
     if((which & FE_MESSAGEID) && e->message_id){
 	q = "Message-ID: ";
 	gf_puts(q, pc);
-	p2 = iutf8ncpy((char *)(tmp_20k_buf+10000), (char *)rfc1522_decode((unsigned char *)tmp_20k_buf, 10000, e->message_id, &charset), SIZEOF_20KBUF-10000);
-	format_header_charset(oacs, &charset, 1);
+	p2 = iutf8ncpy((char *)(tmp_20k_buf+10000), (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf, 10000, e->message_id), SIZEOF_20KBUF-10000);
 	format_env_puts(p2, pc);
 	gf_puts(NEWLINE, pc);
     }
@@ -2190,8 +2180,7 @@ format_envelope(MAILSTREAM *s, long int n, char *sect, ENVELOPE *e, gf_io_t pc,
     if((which & FE_INREPLYTO) && e->in_reply_to){
 	q = "In-Reply-To: ";
 	gf_puts(q, pc);
-	p2 = iutf8ncpy((char *)(tmp_20k_buf+10000), (char *)rfc1522_decode((unsigned char *)tmp_20k_buf, 10000, e->in_reply_to, &charset), SIZEOF_20KBUF-10000);
-	format_header_charset(oacs, &charset, 1);
+	p2 = iutf8ncpy((char *)(tmp_20k_buf+10000), (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf, 10000, e->in_reply_to), SIZEOF_20KBUF-10000);
 	format_env_puts(p2, pc);
 	gf_puts(NEWLINE, pc);
     }
@@ -2199,8 +2188,7 @@ format_envelope(MAILSTREAM *s, long int n, char *sect, ENVELOPE *e, gf_io_t pc,
     if((which & FE_REFERENCES) && e->references) {
 	q = "References: ";
 	gf_puts(q, pc);
-	p2 = iutf8ncpy((char *)(tmp_20k_buf+10000), (char *)rfc1522_decode((unsigned char *)tmp_20k_buf, 10000, e->references, &charset), SIZEOF_20KBUF-10000);
-	format_header_charset(oacs, &charset, 1);
+	p2 = iutf8ncpy((char *)(tmp_20k_buf+10000), (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf, 10000, e->references), SIZEOF_20KBUF-10000);
 	format_env_puts(p2, pc);
 	gf_puts(NEWLINE, pc);
     }
@@ -2298,7 +2286,7 @@ void
 format_addr_string(MAILSTREAM *stream, long int msgno, char *section, char *field_name,
 		   struct mail_address *addr, int flags, char *oacs, gf_io_t pc)
 {
-    char    *ptmp, *mtmp, *charset;
+    char    *ptmp, *mtmp;
     int	     trailing = 0, group = 0;
     ADDRESS *atmp;
 
@@ -2354,16 +2342,14 @@ format_addr_string(MAILSTREAM *stream, long int msgno, char *section, char *fiel
 	addr->next     = NULL;
 	if(!addr->host && addr->mailbox){
 	    mtmp = addr->mailbox;
-	    addr->mailbox = cpystr((char *)rfc1522_decode(
+	    addr->mailbox = cpystr((char *)rfc1522_decode_to_utf8(
 			   (unsigned char *)tmp_20k_buf,
-			   SIZEOF_20KBUF, addr->mailbox, &charset));
-	    format_header_charset(oacs, &charset, 1);
+			   SIZEOF_20KBUF, addr->mailbox));
 	}
 
 	ptmp	       = addr->personal;	/* RFC 1522 personal name? */
-	addr->personal = iutf8ncpy((char *)tmp_20k_buf, (char *)rfc1522_decode((unsigned char *)(tmp_20k_buf+10000), SIZEOF_20KBUF-10000, addr->personal, &charset), 10000);
+	addr->personal = iutf8ncpy((char *)tmp_20k_buf, (char *)rfc1522_decode_to_utf8((unsigned char *)(tmp_20k_buf+10000), SIZEOF_20KBUF-10000, addr->personal), 10000);
 	tmp_20k_buf[10000-1] = '\0';
-	format_header_charset(oacs, &charset, 1);
 
 	if(!trailing)				/* 1st pass, just address */
 	  trailing++;
@@ -2606,7 +2592,7 @@ format_raw_hdr_string(char *start, char *finish, gf_io_t pc, char *oacs, int fla
     register char *current;
     unsigned char *p, *tmp = NULL, c;
     size_t	   n, len;
-    char	   ch, *charset;
+    char	   ch;
     int		   rv = FHT_OK;
 
     ch = *finish;
@@ -2624,8 +2610,7 @@ format_raw_hdr_string(char *start, char *finish, gf_io_t pc, char *oacs, int fla
     if(islower((unsigned char)(*start)))
       *start = toupper((unsigned char)(*start));
 
-    current = (char *) rfc1522_decode(p, len, start, &charset);
-    format_header_charset(oacs, &charset, 1);
+    current = (char *) rfc1522_decode_to_utf8(p, len, start);
 
     /* output from start to finish */
     while(*current && rv == FHT_OK)
@@ -2653,59 +2638,6 @@ format_raw_hdr_string(char *start, char *finish, gf_io_t pc, char *oacs, int fla
     return(rv);
 }
 
-
-
-
-/*----------------------------------------------------------------------
-  Keep track of header field character sets
-
-  Args: oacs - 
-	charset  - 
-
-  Result: oacs's buffer contains normalized character set value
-
-  ----------------------------------------------------------------------*/
-void
-format_header_charset(char *oa_cset, char **new_csetp, int free_new_csetp)
-{
-    if(new_csetp){
-	if(*new_csetp){
-	    if(*oa_cset){
-		if(strucmp(oa_cset, *new_csetp)){
-		    /*
-		     * UH OH!  Character Set Mismatch!
-		     * Can everything just be UTF-8?
-		     */
-		    if(strucmp(oa_cset, "utf-8") && strucmp(oa_cset, "us-ascii")){
-			/*
-			 * overall charset isn't now UTF-8
-			 * see if it could be 
-			 */
-			if(utf8able(oa_cset))
-			  strncpy(oa_cset, "UTF-8", CSET_MAX);
-			else
-			  strncpy(oa_cset, UNKNOWN_CHARSET, CSET_MAX);
-
-			oa_cset[CSET_MAX-1] = '\0';
-		    }
-
-		    /* if overall charset IS in UTF-8 */
-		    if(strucmp(*new_csetp, "utf-8")
-		       && strucmp(*new_csetp, "us-ascii")
-		       && !utf8able(*new_csetp))
-		      strucmp(oa_cset, UNKNOWN_CHARSET);
-		}
-	    }
-	    else if(strlen(*new_csetp) + 1 < CSET_MAX){
-	      strncpy(oa_cset, *new_csetp, CSET_MAX);
-	      oa_cset[CSET_MAX-1] = '\0';
-	    }
-	}
-
-	if(free_new_csetp)
-	  fs_give((void **) new_csetp);
-    }
-}
 
 
 
@@ -2991,7 +2923,7 @@ scroll_handle_start_color(char *colorstring, size_t buflen, int *len)
 	}
 
 	if(F_OFF(F_SLCTBL_ITEM_NOBOLD, ps_global)){
-	    strncpy(colorstring + (*len), url_embed(TAG_BOLDON), MIN(2,buflen-(*len)));
+	    strncpy(colorstring + (*len), url_embed(TAG_BOLDON), MIN(3,buflen-(*len)));
 	    *len += 2;
 	}
     }
@@ -3028,7 +2960,7 @@ scroll_handle_end_color(char *colorstring, size_t buflen, int *len)
 	  bg = ps_global->VAR_NORM_BACK_COLOR;
 
 	if(F_OFF(F_SLCTBL_ITEM_NOBOLD, ps_global)){
-	    strncpy(colorstring, url_embed(TAG_BOLDOFF), MIN(2,buflen));
+	    strncpy(colorstring, url_embed(TAG_BOLDOFF), MIN(3,buflen));
 	    *len = 2;
 	}
 

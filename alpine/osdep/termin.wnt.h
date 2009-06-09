@@ -34,7 +34,6 @@ int		pre_screen_config_opt_enter(char *, int, char *,
 					    ESCKEY_S *, HelpType, int *);
 int             win_dialog_opt_enter(char *, int, char *, ESCKEY_S *, HelpType, int *);
 void            intr_proc(int);
-UCS             extended_code(unsigned kc);
 
 
 #endif /* PINE_OSDEP_TERMIN_WNT_INCLUDED */

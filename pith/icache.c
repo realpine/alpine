@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: icache.c 140 2006-09-26 19:30:49Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: icache.c 409 2007-02-01 22:44:01Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -182,9 +182,6 @@ clear_ice(ICE_S **ice)
 
 	if((*ice)->linecolor)
 	  free_color_pair(&(*ice)->linecolor);
-
-	if((*ice)->charset)
-	  fs_give((void **) &(*ice)->charset);
 
 	if((*ice)->tice)
 	  clear_ice(&(*ice)->tice);

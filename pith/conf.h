@@ -1,8 +1,8 @@
 /*
- * $Id: conf.h 320 2006-12-12 22:40:05Z hubert@u.washington.edu $
+ * $Id: conf.h 442 2007-02-16 23:01:28Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -732,11 +732,7 @@ struct sm_folder {
 #define METASTR "\nremote-abook-metafile="
 
 
-#if	defined(DOS_EXTRA) && !(defined(WIN32) || defined (_WINDOWS))
-#define	CONF_TXT_T	char __based(__segname("_CNFT"))
-#else
 #define	CONF_TXT_T	char
-#endif
 
 
 /* exported protoypes */

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcap.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailcap.c 409 2007-02-01 22:44:01Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -586,8 +586,7 @@ mc_get_command(int type, char *subtype, struct mail_body_parameter *params,
 		len = 4*strlen(namep);
 		dec_namebuf = (char *)fs_get((len+1)*sizeof(char));
 		dec_namep =
-		  (char *)rfc1522_decode((unsigned char *)dec_namebuf,
-					 len+1, namep, NULL);
+		  (char *)rfc1522_decode_to_utf8((unsigned char *)dec_namebuf, len+1, namep);
 	    }
 	    if(mt_get_file_ext((char *) dec_namep ? dec_namep : namep,
 			       &e2b.from.ext)){

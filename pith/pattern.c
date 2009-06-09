@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pattern.c 394 2007-01-25 20:29:45Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pattern.c 429 2007-02-08 00:08:23Z hubert@u.washington.edu $";
 #endif
 /*
  * ========================================================================
@@ -72,10 +72,10 @@ void        collect_charsets_from_subj(ENVELOPE *, STRLIST_S **);
 void        collect_charsets_from_body(BODY *, STRLIST_S **);
 SEARCHPGM  *next_not(SEARCHPGM *);
 SEARCHOR   *next_or(SEARCHOR **);
-void        set_up_search_pgm(char *, PATTERN_S *, SEARCHPGM *, ROLE_ARGS_T *);
-void        add_type_to_pgm(char *, PATTERN_S *, SEARCHPGM *, ROLE_ARGS_T *);
-void        set_srch(char *, char *, SEARCHPGM *, ROLE_ARGS_T *);
-void        set_srch_hdr(char *, char *, SEARCHPGM *, ROLE_ARGS_T *);
+void        set_up_search_pgm(char *, PATTERN_S *, SEARCHPGM *);
+void        add_type_to_pgm(char *, PATTERN_S *, SEARCHPGM *);
+void        set_srch(char *, char *, SEARCHPGM *);
+void        set_srch_hdr(char *, char *, SEARCHPGM *);
 void        set_search_by_age(INTVL_S *, SEARCHPGM *, int);
 void        set_search_by_size(INTVL_S *, SEARCHPGM *);
 int	    non_eh(char *);
@@ -4377,7 +4377,6 @@ match_pattern(PATGRP_S *patgrp, MAILSTREAM *stream, struct search_set *searchset
 	      char *section, long int (*get_score)(MAILSTREAM *, long int),
 	      long int flags)
 {
-    char         *charset = NULL;
     SEARCHPGM    *pgm;
     SEARCHSET    *s;
     MESSAGECACHE *mc;
@@ -4458,7 +4457,7 @@ match_pattern(PATGRP_S *patgrp, MAILSTREAM *stream, struct search_set *searchset
        && (patgrp->alltext || patgrp->bodytext))
       return(-1);
 
-    pgm = match_pattern_srchpgm(patgrp, stream, &charset, searchset);
+    pgm = match_pattern_srchpgm(patgrp, stream, searchset);
     if(not && !(is_imap_stream(stream) && !modern_imap_stream(stream))){
 	SEARCHPGM *srchpgm;
 
@@ -4478,11 +4477,9 @@ match_pattern(PATGRP_S *patgrp, MAILSTREAM *stream, struct search_set *searchset
        * unless the server is an old server. It doesn't matter if we
        * turn if off if it's not an imap stream, but we do it anyway.
        */
-      flags &= ~SO_NOSERVER;
+      flags &= ~SE_NOSERVER;
 
     if(section){
-	int charset_unknown = 0;
-
 	/*
 	 * Mail_search_full only searches the top-level msg. We want to
 	 * search an attached msg instead. First do the stuff
@@ -4502,7 +4499,7 @@ match_pattern(PATGRP_S *patgrp, MAILSTREAM *stream, struct search_set *searchset
 	  if((mc = mail_elt(stream, i)) != NULL)
 	    mc->searched = NIL;
 
-	if(!charset_unknown && mail_search_msg(stream,msgno,section,pgm)
+	if(mail_search_msg(stream,msgno,section,pgm)
 	   && msgno > 0L && msgno <= stream->nmsgs
 	   && (mc = mail_elt(stream, msgno)))
 	  mc->searched = T;
@@ -4530,9 +4527,6 @@ match_pattern(PATGRP_S *patgrp, MAILSTREAM *stream, struct search_set *searchset
 	  else
 	    mc->searched = T;
     }
-
-    if(charset)
-      fs_give((void **)&charset);
 
     /* check scores */
     if(get_score && scores_are_used(SCOREUSE_GET) && patgrp->do_score){
@@ -5191,19 +5185,11 @@ match_pattern_folder_specific(PATTERN_S *folders, MAILSTREAM *stream, int flags)
  * generate a search program corresponding to the provided patgrp
  */
 SEARCHPGM *
-match_pattern_srchpgm(PATGRP_S *patgrp, MAILSTREAM *stream, char **charsetp,
-		      struct search_set *searchset)
+match_pattern_srchpgm(PATGRP_S *patgrp, MAILSTREAM *stream, struct search_set *searchset)
 {
     SEARCHPGM	 *pgm, *tmppgm;
     SEARCHOR     *or;
     SEARCHSET	**sp;
-    ROLE_ARGS_T	  rargs;
-
-    rargs.multi = 0;
-    rargs.cset = charsetp;
-    rargs.ourcharset = (ps_global->display_charmap
-			&& ps_global->display_charmap[0])
-			 ? ps_global->display_charmap : NULL;
 
     pgm = mail_newsearchpgm();
 
@@ -5229,7 +5215,7 @@ match_pattern_srchpgm(PATGRP_S *patgrp, MAILSTREAM *stream, char **charsetp,
 	else
 	  tmppgm = pgm;
 
-	set_up_search_pgm("subject", patgrp->subj, tmppgm, &rargs);
+	set_up_search_pgm("subject", patgrp->subj, tmppgm);
     }
 
     if(patgrp->cc){
@@ -5238,7 +5224,7 @@ match_pattern_srchpgm(PATGRP_S *patgrp, MAILSTREAM *stream, char **charsetp,
 	else
 	  tmppgm = pgm;
 
-	set_up_search_pgm("cc", patgrp->cc, tmppgm, &rargs);
+	set_up_search_pgm("cc", patgrp->cc, tmppgm);
     }
 
     if(patgrp->from){
@@ -5247,7 +5233,7 @@ match_pattern_srchpgm(PATGRP_S *patgrp, MAILSTREAM *stream, char **charsetp,
 	else
 	  tmppgm = pgm;
 
-	set_up_search_pgm("from", patgrp->from, tmppgm, &rargs);
+	set_up_search_pgm("from", patgrp->from, tmppgm);
     }
 
     if(patgrp->to){
@@ -5256,7 +5242,7 @@ match_pattern_srchpgm(PATGRP_S *patgrp, MAILSTREAM *stream, char **charsetp,
 	else
 	  tmppgm = pgm;
 
-	set_up_search_pgm("to", patgrp->to, tmppgm, &rargs);
+	set_up_search_pgm("to", patgrp->to, tmppgm);
     }
 
     if(patgrp->sender){
@@ -5265,7 +5251,7 @@ match_pattern_srchpgm(PATGRP_S *patgrp, MAILSTREAM *stream, char **charsetp,
 	else
 	  tmppgm = pgm;
 
-	set_up_search_pgm("sender", patgrp->sender, tmppgm, &rargs);
+	set_up_search_pgm("sender", patgrp->sender, tmppgm);
     }
 
     if(patgrp->news){
@@ -5274,7 +5260,7 @@ match_pattern_srchpgm(PATGRP_S *patgrp, MAILSTREAM *stream, char **charsetp,
 	else
 	  tmppgm = pgm;
 
-	set_up_search_pgm("newsgroups", patgrp->news, tmppgm, &rargs);
+	set_up_search_pgm("newsgroups", patgrp->news, tmppgm);
     }
 
     /* To OR Cc */
@@ -5286,8 +5272,8 @@ match_pattern_srchpgm(PATGRP_S *patgrp, MAILSTREAM *stream, char **charsetp,
 	
 	or = next_or(&tmppgm->or);
 
-	set_up_search_pgm("to", patgrp->recip, or->first, &rargs);
-	set_up_search_pgm("cc", patgrp->recip, or->second, &rargs);
+	set_up_search_pgm("to", patgrp->recip, or->first);
+	set_up_search_pgm("cc", patgrp->recip, or->second);
     }
 
     /* To OR Cc OR From */
@@ -5299,12 +5285,11 @@ match_pattern_srchpgm(PATGRP_S *patgrp, MAILSTREAM *stream, char **charsetp,
 
 	or = next_or(&tmppgm->or);
 
-	set_up_search_pgm("to", patgrp->partic, or->first, &rargs);
+	set_up_search_pgm("to", patgrp->partic, or->first);
 
 	or->second->or = mail_newsearchor();
-	set_up_search_pgm("cc", patgrp->partic, or->second->or->first, &rargs);
-	set_up_search_pgm("from", patgrp->partic, or->second->or->second,
-			  &rargs);
+	set_up_search_pgm("cc", patgrp->partic, or->second->or->first);
+	set_up_search_pgm("from", patgrp->partic, or->second->or->second);
     }
 
     if(patgrp->arbhdr){
@@ -5317,7 +5302,7 @@ match_pattern_srchpgm(PATGRP_S *patgrp, MAILSTREAM *stream, char **charsetp,
 	      else
 	        tmppgm = pgm;
 
-	      set_up_search_pgm(a->field, a->p, tmppgm, &rargs);
+	      set_up_search_pgm(a->field, a->p, tmppgm);
 	  }
     }
 
@@ -5327,7 +5312,7 @@ match_pattern_srchpgm(PATGRP_S *patgrp, MAILSTREAM *stream, char **charsetp,
 	else
 	  tmppgm = pgm;
 
-	set_up_search_pgm("alltext", patgrp->alltext, tmppgm, &rargs);
+	set_up_search_pgm("alltext", patgrp->alltext, tmppgm);
     }
     
     if(patgrp->bodytext){
@@ -5336,7 +5321,7 @@ match_pattern_srchpgm(PATGRP_S *patgrp, MAILSTREAM *stream, char **charsetp,
 	else
 	  tmppgm = pgm;
 
-	set_up_search_pgm("bodytext", patgrp->bodytext, tmppgm, &rargs);
+	set_up_search_pgm("bodytext", patgrp->bodytext, tmppgm);
     }
 
     if(patgrp->keyword){
@@ -5385,7 +5370,7 @@ match_pattern_srchpgm(PATGRP_S *patgrp, MAILSTREAM *stream, char **charsetp,
 	 */
 
 	if(new_pattern){
-	    set_up_search_pgm("keyword", new_pattern, tmppgm, &rargs);
+	    set_up_search_pgm("keyword", new_pattern, tmppgm);
 	    free_pattern(&new_pattern);
 	}
 	else
@@ -5438,7 +5423,7 @@ match_pattern_srchpgm(PATGRP_S *patgrp, MAILSTREAM *stream, char **charsetp,
 
 
 SEARCHPGM *
-next_not(struct search_program *pgm)
+next_not(SEARCHPGM *pgm)
 {
     SEARCHPGMLIST *not, **not_ptr;
 
@@ -5483,11 +5468,11 @@ next_or(struct search_or **startingor)
 
 
 void
-set_up_search_pgm(char *field, PATTERN_S *pattern, struct search_program *pgm, ROLE_ARGS_T *rargs)
+set_up_search_pgm(char *field, PATTERN_S *pattern, SEARCHPGM *pgm)
 {
     SEARCHOR *or;
 
-    if(field && pattern && rargs && pgm){
+    if(field && pattern && pgm){
 
 	/*
 	 * To is special because we want to use the ReSent-To header instead
@@ -5503,44 +5488,35 @@ set_up_search_pgm(char *field, PATTERN_S *pattern, struct search_program *pgm, R
 	 *  header with a SPACE in it.
 	 */
 	if(!strucmp(field, "to")){
-	    ROLE_ARGS_T local_args;
-
 	    or = next_or(&pgm->or);
 
-	    local_args = *rargs;
-	    local_args.cset = rargs->cset;
-	    add_type_to_pgm("resent-to", pattern, or->first, &local_args);
+	    add_type_to_pgm("resent-to", pattern, or->first);
 
 	    /* check for resent-to doesn't exist */
 	    or->second->not = mail_newsearchpgmlist();
 
-	    local_args.cset = NULL;
 	    or->second->not->pgm->or = mail_newsearchor();
-	    set_srch("resent-to", " ", or->second->not->pgm->or->first,
-		     &local_args);
-	    local_args.cset = NULL;
-	    set_srch("resent-to",  "", or->second->not->pgm->or->second,
-		     &local_args);
+	    set_srch("resent-to", " ", or->second->not->pgm->or->first);
+	    set_srch("resent-to",  "", or->second->not->pgm->or->second);
 
 	    /* now add the real To search to second */
-	    local_args.cset = rargs->cset;
-	    add_type_to_pgm(field, pattern, or->second, &local_args);
+	    add_type_to_pgm(field, pattern, or->second);
 	}
 	else
-	  add_type_to_pgm(field, pattern, pgm, rargs);
+	  add_type_to_pgm(field, pattern, pgm);
     }
 }
 
 
 void
-add_type_to_pgm(char *field, PATTERN_S *pattern, struct search_program *pgm, ROLE_ARGS_T *rargs)
+add_type_to_pgm(char *field, PATTERN_S *pattern, SEARCHPGM *pgm)
 {
     PATTERN_S *p;
     SEARCHOR  *or;
     SEARCHPGM *notpgm, *tpgm;
     int        cnt = 0;
 
-    if(field && pattern && rargs && pgm){
+    if(field && pattern && pgm){
 	/*
 	 * Here is a weird bit of logic. What we want here is simply
 	 *       A or B or C or D
@@ -5588,12 +5564,11 @@ add_type_to_pgm(char *field, PATTERN_S *pattern, struct search_program *pgm, ROL
 		if(p->next){
 		    or = next_or(&pgm->or);
 
-		    set_srch(field, p->substring ? p->substring : "",
-			     or->first, rargs);
+		    set_srch(field, p->substring ? p->substring : "", or->first);
 		    pgm = or->second;
 		}
 		else
-		  set_srch(field, p->substring ? p->substring : "", pgm, rargs);
+		  set_srch(field, p->substring ? p->substring : "", pgm);
 	    }
 	}
 	else{					/* else use ANDs */
@@ -5605,7 +5580,7 @@ add_type_to_pgm(char *field, PATTERN_S *pattern, struct search_program *pgm, ROL
 	    /* then the not list is ANDed together */
 	    for(p = pattern; p; p = p->next){
 		tpgm = next_not(notpgm);
-		set_srch(field, p->substring ? p->substring : "", tpgm, rargs);
+		set_srch(field, p->substring ? p->substring : "", tpgm);
 	    }
 	}
     }
@@ -5613,12 +5588,12 @@ add_type_to_pgm(char *field, PATTERN_S *pattern, struct search_program *pgm, ROL
 
 
 void
-set_srch(char *field, char *value, struct search_program *pgm, ROLE_ARGS_T *rargs)
+set_srch(char *field, char *value, SEARCHPGM *pgm)
 {
-    char        *decoded, *cs = NULL, *charset = NULL;
+    char        *decoded;
     STRINGLIST **list;
 
-    if(!(field && value && rargs && pgm))
+    if(!(field && value && pgm))
       return;
 
     if(!strucmp(field, "subject"))
@@ -5648,7 +5623,7 @@ set_srch(char *field, char *value, struct search_program *pgm, ROLE_ARGS_T *rarg
     else if(!strucmp(field, "keyword"))
       list = &pgm->keyword;
     else{
-	set_srch_hdr(field, value, pgm, rargs);
+	set_srch_hdr(field, value, pgm);
 	return;
     }
 
@@ -5656,54 +5631,28 @@ set_srch(char *field, char *value, struct search_program *pgm, ROLE_ARGS_T *rarg
       return;
 
     *list = mail_newstringlist();
-    decoded = (char *)rfc1522_decode((unsigned char *)tmp_20k_buf,
-				     SIZEOF_20KBUF, value, &cs);
+    decoded = (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf, SIZEOF_20KBUF, value);
 
     (*list)->text.data = (unsigned char *)cpystr(decoded);
     (*list)->text.size = strlen(decoded);
-
-    if(rargs->cset && !rargs->multi){
-	if(decoded != value)
-	  charset = (cs && cs[0]) ? cs : rargs->ourcharset;
-	else if(!is_ascii_string(decoded))
-	  charset = rargs->ourcharset;
-
-	if(charset){
-	    if(*rargs->cset){
-		if(strucmp(*rargs->cset, charset) != 0){
-		    rargs->multi = 1;
-		    if(rargs->ourcharset &&
-		       strucmp(rargs->ourcharset, *rargs->cset) != 0){
-			fs_give((void **)rargs->cset);
-			*rargs->cset = cpystr(rargs->ourcharset);
-		    }
-		}
-	    }
-	    else
-	      *rargs->cset = cpystr(charset);
-	}
-    }
-
-    if(cs)
-      fs_give((void **)&cs);
 }
 
 
 void
-set_srch_hdr(char *field, char *value, struct search_program *pgm, ROLE_ARGS_T *rargs)
+set_srch_hdr(char *field, char *value, SEARCHPGM *pgm)
 {
-    char *decoded, *cs = NULL, *charset = NULL;
+    char *decoded;
     SEARCHHEADER  **hdr;
 
-    if(!(field && value && rargs && pgm))
+    if(!(field && value && pgm))
       return;
 
     hdr = &pgm->header;
     if(!hdr)
       return;
 
-    decoded = (char *)rfc1522_decode((unsigned char *)tmp_20k_buf,
-				     SIZEOF_20KBUF, value, &cs);
+    decoded = (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+					     SIZEOF_20KBUF, value);
     while(*hdr && (*hdr)->next)
       *hdr = (*hdr)->next;
       
@@ -5711,36 +5660,11 @@ set_srch_hdr(char *field, char *value, struct search_program *pgm, ROLE_ARGS_T *
       (*hdr)->next = mail_newsearchheader(field, decoded);
     else
       *hdr = mail_newsearchheader(field, decoded);
-
-    if(rargs->cset && !rargs->multi){
-	if(decoded != value)
-	  charset = (cs && cs[0]) ? cs : rargs->ourcharset;
-	else if(!is_ascii_string(decoded))
-	  charset = rargs->ourcharset;
-
-	if(charset){
-	    if(*rargs->cset){
-		if(strucmp(*rargs->cset, charset) != 0){
-		    rargs->multi = 1;
-		    if(rargs->ourcharset &&
-		       strucmp(rargs->ourcharset, *rargs->cset) != 0){
-			fs_give((void **)rargs->cset);
-			*rargs->cset = cpystr(rargs->ourcharset);
-		    }
-		}
-	    }
-	    else
-	      *rargs->cset = cpystr(charset);
-	}
-    }
-
-    if(cs)
-      fs_give((void **)&cs);
 }
 
 
 void
-set_search_by_age(INTVL_S *age, struct search_program *pgm, int age_uses_sentdate)
+set_search_by_age(INTVL_S *age, SEARCHPGM *pgm, int age_uses_sentdate)
 {
     time_t         now, comparetime;
     struct tm     *tm;
@@ -5801,7 +5725,7 @@ set_search_by_age(INTVL_S *age, struct search_program *pgm, int age_uses_sentdat
 
 
 void
-set_search_by_size(INTVL_S *size, struct search_program *pgm)
+set_search_by_size(INTVL_S *size, SEARCHPGM *pgm)
 {
     time_t         now, comparetime;
     struct tm     *tm;
@@ -6706,7 +6630,7 @@ process_filter_patterns(MAILSTREAM *stream, MSGNO_S *msgmap, long int recent)
     int		  exbits, nt = 0, pending_actions = 0, for_debugging = 0;
     int           cleared_index_cache = 0;
     long          rflags = ROLE_DO_FILTER;
-    char	 *charset = NULL, *nick = NULL;
+    char	 *nick = NULL;
     char          busymsg[80];
     MSGNO_S      *tmpmap = NULL;
     MESSAGECACHE *mc;
@@ -6743,7 +6667,7 @@ process_filter_patterns(MAILSTREAM *stream, MSGNO_S *msgmap, long int recent)
 	 * get the data and search locally. Big performance hit.
 	 */
 	if(is_imap_stream(stream) && !modern_imap_stream(stream))
-	  flags |= SO_NOSERVER;
+	  flags |= SE_NOSERVER;
 	else if(stream->dtb && stream->dtb->name
 	        && !strcmp(stream->dtb->name, "nntp"))
 	  flags |= SO_OVERVIEW;
@@ -6896,9 +6820,7 @@ process_filter_patterns(MAILSTREAM *stream, MSGNO_S *msgmap, long int recent)
 		    }
 		}
 			
-		charset = NULL;
-		pgm = match_pattern_srchpgm(pat->patgrp, stream,
-					    &charset, srchset);
+		pgm = match_pattern_srchpgm(pat->patgrp, stream, srchset);
 
 		pine_mail_search_full(stream, "UTF-8", pgm, flags);
 
@@ -7315,8 +7237,6 @@ process_filter_patterns(MAILSTREAM *stream, MSGNO_S *msgmap, long int recent)
 		}
 
 		mail_free_searchset(&srchset);
-		if(charset)
-		  fs_give((void **) &charset);
 	    }
 
 	    /*

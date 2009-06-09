@@ -1952,10 +1952,10 @@ BOOL APIENTRY DllMain(
 
 	now = time((time_t *)0);
 	tm_now = localtime(&now);
-	fprintf(ms_global->dfd, "pmapi32.dll for Alpine Version 0.8\r\n");
+	fprintf(ms_global->dfd, "pmapi32.dll for Alpine Version 0.83\r\n");
 	fprintf(ms_global->dfd, " Build date: %s\r\n", datestamp);
 	fprintf(ms_global->dfd,
-		" please report all bugs to pine@cac.washington.edu\r\n");
+		" please report all bugs to alpine-contact@u.washington.edu\r\n");
 	if(tm_now)
 	  fprintf(ms_global->dfd, 
 		  "Created: %2.2d:%2.2d:%2.2d %d/%d/%d\r\n",

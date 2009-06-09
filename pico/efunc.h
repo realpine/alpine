@@ -1,5 +1,5 @@
 /*
- * $Id: efunc.h 334 2006-12-19 01:26:30Z hubert@u.washington.edu $
+ * $Id: efunc.h 421 2007-02-05 22:53:41Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -124,8 +124,9 @@ extern	int mlreplyd_utf8(char *, char *, int, int, EXTRAKEYS *);
 extern	int mlreplyd(UCS *, UCS *, int, int, EXTRAKEYS *);
 extern	int mlwrite_utf8(char *, void *);
 extern	int mlwrite(UCS *, void *);
-extern	void emlwrite(char *, void *);
-extern	void emlwrite_ucs4(UCS *, void *);
+extern	void emlwrite(char *, EML *);
+extern	void emlwrite_ucs4(UCS *, EML *);
+extern	void unknown_command(UCS);
 extern	void scrolldown(struct WINDOW *, int, int);
 extern	void scrollup(struct WINDOW *, int, int);
 extern	int doton(int *, unsigned int *);

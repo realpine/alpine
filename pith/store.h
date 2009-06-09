@@ -1,5 +1,5 @@
 /*
- * $Id: store.h 237 2006-11-16 04:08:15Z mikes@u.washington.edu $
+ * $Id: store.h 435 2007-02-09 23:35:33Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -15,6 +15,9 @@
 
 #ifndef PITH_STORE_INCLUDED
 #define PITH_STORE_INCLUDED
+
+
+#include "../pith/filttype.h"
 
 
 typedef enum {CharStarStar, CharStar, FileStar,
@@ -37,9 +40,7 @@ typedef struct store_object {
     char          *name;	/* optional object name			*/
     SourceType     src;		/* what we're copying into		*/
     short          flags;	/* flags relating to object use		*/
-    unsigned char  cbuf[6];	/* used for converting to or from	*/
-    unsigned char *cbufp;	/*   locale-specific charset		*/
-    unsigned char *cbufend;
+    CBUF_S         cb;
     PARAMETER	   *attr;	/* attribute list			*/
 } STORE_S;
 

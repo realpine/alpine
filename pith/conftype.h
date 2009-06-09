@@ -1,5 +1,5 @@
 /*
- * $Id: conftype.h 394 2007-01-25 20:29:45Z hubert@u.washington.edu $
+ * $Id: conftype.h 446 2007-02-22 22:58:09Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -367,6 +367,7 @@ typedef enum {
 	F_QUELL_BEEPS,
 	F_QUELL_LOCK_FAILURE_MSGS,
 	F_ENABLE_SPACE_AS_TAB,
+	F_USE_BORING_SPINNER,
 	F_ENABLE_TAB_DELETES,
 	F_FLAG_SCREEN_KW_SHORTCUT,
 	F_FLAG_SCREEN_DFLT,

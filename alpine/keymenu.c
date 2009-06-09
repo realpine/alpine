@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: keymenu.c 392 2007-01-25 18:56:49Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: keymenu.c 444 2007-02-22 19:48:09Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -3399,8 +3399,7 @@ configure_menu_items (struct key_menu *km, bitmap_t bitmap)
 {
     int 		i;
     struct key		*k;
-    int			key;
-    char		*rb;
+    UCS			key;
 
     mswin_menuitemclear ();
 

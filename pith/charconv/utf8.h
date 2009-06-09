@@ -1,5 +1,5 @@
 /*-----------------------------------------------------------------------
- $Id: utf8.h 384 2007-01-24 01:22:15Z hubert@u.washington.edu $
+ $Id: utf8.h 435 2007-02-09 23:35:33Z hubert@u.washington.edu $
   -----------------------------------------------------------------------*/
 
 /*
@@ -20,6 +20,7 @@
 
 
 #include <general.h>
+#include "../filttype.h"
 
 
 /* flags for convert_to_utf8 */
@@ -56,8 +57,7 @@ UCS            mbtow(void *, unsigned char **, unsigned long *);
 void           set_locale_charmap(char *);
 char          *convert_to_utf8(char *, char *, int);
 char          *convert_to_locale(char *);
-int            utf8_to_locale(int c, unsigned char cbuf[], size_t cbuf_size,
-		        unsigned char **cbufp, unsigned char obuf[], size_t obuf_size);
+int            utf8_to_locale(int c, CBUF_S *cb, unsigned char obuf[], size_t obuf_size);
 unsigned       ucs4_str_width(UCS *);
 unsigned       ucs4_str_width_a_to_b(UCS *, int, int);
 unsigned       ucs4_str_width_ptr_to_ptr(UCS *, UCS *);
@@ -71,7 +71,7 @@ LPSTR          lptstr_to_utf8(LPTSTR);
 LPTSTR         ucs4_to_lptstr(UCS *);
 UCS           *lptstr_to_ucs4(LPTSTR);
 #endif /* _WINDOWS */
-int            utf8_to_ucs4_oneatatime(int, unsigned char *, size_t, unsigned char **, UCS *, int *);
+int            utf8_to_ucs4_oneatatime(int, CBUF_S *, UCS *, int *);
 size_t         ucs4_strlen(UCS *s);
 int            ucs4_strcmp(UCS *s1, UCS *s2);
 UCS           *ucs4_cpystr(UCS *s);

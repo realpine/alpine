@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailindx.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailindx.c 453 2007-02-27 00:10:47Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -70,7 +70,7 @@ COLOR_PAIR *apply_rev_color(COLOR_PAIR *, int);
 #ifdef	_WINDOWS
 int	 index_scroll_callback(int,long);
 int	 index_gettext_callback(char *, size_t, void **, long *, int *);
-void	 index_popup(MAILSTREAM *, MSGNO_S *, int);
+void	 index_popup(IndexType style, MAILSTREAM *, MSGNO_S *, int);
 char	*pcpine_help_index(char *);
 char	*pcpine_help_index_simple(char *);
 int	 pcpine_resize_index(void);
@@ -83,7 +83,8 @@ int	 pcpine_resize_index(void);
 
   ----*/
 struct key_menu *
-do_index_border(CONTEXT_S *cntxt, char *folder, MAILSTREAM *stream, MSGNO_S *msgmap, IndexType style, int *which_keys, int flags)
+do_index_border(CONTEXT_S *cntxt, char *folder, MAILSTREAM *stream, MSGNO_S *msgmap,
+		IndexType style, int *which_keys, int flags)
 {
     struct key_menu *km = (style == ThreadIndex)
 			    ? &thread_keymenu
@@ -322,9 +323,7 @@ index_lister(struct pine *state, CONTEXT_S *cntxt, char *folder, MAILSTREAM *str
     IndexType    style, old_style = MsgIndex;
     struct index_state id;
     struct key_menu *km = NULL;
-#if defined(DOS) || defined(OS2)
-/*    extern void (*while_waiting)(); */
-#endif
+
 
     dprint((1, "\n\n ---- INDEX MANAGER ----\n"));
     
@@ -511,33 +510,23 @@ index_lister(struct pine *state, CONTEXT_S *cntxt, char *folder, MAILSTREAM *str
 		       state->ttyo->screen_rows-(FOOTER_ROWS(ps_global)+1),
 		       state->ttyo->screen_cols);
 #endif
-#if defined(DOS) || defined(OS2)
-	/*
-	 * AND pre-build header lines.  This works just fine under
-	 * DOS since we wait for characters in a loop. Something will
-         * will have to change under UNIX if we want to do the same.
-	 */
-	/* while_waiting = build_header_cache; */
 #ifdef	_WINDOWS
-	/* while_waiting = NULL; */
 	mswin_setscrollcallback (index_scroll_callback);
 	mswin_sethelptextcallback((stream == state->mail_stream)
 				    ? pcpine_help_index
 				    : pcpine_help_index_simple);
+	mswin_setviewinwindcallback(view_in_new_window);
 	mswin_setresizecallback(pcpine_resize_index);
-#endif
 #endif
 	ch = read_command(&utf8str);
 #ifdef	MOUSE
 	clear_mfunc(mouse_in_content);
 #endif
-#if defined(DOS) || defined(OS2)
-	/* while_waiting = NULL; */
 #ifdef	_WINDOWS
 	mswin_setscrollcallback(NULL);
 	mswin_sethelptextcallback(NULL);
+	mswin_setviewinwindcallback(NULL);
 	mswin_clearresizecallback(pcpine_resize_index);
-#endif
 #endif
 
 	cmd = menu_command(ch, km);
@@ -893,7 +882,7 @@ view_a_thread:
 
 			  cur_row = update_index(state, &id);
 
-			  index_popup(stream, msgmap, TRUE);
+			  index_popup(style, stream, msgmap, TRUE);
 		      }
 #endif
 		      break;
@@ -909,7 +898,7 @@ view_a_thread:
 
 		    case M_BUTTON_RIGHT :
 #ifdef	_WINDOWS
-		      index_popup(stream, msgmap, FALSE);
+		      index_popup(style, stream, msgmap, FALSE);
 #endif
 		      break;
 		  }
@@ -1960,10 +1949,12 @@ paint_index_line(ICE_S *argice, int line, long int msgno, IndexColType sfld,
 	   * switch if this is the ARROW field and this is not
 	   * the current message. ARROW field is only colored for
 	   * the current message.
+	   * And don't switch if current line and type eOpening.
 	   */
 	  if(ielem->color && pico_is_good_colorpair(ielem->color)
 	     && !(do_arrow && ifield->ctype == afld && !cur)
-	     && (!drew_X || ielem != ifield->ielem)){
+	     && (!drew_X || ielem != ifield->ielem)
+	     && !(cur && ielem->type == eOpening)){
 	    need_inverse_hack = 0;
 	    (void) pico_set_colorp(ielem->color, PSC_NORM);
 	  }
@@ -2827,7 +2818,8 @@ warn_other_cmds(void)
 
 
 void
-thread_command(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap, int preloadkeystroke, int q_line)
+thread_command(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
+	       UCS preloadkeystroke, int q_line)
 {
     PINETHRD_S   *thrd = NULL;
     unsigned long rawno, save_branch;
@@ -3264,7 +3256,7 @@ index_gettext_callback(title, titlelen, text, l, style)
 					   &body))
 	   && format_message(mn_m2raw(ps_global->msgmap,
 				      mn_get_cur(ps_global->msgmap)),
-			     env, body, NULL, FM_NEW_MESS | FM_UTF8, pc)){
+			     env, body, NULL, FM_NEW_MESS, pc)){
 	    snprintf(title, titlelen, "Folder %s  --  Message %ld of %ld",
 		    strsquish(tmp_20k_buf + 500, SIZEOF_20KBUF-500, ps_global->cur_folder, 50),
 		    mn_get_cur(ps_global->msgmap),
@@ -3322,81 +3314,160 @@ index_sort_callback(set, order)
  *
  */
 void
-index_popup(stream,  msgmap, full)
-    MAILSTREAM *stream;
-    MSGNO_S    *msgmap;
-    int		full;
+index_popup(IndexType style, MAILSTREAM *stream, MSGNO_S *msgmap, int full)
 {
-    int		  n;
+    int		  n = 0;
+    int           view_in_new_wind_index = -1;
     long          rawno;
     MESSAGECACHE *mc;
     MPopup	  view_index_popup[32];
+    struct key_menu *km = (style == ThreadIndex)
+			    ? &thread_keymenu
+			    : (ps_global->mail_stream != stream)
+			      ? &simple_index_keymenu
+			      : &index_keymenu;
+
+    /*
+     * Loosely follow the logic in do_index_border to figure
+     * out which commands to show.
+     */
 
     if(full){
-	view_index_popup[0].type	     = tQueue;
-	view_index_popup[0].label.string = "&View";
-	view_index_popup[0].label.style  = lNormal;
-	view_index_popup[0].data.val     = 'V';
+	if(km != &simple_index_keymenu){
+	    view_index_popup[n].type         = tQueue;
+	    view_index_popup[n].label.string = (km == &thread_keymenu)
+						 ? "&View Thread" : "&View";
+	    view_index_popup[n].label.style  = lNormal;
+	    view_index_popup[n++].data.val   = 'V';
+	}
 
-	view_index_popup[1].type	     = tIndex;
-	view_index_popup[1].label.style  = lNormal;
-	view_index_popup[1].label.string = "View in New Window";
+	if(km == &index_keymenu){
+	    view_in_new_wind_index = n;
+	    view_index_popup[n].type           = tIndex;
+	    view_index_popup[n].label.style    = lNormal;
+	    view_index_popup[n++].label.string = "View in New Window";
+	}
 
-	view_index_popup[2].type = tSeparator;
+	if(km != &simple_index_keymenu)
+	  view_index_popup[n++].type = tSeparator;
 
-	/* Make "delete/undelete" item sensitive */
-	mc = ((rawno = mn_m2raw(msgmap, mn_get_cur(msgmap))) > 0L
-	      && stream && rawno <= stream->nmsgs)
-	      ? mail_elt(stream, rawno) : NULL;
-	view_index_popup[3].type	  = tQueue;
-	view_index_popup[3].label.style = lNormal;
-	if(mc && mc->deleted){
-	    view_index_popup[3].label.string = "&Undelete";
-	    view_index_popup[3].data.val     = 'U';
+	if(km == &thread_keymenu){
+	    view_index_popup[n].type         = tQueue;
+	    view_index_popup[n].label.string = "&Delete Thread";
+	    view_index_popup[n].label.style  = lNormal;
+	    view_index_popup[n++].data.val   = 'D';
+
+	    view_index_popup[n].type         = tQueue;
+	    view_index_popup[n].label.string = "&UnDelete Thread";
+	    view_index_popup[n].label.style  = lNormal;
+	    view_index_popup[n++].data.val   = 'U';
 	}
 	else{
-	    view_index_popup[3].label.string = "&Delete";
-	    view_index_popup[3].data.val     = 'D';
+	    /* Make "delete/undelete" item sensitive */
+	    mc = ((rawno = mn_m2raw(msgmap, mn_get_cur(msgmap))) > 0L
+		  && stream && rawno <= stream->nmsgs)
+		  ? mail_elt(stream, rawno) : NULL;
+	    view_index_popup[n].type        = tQueue;
+	    view_index_popup[n].label.style = lNormal;
+	    if(mc && mc->deleted){
+		view_index_popup[n].label.string   = "&Undelete";
+		view_index_popup[n++].data.val     = 'U';
+	    }
+	    else{
+		view_index_popup[n].label.string   = "&Delete";
+		view_index_popup[n++].data.val     = 'D';
+	    }
 	}
 
-	if(F_ON(F_ENABLE_FLAG, ps_global)){
-	    view_index_popup[4].type		 = tSubMenu;
-	    view_index_popup[4].label.string	 = "Flag";
-	    view_index_popup[4].data.submenu = flag_submenu(mc);
-	    n = 5;
+	if(km == &index_keymenu && F_ON(F_ENABLE_FLAG, ps_global)){
+	    view_index_popup[n].type            = tSubMenu;
+	    view_index_popup[n].label.string    = "Flag";
+	    view_index_popup[n++].data.submenu  = flag_submenu(mc);
 	}
-	else
-	  n = 4;
 
-	view_index_popup[n].type	   = tQueue;
-	view_index_popup[n].label.style  = lNormal;
-	view_index_popup[n].label.string = "&Save";
-	view_index_popup[n++].data.val   = 'S';
+	if(km == &simple_index_keymenu){
+	    view_index_popup[n].type         = tQueue;
+	    view_index_popup[n].label.style  = lNormal;
+	    view_index_popup[n].label.string = "&Select";
+	    view_index_popup[n++].data.val   = 'S';
+	}
+	else{
+	    view_index_popup[n].type         = tQueue;
+	    view_index_popup[n].label.style  = lNormal;
+	    view_index_popup[n].label.string = (km == &thread_keymenu)
+						 ? "&Save Thread" : "&Save";
+	    view_index_popup[n++].data.val   = 'S';
 
-	view_index_popup[n].type	   = tQueue;
-	view_index_popup[n].label.style  = lNormal;
-	view_index_popup[n].label.string = "Print";
-	view_index_popup[n++].data.val   = '%';
+	    view_index_popup[n].type         = tQueue;
+	    view_index_popup[n].label.style  = lNormal;
+	    view_index_popup[n].label.string = (km == &thread_keymenu)
+						 ? "&Export Thread" : "&Export";
+	    view_index_popup[n++].data.val   = 'E';
 
-	view_index_popup[n].type	   = tQueue;
-	view_index_popup[n].label.style  = lNormal;
-	view_index_popup[n].label.string = "&Reply";
-	view_index_popup[n++].data.val   = 'R';
+	    view_index_popup[n].type         = tQueue;
+	    view_index_popup[n].label.style  = lNormal;
+	    view_index_popup[n].label.string = "Print";
+	    view_index_popup[n++].data.val   = '%';
 
-	view_index_popup[n].type	   = tQueue;
+	    view_index_popup[n].type         = tQueue;
+	    view_index_popup[n].label.style  = lNormal;
+	    view_index_popup[n].label.string = (km == &thread_keymenu)
+						 ? "&Reply To Thread" : "&Reply";
+	    view_index_popup[n++].data.val   = 'R';
+
+	    view_index_popup[n].type         = tQueue;
+	    view_index_popup[n].label.style  = lNormal;
+	    view_index_popup[n].label.string = (km == &thread_keymenu)
+						 ? "&Forward Thread" : "&Forward";
+	    view_index_popup[n++].data.val   = 'F';
+
+	    if(F_ON(F_ENABLE_BOUNCE, ps_global)){
+		view_index_popup[n].type         = tQueue;
+		view_index_popup[n].label.style  = lNormal;
+		view_index_popup[n].label.string = (km == &thread_keymenu)
+						     ? "&Bounce Thread" : "&Bounce";
+		view_index_popup[n++].data.val   = 'B';
+	    }
+
+	    view_index_popup[n].type         = tQueue;
+	    view_index_popup[n].label.style  = lNormal;
+	    view_index_popup[n].label.string = "&Take Addresses";
+	    view_index_popup[n++].data.val   = 'T';
+
+	    if(F_ON(F_ENABLE_AGG_OPS, ps_global)){
+		view_index_popup[n].type         = tQueue;
+		view_index_popup[n].label.style  = lNormal;
+		view_index_popup[n].label.string = "[Un]Select Current";
+		view_index_popup[n++].data.val   = ':';
+	    }
+	}
+
+	view_index_popup[n].type         = tQueue;
 	view_index_popup[n].label.style  = lNormal;
-	view_index_popup[n].label.string = "&Forward";
-	view_index_popup[n++].data.val   = 'F';
+	view_index_popup[n].label.string = "&WhereIs";
+	view_index_popup[n++].data.val   = 'W';
 
 	view_index_popup[n++].type = tSeparator;
     }
-    else
-      n = 0;
 
-    view_index_popup[n].type	     = tQueue;
-    view_index_popup[n].label.style  = lNormal;
-    view_index_popup[n].label.string = "Folder &List";
-    view_index_popup[n++].data.val   = '<';
+    if(km == &simple_index_keymenu){
+	view_index_popup[n].type         = tQueue;
+	view_index_popup[n].label.style  = lNormal;
+	view_index_popup[n].label.string = "&Exit Select";
+	view_index_popup[n++].data.val   = 'E';
+    }
+    else if(km == &index_keymenu && THREADING() && sp_viewing_a_thread(stream)){
+	view_index_popup[n].type         = tQueue;
+	view_index_popup[n].label.style  = lNormal;
+	view_index_popup[n].label.string = "Thread Index";
+	view_index_popup[n++].data.val   = '<';
+    }
+    else{
+	view_index_popup[n].type         = tQueue;
+	view_index_popup[n].label.style  = lNormal;
+	view_index_popup[n].label.string = "Folder &List";
+	view_index_popup[n++].data.val   = '<';
+    }
 
     view_index_popup[n].type	     = tQueue;
     view_index_popup[n].label.style  = lNormal;
@@ -3405,21 +3476,9 @@ index_popup(stream,  msgmap, full)
 
     view_index_popup[n].type = tTail;
 
-    if((n = mswin_popup(view_index_popup)) == 1 && full){
-	char title[GETTEXT_TITLELEN+1];
-	void	*text;
-	long	len;
-	int	format;
-
-	/* Launch text in alt window. */
-	if (index_gettext_callback (title, sizeof(title), &text,
-				    &len, &format)) {
-	    if (format == GETTEXT_TEXT) 
-	      mswin_displaytext (title, text, (size_t)len, NULL, NULL, MSWIN_DT_USEALTWINDOW);
-	    else if (format == GETTEXT_LINES) 
-	      mswin_displaytext (title, NULL, 0, text, NULL, MSWIN_DT_USEALTWINDOW);
-	}
-    }
+    if(mswin_popup(view_index_popup) == view_in_new_wind_index
+       && view_in_new_wind_index >= 0)
+      view_in_new_window();
 }
 
 
@@ -3467,6 +3526,30 @@ pcpine_resize_index()
     redraw_index_body();
     mswin_endupdate();
     return(0);
+}
+
+
+void
+view_in_new_window(void)
+{
+    char              title[GETTEXT_TITLELEN+1];
+    void             *text;
+    long              len;
+    int	              format;
+    MSWIN_TEXTWINDOW *mswin_tw;
+
+    /* Launch text in alt window. */
+    if(index_gettext_callback(title, sizeof (title), &text, &len, &format)){
+	if(format == GETTEXT_TEXT) 
+	  mswin_tw = mswin_displaytext(title, text, (size_t) len, NULL,
+				       NULL, MSWIN_DT_USEALTWINDOW);
+	else if(format == GETTEXT_LINES) 
+	  mswin_tw = mswin_displaytext(title, NULL, 0, text,
+				       NULL, MSWIN_DT_USEALTWINDOW);
+
+	if(mswin_tw)
+	  mswin_set_readonly(mswin_tw, FALSE);
+    }
 }
 
 #endif	/* _WINDOWS */

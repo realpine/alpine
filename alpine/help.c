@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: help.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: help.c 448 2007-02-23 01:55:41Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -70,7 +70,6 @@ static char att_cur_msg[] = "\
   configuration file, which is helpful when investigating the problem.";
 
 
-/* Helpful def's */
 #define	GRIPE_OPT_CONF	0x01
 #define	GRIPE_OPT_MSG	0x02
 #define	GRIPE_OPT_LOCAL	0x04
@@ -89,6 +88,10 @@ void	 print_help_page_title(char *, size_t, HPRT_S *);
 int	 print_help_page_break(long, char *, LT_INS_S **, void *);
 int	 help_bogus_input(UCS);
 void	 review_messages(void);
+int	 gripe_newbody(struct pine *, BODY **, long, int);
+ADDRESS *gripe_token_addr(char *);
+char	*gripe_id(char *);
+void	 att_cur_drawer(void);
 int	 journal_processor(int, MSGNO_S *, SCROLL_S *);
 int	 help_popup(SCROLL_S *, int);
 #ifdef	_WINDOWS
@@ -154,14 +157,14 @@ helper_internal(HelpType text, char *frag, char *title, int flags)
 
 	    if(!struncmp(shown_text[0], "<html>", 6))
 	      gf_link_filter(gf_html2plain,
-			     gf_html2plain_opt("x-pine-help:",
+			     gf_html2plain_opt("x-alpine-help:",
 					       ps_global->ttyo->screen_cols, NULL,
 					       &handles, GFHP_LOCAL_HANDLES));
 	    else
 	      gf_link_filter(gf_wrap, gf_wrap_filter_opt(
 						  ps_global->ttyo->screen_cols,
 						  ps_global->ttyo->screen_cols,
-						  NULL, 0, GFW_HANDLES|GFW_UTF8));
+						  NULL, 0, GFW_HANDLES));
 
 	    error = gf_pipe(helper_getc, pc);
 
@@ -468,7 +471,7 @@ print_help(char **text)
 	  }
     }
     else
-      gf_link_filter(gf_wrap, gf_wrap_filter_opt(80, 80, NULL, 0, GFW_UTF8));
+      gf_link_filter(gf_wrap, gf_wrap_filter_opt(80, 80, NULL, 0, GFW_NONE));
 
     gf_link_filter(gf_line_test,
 		   gf_line_test_opt(print_help_page_break, NULL));
@@ -567,7 +570,7 @@ help_bogus_input(UCS ch)
 int
 url_local_helper(char *url)
 {
-    if(!struncmp(url, "x-pine-help:", 12) && *(url += 12)){
+    if(!struncmp(url, "x-alpine-help:", 14) && *(url += 14)){
 	char		   *frag;
 	HelpType	    newhelp;
 
@@ -606,7 +609,7 @@ url_local_helper(char *url)
 int
 url_local_config(char *url)
 {
-    if(!struncmp(url, "x-pine-config:", 14)){
+    if(!struncmp(url, "x-alpine-config:", 16)){
 	char **config;
 	int    rv;
 
@@ -796,7 +799,7 @@ review_messages(void)
 	gf_link_filter(gf_wrap,
 		       gf_wrap_filter_opt(ps_global->ttyo->screen_cols - 4,
 					  ps_global->ttyo->screen_cols,
-					  NULL, show_level < 0 ? 2 : 0, GFW_UTF8));
+					  NULL, show_level < 0 ? 2 : 0, GFW_NONE));
 	gf_set_so_readc(&gc, in_store);
 	gf_set_so_writec(&pc, out_store);
 	gf_pipe(gc, pc);
@@ -882,11 +885,6 @@ journal_processor(int cmd, MSGNO_S *msgmap, SCROLL_S *sparms)
 
 
 /*
- *  * * * * * * * *    Bug Report support routines    * * * * * * * *
- */
-
-
-/*
  * standard type of storage object used for body parts...
  */
 #ifdef	DOS
@@ -894,6 +892,385 @@ journal_processor(int cmd, MSGNO_S *msgmap, SCROLL_S *sparms)
 #else
 #define		  PART_SO_TYPE	CharStar
 #endif
+
+
+int
+gripe_gripe_to(url)
+    char *url;
+{
+    char      *composer_title, *url_copy, *optstr, *p;
+    int	       opts = 0;
+    BODY      *body = NULL;
+    ENVELOPE  *outgoing = NULL;
+    REPLY_S    fake_reply;
+    PINEFIELD *pf = NULL;
+    long       msgno = mn_m2raw(ps_global->msgmap, 
+				mn_get_cur(ps_global->msgmap));
+
+    url_copy = cpystr(url + strlen("x-alpine-gripe:"));
+    if(optstr = strchr(url_copy, '?'))
+      *optstr++ = '\0';
+
+    outgoing		 = mail_newenvelope();
+    outgoing->message_id = generate_message_id();
+
+    if(outgoing->to = gripe_token_addr(url_copy)){
+	composer_title = _("COMPOSE TO LOCAL SUPPORT");
+	dprint((1, 
+		   "\n\n   -- Send to local support(%s@%s) --\n",
+		   outgoing->to->mailbox ? outgoing->to->mailbox : "NULL",
+		   outgoing->to->host ? outgoing->to->host : "NULL"));
+    }
+    else{			/* must be global */
+	composer_title = _("REQUEST FOR ASSISTANCE");
+	rfc822_parse_adrlist(&outgoing->to, url_copy, ps_global->maildomain);
+    }
+
+    /*
+     * Sniff thru options
+     */
+    while(optstr){
+	if(p = strchr(optstr, '?'))	/* tie off list item */
+	  *p++ = '\0';
+
+	if(!strucmp(optstr, "config"))
+	  opts |= GRIPE_OPT_CONF;
+	else if(!strucmp(optstr, "curmsg"))
+	  opts |= GRIPE_OPT_MSG;
+	else if(!strucmp(optstr, "local"))
+	  opts |= GRIPE_OPT_LOCAL;
+	else if(!strucmp(optstr, "keys"))
+	  opts |= GRIPE_OPT_KEYS;
+
+	optstr = p;
+    }
+
+    /* build body and hand off to composer... */
+    if(gripe_newbody(ps_global, &body, msgno, opts) == 0){
+	pf = (PINEFIELD *) fs_get(sizeof(PINEFIELD));
+	memset(pf, 0, sizeof(PINEFIELD));
+	pf->name		   = cpystr("X-Generated-Via");
+	pf->type		   = FreeText;
+	pf->textbuf		   = gripe_id("Alpine Bug Report screen");
+	memset((void *)&fake_reply, 0, sizeof(fake_reply));
+	fake_reply.flags	   = REPLY_PSEUDO;
+	fake_reply.data.pico_flags = P_HEADEND;
+	pine_send(outgoing, &body, composer_title, NULL, NULL,
+		  &fake_reply, NULL, NULL, pf, 0);
+    }
+    
+    ps_global->mangled_screen = 1;
+    mail_free_envelope(&outgoing);
+
+    if(body)
+      pine_free_body(&body);
+
+    fs_give((void **) &url_copy);
+    
+    return(10);
+}
+
+
+int
+gripe_newbody(ps, body, msgno, flags)
+    struct pine *ps;
+    BODY       **body;
+    long         msgno;
+    int          flags;
+{
+    BODY        *pb;
+    PART       **pp;
+    STORE_S	*store;
+    gf_io_t      pc;
+    static char *err = "Problem creating space for message text.";
+    int          i;
+    char         tmp[MAILTMPLEN], *p;
+
+    if(store = so_get(PicoText, NULL, EDIT_ACCESS)){
+	*body = mail_newbody();
+
+	if((p = detoken(NULL, NULL, 2, 0, 1, NULL, NULL)) != NULL){
+	    if(*p)
+	      so_puts(store, p);
+
+	    fs_give((void **) &p);
+	}
+    }
+    else{
+	q_status_message(SM_ORDER | SM_DING, 3, 4, err);
+	return(-1);
+    }
+
+    if(flags){
+	/*---- Might have multiple parts ----*/
+	(*body)->type			= TYPEMULTIPART;
+	/*---- The TEXT part/body ----*/
+	(*body)->nested.part            = mail_newbody_part();
+	(*body)->nested.part->body.type = TYPETEXT;
+	(*body)->nested.part->body.contents.text.data = (void *) store;
+
+	/*---- create object, and write current config into it ----*/
+	pp = &((*body)->nested.part->next);
+
+	if(flags & GRIPE_OPT_CONF){
+	    *pp			     = mail_newbody_part();
+	    pb			     = &((*pp)->body);
+	    pp			     = &((*pp)->next);
+	    pb->type		     = TYPETEXT;
+	    pb->id		     = generate_message_id();
+	    pb->description	     = cpystr("Alpine Configuration Data");
+	    pb->parameter	     = mail_newbody_parameter();
+	    pb->parameter->attribute = cpystr("name");
+	    pb->parameter->value     = cpystr("config.txt");
+
+	    if(store = so_get(CharStar, NULL, EDIT_ACCESS)){
+		extern char datestamp[], hoststamp[];
+
+		pb->contents.text.data = (void *) store;
+		gf_set_so_writec(&pc, store);
+		gf_puts("Alpine built ", pc);
+		gf_puts(datestamp, pc);
+		gf_puts(" on host: ", pc);
+		gf_puts(hoststamp, pc);
+		gf_puts("\n", pc);
+
+		dump_pine_struct(ps, pc);
+		dump_config(ps, pc, 0);
+
+		pb->size.bytes = strlen((char *) so_text(store));
+		gf_clear_so_writec(store);
+	    }
+	    else{
+		q_status_message(SM_ORDER | SM_DING, 3, 4, err);
+		return(-1);
+	    }
+	}
+
+	if(flags & GRIPE_OPT_KEYS){
+	    *pp			     = mail_newbody_part();
+	    pb			     = &((*pp)->body);
+	    pp			     = &((*pp)->next);
+	    pb->type		     = TYPETEXT;
+	    pb->id		     = generate_message_id();
+	    pb->description	     = cpystr("Recent User Input");
+	    pb->parameter	      = mail_newbody_parameter();
+	    pb->parameter->attribute  = cpystr("name");
+	    pb->parameter->value      = cpystr("uinput.txt");
+
+	    if(store = so_get(CharStar, NULL, EDIT_ACCESS)){
+		pb->contents.text.data = (void *) store;
+
+		so_puts(store, "User's most recent input:\n");
+
+		/* dump last n keystrokes */
+		so_puts(store, "========== Latest keystrokes ==========\n");
+		while((i = key_playback(0)) != -1){
+		    snprintf(tmp, sizeof(tmp), "\t%s\t(0x%x)\n", pretty_command(i), i);
+		    tmp[sizeof(tmp)-1] = '\0';
+		    so_puts(store, tmp);
+		}
+
+		pb->size.bytes = strlen((char *) so_text(store));
+	    }
+	    else{
+		q_status_message(SM_ORDER | SM_DING, 3, 4, err);
+		return(-1);
+	    }
+	}
+
+	/* check for local debugging info? */
+	if((flags & GRIPE_OPT_LOCAL)
+	   && ps_global->VAR_BUGS_EXTRAS 
+	   && can_access(ps_global->VAR_BUGS_EXTRAS, EXECUTE_ACCESS) == 0){
+	    char *error		      = NULL;
+
+	    *pp			      = mail_newbody_part();
+	    pb			      = &((*pp)->body);
+	    pp			      = &((*pp)->next);
+	    pb->type		      = TYPETEXT;
+	    pb->id		      = generate_message_id();
+	    pb->description	      = cpystr("Local Configuration Data");
+	    pb->parameter	      = mail_newbody_parameter();
+	    pb->parameter->attribute  = cpystr("name");
+	    pb->parameter->value      = cpystr("lconfig.txt");
+
+	    if(store = so_get(CharStar, NULL, EDIT_ACCESS)){
+		PIPE_S  *syspipe;		
+		gf_io_t  gc;
+		
+		pb->contents.text.data = (void *) store;
+		gf_set_so_writec(&pc, store);
+		if(syspipe = open_system_pipe(ps_global->VAR_BUGS_EXTRAS,
+					 NULL, NULL,
+					 PIPE_READ | PIPE_STDERR | PIPE_USER,
+					 0, pipe_callback, pipe_report_error)){
+		    gf_set_readc(&gc, (void *)syspipe, 0, PipeStar, 0);
+		    gf_filter_init();
+		    error = gf_pipe(gc, pc);
+		    (void) close_system_pipe(&syspipe, NULL, pipe_callback);
+		}
+		else
+		  error = "executing config collector";
+
+		gf_clear_so_writec(store);
+	    }
+	    
+	    if(error){
+		q_status_message1(SM_ORDER | SM_DING, 3, 4, 
+				  "Problem %s", error);
+		return(-1);
+	    }
+	    else			/* fixup attachment's size */
+	      pb->size.bytes = strlen((char *) so_text(store));
+	}
+
+	if((flags & GRIPE_OPT_MSG) && mn_get_total(ps->msgmap) > 0L){
+	    int ch = 0;
+	
+	    ps->redrawer = att_cur_drawer;
+	    att_cur_drawer();
+
+	    if((ch = one_try_want_to("Attach current message to report",
+				     'y','x',NO_HELP,
+				     WT_FLUSH_IN|WT_SEQ_SENSITIVE)) == 'y'){
+		*pp		      = mail_newbody_part();
+		pb		      = &((*pp)->body);
+		pp		      = &((*pp)->next);
+		pb->type	      = TYPEMESSAGE;
+		pb->id		      = generate_message_id();
+		snprintf(tmp, sizeof(tmp), "Problem Message (%ld of %ld)",
+			mn_get_cur(ps->msgmap), mn_get_total(ps->msgmap));
+		tmp[sizeof(tmp)-1] = '\0';
+		pb->description	      = cpystr(tmp);
+
+		/*---- Package each message in a storage object ----*/
+		if(store = so_get(PART_SO_TYPE, NULL, EDIT_ACCESS)){
+		    pb->contents.text.data = (void *) store;
+		}
+		else{
+		    q_status_message(SM_ORDER | SM_DING, 3, 4, err);
+		    return(-1);
+		}
+
+		/* write the header */
+		if((p = mail_fetch_header(ps->mail_stream, msgno, NIL, NIL,
+					  NIL, FT_PEEK)) && *p)
+		  so_puts(store, p);
+		else
+		  return(-1);
+
+		pb->size.bytes = strlen(p);
+		so_puts(store, "\015\012");
+
+		if((p = pine_mail_fetch_text(ps->mail_stream, 
+					     msgno, NULL, NULL, NIL))
+		   &&  *p)
+		  so_puts(store, p);
+		else
+		  return(-1);
+
+		pb->size.bytes += strlen(p);
+	    }
+	    else if(ch == 'x'){
+		q_status_message(SM_ORDER, 0, 3, "Bug report cancelled.");
+		return(-1);
+	    }
+	}
+    }
+    else{
+	/*---- Only one part! ----*/
+	(*body)->type = TYPETEXT;
+	(*body)->contents.text.data = (void *) store;
+    }
+
+    return(0);
+}
+
+
+ADDRESS *
+gripe_token_addr(token)
+    char *token;
+{
+    char    *p;
+    ADDRESS *a = NULL;
+
+    if(token && *token++ == '_'){
+	if(!strcmp(token, "LOCAL_ADDRESS_")){
+	    p = (ps_global->VAR_LOCAL_ADDRESS
+		 && ps_global->VAR_LOCAL_ADDRESS[0])
+		    ? ps_global->VAR_LOCAL_ADDRESS
+		    : "postmaster";
+	    a = rfc822_parse_mailbox(&p, ps_global->maildomain);
+	    a->personal = cpystr((ps_global->VAR_LOCAL_FULLNAME 
+				  && ps_global->VAR_LOCAL_FULLNAME[0])
+				    ? ps_global->VAR_LOCAL_FULLNAME 
+				    : "Place to report Alpine Bugs");
+	}
+	else if(!strcmp(token, "BUGS_ADDRESS_")){
+	    p = (ps_global->VAR_BUGS_ADDRESS
+		 && ps_global->VAR_BUGS_ADDRESS[0])
+		    ? ps_global->VAR_BUGS_ADDRESS : "postmaster";
+	    a = rfc822_parse_mailbox(&p, ps_global->maildomain);
+	    a->personal = cpystr((ps_global->VAR_BUGS_FULLNAME 
+				  && ps_global->VAR_BUGS_FULLNAME[0])
+				    ? ps_global->VAR_BUGS_FULLNAME 
+				    : "Place to report Alpine Bugs");
+	}
+    }
+
+    return(a);
+}
+
+
+char *
+gripe_id(key)
+    char *key;
+{
+    int i;
+    
+    /*
+     * Build our contribution to the subject; part constant string
+     * and random 4 character alpha numeric string.
+     */
+    tmp_20k_buf[0] = '\0';
+    snprintf(tmp_20k_buf, SIZEOF_20KBUF, "%s (ID %c%c%d%c%c)", key,
+	    ((i = (int)(random() % 36L)) < 10) ? '0' + i : 'A' + (i - 10),
+	    ((i = (int)(random() % 36L)) < 10) ? '0' + i : 'A' + (i - 10),
+	    (int)(random() % 10L),
+	    ((i = (int)(random() % 36L)) < 10) ? '0' + i : 'A' + (i - 10),
+	    ((i = (int)(random() % 36L)) < 10) ? '0' + i : 'A' + (i - 10));
+    tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
+    return(cpystr(tmp_20k_buf));
+}
+
+
+/*
+ * Used by gripe_tool.
+ */
+void
+att_cur_drawer(void)
+{
+    int	       i, dline, j;
+    char       buf[256+1];
+
+    /* blat helpful message to screen */
+    ClearBody();
+    j = 0;
+    for(dline = 2;
+	dline < ps_global->ttyo->screen_rows - FOOTER_ROWS(ps_global);
+	dline++){
+	for(i = 0; i < 256 && att_cur_msg[j] && att_cur_msg[j] != '\n'; i++)
+	  buf[i] = att_cur_msg[j++];
+
+	buf[i] = '\0';
+	if(att_cur_msg[j])
+	  j++;
+	else if(!i)
+	  break;
+
+        PutLine0(dline, 1, buf);
+    }
+}
 
 
 #ifdef	_WINDOWS

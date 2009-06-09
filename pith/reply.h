@@ -1,5 +1,5 @@
 /*
- * $Id: reply.h 244 2006-11-18 01:19:19Z mikes@u.washington.edu $
+ * $Id: reply.h 440 2007-02-14 23:33:00Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -83,7 +83,6 @@ int         sigdashes_are_present(char *);
 char	   *signature_path(char *, char *, size_t);
 char       *read_remote_sigfile(char *);
 BODY	   *forward_multi_alt(MAILSTREAM *, ENVELOPE *, BODY *, long, char *, void *, gf_io_t, int);
-void	    fix_charset_parameter(BODY *, char *);
 
 
 #endif /* PITH_REPLY_INCLUDED */

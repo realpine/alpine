@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: termout.unx.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: termout.unx.c 408 2007-02-01 00:14:18Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -204,16 +204,16 @@ init_screen(void)
     switch(ps_global->color_style){
       case COL_NONE:
       case COL_TERMDEF:
-	pico_set_color_options(0);
+	pico_set_color_options(pico_trans_color() ? COLOR_TRANS_OPT : 0);
 	break;
       case COL_ANSI8:
-	pico_set_color_options(COLOR_ANSI8_OPT|COLOR_ANSITRANS_OPT);
+	pico_set_color_options(COLOR_ANSI8_OPT|COLOR_TRANS_OPT);
 	break;
       case COL_ANSI16:
-	pico_set_color_options(COLOR_ANSI16_OPT|COLOR_ANSITRANS_OPT);
+	pico_set_color_options(COLOR_ANSI16_OPT|COLOR_TRANS_OPT);
 	break;
       case COL_ANSI256:
-	pico_set_color_options(COLOR_ANSI256_OPT|COLOR_ANSITRANS_OPT);
+	pico_set_color_options(COLOR_ANSI256_OPT|COLOR_TRANS_OPT);
 	break;
     }
 

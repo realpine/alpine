@@ -1,5 +1,5 @@
 /*
- * $Id: shell.h 113 2006-09-01 21:54:31Z hubert@u.washington.edu $
+ * $Id: shell.h 400 2007-01-29 18:52:56Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -19,7 +19,7 @@
 
 
 /* exported prototypes */
-#ifdef	SIGTSTP 
+#if defined(SIGTSTP) || defined(_WINDOWS)
 int	bktoshell(void);
 #endif
 

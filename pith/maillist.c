@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: maillist.c 140 2006-09-26 19:30:49Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: maillist.c 409 2007-02-01 22:44:01Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -127,9 +127,8 @@ rfc2369_parse(char *h, RFC2369_S *data)
 		   l = strlen(rfc2369_fields[ifield].name))
 	 && *(h += l) == ':'){
 	  /* unwrap any transport encodings */
-	  if((p = (char *) rfc1522_decode((unsigned char *) tmp_20k_buf,
-					  SIZEOF_20KBUF,
-					  ++h, NULL)) == tmp_20k_buf)
+	  if((p = (char *) rfc1522_decode_to_utf8((unsigned char *) tmp_20k_buf,
+						  SIZEOF_20KBUF, ++h)) == tmp_20k_buf)
 	    strcpy(h, p);		/* assumption #383: decoding shrinks */
 
 	  url = comment = NULL;

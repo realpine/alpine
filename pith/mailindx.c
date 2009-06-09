@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailindx.c 394 2007-01-25 20:29:45Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailindx.c 429 2007-02-08 00:08:23Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -71,7 +71,7 @@ int	(*pith_opt_condense_thread_cue)(PINETHRD_S *, ICE_S *, char **, int, int);
 void            setup_for_thread_index_screen(void);
 ICE_S	       *format_index_index_line(INDEXDATA_S *);
 ICE_S	       *format_thread_index_line(INDEXDATA_S *);
-int		set_index_addr(INDEXDATA_S *, char *, ADDRESS *, char *, int, char *, char **);
+int		set_index_addr(INDEXDATA_S *, char *, ADDRESS *, char *, int, char *);
 int             ctype_is_fixed_length(IndexColType);
 void		setup_index_header_widths(MAILSTREAM *);
 void		setup_thread_header_widths(MAILSTREAM *);
@@ -263,7 +263,7 @@ reset_index_format(void)
     if(ps_global->mail_stream && nonempty_patterns(rflags, &pstate)){
 	for(pat = first_pattern(&pstate); pat; pat = next_pattern(&pstate)){
 	    if(match_pattern(pat->patgrp, ps_global->mail_stream, NULL,
-			     NULL, NULL, SO_NOSERVER|SE_NOPREFETCH))
+			     NULL, NULL, SE_NOSERVER|SE_NOPREFETCH))
 	      break;
 	}
 
@@ -1531,8 +1531,6 @@ format_index_index_line(INDEXDATA_S *idata)
 
 
     ice = fetch_ice(idata->stream, idata->rawno);
-    if(ice->charset)
-      fs_give((void **) &ice->charset);
 
     free_ifield(&ice->ifield);
 
@@ -1937,8 +1935,7 @@ format_index_index_line(INDEXDATA_S *idata)
 			      : (addr = fetch_cc(idata))
 			      ? "Cc"
 			      : NULL))
-		    && !set_index_addr(idata, field, addr, NULL,
-				       BIGWIDTH, str, &ice->charset))
+		    && !set_index_addr(idata, field, addr, NULL, BIGWIDTH, str))
 		   || !field)
 		  if(newsgroups = fetch_newsgroups(idata))
 		    snprintf(str, sizeof(str), "%-.*s", BIGWIDTH, newsgroups);
@@ -1946,9 +1943,7 @@ format_index_index_line(INDEXDATA_S *idata)
 		break;
 
 	      case iCc:
-		set_index_addr(idata, "Cc", fetch_cc(idata),
-			       NULL, BIGWIDTH, str,
-			       &ice->charset);
+		set_index_addr(idata, "Cc", fetch_cc(idata), NULL, BIGWIDTH, str);
 		break;
 
 	      case iRecips:
@@ -1963,8 +1958,7 @@ format_index_index_line(INDEXDATA_S *idata)
 		if(last_to)
 		  last_to->next = ccaddr;
 
-		set_index_addr(idata, "To", toaddr, NULL,
-			       BIGWIDTH, str, &ice->charset);
+		set_index_addr(idata, "To", toaddr, NULL, BIGWIDTH, str);
 
 		if(last_to)
 		  last_to->next = NULL;
@@ -1973,8 +1967,7 @@ format_index_index_line(INDEXDATA_S *idata)
 
 	      case iSender:
 		if(addr = fetch_sender(idata))
-		  set_index_addr(idata, "Sender", addr, NULL,
-				 BIGWIDTH, str, &ice->charset);
+		  set_index_addr(idata, "Sender", addr, NULL, BIGWIDTH, str);
 
 		break;
 
@@ -1982,25 +1975,20 @@ format_index_index_line(INDEXDATA_S *idata)
 		{ADDRESS *addr;
 
 		 if((addr = fetch_from(idata)) && addr->personal){
-		    char *name, *initials = NULL, *dummy = NULL;
+		     char *name, *initials = NULL;
 
-			
-		    name = (char *) rfc1522_decode((unsigned char *)tmp_20k_buf,
-						   SIZEOF_20KBUF,
-						   addr->personal, &dummy);
-		    if(dummy)
-		      fs_give((void **)&dummy);
+		     name = (char *) rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+							    SIZEOF_20KBUF, addr->personal);
+		     if(name == addr->personal){
+			 strncpy(tmp_20k_buf, name, SIZEOF_20KBUF-1);
+			 tmp_20k_buf[SIZEOF_20KBUF - 1] = '\0';
+			 name = (char *) tmp_20k_buf;
+		     }
 
-		    if(name == addr->personal){
-			strncpy(tmp_20k_buf, name, SIZEOF_20KBUF-1);
-			tmp_20k_buf[SIZEOF_20KBUF - 1] = '\0';
-			name = (char *) tmp_20k_buf;
-		    }
-
-		    if(name && *name){
-			initials = reply_quote_initials(name);
-			snprintf(str, sizeof(str), "%-.*s", BIGWIDTH, initials);
-		    }
+		     if(name && *name){
+			 initials = reply_quote_initials(name);
+			 snprintf(str, sizeof(str), "%-.*s", BIGWIDTH, initials);
+		     }
 		 }
 		}
 
@@ -2275,15 +2263,13 @@ format_index_index_line(INDEXDATA_S *idata)
 			if(l > 0){
 			    strncpy(str+l, " and ", sizeof(str)-l);
 			    set_index_addr(idata, "To", fetch_to(idata),
-					   NULL, BIGWIDTH-l-5, str+l+5,
-					   &ice->charset);
+					   NULL, BIGWIDTH-l-5, str+l+5);
 			    if(!str[l+5])
 			      str[l] = '\0';
 			}
 			else
 			  set_index_addr(idata, "To", fetch_to(idata),
-				         NULL, BIGWIDTH, str,
-					 &ice->charset);
+				         NULL, BIGWIDTH, str);
 		    }
 		}
 
@@ -2291,8 +2277,7 @@ format_index_index_line(INDEXDATA_S *idata)
 
 	      case iToAndNews:
 		set_index_addr(idata, "To", fetch_to(idata),
-			       NULL, BIGWIDTH, str,
-			       &ice->charset);
+			       NULL, BIGWIDTH, str);
 		if((l = strlen(str)) < sizeof(str) &&
 		   (newsgroups = fetch_newsgroups(idata))){
 		    if(sizeof(str) - l < 6)
@@ -2332,14 +2317,12 @@ format_index_index_line(INDEXDATA_S *idata)
 			if(l > 0){
 			    strncpy(str+l, " and ", sizeof(str)-l);
 			    set_index_addr(idata, "To", toaddr,
-					   NULL, BIGWIDTH-l-5, str+l+5,
-					   &ice->charset);
+					   NULL, BIGWIDTH-l-5, str+l+5);
 			    if(!str[l+5])
 			      str[l] = '\0';
 			}
 			else
-			  set_index_addr(idata, "To", toaddr, NULL,
-					 BIGWIDTH, str, &ice->charset);
+			  set_index_addr(idata, "To", toaddr, NULL, BIGWIDTH, str);
 
 			if(last_to)
 			  last_to->next = NULL;
@@ -2360,8 +2343,7 @@ format_index_index_line(INDEXDATA_S *idata)
 		if(last_to)
 		  last_to->next = ccaddr;
 
-		set_index_addr(idata, "To", toaddr, NULL,
-			       BIGWIDTH, str, &ice->charset);
+		set_index_addr(idata, "To", toaddr, NULL, BIGWIDTH, str);
 
 		if(last_to)
 		  last_to->next = NULL;
@@ -2432,8 +2414,6 @@ format_thread_index_line(INDEXDATA_S *idata)
       thdlen = 6;
 
     ice = fetch_ice(idata->stream, idata->rawno);
-    if(ice && ice->charset)
-      fs_give((void **) &ice->charset);
 
     thrd = fetch_thread(idata->stream, idata->rawno);
 
@@ -2450,9 +2430,6 @@ format_thread_index_line(INDEXDATA_S *idata)
 
     if(!tice)
       return(ice);
-
-    if(tice->charset)
-      fs_give((void **) &tice->charset);
 
     free_ifield(&tice->ifield);
 
@@ -2787,7 +2764,7 @@ get_index_line_color(MAILSTREAM *stream, struct search_set *searchset,
 	/* Go through the possible roles one at a time until we get a match. */
 	while(!match && pat){
 	    if(match_pattern(pat->patgrp, stream, searchset, NULL,
-			     get_msg_score, SO_NOSERVER|SE_NOPREFETCH)){
+			     get_msg_score, SE_NOSERVER|SE_NOPREFETCH)){
 		if(!pat->action || pat->action->bogus)
 		  break;
 
@@ -3212,8 +3189,12 @@ fetch_body(INDEXDATA_S *idata)
  * s is at least size width+1
  */
 int
-set_index_addr(INDEXDATA_S *idata, char *field, struct mail_address *addr,
-	       char *prefix, int width, char *s, char **cset)
+set_index_addr(INDEXDATA_S	   *idata,
+	       char		   *field,
+	       struct mail_address *addr,
+	       char		   *prefix,
+	       int		    width,
+	       char		   *s)
 {
     ADDRESS *atmp;
     char    *p;
@@ -3265,7 +3246,6 @@ set_index_addr(INDEXDATA_S *idata, char *field, struct mail_address *addr,
     if(addr && !addr->next		/* only one address */
        && addr->host			/* not group syntax */
        && addr->personal && addr->personal[0]){	/* there is a personal name */
-	char *dummy = NULL, *free_this = NULL;
 	char  buftmp[MAILTMPLEN];
 	int   l;
 
@@ -3273,41 +3253,11 @@ set_index_addr(INDEXDATA_S *idata, char *field, struct mail_address *addr,
 	  strncpy(s, prefix, width+1);
 
 	snprintf(buftmp, sizeof(buftmp), "%s", addr->personal);
-	p = (char *) rfc1522_decode((unsigned char *) tmp_20k_buf,
-				    SIZEOF_20KBUF, buftmp, &dummy);
-
-	/* convert the text to UTF-8 if needed */
-	if(p == buftmp || (dummy && strucmp(dummy, "utf-8"))){
-	    free_this = convert_to_utf8(buftmp, dummy, 0);
-	    if(free_this)
-	      p = free_this;
-	}
-
+	p = (char *) rfc1522_decode_to_utf8((unsigned char *) tmp_20k_buf,
+					    SIZEOF_20KBUF, buftmp);
 	removing_leading_and_trailing_white_space(p);
 
 	iutf8ncpy(s + l, p, width - l);
-
-	if(free_this)
-	  fs_give((void **) &free_this);
-
-	if(dummy){
-	    int dl = strlen(dummy);
-
-	    if(cset && dl > 0){
-		if(*cset && strucmp(*cset, dummy)){
-		    /* UH OH: MISMATCHED CHARSETS */
-		    if(strlen(*cset) < strlen(UNKNOWN_CHARSET))
-		      fs_resize((void **) cset,
-				(strlen(UNKNOWN_CHARSET)+1) * sizeof(char));
-
-		    strncpy(*cset, UNKNOWN_CHARSET, strlen(UNKNOWN_CHARSET)+1);
-		}
-		else if(!(*cset))
-		  *cset = cpystr(dummy);
-	    }
-
-	    fs_give((void **)&dummy);
-	}
 
 	s[width] = '\0';
 	
@@ -4141,8 +4091,8 @@ void
 subj_str(INDEXDATA_S *idata, int width, char *str, SubjKW kwtype, int opening, ICE_S *ice)
 {
     char          *subject, *origsubj, *origstr, *rawsubj, *sptr = NULL;
-    char          *p, *border, *q = NULL, *free_subj = NULL, *free_this = NULL;
-    char	  *sp, *cset = NULL;
+    char          *p, *border, *q = NULL, *free_subj = NULL;
+    char	  *sp;
     size_t         len;
     int            depth = 0, mult = 2, collapsed, i;
     int            save;
@@ -4178,15 +4128,8 @@ subj_str(INDEXDATA_S *idata, int width, char *str, SubjKW kwtype, int opening, I
      * Before we do anything else, decode the character set in the subject and
      * work with the result.
      */
-    sp = (char *) rfc1522_decode((unsigned char *) tmp_20k_buf,
-				 SIZEOF_20KBUF, rawsubj, &cset);
-
-    /* convert the text to UTF-8 if needed */
-    if(sp == rawsubj || (cset && strucmp(cset, "UTF-8"))){
-	free_this = convert_to_utf8(rawsubj, cset, 0);
-	if(free_this)
-	  sp = free_this;
-    }
+    sp = (char *) rfc1522_decode_to_utf8((unsigned char *) tmp_20k_buf,
+					 SIZEOF_20KBUF, rawsubj);
 
     len = strlen(sp);
     len += 100;			/* for possible charset, escaped characters */
@@ -4196,22 +4139,6 @@ subj_str(INDEXDATA_S *idata, int width, char *str, SubjKW kwtype, int opening, I
     iutf8ncpy(origsubj, sp, len);
 
     origsubj[len] = '\0';
-
-    if(cset){
-	if(ice && ice->charset && strucmp(cset, ice->charset)){
-	    /* UH OH: MISMATCHED CHARSETS */
-	    if(strlen(ice->charset) < strlen(UNKNOWN_CHARSET))
-	      fs_resize((void **) &ice->charset,
-		        (strlen(UNKNOWN_CHARSET)+1) * sizeof(char));
-
-	    strncpy(ice->charset, UNKNOWN_CHARSET, strlen(UNKNOWN_CHARSET)+1);
-	}
-	else if(ice && !ice->charset)
-	  ice->charset = cpystr(cset);
-
-	fs_give((void **) &cset);
-    }
-
 
     /*
      * origsubj is the original subject but it has been decoded. We need
@@ -4577,9 +4504,6 @@ subj_str(INDEXDATA_S *idata, int width, char *str, SubjKW kwtype, int opening, I
 
     if(free_subj)
       fs_give((void **) &free_subj);
-
-    if(free_this)
-      fs_give((void **) &free_this);
 }
 
 
@@ -4905,8 +4829,7 @@ from_str(IndexColType ctype, INDEXDATA_S *idata, int width, char *str, ICE_S *ic
 				 ? "Cc"
 				 : NULL))
 		       && set_index_addr(idata, field, addr, "To: ",
-					 width, fptr,
-					 ice ? &ice->charset : NULL))
+					 width, fptr))
 		      break;
 
 		    if(ctype == iFromTo &&
@@ -4926,8 +4849,7 @@ from_str(IndexColType ctype, INDEXDATA_S *idata, int width, char *str, ICE_S *ic
 	      break;
 
 	  case iFrom:
-	    set_index_addr(idata, "From", fetch_from(idata),
-			   NULL, width, fptr, ice ? &ice->charset : NULL);
+	    set_index_addr(idata, "From", fetch_from(idata), NULL, width, fptr);
 	    break;
 
 	  case iAddress:

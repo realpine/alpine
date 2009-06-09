@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: browse.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: browse.c 421 2007-02-05 22:53:41Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -318,6 +318,7 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
     char lbuf[NLINE];
     struct bmaster *mp;
     struct fcell *tp;
+    EML eml;
 #ifdef MOUSE
     MOUSEPRESS mousep;
 #endif
@@ -325,7 +326,8 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
     child[0] = '\0';
 
     if((gmode&MDTREE) && !in_oper_tree(dir)){
-	emlwrite(_("\007Can't read outside of %s in restricted mode"), opertree);
+	eml.s = opertree;
+	emlwrite(_("\007Can't read outside of %s in restricted mode"), &eml);
 	sleep(2);
 	return(0);
     }
@@ -733,7 +735,7 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 		return(0);
 	    }
 
-	    emlwrite(_("\007Unknown command '%c'"), (void *)c);
+	    unknown_command(c);
 	    break;
 
 	  case 'x':				    /* toggle selection */
@@ -742,7 +744,7 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 		if(gmp->flags & FB_LMODEPOS)
 		  emlwrite(_("\007Type L command to use ListMode"), NULL);
 		else
-		  emlwrite(_("\007Unknown command '%c'"), (void *)c);
+		  unknown_command(c);
 		
 		break;
 	    }
@@ -781,7 +783,7 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 	    }
 
 	    if(!(gmode&MDBRONLY)){
-		emlwrite(_("\007Unknown command '%c'"), (void *)c);
+		unknown_command(c);
 		break;
 	    }
 
@@ -880,7 +882,8 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 
 	    if(status == TRUE){
 		if(our_unlink(child) < 0){
-		    emlwrite(_("Delete Failed: %s"), errstr(errno));
+		    eml.s = errstr(errno);
+		    emlwrite(_("Delete Failed: %s"), &eml);
 		}
 		else{			/* fix up pointers and redraw */
 		    tp = gmp->current;
@@ -985,7 +988,8 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 		    }
  
 		    if(!compresspath(gmp->dname, child, sizeof(child))){
-			emlwrite(_("Invalid Directory: %s"), child);
+			eml.s = child;
+			emlwrite(_("Invalid Directory: %s"), &eml);
 			break;
 		    }
 
@@ -995,8 +999,9 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 		    }
  
 		    if((gmode&MDTREE) && !in_oper_tree(child)){
+		      eml.s = opertree;
 		      emlwrite(_("\007 Can't go outside of %s in restricted mode"),
-			       opertree);
+			       &eml);
 			break;
 		    }
  
@@ -1011,8 +1016,10 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 			gmp = mp;
 			PaintBrowser(gmp, 0, &crow, &ccol);
 		    }
-		    else
-		      emlwrite(_("\007Not a directory: \"%s\""), child);
+		    else{
+		      eml.s = child;
+		      emlwrite(_("\007Not a directory: \"%s\""), &eml);
+		    }
  
 		    break;
 		  default:
@@ -1075,8 +1082,9 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 		    }
 
 		    if((gmode&MDTREE) && !in_oper_tree(child)){
+		       eml.s = opertree;
 		       emlwrite(_("\007Restricted mode allows Add in %s only"),
-				opertree);
+				&eml);
 			break;
 		    }
 
@@ -1097,7 +1105,8 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 		    }
 		    else{			/* highlight new file */
 			ffclose();
-			emlwrite(_("Added File \"%s\""), child);
+		        eml.s = child;
+			emlwrite(_("Added File \"%s\""), &eml);
 
 			if((p = strrchr(child, C_FILESEP)) == NULL){
 			    emlwrite(_("Problems refiguring browser"), NULL);
@@ -1199,8 +1208,9 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 		    }
 
 		    if((gmode&MDTREE) && !in_oper_tree(child)){
+		       eml.s = opertree;
 		       emlwrite(_("\007Restricted mode allows Copy in %s only"),
-				opertree);
+				&eml);
 			break;
 		    }
 
@@ -1229,7 +1239,8 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 			break;
 		    }
 		    else{			/* highlight new file */
-			emlwrite(_("File copied to %s"), child);
+		        eml.s = child;
+			emlwrite(_("File copied to %s"), &eml);
 
 			if((p = strrchr(child, C_FILESEP)) == NULL){
 			    emlwrite(_("Problems refiguring browser"), NULL);
@@ -1317,8 +1328,9 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 		    }
 
 		    if((gmode&MDTREE) && !in_oper_tree(child)){
+		       eml.s = opertree;
 		       emlwrite(_("\007Restricted mode allows Rename in %s only"),
-				opertree);
+				&eml);
 			break;
 		    }
 
@@ -1341,7 +1353,8 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 				gmp->current->fname);
 
 			if(our_rename(tmp, child) < 0){
-			    emlwrite(_("Rename Failed: %s"), errstr(errno));
+			    eml.s = errstr(errno);
+			    emlwrite(_("Rename Failed: %s"), &eml);
 			}
 			else{
 			    if((p = strrchr(child, C_FILESEP)) == NULL){
@@ -1401,9 +1414,10 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 			*p = '\0';
 
 			if((gmode&MDTREE) && !in_oper_tree(tmp)){
+			    eml.s = PARENTDIR;
 			    emlwrite(
 				   _("\007Can't visit %s in restricted mode"),
-				   PARENTDIR);
+				   &eml);
 			    break;
 			}
 
@@ -1475,8 +1489,10 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 			gmp->current = tp;
 			PlaceCell(gmp, gmp->current, &row, &col);
 		    }
-		    else
-		      emlwrite(_("\007Problem finding dir \"%s\""),child);
+		    else{
+			eml.s = child;
+			emlwrite(_("\007Problem finding dir \"%s\""), &eml);
+		    }
 		}
 
 		PaintBrowser(gmp, 0, &crow, &ccol);
@@ -1654,8 +1670,10 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 			}
 			mlerase();
 		    }
-		    else
-		      emlwrite(_("\"%s\" not found"), pat);
+		    else{
+			eml.s = utf8;
+			emlwrite(_("\"%s\" not found"), &eml);
+		    }
 
 		    if(utf8)
 		      fs_give((void **) &utf8);
@@ -1680,12 +1698,8 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 
 	  default:				/* what? */
 	  Default:
-	    if(c < 0xff)
-	      emlwrite(_("\007Unknown command: '%c'"), (void *) c);
-	    else if(c & CTRL)
-	      emlwrite(_("\007Unknown command: ^%c"), (void *)(c&0xff));
-	    else
-	      emlwrite(_("\007Unknown command"), NULL);
+	    unknown_command(c);
+
 	  case NODATA:				/* no op */
 	    break;
 	}
@@ -1712,6 +1726,7 @@ getfcells(char *dname, int fb_flags)
     struct fcell *ncp,				/* new cell pointer */
                  *tcp;				/* trailing cell ptr */
     struct bmaster *mp;
+    EML  eml;
 
     errbuf[0] = '\0';
     if((mp=(struct bmaster *)malloc(sizeof(struct bmaster))) == NULL){
@@ -1744,7 +1759,8 @@ getfcells(char *dname, int fb_flags)
     mp->longest = 5;				/* .. must be labeled! */
     mp->flags = fb_flags;
 
-    emlwrite("Building file list of %s...", mp->dname);
+    eml.s = mp->dname;
+    emlwrite("Building file list of %s...", &eml);
 
     if((mp->names = getfnames(mp->dname, NULL, &nentries, errbuf, sizeof(errbuf))) == NULL){
 	free((char *) mp);
@@ -2790,6 +2806,7 @@ LikelyASCII(char *file)
     int		   n, i, line, rv = FALSE;
     unsigned char  buf[LA_TEST_BUF];
     FILE	  *fp;
+    EML            eml;
 
     if(fp = our_fopen(file, "rb")){
 	clearerr(fp);
@@ -2810,13 +2827,17 @@ LikelyASCII(char *file)
 		  break;
 	      }
 	}
-	else
-	  emlwrite(_("Can't read file: %s"), file);
+	else{
+	    eml.s = file;
+	    emlwrite(_("Can't read file: %s"), &eml);
+	}
 
 	fclose(fp);
     }
-    else
-      emlwrite(_("Can't open file: %s"), file);
+    else{
+	eml.s = file;
+	emlwrite(_("Can't open file: %s"), &eml);
+    }
 
     return(rv);
 }

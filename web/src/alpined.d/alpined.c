@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: alpined.c 395 2007-01-25 22:23:41Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: alpined.c 442 2007-02-16 23:01:28Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -7084,7 +7084,7 @@ peMessageText(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 	return(TCL_ERROR);
     }
 
-    flags = FM_DISPLAY | FM_NEW_MESS | FM_NOEDITORIAL | FM_UTF8 | FM_NOHTMLREL | FM_HTMLRELATED;
+    flags = FM_DISPLAY | FM_NEW_MESS | FM_NOEDITORIAL | FM_NOHTMLREL | FM_HTMLRELATED;
 
     init_handles(&peED.handles);
 
@@ -7589,9 +7589,8 @@ peReplyHeaders(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 			      "%s%s", "in-reply-to", outgoing->in_reply_to) == TCL_OK
 		&& peAppListF(interp, Tcl_GetObjResult(interp),
 			      "%s%s", "subject", 
-			      rfc1522_decode((unsigned char *) tmp_20k_buf,
-					     SIZEOF_20KBUF,
-					     outgoing->subject, NULL)) == TCL_OK
+			      rfc1522_decode_to_utf8((unsigned char *) tmp_20k_buf,
+						     SIZEOF_20KBUF, outgoing->subject)) == TCL_OK
 		&& (fcc ? peFccAppend(interp, Tcl_GetObjResult(interp), fcc, -1) : TRUE));
 
 
@@ -8418,7 +8417,7 @@ peAppListF(Tcl_Interp *interp, Tcl_Obj *lobjp, char *fmt, ...)
 		      rbuf.end = tmp+len-1;
 		      rfc822_output_address_list(&rbuf, aval, 0L, NULL);
 		      *rbuf.cur = '\0';
-		      p	   = rfc1522_decode((unsigned char *) tmp_20k_buf, SIZEOF_20KBUF, tmp, NULL);
+		      p	   = rfc1522_decode_to_utf8((unsigned char *) tmp_20k_buf, SIZEOF_20KBUF, tmp);
 		      sObj = peNewUtf8Obj(p, strlen(p));
 		      fs_give((void **) &tmp);
 		  }
@@ -9539,7 +9538,6 @@ PEPostponeCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONS
 		    ENVELOPE   *env;
 		    Tcl_Obj    *objEnv = NULL, *objEnvList;
 		    long	n;
-		    char       *charset = NULL, *cs;
 
 		    if(postponed_stream(&stream) && stream){
 			if(!stream->nmsgs){
@@ -9564,24 +9562,8 @@ PEPostponeCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONS
 				peAppListF(interp, objEnv, "%s%s", "date", tmp_20k_buf);
 
 				peAppListF(interp, objEnv, "%s%s", "subj",
-					   rfc1522_decode((unsigned char *) tmp_20k_buf,
-							  SIZEOF_20KBUF, env->subject, &cs));
-				if(cs){
-				    if(*cs && strucmp(cs, "us-ascii")){
-					if(charset){
-					    if(strucmp(charset, cs)){
-						fs_give((void **) &charset);
-						charset = cpystr("X-UNKNOWN");
-					    }
-
-					    fs_give((void **) &cs);
-					}
-					else
-					  charset = cs;
-				    }
-				    else
-				      fs_give((void **) &cs);
-				}
+					   rfc1522_decode_to_utf8((unsigned char *) tmp_20k_buf,
+								  SIZEOF_20KBUF, env->subject));
 
 				Tcl_ListObjAppendElement(interp, objEnvList, objEnv);
 			    }
@@ -9589,11 +9571,8 @@ PEPostponeCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONS
 
 			Tcl_ListObjAppendElement(interp, Tcl_GetObjResult(interp), objEnvList);
 
-			if(charset){
-			    Tcl_ListObjAppendElement(interp, Tcl_GetObjResult(interp),
-						     Tcl_NewStringObj(charset, -1));
-			    fs_give((void **) &charset);
-			}
+			Tcl_ListObjAppendElement(interp, Tcl_GetObjResult(interp),
+						 Tcl_NewStringObj("utf-8", -1));
 
 			if(stream != ps_global->mail_stream)
 			  pine_mail_close(stream);
@@ -9643,8 +9622,8 @@ PEPostponeCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONS
 				    peAppListF(interp, objHdr, "%s%a", "bcc", env->bcc);
 				    peAppListF(interp, objHdr, "%s%s", "in-reply-to", env->in_reply_to);
 				    peAppListF(interp, objHdr, "%s%s", "subject",
-					       rfc1522_decode((unsigned char *) tmp_20k_buf,
-							      SIZEOF_20KBUF, env->subject, NULL));
+					       rfc1522_decode_to_utf8((unsigned char *) tmp_20k_buf,
+								      SIZEOF_20KBUF, env->subject));
 
 				    if(fcc)
 				      peFccAppend(interp, objHdr, fcc, -1);
@@ -10146,9 +10125,8 @@ peMsgCollected(Tcl_Interp *interp, MSG_COL_S *md, char *err)
 		      else
 			pp = &(*pp)->next;
 
-		    *pp = mail_newbody_parameter();
-		    (*pp)->attribute = cpystr("name");
-		    (*pp)->value = cpystr(a->l.f.remote);
+		    *pp = NULL;
+		    set_parameter(pp, "name", a->l.f.remote);
 
 		    /* Then set the Content-Disposition ala RFC1806 */
 		    if(!(*np)->body.disposition.type){
@@ -10165,9 +10143,8 @@ peMsgCollected(Tcl_Interp *interp, MSG_COL_S *md, char *err)
 			  else
 			    pp = &(*pp)->next;
 
-			*pp = mail_newbody_parameter();
-			(*pp)->attribute = cpystr("filename");
-			(*pp)->value = cpystr(a->l.f.remote);
+			*pp = NULL;
+			set_parameter(pp, "filename", a->l.f.remote);
 		    }
 
 		    if((*np)->body.contents.text.data = (void *) so_get(FileStar, a->l.f.local, READ_ACCESS)){
@@ -10178,7 +10155,7 @@ peMsgCollected(Tcl_Interp *interp, MSG_COL_S *md, char *err)
 
 			if((*np)->body.type == TYPEOTHER
 			   && !set_mime_type_by_extension(&(*np)->body, a->l.f.local))
-			  set_mime_type_by_grope(&(*np)->body, NULL);
+			  set_mime_type_by_grope(&(*np)->body);
 
 			so_release((STORE_S *)(*np)->body.contents.text.data);
 		    }
@@ -10219,7 +10196,8 @@ peMsgCollected(Tcl_Interp *interp, MSG_COL_S *md, char *err)
 
 	/* possibly up/downgrade charset, figure out c-t-e? */
 	tbp->encoding = ENCOTHER;
-	set_mime_type_by_grope(tbp, charset);
+	set_mime_type_by_grope(tbp);
+	set_charset_possibly_to_ascii(tbp, charset);
 
 	/* set any text flowed param */
 	if(md->flowed)
@@ -10977,21 +10955,18 @@ PEAddressCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 			    }
 
 			    if(astr){
-				char    *tmp_a_string, *p, *dummy = NULL;
+				char    *tmp_a_string, *p;
 				ADDRESS *a = NULL;
 				int	     l;
 
 				l = (4*strlen(astr) + 1) * sizeof(char);
 				p = (char *) fs_get(l);
-				if(rfc1522_decode((unsigned char *) p, l, astr, &dummy) == (unsigned char *) p){
+				if(rfc1522_decode_to_utf8((unsigned char *) p, l, astr) == (unsigned char *) p){
 				    fs_give((void **) &astr);
 				    astr = p;
 				}
 				else
 				  fs_give((void **)&p);
-
-				if(dummy)
-				  fs_give((void **)&dummy);
 			    }
 			}
 
@@ -12959,11 +12934,11 @@ wp_prune_folders(CONTEXT_S  *ctxt,
 
     mail_list = get_mail_list(ctxt, fcc);
 
-    for(sm = mail_list; sm != NULL && sm->name && sm->name[0] != '\0'; sm++)
+    for(sm = mail_list; sm != NULL && sm->name != NULL; sm++)
       if(sm->month_num == cur_month - 1)
         break;  /* matched a month */
  
-    month_to_use = (sm == NULL || sm->name[0] == '\0') ? cur_month - 1 : 0;
+    month_to_use = (sm == NULL || sm->name == NULL) ? cur_month - 1 : 0;
 
     if(!(month_to_use == 0 || pr == PRUNE_NO_AND_ASK || pr == PRUNE_NO_AND_NO)){
 	strncpy(path2, fcc, sizeof(path2)-1);
@@ -13000,8 +12975,11 @@ wp_prune_folders(CONTEXT_S  *ctxt,
 	}
 	if(resObj)
 	    secObj = Tcl_NewListObj(0, NULL);
-        for(sm = mail_list; sm != NULL && sm->name && sm->name[0] != '\0'; sm++)
+        for(sm = mail_list; sm != NULL && sm->name != NULL; sm++){
+	    if(sm->name[0] == '\0')		/* can't happen */
+	      continue;
 	    Tcl_ListObjAppendElement(interp, secObj, Tcl_NewStringObj(sm->name, -1));
+	}
 	if(resObj)
 	  Tcl_ListObjAppendElement(interp, resObj, secObj);
     } else if(resObj)

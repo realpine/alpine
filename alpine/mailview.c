@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailview.c 394 2007-01-25 20:29:45Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailview.c 450 2007-02-26 20:19:42Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -298,7 +298,7 @@ mail_view_screen(struct pine *ps)
 			 ps->ttyo->screen_rows - (SCROLL_LINES_ABOVE(ps)
 						  + SCROLL_LINES_BELOW(ps)));
 
-	flags = FM_DISPLAY|FM_UTF8;
+	flags = FM_DISPLAY;
 	if(last_message_viewed != mn_get_cur(ps->msgmap)
 	   || last_was_full_header == 2 || cmd == MC_TOGGLE)
 	  flags |= FM_NEW_MESS;
@@ -690,7 +690,7 @@ scroll_handle_prompt(HANDLE_S *handle, int force)
     if(handle->type == URL){
 	launch_opts[4].ch = 'u';
 
-	if(!(local_h = !struncmp(handle->h.url.path, "x-pine-", 7))
+	if(!(local_h = !struncmp(handle->h.url.path, "x-alpine-", 9))
 	   && (handle->h.url.tool
 	       || ((local_h = url_local_handler(handle->h.url.path) != NULL)
 		   && (handle->h.url.tool = url_external_handler(handle,1)))
@@ -788,7 +788,7 @@ scroll_handle_prompt(HANDLE_S *handle, int force)
 
     if(force
        || (handle->type == URL
-	   && !struncmp(handle->h.url.path, "x-pine-", 7)))
+	   && !struncmp(handle->h.url.path, "x-alpine-", 9)))
       return(1);
 
     while(1){
@@ -1649,10 +1649,11 @@ url_local_handler(char *s)
 	{"ldap://", 7, url_local_ldap},
 #endif
 	{"news:", 5, url_local_news},
-	{"x-pine-help:", 11, url_local_helper},
-	{"x-pine-phone-home:", 18, url_local_phone_home},
-	{"x-pine-config:", 14, url_local_config},
-	{"x-pine-cert:", 12, url_local_certdetails},
+	{"x-alpine-gripe:", 15, gripe_gripe_to},
+	{"x-alpine-help:", 14, url_local_helper},
+	{"x-alpine-phone-home:", 20, url_local_phone_home},
+	{"x-alpine-config:", 16, url_local_config},
+	{"x-alpine-cert:", 14, url_local_certdetails},
 	{"#", 1, url_local_fragment},
 	{NULL, 0, NULL}
     };
@@ -1916,7 +1917,7 @@ url_local_imap(char *url)
 	  case 1 :				/* requested folder open */
 	    ps_global->next_screen = mail_index_screen;
 
-	    if(uid_val != ps_global->mail_stream->uid_validity){
+	    if(uid_val && uid_val != ps_global->mail_stream->uid_validity){
 		/* Complain! */
 		q_status_message(SM_ORDER|SM_DING, 3, 3,
 		     "Warning!  Referenced folder changed since URL recorded");
@@ -2193,7 +2194,7 @@ url_local_fragment(char *fragment)
 int
 url_local_phone_home(char *url)
 {
-    phone_home(url + 18);	/* 18 == length of "x-pine-phone-home:" */
+    phone_home(url + strlen("x-alpine-phone-home:"));
     return(2);
 }
 
@@ -2639,6 +2640,9 @@ scrolltool(SCROLL_S *sparms)
 	if(sparms->text.handles
 	   && sparms->text.handles->type != Folder)
 	  mswin_mousetrackcallback(pcpine_view_cursor);
+
+	if(ps_global->prev_screen == mail_view_screen)
+	  mswin_setviewinwindcallback(view_in_new_window);
 #endif
         ch = read_command(&utf8str);
 #ifdef	MOUSE
@@ -2653,6 +2657,7 @@ scrolltool(SCROLL_S *sparms)
 	mswin_sethelptextcallback(NULL);
 	mswin_clearresizecallback(pcpine_resize_scroll);
 	mswin_mousetrackcallback(NULL);
+	mswin_setviewinwindcallback(NULL);
 	cur_top_line = scroll_state(SS_CUR)->top_text_line;
 #endif
 
@@ -5199,6 +5204,9 @@ format_message_popup(sparms, in_handle)
 	VIEWPOPUP(&fmp_menu[i], 'S', in_handle ? "&Save Message" : "&Save");
 
 	i++;
+	VIEWPOPUP(&fmp_menu[i], 'E', in_handle ? "&Export Message" : "&Export");
+
+	i++;
 	VIEWPOPUP(&fmp_menu[i], '%', in_handle ? "Print Message" : "Print");
 
 	i++;
@@ -5209,14 +5217,28 @@ format_message_popup(sparms, in_handle)
 	VIEWPOPUP(&fmp_menu[i], 'F',
 		  in_handle ? "&Forward Message" : "&Forward");
 
+	i++;
+	VIEWPOPUP(&fmp_menu[i], 'B',
+		  in_handle ? "&Bounce Message" : "&Bounce");
+
+	i++;
+	VIEWPOPUP(&fmp_menu[i], 'T', "&Take Addresses");
+
 	fmp_menu[++i].type = tSeparator;
 
 	if(mn_get_cur(ps_global->msgmap) < mn_get_total(ps_global->msgmap)){
 	    i++;
 	    VIEWPOPUP(&fmp_menu[i], 'N', "View &Next Message");
-
-	    fmp_menu[++i].type = tSeparator;
 	}
+
+	if(mn_get_cur(ps_global->msgmap) > 0){
+	    i++;
+	    VIEWPOPUP(&fmp_menu[i], 'P', "View &Prev Message");
+	}
+
+	if(mn_get_cur(ps_global->msgmap) < mn_get_total(ps_global->msgmap)
+	   || mn_get_cur(ps_global->msgmap) > 0)
+	  fmp_menu[++i].type = tSeparator;
 
 	/* Offer the attachment screen? */
 	for(n = 0; ps_global->atmts && ps_global->atmts[n].description; n++)

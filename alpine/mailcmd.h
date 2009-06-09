@@ -1,5 +1,5 @@
 /*
- * $Id: mailcmd.h 220 2006-11-06 19:58:04Z hubert@u.washington.edu $
+ * $Id: mailcmd.h 453 2007-02-27 00:10:47Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -71,7 +71,7 @@ char	   *broach_folder(int, int, int *, CONTEXT_S **);
 int	    ask_mailbox_reopen(struct pine *, int *);
 void	    visit_folder(struct pine *, char *, CONTEXT_S *, MAILSTREAM *, unsigned long);
 int	    select_by_current(struct pine *, MSGNO_S *, CmdWhere);
-int	    apply_command(struct pine *, MAILSTREAM *, MSGNO_S *, int, int, int);
+int	    apply_command(struct pine *, MAILSTREAM *, MSGNO_S *, UCS, int, int);
 char      **choose_list_of_keywords(void);
 char      **choose_list_of_charsets(void);
 int	    display_folder_list(CONTEXT_S **, char *, int,

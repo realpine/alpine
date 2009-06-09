@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: detach.c 310 2006-12-09 01:06:08Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: detach.c 442 2007-02-16 23:01:28Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -142,14 +142,15 @@ detach(MAILSTREAM *stream,		/* c-client stream to use         */
        long int *len,			/* returns bytes read in this arg */
        gf_io_t pc,			/* where to put it		  */
        FILTLIST_S *aux_filters,		/* null terminated array of filts */
-       int flags)
+       long flags)
 {
     unsigned long  rv;
     unsigned long  size;
-    int            we_cancel = 0;
+   long            fetch_flags;
+    int            we_cancel = 0, is_text;
     char          *status, trigger[MAILTMPLEN];
+    char          *charset = NULL;
     BODY	  *body;
-    SourceType     src = CharStar;
     static char    err_string[100];
     FETCH_READC_S  fetch_part;
 
@@ -163,12 +164,15 @@ detach(MAILSTREAM *stream,		/* c-client stream to use         */
     if(!(body = mail_body(stream, msg_no, (unsigned char *) part_no)))
       return(_("Can't find body for requested message"));
 
+    is_text = body->type == TYPETEXT;
+
     size = body->size.bytes;
     if(partial > 0L && partial < size)
       size = partial;
 
+    fetch_flags = (flags & ~DT_NODFILTER);
     fetch_readc_init(&fetch_part, stream, msg_no, part_no, body->size.bytes, partial,
-		     flags);
+		     fetch_flags);
     rv = size ? size : 1;
 
     switch(body->encoding) {		/* handle decoding */
@@ -196,16 +200,27 @@ detach(MAILSTREAM *stream,		/* c-client stream to use         */
 	break;
     }
 
+    /* convert all text to UTF-8 */
+    if(is_text){
+	charset = rfc2231_get_param(body->parameter, "charset", NULL, NULL);
+	if(charset && strucmp(charset, "us-ascii") && strucmp(charset, "utf-8"))
+	  gf_link_filter(gf_utf8, gf_utf8_opt(charset));
+
+	if(charset)
+	  fs_give((void **) &charset);
+    }
+
     /*
      * If we're detaching a text segment and there are user-defined
      * filters and there are text triggers to look for, install filter
      * to let us look at each line...
      */
     display_filter = NULL;
-    if(body->type == TYPETEXT
+    if(is_text
        && ps_global->tools.display_filter
        && ps_global->tools.display_filter_trigger
-       && ps_global->VAR_DISPLAY_FILTERS){
+       && ps_global->VAR_DISPLAY_FILTERS
+       && !(flags & DT_NODFILTER)){
 	/* check for "static" triggers (i.e., none or CHARSET) */
 	if(!(display_filter = (*ps_global->tools.display_filter_trigger)(body, trigger, sizeof(trigger)))
 	   && (df_trigger_list = build_trigger_list())){
@@ -229,19 +244,20 @@ detach(MAILSTREAM *stream,		/* c-client stream to use         */
      * a multipart segment since an external handler's going to have to
      * make sense of it...
      */
-    if(body->type == TYPETEXT
-       || body->type == TYPEMESSAGE
-       || body->type == TYPEMULTIPART){
-	gf_link_filter(gf_nvtnl_local, NULL);
-    }
+    if(is_text || body->type == TYPEMESSAGE || body->type == TYPEMULTIPART)
+      gf_link_filter(gf_nvtnl_local, NULL);
 
     /*
      * If we're detaching a text segment and a user-defined filter may
      * need to be invoked later (see below), decode the segment into
      * a temporary storage object...
      */
-    if(body->type == TYPETEXT && ps_global->VAR_DISPLAY_FILTERS
-       && !(detach_so = so_get(src, NULL, EDIT_ACCESS))){
+    if(is_text
+       && ps_global->tools.display_filter
+       && ps_global->tools.display_filter_trigger
+       && ps_global->VAR_DISPLAY_FILTERS
+       && !(flags & DT_NODFILTER)
+       && !(detach_so = so_get(CharStar, NULL, EDIT_ACCESS))){
       strncpy(err_string,
 	   _("Formatting error: no space to make copy, no display filters used"), sizeof(err_string));
       err_string[sizeof(err_string)-1] = '\0';
@@ -322,9 +338,6 @@ detach(MAILSTREAM *stream,		/* c-client stream to use         */
 
     if (len)
       *len = rv;
-
-    if(0 && display_filter)
-      fs_give((void **) &display_filter);
 
     if(df_trigger_list)
       blast_trigger_list(&df_trigger_list);
@@ -566,13 +579,11 @@ fetch_readc_init(FETCH_READC_S *frd, MAILSTREAM *stream, long int msgno,
 	frd->endp  = frd->chunk;
 	frd->free_me++;
 
-#if	!defined(DOS) || defined(WIN32)
 	intr_handling_on();
 	if(!(partial > 0L && partial < size)){
 	    frd->cache = so_get(CharStar, NULL, EDIT_ACCESS);
 	    so_truncate(frd->cache, size);		/* pre-allocate */
 	}
-#endif
     }
     else{				/* fetch the whole bloody thing here */
 	frd->chunk = mail_fetch_body(stream, msgno, section, &frd->read, flags);
@@ -619,21 +630,6 @@ fetch_readc_cleanup(void)
 	}
     }
 
-#if	defined(DOS) && !defined(WIN32)
-    /*
-     * free up file pointer, and delete tmpfile opened for
-     * dos_gets.  Again, we can't use DOS' tmpfile() as it writes root
-     * sheesh.
-     */
-    if(src == FileStar){
-	fclose(append_file);
-	append_file = NULL;
-	our_unlink(tmpfile_name);
-	fs_give((void **)&tmpfile_name);
-	mail_parameters(stream, SET_GETS, (void *)NULL);
-	mail_gc(stream, GC_TEXTS);
-    }
-#endif
 #ifndef	DOS
     intr_handling_off();
 #endif

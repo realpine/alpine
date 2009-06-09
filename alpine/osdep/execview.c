@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: execview.c 289 2006-11-30 19:42:10Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: execview.c 437 2007-02-12 19:05:08Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -112,6 +112,16 @@ exec_mailcap_cmd(MCAP_CMD_S *mc_cmd, char *image_file, int needsterminal)
 	 * display the "Open With..." dialog.  Go figure, some
 	 * things Microsoft just wants to keep to themselves.
 	 */
+
+    /*
+     * 2/1/2007. No idea when the above comment was written, but it is
+     *  documented now at least. The below two urls describe the "openas" verb:
+     *
+     * http://blogs.msdn.com/oldnewthing/archive/2004/11/26/270710.aspx
+     * http://msdn.microsoft.com/library/default.asp?url=/library/en-us/
+     *      shellcc/platform/shell/programmersguide/shell_basics/
+     *      shell_basics_extending/context.asp
+     */
 	success = mswin_shell_exec(cmd, &childProcess) == 0;
     }
     else{

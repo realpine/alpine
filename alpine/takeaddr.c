@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: takeaddr.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: takeaddr.c 409 2007-02-01 22:44:01Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -120,18 +120,25 @@ edit_nickname(AdrBk *abook, AddrScrn_Disp *dl, int command_line, char *orig,
 {
     char         edit_buf[MAX_NICKNAME + 1];
     HelpType     help;
-    int          flags, rc;
+    int          i, flags, rc;
     AdrBk_Entry *check, *passed_in_ae;
-    ESCKEY_S     ekey[2];
+    ESCKEY_S     ekey[3];
     SAVE_STATE_S state;  /* For saving state of addrbooks temporarily */
     char        *error = NULL;
 
-    ekey[0].ch    = ctrl('T');
-    ekey[0].rval  = 2;
-    ekey[0].name  = "^T";
-    ekey[0].label = N_("To AddrBk");
+    ekey[i = 0].ch    = ctrl('T');
+    ekey[i].rval  = 2;
+    ekey[i].name  = "^T";
+    ekey[i++].label = N_("To AddrBk");
 
-    ekey[1].ch    = -1;
+    if(F_ON(F_ENABLE_TAB_COMPLETE,ps_global)){
+	ekey[i].ch      =  ctrl('I');
+	ekey[i].rval    = 11;
+	ekey[i].name    = "TAB";
+	ekey[i++].label = N_("Complete");
+    }
+
+    ekey[i].ch    = -1;
 
     strncpy(edit_buf, orig, sizeof(edit_buf)-1);
     edit_buf[sizeof(edit_buf)-1] = '\0';
@@ -197,10 +204,31 @@ edit_nickname(AdrBk *abook, AddrScrn_Disp *dl, int command_line, char *orig,
 	    if(ps_global->redrawer = redraw) /* reset old value, and test */
 	      (*ps_global->redrawer)();
 	}
+	else if(rc == 11){ /* TAB */
+	    if(edit_buf[0]){
+	      char *new_nickname = NULL;
+	      int l;
+	      int ambiguity;
+
+	      ambiguity = adrbk_nick_complete(edit_buf, &new_nickname, 0);
+	      if(new_nickname){
+		if(*new_nickname){
+		  strncpy(edit_buf, new_nickname, sizeof(edit_buf));
+		  edit_buf[sizeof(edit_buf)-1] = '\0';
+	        }
+
+		fs_give((void **) &new_nickname);
+	      }
+
+	      if(ambiguity != 2)
+		Writechar(BELL, 0);
+	    }
+	}
             
     }while(rc == 2 ||
 	   rc == 3 ||
 	   rc == 4 ||
+	   rc == 11||
 	   nickname_check(edit_buf, &error) ||
            ((check =
 	       adrbk_lookup_by_nick(abook, edit_buf, (adrbk_cntr_t *)NULL)) &&
@@ -549,9 +577,8 @@ get_nick:
 	    snprintf(prompt, sizeof(prompt), _("Entry %s (%s) exists, replace ? "),
 		  new_nickname,
 		  (abe->fullname && abe->fullname[0])
-			? (char *)rfc1522_decode((unsigned char *)tmp_20k_buf,
-						 SIZEOF_20KBUF,
-						 abe->fullname, NULL)
+			? (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+							 SIZEOF_20KBUF, abe->fullname)
 			: "<no long name>");
 	    prompt[sizeof(prompt)-1] = '\0';
 	    ans = radio_buttons(prompt,
@@ -574,9 +601,8 @@ get_nick:
 		  abe->tag == List ? "List" : "Entry",
 		  new_nickname,
 		  (abe->fullname && abe->fullname[0])
-			? (char *)rfc1522_decode((unsigned char *)tmp_20k_buf,
-						 SIZEOF_20KBUF,
-						 abe->fullname, NULL)
+			? (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+							 SIZEOF_20KBUF, abe->fullname)
 			: "<no long name>");
 	    prompt[sizeof(prompt)-1] = '\0';
 
@@ -1561,9 +1587,8 @@ whereis_taline(TA_S *current)
     if(rc == 0 && buf[0]){
 	p = current;
 	while(p = next_taline(p))
-	  if(srchstr((char *)rfc1522_decode((unsigned char *)tmp_20k_buf,
-					    SIZEOF_20KBUF,
-					    p->strvalue, NULL),
+	  if(srchstr((char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+						    SIZEOF_20KBUF, p->strvalue),
 		     buf)){
 	      found++;
 	      break;
@@ -1573,9 +1598,8 @@ whereis_taline(TA_S *current)
 	    p = first_taline(current);
 
 	    while(p != current)
-	      if(srchstr((char *)rfc1522_decode((unsigned char *)tmp_20k_buf,
-						SIZEOF_20KBUF,
-						p->strvalue, NULL),
+	      if(srchstr((char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+							SIZEOF_20KBUF, p->strvalue),
 			 buf)){
 		  found++;
 		  wrapped++;
@@ -1754,9 +1778,8 @@ update_takeaddr_screen(struct pine *ps, TA_S *current, TA_SCREEN_S *screen, Pos 
 	if(ctmp
 	   && !ctmp->print
 	   && ctmp->strvalue
-	   && longest < (width
-		   = utf8_width((char *)rfc1522_decode((unsigned char *)tmp_20k_buf,
-						  SIZEOF_20KBUF, ctmp->strvalue, NULL))))
+	   && longest < (width = utf8_width((char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+									   SIZEOF_20KBUF, ctmp->strvalue))))
 	  longest = width;
     }
 
@@ -1793,8 +1816,8 @@ update_takeaddr_screen(struct pine *ps, TA_S *current, TA_SCREEN_S *screen, Pos 
 	 * Copy the value to a temp buffer expanding tabs, and
 	 * making sure not to write beyond screen right...
 	 */
-	q = (char *) rfc1522_decode((unsigned char *)tmp_20k_buf,
-				   SIZEOF_20KBUF, ctmp->strvalue, NULL);
+	q = (char *) rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+					    SIZEOF_20KBUF, ctmp->strvalue);
 
 	for(i = 0; q[i] && j < ps->ttyo->screen_cols && p-buf1 < sizeof(buf1); i++){
 	    if(q[i] == ctrl('I')){

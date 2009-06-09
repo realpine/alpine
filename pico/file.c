@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: file.c 343 2006-12-22 18:25:39Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: file.c 449 2007-02-23 22:31:28Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -30,6 +30,7 @@ static char rcsid[] = "$Id: file.c 343 2006-12-22 18:25:39Z hubert@u.washington.
 
 
 int   ifile(char *);
+void  init_insmsgchar_cbuf(void);
 int   insmsgchar(int);
 char *file_split(char *, size_t, char *, int);
 
@@ -45,6 +46,7 @@ fileread(int f, int n)
 {
         register int    s;
         char fname[NFILEN];
+	EML eml;
 
         if ((s=mlreply_utf8(_("Read file: "), fname, NFILEN, QNORML, NULL)) != TRUE)
                 return(s);
@@ -60,7 +62,8 @@ fileread(int f, int n)
 	}
 
 	if((gmode & MDTREE) && !in_oper_tree(fname)){
-	  emlwrite(_("Can't read file from outside of %s"), opertree);
+	  eml.s = opertree;
+	  emlwrite(_("Can't read file from outside of %s"), &eml);
 	  return(0);
 	}
 
@@ -113,6 +116,7 @@ insfile(int f, int n)
     int		 retval, bye = 0, msg = 0;
     char	 prompt[64], *infile;
     EXTRAKEYS    menu_ins[5];
+    EML          eml;
     
     if (curbp->b_mode&MDVIEW) /* don't allow this command if */
       return(rdonly()); /* we are in read only mode */
@@ -169,8 +173,11 @@ insfile(int f, int n)
         if(fname[0] && (s == TRUE || s == FALSE)){
 	    bye++;
 	    if(msg){
-		if((*Pmaster->msgntext)(atol(fname), insmsgchar))
-		  emlwrite(_("Message %s included"), fname);
+		init_insmsgchar_cbuf();
+		if((*Pmaster->msgntext)(atol(fname), insmsgchar)){
+		    eml.s = fname;
+		    emlwrite(_("Message %s included"), &eml);
+		}
 	    }
 	    else{
 		bye++;
@@ -180,16 +187,17 @@ insfile(int f, int n)
 		else{
 		    if((gmode & MDTREE)
 		       && !compresspath(opertree, fname, sizeof(fname))){
+			eml.s = opertree;
 			emlwrite(
-			_("Can't insert file from outside of %s: too many ..'s"),
-			opertree);
+			_("Can't insert file from outside of %s: too many ..'s"), &eml);
 		    }
 		    else{
 			fixpath(fname, sizeof(fname));
 
-			if((gmode & MDTREE) && !in_oper_tree(fname))
-			  emlwrite(_("Can't insert file from outside of %s"),
-				    opertree);
+			if((gmode & MDTREE) && !in_oper_tree(fname)){
+			    eml.s = opertree;
+			    emlwrite(_("Can't insert file from outside of %s"), &eml);
+			}
 			else
 			  retval = ifile(fname);
 		    }
@@ -416,19 +424,42 @@ file_split(char *dirbuf, size_t dirbuflen, char *orig_fname, int is_for_browse)
     return fn;
 }
 
+
+static CBUF_S insmsgchar_cb;
+
+void
+init_insmsgchar_cbuf(void)
+{
+    insmsgchar_cb.cbuf[0] = '\0'; 
+    insmsgchar_cb.cbufp = insmsgchar_cb.cbuf;
+    insmsgchar_cb.cbufend = insmsgchar_cb.cbuf;
+}
+
+
+/*
+ * This is called with a stream of UTF-8 characters.
+ * We change that stream into UCS characters and insert
+ * those characters.
+ */
 int
 insmsgchar(int c)
 {
     if(c == '\n'){
-	UCS *p;
+	UCS *u;
 
 	lnewline();
-	for(p = glo_quote_str; p && *p; p++)
-	  if(!linsert(1, *p))
+	for(u = glo_quote_str; u && *u; u++)
+	  if(!linsert(1, *u))
 	    return(0);
     }
-    else if(c != '\r')			/* ignore CR (likely CR of CRLF) */
-      return(linsert(1, c));
+    else if(c != '\r'){			/* ignore CR (likely CR of CRLF) */
+	int outchars;
+	UCS ucs;
+
+	if(outchars = utf8_to_ucs4_oneatatime(c, &insmsgchar_cb, &ucs, NULL))
+	  if(!linsert(1, ucs))
+	    return(0);
+    }
 
     return(1);
 }
@@ -534,6 +565,7 @@ filewrite(int f, int n)
         char            fname[NFILEN];
 	char		shows[NLINE], origshows[NLINE], *bufp;
 	EXTRAKEYS	menu_write[3];
+	EML             eml;
 
 	if(curbp->b_fname[0] != 0){
 	  strncpy(fname, curbp->b_fname, sizeof(curbp->b_fname));
@@ -562,15 +594,16 @@ filewrite(int f, int n)
 		}
 	      case TRUE:
 		if((gmode & MDTREE) && !compresspath(opertree, fname, sizeof(fname))){
-		    emlwrite(_("Can't write outside of %s: too many ..'s"),
-			     opertree);
+		    eml.s = opertree;
+		    emlwrite(_("Can't write outside of %s: too many ..'s"), &eml);
 		    sleep(2);
 		    continue;
 		}
 		else{
 		    fixpath(fname, sizeof(fname));	/*  fixup ~ in file name  */
 		    if((gmode & MDTREE) && !in_oper_tree(fname)){
-			emlwrite(_("Can't write outside of %s"), opertree);
+			eml.s = opertree;
+			emlwrite(_("Can't write outside of %s"), &eml);
 			sleep(2);
 			continue;
 		    }
@@ -744,8 +777,10 @@ filewrite(int f, int n)
 		    }
 		}
 
-		if(s > 1)
-		  emlwrite(_("Wrote %s lines"), comatose(s));
+		if(s > 1){
+		    eml.s = comatose(s);
+		    emlwrite(_("Wrote %s lines"), &eml);
+		}
 		else
 		  emlwrite(_("Wrote 1 line"), NULL);
         }
@@ -767,6 +802,7 @@ filesave(int f, int n)
 {
         register WINDOW *wp;
         register int    s;
+	EML eml;
 
 	if (curbp->b_mode&MDVIEW)	/* don't allow this command if	*/
 		return(rdonly());	/* we are in read only mode	*/
@@ -789,7 +825,8 @@ filesave(int f, int n)
                         wp = wp->w_wndp;
                 }
 		if(s > 1){
-		    emlwrite(_("Wrote %s lines"), comatose(s));
+		    eml.s = comatose(s);
+		    emlwrite(_("Wrote %s lines"), &eml);
 		}
 		else
 		  emlwrite(_("Wrote 1 line"), NULL);
@@ -902,6 +939,7 @@ ifile(char fname[])
         UCS  line[NLINE], *linep;
 	long nline;
 	int  s, done, newline, charsread = 0;
+	EML eml;
 
         if ((s=ffropen(fname)) != FIOSUC){      /* Hard file open.      */
 	    fioperr(s, fname);
@@ -914,7 +952,8 @@ ifile(char fname[])
 	curbp->b_flag &= ~BFTEMP;		/* and are not temporary*/
 	curbp->b_linecnt = -1;			/* must be recalculated */
 
-        emlwrite(_("Inserting %s."), fname);
+	eml.s = fname;
+        emlwrite(_("Inserting %s."), &eml);
 	done = newline = 0;
 	nline = 0L;
 	while(!done)

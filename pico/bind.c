@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: bind.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: bind.c 421 2007-02-05 22:53:41Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -307,8 +307,7 @@ wscrollw(int begrow, int endrow, char *utf8textp[], int textlen)
 	    case  NODATA :
 	        break;
 	    default :
-		emlwrite(_("Unknown Command."), NULL);
-		(*term.t_beep)();
+		unknown_command(c);
 		break;
 	}
     }
@@ -341,7 +340,7 @@ normalize_cmd(UCS c, UCS list[][2], int sc)
 	      return(c);
 
 	    if(((FUNC&c) == FUNC) && !((gmode&MDFKEY) == MDFKEY))
-	      return(BADESC);			/* keystroke not allowed! */
+	      return(c);	/* not allowed, let caller handle it */
 	    else
 	      return(list[i][1]);		/* never return func keys */
 	}

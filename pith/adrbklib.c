@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: adrbklib.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: adrbklib.c 409 2007-02-01 22:44:01Z mikes@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -1210,6 +1210,110 @@ lookup_in_abook_trie(AdrBk_Trie *t, char *str)
 }
 
 
+/*
+ * Look in this address book for the longest unambiguous prefix
+ * of a nickname which begins with the characters in "prefix".
+ *
+ * Returns    0 -- no nickname has prefix as a prefix
+ *            1  -- more than one nickname begins with
+ *                              the answer being returned
+ *            2 -- the returned answer is a complete
+ *                              nickname and there are no longer nicknames
+ *                              which begin with the same characters
+ *
+ * Allocated answer is returned in answer argument.
+ * Caller needs to free the answer.
+ */
+int
+adrbk_longest_unambig_nick(AdrBk *ab, char *prefix, char **answer)
+{
+    AdrBk_Trie *t;
+    int          k;
+    char        *p, *lookthisup;
+    char         buf[1000];
+    char         ans[1000];
+    int          ret = 0;
+
+    if(!ab || !prefix || !ab->nick_trie)
+      return(ret);
+
+    if(answer)
+      *answer = NULL;
+
+    t = ab->nick_trie;
+
+    /* make lookup case independent */
+
+    for(p = prefix; *p && !(*p & 0x80) && islower((unsigned char) *p); p++)
+      ;
+
+    if(*p){
+	strncpy(buf, prefix, sizeof(buf));
+	buf[sizeof(buf)-1] = '\0';
+	for(p = buf; *p; p++)
+	  if(!(*p & 0x80) && isupper((unsigned char) *p))
+	    *p = tolower(*p);
+
+	lookthisup = buf;
+    }
+    else
+      lookthisup = prefix;
+
+    p = lookthisup;
+
+    while(*p){
+	/* search for character at this level */
+	while(t->value != *p){
+	    if(t->right == NULL)
+	      return(ret);		/* no match */
+
+	    t = t->right;
+	}
+
+	if(*++p == '\0'){		/* matched through end of prefix */
+	    strncpy(ans, prefix, sizeof(ans));
+	    ans[sizeof(ans)-1] = '\0';
+	    break;
+	}
+
+	/* need to go down to match next character */
+	if(t->down == NULL)		/* no match */
+	  return(ret);
+
+	t = t->down;
+    }
+
+    /*
+     * If ans is filled in that means we found at least one entry
+     * that matches up through the prefix. Keep going as long as
+     * unambiguous.
+     */
+    if(ans[0] && answer){
+	k = strlen(ans);
+
+	/*
+	 * entrynum == NO_NEXT means this isn't a terminal node (a complete nickname)
+	 * down means there are more possible characters
+	 * !down->right means there is only one possible next char
+	 */
+	while(t->entrynum == NO_NEXT && t->down && !t->down->right && k+1 < sizeof(ans)){
+	    ans[k++] = t->down->value;
+	    ans[k] = '\0';
+	    t = t->down;
+	}
+
+	if(t->down)
+	  ret = 1;
+	else
+	  ret = 2;
+
+	*answer = cpystr(ans);
+    }
+
+    return(ret);
+}
+
+
 void
 free_abook_trie(AdrBk_Trie **trie)
 {
@@ -1422,7 +1526,7 @@ init_ae(AdrBk *ab, AdrBk_Entry *a, char *str)
     char *addrfield = (char *) NULL;
     char *addrfield_end;
     char *nickname, *fullname, *fcc, *extra;
-    char *conv, *dummy;
+    char *conv;
 
     if(!ab){
 	dprint((2, "init_ae: found trouble: NULL ab\n"));
@@ -4345,7 +4449,6 @@ cmp_ae_by_full_lists_last(const qsort_t *a, const qsort_t *b)
       result = -1;
     else{
 	register char *p, *q, *r, *s;
-	char *dummy = NULL;
 
 	p = (*x)->fullname;
 	if(*p == '"' && *(p+1))
@@ -4355,17 +4458,11 @@ cmp_ae_by_full_lists_last(const qsort_t *a, const qsort_t *b)
 	if(*q == '"' && *(q+1))
 	  q++;
 
-	r = (char *)rfc1522_decode((unsigned char *)tmp_20k_buf,
-				   SIZEOF_20KBUF, p, &dummy);
-	if(dummy){
-	    fs_give((void **)&dummy);
-	    dummy = NULL;
-	}
+	r = (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+					   SIZEOF_20KBUF, p);
 	
-	s = (char *)rfc1522_decode((unsigned char *)tmp_20k_buf+10000,
-				   SIZEOF_20KBUF-10000, q, &dummy);
-	if(dummy)
-	  fs_give((void **)&dummy);
+	s = (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf+10000,
+					   SIZEOF_20KBUF-10000, q);
 
 	result = (*pcollator)(r, s);
 	if(result == 0)
@@ -4412,7 +4509,6 @@ cmp_ae_by_full(const qsort_t *a, const qsort_t *b)
                 **y = (AdrBk_Entry **)b;
     int result;
     register char *p, *q, *r, *s;
-    char *dummy = NULL;
 
     p = (*x)->fullname;
     if(*p == '"' && *(p+1))
@@ -4422,18 +4518,10 @@ cmp_ae_by_full(const qsort_t *a, const qsort_t *b)
     if(*q == '"' && *(q+1))
       q++;
 
-    r = (char *)rfc1522_decode((unsigned char *)tmp_20k_buf,
-			       SIZEOF_20KBUF, p, &dummy);
-    if(dummy){
-	fs_give((void **)&dummy);
-	dummy = NULL;
-    }
-    
-    s = (char *)rfc1522_decode((unsigned char *)tmp_20k_buf+10000,
-			       SIZEOF_20KBUF-10000, q, &dummy);
-    if(dummy)
-      fs_give((void **)&dummy);
-
+    r = (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+				       SIZEOF_20KBUF, p);
+    s = (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf+10000,
+				       SIZEOF_20KBUF-10000, q);
     result = (*pcollator)(r, s);
     if(result == 0)
       result = (*pcollator)((*x)->nickname, (*y)->nickname);
@@ -4559,7 +4647,6 @@ cmp_addr(const qsort_t *a1, const qsort_t *a2)
 {
     char *x = *(char **)a1, *y = *(char **)a2;
     char *r, *s;
-    char *dummy = NULL;
 
     if(x && *x == '"')
       x++;
@@ -4567,18 +4654,10 @@ cmp_addr(const qsort_t *a1, const qsort_t *a2)
     if(y && *y == '"')
       y++;
     
-    r = (char *)rfc1522_decode((unsigned char *)tmp_20k_buf,
-			       SIZEOF_20KBUF, x, &dummy);
-    if(dummy){
-	fs_give((void **)&dummy);
-	dummy = NULL;
-    }
-    
-    s = (char *)rfc1522_decode((unsigned char *)tmp_20k_buf+10000,
-			       SIZEOF_20KBUF-10000, y, &dummy);
-    if(dummy)
-      fs_give((void **)&dummy);
-
+    r = (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+				       SIZEOF_20KBUF, x);
+    s = (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf+10000,
+				       SIZEOF_20KBUF-10000, y);
     return((*pcollator)(r, s));
 }
 
@@ -4595,13 +4674,7 @@ sort_addr_list(char **list)
     for(p = list; *p != NULL; p++)
       ;/* do nothing */
 
-    qsort((qsort_t *)list,
-#ifdef DYN
-          (p - list),
-#else          
-          (size_t)(p - list),
-#endif          
-	      sizeof(char *), cmp_addr);
+    qsort((qsort_t *)list, (size_t)(p - list), sizeof(char *), cmp_addr);
 }
 
 

@@ -1,5 +1,5 @@
 /*
- * $Id: estruct.h 380 2007-01-23 00:09:18Z hubert@u.washington.edu $
+ * $Id: estruct.h 417 2007-02-03 01:33:25Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -243,7 +243,7 @@ typedef	struct CELL {
 #define COLOR_ANSI8_OPT		0x01
 #define COLOR_ANSI16_OPT	0x02
 #define COLOR_ANSI256_OPT	0x04
-#define COLOR_ANSITRANS_OPT	0x08
+#define COLOR_TRANS_OPT		0x08
 
 /*
  * All text is kept in circularly linked lists of "LINE" structures. These
@@ -331,6 +331,14 @@ typedef struct	VIDEO {
 	short	v_flag;			/* Flags */
 	CELL	v_text[1];		/* Screen data. */
 }	VIDEO;
+
+
+typedef union eml {
+	char *s;
+	int   d;
+	long  l;
+	UCS   c;
+}	EML;
 
 typedef	struct _file_io_data {
 	FILE *fp;			/* stdio stream into file */

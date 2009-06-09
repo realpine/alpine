@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: addrstring.c 341 2006-12-21 23:44:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: addrstring.c 409 2007-02-01 22:44:01Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -25,7 +25,7 @@ static char rcsid[] = "$Id: addrstring.c 341 2006-12-21 23:44:18Z hubert@u.washi
 /*
  * Internal prototypes
  */
-void	rfc822_write_address_decode(char *, size_t, ADDRESS *, char **, int);
+void	rfc822_write_address_decode(char *, size_t, ADDRESS *, int);
 
 
 /*
@@ -178,8 +178,7 @@ decode_fullname_of_addrstring(char *addr, int verbose)
 {
     char    *pers_decoded,
             *tmp_a_string,
-            *ret = NULL,
-	    *dummy = NULL;
+	    *ret = NULL;
     ADDRESS *adr;
     static char *fakedomain = "@";
     RFC822BUFFER rbuf;
@@ -195,14 +194,10 @@ decode_fullname_of_addrstring(char *addr, int verbose)
 
     if(adr->personal && adr->personal[0]){
 	pers_decoded
-	    = cpystr((char *)rfc1522_decode((unsigned char *)tmp_20k_buf,
-					    SIZEOF_20KBUF,
-					    adr->personal,
-					    verbose ? NULL : &dummy));
+	    = cpystr((char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+						    SIZEOF_20KBUF, adr->personal));
 	fs_give((void **)&adr->personal);
 	adr->personal = pers_decoded;
-	if(dummy)
-	  fs_give((void **)&dummy);
     }
 
     len = est_size(adr);
@@ -261,15 +256,11 @@ addr_list_string(struct mail_address *adrlist,
 	}
     }
     else{
-	char *charset = NULL;
-
 	len = est_size(adrlist);
 	list = (char *) fs_get((len+1) * sizeof(char));
 	list[0] = '\0';
-	rfc822_write_address_decode(list, len+1, adrlist, &charset, do_quote);
+	rfc822_write_address_decode(list, len+1, adrlist, do_quote);
 	removing_leading_and_trailing_white_space(list);
-	if(charset)
-	  fs_give((void **)&charset);
     }
 
     list[len] = '\0';
@@ -297,8 +288,7 @@ static const char *rspecials_minus_quote_and_dot = "()<>@,;:\\[]\1\2\3\4\5\6\7\1
  * doesn't usually break anything.
  */
 void
-rfc822_write_address_decode(char *dest, size_t destlen, struct mail_address *adr,
-			    char **charset, int do_quote)
+rfc822_write_address_decode(char *dest, size_t destlen, struct mail_address *adr, int do_quote)
 {
     RFC822BUFFER buf;
     extern const char *rspecials;
@@ -316,8 +306,8 @@ rfc822_write_address_decode(char *dest, size_t destlen, struct mail_address *adr
 	    if(a->personal && *a->personal){
 		unsigned char *p;
 
-		p = rfc1522_decode((unsigned char *) tmp_20k_buf, SIZEOF_20KBUF,
-				   a->personal, charset);
+		p = rfc1522_decode_to_utf8((unsigned char *) tmp_20k_buf,
+					   SIZEOF_20KBUF, a->personal);
 
 		if(p && (char *) p != a->personal){
 		    fs_give((void **) &a->personal);
@@ -328,8 +318,7 @@ rfc822_write_address_decode(char *dest, size_t destlen, struct mail_address *adr
 	else if(a->mailbox && *a->mailbox){	/* start of group? */
 	    unsigned char *p;
 
-	    p = rfc1522_decode((unsigned char *) tmp_20k_buf, SIZEOF_20KBUF,
-			       a->mailbox, charset);
+	    p = rfc1522_decode_to_utf8((unsigned char *) tmp_20k_buf, SIZEOF_20KBUF, a->mailbox);
 
 	    if(p && (char *) p != a->mailbox){
 		fs_give((void **) &a->mailbox);
@@ -416,19 +405,15 @@ count_addrs(struct mail_address *adrlist)
 void
 a_little_addr_string(struct mail_address *addr, char *buf, size_t maxlen)
 {
-    char *dummy = NULL;
-
     buf[0] = '\0';
     if(addr){
 	if(addr->personal && addr->personal[0]){
 	    char tmp[MAILTMPLEN];
 
 	    snprintf(tmp, sizeof(tmp), "%s", addr->personal);
-	    iutf8ncpy(buf, (char *)rfc1522_decode((unsigned char *)tmp_20k_buf,
-						 SIZEOF_20KBUF, tmp, &dummy),
-		     maxlen);
-	    if(dummy)
-	      fs_give((void **)&dummy);
+	    iutf8ncpy(buf, (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+							  SIZEOF_20KBUF, tmp),
+		      maxlen);
 	}
 	else if(addr->mailbox && addr->mailbox[0]){
 	    strncpy(buf, addr->mailbox, maxlen);

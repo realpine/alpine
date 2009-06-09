@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: store.c 370 2007-01-18 21:46:34Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: store.c 435 2007-02-09 23:35:33Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -40,10 +40,10 @@ int	so_file_writec(int, STORE_S *);
 int	so_file_writec_locale(int, STORE_S *);
 int	so_cs_readc(unsigned char *, STORE_S *);
 int	so_cs_readc_locale(unsigned char *, STORE_S *);
+int	so_cs_readc_getchar(unsigned char *c, void *extraarg);
 int	so_file_readc(unsigned char *, STORE_S *);
 int	so_file_readc_locale(unsigned char *, STORE_S *);
-int     so_generic_readc_locale(unsigned char *c, STORE_S *so,
-			        int (*get_a_char)(unsigned char *c, STORE_S *so));
+int	so_file_readc_getchar(unsigned char *c, void *extraarg);
 int	so_cs_puts(STORE_S *, char *);
 int	so_cs_puts_locale(STORE_S *, char *);
 int	so_file_puts(STORE_S *, char *);
@@ -106,9 +106,9 @@ so_get(SourceType source, char *name, int rtype)
     memset(so, 0, sizeof(STORE_S));
     so->flags |= rtype;
 
-    so->cbuf[0] = '\0';
-    so->cbufp   = so->cbuf;
-    so->cbufend = so->cbuf;
+    so->cb.cbuf[0] = '\0';
+    so->cb.cbufp   = so->cb.cbuf;
+    so->cb.cbufend = so->cb.cbuf;
 
     if(name)					/* stash the name */
       so->name = cpystr(name);
@@ -382,7 +382,7 @@ so_cs_writec_locale(int c, STORE_S *so)
     int i, outchars;
     unsigned char obuf[MAX(MB_LEN_MAX,32)];
 
-    if(outchars = utf8_to_locale(c, so->cbuf, sizeof(so->cbuf), &so->cbufp, obuf, sizeof(obuf))){
+    if(outchars = utf8_to_locale(c, &so->cb, obuf, sizeof(obuf))){
 	for(i = 0; i < outchars; i++)
 	  if(so_cs_writec(obuf[i], so) != 1){
 	      rv = 0;
@@ -420,7 +420,7 @@ so_file_writec_locale(int c, STORE_S *so)
     int i, outchars;
     unsigned char obuf[MAX(MB_LEN_MAX,32)];
 
-    if(outchars = utf8_to_locale(c, so->cbuf, sizeof(so->cbuf), &so->cbufp, obuf, sizeof(obuf))){
+    if(outchars = utf8_to_locale(c, &so->cb, obuf, sizeof(obuf))){
 	for(i = 0; i < outchars; i++)
 	  if(so_file_writec(obuf[i], so) != 1){
 	      rv = 0;
@@ -451,7 +451,17 @@ so_cs_readc(unsigned char *c, STORE_S *so)
 int
 so_cs_readc_locale(unsigned char *c, STORE_S *so)
 {
-    return(so_generic_readc_locale(c, so, so_cs_readc));
+    return(generic_readc_locale(c, so_cs_readc_getchar, so, &so->cb));
+}
+
+
+int
+so_cs_readc_getchar(unsigned char *c, void *extraarg)
+{
+    STORE_S *so;
+
+    so = (STORE_S *) extraarg;
+    return(so_cs_readc(c, so));
 }
 
 
@@ -476,7 +486,17 @@ so_file_readc(unsigned char *c, STORE_S *so)
 int
 so_file_readc_locale(unsigned char *c, STORE_S *so)
 {
-    return(so_generic_readc_locale(c, so, so_file_readc));
+    return(generic_readc_locale(c, so_file_readc_getchar, so, &so->cb));
+}
+
+
+int
+so_file_readc_getchar(unsigned char *c, void *extraarg)
+{
+    STORE_S *so;
+
+    so = (STORE_S *) extraarg;
+    return(so_file_readc(c, so));
 }
 
 
@@ -494,7 +514,7 @@ so_file_writec_windows(int c, STORE_S *so)
     UCS ucs;
 
     /* result should be 1 or 0 (if in middle of a UTF-8 char) */
-    if(utf8_to_ucs4_oneatatime(c, so->cbuf, sizeof(so->cbuf), &so->cbufp, &ucs, NULL))
+    if(utf8_to_ucs4_oneatatime(c, &so->cb, &ucs, NULL))
       if(write_a_wide_char(ucs, (FILE *) so->txt) == EOF)
 	rv = 0;
 
@@ -514,13 +534,13 @@ so_file_readc_windows(unsigned char *c, STORE_S *so)
     UCS ucs;
 
     /* already got some from previous call? */
-    if(so->cbufend > so->cbuf){
-	*c = *so->cbufp;
-	so->cbufp++;
+    if(so->cb.cbufend > so->cb.cbuf){
+	*c = *so->cb.cbufp;
+	so->cb.cbufp++;
 	rv++;
-	if(so->cbufp >= so->cbufend){
-	    so->cbufend = so->cbuf;
-	    so->cbufp   = so->cbuf;
+	if(so->cb.cbufp >= so->cb.cbufend){
+	    so->cb.cbufend = so->cb.cbuf;
+	    so->cb.cbufp   = so->cb.cbuf;
 	}
 
 	return(rv);
@@ -537,14 +557,14 @@ so_file_readc_windows(unsigned char *c, STORE_S *so)
 	 * Now we need to convert the UCS character to UTF-8
 	 * and dole out the UTF-8 one char at a time.
 	 */
-	so->cbufend = utf8_put(so->cbuf, (unsigned long) ucs);
-	so->cbufp = so->cbuf;
-	if(so->cbufend > so->cbuf){
-	    *c = *so->cbufp;
-	    so->cbufp++;
-	    if(so->cbufp >= so->cbufend){
-		so->cbufend = so->cbuf;
-		so->cbufp   = so->cbuf;
+	so->cb.cbufend = utf8_put(so->cb.cbuf, (unsigned long) ucs);
+	so->cb.cbufp = so->cb.cbuf;
+	if(so->cb.cbufend > so->cb.cbuf){
+	    *c = *so->cb.cbufp;
+	    so->cb.cbufp++;
+	    if(so->cb.cbufp >= so->cb.cbufend){
+		so->cb.cbufend = so->cb.cbuf;
+		so->cb.cbufp   = so->cb.cbuf;
 	    }
 	}
 	else
@@ -554,100 +574,6 @@ so_file_readc_windows(unsigned char *c, STORE_S *so)
     return(rv);
 }
 #endif /* _WINDOWS */
-
-
-/*
- * Read a stream of multi-byte characters from the
- * user's locale charset and return a stream of
- * UTF-8 characters, one at a time. The input characters
- * are obtained by using the get_a_char function which is
- * one of the readc functions of a storage object.
- * This is just here to consolidate common code from the
- * different readc_locale functions.
- */
-int
-so_generic_readc_locale(unsigned char *c, STORE_S *so,
-			int (*get_a_char)(unsigned char *, STORE_S *))
-{
-    unsigned long octets_so_far = 0, remaining_octets;
-    unsigned char *inputp;
-    unsigned char ch;
-    UCS ucs;
-    unsigned char inputbuf[20];
-    int rv = 0;
-    int got_one = 0;
-
-    /* already got some from previous call? */
-    if(so->cbufend > so->cbuf){
-	*c = *so->cbufp;
-	so->cbufp++;
-	rv++;
-	if(so->cbufp >= so->cbufend){
-	    so->cbufend = so->cbuf;
-	    so->cbufp   = so->cbuf;
-	}
-
-	return(rv);
-    }
-
-    memset(inputbuf, 0, sizeof(inputbuf));
-    if((*get_a_char)(&ch, so) == 0)
-      return(0);
-
-    inputbuf[octets_so_far++] = ch;
-
-    while(!got_one){
-	remaining_octets = octets_so_far;
-	inputp = inputbuf;
-	ucs = mbtow(ps_global->input_cs, &inputp, &remaining_octets);
-	switch(ucs){
-	  case CCONV_BADCHAR:
-	    return(rv);
-	  
-	  case CCONV_NEEDMORE:
-/*
- * Do we need to do something with the characters we've
- * collected that don't form a valid UCS character?
- * Probably need to try discarding them one at a time
- * from the front instead of just throwing them all out.
- */
-	    if(octets_so_far >= sizeof(inputbuf))
-	      return(rv);
-
-	    if((*get_a_char)(&ch, so) == 0)
-	      return(rv);
-
-	    inputbuf[octets_so_far++] = ch;
-	    break;
-
-	  default:
-	    /* got a good UCS-4 character */
-	    got_one++;
-	    break;
-	}
-    }
-
-    /*
-     * Now we need to convert the UCS character to UTF-8
-     * and dole out the UTF-8 one char at a time.
-     */
-    rv++;
-    so->cbufend = utf8_put(so->cbuf, (unsigned long) ucs);
-    so->cbufp = so->cbuf;
-    if(so->cbufend > so->cbuf){
-	*c = *so->cbufp;
-	so->cbufp++;
-	if(so->cbufp >= so->cbufend){
-	    so->cbufend = so->cbuf;
-	    so->cbufp   = so->cbuf;
-	}
-    }
-    else
-      *c = '?';
-
-
-    return(rv);
-}
 
 
 /*

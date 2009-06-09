@@ -1,4 +1,4 @@
-.TH alpine 1 "Version 0.82"
+.TH alpine 1 "Version 0.83"
 .SH NAME
 alpine \- an Alternatively Licensed Program for Internet News and Email
 .SH SYNTAX 
@@ -24,7 +24,7 @@ alpine \- an Alternatively Licensed Program for Internet News and Email
 
 Alpine is a screen-oriented message-handling tool.  In its default 
 configuration, Alpine offers an intentionally limited set of 
-functions geared toward the novice user, but it also has a growing 
+functions geared toward the novice user, but it also has a large
 list of optional "power-user" and personal-preference features.
 .I alpinef 
 is a variant of Alpine that uses function keys rather than mnemonic 
@@ -71,9 +71,7 @@ including drivers
 for a variety of different mail file formats, as well as routines
 to access remote mail and news servers, using IMAP (Internet Message
 Access Protocol) and NNTP (Network News Transport Protocol).  Outgoing mail
-is usually handed-off to the Unix
-.IR sendmail ,
-program but it can optionally be posted directly via SMTP 
+is usually posted directly via SMTP 
 (Simple Mail Transfer Protocol).
 .SH OPTIONS
 .if n .ta 2.8i
@@ -125,31 +123,6 @@ Convert signature files into literal signatures.
 Copy the local address book file to a remote address book folder.
 .IP \fB-copy_pinerc\ <\fIlocal_pinerc\fR>\ <\fIremote_pinerc\fR> 20
 Copy the local pinerc file to a remote pinerc folder.
-.IP \fB-create_lu\ \fIaddrbook\ \fIsort-order\fR 20
-Creates auxiliary index (look-up) file for 
-.I addrbook
-and sorts 
-.I addrbook
-in
-.IR sort-order ,
-which may be
-.IR dont-sort ,
-.IR nickname ,
-.IR fullname ,
-.IR nickname-with-lists-last ,
-or
-.IR fullname-with-lists-last .
-Useful when creating global or shared address books.
-After creating the index file in this way, the file should be moved or
-copied in a way which preserves the mtime of the address book file.
-The mtime of the address book file at the time the index file was built is
-stored inside the index file and a comparison between that stored value and
-the current mtime of the address book file is done when somebody runs alpine.
-If the mtime has changed since the index file was made, then alpine will
-want to rebuild the index file.
-In other words, don't build the index file with this option and then copy
-the address book to its final destination in a way which changes the
-file's mtime.
 .IP \fB-d\ \fIdebug-level\fR 20
 Output diagnostic info at
 .I debug-level
@@ -315,15 +288,11 @@ uses the following environment variables:
 .br
 ~/.addressbook	Default address book file.
 .br
-~/.addressbook.lu	Default address book index file.
-.br
 ~/.pine-debug[1-4]	Diagnostic log for debugging.
 .br
 ~/.pinerc	Personal alpine config file.
 .br
 ~/.newsrc	News subscription/state file.
-.br
-~/.signature	Default signature file.
 .br
 ~/.mailcap	Personal mail capabilities file.
 .br
@@ -357,7 +326,7 @@ Newsgroup:  comp.mail.pine
 .br
 Alpine Information Center:  http://www.washington.edu/alpine
 .br
-Source distribution:  ftp://ftp.cac.washington.edu/alpine/alpine.tar.Z
+Source distribution:  ftp://ftp.cac.washington.edu/alpine/alpine.tar.gz
 .br
 Alpine Technical Notes, included in the source distribution.
 .br
@@ -370,20 +339,15 @@ The University of Washington Alpine development team (part of the UW Office
 of Computing & Communications) includes:
  
  Project Leader:           Mike Seibel
- Principal authors:        Mike Seibel, Steve Hubert, Laurence Lundblade*
+ Principal authors:        Mike Seibel, Steve Hubert, Jeff Franklin
  C-Client library & IMAPd: Mark Crispin
- Pico, the alPine COmposer:Mike Seibel
  Documentation:            Many people!
- PC-Alpine for Windows:    Tom Unger, Mike Seibel
  Project oversight:        Terry Gray, Lori Stevens
  Principal Patrons:        Ron Johnson, Mike Bryant
- Additional support:       NorthWestNet
  Initial Alpine code base: Pine - by the University of Washington, 
                            Elm - by Dave Taylor & USENET Community Trust
  Initial Pico code base:   MicroEmacs 3.6, by Dave G. Conroy
  User Interface design:    Inspired by UCLA's "Ben" mailer for MVS
  Suggestions/fixes/ports:  Folks from all over!
 
-   *Emeritus
-
-$Date: 2006/09/19 18:28:33 $
+$Date: 2007/02/12 18:28:33 $

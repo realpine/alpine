@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: imap.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: imap.c 448 2007-02-23 01:55:41Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -170,8 +170,8 @@ mm_notify(MAILSTREAM *stream, char *string, long int errflg)
 		        _("Alert received while accessing \"%s\":  %s"),
 			(stream && stream->mailbox)
 			  ? stream->mailbox : "-no folder-",
-			rfc1522_decode((unsigned char *)(tmp_20k_buf+10000),
-				       SIZEOF_20KBUF-10000, string, NULL));
+			rfc1522_decode_to_utf8((unsigned char *)(tmp_20k_buf+10000),
+					       SIZEOF_20KBUF-10000, string));
     else if(!strncmp(string, "[UNSEEN ", 8)){
 	char *p;
 	long  n = 0;
@@ -440,6 +440,7 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 #endif	/* PASSFILE */
 								   )){
 	    strncpy(user, last, NETMAXUSER);
+	    user[NETMAXUSER-1] = '\0';
 	    dprint((9, "mm_login: found user=%s\n",
 		   user ? user : "?"));
 
@@ -474,6 +475,7 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 				    ? ps_global->ui.login : NULL)
 								 ){
 	    strncpy(user, last, NETMAXUSER);
+	    user[NETMAXUSER-1] = '\0';
 	    dprint((9, "mm_login: found user=%s\n",
 		   user ? user : "?"));
 
@@ -662,8 +664,8 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 	    ps_global->dont_use_init_cmds = 1;
 #ifdef _WINDOWS
 	    if(!*user && *defuser){
-		strncpy(user, defuser, sizeof(user));
-		user[sizeof(user)-1] = '\0';
+		strncpy(user, defuser, NETMAXUSER);
+		user[NETMAXUSER-1] = '\0';
 	    }
 
 	    rc = os_login_dialog(mb, user, NETMAXUSER, pwd, NETMAXPASSWD,
@@ -686,8 +688,10 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 	    }
 
 	    /* default */
-	    if(rc == 0 && !*user)
-	      strncpy(user, defuser, NETMAXUSER);
+	    if(rc == 0 && !*user){
+		strncpy(user, defuser, NETMAXUSER);
+		user[NETMAXUSER-1] = '\0';
+	    }
 	      
 	    if(rc != 4)
 	      break;
@@ -699,8 +703,10 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 	    pwd[0] = '\0';
 	}
     }
-    else
-      strncpy(user, mb->user, NETMAXUSER);
+    else{
+	strncpy(user, mb->user, NETMAXUSER);
+	user[NETMAXUSER-1] = '\0';
+    }
 
     user[NETMAXUSER-1] = '\0';
     pwd[NETMAXPASSWD-1] = '\0';
@@ -1307,7 +1313,7 @@ pine_sslcertquery(char *reason, char *host, char *cert)
 	details_cert   = cpystr(cert ? cert : unknown);
 
 	so_puts(in_store, "<P><CENTER>");
-	snprintf(tmp, sizeof(tmp), "%s (<A HREF=\"X-Pine-Cert:\">details</A>)",
+	snprintf(tmp, sizeof(tmp), "%s (<A HREF=\"X-Alpine-Cert:\">details</A>)",
 		reason ? reason : unknown);
 	tmp[sizeof(tmp)-1] = '\0';
 
@@ -1439,7 +1445,7 @@ pine_newsrcquery(MAILSTREAM *stream, char *mulname, char *name)
 int
 url_local_certdetails(char *url)
 {
-    if(!struncmp(url, "x-pine-cert:", 12)){
+    if(!struncmp(url, "x-alpine-cert:", 14)){
 	STORE_S  *store;
 	SCROLL_S  sargs;
 	char     *folded;
@@ -2388,7 +2394,7 @@ write_passfile(pinerc, l)
 
     /* if there's no passfile to read, bag it!! */
     if(!passfile_name(pinerc, tmp, sizeof(tmp)) || !(fp = our_fopen(tmp, "wb"))){
-	using_passfil= 0;
+	using_passfile = 0;
         return;
     }
 

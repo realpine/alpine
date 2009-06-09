@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: reply.c 394 2007-01-25 20:29:45Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: reply.c 442 2007-02-16 23:01:28Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -71,15 +71,6 @@ char	*checkpoint_dir_for_pico(char *, size_t);
 void	 resize_for_pico(void);
 PCOLORS *colors_for_pico(void);
 void	 free_pcolors(PCOLORS **);
-
-/*
- * standard type of storage object used for body parts...
- */
-#if	defined(DOS) && !defined(WIN32)
-#define		  PART_SO_TYPE	TmpFileStar
-#else
-#define		  PART_SO_TYPE	CharStar
-#endif
 
 
 /*----------------------------------------------------------------------
@@ -1137,7 +1128,7 @@ get_signature_file(char *file, int prenewlines, int postnewlines, int is_sig)
 			char         *error, *q;
 
 			gf_set_so_writec(&pc, store);
-			gf_set_readc(&gc, (void *)syspipe, 0, PipeStar);
+			gf_set_readc(&gc, (void *)syspipe, 0, PipeStar, READ_FROM_LOCALE);
 			gf_filter_init();
 
 			if((error = gf_pipe(gc, pc)) != NULL){
@@ -1560,11 +1551,6 @@ forward(struct pine *ps, ACTION_S *role_arg)
     return rv;
 
   bomb:
-#if	defined(DOS) && !defined(WIN32)
-    mail_parameters(ps->mail_stream, SET_GETS, (void *) NULL);
-    append_file = NULL;
-    mail_gc(ps->mail_stream, GC_TEXTS);
-#endif
     q_status_message(SM_ORDER | SM_DING, 4, 5,
 		   _("Error fetching message contents.  Can't forward message."));
     goto clean;
@@ -1634,7 +1620,7 @@ forward_text(struct pine *pine_state, void *text, SourceType source)
 	gf_filter_init();
 	gf_set_so_writec(&pc, msgtext);
 	gf_set_readc(&gc,text,(source == CharStar) ? strlen((char *)text) : 0L,
-		     source);
+		     source, 0);
 
 	if((enc_error = gf_pipe(gc, pc)) == NULL){
 	    pine_send(env, &body, "SEND MESSAGE", role, NULL, NULL, NULL,

@@ -1,8 +1,8 @@
 /*
- * $Id: adrbklib.h 138 2006-09-22 22:12:03Z mikes@u.washington.edu $
+ * $Id: adrbklib.h 406 2007-01-31 00:36:05Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -806,6 +806,7 @@ adrbk_cntr_t   adrbk_count(AdrBk *);
 AdrBk_Entry   *adrbk_get_ae(AdrBk *, a_c_arg_t);
 AdrBk_Entry   *adrbk_lookup_by_nick(AdrBk *, char *, adrbk_cntr_t *);
 AdrBk_Entry   *adrbk_lookup_by_addr(AdrBk *, char *, adrbk_cntr_t *);
+int            adrbk_longest_unambig_nick(AdrBk *, char *, char **);
 char          *adrbk_formatname(char *, char **, char **);
 void           adrbk_clearrefs(AdrBk *);
 AdrBk_Entry   *adrbk_newentry(void);

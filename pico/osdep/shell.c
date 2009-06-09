@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: shell.c 165 2006-10-04 01:09:47Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: shell.c 421 2007-02-05 22:53:41Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -44,14 +44,16 @@ RETSIGTYPE rtfrmshell(int);
 int
 bktoshell(void)		/* suspend MicroEMACS and wait to wake up */
 {
+    UCS z = CTRL | 'Z';
+
     if(!(gmode&MDSSPD)){
-	emlwrite("\007Unknown command: ^Z", NULL);
+	unknown_command(z);
 	return(0);
     }
 
     if(Pmaster){
 	if(!Pmaster->suspend){
-	    emlwrite("\007Unknown command: ^Z", NULL);
+	    unknown_command(z);
 	    return(0);
 	}
 
@@ -123,13 +125,15 @@ bktoshell(void)		/* suspend MicroEMACS and wait to wake up */
 int
 bktoshell(void)
 {
+    UCS z = CTRL | 'Z';
+
     if(!(gmode&MDSSPD)){
-        emlwrite("\007Unknown command: ^Z", NULL);
+	unknown_command(z);
 	return(0);
     }
     if(Pmaster){
         if(!Pmaster->suspend){
-	    emlwrite("\007Unknown command: ^Z", NULL);
+	    unknown_command(z);
 	    return(0);
 	}
 	(*Pmaster->suspend)();

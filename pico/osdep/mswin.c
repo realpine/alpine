@@ -30,6 +30,8 @@
 #include "../../pith/charconv/filesys.h"
 #include "../../pith/charconv/utf8.h"
 
+#include "../../pith/filttype.h"
+
 #include "mswin_tw.h"
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -434,9 +436,8 @@ BOOL CALLBACK	NoMsgsAreSent (void);
 LOCAL BOOL	SetTTYFocus (HWND);
 LOCAL BOOL	KillTTYFocus (HWND);
 LOCAL BOOL	MoveTTYCursor (HWND);
-LOCAL BOOL	ProcessTTYKeyDown (HWND hWnd, TCHAR bOut, DWORD keyData);
-LOCAL BOOL	ProcessTTYKeyUp (HWND hWnd, TCHAR key, DWORD keyData);
-LOCAL BOOL	ProcessTTYCharacter (HWND hWnd, TCHAR bOut, DWORD keyData);
+LOCAL BOOL	ProcessTTYKeyDown (HWND hWnd, TCHAR bOut);
+LOCAL BOOL	ProcessTTYCharacter (HWND hWnd, TCHAR bOut);
 LOCAL BOOL	ProcessTTYMouse (HWND hWnd, int mevent, int button, CORD xPos,
 					CORD yPos, WPARAM keys);
 LOCAL BOOL	ProcessTTYFileDrop (HANDLE wParam);
@@ -555,8 +556,8 @@ LOCAL LRESULT	ConfirmExit (void);
 
 LOCAL void	CQInit (void);
 LOCAL BOOL	CQAvailable (void);
-LOCAL BOOL	CQAdd (UCS c, DWORD keyData);
-LOCAL BOOL	CQAddUniq (UCS c, DWORD keyData);
+LOCAL BOOL	CQAdd (UCS c, BOOL fKeyControlDown);
+LOCAL BOOL	CQAddUniq (UCS c, BOOL fKeyControlDown);
 LOCAL UCS	CQGet ();
 
 LOCAL void	MQInit (void);
@@ -566,7 +567,7 @@ LOCAL BOOL	MQAdd (int mevent, int button, int nRow, int nColumn,
 LOCAL BOOL	MQGet (MEvent * pmouse);
 LOCAL BOOL	MQClear (int flag);
 
-LOCAL int	MapVKtoMS (WORD c, WORD flags);
+LOCAL UCS mswin_getc (void);
 
 LOCAL DWORD	ExplainSystemErr(void);
 
@@ -658,9 +659,6 @@ LOCAL BOOL		gAllowMouseTrack = FALSE;/* Upper layer interested in
 LOCAL short		gsMWMultiplier;
 LOCAL MEvent		gMTEvent;
 
-LOCAL BOOL		gKeyControlDown = FALSE;/* Keep track of the control
-						 * key position. */
-
 LOCAL cbstr_t		gHelpGenCallback = NULL;
 LOCAL BOOL		gfHelpGenMenu = FALSE;	/* TRUE when help menu
 						 * installed. */
@@ -698,6 +696,7 @@ MSWIN_TEXTWINDOW        gMswinIMAPTelem = {0};
 LOCAL cbvoid_t          gIMAPDebugONCallback = NULL;
 LOCAL cbvoid_t          gIMAPDebugOFFCallback = NULL;
 LOCAL cbvoid_t          gEraseCredsCallback = NULL;
+LOCAL cbvoid_t		gViewInWindCallback = NULL;
 
 LOCAL cbvoid_t        	gConfigScreenCallback = NULL;
 
@@ -1148,6 +1147,11 @@ PWndProc (HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	      (*gEraseCredsCallback)();
 	    break;
 
+	case IDM_MI_VIEWINWIND:
+	  if(gViewInWindCallback)
+	    (*gViewInWindCallback)();
+	  break;
+
 	case IDM_OPT_IMAPTELEM:
 	    mswin_tw_init(&gMswinIMAPTelem, (int)LOWORD(wParam),
                 TEXT("IMAP Telemetry"));
@@ -1345,44 +1349,33 @@ PWndProc (HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	 * then hide the windows cursor
 	 */
 	mswin_showcursor(FALSE);
-        ProcessTTYCharacter (hWnd, (TCHAR)wParam, (DWORD)lParam);
+        ProcessTTYCharacter (hWnd, (TCHAR)wParam);
         break ;
 	
     case WM_KEYDOWN:
-      if (ProcessTTYKeyDown (hWnd, (TCHAR) wParam, (DWORD)lParam))
+      if (ProcessTTYKeyDown (hWnd, (TCHAR) wParam))
 	    return (0);
 
         return( DefWindowProc( hWnd, uMsg, wParam, lParam ) ) ;
 
-    case WM_KEYUP:
-      if (ProcessTTYKeyUp (hWnd, (TCHAR) wParam, (DWORD)lParam))
-	    return (0);
-        return( DefWindowProc( hWnd, uMsg, wParam, lParam ) ) ;
-	
-	
     case WM_SYSCHAR:
 	if (gFkeyCallback && (*gFkeyCallback)(0, 0)
 	    && LOBYTE (wParam) == VK_F10){
-	    ProcessTTYCharacter (hWnd, (TCHAR)wParam, (DWORD)lParam);
+	    ProcessTTYCharacter (hWnd, (TCHAR)wParam);
 	    return (0);
         }
 
         return( DefWindowProc( hWnd, uMsg, wParam, lParam ) ) ;
 	
     case WM_SYSKEYDOWN:
-	if (gFkeyCallback && (*gFkeyCallback)(0, 0)
-	    && LOBYTE (wParam) == VK_F10
-	    && ProcessTTYKeyDown (hWnd, (TCHAR) wParam, (DWORD)lParam))
-	  return (0);
-
-        return( DefWindowProc( hWnd, uMsg, wParam, lParam ) ) ;
-
-    case WM_SYSKEYUP:
-	/* As it looks like syskedown and syskeyup aren't symetric,
-	 * at least as far as "altgr" is concerned, always check
-	 * for VK_CONTROL to flip off gKeyControlDown
+    /*
+	 * lParam specifies the context code. Bit 29 is 1 if the ALT key is down
+	 * while the key is pressed.
 	 */
-      if(ProcessTTYKeyUp (hWnd, (TCHAR) wParam, (DWORD)lParam))
+	if (!(lParam & (1<<29))
+	    && gFkeyCallback && (*gFkeyCallback)(0, 0)
+	    && LOBYTE (wParam) == VK_F10
+	    && ProcessTTYKeyDown (hWnd, (TCHAR) wParam))
 	  return (0);
 
         return( DefWindowProc( hWnd, uMsg, wParam, lParam ) ) ;
@@ -2593,7 +2586,7 @@ LOCAL void
 ScrollTTY (HWND hWnd, int wScrollCode, int nPos, HWND hScroll)
 {
     PTTYINFO	pTTYInfo;
-    TCHAR	cmd = 0;
+    int	cmd = 0;
     long	scroll_pos = 0;
     BOOL	noAction = FALSE;
     BOOL	didScroll;
@@ -2701,7 +2694,7 @@ LOCAL void
 MouseWheelTTY (HWND hWnd, int xPos, int yPos, int fwKeys, int zDelta)
 {
     PTTYINFO	pTTYInfo;
-    WORD	cmd;
+    int	cmd;
     long	scroll_pos;
     FARPROC	prevBlockingProc;
     SCROLLINFO	scrollInfo;
@@ -2891,7 +2884,6 @@ SetTTYFocus (HWND hWnd)
     mswin_showcursor(TRUE);
 
     pTTYInfo->fFocused = TRUE;
-    gKeyControlDown = FALSE;
 
     CaretCreateTTY (hWnd);
 
@@ -2932,7 +2924,6 @@ KillTTYFocus (HWND hWnd)
     DestroyCaret();
 
     pTTYInfo->fFocused = FALSE;
-    gKeyControlDown = FALSE;
 
     return (TRUE);
 }
@@ -2971,7 +2962,7 @@ MoveTTYCursor (HWND hWnd)
 
 
 /*---------------------------------------------------------------------------
- *  BOOL  ProcessTTYKeyDown ( HWND hWnd, WORD bOut, DWORD keyData )
+ *  BOOL  ProcessTTYKeyDown ( HWND hWnd, WORD bOut )
  *
  *  Description:
  *	Called to process MW_KEYDOWN message.  We are only interested in
@@ -2990,137 +2981,76 @@ MoveTTYCursor (HWND hWnd)
  *     BYTE key
  *	  Virtual key code.
  *
- *     DWORD keyData
- *	  Additional flags passed in lParam for WM_KEYDOWN
- *
 /*--------------------------------------------------------------------------*/
 LOCAL BOOL
-ProcessTTYKeyDown (HWND hWnd, TCHAR key, DWORD keyData)
+ProcessTTYKeyDown (HWND hWnd, TCHAR key)
 {
-    TCHAR		myKey;
-
-
-    if (key == VK_CONTROL)
-	gKeyControlDown = TRUE;
-
-    /* Special keys. */
-    if (keyData & 0X20000000)
-	return (FALSE);			/* Message NOT handled. */
+    UCS		myKey;
+    BOOL        fKeyControlDown = GetKeyState(VK_CONTROL) < 0;
 
     switch (key) {
-	case VK_UP:		myKey = MSWIN_KEY_UP;		break;
-	case VK_DOWN:		myKey = MSWIN_KEY_DOWN;		break;
+    case VK_CONTROL:
+    case VK_SHIFT:
+        return FALSE;
+	case VK_UP:		myKey = KEY_UP;		break;
+	case VK_DOWN:		myKey = KEY_DOWN;		break;
 	case VK_RIGHT:
-	  myKey = (gKeyControlDown) ? '\0': MSWIN_KEY_RIGHT;
+        /* Ctrl-@ is used to advance to the next word. */
+        myKey = fKeyControlDown ? '@': KEY_RIGHT;
 	  break;
 	case VK_LEFT:
-	  if(gKeyControlDown)
-	    return(FALSE);
-	  else
-	    myKey = MSWIN_KEY_LEFT;
+        /* Ctrl-left is used to advance to the previous word. */
+        myKey = KEY_LEFT;
 	  break;
-	case VK_PRIOR:		myKey = MSWIN_KEY_PREVPAGE;	break;
-	case VK_NEXT:		myKey = MSWIN_KEY_NEXTPAGE;	break;
-	case VK_HOME:		myKey = MSWIN_KEY_HOME;		break;
-	case VK_END:		myKey = MSWIN_KEY_END;		break;
-	case VK_DELETE:		myKey = MSWIN_KEY_DELETE;	break;
-	case VK_F1:		myKey = MSWIN_KEY_F1;		break;
-	case VK_F2:		myKey = MSWIN_KEY_F2;		break;
-	case VK_F3:		myKey = MSWIN_KEY_F3;		break;
-	case VK_F4:		myKey = MSWIN_KEY_F4;		break;
-	case VK_F5:		myKey = MSWIN_KEY_F5;		break;
-	case VK_F6:		myKey = MSWIN_KEY_F6;		break;
-	case VK_F7:		myKey = MSWIN_KEY_F7;		break;
-	case VK_F8:		myKey = MSWIN_KEY_F8;		break;
-	case VK_F9:		myKey = MSWIN_KEY_F9;		break;
-	case VK_F10:		myKey = MSWIN_KEY_F10;		break;
-	case VK_F11:		myKey = MSWIN_KEY_F11;		break;
-	case VK_F12:		myKey = MSWIN_KEY_F12;		break;
+	case VK_HOME:
+        /* Ctrl-home is used to advance to the beginning of buffer. */
+        myKey = KEY_HOME;
+	  break;
+	case VK_END:
+        /* Ctrl-end is used to advance to the end of buffer. */
+        myKey = KEY_END;
+	  break;
+	case VK_PRIOR:		myKey = KEY_PGUP;	break;
+	case VK_NEXT:		myKey = KEY_PGDN;	break;
+	case VK_DELETE:		myKey = KEY_DEL;	break;
+	case VK_F1:		myKey = F1;		break;
+	case VK_F2:		myKey = F2;		break;
+	case VK_F3:		myKey = F3;		break;
+	case VK_F4:		myKey = F4;		break;
+	case VK_F5:		myKey = F5;		break;
+	case VK_F6:		myKey = F6;		break;
+	case VK_F7:		myKey = F7;		break;
+	case VK_F8:		myKey = F8;		break;
+	case VK_F9:		myKey = F9;		break;
+	case VK_F10:		myKey = F10;		break;
+	case VK_F11:		myKey = F11;		break;
+	case VK_F12:		myKey = F12;		break;
 	
-#if 0		
-	/* Control is special - I keep track, but do not claim to handle. */
-	case VK_CONTROL:	gKeyControlDown = TRUE;
-				return (FALSE);
-#endif
-	case '6':
+	default:
+        if(fKeyControlDown && !(GetKeyState(VK_SHIFT) < 0)) {
+            if(key == '6') {
 	    /*
 	     * Ctrl-^ is used to set and clear the mark in the
 	     * composer (pico) On most other systems Ctrl-6 does the
-	     * same thing.  Allow that on windows too.  If we detect
-	     * '6' key down while the control key is pressed we then
-	     * insert a ctrl-^ character.  Position of the shift key
-	     * is not checked so this code handles both combinations.
-	     * There is one more trick: ctrl-shift-6 will result in a
-	     * WM_CHAR message for 0x1e.  But that will be a
-	     * duplicate control character because this code already
-	     * generated a control character.  So, in ProcessTTYChar
-	     * is ignore the 0x1e characters.
+                 * same thing.  Allow that on windows too.
 	     */
-	    if (gKeyControlDown)
-		myKey = 0x1e;
-	    else
-		return (FALSE);
+                myKey = '^';
 	    break;
-	case '-':
-	    /*
-	     * Ctrl-_ is used to invoke alternate editor.
-	     */
-	    if (gKeyControlDown)
-		myKey = 0x1f;
-	    else
-		return (FALSE);
+            } else if(key == '2') {
+                /* Ctrl-@ is used to advance to the next word. */
+                myKey = '@';
 	    break;
-	case '2':
-	    /*
-	     * Ctrl-@ (null) is used to advance to the next word.
-	     */
-	    if (gKeyControlDown)
-		myKey = '\0';
-	    else
-		return (FALSE);
-	    break;
-	default:		return (FALSE);	/* Message NOT handled.*/
+            }
+	}
+
+        return (FALSE);	/* Message NOT handled.*/
     }
 
-    CQAdd (myKey, 0);
+    CQAdd (myKey, fKeyControlDown);
 
     set_time_of_last_input();
-
-    return (TRUE);			/* Message handled .*/
-}
-
-
-/*---------------------------------------------------------------------------
- *  BOOL  ProcessTTYKeyUp ( HWND hWnd, WORD bOut, DWORD keyData )
- *
- *  Description:
- *	Called to process MW_KEYDOWN message.
- *	Used only to detect when the control key goes up.
- *
- *  Parameters:
- *     HWND hWnd
- *        handle to TTY window
- *
- *     BYTE key
- *	  Virtual key code.
- *
- *     DWORD keyData
- *	  Additional flags passed in lParam for WM_KEYDOWN
- *
-/*--------------------------------------------------------------------------*/
-LOCAL BOOL
-ProcessTTYKeyUp (HWND hWnd, TCHAR key, DWORD keyData)
-{
-    if (key == VK_CONTROL)
-	gKeyControlDown = FALSE;
-
-#if 0
-    /* Special keys. */
-    if (keyData & 0X20000000)
-	return (FALSE);			/* Message NOT handled. */
-#endif
 				
-    return (FALSE);	/* Message NOT handled.*/
+    return (TRUE);			/* Message handled .*/
 }
 
 
@@ -3143,7 +3073,7 @@ dtime()
 
 
 /*---------------------------------------------------------------------------
- *  BOOL  ProcessTTYCharacter( HWND hWnd, WORD bOut, DWORD keyData )
+ *  BOOL  ProcessTTYCharacter( HWND hWnd, WORD bOut )
  *
  *  Description:
  *		Place the character into a queue.
@@ -3157,25 +3087,18 @@ dtime()
  *
 /*--------------------------------------------------------------------------*/
 LOCAL BOOL
-ProcessTTYCharacter (HWND hWnd, TCHAR bOut, DWORD keyData)
+ProcessTTYCharacter (HWND hWnd, TCHAR bOut)
 {
+    BOOL fKeyControlDown = GetKeyState(VK_CONTROL) < 0;
 
-    /*
-     * Map Ctrl-space to the null character.  Window's does not do
-     * this for us.
-     */
-    if (bOut == (TCHAR)' ' && gKeyControlDown)
-      bOut = (TCHAR)'\0';
+    if(fKeyControlDown) {
+        if(bOut == ' ')
+            bOut = '@';
+        else
+            bOut += '@';
+    }
 
-    /*
-     * This is the second half of the code to handle ctrl-6 and
-     * ctrl-shift-6 (ctrl-^).  Here, we ignore the WM_CHAR message
-     * generated by ctrl-shift-6.
-     */
-    if (bOut == (TCHAR)0x1e)
-	return (TRUE);
-
-    CQAdd ((UCS)bOut, keyData);
+    CQAdd ((UCS)bOut, fKeyControlDown);
 
 #ifdef ACCELERATORS
     UpdateAccelerators (hWnd);
@@ -6381,6 +6304,7 @@ mswin_setflagcallback (cbarg_t cbfunc)
     gFlagCallback = cbfunc;
 }
 
+
 void
 mswin_set_erasecreds_callback (cbvoid_t cbfunc)
 {
@@ -6394,6 +6318,16 @@ void
 mswin_sethdrmodecallback (cbarg_t cbfunc)
 {
     gHdrCallback = cbfunc;
+}
+
+
+/*
+ * install function to deal with view in new window messages
+ */
+void
+mswin_setviewinwindcallback (cbvoid_t cbfunc)
+{
+    gViewInWindCallback = cbfunc;
 }
 
 
@@ -6790,7 +6724,7 @@ mswin_getc (void)
     MSG		msg;
 
     if (gScrolling)
-	return (MSWIN_KEY_NODATA);
+	return (NODATA);
 
     RestoreMouseCursor();
 
@@ -6840,14 +6774,15 @@ mswin_getc (void)
 	return ((UCS)(CQGet ()));
     }
 
-    return (MSWIN_KEY_NODATA);
+    return (NODATA);
 }
 
 
 /*
- *	Like mswin_getc, but don't yield control.
+ *	Like mswin_getc, but don't yield control. Returns a CTRL key values
+ *   where, for example, ctrl+c --> CTRL|'C'.
  */
-UCS
+LOCAL UCS
 mswin_getc_fast (void)
 {
     RestoreMouseCursor();
@@ -6861,7 +6796,7 @@ mswin_getc_fast (void)
 	return ((UCS)CQGet ());
     }
 
-    return (MSWIN_KEY_NODATA);
+    return (NODATA);
 }
 
 
@@ -7941,6 +7876,11 @@ _print_map_dlg_error (DWORD error)
 }
 	
 
+/*
+ * This is used for converting from UTF-8 to UCS and is
+ * global so that mswin_print_ready can initialize it.
+ */
+static CBUF_S print_cb;
 
 /*
  * Get the printer ready.  Returns ZERO for success, or an error code that
@@ -7964,6 +7904,7 @@ mswin_print_ready(WINHAND hWnd, LPTSTR docDesc)
     status = 0;
     P_PrintDC = NULL;
 
+    print_cb.cbufp = print_cb.cbuf;
 
     /*
      * Show print dialog.
@@ -8235,12 +8176,11 @@ mswin_print_char(TCHAR c)
 int
 mswin_print_char_utf8(int c)
 {
-    static unsigned char cbuf[6], *cbufp;
     UCS ucs;
     TCHAR tc;
     int ret = 0;
 
-    if(utf8_to_ucs4_oneatatime(c, cbuf, sizeof(cbuf), &cbufp, &ucs, NULL)){
+    if(utf8_to_ucs4_oneatatime(c, &print_cb, &ucs, NULL)){
 	/* bogus conversion ignores UTF-16 */
 	tc = (TCHAR) ucs;
 	ret = mswin_print_char(tc);
@@ -9413,7 +9353,7 @@ DidResize (PTTYINFO pTTYInfo)
      * mouse regions so that the user can click on the new regions of the
      * screen and have the right thing happen.
      */
-    CQAdd (MSWIN_KEY_NODATA, 0);
+    CQAdd (NODATA, 0);
 }
 
 
@@ -9556,6 +9496,12 @@ UpdateMenu (HWND hWnd)
      */
     EnableMenuItem (hMenu, IDM_OPT_ERASE_CREDENTIALS,
 		    MF_BYCOMMAND | (gEraseCredsCallback ? MF_ENABLED : MF_GRAYED));
+    
+    /*
+     * Enable the View in New Window menu item
+     */
+    EnableMenuItem (hMenu, IDM_MI_VIEWINWIND,
+		    MF_BYCOMMAND | (gViewInWindCallback ? MF_ENABLED : MF_GRAYED));
     
 #ifdef ACCELERATORS_OPT
     CheckMenuItem (hMenu, IDM_OPT_USEACCEL, MF_BYCOMMAND |
@@ -9958,7 +9904,7 @@ EditCancelPaste (void)
 LOCAL UCS
 EditPasteGet (void)
 {
-    TCHAR  b = MSWIN_KEY_NODATA;
+    UCS  b = NODATA;
 
     if (ghPaste != NULL) {		/* ghPaste tells if we are pasting. */
 	if (gPasteBytesRemain > 0) {	/* Just in case... */
@@ -9972,7 +9918,7 @@ EditPasteGet (void)
 		    --gPasteBytesRemain;
 	        }
 		else
-		    b = MSWIN_KEY_NODATA;  /* Ignore last LF. */
+		    b = NODATA;  /* Ignore last LF. */
 	    }
 	    gPasteWasCR = (b == (TCHAR)ASCII_CR);
 #ifdef FDEBUG
@@ -9993,7 +9939,13 @@ EditPasteGet (void)
 #endif
         }
     }
-    return ((UCS)b);
+
+    if(b < ' ') {
+        b += '@';
+        b |= CTRL;
+    }
+
+    return (b);
 }
 
 
@@ -10026,7 +9978,6 @@ EditSelectAll()
 }
 
 
-
 LOCAL void
 SortHandler(int order, int reverse)
 {
@@ -10041,14 +9992,12 @@ SortHandler(int order, int reverse)
 }
 
 
-
 LOCAL void
 FlagHandler(int index, int args)
 {
-    (void) (*gFlagCallback)(index + 1, 0L);
+    if(gFlagCallback)
+      (void) (*gFlagCallback)(index + 1, 0L);
 }
-
-
 
 
 LOCAL void
@@ -10108,6 +10057,67 @@ mswin_setperiodiccallback (cbvoid_t periodiccb, long period)
     }
 }
 
+/*
+ * Structure for variables used by mswin_exec_and_wait which need to be
+ *  freed in multiple places.
+ */
+typedef struct MSWIN_EXEC_DATA {
+    HANDLE              infd;
+    HANDLE              outfd;
+    LPTSTR              lptstr_whatsit;
+    LPTSTR              lptstr_command;
+    LPTSTR              lptstr_infile;
+    LPTSTR              lptstr_outfile;
+    MSWIN_TEXTWINDOW    *mswin_tw;
+} MSWIN_EXEC_DATA;
+
+LOCAL void
+mswin_exec_data_init(MSWIN_EXEC_DATA *exec_data)
+{
+    memset(exec_data, 0, sizeof(MSWIN_EXEC_DATA));
+    exec_data->infd = INVALID_HANDLE_VALUE;
+    exec_data->outfd = INVALID_HANDLE_VALUE;
+}
+
+LOCAL void
+mswin_exec_data_free(MSWIN_EXEC_DATA *exec_data, BOOL delete_outfile)
+{
+    if(exec_data->infd != INVALID_HANDLE_VALUE)
+      CloseHandle(exec_data->infd);
+
+    if(exec_data->outfd != INVALID_HANDLE_VALUE) {
+      CloseHandle(exec_data->outfd);
+      if(delete_outfile)
+        _tunlink(exec_data->lptstr_outfile);
+    }
+
+    if(exec_data->lptstr_infile)
+      fs_give((void **) &exec_data->lptstr_infile);
+    if(exec_data->lptstr_outfile)
+      fs_give((void **) &exec_data->lptstr_outfile);
+    if(exec_data->lptstr_whatsit)
+      fs_give((void **) &exec_data->lptstr_whatsit);
+    if(exec_data->lptstr_command)
+      fs_give((void **) &exec_data->lptstr_command);
+
+    if(exec_data->mswin_tw) {
+        /*
+         * Set the out_file is zero. We don't need mswin_tw
+         *   to save the file anymore since we're bailing.
+         */
+        exec_data->mswin_tw->out_file = NULL;
+
+        /*
+         * If the window is still open, then set the id to 0 so
+         *  mswin_tw_close_callback() will free the memory whenever
+         *  the window closes. Otherwise free it now.
+         */
+        if(exec_data->mswin_tw->hwnd)
+            exec_data->mswin_tw->id = 0;
+        else
+            MemFree(exec_data->mswin_tw);
+    }
+}
 
 /*
  * Execute command and wait for the child to exit
@@ -10133,23 +10143,59 @@ mswin_exec_and_wait (char *utf8_whatsit, char *utf8_command,
     BOOL		brc;
     int			rc;
     TCHAR		waitingFor[256];
-    STARTUPINFO		start_info;
     PROCESS_INFORMATION	proc_info;
     DWORD		exit_code;
-    FILE               *infd = NULL, *outfd = NULL;
-    SECURITY_ATTRIBUTES atts;
-    LPTSTR              lptstr_whatsit = NULL, lptstr_command = NULL;
-    LPTSTR              lptstr_infile = NULL, lptstr_outfile = NULL;
+    BOOL                b_use_mswin_tw;
+    MSWIN_EXEC_DATA     exec_data;
+
+    mswin_exec_data_init(&exec_data);
+
+    memset(&proc_info, 0, sizeof(proc_info));
 
     mswin_flush ();
 
-    memset(&proc_info, 0, sizeof(proc_info));
-    memset(&start_info, 0, sizeof(start_info));
-    memset(&atts, 0, sizeof(atts));
+    exec_data.lptstr_infile = utf8_infile ? utf8_to_lptstr(utf8_infile) : NULL;
+    exec_data.lptstr_outfile = utf8_outfile ? utf8_to_lptstr(utf8_outfile) : NULL;
 
-    start_info.dwFlags	    = STARTF_FORCEONFEEDBACK | STARTF_USESHOWWINDOW;
-    start_info.wShowWindow  = (utf8_infile || utf8_outfile) ? SW_SHOWMINNOACTIVE
-      : SW_SHOWNA;
+    exec_data.lptstr_command = utf8_to_lptstr(utf8_command);
+    exec_data.lptstr_whatsit = utf8_to_lptstr(utf8_whatsit);
+
+#ifdef ALTED_DOT
+    /* If the command is '.', then use mswin_tw to open the file. */
+    b_use_mswin_tw = utf8_command &&
+        utf8_command[0] == '.' && utf8_command[1] == '\0';
+
+    if(b_use_mswin_tw) {
+
+        proc_info.hThread = INVALID_HANDLE_VALUE;
+        proc_info.hProcess = INVALID_HANDLE_VALUE;
+
+        exec_data.mswin_tw = mswin_tw_displaytext_lptstr(
+            exec_data.lptstr_whatsit, exec_data.lptstr_infile, 4, NULL,
+	    exec_data.mswin_tw, MSWIN_DT_FILLFROMFILE);
+
+        if(exec_data.mswin_tw) {
+            mswin_set_readonly(exec_data.mswin_tw, FALSE);
+
+            /* Tell mswin_tw to write the edit contents to this file. */
+            exec_data.mswin_tw->out_file = exec_data.lptstr_outfile;
+
+            /* Make sure mswin_tw isn't freed behind our back. */
+            exec_data.mswin_tw->id = (UINT)-1;
+            brc = TRUE;
+        }
+        else {
+            brc = FALSE;
+        }
+    }
+    else
+#endif /* ALTED_DOT */
+    {
+    SECURITY_ATTRIBUTES atts;
+    STARTUPINFO         start_info;
+
+    memset(&atts, 0, sizeof(atts));
+    memset(&start_info, 0, sizeof(start_info));
 
     /* set file attributes of temp files*/
     atts.nLength = sizeof(SECURITY_ATTRIBUTES);
@@ -10158,96 +10204,103 @@ mswin_exec_and_wait (char *utf8_whatsit, char *utf8_command,
 
     /* open files if asked for */
     if(utf8_infile
-       && ((infd = CreateFile((lptstr_infile = utf8_to_lptstr(utf8_infile)),
+           && ((exec_data.infd = CreateFile(exec_data.lptstr_infile,
 			      GENERIC_READ, 0, &atts,
 			      OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL))
 	   == INVALID_HANDLE_VALUE)){
-	if(lptstr_infile)
-	  fs_give((void **) &lptstr_infile);
 
+	mswin_exec_data_free(&exec_data, TRUE);
 	return(-1);
     }
+
     if(utf8_outfile
-       && ((outfd = CreateFile((lptstr_outfile = utf8_to_lptstr(utf8_outfile)),
+           && ((exec_data.outfd = CreateFile(exec_data.lptstr_outfile,
 			       GENERIC_WRITE, 0, &atts,
 			       OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL))
 	   == INVALID_HANDLE_VALUE)){
-	if(infd)
-	  CloseHandle(infd);
-	if(lptstr_infile)
-	  fs_give((void **) &lptstr_infile);
 
-	if(lptstr_outfile)
-	  fs_give((void **) &lptstr_outfile);
-
+	mswin_exec_data_free(&exec_data, TRUE);
 	return(-1);
     }
 
+    start_info.dwFlags	= STARTF_FORCEONFEEDBACK | STARTF_USESHOWWINDOW;
+    start_info.wShowWindow  = (utf8_infile || utf8_outfile) ? SW_SHOWMINNOACTIVE : SW_SHOWNA;
+
     /* set up i/o redirection */
     if(utf8_infile)
-      start_info.hStdInput = infd;
+      start_info.hStdInput = exec_data.infd;
     if(utf8_outfile)
-      start_info.hStdOutput = outfd;
+      start_info.hStdOutput = exec_data.outfd;
     if(utf8_outfile && (mswe_flags & MSWIN_EAW_CAPT_STDERR))
-      start_info.hStdError = outfd;
+      start_info.hStdError = exec_data.outfd;
     if(utf8_infile || utf8_outfile)
       start_info.dwFlags |= STARTF_USESTDHANDLES;
 
-    lptstr_command = utf8_to_lptstr(utf8_command);
-    lptstr_whatsit = utf8_to_lptstr(utf8_whatsit);
-    if(CreateProcess(NULL, lptstr_command, NULL, NULL, (utf8_infile || utf8_outfile)
-		     ? TRUE : FALSE,
-		     CREATE_NEW_CONSOLE | CREATE_NEW_PROCESS_GROUP,
-		     NULL, NULL, &start_info, &proc_info) == TRUE){
+    brc = CreateProcess(NULL, exec_data.lptstr_command, NULL, NULL,
+		    (utf8_infile || utf8_outfile) ? TRUE : FALSE,
+		 CREATE_NEW_CONSOLE | CREATE_NEW_PROCESS_GROUP,
+		    NULL, NULL, &start_info, &proc_info);
+    }
 
+    if(brc) {
 	_sntprintf(waitingFor, sizeof(waitingFor)/sizeof(TCHAR),
 		   TEXT("%s is currently waiting for the %s (%s) to complete.  Click \"Cancel\" to stop waiting, or \"OK\" to continue waiting."),
-		 gszAppName, lptstr_whatsit, lptstr_command);
+		 gszAppName, exec_data.lptstr_whatsit, exec_data.lptstr_command);
 
-	/* Don't need the thread handle, close it now. */
-	CloseHandle (proc_info.hThread);
+        if(proc_info.hThread != INVALID_HANDLE_VALUE) {
+	    /* Don't need the thread handle, close it now. */
+	    CloseHandle (proc_info.hThread);
+        }
 
 	/*
 	 * Go into holding pattern until the other application terminates
 	 * or we are told to stop waiting.
 	 */
-	while(GetExitCodeProcess(proc_info.hProcess, &exit_code) == TRUE){
+	while(TRUE){
+
+#ifdef ALTED_DOT
+            if(b_use_mswin_tw)
+            {
+                if(!exec_data.mswin_tw)
+                    break;
+
+                exit_code = exec_data.mswin_tw->hwnd && exec_data.mswin_tw->out_file ?
+                    STILL_ACTIVE : 0;
+            }
+            else
+#endif /* ALTED_DOT */
+            {
+                if(GetExitCodeProcess(proc_info.hProcess, &exit_code) == FALSE)
+                    break;
+            }
+
 	    if(exit_code == STILL_ACTIVE){
 		rc = mswin_getc();
 		brc = mswin_getmouseevent (&mouse);
 
-		if (rc != MSWIN_KEY_NODATA ||
+		if (rc != NODATA ||
 		    (brc && mouse.event == M_EVENT_DOWN)) {
 		    if(mswe_flags & MSWIN_EAW_CTRL_C_CANCELS){
-			if(rc < ' ' && (rc + '@' == 'C')) /* dumb way of saying ctrl-C */
+			if(rc == (CTRL|'C'))
 			  rc = IDCANCEL;
 		    }
 		    else{
-			rc = MessageBox (ghTTYWnd, waitingFor, lptstr_whatsit,
+			rc = MessageBox (ghTTYWnd, waitingFor, exec_data.lptstr_whatsit,
 					 MB_ICONSTOP | MB_OKCANCEL);
 		    }
 		    SelClear ();
 		    if (rc == IDCANCEL){
 			/* terminate message to child ? */
-			if(infd)
-			  CloseHandle(infd);
-			if(outfd)
-			  CloseHandle(outfd);
-			if(lptstr_infile)
-			  fs_give((void **) &lptstr_infile);
-			if(lptstr_outfile)
-			  fs_give((void **) &lptstr_outfile);
-			if(lptstr_whatsit)
-			  fs_give((void **) &lptstr_whatsit);
-			if(lptstr_command)
-			  fs_give((void **) &lptstr_command);
+			mswin_exec_data_free(&exec_data, TRUE);
 			return (-2);
 		    }
 		}
 	    }
 	    else{
-		/* do something about child's exit status */
-		CloseHandle (proc_info.hProcess);
+                if(proc_info.hProcess != INVALID_HANDLE_VALUE) {
+		    /* do something about child's exit status */
+		    CloseHandle (proc_info.hProcess);
+                }
 		if(exit_val)
 		  *exit_val = exit_code;
 		break;
@@ -10257,38 +10310,26 @@ mswin_exec_and_wait (char *utf8_whatsit, char *utf8_command,
 	if (gpTTYInfo->fMinimized)
 	  ShowWindow (ghTTYWnd, SW_SHOWNORMAL);
 
-	BringWindowToTop (ghTTYWnd);
-	if(infd)
-	  CloseHandle(infd);
-	if(outfd)
-	  CloseHandle(outfd);
-	if(lptstr_infile)
-	  fs_give((void **) &lptstr_infile);
-	if(lptstr_outfile)
-	  fs_give((void **) &lptstr_outfile);
-	if(lptstr_whatsit)
-	  fs_give((void **) &lptstr_whatsit);
-	if(lptstr_command)
-	  fs_give((void **) &lptstr_command);
+        /*
+         * If we're using a mswin_tw and we're not capturing the output, we
+         *  just bailed immediately. If that's the case, don't bring the main
+         *  window up over the top of the textwindow we just brought up.
+         */
+#ifdef ALTED_DOT
+        if(!b_use_mswin_tw || !exec_data.mswin_tw || exec_data.mswin_tw->out_file)
+#endif /* ALTED_DOT
+	  BringWindowToTop (ghTTYWnd);
+
+        mswin_exec_data_free(&exec_data, FALSE);
 	return (0);
     }
     else{
-	if(infd)
-	  CloseHandle(infd);
-	if(outfd){
-	    CloseHandle(outfd);
-	    _tunlink(lptstr_outfile);
-	}
-	if(lptstr_infile)
-	  fs_give((void **) &lptstr_infile);
-	if(lptstr_outfile)
-	  fs_give((void **) &lptstr_outfile);
-	if(lptstr_whatsit)
-	  fs_give((void **) &lptstr_whatsit);
-	if(lptstr_command)
-	  fs_give((void **) &lptstr_command);
+        mswin_exec_data_free(&exec_data, TRUE);
 	return((rc = (int) GetLastError()) ? rc : -1);		/* hack */
     }
+
+    /* NOTREACHED */
+    return(-1);
 }
 
 
@@ -11509,6 +11550,11 @@ mswin_tw_displaytext_lptstr (LPTSTR title, LPTSTR pText, size_t textLen, LPTSTR 
 	}
     }
     else {
+#ifdef ALTED_DOT
+        if(flags & MSWIN_DT_FILLFROMFILE)
+            mswin_tw_fill_from_file(mswin_tw, pText);
+        else
+#endif /* ALTED_DOT */
 	/* Pointer to block of text supplied. */
 	mswin_tw_puts_lptstr(mswin_tw, pText);
     }
@@ -11756,7 +11802,7 @@ mswin_tw_print_callback(MSWIN_TEXTWINDOW *mswin_tw)
 
 
 typedef struct {
-	WORD	flags;
+        BOOL fKeyControlDown;
         UCS	c;   /* Bigger than TCHAR for CTRL and MENU setting */
 } CQEntry;
 
@@ -11816,19 +11862,12 @@ CQAvailable (void)
 /*--------------------------------------------------------------------------*/
 
 LOCAL BOOL
-CQAdd (UCS c, DWORD keyData)
+CQAdd (UCS c, BOOL fKeyControlDown)
 {
 	if (CQCount == CHARACTER_QUEUE_LENGTH)
 		return (FALSE);
 	
-	
-	CQBuffer[CQTail].flags = 0;
-	if ((keyData & 0x80000000) == 0)
-	    CQBuffer[CQTail].flags |= CQ_FLAG_DOWN;
-	if (keyData & 0x01000000)
-	    CQBuffer[CQTail].flags |= CQ_FLAG_EXTENDED;
-	if (keyData & 0x20000000)
-	    CQBuffer[CQTail].flags |= CQ_FLAG_ALT;
+	CQBuffer[CQTail].fKeyControlDown = fKeyControlDown;
 	CQBuffer[CQTail].c = c;
 	CQTail = (CQTail + 1) % CHARACTER_QUEUE_LENGTH;
 	++CQCount;
@@ -11850,7 +11889,7 @@ CQAdd (UCS c, DWORD keyData)
 /*--------------------------------------------------------------------------*/
 
 LOCAL BOOL
-CQAddUniq (UCS c, DWORD keyData)
+CQAddUniq (UCS c, BOOL fKeyControlDown)
 {
 	int		i;
 	int		pos;
@@ -11864,7 +11903,7 @@ CQAddUniq (UCS c, DWORD keyData)
 		return (FALSE);
 	    pos = (pos + 1) % CHARACTER_QUEUE_LENGTH;
 	}
-	return (CQAdd (c, keyData));
+	return (CQAdd (c, fKeyControlDown));
 }
 
 
@@ -11892,6 +11931,15 @@ CQGet ()
 	return (0);
 
     c = CQBuffer[CQHead].c;
+
+    if(CQBuffer[CQHead].fKeyControlDown)
+        c |= CTRL;
+
+    if(c < ' ') {
+        c += '@';
+        c |= CTRL;
+    }
+
     CQHead = (CQHead + 1) % CHARACTER_QUEUE_LENGTH;
     --CQCount;
     return (c);

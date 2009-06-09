@@ -163,6 +163,28 @@ read_char(int tm)
 
     ch = mswin_getc_fast();
 
+    /*
+     * mswin_getc_fast() returns UCS type codes (see keydefs.h). Map
+     *  those values to what is expected from read_char(): Ctrl keys being
+     *  in the 0..0x1f range, NO_OP_COMMAND, etc.
+     */
+    if(ch == NODATA)
+        ch = NO_OP_COMMAND;
+    else if(ch & CTRL)
+    {
+        ch &= ~CTRL;
+        if(ch >= '@' && ch < '@' + 32) {
+            ch -= '@';
+        }
+        else {
+            /*
+             * This could be a ctrl key this part of Pine doesn't understand.
+             *  For example, CTRL|KEY_LEFT. Map these to nops.
+             */
+            ch = NO_OP_COMMAND;
+        }
+    }
+
 gotone:
     /* More obtuse key mapping.  If it is a mouse event, the return
      * may be KEY_MOUSE, which indicates to the upper layer that it
@@ -181,9 +203,6 @@ gotone:
      */
     if((ch & 0xff) == ctrl('Z'))
       RETURN_CH(do_suspend());
-
-    if (ch >= MSWIN_RANGE_START && ch <= MSWIN_RANGE_END)
-	    RETURN_CH (extended_code (ch));
 
     RETURN_CH (ch);
 }
@@ -318,47 +337,3 @@ intr_proc(int state)
     return;	/* no op */
 }
 
-/*----------------------------------------------------------------------
-   translate IBM Keyboard Extended Functions to things pine understands.
-   More work can be done to make things like Home, PageUp and PageDown work. 
-
-/*
- * extended_code - return special key definition
- */
-UCS
-extended_code(unsigned kc)
-{
-    switch(kc){
-	case MSWIN_KEY_F1: return(PF1);
-	case MSWIN_KEY_F2: return(PF2);
-	case MSWIN_KEY_F3: return(PF3);
-	case MSWIN_KEY_F4: return(PF4);
-	case MSWIN_KEY_F5: return(PF5);
-	case MSWIN_KEY_F6: return(PF6);
-	case MSWIN_KEY_F7: return(PF7);
-	case MSWIN_KEY_F8: return(PF8);
-	case MSWIN_KEY_F9: return(PF9);
-	case MSWIN_KEY_F10: return(PF10);
-	case MSWIN_KEY_F11: return(PF11);
-	case MSWIN_KEY_F12: return(PF12);
-
-	case MSWIN_KEY_UP: return(KEY_UP);
-	case MSWIN_KEY_DOWN: return(KEY_DOWN);
-	case MSWIN_KEY_LEFT: return(KEY_LEFT);
-	case MSWIN_KEY_RIGHT: return(KEY_RIGHT);
-	case MSWIN_KEY_HOME: return(KEY_HOME);
-	case MSWIN_KEY_END: return(KEY_END);
-	case MSWIN_KEY_SCROLLUPPAGE:
-	case MSWIN_KEY_PREVPAGE: return(KEY_PGUP);
-	case MSWIN_KEY_SCROLLDOWNPAGE:
-	case MSWIN_KEY_NEXTPAGE: return(KEY_PGDN);
-	case MSWIN_KEY_DELETE: return(KEY_DEL);
-	case MSWIN_KEY_SCROLLUPLINE: return (KEY_SCRLUPL);
-	case MSWIN_KEY_SCROLLDOWNLINE: return (KEY_SCRLDNL);
-	case MSWIN_KEY_SCROLLTO: return (KEY_SCRLTO);
-
-	case MSWIN_KEY_NODATA:	return (NO_OP_COMMAND);
-
-	default   : return(NO_OP_COMMAND);
-    }
-}

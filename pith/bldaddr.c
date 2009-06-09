@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: bldaddr.c 203 2006-10-26 17:23:46Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: bldaddr.c 452 2007-02-26 22:45:47Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -483,9 +483,9 @@ expand_address(BuildTo to, char *userdomain, char *localdomain, int *loop_detect
      *
      * We also malloc enough space here so that we can strcpy over host below.
      */
+    domain_length = MAX(localdomain!=NULL ? strlen(localdomain) : (size_t)0,
+			userdomain!=NULL ? strlen(userdomain) : (size_t)0);
     if(!recursing){
-	domain_length = MAX(localdomain!=NULL ? strlen(localdomain) : (size_t)0,
-			    userdomain!=NULL ? strlen(userdomain) : (size_t)0);
 	fakedomain = (char *)fs_get(domain_length + 1);
 	memset((void *)fakedomain, '@', domain_length);
 	fakedomain[domain_length] = '\0';
@@ -574,8 +574,11 @@ expand_address(BuildTo to, char *userdomain, char *localdomain, int *loop_detect
 			/* lookup in passwd file for local full name */
 			a->personal = local_name_lookup(a->mailbox); 
 			/* we know a->host is long enough for localdomain */
-			if(a->personal)
-			  strncpy(a->host, localdomain, domain_length+1);
+			if(a->personal){
+			    /* we know a->host is long enough for userdomain */
+			    strncpy(a->host, localdomain, domain_length+1);
+			    a->host[domain_length] = '\0';
+			}
 		    }
 		}
 
@@ -688,9 +691,11 @@ expand_address(BuildTo to, char *userdomain, char *localdomain, int *loop_detect
 			    return(adr);
 			}
 		    }
-		    else
-		      /* we know a->host is long enough for userdomain */
-		      strncpy(a->host, userdomain, domain_length+1);
+		    else{
+			/* we know a->host is long enough for userdomain */
+			strncpy(a->host, userdomain, domain_length+1);
+			a->host[domain_length] = '\0';
+		    }
 		}
 
                 /*--- Move to next address in list -----*/

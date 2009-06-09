@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: utf8.c 384 2007-01-24 01:22:15Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: utf8.c 440 2007-02-14 23:33:00Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -31,6 +31,8 @@ static char rcsid[] = "$Id: utf8.c 384 2007-01-24 01:22:15Z hubert@u.washington.
 
 /* includable WITHOUT dependency on pico */
 #include "../../pico/keydefs.h"
+
+#include "../filttype.h"
 
 #include "utf8.h"
 
@@ -289,14 +291,14 @@ convert_to_locale(char *utf8str)
 {
 #define CHNK 500
     char *inp, *retp, *ret = NULL;
-    unsigned char cbuf[6], *cbufp, *cbufend;
+    CBUF_S cb;
     int r, alloced, used = 0;
 
     if(native_utf8 || !utf8str || !utf8str[0])
       return(NULL);
 
-    cbuf[0] = '\0';
-    cbufp = cbufend = cbuf;
+    cb.cbuf[0] = '\0';
+    cb.cbufp = cb.cbufend = cb.cbuf;
     inp = utf8str;
 
     alloced = CHNK;
@@ -320,7 +322,7 @@ convert_to_locale(char *utf8str)
 	    fs_resize((void **) &ret, alloced * sizeof(char));
 	}
 
-	r = utf8_to_locale((int) *inp++, cbuf, sizeof(cbuf), &cbufp,
+	r = utf8_to_locale((int) *inp++, &cb,
 			   (unsigned char *) retp, alloced-(retp-ret));
 
 	retp += r;
@@ -340,25 +342,24 @@ convert_to_locale(char *utf8str)
  * number of valid characters in obuf to be used.
  */
 int
-utf8_to_locale(int c, unsigned char cbuf[], size_t cbuf_size,
-	       unsigned char **cbufp, unsigned char obuf[], size_t obuf_size)
+utf8_to_locale(int c, CBUF_S *cb, unsigned char obuf[], size_t obuf_size)
 {
     int  width = 0, outchars = 0, printable_ascii = 0;
     
-    if(!(cbufp && *cbufp))
+    if(!(cb && cb->cbufp))
       return(0);
 
-    if((*cbufp) < cbuf+cbuf_size){
+    if(cb->cbufp < cb->cbuf+sizeof(cb->cbuf)){
 	unsigned char *inputp;
 	unsigned long remaining_octets;
 	UCS ucs;
 
-	*(*cbufp)++ = (unsigned char) c;
-	inputp = cbuf;
-	remaining_octets = ((*cbufp) - cbuf) * sizeof(unsigned char);
-	if(remaining_octets == 1 && (*cbuf) < 0x80){
+	*(cb->cbufp)++ = (unsigned char) c;
+	inputp = cb->cbuf;
+	remaining_octets = (cb->cbufp - cb->cbuf) * sizeof(unsigned char);
+	if(remaining_octets == 1 && (*cb->cbuf) < 0x80){
 	    /* shortcut common case */
-	    ucs = (UCS) *cbuf;
+	    ucs = (UCS) *cb->cbuf;
 	    inputp++;
 	    printable_ascii++;		/* just for efficiency */
 	}
@@ -384,10 +385,10 @@ utf8_to_locale(int c, unsigned char cbuf[], size_t cbuf_size,
 	     * input buffer as a separate error character and
 	     * print a '?' for each.
 	     */
-	    for(inputp = cbuf; inputp < (*cbufp); inputp++)
+	    for(inputp = cb->cbuf; inputp < cb->cbufp; inputp++)
 	      obuf[outchars++] = '?';
 
-	    *cbufp = cbuf;
+	    cb->cbufp = cb->cbuf;
 	    break;
 
 	  case U8G_ENDSTRG:	/* incomplete character, wait */
@@ -419,7 +420,7 @@ utf8_to_locale(int c, unsigned char cbuf[], size_t cbuf_size,
 		 * ucs in the users locale.
 		 */
 		if(printable_ascii)
-		  obuf[outchars++] = *cbuf;
+		  obuf[outchars++] = *cb->cbuf;
 		else{
 		    outchars = wtomb((char *) obuf, ucs);
 		    if(outchars < 0){
@@ -430,17 +431,17 @@ utf8_to_locale(int c, unsigned char cbuf[], size_t cbuf_size,
 	    }
 
 	    /* update the input buffer */
-	    if(inputp >= (*cbufp))	/* this should be the case */
-	      (*cbufp) = cbuf;
+	    if(inputp >= cb->cbufp)	/* this should be the case */
+	      cb->cbufp = cb->cbuf;
 	    else{		/* extra chars for some reason? */
 		unsigned char *q, *newcbufp;
 
-		newcbufp = ((*cbufp) - inputp) + cbuf;
-		q = cbuf;
-		while(inputp < (*cbufp))
+		newcbufp = (cb->cbufp - inputp) + cb->cbuf;
+		q = cb->cbuf;
+		while(inputp < cb->cbufp)
 		  *q++ = *inputp++;
 
-		(*cbufp) = newcbufp;
+		cb->cbufp = newcbufp;
 	    }
 
 	    break;
@@ -803,25 +804,24 @@ lptstr_to_ucs4(LPTSTR arg_lptstr)
  * at a time.
  */
 int
-utf8_to_ucs4_oneatatime(int c, unsigned char cbuf[], size_t cbuf_size,
-			unsigned char **cbufp, UCS *obuf, int *obufwidth)
+utf8_to_ucs4_oneatatime(int c, CBUF_S *cb, UCS *obuf, int *obufwidth)
 {
     int  width = 0, outchars = 0, printable_ascii = 0;
     
-    if(!(cbufp && *cbufp))
+    if(!(cb && cb->cbufp))
       return(0);
 
-    if((*cbufp) < cbuf+cbuf_size){
+    if(cb->cbufp < cb->cbuf+sizeof(cb->cbuf)){
 	unsigned char *inputp;
 	unsigned long remaining_octets;
 	UCS ucs;
 
-	*(*cbufp)++ = (unsigned char) c;
-	inputp = cbuf;
-	remaining_octets = ((*cbufp) - cbuf) * sizeof(unsigned char);
-	if(remaining_octets == 1 && (*cbuf) < 0x80){
+	*cb->cbufp++ = (unsigned char) c;
+	inputp = cb->cbuf;
+	remaining_octets = (cb->cbufp - cb->cbuf) * sizeof(unsigned char);
+	if(remaining_octets == 1 && (*cb->cbuf) < 0x80){
 	    /* shortcut common case */
-	    ucs = (UCS) *cbuf;
+	    ucs = (UCS) *cb->cbuf;
 	    inputp++;
 	    printable_ascii++;		/* just for efficiency */
 	}
@@ -847,7 +847,7 @@ utf8_to_ucs4_oneatatime(int c, unsigned char cbuf[], size_t cbuf_size,
 	     */
 	    outchars++;
 	    *obuf = '?';
-	    *cbufp = cbuf;
+	    cb->cbufp = cb->cbuf;
 	    width = 1;
 	    break;
 
@@ -883,23 +883,23 @@ utf8_to_ucs4_oneatatime(int c, unsigned char cbuf[], size_t cbuf_size,
 		 * ucs in the users locale.
 		 */
 		if(printable_ascii)
-		  *obuf = *cbuf;
+		  *obuf = *cb->cbuf;
 		else
 		  *obuf = ucs;
 	    }
 
 	    /* update the input buffer */
-	    if(inputp >= (*cbufp))	/* this should be the case */
-	      (*cbufp) = cbuf;
+	    if(inputp >= cb->cbufp)	/* this should be the case */
+	      cb->cbufp = cb->cbuf;
 	    else{		/* extra chars for some reason? */
 		unsigned char *q, *newcbufp;
 
-		newcbufp = ((*cbufp) - inputp) + cbuf;
-		q = cbuf;
-		while(inputp < (*cbufp))
+		newcbufp = (cb->cbufp - inputp) + cb->cbuf;
+		q = cb->cbuf;
+		while(inputp < cb->cbufp)
 		  *q++ = *inputp++;
 
-		(*cbufp) = newcbufp;
+		cb->cbufp = newcbufp;
 	    }
 
 	    break;
@@ -2167,6 +2167,7 @@ posting_charset_is_supported(char *posting_charset)
  * Convert the "orig" string from UTF-8 to "charset". If no conversion is
  * needed the return value will point to orig. If a conversion is done,
  * the return string should be freed by the caller.
+ * If not possible, returns NULL.
  */
 char *
 utf8_to_charset(char *orig, char *charset, int report_err)
@@ -2180,6 +2181,16 @@ utf8_to_charset(char *orig, char *charset, int report_err)
 
     src.size = strlen(orig);
     src.data = (unsigned char *) orig;
+
+    if(!strucmp(charset, "us-ascii")){
+	int i;
+
+	for(i = 0; i < src.size; i++)
+	  if(src.data[i] & 0x80)
+	    return NULL;
+
+	return ret;
+    }
 
     /*
      * This works for ISO-2022-JP because of special code in utf8_cstext

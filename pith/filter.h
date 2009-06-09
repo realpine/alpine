@@ -1,5 +1,5 @@
 /*
- * $Id: filter.h 388 2007-01-24 18:57:42Z hubert@u.washington.edu $
+ * $Id: filter.h 435 2007-02-09 23:35:33Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -31,13 +31,13 @@
 
 
 /* gf_wrap flags */
+#define	GFW_NONE		0x00	/* no flags			*/
 #define	GFW_HANDLES		0x01	/* anticpate handle data	*/
 #define	GFW_ONCOMMA		0x02	/* prefer comma wrap to spaces  */
-#define	GFW_UTF8		0x04	/* wrapping utf-8 text		*/
-#define	GFW_FLOWED		0x08
-#define	GFW_FLOW_RESULT		0x10
-#define	GFW_DELSP		0x20
-#define GFW_USECOLOR		0x40
+#define	GFW_FLOWED		0x04
+#define	GFW_FLOW_RESULT		0x08
+#define	GFW_DELSP		0x10
+#define GFW_USECOLOR		0x20
 
 
 #define TAG_EMBED	'\377'	/* Announces embedded data in text string */
@@ -120,8 +120,12 @@
 
 
 /* exported protoypes */
+int	    generic_readc_locale(unsigned char *c,
+				 int (*get_a_char)(unsigned char *, void *),
+				 void *extraarg,
+				 CBUF_S *cb);
 int	    pc_is_picotext(gf_io_t);
-void	    gf_set_readc(gf_io_t *, void *, unsigned long, SourceType);
+void	    gf_set_readc(gf_io_t *, void *, unsigned long, SourceType, int);
 void	    gf_set_writec(gf_io_t *, void *, unsigned long, SourceType, int);
 void	    gf_set_so_readc(gf_io_t *, STORE_S *);
 void	    gf_clear_so_readc(STORE_S *);
@@ -149,9 +153,9 @@ void	    gf_sjis_to_2022_jp(FILTER_S *, int);
 void	    gf_utf8(FILTER_S *, int);
 void	   *gf_utf8_opt(char *);
 void	    gf_rich2plain(FILTER_S *, int);
-void	   *gf_rich2plain_opt(int);
+void	   *gf_rich2plain_opt(int *);
 void	    gf_enriched2plain(FILTER_S *, int);
-void	   *gf_enriched2plain_opt(int);
+void	   *gf_enriched2plain_opt(int *);
 void	    gf_html2plain(FILTER_S *, int);
 void	   *gf_html2plain_opt(char *, int, int *, HANDLE_S **, int);
 void	    gf_escape_filter(FILTER_S *, int);

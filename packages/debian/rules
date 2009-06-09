@@ -15,14 +15,15 @@ build: build-all
 
 build-all:
 	$(checkdir)
-	./build DEBUG="$(DEBUG)" ldb
+	touch imap/ip6
+	./configure
+	make
 	touch build-all
 
 clean: checkroot
 	$(checkdir)
 	-rm -f build-all
-	./build clean
-	-rm -rf bin/* .bld.hlp pine/date.c
+	make clean
 	-rm -rf debian/tmp debian/files* core debian/substvars
 
 binary-indep: checkroot build-all
@@ -33,32 +34,32 @@ binary-arch: checkroot build-all
 	install -D -m755 debian/preinst debian/tmp/DEBIAN/preinst
 	install -D -m755 debian/postinst debian/tmp/DEBIAN/postinst
 	install -D -m755 debian/postrm debian/tmp/DEBIAN/postrm
-	install -D -m644 debian/menu debian/tmp/usr/lib/menu/pine
+	install -D -m644 debian/menu debian/tmp/usr/lib/menu/alpine
 
-	$(INSTALL_PROGRAM) -D -m755 bin/pine debian/tmp/usr/bin/pine
+	$(INSTALL_PROGRAM) -D -m755 alpine/alpine debian/tmp/usr/bin/alpine
 	$(INSTALL_PROGRAM) -D -m755 imap/mlock/mlock debian/tmp/usr/sbin/mlock
-	$(INSTALL_PROGRAM) -D -m755 bin/rpload debian/tmp/usr/bin/rpload
-	$(INSTALL_PROGRAM) -D -m755 bin/rpdump debian/tmp/usr/bin/rpdump
-	$(INSTALL_PROGRAM) -D -m755 bin/pico debian/tmp/usr/bin/pico
-	$(INSTALL_PROGRAM) -D -m755 bin/pilot debian/tmp/usr/bin/pilot
-	$(INSTALL_PROGRAM) -D -m755 bin/mailutil debian/tmp/usr/bin/mailutil
+	$(INSTALL_PROGRAM) -D -m755 alpine/rpload debian/tmp/usr/bin/rpload
+	$(INSTALL_PROGRAM) -D -m755 alpine/rpdump debian/tmp/usr/bin/rpdump
+	$(INSTALL_PROGRAM) -D -m755 pico/pico debian/tmp/usr/bin/pico
+	$(INSTALL_PROGRAM) -D -m755 pico/pilot debian/tmp/usr/bin/pilot
+	$(INSTALL_PROGRAM) -D -m755 imap/mailutil/mailutil debian/tmp/usr/bin/mailutil
 
-	install -D -m644 bin/pine.1 debian/tmp/usr/share/man/man1/pine.1
+	install -D -m644 doc/alpine.1 debian/tmp/usr/share/man/man1/alpine.1
 	install -D -m644 doc/rpload.1 debian/tmp/usr/share/man/man1/rpload.1
 	install -D -m644 doc/rpdump.1 debian/tmp/usr/share/man/man1/rpdump.1
 	install -D -m644 doc/pico.1 debian/tmp/usr/share/man/man1/pico.1
 	install -D -m644 doc/pilot.1 debian/tmp/usr/share/man/man1/pilot.1
 	install -D -m644 imap/src/mailutil/mailutil.1 debian/tmp/usr/share/man/man1/mailutil.1
-	install -D -m644 bin/tech-notes.txt debian/tmp/usr/share/doc/pine/tech-notes.txt
-	install -D -m644 CPYRIGHT debian/tmp/usr/share/doc/pine/copyright
-	install -D -m644 README debian/tmp/usr/share/doc/pine/README
-	install -D -m644 debian/changelog debian/tmp/usr/share/doc/pine/changelog
+	install -D -m644 doc/tech-notes.txt debian/tmp/usr/share/doc/alpine/tech-notes.txt
+	install -D -m644 LICENSE debian/tmp/usr/share/doc/alpine/license
+	install -D -m644 README debian/tmp/usr/share/doc/alpine/README
+	install -D -m644 debian/changelog debian/tmp/usr/share/doc/alpine/changelog
 
 	gzip -r9 debian/tmp/usr/share/man
-	gzip -9 debian/tmp/usr/share/doc/pine/changelog
-	dpkg-shlibdeps bin/pine bin/pico bin/pilot imap/mlock/mlock bin/rpload bin/rpdump
+	gzip -9 debian/tmp/usr/share/doc/alpine/changelog
+	dpkg-shlibdeps alpine/alpine pico/pico pico/pilot imap/mlock/mlock alpine/rpload alpine/rpdump
 	cd debian/tmp && md5sum `find * -type f ! -regex "DEBIAN/.*"` > DEBIAN/md5sums
-	dpkg-gencontrol -isp -ppine
+	dpkg-gencontrol -isp -palpine
 	chown -R root.root debian/tmp
 	chmod -R go=rX debian/tmp
 	chown root.mail debian/tmp/usr/sbin/mlock
@@ -66,7 +67,7 @@ binary-arch: checkroot build-all
 	dpkg --build debian/tmp ..
 
 define checkdir
-	test -f pine/pine.c -a -f debian/rules
+	test -f alpine/alpine.c -a -f debian/rules
 endef
 
 binary: binary-indep binary-arch

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: send.c 394 2007-01-25 20:29:45Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: send.c 442 2007-02-16 23:01:28Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -226,8 +226,7 @@ postponed_stream(MAILSTREAM **streamp)
 
 	if(!(stream
 	     || ((stream = context_open(p_cntxt,NULL,mbox,
-					FCC_STREAM_MODE|SP_USEPOOL|SP_TEMPUSE,
-					NULL))
+					SP_USEPOOL|SP_TEMPUSE, NULL))
 		 && !stream->halfopen))){
 	    q_status_message1(SM_ORDER | SM_DING, 3, 3,
 			      _("Can't open Postponed mailbox: %s"), mbox);
@@ -386,12 +385,7 @@ redraft_work(MAILSTREAM **streamp, long int cont_msg, ENVELOPE **outgoing,
 		      len = SIZEOF_20KBUF;
 		  }
   
-		  charset = NULL;
-
-		  p = (char *)rfc1522_decode((unsigned char*)bufp,
-					     len, values[i], &charset);
-		  if(charset)
-		    fs_give((void **)&charset);
+		  p = (char *)rfc1522_decode_to_utf8((unsigned char*)bufp, len, values[i]);
 
 		  if(p == tmp_20k_buf){
 		      fs_give((void **)&values[i]);
@@ -794,7 +788,7 @@ redraft_work(MAILSTREAM **streamp, long int cont_msg, ENVELOPE **outgoing,
 	    *body			   = copy_body(NULL, b);
 	    part			   = (*body)->nested.part;
 	    part->body.contents.text.data = (void *)so;
-	    set_mime_type_by_grope(&part->body, NULL);
+	    set_mime_type_by_grope(&part->body);
 	    if(part->body.type != TYPETEXT){
 		q_status_message2(SM_ORDER | SM_DING, 3, 4,
 		      "Unable to resume; first part is non-text: %s/%s",
@@ -819,7 +813,7 @@ redraft_work(MAILSTREAM **streamp, long int cont_msg, ENVELOPE **outgoing,
 	    if(charset = rfc2231_get_param(b->parameter,"charset",NULL,NULL)){
 		(*body)->parameter	      = mail_newbody_parameter();
 		(*body)->parameter->attribute = cpystr("charset");
-		if(utf8able(charset)){
+		if(utf8_charset(charset)){
 		    fs_give((void **) &charset);
 		    (*body)->parameter->value = cpystr("UTF-8");
 		}
@@ -2200,18 +2194,12 @@ or a disk folder.  The temp_storage is freed after it is written.
 An error message is produced if this fails.
   ----*/
 int
-write_fcc(char *fcc, CONTEXT_S *fcc_cntxt, STORE_S *tmp_storage, MAILSTREAM *stream, char *label, char *flags)
+write_fcc(char *fcc, CONTEXT_S *fcc_cntxt, STORE_S *tmp_storage,
+	  MAILSTREAM *stream, char *label, char *flags)
 {
     STRING      msg;
     CONTEXT_S  *cntxt;
     int         we_cancel = 0;
-#if	defined(DOS) && !defined(WIN32)
-    struct {			/* hack! stolen from dawz.c */
-	int fd;
-	unsigned long pos;
-    } d;
-    extern STRINGDRIVER dawz_string;
-#endif
 
     if(!tmp_storage)
       return(0);
@@ -2234,14 +2222,8 @@ write_fcc(char *fcc, CONTEXT_S *fcc_cntxt, STORE_S *tmp_storage, MAILSTREAM *str
  * Before changing this note that these lines depend on the
  * definition of FCC_SOURCE.
  */
-#if	defined(DOS) && !defined(WIN32)
-    d.fd  = fileno((FILE *)so_text(tmp_storage));
-    d.pos = 0L;
-    INIT(&msg, dawz_string, (void *)&d, filelength(d.fd));
-#else
     INIT(&msg, mail_string, (void *)so_text(tmp_storage), 
 	     strlen((char *)so_text(tmp_storage)));
-#endif
 
     cntxt      = fcc_cntxt;
 
@@ -2323,7 +2305,7 @@ generate_from(void)
  *       but the win is all types are handled the same
  */
 void
-set_mime_type_by_grope(struct mail_bodystruct *body, char *charset)
+set_mime_type_by_grope(struct mail_bodystruct *body)
 {
 #define RBUFSZ	(8193)
     unsigned char   *buf, *p, *bol;
@@ -2334,9 +2316,7 @@ set_mime_type_by_grope(struct mail_bodystruct *body, char *charset)
                      len = 0L;
     STORE_S         *so = (STORE_S *)body->contents.text.data;
     unsigned short   new_encoding = ENCOTHER;
-    int              we_cancel = 0,
-		     can_be_ascii = 1,
-		     set_charset_separately = 0;
+    int              we_cancel = 0;
 #ifdef ENCODE_FROMS
     short            froms = 0, dots = 0,
                      bmap  = 0x1, dmap = 0x1;
@@ -2434,9 +2414,6 @@ set_mime_type_by_grope(struct mail_bodystruct *body, char *charset)
 		  lastchar = BREAKOUT;
 #endif
 	    }
-	    else if(*p == ctrl('O') || *p == ctrl('N') || *p == ESCAPE){
-		can_be_ascii--;
-	    }
 	    else if(*p & 0x80){
 		eight_bit_chars++;
 	    }
@@ -2510,8 +2487,6 @@ set_mime_type_by_grope(struct mail_bodystruct *body, char *charset)
 #endif
 	}
     }
-    else if(body->type == TYPETEXT)
-      set_charset_separately++;
 
     /* stash away for later */
     so_attr(so, "maxline", long2string(max_line));
@@ -2555,7 +2530,6 @@ set_mime_type_by_grope(struct mail_bodystruct *body, char *charset)
 	     * The 30% threshold is based on qp encoded readability
 	     * on non-MIME UA's.
 	     */
-	    can_be_ascii--;
 	    if(body->type == TYPEOTHER)
 	      body->type = TYPETEXT;
 
@@ -2563,7 +2537,6 @@ set_mime_type_by_grope(struct mail_bodystruct *body, char *charset)
 	      new_encoding = ENC8BIT;  /* short lines, < 30% 8 bit chars */
 	}
 	else{
-	    can_be_ascii--;
 	    if(body->type == TYPEOTHER){
 		body->type    = TYPEAPPLICATION;
 		body->subtype = cpystr("octet-stream");
@@ -2589,43 +2562,6 @@ set_mime_type_by_grope(struct mail_bodystruct *body, char *charset)
     if(body->subtype == NULL)
       body->subtype = cpystr(rfc822_default_subtype(body->type));
 
-    /*
-     * For TYPETEXT we set the charset. The charset may already be set.
-     * If it is, we still consider downgrading it to US-ASCII if possible.
-     */
-    if(body->type == TYPETEXT){
-        PARAMETER *pm;
-
-	if(body->parameter == NULL){	/* no parameters, add charset */
-	    pm = body->parameter = mail_newbody_parameter();
-	    pm->attribute = cpystr("charset");
-	}
-	else{
-	    int su;
-
-	    for(pm = body->parameter;
-		(su=strucmp(pm->attribute, "charset")) && pm->next != NULL;
-		pm = pm->next)
-	      ;/* searching for charset parameter */
-
-	    if(su){			/* add charset parameter */
-		pm->next = mail_newbody_parameter();
-		pm = pm->next;
-		pm->attribute = cpystr("charset");
-	    }
-	    /* else already a charset parameter there */
-	}
-
-	/*
-	 * If this is set we haven't groped for eight bit chars. This is
-	 * an easy way to do it.
-	 */
-	if(set_charset_separately)
-	  set_only_charset_by_grope(body, charset);
-	else
-	  set_mime_charset(pm, can_be_ascii > 0, charset);
-    }
-
     if(body->encoding == ENCOTHER)
       body->encoding = new_encoding;
 
@@ -2636,16 +2572,21 @@ set_mime_type_by_grope(struct mail_bodystruct *body, char *charset)
 }
 
 
+/*
+ * Call this to set the charset of an attachment we have
+ * created. If the attachment contains any non-ascii characters
+ * then we'll set the charset to the passed in charset, otherwise
+ * we'll make it us-ascii.
+ */
 void
-set_only_charset_by_grope(struct mail_bodystruct *body, char *charset)
+set_charset_possibly_to_ascii(struct mail_bodystruct *body, char *charset)
 {
     unsigned char c;
     int           can_be_ascii = 1;
     STORE_S      *so = (STORE_S *)body->contents.text.data;
     int           we_cancel = 0;
-    PARAMETER    *pm;
 
-    if(body->type != TYPETEXT)
+    if(!body || body->type != TYPETEXT)
       return;
 
     we_cancel = busy_cue(NULL, NULL, 1);
@@ -2653,97 +2594,25 @@ set_only_charset_by_grope(struct mail_bodystruct *body, char *charset)
     so_seek(so, 0L, 0);
 
     while(can_be_ascii && so_readc(&c, so))
-      if(c == ctrl('O') || c == ctrl('N') || c == ESCAPE || c & 0x80 || !c)
+      if(!c || c & 0x80)
 	can_be_ascii--;
 
-    if(body->parameter == NULL){	/* no parameters, add charset */
-	pm = body->parameter = mail_newbody_parameter();
-	pm->attribute = cpystr("charset");
-    }
-    else{
-	int su;
-
-	for(pm = body->parameter;
-	    (su=strucmp(pm->attribute, "charset")) && pm->next != NULL;
-	    pm = pm->next)
-	  ;/* searching for charset parameter */
-
-	if(su){			/* add charset parameter */
-	    pm->next = mail_newbody_parameter();
-	    pm = pm->next;
-	    pm->attribute = cpystr("charset");
-	}
-	/* else already a charset parameter there */
-    }
-
-    set_mime_charset(pm, can_be_ascii > 0, charset);
-
-    if(we_cancel)
-      cancel_busy_cue(-1);
-}
-
-
-/*
- * set_mime_charset - assign charset
- *
- *                    We may leave the charset that is already set alone,
- *                    or we may set it to cs,
- *                    or we may downgrade it to us-ascii.
- */
-void
-set_mime_charset(struct mail_body_parameter *pm, int ascii_ok, char *cs)
-{
-    char	**excl;
-    static char  *us_ascii = "US-ASCII";
-    static char  *non_ascii[] = {"UTF-7", "UNICODE-1-1-UTF-7", NULL};
-
-    if(!pm || strucmp(pm->attribute, "charset") != 0)
-      panic("set_mime_charset: no charset parameter");
-    
-    if(pm->value)
-      fs_give((void **)&pm->value);
-
-    /* see if cs is a special non_ascii charset */
-    for(excl = non_ascii; cs && *excl && strucmp(*excl, cs); excl++)
-      ;
-
-    /*
-     * *excl means it matched one of the non_ascii charsets that is made up
-     * of ascii characters.
-     */
-    if((cs && *cs && *excl) ||
-       (!ascii_ok && cs && *cs && strucmp(cs, us_ascii))){
-	/*
-	 * If cs is one of the non_ascii charsets and ascii_ok is set, or
-	 * !ascii_ok and cs is set but not equal to ascii, then we use
-	 * the passed in charset (unless charset is already set to something).
-	 */
-	if(!pm->value)
-	  pm->value = cpystr(cs);
-    }
-    else if(ascii_ok){
-	/*
-	 * Else if ascii is ok and it wasn't one of the special non_ascii
-	 * charsets, we go with us_ascii. This could be a downgrade from
-	 * a non_ascii charset (like some 8859 charset) to ascii because there
-	 * are no non ascii characters present.
-	 */
-	if(pm->value)				/* downgrade to ascii */
-	  fs_give((void **)&pm->value);
-
-	pm->value = cpystr(us_ascii);
-    }
+    if(can_be_ascii)
+      set_parameter(&body->parameter, "charset", "US-ASCII");
+    else if(charset && *charset && strucmp(charset, "US-ASCII"))
+      set_parameter(&body->parameter, "charset", charset);
     else{
 	/*
 	 * Else we don't know. There are non ascii characters but we either
 	 * don't have a charset to set it to or that charset is just us_ascii,
 	 * which is impossible. So we label it unknown. An alternative would
 	 * have been to strip the high bits instead and label it ascii.
-	 * If it is already set, we leave it.
 	 */
-	if(!pm->value)
-	  pm->value = cpystr(UNKNOWN_CHARSET);
+      set_parameter(&body->parameter, "charset", UNKNOWN_CHARSET);
     }
+
+    if(we_cancel)
+      cancel_busy_cue(-1);
 }
 
 
@@ -2765,9 +2634,7 @@ pine_encode_body (struct mail_bodystruct *body)
 	  snprintf (tmp,sizeof(tmp),"%ld-%ld-%ld=:%ld",gethostid (),random (),(long) time (0),
 		    (long) getpid ());
 	  tmp[sizeof(tmp)-1] = '\0';
-	  body->parameter = mail_newbody_parameter ();
-	  body->parameter->attribute = cpystr ("BOUNDARY");
-	  body->parameter->value = cpystr (tmp);
+	  set_parameter(&body->parameter, "BOUNDARY", tmp);
       }
       part = body->nested.part;	/* encode body parts */
       do pine_encode_body (&part->body);
@@ -2794,7 +2661,7 @@ pine_encode_body (struct mail_bodystruct *body)
 		 || strucmp(charset, posting_charset)
 		 || (strucmp(posting_charset, "utf-8")
 		     && strucmp(posting_charset, "us-ascii")))){
-	      fix_charset_parameter(body, posting_charset);
+	      set_parameter(&body->parameter, "charset", posting_charset);
 		
 	      /* fix iso-2022-up encoding to ENCNONE since it's escape based */
 	      if(!strucmp(posting_charset, "iso-2022-jp")
@@ -2843,9 +2710,12 @@ pine_header_line(char *field, METAENV *header, char *text, soutr_t f, void *s,
     converted = utf8_to_charset(text, cs = posting_characterset(text, HdrText), 0);
 
     if(converted){
-	value = encode_header_value(tmp_20k_buf, SIZEOF_20KBUF,
-				    (unsigned char *) converted, cs,
-				    encode_whole_header(field, header));
+	if(cs && !strucmp(cs, "us-ascii"))
+	  value = converted;
+	else
+	  value = encode_header_value(tmp_20k_buf, SIZEOF_20KBUF,
+				      (unsigned char *) converted, cs,
+				      encode_whole_header(field, header));
 
 	if(value && value == converted){	/* no encoding was done, have to fold */
 	    int   fold_by, len;
@@ -3522,6 +3392,9 @@ posting_characterset(void *data, MsgPart mp)
 	     * If we're to post in other than UTF-8, and it can be
 	     * transliterated without losing fidelity, do it.
 	     */
+	    if((*xlatable)(data, "us-ascii"))
+	      return("us-ascii");
+
 	    if((*xlatable)(data, ps_global->posting_charmap))
 	      return(ps_global->posting_charmap);
 	}
@@ -3534,6 +3407,7 @@ posting_characterset(void *data, MsgPart mp)
 	     */
 	    int   i;
 	    char *downgrades[] = {
+		    "us-ascii",
 		    "iso-8859-15",
 		    "iso-8859-1",
 		    "iso-2022-jp",
@@ -3546,6 +3420,47 @@ posting_characterset(void *data, MsgPart mp)
     }
 
     return("UTF-8");
+}
+
+
+/*
+ * Set parameter to new value.
+ */
+void
+set_parameter(PARAMETER **param, char *paramname, char *new_value)
+{
+    PARAMETER *pm;
+
+    if(!param || !(paramname && *paramname))
+      return;
+
+    if(*param == NULL){
+	pm = (*param) = mail_newbody_parameter();
+	pm->attribute = cpystr(paramname);
+    }
+    else{
+	int nomatch;
+
+	for(pm = *param;
+	    (nomatch=strucmp(pm->attribute, paramname)) && pm->next != NULL;
+	    pm = pm->next)
+	  ;/* searching for paramname parameter */
+
+	if(nomatch){			/* add charset parameter */
+	    pm->next = mail_newbody_parameter();
+	    pm = pm->next;
+	    pm->attribute = cpystr(paramname);
+	}
+	/* else pm is existing paramname parameter */
+    }
+
+    if(pm){
+	if(pm->value)
+	  fs_give((void **) &pm->value);
+
+	if(new_value)
+	  pm->value = cpystr(new_value);
+    }
 }
 
 
@@ -3846,7 +3761,7 @@ pine_rfc822_output_body(struct mail_bodystruct *body, soutr_t f, void *s)
 		    }
 		    else{
 			/* else, just send it? */
-			fix_charset_parameter(body, "UTF-8");
+			set_parameter(&body->parameter, "charset", "UTF-8");
 		    }
 		}
 	    }

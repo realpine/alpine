@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: arg.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: arg.c 456 2007-02-28 20:06:32Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -39,7 +39,7 @@ int  pinerc_cmdline_opt(char *);
 /*
  * Name started as to invoke function key mode
  */
-#define	PINE_FKEY_NAME	"pinef"
+#define	ALPINE_FKEY_NAME	"alpinef"
 
 /*
  * Various error and informational strings..
@@ -95,7 +95,7 @@ N_(" -k \t\tKeys - Force use of function keys"),
 N_(" -z \t\tSuspend - allow use of ^Z suspension"),
 N_(" -r \t\tRestricted - can only send mail to oneself"),
 N_(" -sort <sort>\tSort - Specify sort order of folder:"),
-N_("\t\t       subject, arrival, date, from, size, /reverse"),
+N_("\t\t       arrival, subject, threaded, orderedsubject, date, from, size, score, to, cc, /reverse"),
 N_(" -i\t\tIndex - Go directly to index, bypassing main menu"),
 N_(" -I <keystroke_list>   Initial keystrokes to be executed"),
 N_(" -n <number>\tEntry in index to begin on"),
@@ -781,7 +781,7 @@ Loop: while(--ac > 0)
     if(debug_str && process_debug_str(debug_str))
       usage++;
 
-    if(lc && strncmp(lc, PINE_FKEY_NAME, sizeof(PINE_FKEY_NAME) - 1) == 0)
+    if(lc && strncmp(lc, ALPINE_FKEY_NAME, sizeof(ALPINE_FKEY_NAME) - 1) == 0)
       do_use_fk = 1;
 
     if(do_use_fk || do_can_suspend){

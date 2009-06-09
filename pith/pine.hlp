@@ -1,4 +1,4 @@
-# $Id: pine.hlp 392 2007-01-25 18:56:49Z hubert@u.washington.edu $
+# $Id: pine.hlp 465 2007-03-02 18:30:56Z hubert@u.washington.edu $
 #
 #        T H E   A L P I N E    M E S S A G E   S Y S T E M
 #
@@ -166,6 +166,61 @@ addresses bugs found in previous releases and has a few additions as well.
 Additions include:
 <P>
 <UL>
+   <LI> Tab-completion of address book nicknames when <A HREF="h_config_enable_tab_complete">Enable-Tab-Completion</A> feature is turned on
+   <LI> For Windows version when composing Ctrl-Left is back one word, Ctrl-Home
+        moves to beginning of body, and Ctrl-End moves to the end
+   <LI> Added transparent color possibility for UNIX Alpine &quot;use-termdef&quot; style when
+        termcap entry contains Back Color Erase
+   <LI> Avoid invalid character set errors from IMAP server when there is no reason
+	to use a non-ASCII character set
+   <LI> Windows Alpine builds without requiring setup of c-client directories or LDAP configuration
+   <LI> Added ViewInNewWindow command to PC-Alpine's Message menu
+   <LI> Added <A HREF="h_config_use_boring_spinner">Busy-Cue-Spinner-Only</A> option
+	to turn off randomness in the busy cue animations. The option
+	Active-Msg-Updates-Per-Second was renamed to
+	<A HREF="h_config_active_msg_interval">Busy-Cue-Rate</A>.
+</UL>
+
+<P>
+Bugs that have been addressed in this release include:
+<P>
+
+<UL>
+   <LI> Crash from message with charset label unicode-1-1-utf-7
+   <LI> Crash when doing beginning of month copying of read-messages
+   <LI> A Stay-Open folder which was in the Incoming-Archive-Folders list could
+	break the Select command in that folder
+   <LI> Ctrl-Z did not work in Windows version
+   <LI> Printing of a message didn't work in Windows version
+   <LI> Crash when deleting threads with the Delete key
+   <LI> Crash when expanding address book entry with no domain name in address
+   <LI> Crash in composer when editing headers (double free in FormatLines)
+   <LI> Username was truncated to 3 characters in login dialog
+   <LI> Buffer overflow in altedit.c
+   <LI> Quotes with leading digits could be painted in the wrong color
+   <LI> Bug preventing opening of attachments in Mac OS X or opening attachments with the wrong application
+   <LI> Message attachments were displayed incorrectly when header colors were turned on
+   <LI> When including a message from the composer (with Ctrl-R Ctrl-W) non-ascii text
+	was not correctly converted
+   <LI> Sending and display filters were not converting the data to the
+	local character set before calling the filter, and were not converting
+	back afterwards
+   <LI> When a program was used for the <A HREF="h_config_signature_file">Signature-File</A>
+        the output was assumed to be in UTF-8 instead of in the locale's
+	character set
+   <LI> In Windows the context menu for selecting from multiple
+	postponed messages was broken
+   <LI> Crash when running with command line argument of -d0
+</UL>
+
+<P>
+Version 0.82
+addressed bugs found in previous releases and had a few additions as well.
+
+<P>
+Additions included:
+<P>
+<UL>
    <LI> Added PC-Alpine aspell interface from Michael Sartain.
         Install library code from http://aspell.net/win32/
    <LI> PC-Alpine &quot;View in New Window&quot; command will now use a new
@@ -187,7 +242,7 @@ Additions include:
 </UL>
 
 <P>
-Bugs that have been addressed in this release include:
+Bugs addressed in the 0.82 release included:
 <P>
 
 <UL>
@@ -1151,7 +1206,7 @@ SPECIAL REQUEST:
 This software is made available world-wide as a public service of the
 University of Washington in Seattle.  In order to justify continuing
 development, it is helpful to have an idea of how many people are using
-Alpine.  Are you willing to be counted as a Alpine user?  Pressing 
+Alpine.  Are you willing to be counted as an Alpine user?  Pressing 
 <A HREF="X-Alpine-Phone-Home:">Return</A>
 will send an anonymous (meaning, your real email address will not be revealed) 
 message to the Alpine development team at the University of Washington for 
@@ -2001,6 +2056,7 @@ Some related help topics are
 <UL>
 <LI> <A HREF="h_index_cmd_select">Selecting: Select and WhereIs/Select</A>,
 <LI> <A HREF="h_config_enable_agg_ops">Enable-Aggregate-Command-Set</A>,
+<LI> <A HREF="h_config_auto_unselect">Auto-Unselect-After-Apply</A>.
 <LI> <A HREF="h_config_auto_unzoom">Auto-Unzoom-After-Apply</A>,
 <LI> <A HREF="h_config_auto_zoom">Auto-Zoom-After-Select</A>, and
 <LI> <A HREF="h_config_select_wo_confirm">Select-Without-Confirm</A>.
@@ -2782,8 +2838,10 @@ There are also additional details on
 <li><a href="h_config_force_low_speed">FEATURE: Assume-Slow-Link</a>
 <li><a href="h_config_auto_read_msgs">FEATURE: Auto-Move-Read-Msgs</a>
 <li><a href="h_config_auto_open_unread">FEATURE: Auto-Open-Next-Unread</a>
+<li><a href="h_config_auto_unselect">FEATURE: Auto-Unselect-After-Apply</a>
 <li><a href="h_config_auto_unzoom">FEATURE: Auto-Unzoom-After-Apply</a>
 <li><a href="h_config_auto_zoom">FEATURE: Auto-Zoom-After-Select</a>
+<li><a href="h_config_use_boring_spinner">FEATURE: Busy-Cue-Spinner-Only</a>
 <li><a href="h_config_check_mail_onquit">FEATURE: Check-Newmail-When-Quitting</a>
 <li><a href="h_config_combined_abook_display">FEATURE: Combined-Addrbook-Display</a>
 <li><a href="h_config_combined_folder_display">FEATURE: Combined-Folder-Display</a>
@@ -2826,7 +2884,6 @@ There are also additional details on
 <li><a href="h_config_relaxed_arrow_nav">FEATURE: Enable-Arrow-Navigation-Relaxed</a>
 <li><a href="h_config_compose_bg_post">FEATURE: Enable-Background-Sending</a>
 <li><a href="h_config_enable_bounce">FEATURE: Enable-Bounce-Cmd</a>
-<li><a href="h_config_enable_color">FEATURE: enable-color</a>
 <li><a href="h_config_cruise_mode">FEATURE: Enable-Cruise-Mode</a>
 <li><a href="h_config_cruise_mode_delete">FEATURE: Enable-Cruise-Mode-Delete</a>
 <li><a href="h_config_compose_dsn">FEATURE: Enable-Delivery-Status-Notification</a>
@@ -2863,7 +2920,7 @@ There are also additional details on
 <li><a href="h_config_can_suspend">FEATURE: Enable-Suspend</a>
 <li><a href="h_config_enable_tab_complete">FEATURE: Enable-Tab-Completion</a>
 <li><a href="h_config_enable_take_export">FEATURE: Enable-Take-Export</a>
-<li><a href="h_config_tray-icon">FEATURE: Enable-Tray-Icon</a>
+<li><a href="h_config_tray_icon">FEATURE: Enable-Tray-Icon</a>
 <li><a href="h_config_enable_pipe">FEATURE: Enable-Unix-Pipe-Cmd</a>
 <li><a href="h_config_verbose_post">FEATURE: Enable-Verbose-SMTP-Posting</a>
 <li><a href="h_config_expanded_addrbooks">FEATURE: Expanded-View-of-Addressbooks</a>
@@ -2892,8 +2949,8 @@ There are also additional details on
 <li><a href="h_config_post_wo_validation">FEATURE: News-Post-Without-Validation</a>
 <li><a href="h_config_read_in_newsrc_order">FEATURE: News-Read-in-Newsrc-Order</a>
 <li><a href="h_config_next_thrd_wo_confirm">FEATURE: Next-Thread-Without-Confirm</a>
-<li><a href="h_config_expunge_inbox">FEATURE: Offer-Expunge-On-Inbox</a>
-<li><a href="h_config_expunge_stayopens">FEATURE: Offer-Expunge-On-Stayopen-Folders</a>
+<li><a href="h_config_expunge_inbox">FEATURE: Offer-Expunge-Of-Inbox</a>
+<li><a href="h_config_expunge_stayopens">FEATURE: Offer-Expunge-Of-Stayopen-Folders</a>
 <li><a href="h_config_pass_c1_control">FEATURE: Pass-C1-Control-Characters-as-is</a>
 <li><a href="h_config_pass_control">FEATURE: Pass-Control-Characters-as-is</a>
 <li><a href="h_config_predict_nntp_server">FEATURE: Predict-NNTP-Server</a>
@@ -2942,7 +2999,7 @@ There are also additional details on
 <li><a href="h_config_scramble_message_id">FEATURE: Scramble-Message-ID</a>
 <li><a href="h_config_select_wo_confirm">FEATURE: Select-Without-Confirm</a>
 <li><a href="h_config_send_wo_confirm">FEATURE: Send-Without-Confirm</a>
-<li><a href="h_config_separate_yold_dir_view">FEATURE: Separate-Folder-and-Directory-Entries</a>
+<li><a href="h_config_separate_fold_dir_view">FEATURE: Separate-Folder-and-Directory-Entries</a>
 <li><a href="h_config_show_cursor">FEATURE: Show-Cursor</a>
 <li><a href="h_config_textplain_int">FEATURE: Show-Plain-Text-Internally</a>
 <li><a href="h_config_select_in_bold">FEATURE: Show-Selected-in-Boldface</a>
@@ -3036,11 +3093,11 @@ There are also additional details on
 <li><a href="h_common_nextnew">NextNew Command</a>
 <li><a href="h_abook_select_nick">Nickname Selection Explained</a>
 <li><a href="h_mainhelp_readingnews">NNTP</a>
-<li><a href="h_config_active_msg_interval">OPTION: Active-Msg-Updates-Per-Second</a>
 <li><a href="h_config_ab_sort_rule">OPTION: Addrbook-Sort-Rule</a>
 <li><a href="h_config_address_book">OPTION: Address-Book</a>
 <li><a href="h_config_abook_formats">OPTION: Addressbook-Formats</a>
 <li><a href="h_config_alt_addresses">OPTION: Alt-Addresses</a>
+<li><a href="h_config_active_msg_interval">OPTION: Busy-Cue-Rate</a>
 <li><a href="h_config_color_style">OPTION: Color-Style</a>
 <li><a href="h_config_composer_wrap_column">OPTION: Composer-Wrap-Column</a>
 <li><a href="h_config_index_color_style">OPTION: Current-Indexline-Style</a>
@@ -3079,8 +3136,9 @@ There are also additional details on
 <li><a href="h_config_incoming_timeo">OPTION: Incoming-Check-Timeout</a>
 <li><a href="h_config_incoming_folders">OPTION: Incoming-Folders</a>
 <li><a href="h_config_inc_startup">OPTION: Incoming-Startup-Rule</a>
-<li><a href="h_config_arrow_color">OPTION: Index Arrow Color</a>
+<li><a href="h_config_index_arrow_color">OPTION: Index Arrow Color</a>
 <li><a href="h_config_index_color">OPTION: Index Colors</a>
+<li><a href="h_config_index_opening_color">OPTION: Index Opening Color</a>
 <li><a href="h_config_index_format">OPTION: Index-Format</a>
 <li><a href="h_config_init_cmd_list">OPTION: Initial-Keystroke-List</a>
 <li><a href="h_config_key_char_set">OPTION: Keyboard-Character-Set</a>
@@ -3244,7 +3302,7 @@ There are also additional details on
 <li><a href="h_config_role_composeuse">PATTERNS USE: Compose Use</a>
 <li><a href="h_config_role_forwarduse">PATTERNS USE: Forward Use</a>
 <li><a href="h_config_role_replyuse">PATTERNS USE: Reply Use</a>
-<li><a href="h_nh_mainhelp_config">Alpine Configuration</a>
+<li><a href="h_mainhelp_config">Alpine Configuration</a>
 <li><a href="h_mainhelp_pinehelp">Alpine Help</a>
 <li><a href="h_news_legal">Alpine Legal Notices</a>
 <li><a href="h_pipe_command">Pipe Command SubOptions</a>
@@ -4677,7 +4735,8 @@ The behavior of some of these commands in an aggregate sense is not easy to
 explain.  Try them out to see what they do.
 The feature
 <A HREF="h_config_auto_unzoom">&quot;Auto-Unzoom-After-Apply&quot;</A>
-affects the behavior of the Apply command.
+affects the behavior of the Apply command, as does the feature
+<A HREF="h_config_auto_unselect">&quot;Auto-Unselect-After-Apply&quot;</A>.
 
 <P>
 &lt;End of help on this topic&gt;
@@ -6379,6 +6438,8 @@ and return to your system prompt.
 By default, when you use the Pipe command, the processed text of the
 message is sent to the Unix command
 you specify and the output is captured by Alpine and shown to you.
+(This command is available in PC-Alpine, as well, but there aren't many
+Windows commands that work well with piping.)
 There are some sub-commands which may be used to alter this behavior.
 These are toggles which switch the behavior between two possibilities.
 They can be combined in any way you wish.
@@ -9419,20 +9480,6 @@ folder for sent mail and a folder for saved messages.<P>
 
 You may create as many other folders as you wish.  They must be given
 names that can be filenames on the filesystem.  
-<!--chtml if pinemode="os_windows"-->
-Normally PC-Alpine folders are
-automatically given the filename extension &quot;.MTX&quot; (which stands
-for Mailbox-text).  The extension is suppressed from FOLDER LIST
-displays, and should not be entered when typing a folder name at a
-Save or Goto prompt.  The use of the MTX extension can be overridden
-by the Setup/Configuration option 
-<A HREF="h_config_folder_extension">Folder-Extension</A>, 
-which may be useful when accessing
-saved-message folders on a Unix host via SMB or NFS.  PC-Alpine can
-understand the normal Unix mail folder format, but can only open those
-folders READ-ONLY.
-<!--chtml else-->
-<!--chtml endif-->
 <P>
 
 You can move messages from one folder to another by opening the original
@@ -17230,7 +17277,7 @@ and in the target of Filter Rules.
 <DD>
 This token represents the Subject the sender gave the message.
 Alternatives for use in the index screen are
-SUBJKEY, SUBJKEYINIT, SUBJECTNOTEXT, SUBJKEYNOTEXT, and SUBJKEYINITNOTEXT.
+SUBJKEY, SUBJKEYINIT, SUBJECTTEXT, SUBJKEYTEXT, and SUBJKEYINITTEXT.
 </DD>
 
 <DT>FROM</DT>
@@ -17801,19 +17848,22 @@ Setup/Kolor screen (<A HREF="h_config_kw_color">Keyword Colors</A>).
 
 <DT>SUBJECTTEXT</DT>
 <DD>
-Same as SUBJECT if there is room in the Subject field for more text,
+Same as SUBJECT but if there is room in the Subject field for more text,
 the opening part of the text of the message is displayed after the subject.
 The time needed to fetch the text may cause a performance problem
 which can, of course, be avoided by using the SUBJECT version of
 the Subject instead.
+You may color this opening text differently by using the
+<A HREF="h_config_index_opening_color">Index Opening Color</A> option available from
+the <A HREF="h_color_setup">Setup Kolor</A> screen.
 </DD>
 
-<DT>SUBJKEYNOTEXT</DT>
+<DT>SUBJKEYTEXT</DT>
 <DD>
 Same as SUBJKEY but with the opening message text.
 </DD>
 
-<DT>SUBJKEYINITNOTEXT</DT>
+<DT>SUBJKEYINITTEXT</DT>
 <DD>
 Same as SUBJKEYINIT but with the opening message text.
 </DD>
@@ -17903,7 +17953,7 @@ It is also possible to set the color of the ARROW field.
 By default (and for non-current messages) the arrow is colored the same
 as the index line it is part of.
 You may set it to be another color with the 
-<A HREF="h_config_arrow_color">Index Arrow Color</A> option available from
+<A HREF="h_config_index_arrow_color">Index Arrow Color</A> option available from
 the <A HREF="h_color_setup">Setup Kolor</A> screen.
 </DD>
 
@@ -20954,29 +21004,29 @@ The normal default is &quot;fullname-with-lists-last&quot;.
 <H1>OPTION: Posting-Character-Set</H1>
 
 The Posting-Character-Set configuration option is used for sending messages.
-It defaults to UTF-8.
 
 <P>
 
 When sending a message the text typed in the composer is
 labeled with the character set specified by this option.
 If the composed text is not fully representable in the 
-specified posting-character-set, then it is labeled as &quot;UTF-8.&quot;
+specified posting-character-set, then it is labeled as &quot;UTF-8.&quot
+instead;
 
 <P>
 Attachments are labeled with your
 <A HREF="h_config_key_char_set">&quot;Keyboard-Character-Set&quot;</A>.
 
 <P>
-Generally, there should be little need to set this option.  The
+Generally, there should be little need to set this option.
+If left unset, the
 default behavior is to label composed text as specifically as
 possible.  That is, if the composed text has no non-ASCII characters,
 it is labeled as &quot;US-ASCII.&quot; Similarly, if it is composed of
 only ISO-8859-15 characters, it is labeled as such.  Alpine will
 automatically detect a number of character sets including ISO-8859-15,
-ISO-2022-JP, KOI8-R.  If the message contains a mix of character sets,
+ISO-2022-JP, and KOI8-R.  If the message contains a mix of character sets,
 it is labeled as &quot;UTF-8.&quot;
-
 
 <P>
 
@@ -20986,7 +21036,7 @@ send messages in Greek, setting this option to &quot;ISO-8859-7&quot;
 will result in such messages being labeled with the more specific
 character set.  Lastly, by setting this option explicitly to
 &quot;UTF-8&quot; all non-ASCII messages you send will be labeled as
-&quot;UTF-8.&quot;
+&quot;UTF-8&quot; instead of something more specific.
 
 <P>
 The options
@@ -21013,34 +21063,144 @@ should cause this option to be ignored.
 <H1>OPTION: Display-Character-Set</H1>
 
 The Display-Character-Set configuration option is used when viewing messages.
-If this option is not set (the default) then Alpine will attempt to
-get your display character set from the environment.
-In particular, the nl_langinfo(CODESET) call is used.
-This usually depends on the setting of the environment variables
-LANG and/or LC_CTYPE.
+<P>
+Alpine uses Unicode characters internally and 
+it is a goal for Alpine to handle email in many different languages.
+Alpine will properly display only left-to-right character sets
+in a fixed-width font. Specifically, Alpine assumes that a fixed-width
+font is in use, in the sense that
+characters are assumed to take up zero, one, or two character cell
+widths from left to right on the screen. This is true even in PC-Alpine.
+<P>
+
+Alpine recognizes some local character sets which are right-to-left
+(Arabic, Hebrew, and Thai) or not representable in a fixed-width font
+(Arabic) and properly converts texts in these character sets to/from
+Unicode; however, there are known display bugs with these character
+sets.
+<P>
+
+There are three possible configuration character settings and some
+environment variable settings which can affect how Alpine
+handles international characters.
+The three configuration options are
+Display-Character-Set,
+Keyboard-Character-Set, and
+Posting-Character-Set.
+The Keyboard-Character-Set defaults to being the same value
+as the Display-Character-Set, and that is usually correct, because
+the keyboard almost always produces characters in the same character set
+as the display displays.
+The Display-Character-Set is the character set that Alpine
+will attempt to use when sending characters to the display.
+<P>
+
+By default, the Display-Character-Set variable is not set and UNIX Alpine
+will attempt to get this information from the environment.
+In particular, the <CODE>nl_langinfo(CODESET)</CODE> call is used.
+This usually depends on the setting of the environment variables LANG or LC_CTYPE.
+For PC-Alpine the default for Display-Character-Set
+is simply <CODE>UTF-8</CODE>.
+An explicit configuration setting for Display-Character-Set will,
+of course, override any default setting.
+<P>
+
+It is probably best to use Alpine in a terminal emulator
+capable of displaying UTF-8 characters, since that will allow you to
+view just about any received text that is correctly formatted (note,
+however, the above comments about known index display bugs with certain
+character sets). You'll need to have an emulator which uses a UTF-8 font
+and you'll need to set up your environment to use a UTF-8 charmap. For
+example, on a Linux system you might include
+<P>
+<CENTER> <CODE>setenv LANG en_US.UTF-8</CODE> </CENTER>
+<P>
+
+or something similar in your UNIX startup files.
+You'd also have to select a UTF-8 font in your terminal emulator.
+<P>
+
+The types of values that the character set variables may be set to are
+<CODE>UTF-8</CODE>, <CODE>ISO-8859-1</CODE>, or <CODE>EUC-JP</CODE>.
+The <CODE>ISO-2022</CODE> character sets are not supported for input or
+for display, but as a special case, <CODE>ISO-2022-JP</CODE> is supported
+for use only as a Posting-Character-Set.
+Here is a list of many of the possible character sets:
 
 <P>
-If possible, it is probably best to use Alpine in a terminal emulator
-capable of displaying UTF-8 characters, since that will allow you
-to view just about any received text that is correctly formatted.
-You'll need to have an emulator which uses a UTF-8 font and you'll need
-to set up your environment to use a UTF-8 charmap.
-For example, on a Linux system you might include
-
-<P>   
-<CENTER>setenv LANG en_US.UTF-8</CENTER>
+<TABLE>
+<TR> <TD>UTF-8</TD> <TD>Unicode</TD> </TR>
+<TR> <TD>US-ASCII</TD> <TD>7 bit American English characters</TD> </TR>
+<TR> <TD>ISO-8859-1</TD> <TD>8 bit European "Latin 1" character set</TD> </TR>
+<TR> <TD>ISO-8859-2</TD> <TD>8 bit European "Latin 2" character set</TD> </TR>
+<TR> <TD>ISO-8859-3</TD> <TD>8 bit European "Latin 3" character set</TD> </TR>
+<TR> <TD>ISO-8859-4</TD> <TD>8 bit European "Latin 4" character set</TD> </TR>
+<TR> <TD>ISO-8859-5</TD> <TD>8 bit Latin and Cyrillic</TD> </TR>
+<TR> <TD>ISO-8859-6</TD> <TD>8 bit Latin and Arabic</TD> </TR>
+<TR> <TD>ISO-8859-7</TD> <TD>8 bit Latin and Greek</TD> </TR>
+<TR> <TD>ISO-8859-8</TD> <TD>8 bit Latin and Hebrew</TD> </TR>
+<TR> <TD>ISO-8859-9</TD> <TD>8 bit European "Latin 5" character set</TD> </TR>
+<TR> <TD>ISO-8859-10</TD> <TD>8 bit European "Latin 6" character set</TD> </TR>
+<TR> <TD>ISO-8859-11</TD> <TD>Latin and Thai</TD> </TR>
+<TR> <TD>ISO-8859-12</TD> <TD>Reserved</TD> </TR>
+<TR> <TD>ISO-8859-13</TD> <TD>8 bit European "Latin 7" character set</TD> </TR>
+<TR> <TD>ISO-8859-14</TD> <TD>8 bit European "Latin 8" character set</TD> </TR>
+<TR> <TD>ISO-8859-15</TD> <TD>8 bit European "Latin 9" character set</TD> </TR>
+<TR> <TD>ISO-8859-16</TD> <TD>8 bit European "Latin 10" character set</TD> </TR>
+<TR> <TD>KOI8-R</TD> <TD>8 bit Latin and Russian</TD> </TR>
+<TR> <TD>KOI8-U</TD> <TD>8 bit Latin and Ukranian</TD> </TR>
+<TR> <TD>WINDOWS-1251</TD> <TD>8 bit Latin and Russian</TD> </TR>
+<TR> <TD>TIS-620</TD> <TD>8 bit Latin and Thai</TD> </TR>
+<TR> <TD>VISCII</TD> <TD>8 bit Latin and Vietnamese</TD> </TR>
+<TR> <TD>GBK</TD> <TD>Latin and Chinese Simplified</TD> </TR>
+<TR> <TD>GB2312</TD> <TD>Latin and Chinese Simplified</TD> </TR>
+<TR> <TD>CN-GB</TD> <TD>Latin and Chinese Simplified</TD> </TR>
+<TR> <TD>BIG5</TD> <TD>Latin and Chinese Traditional</TD> </TR>
+<TR> <TD>BIG-5</TD> <TD>Latin and Chinese Traditional</TD> </TR>
+<TR> <TD>EUC-JP</TD> <TD>Latin and Japanese</TD> </TR>
+<TR> <TD>SHIFT-JIS</TD> <TD>Latin and Japanese</TD> </TR>
+<TR> <TD>EUC-KR</TD> <TD>Latin and Korean</TD> </TR>
+<TR> <TD>KSC5601</TD> <TD>Latin and Korean</TD> </TR>
+</TABLE>
 <P>
-or something similar in your UNIX startup files, and select a
-UTF-8 font in your terminal emulator.
+
+When reading incoming email, Alpine understands many different
+character sets and is able to convert the incoming mail into Unicode.
+The Unicode will be converted to the Display-Character-Set
+for display on your terminal.
+Characters typed at the keyboard will be converted from the
+Keyboard-Character-Set to Unicode for Alpine's internal
+use.
+<P>
+
+The Posting-Character-Set is used when sending messages.
+The default behavior obtained by leaving this variable unset is usually
+what is wanted. In that default case, Alpine will attempt
+to label the message with the most specific character set from the
+rather arbitrary set
+<P>
+US-ASCII, ISO-8859-15, ISO-8859-1, ISO-2022-JP, KOI8-R, and UTF-8.
+<P>
+
+For example, if the message is made up of only US-ASCII characters, it
+will be labeled US-ASCII. Otherwise, if it is all ISO-8859-15 characters,
+that will be the label. If that doesn't work the same is tried for the
+remaining members of the list.
 
 <P>
-If this variable is set it should be set to a value like UTF-8, ISO-8859-1,
-or EUC-JP.
-The ISO-2022 character sets are not supported for input or display, but
-ISO-2022-JP is supported for use as a
-<A HREF="h_config_post_char_set">&quot;Posting-Character-Set&quot;</A>.
-
+It might make sense to set Posting-Character-Set to an
+explicit value instead.
+For example, if you usually send messages in Greek, setting this
+option to ISO-8859-7 will result in messages being labeled as
+US-ASCII if there are no non-ascii characters, ISO-8859-7 if there
+are only Greek characters, or UTF-8 if there are some characters
+which aren't representable in ISO-8859-7.
+Another possibility is to set this option explicitly to UTF-8.
+In that case
+Alpine labels only ascii messages as US-ASCII and all other
+messages as UTF-8.
 <P>
+
 The options
 <A HREF="h_config_post_char_set">&quot;Posting-Character-Set&quot;</A>
 and <A HREF="h_config_key_char_set">&quot;Keyboard-Character-Set&quot;</A>
@@ -21051,8 +21211,10 @@ should cause this option to be ignored.
 
 <P>
 When displaying a message, Alpine compares this setting to the character
-set specified in the message.  If they do not match, then Alpine places
-a comment in the displayed text (enclosed in square-brackets) indicating
+set specified in the message.  If not all of the
+characters in the message can be displayed using the Display-Character-Set
+then Alpine places an editorial
+comment in the displayed text (enclosed in square-brackets) indicating
 that some characters may not be displayed correctly.
 This comment may be eliminated by turning on the option
 <A HREF="h_config_quell_charset_warning">Quell-Charset-Warning</A>.
@@ -21189,8 +21351,7 @@ scripts) that may be used to filter text portions of received messages
 prior to their use (e.g., presentation in the &quot;MESSAGE TEXT&quot;
 display screen, exporting to a text file).  
 For security reasons, the full path name of the
-filter command must be specified.  As of version 4.60, Display-Filters
-can also be made to work on PC-Alpine.
+filter command must be specified.
 
 <P>
 The command is executed and the message is piped into its standard input. 
@@ -21328,8 +21489,7 @@ scripts) that may be selectively invoked to process a message just before
 it is sent.  If set, the Composer's ^X (Send) command will allow you to
 select which filter (or none) to apply to the message before it is sent. 
 For security reasons, the full path of the filter program must be
-specified.  As of version 4.60, Sending-Filters can also be made to work
-on PC-Alpine.
+specified.
 
 <P>
 Command Modifying Tokens:
@@ -21432,6 +21592,8 @@ User-defined keywords are chosen by the user.
 You may set up the list of possible keywords here.
 Then you use the <A HREF="h_common_flag">Flag command</A>
 to set or clear the keywords in each message.
+(The
+<A HREF="h_config_flag_screen_kw_shortcut">Enable-Flag-Screen-Keyword-Shortcut</A> option offers a slightly different way of setting keywords.)
 
 <P>
 Keywords may be used when Selecting messages (Select Keyword).
@@ -21699,6 +21861,12 @@ What you are most likely to do with this configuration option is to
 specify which fields appear at all, which order they appear in, and the
 percentage of screen that is used for the from and subject fields if you
 don't like the 2 to 1 default.
+
+<P>
+If you want to retain the default format that Pine 4.64 had, use
+
+<P>
+<CENTER><SAMP>Index-Format=STATUS MSGNO DATE FROMORTO(33%) SIZE SUBJKEY(67%)</SAMP></CENTER>
 
 <P>
 <UL>   
@@ -22983,7 +23151,7 @@ There is no default value for this option.
 It is related to the options
 <A HREF="h_config_preopen_stayopens">&quot;Preopen-Stayopen-Folders&quot;</A>,
 <A HREF="h_config_maxremstream">&quot;Max-Remote-Connections&quot;</A>,
-and <A HREF="h_config_expunge_stayopens">&quot;Offer-Expunge-On-Stayopen-Folders&quot;</A>.
+and <A HREF="h_config_expunge_stayopens">&quot;Offer-Expunge-Of-Stayopen-Folders&quot;</A>.
 
 <P>
 Note: changes made to this list take effect the next time you open a
@@ -23352,18 +23520,25 @@ the risk of missing the message.
 ====== h_config_active_msg_interval =====
 <HTML>
 <HEAD>
-<TITLE>OPTION: Active-Msg-Updates-Per-Second</TITLE>
+<TITLE>OPTION: Busy-Cue-Rate</TITLE>
 </HEAD>
 <BODY>
-<H1>OPTION: Active-Msg-Updates-Per-Second</H1>
+<H1>OPTION: Busy-Cue-Rate</H1>
 
-This option sets how frequently the spinning bar in active status
-message lines is updated.  At most, it can be udpated 20 times per
-second. 
+When Alpine is delayed for some reason it usually shows that
+something is happening with a small animated display in the status
+line (the 3rd line up from the bottom of the screen).
+This option sets how frequently the characters (for example, a spinning bar)
+in the active status message lines are updated.
+At most, it can be set to be udpated 20 times per second. 
 
 <P>
-Setting this value to zero will prevent display of the animated bar
+Setting this value to zero will prevent display of the animations
 altogether.
+
+<P>
+The option <A HREF="h_config_use_boring_spinner">Busy-Cue-Spinner-Only</A>
+can be used to remove the randomness from this animated display.
 
 <P>
 <UL>   
@@ -24781,8 +24956,7 @@ headers mode.  This is because MIME parsing is not done on the raw message.
 <H1>FEATURE: Enable-Unix-Pipe-Cmd</H1>
 
 This feature enables the "| Pipe" command that sends the current message
-to the specified command for external processing.  Available on PC-Alpine
-as of version 4.60.
+to the specified command for external processing.
 <P>
 
 A short description of how the pipe command works is given
@@ -24832,6 +25006,10 @@ Feature-List option.
 This feature enables the TAB key when at a prompt for a filename. In this
 case, TAB will cause the partial name already entered to be automatically
 completed, provided the partial name is unambiguous.
+<P>
+Similarly, this feature also enables TAB completion of address book
+nicknames when at a prompt for a nickname,
+or when typing in an address field in the composer.
 <P>
 &lt;End of help on this topic&gt;
 </BODY>
@@ -25004,6 +25182,7 @@ Some related help topics are
 <LI> <A HREF="h_mainhelp_aggops">Aggregate Operations</A>
 <LI> <A HREF="h_index_cmd_select">Selecting: Select and WhereIs/Select</A>,
 <LI> <A HREF="h_config_auto_unzoom">Auto-Unzoom-After-Apply</A>,
+<LI> <A HREF="h_config_auto_unselect">Auto-Unselect-After-Apply</A>.
 <LI> <A HREF="h_config_auto_zoom">Auto-Zoom-After-Select</A>, and
 <LI> <A HREF="h_config_select_wo_confirm">Select-Without-Confirm</A>.
 </UL>
@@ -25434,10 +25613,10 @@ opened at startup, at the same time that the INBOX is opened.
 ====== h_config_expunge_inbox ======
 <HTML>
 <HEAD>
-<TITLE>FEATURE: Offer-Expunge-On-Inbox</TITLE>
+<TITLE>FEATURE: Offer-Expunge-Of-Inbox</TITLE>
 </HEAD>
 <BODY>
-<H1>FEATURE: Offer-Expunge-On-Inbox</H1>
+<H1>FEATURE: Offer-Expunge-Of-Inbox</H1>
 
 The INBOX is normally treated differently from regular folders in several
 ways.
@@ -25468,10 +25647,10 @@ end of the session.
 ====== h_config_expunge_stayopens ======
 <HTML>
 <HEAD>
-<TITLE>FEATURE: Offer-Expunge-On-Stayopen-Folders</TITLE>
+<TITLE>FEATURE: Offer-Expunge-Of-Stayopen-Folders</TITLE>
 </HEAD>
 <BODY>
-<H1>FEATURE: Offer-Expunge-On-Stayopen-Folders</H1>
+<H1>FEATURE: Offer-Expunge-Of-Stayopen-Folders</H1>
 
 This feature is related to the option
 <A HREF="h_config_permlocked">&quot;Stay-Open-Folders&quot;</A>.
@@ -25498,7 +25677,7 @@ end of the session.
 This feature does not affect the INBOX, which will still only be processed
 when you exit Alpine.
 However, there is a similar feature that affects only the INBOX called
-<A HREF="h_config_expunge_inbox">&quot;Offer-Expunge-On-Inbox&quot;</A>.
+<A HREF="h_config_expunge_inbox">&quot;Offer-Expunge-Of-Inbox&quot;</A>.
 
 <P>
 &lt;End of help on this topic&gt;
@@ -26158,6 +26337,7 @@ Some related help topics are
 <LI> <A HREF="h_index_cmd_select">Selecting: Select and WhereIs/Select</A>,
 <LI> <A HREF="h_config_enable_agg_ops">Enable-Aggregate-Command-Set</A>,
 <LI> <A HREF="h_config_auto_unzoom">Auto-Unzoom-After-Apply</A>, and
+<LI> <A HREF="h_config_auto_unselect">Auto-Unselect-After-Apply</A>.
 <LI> <A HREF="h_config_select_wo_confirm">Select-Without-Confirm</A>.
 </UL>
 
@@ -26185,7 +26365,35 @@ Some related help topics are
 <LI> <A HREF="h_mainhelp_aggops">Aggregate Operations</A>
 <LI> <A HREF="h_index_cmd_select">Selecting: Select and WhereIs/Select</A>,
 <LI> <A HREF="h_config_enable_agg_ops">Enable-Aggregate-Command-Set</A>,
+<LI> <A HREF="h_config_auto_unselect">Auto-Unselect-After-Apply</A>.
 <LI> <A HREF="h_config_auto_zoom">Auto-Zoom-After-Select</A>, and
+<LI> <A HREF="h_config_select_wo_confirm">Select-Without-Confirm</A>.
+</UL>
+<P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_auto_unselect =====
+<HTML>
+<HEAD>
+<TITLE>FEATURE: Auto-Unselect-After-Apply</TITLE>
+</HEAD>
+<BODY>
+<H1>FEATURE: Auto-Unselect-After-Apply</H1>
+
+This feature affects the behavior of the Apply command.  If set,
+the Apply command will do the operation you specify, but then will
+implicitly do an &quot;UnSelect All&quot;, so that you will automatically be back in
+the normal Index view after the Apply. 
+
+<P>
+Some related help topics are
+<UL>
+<LI> <A HREF="h_mainhelp_aggops">Aggregate Operations</A>
+<LI> <A HREF="h_index_cmd_select">Selecting: Select and WhereIs/Select</A>,
+<LI> <A HREF="h_config_enable_agg_ops">Enable-Aggregate-Command-Set</A>,
+<LI> <A HREF="h_config_auto_zoom">Auto-Zoom-After-Select</A>, and
+<LI> <A HREF="h_config_auto_unzoom">Auto-Unzoom-After-Apply</A>, and
 <LI> <A HREF="h_config_select_wo_confirm">Select-Without-Confirm</A>.
 </UL>
 <P>
@@ -26391,7 +26599,7 @@ being sent.
 <BODY>
 <H1>FEATURE: Quell-Flowed-Text</H1>
 <P>
-Beginning with version 4.60, Alpine generates flowed text where possible.
+Alpine generates flowed text where possible.
 The method for generating flowed text is defined by
 <A HREF="http://www.ietf.org/rfc/rfc3676.txt">RFC 3676</A>,
 the benefit of doing so is
@@ -27072,6 +27280,8 @@ the plain text version.
 <BODY>
 <H1>FEATURE: Pass-Control-Characters-as-is</H1>
 
+It is probably not useful to set this option.
+<P>
 UNIX Alpine only (this feature is automatically on with PC-Alpine).
 <P>
 This feature controls how certain characters contained in messages are
@@ -27115,6 +27325,8 @@ are never suppressed.
 <BODY>
 <H1>FEATURE: Pass-C1-Control-Characters-as-is</H1>
 
+It is probably not useful to set this option.
+<P>
 UNIX Alpine only.
 <P>
 If the feature <A HREF="h_config_pass_control">Pass-Control-Characters-as-is</A>
@@ -27935,6 +28147,7 @@ Some related help topics are
 <LI> <A HREF="h_mainhelp_aggops">Aggregate Operations</A>
 <LI> <A HREF="h_index_cmd_select">Selecting: Select and WhereIs/Select</A>,
 <LI> <A HREF="h_config_enable_agg_ops">Enable-Aggregate-Command-Set</A>,
+<LI> <A HREF="h_config_auto_unselect">Auto-Unselect-After-Apply</A>.
 <LI> <A HREF="h_config_auto_unzoom">Auto-Unzoom-After-Apply</A>, and
 <LI> <A HREF="h_config_auto_zoom">Auto-Zoom-After-Select</A>.
 </UL>
@@ -28053,6 +28266,27 @@ it has been copied to the designated folder.
 &lt;End of help on this topic&gt;
 </BODY>
 </HTML>
+====== h_config_use_boring_spinner =====
+<HTML>
+<HEAD>
+<TITLE>FEATURE: Busy-Cue-Spinner-Only</TITLE>
+</HEAD>
+<BODY>
+<H1>FEATURE: Busy-Cue-Spinner-Only</H1>
+
+When Alpine is delayed for some reason it usually shows that
+something is happening with a small animated display in the status
+line (the 3rd line up from the bottom of the screen).
+Setting this feature will cause that animation to be the same
+each time instead of having Alpine choose a random animation.
+You may turn the animation off altogether by setting the
+<A HREF="h_config_active_msg_interval">Busy-Cue-Rate</A>
+option to zero.
+
+<P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
 ====== h_config_unsel_wont_advance =====
 <HTML>
 <HEAD>
@@ -28150,7 +28384,7 @@ line coloring will still be present if this feature is turned on and
 Assume-Slow-Link is off.
 <P>
 An alternative version of the Arrow cursor is available by including the
-<A HREF="h_config_arrow_color">ARROW</A>
+<A HREF="h_config_index_arrow_color">ARROW</A>
 token in the
 <A HREF="h_config_index_format">Index-Format</A> option.
 <P>
@@ -28701,7 +28935,34 @@ to see the available Editing and Navigation commands.
 &lt;End of help on this topic&gt;
 </BODY>
 </HTML>
-====== h_config_arrow_color =====
+====== h_config_index_opening_color =====
+<HTML>
+<HEAD>
+<TITLE>OPTION: Index Opening Color</TITLE>
+</HEAD>
+<BODY>
+<H1>OPTION: Index Opening Color</H1>
+
+With some setups the text of the subject is followed
+by the opening text of the message if there is any room available in the index line.
+If you have configured your
+<A HREF="h_config_index_format">Index-Format</A> option
+to include one of the Subject tokens which causes this behavior
+(SUBJECTTEXT, SUBJKEYTEXT, or SUBJKEYINITTEXT), you may set the color of
+this opening text with this option.
+This coloring takes place for all but the current index line, and the Opening
+Color appears to be in front of any color from an Index Color Rule.
+
+<P>
+<A HREF="h_color_setup">Descriptions of the available commands</A>
+<P>
+Look <A HREF="h_edit_nav_cmds">here</A>
+to see the available Editing and Navigation commands.
+<P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_index_arrow_color =====
 <HTML>
 <HEAD>
 <TITLE>OPTION: Index Arrow Color</TITLE>
@@ -28750,12 +29011,6 @@ and &quot;Index-unseen&quot;.
 These two colors will only be used if you have configured your
 &quot;<A HREF="h_config_index_format">Index-Format</A>&quot; option
 to include the &quot;IMAPSTATUS&quot; token.
-The &quot;Index-arrow&quot; Symbol Color is used to color the ARROW token
-if you use it in the &quot;Index-Format&quot; option.
-With some setups the text of the subject is followed
-by the opening text of the message if there is any room available in the index line.
-The &quot;Index-opening&quot; Symbol Color is used to color this opening text
-from the message.
 <P>
 Besides coloring the message status symbols, you may also color the
 entire index line.
@@ -28765,10 +29020,13 @@ may get to with the commands <EM>S</EM>etup/<EM>R</EM>ules/<EM>I</EM>ndexcolor.
 When the entire line is colored that color will be &quot;behind&quot; the
 status symbol colors talked about in the paragraph above.
 <P>
-It is also possible to color
+You may also color
 <A HREF="h_config_keywords">Keywords</A>
 in the index using the
-Setup/Kolor screen (<A HREF="h_config_kw_color">Keyword Colors</A>).
+Setup/Kolor screen (<A HREF="h_config_kw_color">Keyword Colors</A>);
+the <A HREF="h_config_index_arrow_color">ARROW</A> cursor;
+and the
+<A HREF="h_config_index_opening_color">Index Opening</A> text.
 <P>
 <A HREF="h_color_setup">Descriptions of the available commands</A>
 <P>
@@ -29025,7 +29283,7 @@ to see the available Editing and Navigation commands.
 Sets the colors Alpine uses for Keyword fields in the MESSAGE INDEX screen.
 Keywords are displayed as part of the Subject by default.
 They are also displayed as part of the Subject if the tokens
-&quot;SUBJKEY&quot;, &quot;SUBJKEYNOTEXT&quot;, &quot;SUBJKEYINIT&quot;, or &quot;SUBJKEYINITNOTEXT&quot; are used in the
+&quot;SUBJKEY&quot;, &quot;SUBJKEYTEXT&quot;, &quot;SUBJKEYINIT&quot;, or &quot;SUBJKEYINITTEXT&quot; are used in the
 <A HREF="h_config_index_format">Index-Format</A> option.
 Keywords may also be displayed in a column of their own in the MESSAGE INDEX
 screen by using the &quot;KEY&quot; or &quot;KEYINIT&quot; tokens.
@@ -29610,7 +29868,7 @@ If this feature is set, you will <B>not</B> be prompted to confirm
 your selection.  Prior to Alpine and to Pine 4.50, the default behavior was to not
 prompt. This feature was added for those wanting to preserve that
 behavior (along with 
-<A HREF="h_config_quell_attach_extension_warn">Quell-Attachment-Extension-Warn</A>).
+<A HREF="h_config_quell_attach_ext_warn">Quell-Attachment-Extension-Warn</A>).
 
 <P>
 <UL>   

@@ -1,8 +1,8 @@
 /*
- * $Id: pattern.h 216 2006-11-02 21:23:08Z hubert@u.washington.edu $
+ * $Id: pattern.h 429 2007-02-08 00:08:23Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -320,13 +320,6 @@ typedef struct pat_state {
 #define PATTERN_FILE_VERS "01"
 
 
-typedef struct role_args {
-    char    *ourcharset;
-    int      multi;
-    char   **cset;
-} ROLE_ARGS_T;
-
-
 /*
  * This is a little dangerous. We're passing flags to match_pattern and
  * peeling some of them off for our own use while passing the rest on
@@ -388,7 +381,7 @@ void        find_charsets_in_messages(MAILSTREAM *, SEARCHSET *, PATGRP_S *, int
 int         compare_strlists_for_match(STRLIST_S *, STRLIST_S *);
 int	    match_pattern_folder(PATGRP_S *, MAILSTREAM *);
 int	    match_pattern_folder_specific(PATTERN_S *, MAILSTREAM *, int);
-SEARCHPGM  *match_pattern_srchpgm(PATGRP_S   *, MAILSTREAM *, char **, SEARCHSET *);
+SEARCHPGM  *match_pattern_srchpgm(PATGRP_S   *, MAILSTREAM *, SEARCHSET *);
 void        calc_extra_hdrs(void);
 char       *get_extra_hdrs(void);
 void        free_extra_hdrs(void);

@@ -51,6 +51,11 @@
 #define IDM_MI_FLAGNEW                  135
 #define IDM_MI_FLAGANSWERED             136
 #define IDM_MI_FLAGDELETED              137
+
+// This group must all be consecutive.
+// These are all regular commands that end
+// up in menus at the top of the screen and
+// there are a couple checks for the range (see msmenu.h).
 #define IDM_MI_VIEW                     150
 #define IDM_MI_EXPUNGE                  151
 #define IDM_MI_ZOOM                     152
@@ -100,6 +105,7 @@
 #define IDM_MI_SELECTCUR                196
 #define IDM_MI_UNDO                     197
 #define IDM_MI_SPELLCHK                 198
+
 #define IDD_ARGLIST                     199
 #define IDM_OPT_CARETBLOCK              200
 #define IDM_OPT_CARETSMALLBLOCK         201
@@ -108,6 +114,7 @@
 #define IDM_OPT_NEWMAILWIN              204
 #define IDM_EDIT_CLEAR                  205
 #define IDM_OPT_ERASE_CREDENTIALS       205
+#define IDM_MI_VIEWINWIND               206
 #define ALPINEMENU                      300
 #define COMPOSERMENU                    301
 #define ALPINEICON                      400

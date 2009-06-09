@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: attach.c 343 2006-12-22 18:25:39Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: attach.c 417 2007-02-03 01:33:25Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -52,6 +52,7 @@ AskAttach(char *cmnt, size_t cmntlen, LMLIST **lm)
     char    bfn[NLINE];
     char    fn[NLINE], sz[32];
     LMLIST *new;
+    EML     eml;
 
     i = 2;	/* 2 is prompt for file, 1 is prompt for comment */
     fn[0] = '\0';
@@ -121,8 +122,8 @@ AskAttach(char *cmnt, size_t cmntlen, LMLIST **lm)
 		continue;
 	    }
 	    else{
-		emlwrite("No Attachment %s help yet!",
-			 (i == 2) ? "file" : "comment");
+		eml.s = (i == 2) ? "file" : "comment";
+		emlwrite("No Attachment %s help yet!", &eml);
 		sleep(3);
 	    }
 
@@ -315,18 +316,19 @@ AskAttach(char *cmnt, size_t cmntlen, LMLIST **lm)
 		    if(fn[0]){
 			if((gmode & MDTREE)
 			   && !compresspath(opertree, fn, sizeof(fn))){
+			    eml.s = (gmode&MDSCUR) ? _("home directory") : opertree;
 			    emlwrite(
 	    /* TRANSLATORS: the %s is replaced with the name of a directory */
 	    _("Restricted mode allows attachments from %s only: too many ..'s"),
-				 (gmode&MDSCUR) ? _("home directory") : opertree);
+				 &eml);
 			    return(0);
 			}
 			else{
 			    fixpath(fn, sizeof(fn));	/* names relative to ~ */
 			    if((gmode&MDTREE) && !in_oper_tree(fn)){
+				eml.s = (gmode&MDSCUR) ? _("home directory") : opertree;
 				emlwrite(
-			_("\007Restricted mode allows attachments from %s only"),
-			(gmode&MDSCUR) ? _("home directory") : opertree);
+			_("\007Restricted mode allows attachments from %s only"), &eml);
 				return(0);
 			    }
 			}
@@ -431,6 +433,7 @@ SyncAttach(void)
     struct hdr_line *lp;			/* current line in header    */
     struct headerentry *entry;
     PATMT *tp, **knwn = NULL, **bld;
+    EML eml;
 
     if(Pmaster == NULL)
       return(-1);
@@ -445,8 +448,9 @@ SyncAttach(void)
 
     if(ki){
 	if((knwn = (PATMT **)malloc((ki+1) * (sizeof(PATMT *)))) == NULL){
+	    eml.s = comatose(ki + 1);
 	    emlwrite("\007Can't allocate space for %s known attachment array entries", 
-		     comatose(ki + 1));
+		     &eml);
 	    rv = -1;
 	    goto exit_early;
 	}
@@ -467,8 +471,8 @@ SyncAttach(void)
     nbld = nbld > ki ? nbld : ki + 1;           
 
     if((bld = (PATMT **)malloc(nbld * (sizeof(PATMT *)))) == NULL){
-	emlwrite("\007Can't allocate space for %s build array entries",
-		 comatose(nbld));
+	eml.s = comatose(nbld);
+	emlwrite("\007Can't allocate space for %s build array entries", &eml);
 	rv = -1;
 	goto exit_early;
     }
@@ -480,8 +484,8 @@ SyncAttach(void)
 
 	if(bi == nbld){		                /* need to grow build array? */
 	    if((bld = (PATMT **)realloc(bld, ++nbld * sizeof(PATMT *))) == NULL){
-		emlwrite("\007Can't resize build array to %s entries ",
-			 comatose(nbld));
+		eml.s = comatose(nbld);
+		emlwrite("\007Can't resize build array to %s entries ", &eml);
 		rv = -1;
 		goto exit_early;
 	    }
@@ -649,6 +653,7 @@ ParseAttach(struct hdr_line **lp,		/* current header line      */
 	 quoted = 0,
 	 escaped = 0;
     off_t attsz;				/* attachment length        */
+    EML  eml;
     UCS  c, c_lookahead;
     UCS  tmp[1024], *p, *u;
     char ctmp[1024];
@@ -831,8 +836,8 @@ ParseAttach(struct hdr_line **lp,		/* current header line      */
 		/* TRANSLATORS: Attchmnt is an abbreviation for Attachment and
 		   the %s is replaced with the character that is not
 		   allowed in the name. */
-		emlwrite(_("\007Attchmnt: '%s' not allowed in file name"), 
-			  (c == ',') ? "," : "space");
+		eml.s = (c == ',') ? "," : "space";
+		emlwrite(_("\007Attchmnt: '%s' not allowed in file name"), &eml);
 		rv = -1;
 		level = TG;			/* eat rest of garbage */
 		break;
@@ -867,9 +872,10 @@ process_tag:					/* enclosed in []         */
 		    if(!lbln){			/* normal file attachment */
 			if((gmode & MDTREE)
 			   && !compresspath(opertree, fn, fnlen)){
+			    eml.s = (gmode&MDSCUR) ? _("home directory") : opertree;
 			    emlwrite(
 			    _("Attachments allowed only from %s: too many ..'s"),
-				(gmode&MDSCUR) ? _("home directory") : opertree);
+				&eml);
 			    rv = -1;
 			    level = TG;
 			    break;
@@ -884,9 +890,8 @@ process_tag:					/* enclosed in []         */
 			    }
 			      
 			    if((gmode & MDTREE) && !in_oper_tree(fn)){
-				emlwrite(_("\007Attachments allowed only from %s"),
-				    (gmode&MDSCUR) ? _("home directory")
-						   : opertree);
+				eml.s = (gmode&MDSCUR) ? _("home directory") : opertree;
+				emlwrite(_("\007Attachments allowed only from %s"), &eml);
 				rv = -1;
 				level = TG;
 				break;
@@ -933,8 +938,9 @@ process_tag:					/* enclosed in []         */
 			PATMT *tp;
 
 			if(c != ']'){		/* legit label? */
+			    eml.s = fn;
 			    emlwrite(_("\007Attchmnt: Expected ']' after \"%s\""),
-				     fn);
+				     &eml);
 			    rv = -1;
 			    level = TG;
 			    break;
@@ -961,7 +967,8 @@ process_tag:					/* enclosed in []         */
 			}
 
 			if(tp == NULL){
-			    emlwrite("\007Attchmnt: Unknown reference: %s",fn);
+			    eml.s = fn;
+			    emlwrite("\007Attchmnt: Unknown reference: %s", &eml);
 			    lblsz =  "XXX";
 			}
 		    }
@@ -995,10 +1002,10 @@ process_tag:					/* enclosed in []         */
 	    }
 	    else if(!(lbln || quoted)
 		    && (c == ',' || c == ' ' || c == '[' || c == ']')){
-		emlwrite(_("\007Attchmnt: '%s' not allowed in file name"),
-			  c == ',' ? ","
+	        eml.s =   c == ',' ? ","
 			    : c == ' ' ? "space"
-			      : c == '[' ? "[" : "]");
+			      : c == '[' ? "[" : "]";
+		emlwrite(_("\007Attchmnt: '%s' not allowed in file name"), &eml);
 		rv = -1;			/* bad char in file name */
 		level = TG;			/* gobble garbage */
 	    }
@@ -1036,7 +1043,8 @@ process_tag:					/* enclosed in []         */
 		    level = ASIZE;
 		}
 		else{
-		    emlwrite(_("\007Attchmnt: Expected '(' or '\"' after %s"),fn);
+		    eml.s = fn;
+		    emlwrite(_("\007Attchmnt: Expected '(' or '\"' after %s"), &eml);
 		    rv = -1;			/* bag it all */
 		    level = TG;
 		}
@@ -1093,7 +1101,12 @@ process_tag:					/* enclosed in []         */
 	    }
 	    else if(c == '\0' || c == ','){
 		*p = '\0';
-		emlwrite(_("\007Attchmnt: Size field missing ')': \"%s\""), tmp);
+		utf8 = ucs4_to_utf8_cpystr(tmp);
+		eml.s = utf8;
+		emlwrite(_("\007Attchmnt: Size field missing ')': \"%s\""), &eml);
+		if(utf8)
+		  fs_give((void **) &utf8);
+
 		rv = -1;
 		level = TG;
 	    }

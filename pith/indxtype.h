@@ -1,5 +1,5 @@
 /*
- * $Id: indxtype.h 380 2007-01-23 00:09:18Z hubert@u.washington.edu $
+ * $Id: indxtype.h 409 2007-02-01 22:44:01Z mikes@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -179,7 +179,6 @@ typedef struct index_field {
 typedef struct index_cache_entry {
     IFIELD_S     *ifield;		/* list of fields */
     COLOR_PAIR	 *linecolor;
-    char         *charset;
     unsigned      color_lookup_done:1;	/* efficiency hacks */
     unsigned      widths_done:1;
     unsigned	  to_us:1;

@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: line.c 343 2006-12-22 18:25:39Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: line.c 418 2007-02-03 01:51:18Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -71,6 +71,7 @@ lalloc(int used)
 {
     register LINE   *lp;
     register int    size;
+    EML             eml;
 
     if((size = (used+NBLOCK-1) & ~(NBLOCK-1)) > NLINE)
       size *= 2;
@@ -79,7 +80,8 @@ lalloc(int used)
       size = NBLOCK;                  /* line is for type-in. */
 
     if ((lp = (LINE *) malloc(sizeof(LINE)+(size*sizeof(CELL)))) == NULL) {
-	emlwrite("Cannot allocate %s bytes", comatose(size));
+	eml.s = comatose(size);
+	emlwrite("Cannot allocate %s bytes", &eml);
 	return (NULL);
     }
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: rpdump.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: rpdump.c 433 2007-02-08 23:59:30Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -138,7 +138,7 @@ main(argc, argv)
 
 	/* is it a regular file? */
 #ifdef	S_ISREG
-	if(!S_ISREG(sbuf.st_rdev))
+	if(!S_ISREG(sbuf.st_mode))
 #else
 	if(!(S_IFREG & sbuf.st_mode))
 #endif
@@ -174,7 +174,6 @@ main(argc, argv)
     /*
      * Try opening the remote folder.
      */
-    noshow_error = 1;
     stream = mail_open(NULL, remote, OP_READONLY);
     if(!stream || stream->halfopen){
 	fprintf(stderr, "Remote folder \"%s\" is not readable\n", remote);
@@ -183,8 +182,6 @@ main(argc, argv)
 
 	exit(-1);
     }
-
-    noshow_error = 0;
 
     if(stream->nmsgs >= 2){
 	/*

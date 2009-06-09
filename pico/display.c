@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: display.c 384 2007-01-24 01:22:15Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: display.c 421 2007-02-05 22:53:41Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1871,13 +1871,13 @@ ret:
 
 
 void
-emlwrite(char *utf8message, void *arg)
+emlwrite(char *utf8message, EML *eml)
 {
     UCS *message;
 
     message = utf8_to_ucs4_cpystr(utf8message ? utf8message : "");
 
-    emlwrite_ucs4(message, arg);
+    emlwrite_ucs4(message, eml);
 
     if(message)
       fs_give((void **) &message);
@@ -1891,7 +1891,7 @@ emlwrite(char *utf8message, void *arg)
  *              the text.
  */
 void
-emlwrite_ucs4(UCS *message, void *arg) 
+emlwrite_ucs4(UCS *message, EML *eml) 
 {
     UCS  *bufp, *ap;
     int   width;
@@ -1914,22 +1914,22 @@ emlwrite_ucs4(UCS *message, void *arg)
 	switch(ap[1]){
 	  case '%':
 	  case 'c':
-	    width += arg ? 2 : 1;		/* not correct for double-width */
+	    width += (eml && eml->c) ? wcellwidth(eml->c) : 1;
 	    break;
 	  case 'd':
-	    width += dumbroot((int)arg, 10);
+	    width += dumbroot(eml ? eml->d : 0, 10);
 	    break;
 	  case 'D':
-	    width += dumblroot((long)arg, 10);
+	    width += dumblroot(eml ? eml->l : 0L, 10);
 	    break;
 	  case 'o':
-	    width += dumbroot((int)arg, 8);
+	    width += dumbroot(eml ? eml->d : 0, 8);
 	    break;
 	  case 'x':
-	    width += dumbroot((int)arg, 16);
+	    width += dumbroot(eml ? eml->d : 0, 16);
 	    break;
 	  case 's':				/* string arg is UTF-8 */
-            width += arg ? utf8_width((char *)arg) : 2;
+            width += (eml && eml->s) ? utf8_width(eml->s) : 2;
 	    break;
 	}
     }
@@ -1947,26 +1947,26 @@ emlwrite_ucs4(UCS *message, void *arg)
 	else if(*bufp == '%'){
 	    switch(*++bufp){
 	      case 'c':
-		if(arg)
-		  pputc((UCS)(int)arg, 0);
+		if(eml && eml->c)
+		  pputc(eml->c, 0);
 		else {
 		    pputs_utf8("%c", 0);
 		}
 		break;
 	      case 'd':
-		mlputi((int)arg, 10);
+		mlputi(eml ? eml->d : 0, 10);
 		break;
 	      case 'D':
-		mlputli((long)arg, 10);
+		mlputli(eml ? eml->l : 0L, 10);
 		break;
 	      case 'o':
-		mlputi((int)arg, 16);
+		mlputi(eml ? eml->d : 0, 16);
 		break;
 	      case 'x':
-		mlputi((int)arg, 8);
+		mlputi(eml ? eml->d : 0, 8);
 		break;
 	      case 's':
-		pputs_utf8(arg ? (char *)arg : "%s", 0);
+		pputs_utf8((eml && eml->s) ? eml->s : "%s", 0);
 		break;
 	      case '%':
 	      default:
@@ -2119,6 +2119,69 @@ mlputli(long l, int r)
       mlputli(q, r);
 
     pputc((int)(l%r)+'0', 1);
+}
+
+
+void
+unknown_command(UCS c)
+{
+    char  buf[10], ch, *s;
+    EML   eml;
+
+    buf[0] = '\0';
+    s = buf;
+
+    if(!c){
+	/* fall through */
+    }
+    else if(c & CTRL && c >= (CTRL|'@') && c <= (CTRL|'_')){
+	ch = c - (CTRL|'@') + '@';
+	snprintf(s, sizeof(buf), "^%c", ch);
+    }
+    else
+     switch(c){
+      case ' '       : s = "SPACE";		break;
+      case '\033'    : s = "ESC";		break;
+      case '\177'    : s = "DEL";		break;
+      case ctrl('I') : s = "TAB";		break;
+      case ctrl('J') : s = "LINEFEED";		break;
+      case ctrl('M') : s = "RETURN";		break;
+      case ctrl('Q') : s = "XON";		break;
+      case ctrl('S') : s = "XOFF";		break;
+      case KEY_UP    : s = "Up Arrow";		break;
+      case KEY_DOWN  : s = "Down Arrow";	break;
+      case KEY_RIGHT : s = "Right Arrow";	break;
+      case KEY_LEFT  : s = "Left Arrow";	break;
+      case KEY_PGUP  : s = "Prev Page";		break;
+      case KEY_PGDN  : s = "Next Page";		break;
+      case KEY_HOME  : s = "Home";		break;
+      case KEY_END   : s = "End";		break;
+      case KEY_DEL   : s = "Delete";		break; /* Not necessary DEL! */
+      case F1	     :
+      case F2	     :
+      case F3	     :
+      case F4	     :
+      case F5	     :
+      case F6	     :
+      case F7	     :
+      case F8	     :
+      case F9	     :
+      case F10	     :
+      case F11	     :
+      case F12	     :
+        snprintf(s, sizeof(buf), "F%ld", c - PF1 + 1);
+	break;
+
+      default:
+	if(c < CTRL)
+	  utf8_put((unsigned char *) s, (unsigned long) c);
+
+	break;
+     }
+
+    eml.s = s;
+    emlwrite("Unknown Command: %s", &eml);
+    (*term.t_beep)();
 }
 
 

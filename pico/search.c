@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: search.c 343 2006-12-22 18:25:39Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: search.c 417 2007-02-03 01:33:25Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -113,6 +113,7 @@ forwsearch(int f, int n)
   int              repl_mode = FALSE;
   UCS              defpat[NPAT];
   int              search = FALSE;
+  EML              eml;
 
     /* resolve the repeat count */
     if (n == 0)
@@ -293,15 +294,17 @@ forwsearch(int f, int n)
 
       utf8 = ucs4_to_utf8_cpystr(defpat ? defpat : x); 
       /* TRANSLATORS: reporting the result of a failed search */
-      emlwrite(_("\"%s\" not found"), utf8);
+      eml.s = utf8;
+      emlwrite(_("\"%s\" not found"), &eml);
       if(utf8)
 	fs_give((void **) &utf8);
     }
     else if((gmode & MDREPLACE) && repl_mode == TRUE){
         status = replace_pat(defpat, &wrapt2);    /* replace pattern */
-	if (wrapt == TRUE || wrapt2 == TRUE)
-	  emlwrite("Replacement %srapped",
-		   (status == ABORT) ? "cancelled but w" : "W");
+	if (wrapt == TRUE || wrapt2 == TRUE){
+	    eml.s = (status == ABORT) ? "cancelled but wrapped" : "Wrapped";
+	    emlwrite("Replacement %s", &eml);
+	}
     }
     else if(wrapt == TRUE){
 	emlwrite("Search Wrapped", NULL);
@@ -504,6 +507,7 @@ replace_all(UCS *orig, UCS *repl)
   int              wrapt, n = 0;
   LINE		  *stop_line   = curwp->w_dotp;
   int		   stop_offset = curwp->w_doto;
+  EML              eml;
 
   while (1)
     if (forscan(&wrapt, orig, stop_line, stop_offset, PTBEG)){
@@ -559,7 +563,8 @@ replace_all(UCS *orig, UCS *repl)
 	    chword(realpat, realpat);	       /* replace word by itself */
 	    update();
 	    if(status == ABORT){		/* if cancelled return */
-		emlwrite("Replace All cancelled after %s changes", comatose(n));
+		eml.s = comatose(n);
+		emlwrite("Replace All cancelled after %s changes", &eml);
 		return (ABORT);			/* ... else keep looking */
 	    }
 	}
@@ -569,7 +574,8 @@ replace_all(UCS *orig, UCS *repl)
 
 	utf8 = ucs4_to_utf8_cpystr(orig);
 	if(utf8){
-	  emlwrite(_("No more matches for \"%s\""), utf8);
+	  eml.s = utf8;
+	  emlwrite(_("No more matches for \"%s\""), &eml);
 	  fs_give((void **) &utf8);
 	}
 	else

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: folder.c 343 2006-12-22 18:25:39Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: folder.c 406 2007-01-31 00:36:05Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -862,18 +862,18 @@ static struct headerentry headents_templ[]={
      folders, PATH is a filesystem path, VIEW is sort of a technical
      term that can be used to restrict the View to fewer folders */
   {"Nickname  : ",  N_("Nickname"),  h_composer_cntxt_nick, 12, 0, NULL,
-   NULL, NULL, NULL, NULL, NULL, NULL,
+   NULL, NULL, NULL, NULL, NULL, NULL, NULL,
    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"Server    : ",  N_("Server"),  h_composer_cntxt_server, 12, 0, NULL,
-   NULL, NULL, NULL, NULL, NULL, NULL,
+   NULL, NULL, NULL, NULL, NULL, NULL, NULL,
    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"Path      : ",  N_("Path"),  h_composer_cntxt_path, 12, 0, NULL,
-   NULL, NULL, NULL, NULL, NULL, NULL,
+   NULL, NULL, NULL, NULL, NULL, NULL, NULL,
    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"View      : ",  N_("View"),  h_composer_cntxt_view, 12, 0, NULL,
-   NULL, NULL, NULL, NULL, NULL, NULL,
+   NULL, NULL, NULL, NULL, NULL, NULL, NULL,
    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
-  {NULL, NULL, NO_HELP, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+  {NULL, NULL, NO_HELP, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE}
 };
 #define	AC_NICK	0

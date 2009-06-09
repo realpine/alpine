@@ -1,5 +1,5 @@
 /*
- * $Id: charset.h 341 2006-12-21 23:44:18Z hubert@u.washington.edu $
+ * $Id: charset.h 409 2007-02-01 22:44:01Z mikes@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -44,10 +44,9 @@ typedef struct conversion_table {
 
 
 /* exported protoypes */
-int	       utf8able(char *);
 char	      *body_charset(MAILSTREAM *, long, unsigned char *);
 unsigned char *trans_euc_to_2022_jp(unsigned char *);
-unsigned char *rfc1522_decode(unsigned char *, size_t, char *, char **);
+unsigned char *rfc1522_decode_to_utf8(unsigned char *, size_t, char *);
 char	      *rfc1522_encode(char *, size_t, unsigned char *, char *);
 CONV_TABLE    *conversion_table(char *, char *);
 void           decode_addr_names_to_utf8(ADDRESS *);

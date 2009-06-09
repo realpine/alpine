@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: dispfilt.c 229 2006-11-13 23:14:48Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: dispfilt.c 442 2007-02-16 23:01:28Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,6 +44,10 @@ int	df_valid_test(BODY *, char *);
  * dfilter - pipe the data from the given storage object thru the
  *	     global display filter and into whatever the putchar's
  *	     function points to.
+ *
+ *	     Input is assumed to be UTF-8.
+ *	     That's converted to user's locale and passed to rawcmd.
+ *	     That's converted back to UTF-8 and passed through aux_filters.
  */
 char *
 dfilter(char *rawcmd, STORE_S *input_so, gf_io_t output_pc, FILTLIST_S *aux_filters)
@@ -74,7 +78,7 @@ dfilter(char *rawcmd, STORE_S *input_so, gf_io_t output_pc, FILTLIST_S *aux_filt
 
 	    /* write the tmp file */
 	    so_seek(input_so, 0L, 0);
-	    if(tmpf_so = so_get(FileStar, tmpfile, WRITE_ACCESS|OWNER_ONLY)){
+	    if(tmpf_so = so_get(FileStar, tmpfile, WRITE_ACCESS|OWNER_ONLY|WRITE_TO_LOCALE)){
 	        if(key){
 		    so_puts(tmpf_so, filter_session_key());
                     so_puts(tmpf_so, NEWLINE);
@@ -97,7 +101,7 @@ dfilter(char *rawcmd, STORE_S *input_so, gf_io_t output_pc, FILTLIST_S *aux_filt
 			if (close_system_pipe(&filter_pipe, NULL, pipe_callback) == 0){
 			    /* pull result out of tmp file */
 			    if(fp = our_fopen(tmpfile, "rb")){
-				gf_set_readc(&gc, fp, 0L, FileStar);
+				gf_set_readc(&gc, fp, 0L, FileStar, READ_FROM_LOCALE);
 				gf_filter_init();
 				if(aux_filters)
 				  for( ; aux_filters->filter; aux_filters++)

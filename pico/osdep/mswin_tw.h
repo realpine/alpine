@@ -25,6 +25,9 @@ typedef struct MSWIN_TEXTWINDOW
     MSWIN_TW_CALLBACK *close_callback; // Callback for when window is closed.
     MSWIN_TW_CALLBACK *clear_callback; // Callback after text is cleared.
 
+    LPCTSTR         out_file;       // Save edit contents on close to this file.
+    BOOL            out_file_ret;   // TRUE - out_file written, FALSE - nope.
+
     // internal fields
     HWND            hwnd;           // hwnd for this mswin textwindow.
     HWND            hwnd_edit;
@@ -34,6 +37,9 @@ int mswin_tw_create(MSWIN_TEXTWINDOW *mswin_tw, LPCTSTR title);
 void mswin_tw_close(MSWIN_TEXTWINDOW *mswin_tw);
 
 void mswin_tw_showwindow(MSWIN_TEXTWINDOW *mswin_tw, int nCmdShow);
+
+BOOL mswin_tw_fill_from_file(MSWIN_TEXTWINDOW *mswin_tw, LPCTSTR file);
+BOOL mswin_tw_write_to_file(MSWIN_TEXTWINDOW *mswin_tw, LPCTSTR file);
 
 void mswin_tw_setfont(MSWIN_TEXTWINDOW *mswin_tw, HFONT hfont);
 void mswin_tw_setcolor(MSWIN_TEXTWINDOW *mswin_tw,
@@ -47,3 +53,5 @@ UINT mswin_tw_gettextlength(MSWIN_TEXTWINDOW *mswin_tw);
 
 void mswin_tw_setsel(MSWIN_TEXTWINDOW *mswin_tw, LONG min, LONG max);
 void mswin_tw_clear(MSWIN_TEXTWINDOW *mswin_tw);
+
+void mswin_set_readonly(MSWIN_TEXTWINDOW *mswin_tw, BOOL read_only);

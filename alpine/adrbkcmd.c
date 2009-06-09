@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: adrbkcmd.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: adrbkcmd.c 442 2007-02-16 23:01:28Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -50,6 +50,7 @@ static char rcsid[] = "$Id: adrbkcmd.c 380 2007-01-23 00:09:18Z hubert@u.washing
 #include "../pith/util.h"
 #include "../pith/detoken.h"
 #include "../pith/stream.h"
+#include "../pith/send.h"
 
 
 /* internal prototypes */
@@ -74,7 +75,7 @@ void           ab_compose_internal(BuildTo, int);
 int            ab_export(struct pine *, long, int, int);
 VCARD_INFO_S  *prepare_abe_for_vcard(struct pine *, AdrBk_Entry *, int);
 void           free_vcard_info(VCARD_INFO_S **);
-void           write_single_vcard_entry(struct pine *, gf_io_t, char **, VCARD_INFO_S *);
+void           write_single_vcard_entry(struct pine *, gf_io_t, VCARD_INFO_S *);
 void           write_single_tab_entry(gf_io_t, VCARD_INFO_S *);
 int            percent_done_copying(void);
 int            cmp_action_list(const qsort_t *, const qsort_t *);
@@ -251,7 +252,7 @@ repaint_view:
 	gf_link_filter(gf_wrap, gf_wrap_filter_opt(ps->ttyo->screen_cols - 4,
 						   ps->ttyo->screen_cols,
 						   NULL, abook_indent+2,
-						   GFW_HANDLES|GFW_UTF8));
+						   GFW_HANDLES));
 	gf_link_filter(gf_nvtnl_local, NULL);
 
 	gf_set_so_readc(&gc, in_store);
@@ -810,7 +811,7 @@ view_message_for_pico(char **error)
     gf_set_so_writec(&pc, store);
 
     format_message(msgno_for_pico_callback, env_for_pico_callback,
-		   body_for_pico_callback, NULL, FM_NEW_MESS | FM_DISPLAY | FM_UTF8, pc);
+		   body_for_pico_callback, NULL, FM_NEW_MESS | FM_DISPLAY, pc);
 
     gf_clear_so_writec(store);
 
@@ -836,7 +837,7 @@ view_message_for_pico(char **error)
 
 /*
 prompt::name::help::prwid::maxlen::realaddr::
-builder::affected_entry::next_affected::selector::key_label::fileedit::
+builder::affected_entry::next_affected::selector::key_label::fileedit::nickcmpl
 display_it::break_on_comma::is_attach::rich_header::only_file_chars::
 single_space::sticky::dirty::start_here::blank::KS_ODATAVAR
 */
@@ -844,24 +845,24 @@ static struct headerentry headents_for_edit[]={
   {"Nickname  : ",  N_("Nickname"),  h_composer_abook_nick, 12, 0, NULL,
    /* TRANSLATORS: To AddrBk is a command that takes the user to
       the address book screen to select an entry from there. */
-   verify_nick,   NULL, NULL, addr_book_nick_for_edit, N_("To AddrBk"), NULL,
+   verify_nick,   NULL, NULL, addr_book_nick_for_edit, N_("To AddrBk"), NULL, adrbk_nick_complete,
    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"Fullname  : ",  N_("Fullname"),  h_composer_abook_full, 12, 0, NULL,
-   NULL,          NULL, NULL, view_message_for_pico,   N_("To Message"), NULL,
+   NULL,          NULL, NULL, view_message_for_pico,   N_("To Message"), NULL, NULL,
    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   /* TRANSLATORS: a File Copy is a copy of a sent message saved in a regular
      file on the computer's disk */
   {"Fcc       : ",  N_("FileCopy"),  h_composer_abook_fcc, 12, 0, NULL,
    /* TRANSLATORS: To Folders */
-   NULL,          NULL, NULL, folders_for_fcc,         N_("To Fldrs"), NULL,
+   NULL,          NULL, NULL, folders_for_fcc,         N_("To Fldrs"), NULL, NULL,
    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"Comment   : ",  N_("Comment"),   h_composer_abook_comment, 12, 0, NULL,
-   NULL,          NULL, NULL, view_message_for_pico,   N_("To Message"), NULL,
+   NULL,          NULL, NULL, view_message_for_pico,   N_("To Message"), NULL, NULL,
    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"Addresses : ",  N_("Addresses"), h_composer_abook_addrs, 12, 0, NULL,
-   verify_addr,   NULL, NULL, addr_book_change_list,   N_("To AddrBk"), NULL,
+   verify_addr,   NULL, NULL, addr_book_change_list,   N_("To AddrBk"), NULL, adrbk_nick_complete,
    1, 1, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
-  {NULL, NULL, NO_HELP, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+  {NULL, NULL, NO_HELP, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE}
 };
 #define NNN_NICK    0
@@ -1035,6 +1036,8 @@ _("\n to use single quotation marks; for example: George 'Husky' Washington."));
     utf8_snprintf(nickpmt, sizeof(nickpmt), "%-*.*w: ", abook_indent, abook_indent, _("Nickname"));
     he[NNN_NICK].prompt   = nickpmt;
     he[NNN_NICK].prwid    = abook_indent+2;
+    if(F_OFF(F_ENABLE_TAB_COMPLETE,ps_global))
+      he[NNN_NICK].nickcmpl = NULL;
 
     full = cpystr(abe->fullname ? abe->fullname : "");
     removing_leading_and_trailing_white_space(full);
@@ -1070,6 +1073,9 @@ _("\n to use single quotation marks; for example: George 'Husky' Washington."));
 	utf8_snprintf(addrpmt, sizeof(addrpmt), "%-*.*w: ", abook_indent, abook_indent, _("Addresses"));
 	he[NNN_ADDR].prompt   = addrpmt;
 	he[NNN_ADDR].prwid    = abook_indent+2;
+	if(F_OFF(F_ENABLE_TAB_COMPLETE,ps_global))
+	  he[NNN_NICK].nickcmpl = NULL;
+
 	if(abe->tag == Single){
 	    if(abe->addr.addr){
 		orig_addrarray = (char **) fs_get(2 * sizeof(char *));
@@ -1562,15 +1568,15 @@ single_space::sticky::dirty::start_here::blank::KS_ODATAVAR
 */
 static struct headerentry headents_for_add[]={
   {"Server Name : ",  N_("Server"),  h_composer_abook_add_server, 14, 0, NULL,
-   verify_server_name, NULL, NULL, NULL, NULL, NULL,
+   verify_server_name, NULL, NULL, NULL, NULL, NULL, NULL,
    1, 0, 0, 0, 0, 1, 0, 0, 0, 0, KS_NONE},
   {"Folder Name : ",  N_("Folder"),  h_composer_abook_add_folder, 14, 0, NULL,
-   verify_folder_name, NULL, NULL, NULL, NULL, NULL,
+   verify_folder_name, NULL, NULL, NULL, NULL, NULL, NULL,
    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"NickName    : ",  N_("Nickname"),  h_composer_abook_add_nick, 14, 0, NULL,
-   verify_abook_nick,  NULL, NULL, NULL, NULL, NULL,
+   verify_abook_nick,  NULL, NULL, NULL, NULL, NULL, NULL,
    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
-  {NULL, NULL, NO_HELP, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+  {NULL, NULL, NO_HELP, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE}
 };
 #define NN_SERVER 0
@@ -4273,7 +4279,7 @@ ab_export(struct pine *ps, long int cur_line, int command_line, int agg)
 		      failure++;
 		    else{
 			if(vcard)
-			  write_single_vcard_entry(ps, pc, NULL, vinfo);
+			  write_single_vcard_entry(ps, pc, vinfo);
 			else
 			  write_single_tab_entry(pc, vinfo);
 
@@ -4298,8 +4304,7 @@ ab_export(struct pine *ps, long int cur_line, int command_line, int agg)
 
 			len = 4*strlen(addr)+1;
 			p = (char *)fs_get(len * sizeof(char));
-			if(rfc1522_decode((unsigned char *)p,len,addr,NULL) ==
-							    (unsigned char *)p){
+			if(rfc1522_decode_to_utf8((unsigned char *)p,len,addr) == (unsigned char *)p){
 			    fs_give((void **)&addr);
 			    addr = p;
 			}
@@ -4347,7 +4352,7 @@ ab_export(struct pine *ps, long int cur_line, int command_line, int agg)
 	      failure++;
 	    else{
 		if(vcard)
-		  write_single_vcard_entry(ps, pc, NULL, vinfo);
+		  write_single_vcard_entry(ps, pc, vinfo);
 		else
 		  write_single_tab_entry(pc, vinfo);
 
@@ -4381,8 +4386,7 @@ ab_export(struct pine *ps, long int cur_line, int command_line, int agg)
 		size_t len;
 		len = 4*strlen(addr)+1;
 		p = (char *)fs_get(len * sizeof(char));
-		if(rfc1522_decode((unsigned char *)p,len,addr,NULL) ==
-							(unsigned char *)p){
+		if(rfc1522_decode_to_utf8((unsigned char *)p,len,addr) == (unsigned char *)p){
 		    fs_give((void **)&addr);
 		    addr = p;
 		}
@@ -4473,15 +4477,12 @@ ab_forward(struct pine *ps, long int cur_line, int agg)
     BODY          *pb, *body = NULL;
     PART         **pp;
     char          *sig;
-    char           charset[200+1];
     gf_io_t        pc;
-    int            i, ret = 0, multiple_charsets_used = 0;
+    int            i, ret = 0;
     VCARD_INFO_S  *vinfo;
     ACTION_S      *role = NULL;
 
     dprint((2, "- ab_forward -\n"));
-
-    charset[0] = '\0';
 
     if(!agg){
 	dl  = dlist(cur_line);
@@ -4567,9 +4568,8 @@ ab_forward(struct pine *ps, long int cur_line, int agg)
     else
       pb->description = cpystr("Alpine addressbook entry");
 
-    pb->parameter            = mail_newbody_parameter();
-    pb->parameter->attribute = cpystr("profile");
-    pb->parameter->value     = cpystr("vCard");
+    pb->parameter = NULL;
+    set_parameter(&pb->parameter, "profile", "vCard");
 
     if(pb->contents.text.data = (void *)so_get(CharStar, NULL, EDIT_ACCESS)){
 	int are_some_unqualified = 0, expand_nicks = 0;
@@ -4653,9 +4653,6 @@ ab_forward(struct pine *ps, long int cur_line, int agg)
 	}
 
 	if(agg){
-	    char cs[200+1];
-	    char *csp = cs;
-
 	    for(i = 0; i < as.n_addrbk; i++){
 
 		pab = &as.adrbks[i];
@@ -4667,48 +4664,31 @@ ab_forward(struct pine *ps, long int cur_line, int agg)
 		while((num = entry_get_next(&next_one)) != NO_NEXT){
 
 		    abe = adrbk_get_ae(pab->address_book, (a_c_arg_t) num);
-		    cs[0] = '\0';
 		    if(!(vinfo=prepare_abe_for_vcard(ps, abe, expand_nicks))){
 			gf_clear_so_writec((STORE_S *) pb->contents.text.data);
 			goto bomb;
 		    }
 		    else{
-			write_single_vcard_entry(ps, pc, &csp, vinfo);
+			write_single_vcard_entry(ps, pc, vinfo);
 			free_vcard_info(&vinfo);
-		    }
-		    
-		    if(cs[0] && !multiple_charsets_used){
-			if(strcmp(cs, "MULTI") == 0 ||
-			   (charset[0] && strucmp(charset, cs) != 0))
-			  multiple_charsets_used++;
-			else if(charset[0] == '\0')
-			  strncpy(charset, cs, 200);
 		    }
 		}
 	    }
 	}
 	else{
-	    char *csp = charset;
 	    if(!(vinfo=prepare_abe_for_vcard(ps, abe, expand_nicks))){
 		gf_clear_so_writec((STORE_S *) pb->contents.text.data);
 		goto bomb;
 	    }
 	    else{
-		write_single_vcard_entry(ps, pc, &csp, vinfo);
+		write_single_vcard_entry(ps, pc, vinfo);
 		free_vcard_info(&vinfo);
 	    }
-
-	    if(strcmp(charset, "MULTI") == 0)
-	      multiple_charsets_used++;
 	}
 
-	if(multiple_charsets_used)
-	  q_status_message(SM_ORDER | SM_DING, 3, 4,
-  _("Entries use more than one character set, character set information is lost"));
-
 	/* This sets parameter charset, if necessary, and encoding */
-	set_mime_type_by_grope(pb, (!multiple_charsets_used && charset[0])
-							    ? charset : NULL);
+	set_mime_type_by_grope(pb);
+	set_charset_possibly_to_ascii(pb, "UTF-8");
 	pb->size.bytes =
 		strlen((char *)so_text((STORE_S *)pb->contents.text.data));
     }
@@ -4934,15 +4914,13 @@ free_vcard_info(VCARD_INFO_S **vinfo)
 
 
 /*
- * Args   cset_return -- an array of size at least 200+1
+ * 
  */
 void
-write_single_vcard_entry(struct pine *ps, gf_io_t pc, char **cset_return, VCARD_INFO_S *vinfo)
+write_single_vcard_entry(struct pine *ps, gf_io_t pc, VCARD_INFO_S *vinfo)
 {
-    char  *decoded, *cset, *charset, *tmp2, *tmp = NULL, *hdr;
+    char  *decoded, *tmp2, *tmp = NULL, *hdr;
     char **ll;
-    char   charset_used[200+1];
-    int    multiple_charsets_used = 0;
     int    i, did_fn = 0, did_n = 0;
     int    cr;
     char   eol[3];
@@ -4969,8 +4947,6 @@ write_single_vcard_entry(struct pine *ps, gf_io_t pc, char **cset_return, VCARD_
     gf_puts("VERSION:3.0", pc);
     gf_puts(eol, pc);
 
-    charset_used[0] = '\0';
-    
     for(i = 0; i < 7; i++){
 	switch(i){
 	  case 0:
@@ -5013,20 +4989,11 @@ write_single_vcard_entry(struct pine *ps, gf_io_t pc, char **cset_return, VCARD_
 	}
 
 	for(; ll && *ll; ll++){
-	    cset = charset = NULL;
-	    decoded = (char *)rfc1522_decode((unsigned char *)(tmp_20k_buf),
-					     SIZEOF_20KBUF, *ll, &cset);
-	    if(decoded != *ll){  /* decoding was done */
-		if(cset && cset[0])
-		  charset = cset;
-		else if(ps->posting_charmap && ps->posting_charmap[0])
-		  charset = ps->posting_charmap;
-	    }
+	    decoded = (char *)rfc1522_decode_to_utf8((unsigned char *)(tmp_20k_buf), SIZEOF_20KBUF, *ll);
 
 	    tmp = vcard_escape(decoded);
 	    if(tmp){
-		if(tmp2 = fold(tmp, FOLD_BY, FOLD_BY, hdr, " ",
-			       FLD_PWS | (cr ? FLD_CRLF : 0))){
+		if(tmp2 = fold(tmp, FOLD_BY, FOLD_BY, hdr, " ", FLD_PWS | (cr ? FLD_CRLF : 0))){
 		    gf_puts(tmp2, pc);
 		    fs_give((void **)&tmp2);
 		    if(i == 1)
@@ -5035,16 +5002,6 @@ write_single_vcard_entry(struct pine *ps, gf_io_t pc, char **cset_return, VCARD_
 
 		fs_give((void **)&tmp);
 	    }
-
-	    if(charset && !multiple_charsets_used){
-		if(charset_used[0] && strucmp(charset_used, charset) != 0)
-		  multiple_charsets_used++;
-		else if(charset_used[0] == '\0')
-		  strncpy(charset_used, charset, 200);
-	    }
-
-	    if(cset)
-	      fs_give((void **)&cset);
 	}
     }
 
@@ -5062,7 +5019,6 @@ write_single_vcard_entry(struct pine *ps, gf_io_t pc, char **cset_return, VCARD_
 		(pf && *pf) ? pf : "", 
 		(pm && *pm) ? ";" : "", 
 		(pm && *pm) ? pm : "");
-	tmp[SIZEOF_20KBUF-1] = '\0';
 
 	if(tmp2 = fold(tmp_20k_buf, FOLD_BY, FOLD_BY, "N:", " ",
 		       FLD_PWS | (cr ? FLD_CRLF : 0))){
@@ -5094,7 +5050,6 @@ write_single_vcard_entry(struct pine *ps, gf_io_t pc, char **cset_return, VCARD_
 		      vinfo->middle && *vinfo->middle) &&
 		     vinfo->last && *vinfo->last) ? " " : "", 
 		    (vinfo->last && *vinfo->last) ? vinfo->last : "");
-	    tmp[SIZEOF_20KBUF-1] = '\0';
 
 	    tmp = vcard_escape(tmp_20k_buf);
 	    if(tmp){
@@ -5121,10 +5076,6 @@ write_single_vcard_entry(struct pine *ps, gf_io_t pc, char **cset_return, VCARD_
 
     gf_puts("END:VCARD", pc);
     gf_puts(eol, pc);
-
-    if(cset_return && charset_used[0])
-      strncpy(*cset_return, multiple_charsets_used ? "MULTI" : charset_used,
-	      200);
 }
 
 
@@ -5134,7 +5085,7 @@ write_single_vcard_entry(struct pine *ps, gf_io_t pc, char **cset_return, VCARD_
 void
 write_single_tab_entry(gf_io_t pc, VCARD_INFO_S *vinfo)
 {
-    char  *decoded, *cset, *tmp = NULL;
+    char  *decoded, *tmp = NULL;
     char **ll;
     int    i, first;
     char  *eol;
@@ -5175,9 +5126,7 @@ write_single_tab_entry(gf_io_t pc, VCARD_INFO_S *vinfo)
 
 	for(first = 1; ll && *ll; ll++){
 
-	    cset = NULL;
-	    decoded = (char *)rfc1522_decode((unsigned char *)(tmp_20k_buf),
-					     SIZEOF_20KBUF, *ll, &cset);
+	    decoded = (char *)rfc1522_decode_to_utf8((unsigned char *)(tmp_20k_buf), SIZEOF_20KBUF, *ll);
 	    tmp = vcard_escape(decoded);
 	    if(tmp){
 		if(i == 2 && !first)
@@ -5188,9 +5137,6 @@ write_single_tab_entry(gf_io_t pc, VCARD_INFO_S *vinfo)
 		gf_puts(tmp, pc);
 		fs_give((void **)&tmp);
 	    }
-
-	    if(cset)
-	      fs_give((void **)&cset);
 	}
     }
 
@@ -5886,8 +5832,7 @@ ab_print(int agg)
 		}
 
 		tmp = abe->nickname ? abe->nickname : "";
-		string = (char *)rfc1522_decode((unsigned char *)tmp_20k_buf,
-						SIZEOF_20KBUF, tmp, NULL);
+		string = (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf, SIZEOF_20KBUF, tmp);
 		utf8_snprintf(b, sizeof(b), "%-*.*w: ", abook_indent, abook_indent, _("Nickname"));
 		if(tmp = fold(string, 80, 80, b, spaces, FLD_NONE)){
 		    print_text(tmp);
@@ -5895,8 +5840,7 @@ ab_print(int agg)
 		}
 
 		tmp = abe->fullname ? abe->fullname : "";
-		string = (char *)rfc1522_decode((unsigned char *)tmp_20k_buf,
-						SIZEOF_20KBUF, tmp, NULL);
+		string = (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf, SIZEOF_20KBUF, tmp);
 		utf8_snprintf(b, sizeof(b), "%-*.*w: ", abook_indent, abook_indent, _("Fullname"));
 		if(tmp = fold(string, 80, 80, b, spaces, FLD_NONE)){
 		    print_text(tmp);
@@ -5904,8 +5848,7 @@ ab_print(int agg)
 		}
 
 		tmp = abe->fcc ? abe->fcc : "";
-		string = (char *)rfc1522_decode((unsigned char *)tmp_20k_buf,
-						SIZEOF_20KBUF, tmp, NULL);
+		string = (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf, SIZEOF_20KBUF, tmp);
 		utf8_snprintf(b, sizeof(b), "%-*.*w: ", abook_indent, abook_indent, _("Fcc"));
 		if(tmp = fold(string, 80, 80, b, spaces, FLD_NONE)){
 		    print_text(tmp);
@@ -5924,7 +5867,7 @@ ab_print(int agg)
 		     p = (unsigned char *)tmp_20k_buf;
 		 }
 
-		 string = (char *)rfc1522_decode(p, len, tmp, NULL);
+		 string = (char *)rfc1522_decode_to_utf8(p, len, tmp);
 		 utf8_snprintf(b, len, "%-*.*w: ", abook_indent, abook_indent, _("Comment"));
 		 if(tmp = fold(string, 80, 80, b, spaces, FLD_NONE)){
 		    print_text(tmp);
@@ -5953,10 +5896,8 @@ ab_print(int agg)
 			bufp = (char *) fs_get(len * sizeof(char));
 			tmp = addr_string(a, bufp, len);
 			a->next = next_addr;
-			string = (char *)rfc1522_decode((unsigned char *)
-							tmp_20k_buf+10000,
-							SIZEOF_20KBUF-10000,
-							tmp, NULL);
+			string = (char *)rfc1522_decode_to_utf8((unsigned char *) tmp_20k_buf+10000,
+								SIZEOF_20KBUF-10000, tmp);
 			utf8_snprintf(b, sizeof(b), "%-*.*w: ", abook_indent, abook_indent, _("Addresses"));
 			if(tmp = fold(string, 80, 80,
 				      (a == adrlist) ? b : spaces,
@@ -5978,10 +5919,8 @@ ab_print(int agg)
 		else{ /* don't expand or qualify */
 		    if(abe->tag == Single){
 			tmp = abe->addr.addr ? abe->addr.addr : "";
-			string = (char *)rfc1522_decode((unsigned char *)
-							(tmp_20k_buf+10000),
-							SIZEOF_20KBUF-10000,
-						        tmp, NULL);
+			string = (char *)rfc1522_decode_to_utf8((unsigned char *) (tmp_20k_buf+10000),
+								SIZEOF_20KBUF-10000, tmp);
 			utf8_snprintf(b, sizeof(b), "%-*.*w: ", abook_indent, abook_indent, _("Addresses"));
 			if(tmp = fold(string, 80, 80, b,
 				      more_spaces, FLD_NONE)){
@@ -5998,10 +5937,8 @@ ab_print(int agg)
 			}
 
 			for(ll = abe->addr.list; ll && *ll; ll++){
-			    string = (char *)rfc1522_decode((unsigned char *)
-							    (tmp_20k_buf+10000),
-							    SIZEOF_20KBUF-10000,
-						            *ll, NULL);
+			    string = (char *)rfc1522_decode_to_utf8((unsigned char *) (tmp_20k_buf+10000),
+								    SIZEOF_20KBUF-10000, *ll);
 			    utf8_snprintf(b, sizeof(b), "%-*.*w: ", abook_indent, abook_indent, _("Addresses"));
 			    if(tmp = fold(string, 80, 80,
 					  (ll == abe->addr.list)
@@ -6398,26 +6335,23 @@ single_entry_delete(AdrBk *abook, long int cur_line, int *warped)
     switch(dl->type){
       case Simple:
 	dname =	(abe->fullname && abe->fullname[0])
-			? (char *)rfc1522_decode((unsigned char *)tmp_20k_buf,
-						 SIZEOF_20KBUF,
-						 abe->fullname, NULL)
+			? (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+							 SIZEOF_20KBUF, abe->fullname)
 			: abe->nickname ? abe->nickname : "";
         cmd   = _("Really delete \"%s\"");
         break;
 
       case ListHead:
 	dname =	(abe->fullname && abe->fullname[0])
-			? (char *)rfc1522_decode((unsigned char *)tmp_20k_buf,
-						  SIZEOF_20KBUF,
-						  abe->fullname, NULL)
+			? (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+							 SIZEOF_20KBUF, abe->fullname)
 			: abe->nickname ? abe->nickname : "";
 	cmd   = _("Really delete ENTIRE list \"%s\"");
         break;
 
       case ListEnt:
-        dname = (char *)rfc1522_decode((unsigned char *)tmp_20k_buf,
-				       SIZEOF_20KBUF,
-				       listmem_from_dl(abook, dl), NULL);
+        dname = (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+					       SIZEOF_20KBUF, listmem_from_dl(abook, dl));
 	cmd   = _("Really delete \"%s\" from list");
         break;
     } 
@@ -6553,42 +6487,42 @@ single_space::sticky::dirty::start_here::blank::KS_ODATAVAR
 */
 static struct headerentry headents_for_query[]={
   {"Normal Search : ",  "NormalSearch",  h_composer_qserv_qq, 16, 0, NULL,
-   NULL, NULL, NULL, NULL, NULL, NULL,
+   NULL, NULL, NULL, NULL, NULL, NULL, NULL,
    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"Name          : ",  "Name",  h_composer_qserv_cn, 16, 0, NULL,
-   NULL, NULL, NULL, NULL, NULL, NULL,
+   NULL, NULL, NULL, NULL, NULL, NULL, NULL,
    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"Surname       : ",  "SurName",  h_composer_qserv_sn, 16, 0, NULL,
-   NULL, NULL, NULL, NULL, NULL, NULL,
+   NULL, NULL, NULL, NULL, NULL, NULL, NULL,
    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"Given Name    : ",  "GivenName",  h_composer_qserv_gn, 16, 0, NULL,
-   NULL, NULL, NULL, NULL, NULL, NULL,
+   NULL, NULL, NULL, NULL, NULL, NULL, NULL,
    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"Email Address : ",  "EmailAddress",  h_composer_qserv_mail, 16, 0, NULL,
-   NULL, NULL, NULL, NULL, NULL, NULL,
+   NULL, NULL, NULL, NULL, NULL, NULL, NULL,
    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"Organization  : ",  "Organization",  h_composer_qserv_org, 16, 0, NULL,
-   NULL, NULL, NULL, NULL, NULL, NULL,
+   NULL, NULL, NULL, NULL, NULL, NULL, NULL,
    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"Org Unit      : ",  "OrganizationalUnit", h_composer_qserv_unit, 16, 0, NULL,
-   NULL, NULL, NULL, NULL, NULL, NULL,
+   NULL, NULL, NULL, NULL, NULL, NULL, NULL,
    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"Country       : ",  "Country",  h_composer_qserv_country, 16, 0, NULL,
-   NULL, NULL, NULL, NULL, NULL, NULL,
+   NULL, NULL, NULL, NULL, NULL, NULL, NULL,
    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"State         : ",  "State",  h_composer_qserv_state, 16, 0, NULL,
-   NULL, NULL, NULL, NULL, NULL, NULL,
+   NULL, NULL, NULL, NULL, NULL, NULL, NULL,
    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"Locality      : ",  "Locality",  h_composer_qserv_locality, 16, 0, NULL,
-   NULL, NULL, NULL, NULL, NULL, NULL,
+   NULL, NULL, NULL, NULL, NULL, NULL, NULL,
    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {" ",  "BlankLine",  NO_HELP, 1, 0, NULL,
-   NULL, NULL, NULL, NULL, NULL, NULL,
+   NULL, NULL, NULL, NULL, NULL, NULL, NULL,
    1, 0, 0, 0, 0, 0, 0, 0, 0, 1, KS_NONE},
   {"Custom Filter : ",  "CustomFilter",  h_composer_qserv_custom, 16, 0, NULL,
-   NULL, NULL, NULL, NULL,  NULL, NULL,
+   NULL, NULL, NULL, NULL,  NULL, NULL, NULL,
    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
-  {NULL, NULL, NO_HELP, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+  {NULL, NULL, NO_HELP, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE}
 };
 #define QQ_QQ		0

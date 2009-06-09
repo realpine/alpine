@@ -135,6 +135,90 @@ mswin_tw_close(MSWIN_TEXTWINDOW *mswin_tw)
 }
 
 /*
+ * EditStreamOutCallback - callback for mswin_tw_write_to_file.
+ */
+static DWORD CALLBACK
+EditStreamOutCallback(DWORD_PTR dwCookie, LPBYTE lpBuff, LONG cb, PLONG pcb)
+{
+    HANDLE hFile = (HANDLE)dwCookie;
+    return !WriteFile(hFile, lpBuff, cb, (DWORD *)pcb, NULL);
+}
+
+/*
+ * mswin_tw_fill_from_file() - write textwindow contents to a file.
+ */
+BOOL
+mswin_tw_write_to_file(MSWIN_TEXTWINDOW *mswin_tw, LPCTSTR file)
+{
+    BOOL fSuccess = FALSE;
+    HANDLE hFile = CreateFile(file, GENERIC_WRITE, 0,
+                              0, OPEN_ALWAYS,
+                              FILE_ATTRIBUTE_NORMAL, NULL);
+    if(hFile != INVALID_HANDLE_VALUE)
+    {
+        EDITSTREAM es;
+
+        es.dwCookie = (DWORD_PTR)hFile;
+        es.dwError = 0;
+        es.pfnCallback = EditStreamOutCallback;
+
+        if(SendMessage(mswin_tw->hwnd_edit, EM_STREAMOUT, SF_TEXT, (LPARAM)&es) &&
+            es.dwError == 0)
+        {
+            fSuccess = TRUE;
+        }
+    }
+
+    CloseHandle(hFile);
+    return fSuccess;
+}
+
+
+#ifdef ALTED_DOT
+
+/*
+ * EditStreamCallback - callback for mswin_tw_fill_from_file.
+ */
+static DWORD CALLBACK
+EditStreamInCallback(DWORD_PTR dwCookie, LPBYTE lpBuff, LONG cb, PLONG pcb)
+{
+    HANDLE hFile = (HANDLE)dwCookie;
+    return !ReadFile(hFile, lpBuff, cb, (DWORD *)pcb, NULL);
+}
+
+
+/*
+ * mswin_tw_fill_from_file() - read file contents into the mswin textwindow.
+ */
+BOOL
+mswin_tw_fill_from_file(MSWIN_TEXTWINDOW *mswin_tw, LPCTSTR file)
+{
+    BOOL fSuccess = FALSE;
+    HANDLE hFile = CreateFile(file, GENERIC_READ, FILE_SHARE_READ,
+                              0, OPEN_EXISTING,
+                              FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+    if(hFile != INVALID_HANDLE_VALUE)
+    {
+        EDITSTREAM es;
+
+        es.dwCookie = (DWORD_PTR)hFile;
+        es.dwError = 0;
+        es.pfnCallback = EditStreamInCallback;
+
+        if(SendMessage(mswin_tw->hwnd_edit, EM_STREAMIN, SF_TEXT, (LPARAM)&es) &&
+            es.dwError == 0)
+        {
+            fSuccess = TRUE;
+        }
+    }
+
+    CloseHandle(hFile);
+    return fSuccess;
+}
+
+#endif /* ALTED_DOT */
+
+/*
  * mswin_tw_showwindow() - show the main hwnd (SW_SHOWNORMAL, etc.).
  */
 void
@@ -284,9 +368,20 @@ mswin_tw_setsel(MSWIN_TEXTWINDOW *mswin_tw, LONG min, LONG max)
 }
 
 /*
+ * mswin_set_readonly() - Set readonly status.
+ */
+void
+mswin_set_readonly(MSWIN_TEXTWINDOW *mswin_tw, BOOL read_only)
+{
+    if(mswin_tw && mswin_tw->hwnd_edit)
+        Edit_SetReadOnly(mswin_tw->hwnd_edit, read_only);
+}
+
+/*
  * mswin_tw_clear() - Clear all text from edit control.
  */
-void mswin_tw_clear(MSWIN_TEXTWINDOW *mswin_tw)
+void
+mswin_tw_clear(MSWIN_TEXTWINDOW *mswin_tw)
 {
     if(mswin_tw && mswin_tw->hwnd_edit)
     {
@@ -609,6 +704,12 @@ mswin_tw_wndproc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         break;
 
     case WM_DESTROY:
+        if(mswin_tw->out_file)
+        {
+            mswin_tw->out_file_ret = mswin_tw_write_to_file(mswin_tw,
+                mswin_tw->out_file);
+        }
+
         mswin_tw->hwnd = NULL;
         mswin_tw->hwnd_edit = NULL;
 

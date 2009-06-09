@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: confscroll.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: confscroll.c 451 2007-02-26 20:43:44Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -2725,16 +2725,16 @@ radiobutton_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 		    switch(ps->color_style){
 		      case COL_NONE:
 		      case COL_TERMDEF:
-			pico_set_color_options(0);
+			pico_set_color_options(pico_trans_color() ? COLOR_TRANS_OPT : 0);
 			break;
 		      case COL_ANSI8:
-			pico_set_color_options(COLOR_ANSI8_OPT|COLOR_ANSITRANS_OPT);
+			pico_set_color_options(COLOR_ANSI8_OPT|COLOR_TRANS_OPT);
 			break;
 		      case COL_ANSI16:
-			pico_set_color_options(COLOR_ANSI16_OPT|COLOR_ANSITRANS_OPT);
+			pico_set_color_options(COLOR_ANSI16_OPT|COLOR_TRANS_OPT);
 			break;
 		      case COL_ANSI256:
-			pico_set_color_options(COLOR_ANSI256_OPT|COLOR_ANSITRANS_OPT);
+			pico_set_color_options(COLOR_ANSI256_OPT|COLOR_TRANS_OPT);
 			break;
 		    }
 
@@ -3709,7 +3709,6 @@ text_pretty_value(struct pine *ps, CONF_S *cl)
 {
     char  tmp[6*MAX_SCREEN_COLS+20], *pvalnorm, **lvalnorm, *pvalexc, **lvalexc;
     char *p, *pval, **lval, lastchar = '\0';
-    char *left_paren = NULL, *left_quote = NULL;
     int   editing_except, fixed, uvalset, uvalposlen;
     unsigned got_width;
     int   comments, except_set, avail_width;
@@ -3826,7 +3825,6 @@ text_pretty_value(struct pine *ps, CONF_S *cl)
 		  avail_width -= got_width;
 		}
 		else{
-		    left_paren = p+1;
 		    p += utf8_to_width(p, " (", sizeof(tmp)-(p-tmp), avail_width, &got_width);
 		    avail_width -= got_width;
 		}
@@ -3843,7 +3841,11 @@ text_pretty_value(struct pine *ps, CONF_S *cl)
 	}
 
 	if(avail_width >= 7){
-	    left_quote = p;
+	  if(cl->var == &ps_global->vars[V_POST_CHAR_SET]){
+	    p += utf8_to_width(p, "most specific (see help)", sizeof(tmp)-(p-tmp), avail_width, &got_width);
+	    avail_width -= got_width;
+	  }
+	  else{
 	    sstrncpy(&p, "\"", sizeof(tmp)-(p-tmp));
 	    avail_width--;
 	    if(cl->var->is_list){
@@ -3876,6 +3878,7 @@ text_pretty_value(struct pine *ps, CONF_S *cl)
 		*p++ = '\"';
 		*p = '\0';
 	    }
+	  }
 	}
 	else if(*(p-1) == SPACE)
 	  *--p = '\0';
@@ -5333,16 +5336,16 @@ fix_side_effects(struct pine *ps, struct variable *var, int revert)
 	    switch(ps->color_style){
 	      case COL_NONE:
 	      case COL_TERMDEF:
-		pico_set_color_options(0);
+		pico_set_color_options(pico_trans_color() ? COLOR_TRANS_OPT : 0);
 		break;
 	      case COL_ANSI8:
-		pico_set_color_options(COLOR_ANSI8_OPT|COLOR_ANSITRANS_OPT);
+		pico_set_color_options(COLOR_ANSI8_OPT|COLOR_TRANS_OPT);
 		break;
 	      case COL_ANSI16:
-		pico_set_color_options(COLOR_ANSI16_OPT|COLOR_ANSITRANS_OPT);
+		pico_set_color_options(COLOR_ANSI16_OPT|COLOR_TRANS_OPT);
 		break;
 	      case COL_ANSI256:
-		pico_set_color_options(COLOR_ANSI256_OPT|COLOR_ANSITRANS_OPT);
+		pico_set_color_options(COLOR_ANSI256_OPT|COLOR_TRANS_OPT);
 		break;
 	    }
 

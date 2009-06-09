@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: word.c 334 2006-12-19 01:26:30Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: word.c 404 2007-01-30 18:54:06Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -116,15 +116,15 @@ backword(int f, int n)
 {
         if (n < 0)
                 return (forwword(f, -n));
-        if (backchar(FALSE, 1) == FALSE)
+        if (backchar_no_header_editor(FALSE, 1) == FALSE)
                 return (FALSE);
         while (n--) {
                 while (inword() == FALSE) {
-                        if (backchar(FALSE, 1) == FALSE)
+                        if (backchar_no_header_editor(FALSE, 1) == FALSE)
                                 return (FALSE);
                 }
                 while (inword() != FALSE) {
-                        if (backchar(FALSE, 1) == FALSE)
+                        if (backchar_no_header_editor(FALSE, 1) == FALSE)
                                 return (FALSE);
                 }
         }

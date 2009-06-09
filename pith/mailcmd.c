@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcmd.c 394 2007-01-25 20:29:45Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailcmd.c 430 2007-02-08 20:31:55Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1660,28 +1660,26 @@ move_read_msgs(MAILSTREAM *stream, char *dstfldr, char *buf, size_t buflen, long
       save_context = ps_global->context_list;
 
     /*
-     * Use the "sequence" bit to select the set of messages
+     * Use the "searched" bit to select the set of messages
      * we want to save.  If searched is non-neg, the message
-     * cache already has the necessary "sequence" bits set.
+     * cache already has the necessary "searched" bits set.
      */
     if(searched < 0L)
       searched = count_flagged(stream, F_SEEN | F_UNDEL);
 
     if(searched){
-	mn_init(&msgmap, stream->nmsgs);
-	for(i = 1L; i <= mn_get_total(msgmap); i++)
-	  set_lflag(stream, msgmap, i, MN_SLCT, 0);
-
 	/*
-	 * re-init msgmap to fix the MN_SLCT count, "flagged_tmp", in
-	 * case there were any flagged such before we got here.
-	 *
-	 * BUG: this means the count of MN_SLCT'd msgs in the
-	 * folder's real msgmap is instantly bogus.  Until Cancel
-	 * after "Really quit?" is allowed, this isn't a problem since
-	 * that mapping table is either gone or about to get nuked...
+	 * We're going to be messing with SLCT flags in order
+	 * to do our work. If this stream is a StayOpen stream
+	 * we want to restore those flags after we're done
+	 * using them. So copy them into STMP so we can put them
+	 * back below.
 	 */
-	mn_init(&msgmap, stream->nmsgs);
+	msgmap = sp_msgmap(stream);
+	if(sp_flagged(stream, SP_PERMLOCKED))
+	  copy_lflags(stream, msgmap, MN_SLCT, MN_STMP);
+
+	set_lflags(stream, msgmap, MN_SLCT, 0);
 
 	/* select search results */
 	for(i = 1L; i <= mn_get_total(msgmap); i++)
@@ -1701,9 +1699,13 @@ move_read_msgs(MAILSTREAM *stream, char *dstfldr, char *buf, size_t buflen, long
 	  strncpy(bufp = buf + 1, "Moved", MIN(5,buflen)); /* change Moving to Moved */
 
 	buf[buflen-1] = '\0';
-	mn_give(&msgmap);
 	if(we_cancel)
 	  cancel_busy_cue(bufp ? 0 : -1);
+
+	if(sp_flagged(stream, SP_PERMLOCKED)){
+	    restore_selected(msgmap);
+	    copy_lflags(stream, msgmap, MN_STMP, MN_SLCT);
+	}
     }
 
     return(bufp);

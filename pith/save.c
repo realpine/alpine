@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: save.c 220 2006-11-06 19:58:04Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: save.c 442 2007-02-16 23:01:28Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -323,15 +323,9 @@ save_get_fldr_from_env(char *fbuf, int nfbuf, ENVELOPE *e, struct pine *state,
       case SAV_RULE_RN_REPLYTO_DEF:
       case SAV_RULE_RN_REPLYTO:
         /* Fish out the realname */
-	if(tmp_adr && tmp_adr->personal && tmp_adr->personal[0]){
-	    char *dummy = NULL;
-
-	    folder_name = (char *)rfc1522_decode((unsigned char *)tmp_20k_buf,
-						 SIZEOF_20KBUF,
-						 tmp_adr->personal, &dummy);
-	    if(dummy)
-	      fs_give((void **)&dummy);
-	}
+	if(tmp_adr && tmp_adr->personal && tmp_adr->personal[0])
+	  folder_name = (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+						       SIZEOF_20KBUF, tmp_adr->personal);
 
 	if(folder_name && folder_name[0]){
 	    istrncpy(fbuf, folder_name, nfbuf - 1);
@@ -423,11 +417,6 @@ save(struct pine *state, MAILSTREAM *stream, CONTEXT_S *context, char *folder,
     STORE_S	 *so = NULL;
     MAILSTREAM	 *save_stream = NULL, *dstn_stream = NULL;
     MESSAGECACHE *mc, *mcdst;
-#if	defined(DOS) && !defined(WIN32)
-#define	SAVE_TMP_TYPE		TmpFileStar
-#else
-#define	SAVE_TMP_TYPE		CharStar
-#endif
 
     delete = flgs & SV_DELETE;
     filter = flgs & SV_FOR_FILT;
@@ -581,7 +570,7 @@ save(struct pine *state, MAILSTREAM *stream, CONTEXT_S *context, char *folder,
 	 * object in.  Below it'll get mapped into a c-client STRING struct
 	 * in preparation for handing off to context_append...
 	 */
-	if(!(so = so_get(SAVE_TMP_TYPE, NULL, WRITE_ACCESS))){
+	if(!(so = so_get(CharStar, NULL, WRITE_ACCESS))){
 	    dprint((1, "Can't allocate store for save: %s\n",
 		       error_description(errno)));
 	    q_status_message(SM_ORDER | SM_DING, 3, 4,
@@ -940,36 +929,14 @@ long save_fetch_append_cb(MAILSTREAM *stream, void *data, char **flags,
 	    if(!so_nputs(pkg->so, fetch, (long) hlen))
 	      return(0);
 
-#if	defined(DOS) && !defined(WIN32)
-	    mail_parameters(pkg->stream, SET_GETS, (void *)dos_gets);
-	    append_file = (FILE *) so_text(pkg->so);
-	    mail_gc(pkg->stream, GC_TEXTS);
-#endif
-
 	    fetch = pine_mail_fetch_text(pkg->stream, raw, NULL, &tlen, FT_PEEK);
 
-#if	!(defined(DOS) && !defined(WIN32))
 	    if(!(fetch && so_nputs(pkg->so, fetch, tlen)))
 	      return(0);
-#else
-	    append_file = NULL;
-	    mail_parameters(pkg->stream, SET_GETS, (void *)NULL);
-	    mail_gc(pkg->stream, GC_TEXTS);
-	    
-	    if(!fetch)
-	      return(0);
-#endif
 	}
 
 	so_seek(pkg->so, 0L, 0);	/* rewind just in case */
-
-#if	defined(DOS) && !defined(WIN32)
-	d.fd  = fileno((FILE *)so_text(pkg->so));
-	d.pos = 0L;
-	mlen = filelength(d.fd);
-#else
 	mlen = hlen + tlen;
-#endif
 
 	if(size && mlen < size){
 	    char buf[128];
@@ -985,11 +952,7 @@ long save_fetch_append_cb(MAILSTREAM *stream, void *data, char **flags,
 	    return(0);
 	}
 
-#if	defined(DOS) && !defined(WIN32)
-	INIT(pkg->msg, dawz_string, (void *)&d, mlen);
-#else
 	INIT(pkg->msg, mail_string, (void *)so_text(pkg->so), mlen);
-#endif
       *message = pkg->msg;
 					/* Next message */
       pkg->msgno = mn_next_cur(pkg->msgmap);
@@ -1022,13 +985,6 @@ save_fetch_append(MAILSTREAM *stream, long int raw, char *sect,
     char	  *fetch;
     unsigned long  hlen, tlen, mlen;
     STRING	   msg;
-#if	defined(DOS) && !defined(WIN32)
-    struct {					/* hack! stolen from dawz.c */
-	int fd;
-	unsigned long pos;
-    } d;
-    extern STRINGDRIVER dawz_string;
-#endif
 
     if(fetch = mail_fetch_header(stream, raw, sect, NULL, &hlen, FT_PEEK)){
 	/*
@@ -1104,16 +1060,6 @@ save_fetch_append(MAILSTREAM *stream, long int raw, char *sect,
 	if(!so_nputs(so, fetch, (long) hlen))
 	  return(0);
 
-#if	defined(DOS) && !defined(WIN32)
-	/*
-	 * Set append file and install dos_gets so message text
-	 * is fetched directly to disk.
-	 */
-	mail_parameters(stream, SET_GETS, (void *)dos_gets);
-	append_file = (FILE *) so_text(so);
-	mail_gc(stream, GC_TEXTS);
-#endif
-
 	old_imap_server = is_imap_stream(stream) && !modern_imap_stream(stream);
 
 	/* Second, go fetch the corresponding text... */
@@ -1143,22 +1089,9 @@ save_fetch_append(MAILSTREAM *stream, long int raw, char *sect,
 	    mail_flag(stream, seq, "\\SEEN", 0);
 	}
 
-
-#if	!(defined(DOS) && !defined(WIN32))
 	/* If fetch succeeded, write the result */
 	if(!(fetch && so_nputs(so, fetch, tlen)))
 	   return(0);
-#else
-	/*
-	 * Clean up after our DOS hacks...
-	 */
-	append_file = NULL;
-	mail_parameters(stream, SET_GETS, (void *)NULL);
-	mail_gc(stream, GC_TEXTS);
-
-	if(!fetch)
-	  return(0);
-#endif
     }
 
     so_seek(so, 0L, 0);			/* rewind just in case */
@@ -1173,13 +1106,7 @@ save_fetch_append(MAILSTREAM *stream, long int raw, char *sect,
      *	     header and body text fetch plus MIME parse), so
      *	     we only verify the size if we already know it.
      */
-#if	defined(DOS) && !defined(WIN32)
-    d.fd  = fileno((FILE *)so_text(so));
-    d.pos = 0L;
-    mlen = filelength(d.fd);
-#else
     mlen = hlen + tlen;
-#endif
 
     if(size && mlen < size){
 	char buf[128];
@@ -1195,11 +1122,7 @@ save_fetch_append(MAILSTREAM *stream, long int raw, char *sect,
 	return(0);
     }
 
-#if	defined(DOS) && !defined(WIN32)
-    INIT(&msg, dawz_string, (void *)&d, mlen);
-#else
     INIT(&msg, mail_string, (void *)so_text(so), mlen);
-#endif
 
     rc = 0;
     while(!(rv = (int) context_append_full(context, save_stream,
@@ -1473,8 +1396,8 @@ save_ex_explain_parts(struct mail_bodystruct *body, int depth, long unsigned int
 
 	    snprintf(buftmp, sizeof(buftmp), "%.75s", body->description);
 	    snprintf(tmp, sizeof(tmp), "%*.*s  as \"%.50s\" containing:", depth, depth, " ",
-		    (char *) rfc1522_decode((unsigned char *)tmp_20k_buf,
-					    SIZEOF_20KBUF, buftmp, NULL));
+		    (char *) rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+						    SIZEOF_20KBUF, buftmp));
 	}
 	else{
 	    snprintf(tmp, sizeof(tmp), "%*.*sA %s/%.*s%.10s%.100s%.10s segment containing:",
@@ -1518,8 +1441,8 @@ save_ex_explain_parts(struct mail_bodystruct *body, int depth, long unsigned int
 	    snprintf(buftmp, sizeof(buftmp), "%.75s", body->description);
 	    snprintf(tmp, sizeof(tmp), "%*.*s   described as \"%.*s\"", depth, depth, " ",
 		    sizeof(tmp)-100,
-		    (char *) rfc1522_decode((unsigned char *)tmp_20k_buf,
-					    SIZEOF_20KBUF, buftmp, NULL));
+		    (char *) rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+						    SIZEOF_20KBUF, buftmp));
 	    if(save_ex_output_line(tmp, &ilen, pc))
 	      *len += ilen;
 	    else

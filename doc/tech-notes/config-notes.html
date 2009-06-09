@@ -1,10 +1,10 @@
-<HTML><HEAD><TITLE>Pine Technical Notes: Notes on Configuration and 
+<HTML><HEAD><TITLE>Alpine Technical Notes: Notes on Configuration and 
 Preferences</TITLE></HEAD><BODY>
 <H1>Notes on Configuration and Preferences</H1>
 
-<H2><A NAME="fkey">Pine in Function Key Mode</A></H2>
+<H2><A NAME="fkey">Alpine in Function Key Mode</A></H2>
 
-The standard <EM>Pine</EM> uses alphabetic keys for most commands, and control keys
+The standard <EM>Alpine</EM> uses alphabetic keys for most commands, and control keys
 in the composer.  Despite possible appearances, the current bindings are
 the result of much discussion and thought.  All the commands in the
 composer are single control characters.  This keeps things very neat and
@@ -12,18 +12,18 @@ simple for users.  Two character commands in the composer are a
 possibility, but we're trying to avoid them because of the added
 complexity for the user.  <P>
 
-<EM>Pine</EM> can also operate in a function-key mode.  To go into this mode invoke
-<EM>pine -k</EM> or (on some UNIX systems) <EM>pinef.</EM> On a UNIX
-system, you can link or copy the <EM>Pine</EM> executable to
-<EM>pinef</EM> to install <EM>pinef.</EM> Alternatively, users and systems
+<EM>Alpine</EM> can also operate in a function-key mode.  To go into this mode invoke
+<EM>alpine -k</EM> or (on some UNIX systems) <EM>alpinef.</EM> On a UNIX
+system, you can link or copy the <EM>Alpine</EM> executable to
+<EM>alpinef</EM> to install <EM>alpinef.</EM> Alternatively, users and systems
 administrators can set the <EM>use-function-keys</EM> feature in the
-personal or system-wide <EM>Pine</EM> configuration file.
+personal or system-wide <EM>Alpine</EM> configuration file.
 The command menus at the
 bottom of the screen will show <EM>F1-F12 </EM>instead of the alphabetic
 commands.  In addition, the help screens will be written in terms of
 function keys and not alphabetic keys.  <P>
 
-One of the results of using <EM>Pine</EM> in function-key mode is that users can
+One of the results of using <EM>Alpine</EM> in function-key mode is that users can
 only choose from twelve commands at any given time.  In alphabetic-key
 mode, a user can press a key for a command (say, q to quit) and that
 command can be fulfilled.  In function-key mode, the command must be
@@ -35,16 +35,16 @@ function-key users can get to all of them, just not all at once.  <P>
 
 <H2><A NAME="domain">Domain Settings</A></H2>
 
-<EM>Pine</EM> uses the default domain for a few different tasks.  First, it is
+<EM>Alpine</EM> uses the default domain for a few different tasks.  First, it is
 tacked onto the user-id for outgoing email.  Second, it is tacked onto all
 "local" (unqualified) addresses in the "To:" or "Cc:" fields of messages
 being composed (unless they are found in the address book or on an
 LDAP server). The domain
 name is also used to generate message-id lines for each outgoing message
-and to allow <EM>Pine</EM> to check if an address is that of the current <EM>Pine</EM> user. 
+and to allow <EM>Alpine</EM> to check if an address is that of the current <EM>Alpine</EM> user. 
 <P>
 
-<EM>Pine</EM> determines the domain name according
+<EM>Alpine</EM> determines the domain name according
 to whichever of these it finds. 
 The list here is in decreasing order of precedence. 
 
@@ -77,8 +77,8 @@ set to <EM>yes</EM>
 
 </OL>
 
-<P> The easiest way for this system to work is for <EM>PC-Pine</EM>
-users and UNIX <EM>Pine</EM> system administrators to
+<P> The easiest way for this system to work is for <EM>PC-Alpine</EM>
+users and UNIX <EM>Alpine</EM> system administrators to
 set the <EM>user-domain</EM> variable.  The
 variable <EM>use-only-domain-name</EM> is helpful if your site
 supports/requires hostless addressing, but for some reason you don't want
@@ -90,22 +90,22 @@ to use the <EM>user-domain</EM> variable.  <P>
 
 In many environments, it is quite common to have collections of archived
 mail on various hosts around the network.  Using the folder collections
-facility in <EM>Pine</EM>, access to these archives is just as simple as access to
-folders on <EM>Pine</EM>'s local disk.  <P>
+facility in <EM>Alpine</EM>, access to these archives is just as simple as access to
+folders on <EM>Alpine</EM>'s local disk.  <P>
 
-"Collection" is the word we use in <EM>Pine</EM> to describe a set of folders.  A
+"Collection" is the word we use in <EM>Alpine</EM> to describe a set of folders.  A
 collection corresponds loosely to a "directory" containing mail folders. 
 Folders within a defined collection can be manipulated (opened, saved-to,
 etc) using just their simple name.  Any number of folder collections can
-be defined, and <EM>Pine</EM> will adjust its menus and prompts to help navigate
+be defined, and <EM>Alpine</EM> will adjust its menus and prompts to help navigate
 them.  <P>
 
-The way collections are defined in <EM>Pine</EM> is with the
+The way collections are defined in <EM>Alpine</EM> is with the
 <A HREF="config.html#fold-coll"><EM>folder-collections</EM></A>
-variable in the <EM>Pine</EM> configuration file. 
+variable in the <EM>Alpine</EM> configuration file. 
 <EM>Folder-collections</EM> takes a list of one or more collections, each
 (optionally) preceded by a user-defined logical name (label).  Once
-collections are defined, <EM>Pine</EM> adjusts its menus and behavior to allow
+collections are defined, <EM>Alpine</EM> adjusts its menus and behavior to allow
 choosing files by their simple name within the collection.
 <P>
 
@@ -122,7 +122,7 @@ newlines in the list are OK if there's one or more spaces before the next
 entry), one local and one remote.  Each collection is a space-delimited
 pair of elements-first an optional logical-name and second the collection
 specifier.  The logical-name can have spaces if it has quotes around it
-(but keeping the logical name short and descriptive works best).  <EM>Pine</EM>
+(but keeping the logical name short and descriptive works best).  <EM>Alpine</EM>
 will use the logical-name (if provided) to reference all folders in the
 collection, so the user never has to see the ugliness of the collection
 specifier.  <P>
@@ -148,7 +148,7 @@ will provide a view in the folder lister of all folders in the PC's
 DOS, of course).  Further, the wildcard matching will honor characters
 trailing the '*' in the pattern.  <P>
 
-From within <EM>Pine</EM>, the "Folder List" display will be adjusted to allow
+From within <EM>Alpine</EM>, the "Folder List" display will be adjusted to allow
 browsing of the folders in any defined collection.  Even more, you'll
 notice in the <EM>Goto</EM> and <EM>Save</EM> commands a pair of
 sub-commands to rotate
@@ -197,12 +197,11 @@ example, this could be a valid collection:
 
 Collection handling is a tough problem to solve in a general way, and the
 explanation of the syntax is a bit ugly.  The upside is, hopefully, that
-for a little complexity in the <EM>Pine</EM> configuration file you get simple
+for a little complexity in the <EM>Alpine</EM> configuration file you get simple
 management of multiple folders in diverse locations.  <P>
 
-As of <EM>Pine</EM> 4.00, collection setup is handled by the
-<EM>Setup/collectionList</EM> screen instead of requiring hand editing
-of the configuration file. <P>
+Collection setup is handled by the
+<EM>Setup/collectionList</EM> screen.  <P>
 
 <HR>
 
@@ -215,7 +214,7 @@ form compatible with that server (i.e., path delimiters and naming syntax
 relative to that server).
 <P>
 
-The full syntax for a <EM>Pine</EM> folder name looks like
+The full syntax for a <EM>Alpine</EM> folder name looks like
 
 <P>
 <CENTER><SAMP>[{&lt;remote-specification&gt;}][#&lt;namespace&gt;]&lt;namespace-specific-part&gt;</SAMP></CENTER>
@@ -225,20 +224,20 @@ The square brackets ([]) mean that the part is optional.
 <P>
 
 If there is no remote-specification, then the folder name is interpreted
-locally on the computer running <EM>Pine</EM>.
+locally on the computer running <EM>Alpine</EM>.
 Local folder names depend on the operating system used by the computer 
-running <EM>Pine</EM>, as well as the configuration of that system.  For example,
-&quot;C:&#92;PINE&#92;FOLDERS&#92;OCT-94&quot; might exist on a PC, and
+running <EM>Alpine</EM>, as well as the configuration of that system.  For example,
+&quot;C:&#92;ALPINE&#92;FOLDERS&#92;OCT-94&quot; might exist on a PC, and
 &quot;~/mail/september-1994&quot; might be a reasonable folder name on a
 system running Unix.
 
 <P>
-<EM>Pine</EM> users have the option of using folders which are stored on some other
-computer.  <EM>Pine</EM> accesses remote folders via IMAP (the Internet Message
+<EM>Alpine</EM> users have the option of using folders which are stored on some other
+computer.  <EM>Alpine</EM> accesses remote folders via IMAP (the Internet Message
 Access Protocol), or in the case of news, via NNTP (the Network News
-Transport Protocol).  To be able to access remote folders in <EM>Pine</EM>, the
+Transport Protocol).  To be able to access remote folders in <EM>Alpine</EM>, the
 remote host must be running the appropriate server software (imapd or
-nntpd) and you must correctly specify the name of the folder to <EM>Pine</EM>,
+nntpd) and you must correctly specify the name of the folder to <EM>Alpine</EM>,
 including the domain name of the remote machine. For example,
 <P>
 <CENTER><SAMP>&#123;monet.art.example.com}INBOX</SAMP></CENTER>
@@ -252,7 +251,7 @@ and
 <P>
 Note that in the case of remote folders, the directory/file path in the specification is 
 determined by the operating system of the remote computer, <B>not</B> by
-the operating system of the computer on which you are running <EM>Pine</EM>.
+the operating system of the computer on which you are running <EM>Alpine</EM>.
 <P>
 As you can tell, the name of the computer is in &#123;} brackets
 followed immediately by the name of the folder.  (In each of these cases the
@@ -262,7 +261,7 @@ assumed.  Check
 <A HREF="#server-name-syntax"><EM>Server Name Syntax</EM></A>
 for a more detailed look at what options can be placed between the brackets.
 If there are no brackets at all, then the folder name is interpreted locally
-on the computer on which you are running <EM>Pine</EM>.
+on the computer on which you are running <EM>Alpine</EM>.
 
 <P>
 To the right of the brackets when a server name is present, or at the
@@ -270,16 +269,16 @@ start of the foldername if no server is present, the sharp sign,
 &quot;#&quot;, holds special meaning.  It indicates a folder name
 outside the area reserved for your personal folders.  In fact, it's
 used to indicate both the name of the folder, and a special phrase
-telling <EM>Pine</EM> how to interpret the name that follows.
+telling <EM>Alpine</EM> how to interpret the name that follows.
 
 <P>
-So, for example, <EM>Pine</EM> can be used to access a newsgroup that might be 
+So, for example, <EM>Alpine</EM> can be used to access a newsgroup that might be 
 available on your computer using:
 <P>
 <CENTER><SAMP>#news.comp.mail.pine</SAMP></CENTER>
 <P>
 The sharp sign indicates the folder name is outside your personal
-folder area.  The &quot;news.&quot; phrase after it tells <EM>Pine</EM> to 
+folder area.  The &quot;news.&quot; phrase after it tells <EM>Alpine</EM> to 
 interpret the remainder of the name as a newsgroup.
 
 <P>
@@ -334,7 +333,7 @@ By default, the IMAP port number, 143, is used.
 <P>
 
 Besides server name and optional port number, various other optional
-parameters may be supplied that alter <EM>Pine</EM>'s interaction with the server.
+parameters may be supplied that alter <EM>Alpine</EM>'s interaction with the server.
 A parameter is supplied by appending a slash (/) character followed by
 the parameter's name and,
 depending on the particular parameter, the value assigned to that
@@ -351,13 +350,13 @@ connection.
 If your SMTP server offers SMTP AUTH authentication, adding this 
 parameter to the
 <A HREF="config.html#smtp-server"><EM>SMTP-Server</EM></A>
-option will cause <EM>Pine</EM> to attempt to authenticate to the server using the
+option will cause <EM>Alpine</EM> to attempt to authenticate to the server using the
 supplied username.
 Similarly, if your NNTP server offers NNTP &quot;AUTHINFO SASL&quot;
 or &quot;AUTHINFO USER&quot; authentication, adding this parameter to the
 <A HREF="config.html#nntp-server"><EM>NNTP-Server</EM></A>
 option (or to the server name for any folder collection using NNTP)
-will cause <EM>Pine</EM> to attempt
+will cause <EM>Alpine</EM> to attempt
 to authenticate to the server using the supplied username.
 An example might be:
 
@@ -389,7 +388,7 @@ This is a unary parameter indicating communication with the server should
 take place over a Secure Socket Layer connection.  The server must support
 this method, and be prepared to accept connections on the appropriate
 port (993 by default).
-<EM>Pine</EM> must be linked with an SSL library for this option to be operational.
+<EM>Alpine</EM> must be linked with an SSL library for this option to be operational.
 
 <P>
 <CENTER><SAMP>/ssl</SAMP></CENTER>
@@ -399,7 +398,7 @@ port (993 by default).
 
 <DT>NoValidate-Cert</DT>
 <DD>Do not validate certificates (for TLS or SSL connections) from the server.
-This is needed if the server uses self-signed certificates or if <EM>Pine</EM>
+This is needed if the server uses self-signed certificates or if <EM>Alpine</EM>
 cannot validate the certificate for some other known reason.
 <P>
 </DD>
@@ -420,14 +419,14 @@ access; those which do generally only offer read-only access to certain
 
 <DT>Secure</DT>
 <DD>This is a unary parameter indicating that the connection use the
-most secure authentication method mutually supported by <EM>Pine</EM> and the
+most secure authentication method mutually supported by <EM>Alpine</EM> and the
 server.
-<EM>Pine</EM> is capable of authenticating connections to 
+<EM>Alpine</EM> is capable of authenticating connections to 
 the server using several methods.
-By default, <EM>Pine</EM> will attempt each
+By default, <EM>Alpine</EM> will attempt each
 method until either a connection is established or the
 list of methods is exhausted.
-This parameter causes <EM>Pine</EM> to instead fail 
+This parameter causes <EM>Alpine</EM> to instead fail 
 the connection if the first (generally most &quot;secure&quot;) method fails.
 
 <P>
@@ -457,14 +456,14 @@ or
 
 <DT>Debug</DT>
 <DD>This is a unary parameter indicating that the connection be established
-in a verbose mode.  Basically, it causes <EM>Pine</EM> to log the communication with
-the server in <EM>Pine</EM>'s debug file.
-Normally, the pine -d command-line flag would be used instead.
+in a verbose mode.  Basically, it causes <EM>Alpine</EM> to log the communication with
+the server in <EM>Alpine</EM>'s debug file.
+Normally, the alpine -d command-line flag would be used instead.
 <P>
 </DD>
 
 <DT>NoRsh</DT>
-<DD>By default, <EM>Pine</EM> attempts to login using &quot;rsh&quot;,
+<DD>By default, <EM>Alpine</EM> attempts to login using &quot;rsh&quot;,
 the UNIX remote shell program.
 Including &quot;NoRsh&quot; will cause connections to this server to skip
 the &quot;rsh&quot; attempt.
@@ -515,7 +514,7 @@ to consider when selecting this option:
 <OL>
  <LI> POP3 provides access to only your INBOX.  In other words,
 secondary folders such as your &quot;saved-messages&quot; are inaccessible.
- <LI> <EM>Pine</EM>'s implementation of POP3 does not follow the traditional POP
+ <LI> <EM>Alpine</EM>'s implementation of POP3 does not follow the traditional POP
 model and will leave your mail on the server. Refer to the
 <A HREF="#maildrop"><EM>Mail Drop</EM></A>
 functionality for a possible way around this problem.
@@ -537,14 +536,14 @@ specification by concatenating the parameters. For example:
 
 <H2><A NAME="folder-namespaces">Folder Namespaces</A></H2>
 
-A <EM>Pine</EM> folder name looks like
+A <EM>Alpine</EM> folder name looks like
 
 <P>
 <CENTER><SAMP>[{&lt;remote-specification&gt;}][#&lt;namespace&gt;][&lt;namespace-specific-part&gt;]</SAMP></CENTER>
 <P>
 
 The local part of a folder name has an optional &quot;Namespace&quot; which
-tells <EM>Pine</EM> how to interpret the rest of the name.
+tells <EM>Alpine</EM> how to interpret the rest of the name.
 
 <P> 
 By default the folder name is interpreted as defining a section of your personal
@@ -590,7 +589,7 @@ exported via the &quot;File Transfer Protocol&quot;.
 and directories that were created using the MH message handling system.
 </DD>
 <DT>#move/</DT>
-<DD>This namespace is interpreted locally by <EM>Pine</EM>. It has an unusual interpretation and format.
+<DD>This namespace is interpreted locally by <EM>Alpine</EM>. It has an unusual interpretation and format.
 <P>
 <CENTER><SAMP>#move&lt;DELIM&gt;&lt;MailDropFolder&gt;&lt;DELIM&gt;&lt;DestinationFolder&gt;</SAMP></CENTER>
 <P>
@@ -619,7 +618,7 @@ an Inbox.
 When you are in the FOLDER LIST of Incoming Message Folders (after turning
 on the enable-incoming-folders option)
 the Add command has a subcommand &quot;Use Mail Drop&quot;
-which may be helpful for defining the folder in your <EM>Pine</EM> configuration.
+which may be helpful for defining the folder in your <EM>Alpine</EM> configuration.
 The same is true when you edit the
 <A HREF="config.html#inbox-path"><EM>Inbox-Path</EM></A>
 option in Setup/Config.
@@ -642,7 +641,7 @@ indicate the root of the other user's folder area.
 
 In some situaions it may make sense to have your mail delivered to one
 folder (the Mail Drop) and then when you want to read mail that has been
-delivered to the Mail Drop folder <EM>Pine</EM> will move it to another
+delivered to the Mail Drop folder <EM>Alpine</EM> will move it to another
 destination folder.
 Often the Mail Drop will be a remote folder and messages will be moved from
 there to a local destination folder.
@@ -650,8 +649,8 @@ there to a local destination folder.
 <P>
 One example where this might make sense is if the Mail Drop folder is accessible
 only with the POP protocol.
-You could designate your POP inbox as the Mail Drop folder and have <EM>Pine</EM> move
-mail from there to a local (on the same machine <EM>Pine</EM> is running on)
+You could designate your POP inbox as the Mail Drop folder and have <EM>Alpine</EM> move
+mail from there to a local (on the same machine <EM>Alpine</EM> is running on)
 destination folder, where you'll read it.
 
 <P>
@@ -675,10 +674,10 @@ the newsgroup to the destination folder.)
 Configuration of a Mail Drop is a little different from configuration of
 a folder which does not use a Mail Drop because you have to specify two
 folder names instead of one.
-The two folders may be any types of folders that <EM>Pine</EM> can normally use.
+The two folders may be any types of folders that <EM>Alpine</EM> can normally use.
 They don't have to be a remote folder and a local folder, that is
 simply the most common usage.
-When you use a Mail Drop folder <EM>Pine</EM> will periodically re-open the Mail
+When you use a Mail Drop folder <EM>Alpine</EM> will periodically re-open the Mail
 Drop to check for new mail.
 The new-mail checks will happen at the frequency set with the
 <A HREF="config.html#mail-check"><EM>Mail-Check-Interval</EM></A> option,
@@ -704,7 +703,7 @@ The feature <A HREF="config.html#maildrops-preserve-state"><EM>Maildrops-Preserv
 modifies the operation of Mail Drops.
 
 <P>
-The actual syntax used by <EM>Pine</EM> for a folder that uses a Mail Drop is:
+The actual syntax used by <EM>Alpine</EM> for a folder that uses a Mail Drop is:
 
 <P>
 <CENTER><SAMP>#move&lt;DELIM&gt;&lt;MailDropFolder&gt;&lt;DELIM&gt;&lt;DestinationFolder&gt;</SAMP></CENTER>
@@ -717,7 +716,7 @@ is a single character which does not appear in the <CODE>MailDropFolder</CODE> n
 If the name doesn't contain spaces then it can be a space character.
 The two folder names are full technical
 <A HREF="#server-name-syntax"><EM>folder names</EM></A>
-as used by <EM>Pine</EM>.
+as used by <EM>Alpine</EM>.
 Here are a couple examples to give you an idea what is being talked about:
 
 <P>
@@ -732,7 +731,7 @@ an Inbox.
 When you are in the FOLDER LIST of Incoming Message Folders (after turning
 on the Enable-Incoming-Folders option)
 the Add command has a subcommand &quot;Use Mail Drop&quot;
-which may be helpful for defining the folder in your <EM>Pine</EM> configuration.
+which may be helpful for defining the folder in your <EM>Alpine</EM> configuration.
 The same is true when you edit the
 <A HREF="config.html#inbox-path"><EM>Inbox-Path</EM></A>
 option in Setup/Config.
@@ -788,19 +787,19 @@ The time zone is also taken into account.  <P>
 
 Sorting large mail folders can be very slow since it requires fetching all
 the headers of the mail messages.
-With UNIX <EM>Pine</EM>, only the first sort is slow since <EM>Pine</EM>
+With UNIX <EM>Alpine</EM>, only the first sort is slow since <EM>Alpine</EM>
 keeps a copy of all the headers.  One exception is sorting
 in reverse arrival order.  This is fast because no headers have to be
-examined.  <EM>Pine</EM> will show progress as it is sorting.  <P>
+examined.  <EM>Alpine</EM> will show progress as it is sorting.  <P>
 
 <HR>
 
 <H2><A NAME="alt-ed">Alternate Editor</A></H2>
 
-In the <EM>Pine</EM> composer you can use any text editor,
+In the <EM>Alpine</EM> composer you can use any text editor,
 such as <EM>vi</EM> or <EM>emacs,</EM> for composing the message text.
 The addresses and subject still must be edited using the standard
-<EM>Pine</EM> composer.
+<EM>Alpine</EM> composer.
 If you include the feature
 <A HREF="config.html#enable-alt-ed"><EM>enable-alternate-editor-cmd</EM></A>
 in your <EM>pinerc</EM> you can type <EM>^_</EM> while in the body of
@@ -844,7 +843,7 @@ signature files (<EM>.sig1, .sig2, .sig3, etc</EM>) and choosing to
 include (^R in the composer) the correct one for the message being sent. 
 <P>
 
-<EM>Pine</EM>'s default behavior encourages
+<EM>Alpine</EM>'s default behavior encourages
 a user to put his or her contribution
 before the inclusion of the original text of the message being forwarded
 or replied to, This is contrary to some conventions, but makes the
@@ -863,9 +862,9 @@ This feature applies when <EM>Reply</EM>ing, not when <EM>Forward</EM>ing.  <P>
 
 <H2><A NAME="feature-list">Feature List Variable</A></H2>
 
-<EM>Pine</EM> used to have <EM>feature levels</EM> for
+<EM>Alpine</EM> used to have <EM>feature levels</EM> for
 users with different amounts of experience.
-We found that this was too restrictive.  <EM>Pine</EM> now has a
+We found that this was too restrictive.  <EM>Alpine</EM> now has a
 <A HREF="config.html#feat-list"><EM>feature-list</EM></A> instead.
 Each user may pick and choose which
 features they would like enabled (simple to do in the <EM>Setup/Config</EM>
@@ -914,7 +913,7 @@ will no doubt continue to be added.  <P>
 We start with an explanation of how configuration works in hopes of making
 it easier to describe how inheritance works.
 <P>
-<EM>Pine</EM> uses a hierarchy of configuration values from different locations.
+<EM>Alpine</EM> uses a hierarchy of configuration values from different locations.
 There are five ways in which each configuration option (configuration
 variable) can be set.
 In increasing order of precedence they are:
@@ -928,43 +927,43 @@ In increasing order of precedence they are:
 
 <LI> a command line argument
 
-<LI> the system-wide <EM>fixed</EM> configuration file (Unix <EM>Pine</EM> only)
+<LI> the system-wide <EM>fixed</EM> configuration file (Unix <EM>Alpine</EM> only)
 </OL>
 <P>
 The fixed configuration file is normally
 <CODE>/usr/local/lib/pine.conf.fixed</CODE>.
 <P>
 The system-wide configuration file is normally
-<CODE>/usr/local/lib/pine.conf</CODE> for Unix <EM>Pine</EM> and is normally not
-set for <EM>PC-Pine</EM>.
-For <EM>PC-Pine</EM>, if the environment variable <EM>$PINECONF</EM> is set, that
+<CODE>/usr/local/lib/pine.conf</CODE> for Unix <EM>Alpine</EM> and is normally not
+set for <EM>PC-Alpine</EM>.
+For <EM>PC-Alpine</EM>, if the environment variable <EM>$PINECONF</EM> is set, that
 is used for the system-wide configuration.
 This location can be set or changed on the command line with the -P flag.
 The system-wide configuration file can be either a local file or a
 remote configuration folder.
 <P>
-For Unix <EM>Pine</EM>, the personal configuration file is normally the file
+For Unix <EM>Alpine</EM>, the personal configuration file is normally the file
 <CODE>.pinerc</CODE> in the user's home directory.
 This can be changed with the -p command line flag.
-For <EM>PC-Pine</EM>, the personal configuration file is in
+For <EM>PC-Alpine</EM>, the personal configuration file is in
 <CODE>$PINERC</CODE> or <CODE>&lt;PineRC registry value&gt;</CODE> or 
-<CODE>${HOME}&#92;PINE&#92;PINERC</CODE> or
-<CODE>&lt;PINE.EXE </CODE>dir<CODE>&gt;&#92;PINERC</CODE>.
+<CODE>${HOME}&#92;ALPINE&#92;PINERC</CODE> or
+<CODE>&lt;ALPINE.EXE </CODE>dir<CODE>&gt;&#92;PINERC</CODE>.
 This can be changed with the -p command line flag.
 If -p or <CODE>$PINERC</CODE> is used, the configuration data may be in
 a local file or a remote config folder.
 <P>
-For Unix <EM>Pine</EM>, the personal exceptions configuration file is
+For Unix <EM>Alpine</EM>, the personal exceptions configuration file is
 specified with the &quot;-x exceptions_config&quot; command line argument.
 &quot;Exceptions_config&quot; may be either a local file or a remote
 configuration folder.
 If there is no &quot;-x&quot; command line option,
-<EM>Pine</EM> will look for the file &quot;<CODE>.pinercex</CODE>&quot;
+<EM>Alpine</EM> will look for the file &quot;<CODE>.pinercex</CODE>&quot;
 in the same local directory that the regular config file is located in.
-If the regular config file is remote then Unix <EM>Pine</EM> looks in the home
+If the regular config file is remote then Unix <EM>Alpine</EM> looks in the home
 directory for &quot;<CODE>.pinercex</CODE>&quot;.
 <P>
-For <EM>PC-Pine</EM>, the personal exceptions configuration file is
+For <EM>PC-Alpine</EM>, the personal exceptions configuration file is
 specified with the &quot;-x exceptions_config&quot; command line argument.
 If there is no &quot;-x&quot; command line argument the environment
 variable <CODE>$PINERCEX</CODE> may be set to the name of the
@@ -973,12 +972,12 @@ variable <CODE>$PINERCEX</CODE> may be set to the name of the
 configuration folder.
 If there is no &quot;-x&quot; command line option and <CODE>$PINERCEX</CODE>
 is not set,
-<EM>PC-Pine</EM> will look for the file &quot;<CODE>PINERCEX</CODE>&quot;
+<EM>PC-Alpine</EM> will look for the file &quot;<CODE>PINERCEX</CODE>&quot;
 in the same local directory that the regular config file is located in.
-If the regular config file is remote then <EM>PC-Pine</EM> looks in the
+If the regular config file is remote then <EM>PC-Alpine</EM> looks in the
 local directory specified by the &quot;-aux local_directory&quot; command
-line argument, or the directory <CODE>${HOME}&#92;PINE</CODE>, or
-in <CODE>&lt;PINE.EXE </CODE>directory<CODE>&gt;</CODE> for a file named
+line argument, or the directory <CODE>${HOME}&#92;ALPINE</CODE>, or
+in <CODE>&lt;ALPINE.EXE </CODE>directory<CODE>&gt;</CODE> for a file named
 &quot;<CODE>PINERCEX</CODE>&quot;.
 <P>
 To reiterate, the value of a configuration option is taken from the
@@ -1111,8 +1110,8 @@ using the Setup/Config screen.
 
 <H2><A NAME="env-variables">Using Environment Variables</A></H2>
 
-The values of <EM>Pine</EM> configuration options may include environment variables
-which are replaced by the value of the variable at the time <EM>Pine</EM> is run
+The values of <EM>Alpine</EM> configuration options may include environment variables
+which are replaced by the value of the variable at the time <EM>Alpine</EM> is run
 (and also at the time the config option is changed).
 The syntax to use environment variables is a subset of the common Unix
 shell dollar-syntax.
@@ -1120,7 +1119,7 @@ For example, if
 
 <P><CENTER><SAMP>$VAR</SAMP></CENTER><P>
 
-appears in the value of a <EM>Pine</EM> configuration option it is looked up in the
+appears in the value of a <EM>Alpine</EM> configuration option it is looked up in the
 environent (using getenv(&quot;VAR&quot;)) and its
 looked-up value replaces the <SAMP>$VAR</SAMP> part of the option value.
 To include a literal dollar sign you may precede the dollar sign with another
@@ -1134,9 +1133,9 @@ is the value of a configuration option, it will be expanded to
 <P><CENTER><SAMP>$text</SAMP></CENTER><P>
 
 and no environment lookup will be done.
-For Unix <EM>Pine</EM> it will also work to use a backslash character to
+For Unix <EM>Alpine</EM> it will also work to use a backslash character to
 escape the special meaning of the dollar sign, but $$ is preferable since
-it works for both <EM>PC-Pine</EM> and Unix <EM>Pine</EM>, allowing the configuration option
+it works for both <EM>PC-Alpine</EM> and Unix <EM>Alpine</EM>, allowing the configuration option
 to be in a shared configuration file.
 <P>
 
@@ -1149,7 +1148,7 @@ In some Unix command shells you may use
 <P><CENTER><SAMP>PERSNAME="Fred Flintstone"</SAMP></CENTER><P>
    <CENTER><SAMP>export PERSNAME</SAMP></CENTER><P>
 
-Now, if you use <EM>Pine</EM>'s Setup/Config screen to set
+Now, if you use <EM>Alpine</EM>'s Setup/Config screen to set
 
 <P><CENTER><SAMP>personal-name=$PERSNAME</SAMP></CENTER><P>
 
@@ -1184,7 +1183,7 @@ If the config file contains
 
 <P><CENTER><SAMP>personal-name=${VAR:-Fred Flintstone}</SAMP></CENTER><P>
 
-then when <EM>Pine</EM> is run <SAMP>VAR</SAMP> will be looked up in the environment.
+then when <EM>Alpine</EM> is run <SAMP>VAR</SAMP> will be looked up in the environment.
 If <SAMP>VAR</SAMP> is found then <SAMP>personal-name</SAMP> will have
 the value that <SAMP>VAR</SAMP> was set to, otherwise,
 <SAMP>personal-name</SAMP> will be set to <SAMP>Fred Flintstone</SAMP>,
@@ -1202,7 +1201,7 @@ but that there were some exceptions who used
 <P><CENTER><SAMP>altimapserver.example.com</SAMP></CENTER><P>
 
 In this case, the system manager might include the following line in
-the systemwide default <EM>Pine</EM> configuration file
+the systemwide default <EM>Alpine</EM> configuration file
 
 <P><CENTER><SAMP>inbox-path=${IMAPSERVER:-imapserver.example.com}</SAMP></CENTER><P>
 
@@ -1262,15 +1261,15 @@ A typical configuration would consist of
 
 <H2><A NAME="mime.types">MIME.Types file</A></H2>
 
-<EM>Pine</EM>'s MIME-TYPE support is based on code contributed by Hans Drexler
-&LT;drexler@mpi.nl&GT;.  <EM>Pine</EM> assigns MIME Content-Types according
+<EM>Alpine</EM>'s MIME-TYPE support is based on code contributed by Hans Drexler
+&LT;drexler@mpi.nl&GT;.  <EM>Alpine</EM> assigns MIME Content-Types according
 to file name extensions found in the system-wide files
 <CODE>/usr/local/lib/mime.types</CODE> and <CODE>/etc/mime.types</CODE>,
 and a user specific <CODE>~/.mime.types</CODE> file.  <P>
 
-In DOS and OS/2,
-<EM>Pine</EM> looks in the same directory as the PINERC file and
-the same dir as PINE.EXE.  This is similar to the UNIX situation with
+In Windows,
+<EM>Alpine</EM> looks in the same directory as the PINERC file and
+the same dir as ALPINE.EXE.  This is similar to the UNIX situation with
 personal config info coming before potentially shared config data.  An
 alternate search path can be specified by setting the
 <A HREF="config.html#mimetype-search-path"><EM>mimetype-search-path</EM></A>
@@ -1297,35 +1296,35 @@ video/mpeg        mpeg mpg mpe<BR>
 
 <H2><A NAME="color-config-notes">Color Details</A></H2>
 
-UNIX <EM>Pine</EM> may display color if the terminal or terminal emulator you
+UNIX <EM>Alpine</EM> may display color if the terminal or terminal emulator you
 are using is capable of displaying colors.
 If the terminal supports ANSI color escape sequences you will be able to
 turn color on using the <A HREF="config.html#color-style">color-style</A>
 option and setting it to the value <EM>force-ansi-8color</EM> or
 <EM>force-ansi-16color</EM>.
-If instead you'd like <EM>Pine</EM> to automatically detect whether or not
+If instead you'd like <EM>Alpine</EM> to automatically detect whether or not
 you are on a color terminal, set <EM>color-style</EM> to <EM>use-termdef</EM>
 <EM>and</EM> configure the termcap entry to describe your terminal's
 color capabilities.
 <P>
 
 If the <EM>color-style</EM> option is set to <EM>use-termdef</EM>,
-<EM>Pine</EM> looks in
+<EM>Alpine</EM> looks in
 the terminal capabilities database, TERMINFO or TERMCAP, depending on
-how <EM>Pine</EM> was compiled, to decide whether or not your terminal is
+how <EM>Alpine</EM> was compiled, to decide whether or not your terminal is
 capable of color.
-For TERMINFO compiled <EM>Pine</EM>s, the capabilities that are used for
+For TERMINFO compiled <EM>Alpine</EM>s, the capabilities that are used for
 color are
 &quot;colors&quot;, &quot;setaf&quot;, &quot;setab&quot;,
 &quot;op&quot;, and &quot;bce&quot;.
 If you have a terminal with color capabilities described by
-the &quot;scp&quot; capability, <EM>Pine</EM> does not support it.
+the &quot;scp&quot; capability, <EM>Alpine</EM> does not support it.
 The capabilities
 &quot;setf&quot; and &quot;setb&quot; may be used instead of
 &quot;setaf&quot; and &quot;setab&quot;.
 The capability &quot;bce&quot; is optional and is used as an optimization,
 the other capabilities are required.
-For TERMCAP compiled <EM>Pine</EM>s, the capabilities that are used for
+For TERMCAP compiled <EM>Alpine</EM>s, the capabilities that are used for
 color are
 &quot;Co&quot;, &quot;AF&quot;, &quot;AB&quot;, &quot;op&quot;,
 and &quot;ut&quot;.
@@ -1410,11 +1409,11 @@ Some terminal emulators will swap blue and red and swap yellow and cyan.
 The capabilities &quot;setf&quot; and &quot;setb&quot; are usually designed
 for those terminals so that they will flip the color numbers 1 and 4 and
 the numbers 3 and 6 to compensate for this.
-<EM>Pine</EM> will use the ANSI versions of the capabilities if they exist,
+<EM>Alpine</EM> will use the ANSI versions of the capabilities if they exist,
 and will use the non-ANSI versions (setf and setb) if the ANSI versions
 don't exist.
 Here's a version which does the flipping.
-This can only be used with TERMINFO <EM>Pine</EM>s, because of the arithmetic,
+This can only be used with TERMINFO <EM>Alpine</EM>s, because of the arithmetic,
 which is not supported by TERMCAP.
 <PRE>
   colors#8
@@ -1464,7 +1463,7 @@ always be seeing them flipped.
 You will get different defaults than on a display with them not flipped,
 but that's about all.
 If you are trying to use the same pinerc file from displays with different
-color characteristics, or from <EM>Pine</EM> and <EM>PC-Pine</EM>, you will
+color characteristics, or from <EM>Alpine</EM> and <EM>PC-Alpine</EM>, you will
 have to be more careful.
 The colors numbered 0 through 7 may be used portably between different
 systems if you are careful to make them correspond to the ANSI order mentioned
@@ -1478,24 +1477,24 @@ This is not possible if your system uses TERMCAP instead of TERMINFO.
 
 <HR>
 
-<H2><A NAME="pc-notes">Additional Notes on PC-Pine</A></H2>
+<H2><A NAME="pc-notes">Additional Notes on PC-Alpine</A></H2>
 
-Below are a few odds and ends worth mentioning about <EM>PC-Pine</EM>.  They have
+Below are a few odds and ends worth mentioning about <EM>PC-Alpine</EM>.  They have
 to do with DOS-specific behavior that is either necessary or useful (and
 sometimes both!).  <P>
 
-As <EM>PC-Pine</EM> runs in an environment with limited access control, accounting
+As <EM>PC-Alpine</EM> runs in an environment with limited access control, accounting
 or auditing, an additional line is automatically inserted into the header
-of mail messages generated by <EM>PC-Pine</EM>: 
+of mail messages generated by <EM>PC-Alpine</EM>: 
 
 <PRE>
 	X-Sender: &lt;userid&gt;@&lt;imap.host&gt;<BR>
 </PRE>
 <P>
 
-By popular demand of system administrators, <EM>PC-Pine</EM> has been modified to
+By popular demand of system administrators, <EM>PC-Alpine</EM> has been modified to
 prevent sending messages until the user has successfully logged into a
-remote mail server.  Even though <EM>PC-Pine</EM> cannot prevent users from
+remote mail server.  Even though <EM>PC-Alpine</EM> cannot prevent users from
 changing the apparent identity of the sender of a message, the IMAP server
 login name and host name included in the <EM>X-Sender</EM> line
 provide some level of traceability by the recipient.
@@ -1504,10 +1503,10 @@ rigorous form of authentication.  It is extremely lightweight, and is not
 a replacement for true authentication.  <P>
 
 Hand in hand with authentication and accounting is user information. 
-Since <EM>PC-Pine</EM> has no user database to consult for <EM>user-id</EM>,
+Since <EM>PC-Alpine</EM> has no user database to consult for <EM>user-id</EM>,
 <EM>personal-name</EM>, etc., necessary information must be provided by
-the user/installer before <EM>PC-Pine</EM> can properly construct the "From"
-address required for outbound messages.  <EM>PC-Pine</EM> will, by default, prompt
+the user/installer before <EM>PC-Alpine</EM> can properly construct the "From"
+address required for outbound messages.  <EM>PC-Alpine</EM> will, by default, prompt
 for the requisite pieces as they are needed.  This information corresponds
 to the <EM>PINERC</EM> variables
 <A HREF="config.html#user-id"><EM>user-id</EM></A>,
@@ -1522,35 +1521,17 @@ Hence, these prompts and automatic saving of configuration can be turned
 off on an entry by entry basis by setting any of the above values in the
 <EM>PINERC</EM> to the null string (i.e., a pair of double quotes).  This
 means that the user will be prompted for the information once during each
-<EM>Pine</EM> session, and no opportunity to save them in the <EM>PINERC</EM> will
+<EM>Alpine</EM> session, and no opportunity to save them in the <EM>PINERC</EM> will
 be offered.  <P>
 
-Along similar lines, a feature allowing automatic login to the imap-server
-containing the user's <EM>INBOX</EM> has also been requested.  This
-feature is not enabled by default, but requires the existence of the file
-named <EM>PINE.PWD</EM> in the same directory as the <EM>PINERC</EM>. 
-Even with the existence of this file, the user must still acknowledge a
-prompt before the password is saved to the file.  If <EM>PC-Pine</EM> is configured
-to access several different IMAP servers, each password entered will be
-kept (associated with the corresponding host name) in memory during the
-current session, and optionally, in the <EM>PINE.PWD</EM> file for use in
-subsequent sessions.  <P>
-
-<EM>WARNING</EM>!  Use this feature with caution!  It effectively makes
-the user's mail no more secure than the physical security of the machine
-running <EM>PC-Pine</EM>.  What's more, while the password is cloaked by a mild
-(some might say, feeble) encryption scheme, it is nonetheless sitting in a
-file on the PC's disk and subject to cracking by anyone with access to it. 
-<EM>BEWARE</EM>!  <P>
-
 Another feature of DOS is the lack of standard scratch area for temporary
-files.  During the course of a session, <EM>PC-Pine</EM> may require numerous
+files.  During the course of a session, <EM>PC-Alpine</EM> may require numerous
 temporary files (large message texts, various caches, etc.).  Where to
 create them can be a problem, particularly when running under certain
-network operating systems.  <EM>PC-Pine</EM> observes the
+network operating systems.  <EM>PC-Alpine</EM> observes the
 <EM>TMPDIR</EM>, <EM>TMP</EM>, and
 <EM>TEMP</EM> environment variables, and creates temporary files in the
-directory specified by either. In their absence, <EM>PC-Pine</EM> creates these
+directory specified by either. In their absence, <EM>PC-Alpine</EM> creates these
 files in the root of the current working drive.
 Some temporary files have to be created in the same directory as the file
 they are a temporary copy of. For example, a pinerc file or a address book

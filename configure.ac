@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 
 dnl /* ========================================================================
-dnl  * Copyright 2006 University of Washington
+dnl  * Copyright 2006-2007 University of Washington
 dnl  *
 dnl  * Licensed under the Apache License, Version 2.0 (the "License");
 dnl  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ dnl  */
 
 AC_PREREQ([2.57])
 
-AC_REVISION([$Id: configure.ac 325 2006-12-13 18:10:16Z mikes@u.washington.edu $])
+AC_REVISION([$Id: configure.ac 438 2007-02-12 21:17:18Z mikes@u.washington.edu $])
 
 dnl Alpine Version Number is in $srcdir/VERSION
 AC_INIT(alpine, m4_normalize(m4_include([VERSION])), [alpine-contact@cac.washington.edu])
@@ -294,7 +294,7 @@ AC_ARG_WITH(spellcheck-prog,
 	  AC_PATH_PROG(SPELLPROG, spell, "", $PATH:/usr/sbin:/usr/lib)
 	  ;;
 	*)
-	  AC_PATH_PROG(SPELLPROG, $withval, "", $PATH:/usr/sbin:/usr/lib)
+	  AC_PATH_PROG(SPELLPROG, $withval, $withval, $PATH:/usr/sbin:/usr/lib)
 	  ;;
       esac
     ],
@@ -341,7 +341,7 @@ PINEVAR_UNQUOTED(checkpoint-frequency, CHECK_POINT_FREQ, 12, [State change count
 PINEVAR_UNQUOTED(display-rows, DEFAULT_LINES_ON_TERMINAL, 24, [Initial rows on display])
 PINEVAR_UNQUOTED(display-columns, DEFAULT_COLUMNS_ON_TERMINAL, 80, [Initial columns on display])
 PINEVAR_UNQUOTED(max-display-rows, MAX_SCREEN_ROWS, 200, [Maximum display rows])
-PINEVAR_UNQUOTED(max-display-columns, MAX_SCREEN_COLS, 170, [Maximum display columns])
+PINEVAR_UNQUOTED(max-display-columns, MAX_SCREEN_COLS, 500, [Maximum display columns])
 PINEVAR(fill-column, DF_FILLCOL, 74, [Default fill column])
 PINEVAR_UNQUOTED(max_fill-column, MAX_FILLCOL, 80, [Maximum fill column])
 PINEVAR_UNQUOTED(debug-level, DEFAULT_DEBUG, 2, [Specify default debug verbosity level])
@@ -379,6 +379,21 @@ PINEVAR(default-keyboard-lock-count, DF_KBLOCK_PASSWD_COUNT, [1], [Default keybo
 PINEVAR(default-remote-addressbook-history, DF_REMOTE_ABOOK_HISTORY, [3], [Default address book history count])
 PINEVAR_UNQUOTED(default-printer, DF_DEFAULT_PRINTER, [ANSI_PRINTER], [Default printer])
 
+dnl set PASSFILE?
+AC_ARG_WITH(passfile,
+  AC_HELP_STRING([--with-passfile=FILENAME],[Password cache file (NOT secure, NOT recommended)]),
+    [
+      case "$withval" in
+	no)
+	  ;;
+	yes)
+	  ;;
+	*)
+	  AC_DEFINE_UNQUOTED([PASSFILE], "$withval", [Password cache file (NOT secure. NOT recommended)])
+	  ;;
+      esac
+    ])
+
 dnl Include SSL?
 dnl Set SSLDIR for c-client make
 AC_ARG_WITH(ssl,
@@ -390,18 +405,21 @@ if test "x$with_ssl" = "xno" ; then
 else
   dnl preload c-client default locations/options
   case $host in
-    *-redhat-linux-*)
-      alpine_SSLTYPE="nopwd"
-      alpine_SSLDIR="/usr/share/ssl"
-      ;;
-    *-suse-linux-*)
-      alpine_SSLTYPE="nopwd"
-      alpine_SSLDIR="/usr/share/ssl"
-      ;;
     *-linux-gnu)
-      alpine_SSLTYPE="nopwd"
-      alpine_SSLDIR="/usr"
-      alpine_SSLCERTS="/etc/ssl/certs"
+      if test -f /etc/fedora-release ; then  
+        alpine_SSLTYPE="nopwd"
+        alpine_SSLDIR="/usr/share/ssl"
+      elif test -f /etc/redhat-release -o -f /etc/redhat_version ; then
+        alpine_SSLTYPE="nopwd"
+        alpine_SSLDIR="/usr/share/ssl"
+      elif test -f /etc/SuSE-release ; then
+        alpine_SSLTYPE="nopwd"
+        alpine_SSLDIR="/usr/share/ssl"
+      else
+        alpine_SSLTYPE="nopwd"
+        alpine_SSLDIR="/usr"
+        alpine_SSLCERTS="/etc/ssl/certs"
+      fi
       ;;
     *-apple-darwin*)
       alpine_SSLTYPE="nopwd"
@@ -533,6 +551,21 @@ AC_ARG_WITH(pthread,
   AC_HELP_STRING([--without-pthread],[Do NOT test for nor build with POSIX thread support]),
   [ with_pthread=$withval ])
 
+AC_ARG_WITH(system-mail-directory,
+  AC_HELP_STRING([--with-system-mail-directory=DIR], [Directory where local mail is delivered]),
+  [
+    if test "x$withval" != "xno" ; then
+      alpine_with_local_maildir="$withval"
+    fi
+  ])
+
+AC_ARG_WITH(c-client-target,
+  AC_HELP_STRING([--with-c-client-target=TARGET], [IMAP build target (see imap/Makefile)]),
+  [
+    if test "x$withval" != "xno" ;then
+      alpine_with_c_client_target="$withval"
+    fi
+  ])
 
 
 dnl CHECK PROGRAMS
@@ -555,10 +588,10 @@ AC_PATH_PROG(MAKE, make)
 dnl CHECK LIBRARIES
 
 if test x$enable_dmalloc = "xyes" ; then
-  if test "x$with_pthread" != "xno" ; then
-    dmalloc_lib=dmalloc
-  else
+  if test "x$with_pthread" = "xyes" ; then
     dmalloc_lib=dmallocth
+  else
+    dmalloc_lib=dmalloc
   fi
 
   AC_CHECK_LIB($dmalloc_lib,dmalloc_shutdown,,
@@ -617,7 +650,7 @@ if test "$alpine_with_ldap" = "yes" ; then
       AC_SEARCH_LIBS(ldap_open,ldap,
 	[
 	  alpine_has_ldap=yes
-	], [-llber])
+	],, [-llber])
     ],
     [-llber])
 
@@ -892,22 +925,48 @@ AC_SEARCH_LIBS([syslog], [bsd socket inet],
 
 
 dnl HOST-OS SPECIFIC DEFINITIONS
-
+dnl Tests and assignments below are mostly to coax the appropriate
+dnl build from c-client.  Most of this will go away when c-client
+dnl adopts configure
 case "$host" in
-  windows* | *-*-pw32*)
-    systype="WNT"
-    alpine_path_delim="\\"
-    alpine_local_maildir="/var/mail"
-    alpine_mode_readonly="(S_IREAD | S_IWRITE)"
-    alpine_c_client_target="wnt"
-    AC_DEFINE([_WINDOWS], [1], [Windows is just too different])
-    ;;
-  *-*-cygwin)
-    systype="CYG"
-    alpine_path_delim="\\"
-    alpine_local_maildir="/var/mail"
-    alpine_mode_readonly="(S_IREAD | S_IWRITE)"
-    alpine_c_client_target="cyg"
+  *-linux-gnu)
+    alpine_path_delim="/"
+    alpine_mode_readonly="(0600)"
+    if test -f /etc/fedora-release ; then  
+      systype="LFD"
+      alpine_c_client_target="lrh"
+      alpine_local_maildir="/var/spool/mail"
+    elif test -f /etc/redhat-release -o -f /etc/redhat_version ; then
+      systype="LRH"
+      alpine_c_client_target="lrh"
+      alpine_local_maildir="/var/spool/mail"
+    elif test -f /etc/debian_release -o -f /etc/debian_version ; then
+      systype="DEB"
+      alpine_c_client_target="ldb"
+      alpine_local_maildir="/var/spool/mail"
+    elif test -f /etc/SuSE-release ; then
+      systype="LSU"
+      alpine_c_client_target="lsu"
+      alpine_local_maildir="/var/spool/mail"
+    elif test -f /etc/mandrake-release ; then
+      systype="LMD"
+      alpine_c_client_target="lmd"
+      alpine_local_maildir="/var/spool/mail"
+    else
+      systype="LNX"
+      alpine_local_maildir="/var/mail"
+      AC_CHECK_LIB(pam, pam_start,
+        [
+          alpine_c_client_target="lnp"
+        ],
+        [
+	  if test -f /etc/shadow ; then
+	    alpine_c_client_target="slx"
+	  else
+	    alpine_c_client_target="lnx"
+	  fi
+        ])
+    fi
     ;;
   *-apple-darwin*)
     systype="OSX"
@@ -924,40 +983,6 @@ case "$host" in
       ],
       [
         alpine_c_client_target="osx"
-      ])
-    ;;
-  *-redhat-linux-*)
-    systype="LRH"
-    alpine_path_delim="/"
-    alpine_local_maildir="/var/spool/mail"
-    alpine_mode_readonly="(0600)"
-    alpine_c_client_target="lrh"
-    ;;
-  *-suse-linux-*)
-    systype="LSU"
-    alpine_path_delim="/"
-    alpine_local_maildir="/var/spool/mail"
-    alpine_mode_readonly="(0600)"
-    alpine_c_client_target="lsu"
-    ;;
-  *-linux-gnu)
-    systype="DEB"
-    alpine_path_delim="/"
-    alpine_local_maildir="/var/spool/mail"
-    alpine_mode_readonly="(0600)"
-    alpine_c_client_target="ldb"
-    ;;
-  *-linux*)
-    systype="LNX"
-    alpine_path_delim="/"
-    alpine_local_maildir="/var/mail"
-    alpine_mode_readonly="(0600)"
-    AC_CHECK_LIB(pam, pam_start,
-      [
-        alpine_c_client_target="lnp"
-      ],
-      [
-        alpine_c_client_target="lnx"
       ])
     ;;
   *-*-solaris2.[56789]*)
@@ -1008,6 +1033,7 @@ case "$host" in
     alpine_local_maildir="/usr/spool/mail"
     alpine_mode_readonly="(0600)"
     alpine_c_client_target="bsf"
+    LIBS="$LIBS $LIBINTL"
     ;;
   *-*-openbsd*)
     systype="BSO"
@@ -1015,6 +1041,7 @@ case "$host" in
     alpine_local_maildir="/usr/spool/mail"
     alpine_mode_readonly="(0600)"
     alpine_c_client_target="bso"
+    LIBS="$LIBS $LIBINTL"
     ;;
   *-*-aix4*)
     systype="A41"
@@ -1037,10 +1064,34 @@ case "$host" in
     alpine_mode_readonly="(0600)"
     alpine_c_client_target="uw2"
     ;;
+  *-*-cygwin)
+    systype="CYG"
+    alpine_path_delim="\\"
+    alpine_local_maildir="/var/mail"
+    alpine_mode_readonly="(S_IREAD | S_IWRITE)"
+    alpine_c_client_target="cyg"
+    ;;
+  windows* | *-*-pw32*)
+    systype="WNT"
+    alpine_path_delim="\\"
+    alpine_local_maildir="/var/mail"
+    alpine_mode_readonly="(S_IREAD | S_IWRITE)"
+    alpine_c_client_target="wnt"
+    AC_DEFINE([_WINDOWS], [1], [Windows is just too different])
+    ;;
   *)
     AC_ERROR([Unrecognized system: $host])
     ;;
 esac
+
+if test -n "$alpine_with_local_maildir" ; then
+    alpine_local_maildir=$alpine_with_local_maildir
+fi
+
+if test -n "$alpine_with_c_client_target" ; then
+    alpine_c_client_target=$alpine_with_c_client_target
+fi
+
 AC_DEFINE_UNQUOTED([SYSTYPE], "$systype", [Pine-Centric Host Specifier])
 AC_DEFINE_UNQUOTED([C_FILESEP],'$alpine_path_delim',[File name separator as character constant])
 AC_DEFINE_UNQUOTED([S_FILESEP],"$alpine_path_delim",[File name separator as string constant])

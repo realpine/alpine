@@ -1,8 +1,8 @@
 /*
- * $Id: mailview.h 394 2007-01-25 20:29:45Z hubert@u.washington.edu $
+ * $Id: mailview.h 442 2007-02-16 23:01:28Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,7 +36,6 @@
 #define	FM_NOCOLOR	0x0010		/* no color added			*/
 #define	FM_NOINDENT	0x0020		/* no indents, but only works has effect if wrapping */
 #define	FM_NOEDITORIAL	0x0040		/* no editorial comments		*/
-#define	FM_UTF8		0x0080		/* convert to UTF-8 from native charset in msg */
 #define	FM_NOHTMLREL	0x0200		/* no relative links			*/
 #define	FM_HTMLRELATED	0x0400		/* allow multi/related			*/
 #define	FM_FORCEPREFPLN	0x0800		/* force prefer-plain this time		*/

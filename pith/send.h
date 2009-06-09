@@ -1,8 +1,8 @@
 /*
- * $Id: send.h 197 2006-10-24 22:14:07Z hubert@u.washington.edu $
+ * $Id: send.h 442 2007-02-16 23:01:28Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -146,13 +146,7 @@ typedef struct {
 #define MAX_ADDR_ERROR 2  /* Only display 2 address errors */
 
 
-#if	defined(DOS) && !defined(WIN32)
-#define	FCC_SOURCE	TmpFileStar
-#define	FCC_STREAM_MODE	OP_SHORTCACHE
-#else
 #define	FCC_SOURCE	CharStar
-#define	FCC_STREAM_MODE	0L
-#endif
 
 
 struct local_message_copy {
@@ -259,9 +253,9 @@ STORE_S	   *open_fcc(char *, CONTEXT_S **, int, char *, char *);
 int	    write_fcc(char *, CONTEXT_S *, STORE_S *, MAILSTREAM *, char *, char *);
 BODY	   *first_text_8bit(BODY *);
 ADDRESS    *generate_from(void);
-void	    set_mime_type_by_grope(BODY *, char *);
-void	    set_only_charset_by_grope(BODY *, char *);
-void	    set_mime_charset(PARAMETER *, int, char *);
+void	    set_mime_type_by_grope(BODY *);
+void	    set_charset_possibly_to_ascii(BODY *, char *);
+void	    set_parameter(PARAMETER **, char *, char *);
 void        pine_encode_body(BODY *);
 int         pine_header_line(char *, METAENV *, char *, soutr_t, TCPSTREAM *, int, int);
 char       *encode_header_value(char *, size_t, unsigned char *, char *, int);

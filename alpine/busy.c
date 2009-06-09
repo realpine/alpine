@@ -56,13 +56,17 @@ static struct _spinner {
 	int    width, 
 	       elements;
 	char *bars[MAX_SPINNER_ELEMENTS];
+	unsigned used_this_round:1;
 } spinners[] = {
+    {4, 4, {"<|> ", "</> ", "<-> ", "<\\> "}},
+    {4, 4, {"<|> ", "<\\> ", "<-> ", "</> "}},
     {4, 8, {"|   ", " /  ", " _  ", "  \\ ", "  | ", "  \\ ", " _  ", "/   "}},
     {4, 8, {"_ _ ", "\\ \\ ", " | |", " / /", " _ _", " / /", " | |", "\\ \\ "}},
     {4, 8, {"_   ", "\\   ", " |  ", "  / ", "  _ ", "  \\ ", " |  ", "/   "}},
     {4, 8, {"_   ", "\\   ", " |  ", "  / ", "  _ ", "  / ", " |  ", "\\   "}},
     {4, 4, {" .  ", " o  ", " O  ", " o  "}},
-    {4, 4, {"... ", " .. ", ". . ", "..  "}},
+    {4, 5, {"....", " ...", ". ..", ".. .", "... "}},
+    {4, 5, {"    ", ".   ", " .  ", "  . ", "   ."}},
     {4, 4, {".oOo", "oOo.", "Oo.o", "o.oO"}},
     {7, 9, {".     .", " .   . ", "  . .  ",
             "   .   ", "   +   ", "   *   ", "   X   ",
@@ -73,8 +77,7 @@ static struct _spinner {
 	    "  | ", " \\  ", " _  ", " /  ", " |  ", "\\   ", "_   ", "/   ", "|   "}},
     {4, 8, {"*   ", "-*  ", "--* ", " --*", "  --", "   -", "    ", "    "}},
     {4, 2, {"\\/\\/", "/\\/\\"}},
-    {4, 4, {"\\|/|", "|\\|/", "/|\\|", "|/|\\"}},
-    {4, 4, {"<|> ", "</> ", "<-> ", "<\\> "}}
+    {4, 4, {"\\|/|", "|\\|/", "/|\\|", "|/|\\"}}
 };
 
 
@@ -82,7 +85,6 @@ static struct _spinner {
 /*
  * various pauses in 100th's of second
  */
-#define	BUSY_PERIOD_SPIN	5	/* busy spinner */
 #define	BUSY_PERIOD_PERCENT	25	/* percent done update */
 #define	BUSY_MSG_DONE		0	/* no more updates */
 #define	BUSY_MSG_RETRY		25	/* message line conflict */
@@ -199,7 +201,44 @@ busy_cue(char *msg, percent_done_t pc_f, int delay)
 	fflush(stdout);
     }
 
-    spinner = (random() % (sizeof(spinners)/sizeof(struct _spinner)));
+    /*
+     * Randomly select one of the animations, even taking care
+     * to run through all of them before starting over!
+     * The user won't actually see them all because most of them
+     * will never show up before they are canceled, but it
+     * should still help.
+     */
+    spinner = -1;
+    if(F_OFF(F_USE_BORING_SPINNER,ps_global) && ps_global->active_status_interval > 0){
+	int arrsize, eligible, pick_this_one, i, j;
+
+	arrsize = sizeof(spinners)/sizeof(struct _spinner);
+
+	/* how many of them are eligible to be used this round? */
+	for(eligible = i = 0; i < arrsize; i++)
+	  if(!spinners[i].used_this_round)
+	    eligible++;
+
+	if(eligible == 0)				/* reset */
+	  for(eligible = i = 0; i < arrsize; i++){
+	      spinners[i].used_this_round = 0;
+	      eligible++;
+	  }
+
+	if(eligible > 0){	/* it will be */
+	    pick_this_one = random() % eligible;
+	    for(j = i = 0; i < arrsize && spinner < 0; i++)
+	      if(!spinners[i].used_this_round){
+		  if(j == pick_this_one)
+		    spinner = i;
+		  else
+		    j++;
+	      }
+	}
+    }
+
+    if(spinner < 0 || spinner > sizeof(spinners)/sizeof(struct _spinner) -1)
+      spinner = 0;
 
     *ap		 = new_afterstruct();
     (*ap)->delay = (pc_f) ? BUSY_DELAY_PERCENT : BUSY_DELAY_SPINNER;
@@ -321,6 +360,7 @@ do_busy_cue(void *data)
 
 	ind = (dotcount % spinners[spinner].elements);
 
+	spinners[spinner].used_this_round = 1;
 	if(space_left >= spinners[spinner].width + 1){
 	    b[0] = SPACE;
 	    strncpy(b+1,

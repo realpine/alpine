@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pico.c 245 2006-11-18 02:46:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pico.c 421 2007-02-05 22:53:41Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -502,6 +502,7 @@ execute(UCS c, int f, int n)
 {
     KEYTAB *ktp;
     int     status, ww;
+    EML     eml;
 
     ktp = (Pmaster) ? &keytab[0] : &pkeytab[0];
 
@@ -587,10 +588,7 @@ execute(UCS c, int f, int n)
 	return (status);
     }
     
-    if(c&CTRL && (c & ~CTRL) < 0xff)
-      emlwrite(_("\007Unknown Command: ^%c"), (void *)(c&0xff));
-    else
-      emlwrite(_("\007Unknown Command"), NULL);
+    unknown_command(c);
 
     lastflag = 0;                           /* Fake last flags.     */
     return (FALSE);
@@ -1880,6 +1878,8 @@ int
 composer_file_drop(int x, int y, char *filename)
 {
     int attached = 0;
+    EML eml;
+
     if((ComposerTopLine > 2 && x <= ComposerTopLine)
        || !LikelyASCII(filename)){
 	AppendAttachment(filename, NULL, NULL);
@@ -1899,10 +1899,11 @@ composer_file_drop(int x, int y, char *filename)
 	update();
     }
 
+    eml.s = filename;
     if(attached)
-      emlwrite(_("Attached dropped file \"%s\""), filename);
+      emlwrite(_("Attached dropped file \"%s\""), &eml);
     else
-      emlwrite(_("Inserted dropped file \"%s\""), filename);
+      emlwrite(_("Inserted dropped file \"%s\""), &eml);
 
     if(ComposerEditing){		/* restore cursor */
 	HeaderPaintCursor();

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: imap.c 391 2007-01-25 03:53:59Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: imap.c 409 2007-02-01 22:44:01Z mikes@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -213,7 +213,7 @@ mm_notify(MAILSTREAM *stream, char *string, long errflag)
       q_status_message2(SM_MODAL, 3, 3, "Alert received while accessing \"%s\":  %s",
 			(stream && stream->mailbox)
 			  ? stream->mailbox : "-no folder-",
-			rfc1522_decode((unsigned char *) tmp_20k_buf, SIZEOF_20KBUF, string, NULL));
+			rfc1522_decode_to_utf8((unsigned char *) tmp_20k_buf, SIZEOF_20KBUF, string));
     else if(!strncmp(string, "[UNSEEN ", 8)){
 	char *p;
 	long  n = 0;

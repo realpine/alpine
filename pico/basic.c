@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: basic.c 154 2006-09-29 18:00:57Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: basic.c 404 2007-01-30 18:54:06Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -84,6 +84,39 @@ backchar(int f, int n)
     return (TRUE);
 }
 
+/*
+ * Move the cursor backwards by "n" characters. If "n" is less than zero call
+ * "forwchar" to actually do the move. Otherwise compute the new cursor
+ * location. Error if you try and move out of the buffer. Set the flag if the
+ * line pointer for dot changes.
+ *
+ * This routine does _not_ do the header editor checks. It is used by
+ * backword() in pico\word.c which gets stuck in a loop trying to go
+ * back if you've jumped into a header.
+ */
+int
+backchar_no_header_editor(int f, int n)
+{
+    register LINE   *lp;
+
+    if (n < 0)
+      return (forwchar(f, -n));
+
+    while (n--) {
+	if (curwp->w_doto == 0) {
+	    if ((lp=lback(curwp->w_dotp)) == curbp->b_linep){
+		  return (FALSE);
+	    }
+
+	    curwp->w_dotp  = lp;
+	    curwp->w_doto  = llength(lp);
+	    curwp->w_flag |= WFMOVE;
+	} else
+	  curwp->w_doto--;
+    }
+
+    return (TRUE);
+}
 
 /*
  * Move the cursor to the end of the current line. Trivial. No errors.

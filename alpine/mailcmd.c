@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcmd.c 392 2007-01-25 18:56:49Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailcmd.c 453 2007-02-27 00:10:47Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -160,6 +160,7 @@ static ESCKEY_S sel_opts3[] = {
     {'t', 't',  "T", N_("TakeAddr")},
     {'s', 's',  "S", N_("Save")},
     {'e', 'e',  "E", N_("Export")},
+    { -1,   0, NULL, NULL},
     { -1,   0, NULL, NULL},
     { -1,   0, NULL, NULL},
     { -1,   0, NULL, NULL},
@@ -361,9 +362,6 @@ process_cmd(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
           /*--------- Return to main menu ------------*/
       case MC_MAIN :
 	state->next_screen = main_menu_screen;
-#if	defined(DOS) && !defined(WIN32)
-	flush_index_cache();		/* save room on PC */
-#endif
 	dprint((2,"MAIL_CMD: going back to main menu\n"));
 	break;
 
@@ -373,9 +371,6 @@ process_cmd(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
 view_text:
 	if(any_messages(msgmap, NULL, "to View")){
 	    state->next_screen = mail_view_screen;
-#if	defined(DOS) && !defined(WIN32)
-	    flush_index_cache();		/* save room on PC */
-#endif
 	}
 
 	break;
@@ -623,9 +618,6 @@ nfolder:
       case MC_COMPOSE :
 	state->prev_screen = (in_index == View) ? mail_view_screen
 						: mail_index_screen;
-#if	defined(DOS) && !defined(WIN32)
-	flush_index_cache();		/* save room on PC */
-#endif
 	compose_screen(state);
 	state->mangled_screen = 1;
 	if (state->next_screen)
@@ -651,9 +643,6 @@ nfolder:
           /*--------- Top of Folders list menu ------------*/
       case MC_COLLECTIONS :
 	state->next_screen = folder_screen;
-#if	defined(DOS) && !defined(WIN32)
-	flush_index_cache();		/* save room on PC */
-#endif
 	dprint((2,"MAIL_CMD: going to folder/collection menu\n"));
 	break;
 
@@ -674,9 +663,6 @@ nfolder:
     	    
           /*------- Go to Index Screen ----------*/
       case MC_INDEX :
-#if	defined(DOS) && !defined(WIN32)
-	flush_index_cache();		/* save room on PC */
-#endif
 	state->next_screen = mail_index_screen;
 	break;
 
@@ -2090,9 +2076,6 @@ cmd_reply(struct pine *state, MSGNO_S *msgmap, int aopt)
     int rv = 0;
 
     if(any_messages(msgmap, NULL, "to Reply to")){
-#if	defined(DOS) && !defined(WIN32)
-	flush_index_cache();		/* save room on PC */
-#endif
 	if(MCMD_ISAGG(aopt) && !pseudo_selected(msgmap))
 	  return rv;
 
@@ -2123,9 +2106,6 @@ cmd_forward(struct pine *state, MSGNO_S *msgmap, int aopt)
     int rv = 0;
 
     if(any_messages(msgmap, NULL, "to Forward")){
-#if	defined(DOS) && !defined(WIN32)
-	flush_index_cache();		/* save room on PC */
-#endif
 	if(MCMD_ISAGG(aopt) && !pseudo_selected(msgmap))
 	  return rv;
 
@@ -2157,9 +2137,6 @@ cmd_bounce(struct pine *state, MSGNO_S *msgmap, int aopt)
     int rv = 0;
 
     if(any_messages(msgmap, NULL, "to Bounce")){
-#if	defined(DOS) && !defined(WIN32)
-	flush_index_cache();			/* save room on PC */
-#endif
 	if(MCMD_ISAGG(aopt) && !pseudo_selected(msgmap))
 	  return rv;
 
@@ -3244,7 +3221,7 @@ cmd_export(struct pine *state, MSGNO_S *msgmap, int qline, int aopt)
 						  mn_m2raw(msgmap, i), &b))
 		 || !bezerk_delimiter(env, mc, pc, next++)
 		 || !format_message(mn_m2raw(msgmap, mn_get_cur(msgmap)),
-				    env, b, NULL, FM_NEW_MESS | FM_NOWRAP | FM_UTF8, pc)){
+				    env, b, NULL, FM_NEW_MESS | FM_NOWRAP, pc)){
 		  q_status_message(SM_ORDER | SM_DING, 3, 3,
 			   err = "Error writing tempfile for download");
 		  break;
@@ -3322,7 +3299,7 @@ cmd_export(struct pine *state, MSGNO_S *msgmap, int qline, int aopt)
 	start_of_append = so_tell(store);
 	if(!bezerk_delimiter(env, mc, pc, leading_nl)
 	   || !format_message(mn_m2raw(msgmap, i), env, b, NULL,
-			      FM_NEW_MESS | FM_NOWRAP | FM_UTF8, pc)){
+			      FM_NEW_MESS | FM_NOWRAP, pc)){
 	    orig_errno = errno;		/* save incase things are really bad */
 	    failure    = 1;		/* pop out of here */
 	    break;
@@ -3459,9 +3436,8 @@ cmd_export(struct pine *state, MSGNO_S *msgmap, int qline, int aopt)
 					  att_name + 4, NULL, NULL))){
 
 		    if(p1[0] == '=' && p1[1] == '?'){
-			if(!(p2 = (char *)rfc1522_decode((unsigned char *)tmp_20k_buf, SIZEOF_20KBUF, p1, NULL)))
+			if(!(p2 = (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf, SIZEOF_20KBUF, p1)))
 			  p2 = p1;
-			  
 		    }
 		    else
 		      p2 = p1;
@@ -3610,7 +3586,7 @@ simple_export(struct pine *ps, void *srctext, SourceType srctype, char *prompt_m
 	gf_set_readc(&gc, srctext, (srctype == CharStar)
 					? strlen((char *)srctext)
 					: 0L,
-		     srctype);
+		     srctype, 0);
 	gf_filter_init();
 	if((pipe_err = gf_pipe(gc, pc)) != NULL){
 	    q_status_message2(SM_ORDER | SM_DING, 3, 3,
@@ -5528,7 +5504,7 @@ cmd_print(struct pine *state, MSGNO_S *msgmap, int aopt, CmdWhere in_index)
 	       || (F_ON(F_FROM_DELIM_IN_PRINT, ps_global)
 		   && !bezerk_delimiter(e, mc, print_char, next))
 	       || !format_message(mn_m2raw(msgmap, mn_get_cur(msgmap)),
-				  e, b, NULL, FM_NEW_MESS | FM_NOINDENT | FM_UTF8,
+				  e, b, NULL, FM_NEW_MESS | FM_NOINDENT,
 				  print_char)){
 	        q_status_message(SM_ORDER | SM_DING, 3, 3,
 			       _("Error printing message"));
@@ -5701,8 +5677,7 @@ cmd_pipe(struct pine *state, MSGNO_S *msgmap, int aopt)
 			    }
 			}
 			else if(!format_message(mn_m2raw(msgmap, i), e, b,
-						NULL,
-						FM_NEW_MESS | FM_NOWRAP | FM_UTF8, pc))
+						NULL, FM_NEW_MESS | FM_NOWRAP, pc))
 			  done++;
 		    }
 
@@ -6376,7 +6351,8 @@ select_by_current(struct pine *state, MSGNO_S *msgmap, CmdWhere in_index)
 
   ----*/
 int
-apply_command(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap, int preloadkeystroke, int flags, int q_line)
+apply_command(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
+	      UCS preloadkeystroke, int flags, int q_line)
 {
     int i = 8,			/* number of static entries in sel_opts3 */
         rv = 0,
@@ -6384,6 +6360,18 @@ apply_command(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap, int prelo
         we_cancel = 0,
 	agg = (flags & AC_FROM_THREAD) ? MCMD_AGG_2 : MCMD_AGG;
     char prompt[80];
+
+    /*
+     * To do this "right", we really ought to have access to the keymenu
+     * here and change the typed command into a real command by running
+     * it through menu_command. Then the switch below would be against
+     * results from menu_command. If we did that we'd also pass the
+     * results of menu_command in as preloadkeystroke instead of passing
+     * the keystroke itself. But we don't have the keymenu handy,
+     * so we have to fake it. The only complication that we run into
+     * is that KEY_DEL is an escape sequence so we change a typed
+     * KEY_DEL esc seq into the letter D.
+     */
 
     if(!preloadkeystroke){
 	if(F_ON(F_ENABLE_FLAG,state)){ /* flag? */
@@ -6432,6 +6420,11 @@ apply_command(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap, int prelo
 	    sel_opts3[i++].label = "";
 	}
 
+	sel_opts3[i].ch      = KEY_DEL;		/* also invisible */
+	sel_opts3[i].rval    = 'd';
+	sel_opts3[i].name    = "";
+	sel_opts3[i++].label = "";
+
 	sel_opts3[i].ch = -1;
 
 	snprintf(prompt, sizeof(prompt), "%s command : ",
@@ -6439,13 +6432,20 @@ apply_command(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap, int prelo
 	prompt[sizeof(prompt)-1] = '\0';
 	cmd = double_radio_buttons(prompt, q_line, sel_opts3, 'z', 'x', NO_HELP,
 				   RB_SEQ_SENSITIVE);
+	if(isupper(cmd))
+	  cmd = tolower(cmd);
     }
-    else
-      cmd = preloadkeystroke;
+    else{
+	if(preloadkeystroke == KEY_DEL)
+	  cmd = 'd';
+	else{
+	    if(preloadkeystroke < 0x80 && isupper((int) preloadkeystroke))
+	      cmd = tolower((int) preloadkeystroke);
+	    else
+	      cmd = (int) preloadkeystroke;	/* shouldn't happen */
+	}
+    }
     
-    if(isupper(cmd))
-      cmd = tolower(cmd);
-
     switch(cmd){
       case 'd' :			/* delete */
 	we_cancel = busy_cue(NULL, NULL, 1);
@@ -7025,8 +7025,8 @@ int
 select_by_text(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct search_set **limitsrch)
 {
     int          r, type, not = 0, we_cancel = 0, flags, rv;
-    char         sstring[80], savedsstring[80], origcharset[16], tmp[128];
-    char        *sval = NULL, *cset = NULL, *charset = NULL;
+    char         sstring[80], savedsstring[80], tmp[128];
+    char        *sval = NULL;
     char         buftmp[MAILTMPLEN];
     ESCKEY_S     ekey[4];
     ENVELOPE    *env = NULL;
@@ -7035,7 +7035,6 @@ select_by_text(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct searc
     static char *partic = "PARTICIPANTS";
 
     ps_global->mangled_footer = 1;
-    origcharset[0] = '\0';
     savedsstring[0] = '\0';
     ekey[0].ch = ekey[1].ch = ekey[2].ch = ekey[3].ch = -1;
 
@@ -7185,20 +7184,12 @@ select_by_text(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct searc
 	      case 13 :			/* Subject: default */
 		if(env && env->subject && env->subject[0]){
 		    char *q = NULL;
-		    if(cset)
-		      fs_give((void **) &cset);
 
 		    snprintf(buftmp, sizeof(buftmp), "%.75s", env->subject);
 		    buftmp[sizeof(buftmp)-1] = '\0';
-		    q = (char *) rfc1522_decode((unsigned char *)tmp_20k_buf,
-						SIZEOF_20KBUF, buftmp, &cset);
-		    /*
-		     * If decoding was done, and the charset of the decoded
-		     * subject is different from ours (cset != NULL) then
-		     * we save that charset information for the search.
-		     */
-		    if(q != env->subject && cset && cset[0]){
-			charset = cset;
+		    q = (char *) rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+							SIZEOF_20KBUF, buftmp);
+		    if(q != env->subject){
 			snprintf(savedsstring, sizeof(savedsstring), "%.70s", q);
 			savedsstring[sizeof(savedsstring)-1] = '\0';
 		    }
@@ -7225,47 +7216,11 @@ select_by_text(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct searc
 	return(1);
     }
 
-    /*
-     * If the user gets the current subject with the ^X command, and
-     * that subject has a different charset than what the user uses, and
-     * what is left after editing by the user is still a substring of
-     * the original subject, and it still has non-ascii characters in it;
-     * then use that charset from the original subject in the search.
-     *
-     * We don't do this anymore. We just use UTF-8 or ascii because
-     * rfc1522_decode is going to convert it to UTF-8.
-     */
-    if(charset && strstr(savedsstring, sstring) == NULL){
-	strncpy(origcharset, charset, sizeof(origcharset));
-	origcharset[sizeof(origcharset)-1] = '\0';
-	charset = NULL;
-    }
-
-    /* set the charset */
-    if(!charset){
-	for(sval = sstring; *sval && isascii(*sval); sval++)
-	  ;
-
-	/* if it's ascii, don't warn user about charset change */
-	if(!*sval)
-	  origcharset[0] = '\0';
-
-	charset = (*sval) ? "UTF-8" : "US-ASCII";
-    }
-
-    if(*origcharset)
-      q_status_message2(SM_ORDER, 5, 5,
-	    "Warning: character set used for search changed (%s -> %s)",
-		    origcharset, charset);
-
     we_cancel = busy_cue("Busy Selecting", NULL, 1);
 
-    rv = agg_text_select(stream, msgmap, type, not, sstring, charset, limitsrch);
+    rv = agg_text_select(stream, msgmap, type, not, sstring, "utf-8", limitsrch);
     if(we_cancel)
       cancel_busy_cue(0);
-
-    if(cset)
-      fs_give((void **)&cset);
 
     return(rv);
 }
@@ -7404,7 +7359,7 @@ select_by_size(MAILSTREAM *stream, struct search_set **limitsrch)
 	pgm->smaller = n;
 
     if(is_imap_stream(stream) && !modern_imap_stream(stream))
-      flags |= SO_NOSERVER;
+      flags |= SE_NOSERVER;
 
     pgm->msgno = (limitsrch ? *limitsrch : NULL);
     pine_mail_search_full(stream, NULL, pgm, SE_NOPREFETCH | SE_FREE);
@@ -7731,7 +7686,7 @@ select_by_keyword(MAILSTREAM *stream, struct search_set **limitsrch)
     }
 
     pgm->msgno = (limitsrch ? *limitsrch : NULL);
-    pine_mail_search_full(stream, NULL, pgm, SE_NOPREFETCH | SE_FREE);
+    pine_mail_search_full(stream, "UTF-8", pgm, SE_NOPREFETCH | SE_FREE);
     /* we know this was freed in mail_search, let caller know */
     if(limitsrch)
       *limitsrch = NULL;
@@ -8456,6 +8411,9 @@ flag_callback(set, flags)
 
 
 
+/*
+ * BUG:  Should teach this about keywords
+ */
 MPopup *
 flag_submenu(mc)
     MESSAGECACHE *mc;

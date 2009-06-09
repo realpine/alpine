@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: newmail.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: newmail.c 409 2007-02-01 22:44:01Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -772,8 +772,7 @@ format_new_mail_msg(char *folder, long int number, ENVELOPE *e,
 	     * in the middle of one of them before decoding.
 	     */
 	    snprintf(tmp, sizeof(tmp), "%s", e->from->personal);
- 	    p = (char *) rfc1522_decode((unsigned char *) tmp_20k_buf,
-				        SIZEOF_20KBUF, tmp, NULL);
+ 	    p = (char *) rfc1522_decode_to_utf8((unsigned char *) tmp_20k_buf, SIZEOF_20KBUF, tmp);
 	    removing_leading_and_trailing_white_space(p);
 	    if(*p)
  	      snprintf(from, buflen, "%.200s", p);
@@ -791,8 +790,7 @@ format_new_mail_msg(char *folder, long int number, ENVELOPE *e,
     if(number <= 1L){
         if(e && e->subject && e->subject[0]){
  	    snprintf(tmp, sizeof(tmp), "%s", e->subject);
-	    p = (char *) rfc1522_decode((unsigned char *)tmp_20k_buf,
-					SIZEOF_20KBUF, tmp, NULL);
+	    p = (char *) rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf, SIZEOF_20KBUF, tmp);
 	    if(subj)
  	      snprintf(subj, buflen, "%.200s", p);
 	}

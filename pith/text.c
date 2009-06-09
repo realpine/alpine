@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: text.c 388 2007-01-24 18:57:42Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: text.c 448 2007-02-23 01:55:41Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -86,8 +86,12 @@ Returns: 1 if errors encountered, 0 if everything went A-OK
 
  ----*/     
 int
-decode_text(ATTACH_S *att, long int msgno, gf_io_t pc, HANDLE_S **handlesp,
-	    DetachErrStyle style, int flags)
+decode_text(ATTACH_S	    *att,
+	    long int	     msgno,
+	    gf_io_t	     pc,
+	    HANDLE_S	   **handlesp,
+	    DetachErrStyle   style,
+	    int		     flags)
 {
     FILTLIST_S	filters[14];
     char       *err, *charset;
@@ -133,28 +137,11 @@ decode_text(ATTACH_S *att, long int msgno, gf_io_t pc, HANDLE_S **handlesp,
 	}
     }
 
-    if(flags & (FM_UTF8 | FM_DISPLAY)){
-	/* translate message text to UTF-8 */
-	flags |= FM_UTF8;
-	if(strucmp((char *) charset, "us-ascii") && strucmp((char *) charset, "utf-8")){
-	    if(utf8able(charset)){
-		filters[filtcnt].filter = gf_utf8;
-		filters[filtcnt++].data = gf_utf8_opt(charset);
-	    }
-	    else{
-		/* BUG: what to do if not transliterable? */
-		flags &= ~FM_UTF8;
-	    }
-	}
-    }
-    else
-      wrapit = 0;
-
     if(!ps_global->pass_ctrl_chars){
 	filters[filtcnt++].filter = gf_escape_filter;
 	filters[filtcnt].filter = gf_control_filter;
 
-	filt_only_c0 = (ps_global->pass_c1_ctrl_chars || (flags & FM_UTF8)) ? 1 : 0;
+	filt_only_c0 = 1;
 	filters[filtcnt++].data = gf_control_filter_opt(&filt_only_c0);
     }
 
@@ -222,16 +209,24 @@ decode_text(ATTACH_S *att, long int msgno, gf_io_t pc, HANDLE_S **handlesp,
 	}
     }
     else if(!strucmp(att->body->subtype, "richtext")){
+	int plain_opt;
+
+	plain_opt = !(flags&FM_DISPLAY);
+
 	/* maybe strip everything! */
 	filters[filtcnt].filter = gf_rich2plain;
-	filters[filtcnt++].data = gf_rich2plain_opt(!(flags&FM_DISPLAY));
+	filters[filtcnt++].data = gf_rich2plain_opt(&plain_opt);
 	/* width to use for file or printer */
 	if(wrapit - 5 > 0)
 	  wrapit -= 5;
     }
     else if(!strucmp(att->body->subtype, "enriched")){
+	int plain_opt;
+
+	plain_opt = !(flags&FM_DISPLAY);
+
 	filters[filtcnt].filter = gf_enriched2plain;
-	filters[filtcnt++].data = gf_enriched2plain_opt(!(flags&FM_DISPLAY));
+	filters[filtcnt++].data = gf_enriched2plain_opt(&plain_opt);
 	/* width to use for file or printer */
 	if(wrapit - 5 > 0)
 	  wrapit -= 5;
@@ -296,12 +291,8 @@ decode_text(ATTACH_S *att, long int msgno, gf_io_t pc, HANDLE_S **handlesp,
 	}
     }
 
-    /*
-     * If we're doing wrapping we'd better have converted to
-     * UTF-8, because that's what gf_wrap expects.
-     */
     if(wrapit && !(flags & FM_NOWRAP)){
-	int   margin = 0, wrapflags = (flags & FM_DISPLAY) ? GFW_HANDLES : 0;
+	int   margin = 0, wrapflags = (flags & FM_DISPLAY) ? GFW_HANDLES : GFW_NONE;
 
 	if(flags & FM_DISPLAY
 	   && !(flags & FM_NOCOLOR)
@@ -315,9 +306,6 @@ decode_text(ATTACH_S *att, long int msgno, gf_io_t pc, HANDLE_S **handlesp,
 	    if(is_delsp_yes)
 	      wrapflags |= GFW_DELSP;
 	}
-
-	if(flags & FM_UTF8)
-	  wrapflags |= GFW_UTF8;
 
 	filters[filtcnt].filter = gf_wrap;
 	filters[filtcnt++].data = gf_wrap_filter_opt(wrapit, column,
@@ -467,7 +455,7 @@ charset_editorial(char *charset, long int msgno, HANDLE_S **handlesp, int flags,
        && (flags & FM_DISPLAY) == FM_DISPLAY){
 	h		      = new_handle(handlesp);
 	h->type		      = URL;
-	h->h.url.path	      = cpystr("x-pine-help:h_config_char_set");
+	h->h.url.path	      = cpystr("x-alpine-help:h_config_char_set");
 
 	/*
 	 * Because this filter comes after the delete_quotes filter, we need

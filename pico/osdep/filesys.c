@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: filesys.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: filesys.c 417 2007-02-03 01:33:25Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -432,33 +432,37 @@ getfnames(char *dn, char *pat, int *n, char *e, size_t elen)
 void
 fioperr(int e, char *f)
 {
+    EML eml;
+
+    eml.s = f;
+
     switch(e){
       case FIOFNF:				/* File not found */
-	emlwrite("\007File \"%s\" not found", f);
+	emlwrite("\007File \"%s\" not found", &eml);
 	break;
       case FIOEOF:				/* end of file */
-	emlwrite("\007End of file \"%s\" reached", f);
+	emlwrite("\007End of file \"%s\" reached", &eml);
 	break;
       case FIOLNG:				/* name too long */
-	emlwrite("\007File name \"%s\" too long", f);
+	emlwrite("\007File name \"%s\" too long", &eml);
 	break;
       case FIODIR:				/* file is a directory */
-	emlwrite("\007File \"%s\" is a directory", f);
+	emlwrite("\007File \"%s\" is a directory", &eml);
 	break;
       case FIONWT:
-	emlwrite("\007Write permission denied: %s", f);
+	emlwrite("\007Write permission denied: %s", &eml);
 	break;
       case FIONRD:
-	emlwrite("\007Read permission denied: %s", f);
+	emlwrite("\007Read permission denied: %s", &eml);
 	break;
       case FIOPER:
-	emlwrite("\007Permission denied: %s", f);
+	emlwrite("\007Permission denied: %s", &eml);
 	break;
       case FIONEX:
-	emlwrite("\007Execute permission denied: %s", f);
+	emlwrite("\007Execute permission denied: %s", &eml);
 	break;
       default:
-	emlwrite("\007File I/O error: %s", f);
+	emlwrite("\007File I/O error: %s", &eml);
     }
 }
 
@@ -770,20 +774,24 @@ copy(char *a, char *b)
     int    in, out, n, rv = 0;
     char   *cb;
     struct stat tsb, fsb;
+    EML    eml;
     extern int  errno;
 
     if(our_stat(a, &fsb) < 0){		/* get source file info */
-	emlwrite("Can't Copy: %s", errstr(errno));
+	eml.s = errstr(errno);
+	emlwrite("Can't Copy: %s", &eml);
 	return(-1);
     }
 
     if(!(fsb.st_mode&S_IREAD)){		/* can we read it? */
-	emlwrite("\007Read permission denied: %s", a);
+	eml.s = a;
+	emlwrite("\007Read permission denied: %s", &eml);
 	return(-1);
     }
 
     if((fsb.st_mode&S_IFMT) == S_IFDIR){ /* is it a directory? */
-	emlwrite("\007Can't copy: %s is a directory", a);
+	eml.s = a;
+	emlwrite("\007Can't copy: %s is a directory", &eml);
 	return(-1);
     }
 
@@ -792,18 +800,21 @@ copy(char *a, char *b)
 	  case ENOENT:
 	    break;			/* these are OK */
 	  default:
-	    emlwrite("\007Can't Copy: %s", errstr(errno));
+	    eml.s = errstr(errno);
+	    emlwrite("\007Can't Copy: %s", &eml);
 	    return(-1);
 	}
     }
     else{
 	if(!(tsb.st_mode&S_IWRITE)){	/* can we write it? */
-	    emlwrite("\007Write permission denied: %s", b);
+	    eml.s = b;
+	    emlwrite("\007Write permission denied: %s", &eml);
 	    return(-1);
 	}
 
 	if((tsb.st_mode&S_IFMT) == S_IFDIR){	/* is it directory? */
-	    emlwrite("\007Can't copy: %s is a directory", b);
+	    eml.s = b;
+	    emlwrite("\007Can't copy: %s is a directory", &eml);
 	    return(-1);
 	}
 
@@ -814,12 +825,14 @@ copy(char *a, char *b)
     }
 
     if((in = our_open(a, O_RDONLY|O_BINARY, 0600)) < 0){
-	emlwrite("Copy Failed: %s", errstr(errno));
+	eml.s = errstr(errno);
+	emlwrite("Copy Failed: %s", &eml);
 	return(-1);
     }
 
     if((out=our_creat(b, fsb.st_mode&0xfff)) < 0){
-	emlwrite("Can't Copy: %s", errstr(errno));
+	eml.s = errstr(errno);
+	emlwrite("Can't Copy: %s", &eml);
 	close(in);
 	return(-1);
     }
@@ -833,7 +846,8 @@ copy(char *a, char *b)
 
     while(1){				/* do the copy */
 	if((n = read(in, cb, NLINE)) < 0){
-	    emlwrite("Can't Read Copy: %s", errstr(errno));
+	    eml.s = errstr(errno);
+	    emlwrite("Can't Read Copy: %s", &eml);
 	    rv = -1;
 	    break;			/* get out now */
 	}
@@ -842,7 +856,8 @@ copy(char *a, char *b)
 	  break;
 
 	if(write(out, cb, n) != n){
-	    emlwrite("Can't Write Copy: %s", errstr(errno));
+	    eml.s = errstr(errno);
+	    emlwrite("Can't Write Copy: %s", &eml);
 	    rv = -1;
 	    break;
 	}
@@ -864,6 +879,7 @@ ffwopen(char *fn, int readonly)
 {
     int		 fd;
     extern FIOINFO g_pico_fio;
+    EML          eml;
 #ifndef	MODE_READONLY
 #define	MODE_READONLY	(0600)
 #endif
@@ -884,7 +900,8 @@ ffwopen(char *fn, int readonly)
       return (FIOSUC);
 
 
-    emlwrite("Cannot open file for writing: %s", errstr(errno));
+    eml.s = errstr(errno);
+    emlwrite("Cannot open file for writing: %s", &eml);
     return (FIOERR);
 #else /* _WINDOWS */
     if ((g_pico_fio.fp = our_fopen(fn, "w")) == NULL) {
@@ -909,6 +926,7 @@ int
 ffclose(void)
 {
     extern FIOINFO g_pico_fio;
+    EML eml;
 
 #ifndef _WINDOWS
     errno = 0;
@@ -916,12 +934,14 @@ ffclose(void)
        && (fflush(g_pico_fio.fp) == EOF
 	   || ftruncate(fileno(g_pico_fio.fp),
 			(off_t) ftell(g_pico_fio.fp)) < 0)){
-	emlwrite("\007Error preparing to close file: %s", errstr(errno));
+	eml.s = errstr(errno);
+	emlwrite("\007Error preparing to close file: %s", &eml);
 	sleep(5);
     }
 
     if (fclose(g_pico_fio.fp) == EOF) {
-        emlwrite("\007Error closing file: %s", errstr(errno));
+	eml.s = errstr(errno);
+        emlwrite("\007Error closing file: %s", &eml);
         return(FIOERR);
     }
 #else /* _WINDOWS */

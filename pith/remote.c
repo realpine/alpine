@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: remote.c 394 2007-01-25 20:29:45Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: remote.c 442 2007-02-16 23:01:28Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1695,9 +1695,9 @@ rd_add_hdr_msg(REMDATA_S *rd, char *date)
 
 
 /*
- * Write some fake header lines into storage object so.
+ * Write some fake header lines into storage object rd->so.
  *
- * Args: so    -- storage object to write into
+ * Args: rd
  *     subject -- subject to put in header
  *     subtype -- subtype to put in header
  *     date    -- date to put in header
@@ -1731,6 +1731,7 @@ rd_store_fake_hdrs(REMDATA_S *rd, char *subject, char *subtype, char *date)
     fake_env->from = fake_from;
     fake_body->type = REMOTE_DATA_TYPE;
     fake_body->subtype = cpystr(subtype);
+    set_parameter(&fake_body->parameter, "charset", "UTF-8");
 
     if(rd->cookie > 0)
       r = rd->cookie;
@@ -1905,7 +1906,6 @@ rd_update_local(REMDATA_S *rd)
 
 	    return -1;
 	}
-else
 
 	if(rd->t.i.stream){
 	    char  ebuf[500];
@@ -2078,7 +2078,7 @@ else
 	    gf_set_so_writec(&pc, store);
 
 	    error = detach(rd->t.i.stream, rd->t.i.stream->nmsgs, "1", 0L,
-			   NULL, pc, NULL, 0);
+			   NULL, pc, NULL, DT_NODFILTER);
 
 	    gf_clear_so_writec(store);
 

@@ -211,6 +211,7 @@ MAILSTREAM *check_mailstream(sessionlist_s *cs);
 unsigned long convert_to_msgno(char *msgid);
 int fetch_structure_and_attachments(long msgno, long flags, 
 				    FLAGS MAPIflags, sessionlist_s *cs);
+char *message_structure_to_mailto_url(lpMapiMessage lpm);
 ULONG FAR PASCAL MAPISendMail(LHANDLE lhSession, ULONG ulUIParam, lpMapiMessage lpMessage,
 			      FLAGS flFlags, ULONG ulReserved);
 ULONG FAR PASCAL MAPILogon(ULONG ulUIParam, LPTSTR lpszProfileName, LPTSTR lpszPassword,

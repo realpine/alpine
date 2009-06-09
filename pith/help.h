@@ -1,5 +1,5 @@
 /*
- * $Id: help.h 380 2007-01-23 00:09:18Z hubert@u.washington.edu $
+ * $Id: help.h 448 2007-02-23 01:55:41Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -52,6 +52,7 @@ extern int       rm_not_right_now;
 HelpType    help_name2section(char *, int);
 void        debugjournal_to_file(FILE *);
 void	    add_review_message(char *, int);
+int         gripe_gripe_to(char *);
 
 
 #endif /* PITH_HELP_INCLUDED */

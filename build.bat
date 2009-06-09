@@ -13,7 +13,6 @@ rem ========================================================================
 
 if "%1"=="" goto blank
 if "%1"=="wnt" goto wnt
-if "%1"=="wnk" goto wnk
 if "%1"=="w2k" goto w2k
 if "%1"=="clean" goto clean
 echo Unknown build command: %1 %2 %3 %4
@@ -24,7 +23,6 @@ echo Must specify build command!
 echo usage: BUILD cmd
 echo   where "cmd" is one of either:
 echo         WNT        -- Windows
-echo         WNK        -- Windows with MIT Kerb
 echo         W2K        -- Windows with Win2k Kerb
 echo         CLEAN      -- to remove obj, lib, and exe files from source
 goto fini
@@ -33,31 +31,45 @@ goto fini
 echo PC-Pine for Windows/Winsock (Win32) build sequence
 set cclntmake=makefile.nt
 set alpinemake=makefile.wnt
-set extracflagsnq=/Zi -Od -I../../ldap/inckit -I../ldap/inckit -D_USE_32BIT_TIME_T -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE -DSPCL_REMARKS=\"\\\"\\\"\"
+if not defined ALPINE_LDAP set ALPINE_LDAP="%cd%\ldap"
+if exist "%ALPINE_LDAP%" goto yesldapwnt
+echo NOT including LDAP functionality
+set ldapinclude=
+set ldaplibes=
+goto noldapwnt
+:yesldapwnt
+echo including LDAP functionality
+set ldapflags=-I\"%ALPINE_LDAP%\"/inckit -DENABLE_LDAP
+set ldaplibes=\"%ALPINE_LDAP%\"/lib/ldap32.lib
+:noldapwnt
+set extracflagsnq=/Zi -Od %ldapflags% -D_USE_32BIT_TIME_T -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE -DSPCL_REMARKS=\"\\\"\\\"\"
 set extralibes=
+set extralibesalpine=%ldaplibes%
 set extrarcflags="/D_PCP_WNT"
 set extramakecommand=
-goto build
-
-:wnk
-echo Krb5ized PC-Pine for Windows/Winsock (Win32) build sequence
-set cclntmake=makefile.ntk
-set alpinemake=makefile.wnt
-set extracflagsnq=/I..\krb5\include /Zi -Od -I../../ldap/inckit -I../ldap/inckit -D_USE_32BIT_TIME_T -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE -DSPCL_REMARKS=\"\\\" with krb5\\\"\"
-set extralibes="..\krb5\lib\comerr32.lib ..\krb5\lib\gssapi32.lib ..\krb5\lib\krb5_32.lib"
-set extrarcflags="/D_PCP_WNK"
-set extramakecommand=
-goto build
+goto buildsetup
 
 :w2k
 echo Krb5ized PC-Pine for Windows/Winsock (Win32) build sequence
 set cclntmake=makefile.w2k
 set alpinemake=makefile.wnt
-set extracflagsnq=/Zi -Od -I../../ldap/inckit -I../ldap/inckit -D_USE_32BIT_TIME_T -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE -DSPCFC_WINVER=\"\\\" 2000\\\"\" -DSPCL_REMARKS=\"\\\" with krb5\\\"\"
+if not defined ALPINE_LDAP set ALPINE_LDAP="%cd%\ldap"
+if exist "%ALPINE_LDAP%" goto yesldapw2k
+echo NOT including LDAP functionality
+set ldapinclude=
+set ldaplibes=
+goto noldapw2k
+:yesldapw2k
+echo including LDAP functionality
+set ldapflags=-I\"%ALPINE_LDAP%\"/inckit -DENABLE_LDAP
+set ldaplibes=\"%ALPINE_LDAP%\"/lib/ldap32.lib
+:noldapw2k
+set extracflagsnq=/Zi -Od %ldapflags% -D_USE_32BIT_TIME_T -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE -DSPCFC_WINVER=\"\\\" 2000\\\"\" -DSPCL_REMARKS=\"\\\" with krb5\\\"\"
 set extralibes="secur32.lib"
+set extralibesalpine="secur32.lib %ldaplibes%"
 set extrarcflags="/D_PCP_W2K"
 set extramakecommand=
-goto build
+goto buildsetup
 
 :clean
 echo Sure you want to delete object, library and executable files?!?!
@@ -65,8 +77,33 @@ echo If NOT, type Ctrl-C to terminate build script NOW.  Type ENTER if you do.
 pause
 echo Cleaning alpine, pico, mailutil, mapi, and c-client directories
 set extramakecommand=clean
-set cclntmake=makefile.nt
+if NOT exist c-client goto nocclient
+del /Q c-client\*
+rmdir c-client
+:nocclient
+if NOT exist c-client-dll goto nocclientdll
+del /Q c-client-dll\*
+rmdir c-client-dll
+:nocclientdll
 set alpinemake=makefile.wnt
+goto buildmailutil
+
+:buildsetup
+if not exist c-client mkdir c-client
+if not defined ALPINE_IMAP set ALPINE_IMAP=imap
+echo Copying imap files to c-client directory
+copy /Y "%ALPINE_IMAP%"\src\c-client\* c-client\ > garbageout.txt
+copy /Y "%ALPINE_IMAP%"\src\charset\* c-client\ > garbageout.txt
+copy /Y "%ALPINE_IMAP%"\src\osdep\nt\* c-client\ > garbageout.txt
+del garbageout.txt
+if not exist c-client-dll mkdir c-client-dll
+copy /Y "%ALPINE_IMAP%"\src\c-client\* c-client-dll\ > garbageout.txt
+copy /Y "%ALPINE_IMAP%"\src\charset\* c-client-dll\ > garbageout.txt
+copy /Y "%ALPINE_IMAP%"\src\osdep\nt\* c-client-dll\ > garbageout.txt
+del garbageout.txt
+if not exist mailutil mkdir mailutil
+copy /Y "%ALPINE_IMAP%"\src\mailutil\* mailutil\ > garbageout.txt
+del garbageout.txt
 goto build
 
 :build
@@ -108,7 +145,6 @@ cd pith\charconv
 nmake -nologo -f %alpinemake% wnt=1 EXTRACFLAGS=%extracflags% EXTRALDFLAGS=%extraldflags% EXTRALIBES=%extralibes% %extramakecommand%
 if errorlevel 1 goto bogus
 cd ..\..
-goto buildpicoosd
 goto buildpith
 
 :buildpith
@@ -116,7 +152,6 @@ cd pith
 nmake -nologo -f %alpinemake% wnt=1 EXTRACFLAGS=%extracflags% EXTRALDFLAGS=%extraldflags% EXTRALIBES=%extralibes% %extramakecommand%
 if errorlevel 1 goto bogus
 cd ..
-goto buildalpineosd
 goto buildpicoosd
 
 :buildpicoosd
@@ -132,7 +167,6 @@ cd pico
 nmake -nologo -f %alpinemake% wnt=1 EXTRACFLAGS=%extracflags% EXTRALDFLAGS=%extraldflags% EXTRALIBES=%extralibes% %extramakecommand%
 if errorlevel 1 goto bogus
 cd ..
-goto buildpith
 goto buildalpineosd
 
 :buildalpineosd
@@ -145,12 +179,10 @@ goto buildalpine
 
 :buildalpine
 cd alpine
-nmake -nologo -f %alpinemake% wnt=1 EXTRACFLAGS=%extracflags% EXTRALDFLAGS=%extraldflags% EXTRALIBES=%extralibes% EXTRARCFLAGS=%extrarcflags% %extramakecommand%
+nmake -nologo -f %alpinemake% wnt=1 EXTRACFLAGS=%extracflags% EXTRALDFLAGS=%extraldflags% EXTRALIBES=%extralibesalpine% EXTRARCFLAGS=%extrarcflags% %extramakecommand%
 if errorlevel 1 goto bogus
 cd ..
-goto fini
-if exist c-client-dll goto buildcclntdll
-goto nobuildmapi
+goto buildcclntdll
 
 :buildcclntdll
 echo Building c-client-dll

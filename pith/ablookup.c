@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: ablookup.c 216 2006-11-02 21:23:08Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: ablookup.c 406 2007-01-31 00:36:05Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -891,4 +891,204 @@ addr_lookup(char *nickname, int *which_addrbook, int not_here)
       (*pith_opt_save_and_restore)(SAR_RESTORE, &state);
 
     return(fullname);
+}
+
+
+/*
+ * Look in all of the address books for the longest unambiguous prefix
+ * of a nickname which begins with the characters in "prefix".
+ *
+ * Args    prefix  -- The part of the nickname that has been typed so far
+ *         answer  -- The answer is returned here.
+ *         flags   -- ANC_AFTERCOMMA -- This means that the passed in
+ *                                      prefix may be a list of comma
+ *                                      separated addresses and we're only
+ *                                      completing the last one.
+ *
+ * Returns    0 -- no nickname has prefix as a prefix
+ *            1  -- more than one nickname begins with
+ *                              the answer being returned
+ *            2 -- the returned answer is a complete
+ *                              nickname and there are no longer nicknames
+ *                              which begin with the same characters
+ *
+ * Allocated answer is returned in answer argument.
+ * Caller needs to free the answer.
+ */
+int
+adrbk_nick_complete(char *prefix, char **answer, unsigned flags)
+{
+    int i, j, k, longest_match, prefixlen, done;
+    int answerlen, candidate_kth_char, l;
+    int ambiguity = 0;
+    char *saved_beginning = NULL;
+    char *ans = NULL;
+    size_t answer_allocated;
+    SAVE_STATE_S  state;
+    PerAddrBook  *pab;
+    struct unambig_s {
+	char *name;
+	int   unambig;
+    };
+    struct unambig_s *unambig;
+
+    if(answer)
+      *answer = NULL;
+
+    if(flags & ANC_AFTERCOMMA){
+	char *lastnick;
+
+	/*
+	 * Find last comma, save the part before that, operate
+	 * only on the last address.
+	 */
+	if((lastnick = strrchr(prefix ? prefix : "", ',')) != NULL){
+	    lastnick++;
+	    while(!(*lastnick & 0x80) && isspace((unsigned char) (*lastnick)))
+	      lastnick++;
+
+	    saved_beginning = cpystr(prefix);
+	    saved_beginning[lastnick-prefix] = '\0';
+	    prefix = lastnick;
+	}
+    }
+
+    /*
+     * Loop through the abooks looking for the longest unambiguous match.
+     */
+
+    init_ab_if_needed();
+
+    unambig = (struct unambig_s *) fs_get((as.n_addrbk + 1) * (sizeof(struct unambig_s)));
+    memset(unambig, 0, (as.n_addrbk + 1) * (sizeof(struct unambig_s)));
+
+    if(pith_opt_save_and_restore)
+      (*pith_opt_save_and_restore)(SAR_SAVE, &state);
+
+    for(i = 0; i < as.n_addrbk; i++){
+
+	pab = &as.adrbks[i];
+
+	if(pab->ostatus != Open && pab->ostatus != NoDisplay)
+	  init_abook(pab, NoDisplay);
+
+	unambig[i].unambig = adrbk_longest_unambig_nick(pab->address_book,
+							prefix, &unambig[i].name);
+    }
+
+    unambig[i].name = NULL;
+
+    if(pith_opt_save_and_restore)
+      (*pith_opt_save_and_restore)(SAR_RESTORE, &state);
+
+    prefixlen = strlen(prefix ? prefix : "");
+
+    /*
+     * Find the longest unambiguous of all of
+     * the longest unambiguous nicknames, if you know
+     * what I mean.
+     */
+    longest_match = 0;
+    for(i = 0; i < as.n_addrbk; i++)
+      if(unambig[i].name)
+	longest_match = MAX(longest_match, strlen(unambig[i].name));
+
+    if(longest_match < prefixlen){
+	for(i = 0; i < as.n_addrbk; i++)
+	  if(unambig[i].name)
+	    fs_give((void **) &unambig[i].name);
+	
+	fs_give((void **) &unambig);
+	return(ambiguity);
+    }
+    else if(longest_match == prefixlen){
+	ans = cpystr(prefix);
+    }
+    else{
+	answer_allocated = prefixlen + 100;
+	ans = (char *) fs_get(answer_allocated * sizeof(char));
+	strncpy(ans, prefix, prefixlen);
+	ans[prefixlen] = '\0';
+
+	/*
+	 * If we get here we know that at least one of the matches
+	 * is longer than the prefix, so we need to check to see what
+	 * the longest unambiguous match is.
+	 */
+
+	for(k = prefixlen, done = 0; !done; k++){
+	    candidate_kth_char = -1;
+	    for(i = 0; !done && i < as.n_addrbk; i++){
+		if(k > 0 && unambig[i].name && unambig[i].name[k-1] == '\0')
+		  unambig[i].name[0] = '\0';			/* mark this one done */
+
+		if(unambig[i].name && unambig[i].name[0] != '\0'){
+		    if(candidate_kth_char == -1){		/* no candidate yet */
+			candidate_kth_char = unambig[i].name[k];
+		    }
+		    else{
+			if(unambig[i].name[k] != candidate_kth_char){
+			    done++;
+			}
+		    }
+		}
+	    }
+
+	    if(!done){
+		if(candidate_kth_char == '\0')
+		  done++;
+		else{
+		    if(answer_allocated < k+2){
+			answer_allocated += 100;
+			fs_resize((void **) &ans, answer_allocated);
+		    }
+
+		    ans[k] = candidate_kth_char;
+		    ans[k+1] = '\0';
+		}
+	    }
+	}
+    }
+
+    k = 0;
+    if(ans)
+      k = strlen(ans);
+
+    ambiguity = 2;	/* start off with unambiguous */
+
+    /* determine if answer is ambiguous or not */
+    for(i = 0; ambiguity == 2 && i < as.n_addrbk; i++){
+	if(unambig[i].name
+	   && (l=strlen(unambig[i].name)) >= k
+	   && (l > k || unambig[i].unambig == 1))
+	  ambiguity = 1;
+    }
+
+    for(i = 0; i < as.n_addrbk; i++)
+      if(unambig[i].name)
+	fs_give((void **) &unambig[i].name);
+    
+    fs_give((void **) &unambig);
+
+    if(answer){
+	size_t l1, l2;
+
+	if(saved_beginning){
+	    l1 = strlen(saved_beginning);
+	    l2 = strlen(ans ? ans : "");
+	    *answer = (char *) fs_get((l1+l2+1) * sizeof(char));
+	    strncpy(*answer, saved_beginning, l1+l2);
+	    strncpy(*answer+l1, ans ? ans : "", l2);
+	    (*answer)[l1+l2] = '\0';
+	    fs_give((void **) &saved_beginning);
+	    if(ans)
+	      fs_give((void **) &ans);
+	}
+	else{
+	    fs_resize((void **) &ans, strlen(ans)+1);
+	    *answer = ans;
+	}
+    }
+
+    return(ambiguity);
 }

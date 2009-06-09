@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: color.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: color.c 414 2007-02-02 22:22:39Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -45,7 +45,8 @@ struct color_table {
 #define	ANSI16_COLOR()	(color_options & COLOR_ANSI16_OPT)
 #define	ANSI256_COLOR()	(color_options & COLOR_ANSI256_OPT)
 #define	ANSI_COLOR()	(color_options & (COLOR_ANSI8_OPT | COLOR_ANSI16_OPT | COLOR_ANSI256_OPT))
-#define	ANSI_TRANS()	((color_options & COLOR_ANSITRANS_OPT) ? 1 : 0)	/* transparent */
+/* transparent (default) color is possible */
+#define	COL_TRANS()	((color_options & COLOR_TRANS_OPT) ? 1 : 0)	/* transparent */
 #define	END_PSEUDO_REVERSE	"EndInverse"
 #define A_UNKNOWN	-1
 
@@ -73,7 +74,7 @@ static struct color_table *color_tbl;
 
 /* external references */
 extern char   *_op, *_oc, *_setaf, *_setab, *_setf, *_setb, *_scp;
-extern int	_colors;
+extern int    _bce, _colors;
 
 
 /* internal prototypes */
@@ -377,16 +378,16 @@ tfgcolor(int color)
     if(!_color_inited)
       return(-1);
     
-    if((ANSI8_COLOR()  && (color < 0 || color >= 8+ANSI_TRANS())) ||
-       (ANSI16_COLOR() && (color < 0 || color >= 16+ANSI_TRANS())) ||
-       (ANSI256_COLOR() && (color < 0 || color >= 256+ANSI_TRANS())) ||
-       (!ANSI_COLOR()  && (color < 0 || color >= _colors+ANSI_TRANS())))
+    if((ANSI8_COLOR()  && (color < 0 || color >= 8+COL_TRANS())) ||
+       (ANSI16_COLOR() && (color < 0 || color >= 16+COL_TRANS())) ||
+       (ANSI256_COLOR() && (color < 0 || color >= 256+COL_TRANS())) ||
+       (!ANSI_COLOR()  && (color < 0 || color >= _colors+COL_TRANS())))
       return(-1);
 
     if(ANSI_COLOR()){
 	char buf[20];
 
-	if(ANSI_TRANS() && color == pico_count_in_color_table()-1)
+	if(COL_TRANS() && color == pico_count_in_color_table()-1)
 	  snprintf(buf, sizeof(buf), "\033[39m", color);
 	else if(ANSI256_COLOR())
 	  snprintf(buf, sizeof(buf), "\033[38;5;%dm", color);
@@ -398,6 +399,31 @@ tfgcolor(int color)
 	}
 	
 	putpad(buf);
+    }
+    else if(COL_TRANS() && color == pico_count_in_color_table()-1 && _op){
+	char bg_color_was[MAXCOLORLEN+1];
+
+	bg_color_was[0] = '\0';
+
+	/*
+	 * Setting transparent (default) foreground color.
+	 * We don't know how to set only the default foreground color,
+	 * _op sets both foreground and background. So we need to
+	 *
+	 * get current background color
+	 * set default colors
+	 * if (current background was not default) reset it
+	 */
+	if(_last_bg_color && strcmp(_last_bg_color, "transparent")){
+	    strncpy(bg_color_was, _last_bg_color, sizeof(bg_color_was));
+	    bg_color_was[sizeof(bg_color_was)-1] = '\0';
+	}
+
+	putpad(_op);
+	if(bg_color_was[0]){
+	    _force_bg_color_change = 1;
+	    pico_set_bg_color(bg_color_was);
+	}
     }
     else if(_setaf)
       putpad(tparm(_setaf, color));
@@ -420,16 +446,16 @@ tbgcolor(int color)
     if(!_color_inited)
       return(-1);
     
-    if((ANSI8_COLOR()  && (color < 0 || color >= 8+ANSI_TRANS())) ||
-       (ANSI16_COLOR() && (color < 0 || color >= 16+ANSI_TRANS())) ||
-       (ANSI256_COLOR() && (color < 0 || color >= 256+ANSI_TRANS())) ||
-       (!ANSI_COLOR()  && (color < 0 || color >= _colors+ANSI_TRANS())))
+    if((ANSI8_COLOR()  && (color < 0 || color >= 8+COL_TRANS())) ||
+       (ANSI16_COLOR() && (color < 0 || color >= 16+COL_TRANS())) ||
+       (ANSI256_COLOR() && (color < 0 || color >= 256+COL_TRANS())) ||
+       (!ANSI_COLOR()  && (color < 0 || color >= _colors+COL_TRANS())))
       return(-1);
 
     if(ANSI_COLOR()){
 	char buf[20];
 
-	if(ANSI_TRANS() && color == pico_count_in_color_table()-1)
+	if(COL_TRANS() && color == pico_count_in_color_table()-1)
 	  snprintf(buf, sizeof(buf), "\033[49m", color);
 	else if(ANSI256_COLOR())
 	  snprintf(buf, sizeof(buf), "\033[48;5;%dm", color);
@@ -441,6 +467,31 @@ tbgcolor(int color)
 	}
 	
 	putpad(buf);
+    }
+    else if(COL_TRANS() && color == pico_count_in_color_table()-1 && _op){
+	char fg_color_was[MAXCOLORLEN+1];
+
+	fg_color_was[0] = '\0';
+
+	/*
+	 * Setting transparent (default) background color.
+	 * We don't know how to set only the default background color,
+	 * _op sets both foreground and background. So we need to
+	 *
+	 * get current foreground color
+	 * set default colors
+	 * if (current foreground was not default) reset it
+	 */
+	if(_last_fg_color && strcmp(_last_fg_color, "transparent")){
+	    strncpy(fg_color_was, _last_fg_color, sizeof(fg_color_was));
+	    fg_color_was[sizeof(fg_color_was)-1] = '\0';
+	}
+
+	putpad(_op);
+	if(fg_color_was[0]){
+	    _force_fg_color_change = 1;
+	    pico_set_fg_color(fg_color_was);
+	}
     }
     else if(_setab)
       putpad(tparm(_setab, color));
@@ -479,7 +530,7 @@ init_color_table(void)
 
     count = pico_count_in_color_table();
 
-    if(count > 0 && count <= 256+ANSI_TRANS()){
+    if(count > 0 && count <= 256+COL_TRANS()){
 	int    ind, graylevel;
 	struct {
 	    char rgb[RGBLEN+1];
@@ -494,7 +545,7 @@ init_color_table(void)
 	 * We boldly assume that 256 colors means xterm 256-color
 	 * color cube and grayscale.
 	 */
-	if(count == 256+ANSI_TRANS()){
+	if(ANSI_COLOR() && (count == 256+COL_TRANS())){
 	    int r, g, b, gray;
 
 	    for(r = 0; r < 6; r++)
@@ -560,15 +611,15 @@ init_color_table(void)
 		break;
 	    }
 
-	    if(ANSI_TRANS() && i == count-1){
+	    if(COL_TRANS() && i == count-1){
 		strncpy(colorname, "transparent", sizeof(colorname));
 		colorname[sizeof(colorname)-1] = '\0';
 	    }
 
 	    add_to_color_name_list(t, colorname);
 
-	    if(count == 8+ANSI_TRANS()){
-	      if(ANSI_TRANS() && i == count-1){
+	    if(count == 8+COL_TRANS()){
+	      if(COL_TRANS() && i == count-1){
 		  t->red = t->green = t->blue = -1;
 	      }
 	      else
@@ -616,8 +667,8 @@ init_color_table(void)
 		  break;
 	       }
 	    }
-	    else if(count == 16+ANSI_TRANS() || count == 256+ANSI_TRANS()){
-	      if(ANSI_TRANS() && i == count-1){
+	    else if(count == 16+COL_TRANS() || count == 256+COL_TRANS()){
+	      if(COL_TRANS() && i == count-1){
 		  t->red = t->green = t->blue = -1;
 	      }
 	      else
@@ -716,7 +767,11 @@ init_color_table(void)
 	       }
 	    }
 	    else{
-	      switch(i){
+	      if(COL_TRANS() && i == count-1){
+		  t->red = t->green = t->blue = -1;
+	      }
+	      else
+	       switch(i){
 		case COL_BLACK:
 		  t->red = t->green = t->blue = 0;
 		  break;
@@ -751,13 +806,13 @@ init_color_table(void)
 		  /* this will just be a string match */
 		  t->red = t->green = t->blue = 256+i;
 		  break;
-	      }
+	       }
 	    }
 	}
 
 	for(i = 0, t = ct; t && i < count; i++, t++){
 	    t->rgb = (char *)fs_get((RGBLEN+1) * sizeof(char));
-	    if(ANSI_TRANS() && i == count-1)
+	    if(COL_TRANS() && i == count-1)
 	      snprintf(t->rgb, RGBLEN+1, "transparent");
 	    else
 	      snprintf(t->rgb, RGBLEN+1, "%3.3d,%3.3d,%3.3d", t->red, t->green, t->blue);
@@ -931,7 +986,7 @@ color_to_val(char *s)
 	 */
 	if(!ct->rgb){
 	    int r = -1, g = -1, b = -1;
-	    char *p, *comma, scopy[2*RGBLEN];
+	    char *p, *comma, scopy[RGBLEN+1];
 
 	    strncpy(scopy, s, sizeof(scopy));
 	    scopy[sizeof(scopy)-1] = '\0';
@@ -1023,7 +1078,7 @@ pico_count_in_color_table(void)
       (ANSI_COLOR()
         ? (ANSI8_COLOR() ? 8 : ANSI16_COLOR() ? 16 : 256)
         : _colors)
-      + ANSI_TRANS());
+      + COL_TRANS());
 }
 
 
@@ -1146,6 +1201,18 @@ pico_usingcolor(void)
 }
 
 
+/*
+ * This should only be called when we're using the
+ * unix termdef color, as opposed to the ANSI defined
+ * color stuff or the Windows stuff.
+ */
+int
+pico_trans_color(void)
+{
+    return(_bce && _op);
+}
+
+
 void
 pico_toggle_color(int on)
 {
@@ -1183,7 +1250,7 @@ pico_get_color_options(void)
 int
 pico_trans_is_on(void)
 {
-    return(ANSI_TRANS());
+    return(COL_TRANS());
 }
 
 
@@ -1367,7 +1434,7 @@ pico_is_good_color(char *s)
 	/* if no match it's still ok if rgb */
 	if(!ct->rgb){
 	    int r = -1, g = -1, b = -1;
-	    char *p, *comma, scopy[2*RGBLEN];
+	    char *p, *comma, scopy[RGBLEN+1];
 
 	    strncpy(scopy, s, sizeof(scopy));
 	    scopy[sizeof(scopy)-1] = '\0';
@@ -1428,20 +1495,25 @@ pico_set_fg_color(char *s)
 
     if((val = color_to_val(s)) >= 0){
 	size_t len;
+	int changed;
+
+	changed = !_last_fg_color || strcmp(_last_fg_color,colorx(val));
 
 	/* already set correctly */
-	if(!_force_fg_color_change && _last_fg_color &&
-	   !strcmp(_last_fg_color,colorx(val)))
+	if(!_force_fg_color_change && !changed)
 	  return(TRUE);
 
 	_force_fg_color_change = 0;
-	if(_last_fg_color)
-	  fs_give((void **) &_last_fg_color);
-	
-	len = strlen(colorx(val));
-	if(_last_fg_color = (char *) fs_get((len+1) * sizeof(char))){
-	  strncpy(_last_fg_color, colorx(val), len+1);
-	  _last_fg_color[len] = '\0';
+
+	if(changed){
+	    if(_last_fg_color)
+	      fs_give((void **) &_last_fg_color);
+	    
+	    len = strlen(colorx(val));
+	    if(_last_fg_color = (char *) fs_get((len+1) * sizeof(char))){
+	      strncpy(_last_fg_color, colorx(val), len+1);
+	      _last_fg_color[len] = '\0';
+	    }
 	}
 
 	tfgcolor(val);
@@ -1467,20 +1539,25 @@ pico_set_bg_color(char *s)
 
     if((val = color_to_val(s)) >= 0){
 	size_t len;
+	int changed;
+
+	changed = !_last_bg_color || strcmp(_last_bg_color,colorx(val));
 
 	/* already set correctly */
-	if(!_force_bg_color_change && _last_bg_color &&
-	   !strcmp(_last_bg_color,colorx(val)))
+	if(!_force_bg_color_change && !changed)
 	  return(TRUE);
 
 	_force_bg_color_change = 0;
-	if(_last_bg_color)
-	  fs_give((void **) &_last_bg_color);
-	
-	len = strlen(colorx(val));
-	if(_last_bg_color = (char *) fs_get((len+1) * sizeof(char))){
-	  strncpy(_last_bg_color, colorx(val), len+1);
-	  _last_bg_color[len] = '\0';
+
+	if(changed){
+	    if(_last_bg_color)
+	      fs_give((void **) &_last_bg_color);
+	    
+	    len = strlen(colorx(val));
+	    if(_last_bg_color = (char *) fs_get((len+1) * sizeof(char))){
+	      strncpy(_last_bg_color, colorx(val), len+1);
+	      _last_bg_color[len] = '\0';
+	    }
 	}
 
 	tbgcolor(val);
@@ -1531,7 +1608,7 @@ color_to_asciirgb(char *colorName)
 	/* if no match it's still ok if rgb */
 	if(!ct->rgb){
 	    int r = -1, g = -1, b = -1;
-	    char *p, *comma, scopy[2*RGBLEN];
+	    char *p, *comma, scopy[RGBLEN+1];
 
 	    strncpy(scopy, colorName, sizeof(scopy));
 	    scopy[sizeof(scopy)-1] = '\0';

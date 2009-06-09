@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: conf.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: conf.c 465 2007-03-02 18:30:56Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -40,6 +40,7 @@ static char rcsid[] = "$Id: conf.c 380 2007-01-23 00:09:18Z hubert@u.washington.
 #include "../pith/options.h"
 #include "../pith/busy.h"
 #include "../pith/readfile.h"
+#include "../pith/charconv/utf8.h"
 #ifdef _WINDOWS
 #include "../pico/osdep/mswin.h"
 #endif
@@ -303,7 +304,7 @@ CONF_TXT_T cf_text_margin[] =		"Number of lines from top and bottom of screen wh
 
 CONF_TXT_T cf_text_stat_msg_delay[] =	"The number of seconds to sleep after writing a status message";
 
-CONF_TXT_T cf_text_active_msg_intvl[] =	"Number of times per-second to update active status messages";
+CONF_TXT_T cf_text_busy_cue_rate[] =	"Number of times per-second to update busy cue messages";
 
 CONF_TXT_T cf_text_mailcheck[] =	"The approximate number of seconds between checks for new mail";
 
@@ -566,8 +567,8 @@ static struct variable variables[] = {
 				cf_text_margin},
 {"status-message-delay",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
 				cf_text_stat_msg_delay},
-{"active-msg-updates-per-second",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_active_msg_intvl},
+{"busy-cue-rate",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+				cf_text_busy_cue_rate},
 {"mail-check-interval",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
 				cf_text_mailcheck},
 {"mail-check-interval-noncurrent",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
@@ -1610,8 +1611,14 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
      */
     set_collation(0, 1);
 
-#if PREREQ_FOR_SYS_TRANSLATION
-    ps->GLO_CHAR_SET = cpystr(nl_langinfo(CODESET));
+#if (HAVE_LANGINFO_H && defined(CODESET))
+
+    if(output_charset_is_supported(nl_langinfo(CODESET)))
+      ps->GLO_CHAR_SET = cpystr(nl_langinfo(CODESET));
+    else{
+	ps->GLO_CHAR_SET = cpystr("UTF-8");
+        dprint((1,"nl_langinfo(CODESET) returns unrecognized value=\"%s\", using UTF-8 as default\n", (p=nl_langinfo(CODESET)) ? p : ""));
+    }
 #else
     ps->GLO_CHAR_SET = cpystr("UTF-8");
 #endif
@@ -2848,12 +2855,14 @@ feature_list(int index)
 	 F_FORCE_LOW_SPEED, h_config_force_low_speed, PREF_OS_LWSD},
 	{"auto-move-read-msgs",
 	 F_AUTO_READ_MSGS, h_config_auto_read_msgs, PREF_MISC},
+	{"auto-unselect-after-apply",
+	 F_AUTO_UNSELECT, h_config_auto_unselect, PREF_MISC},
 	{"auto-unzoom-after-apply",
 	 F_AUTO_UNZOOM, h_config_auto_unzoom, PREF_MISC},
 	{"auto-zoom-after-select",
 	 F_AUTO_ZOOM, h_config_auto_zoom, PREF_MISC},
-	{"auto-unselect-after-apply",
-	 F_AUTO_UNSELECT, NO_HELP, PREF_MISC},
+	{"busy-cue-spinner-only",
+	 F_USE_BORING_SPINNER, h_config_use_boring_spinner, PREF_MISC},
 	{"check-newmail-when-quitting",
 	 F_CHECK_MAIL_ONQUIT, h_config_check_mail_onquit, PREF_MISC},
 	{"confirm-role-even-for-default",
@@ -5243,6 +5252,7 @@ write_pinerc(struct pine *ps, EditWhich which, int flags)
 {
     char               *p, *dir, *tmp = NULL, *pinrc;
     char               *pval, **lval;
+    int                 bc = 1;
     FILE               *f;
     PINERC_LINE        *pline;
     struct variable    *var;
@@ -5276,6 +5286,7 @@ write_pinerc(struct pine *ps, EditWhich which, int flags)
 
     if(prc->type != Loc && !prc->readonly){
 
+	bc = 0;			/* don't do backcompat conversion */
 	rd = prc->rd;
 	if(!rd)
 	  return(-1);
@@ -5509,7 +5520,7 @@ write_pinerc(struct pine *ps, EditWhich which, int flags)
 				lval[i][0] ? lval[i] : quotes,
 				lval[i+1] ? "," : "", NEWLINE);
 			tmp_20k_buf[10000-1] = '\0';
-			if(!so_puts(so, backcompat_convert_from_utf8(tmp_20k_buf+10000, SIZEOF_20KBUF-10000, tmp_20k_buf)))
+			if(!so_puts(so, bc ? backcompat_convert_from_utf8(tmp_20k_buf+10000, SIZEOF_20KBUF-10000, tmp_20k_buf) : tmp_20k_buf))
 			  goto io_err;
 		    }
 		}
@@ -5522,7 +5533,7 @@ write_pinerc(struct pine *ps, EditWhich which, int flags)
 			    (pline->is_quoted && pval[0] != '\"')
 			      ? "\"" : "", NEWLINE);
 		    tmp_20k_buf[10000-1] = '\0';
-		    if(!so_puts(so, backcompat_convert_from_utf8(tmp_20k_buf+10000, SIZEOF_20KBUF-10000, tmp_20k_buf)))
+		    if(!so_puts(so, bc ? backcompat_convert_from_utf8(tmp_20k_buf+10000, SIZEOF_20KBUF-10000, tmp_20k_buf) : tmp_20k_buf))
 		      goto io_err;
 		}
 	    }
@@ -5605,14 +5616,14 @@ write_pinerc(struct pine *ps, EditWhich which, int flags)
 			lval[i],
 			lval[i+1] ? "," : "", NEWLINE);
 		tmp_20k_buf[10000-1] = '\0';
-		if(!so_puts(so, backcompat_convert_from_utf8(tmp_20k_buf+10000, SIZEOF_20KBUF-10000, tmp_20k_buf)))
+		if(!so_puts(so, bc ? backcompat_convert_from_utf8(tmp_20k_buf+10000, SIZEOF_20KBUF-10000, tmp_20k_buf) : tmp_20k_buf))
 		  goto io_err;
 	    }
 	}
 	else{
 	    char *pconverted;
 
-	    pconverted = backcompat_convert_from_utf8(tmp_20k_buf, SIZEOF_20KBUF, pval);
+	    pconverted = bc ? backcompat_convert_from_utf8(tmp_20k_buf, SIZEOF_20KBUF, pval) : pval;
 
 	    if(!so_puts(so, var->name) || !so_puts(so, "=") ||
 	       !so_puts(so, pconverted) || !so_puts(so, NEWLINE))
@@ -7461,7 +7472,6 @@ config_help(int var, int feature)
       case V_IND_NEW_FORE_COLOR :
       case V_IND_UNS_FORE_COLOR :
       case V_IND_REC_FORE_COLOR :
-      case V_IND_OP_FORE_COLOR :
       case V_IND_PLUS_BACK_COLOR :
       case V_IND_IMP_BACK_COLOR :
       case V_IND_DEL_BACK_COLOR :
@@ -7469,11 +7479,13 @@ config_help(int var, int feature)
       case V_IND_NEW_BACK_COLOR :
       case V_IND_UNS_BACK_COLOR :
       case V_IND_REC_BACK_COLOR :
-      case V_IND_OP_BACK_COLOR :
 	return(h_config_index_color);
+      case V_IND_OP_FORE_COLOR :
+      case V_IND_OP_BACK_COLOR :
+	return(h_config_index_opening_color);
       case V_IND_ARR_FORE_COLOR :
       case V_IND_ARR_BACK_COLOR :
-	return(h_config_arrow_color);
+	return(h_config_index_arrow_color);
       case V_KEYLABEL_FORE_COLOR :
       case V_KEYLABEL_BACK_COLOR :
 	return(h_config_keylabel_color);
@@ -7686,7 +7698,7 @@ reset_startup_rule(MAILSTREAM *stream)
     if(stream && nonempty_patterns(rflags, &pstate)){
 	for(pat = first_pattern(&pstate); pat; pat = next_pattern(&pstate)){
 	    if(match_pattern(pat->patgrp, stream, NULL, NULL, NULL,
-			     SO_NOSERVER|SE_NOPREFETCH))
+			     SE_NOSERVER|SE_NOPREFETCH))
 	      break;
 	}
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: rpload.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: rpload.c 433 2007-02-08 23:59:30Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -145,6 +145,8 @@ main(argc, argv)
     /*
      * Try opening the remote folder. If it doesn't exist, create it.
      */
+
+    /* failure would be normal here, so don't show it */
     noshow_error = 1;
     stream = mail_open(NULL, remote, 0L);
     if(!stream || stream->halfopen){
@@ -201,13 +203,11 @@ main(argc, argv)
     if(delete_existing){
 	char sequence[20];
 
-	noshow_error = 1;
 	mail_ping(stream);
 	snprintf(sequence, sizeof(sequence), "1:%ld", stream->nmsgs);
 	mail_flag(stream, sequence, "\\DELETED", ST_SET);
 	mail_expunge(stream);
 	mail_ping(stream);
-	noshow_error = 0;
     }
 
     special_hdr = spechdr(type);
@@ -618,12 +618,10 @@ trim_data(stream, trimsize)
     if(stream->nmsgs > trimsize + 1){
 	char sequence[20];
 
-	noshow_error = 1;
 	mail_ping(stream);
 	snprintf(sequence, sizeof(sequence), "2:%ld", stream->nmsgs - trimsize);
 	mail_flag(stream, sequence, "\\DELETED", ST_SET);
 	mail_expunge(stream);
-	noshow_error = 0;
     }
 }
 

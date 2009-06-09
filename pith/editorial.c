@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: editorial.c 203 2006-10-26 17:23:46Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: editorial.c 435 2007-02-09 23:35:33Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -52,35 +52,12 @@ typedef struct _editorial_s {
 char *
 format_editorial(char *s, int width, int flags, HANDLE_S **handlesp, gf_io_t pc)
 {
-    gf_io_t   gc;
-    char     *t;
-    size_t    n, len;
-    int      *margin;
-    unsigned char *p, *tmp = NULL;
-    EDITORIAL_S es;
- 
-    /*
-     * Warning. Some callers of this routine use the first half
-     * of tmp_20k_buf to store the passed in source string, out to as
-     * many as 10000 characters. However, we don't need to preserve the
-     * source string after we have copied it.
-     */
-    if((n = 4*strlen(s)) > SIZEOF_20KBUF-10000-1){
-	len = n+1;
-	p = tmp = (unsigned char *)fs_get(len * sizeof(unsigned char));
-    }
-    else{
-	len = SIZEOF_20KBUF-10000;
-	p = (unsigned char *)(tmp_20k_buf+10000);
-    }
+    gf_io_t	 gc;
+    int		*margin;
+    EDITORIAL_S  es;
 
-    /* ASSUME: Any text *we* insert MUST be in UTF-8 */
-    t = (char *)rfc1522_decode(p, len, s, NULL);
-
-    gf_set_readc(&gc, t, strlen(t), CharStar);
-
-    if(tmp)
-      fs_give((void **)&tmp);
+    /* ASSUMPTION #2,341: All MIME-decoding is done by now */
+    gf_set_readc(&gc, s, strlen(s), CharStar, 0);
 
     margin = format_view_margin();
     if(flags & FM_NOINDENT)
@@ -134,7 +111,7 @@ format_editorial(char *s, int width, int flags, HANDLE_S **handlesp, gf_io_t pc)
     }
       
     gf_link_filter(gf_wrap, gf_wrap_filter_opt(width, width, NULL, 0,
-					       (handlesp ? GFW_HANDLES : 0) | GFW_UTF8));
+					       (handlesp ? GFW_HANDLES : GFW_NONE)));
     gf_link_filter(gf_line_test, gf_line_test_opt(quote_editorial, &es));
 
     /* If not for display, change to local end of line */

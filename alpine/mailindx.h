@@ -1,8 +1,8 @@
 /*
- * $Id: mailindx.h 208 2006-10-27 19:31:16Z jpf@u.washington.edu $
+ * $Id: mailindx.h 453 2007-02-27 00:10:47Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -100,9 +100,10 @@ int		 condensed_thread_cue(PINETHRD_S *, ICE_S *, char **, int, int);
 void		 paint_index_hline(MAILSTREAM *, long, ICE_S *);
 void		 setup_index_state(int);
 void		 warn_other_cmds(void);
-void		 thread_command(struct pine *, MAILSTREAM *, MSGNO_S *, int, int);
+void		 thread_command(struct pine *, MAILSTREAM *, MSGNO_S *, UCS, int);
 #ifdef	_WINDOWS
 int		 index_sort_callback(int, long);
+void             view_in_new_window(void);
 #endif
 
 

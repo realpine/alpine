@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: reply.c 387 2007-01-24 18:42:22Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: reply.c 442 2007-02-16 23:01:28Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -17,6 +17,7 @@ static char rcsid[] = "$Id: reply.c 387 2007-01-24 18:42:22Z hubert@u.washington
 
 #include "../pith/headers.h"
 #include "../pith/reply.h"
+#include "../pith/send.h"
 #include "../pith/init.h"
 #include "../pith/state.h"
 #include "../pith/conf.h"
@@ -55,11 +56,7 @@ int	(*pith_opt_reply_to_all_prompt)(int *);
 /*
  * standard type of storage object used for body parts...
  */
-#if	defined(DOS) && !defined(WIN32)
-#define		  PART_SO_TYPE	TmpFileStar
-#else
 #define		  PART_SO_TYPE	CharStar
-#endif
 
 
 /*
@@ -320,7 +317,7 @@ set_role_from_msg(struct pine *ps, long int rflags, long int msgno, char *sectio
 
     while(!role && pat){
 	if(match_pattern(pat->patgrp, ps->mail_stream, ss, section,
-			 get_msg_score, SO_NOSERVER|SE_NOPREFETCH)){
+			 get_msg_score, SE_NOSERVER|SE_NOPREFETCH)){
 	    if(!pat->action || pat->action->bogus)
 	      break;
 
@@ -693,7 +690,7 @@ reply_subject(char *subject, char *buf, size_t buflen)
     }
 
     /* decode any 8bit into tmp buffer */
-    decoded = (char *) rfc1522_decode((unsigned char *)tmp, l+1, subject, NULL);
+    decoded = (char *) rfc1522_decode_to_utf8((unsigned char *)tmp, l+1, subject);
 
     buf[0] = '\0';
     if(decoded					/* already "re:" ? */
@@ -806,7 +803,6 @@ reply_quote_str(ENVELOPE *env)
 
     if(p = strstr(buf, init_token)){
 	char *q = NULL;
-	char *dummy = NULL;
 	char  buftmp[MAILTMPLEN];
 
 	snprintf(buftmp, sizeof(buftmp), "%.200s",
@@ -814,14 +810,10 @@ reply_quote_str(ENVELOPE *env)
 	buftmp[sizeof(buftmp)-1] = '\0';
 
 	repl = (env && env->from && env->from->personal)
-		 ? reply_quote_initials(q = cpystr((char *)rfc1522_decode(
+		 ? reply_quote_initials(q = cpystr((char *)rfc1522_decode_to_utf8(
 						(unsigned char *)tmp_20k_buf, 
-						SIZEOF_20KBUF,
-						buftmp, &dummy)))
+						SIZEOF_20KBUF, buftmp)))
 		 : "";
-
-	if(dummy)
-	  fs_give((void **)&dummy);
 
 	istrncpy(pbf, repl, sizeof(pbf)-1);
 	pbf[sizeof(pbf)-1] = '\0';;
@@ -1035,7 +1027,7 @@ reply_body(MAILSTREAM *stream, ENVELOPE *env, struct mail_bodystruct *orig_body,
 		      q_status_message(SM_ORDER | SM_DING, 3, 4,
 				       _("Error including all message parts"));
 		    else if(new_charset)
-		      fix_charset_parameter(&body->nested.part->body, new_charset);
+		      set_parameter(&body->nested.part->body.parameter, "charset", new_charset);
 		}
 		else if(orig_body->nested.part->body.type == TYPEMULTIPART
 			&& orig_body->nested.part->body.subtype
@@ -1119,20 +1111,6 @@ reply_body(MAILSTREAM *stream, ENVELOPE *env, struct mail_bodystruct *orig_body,
 	     */
 	    if(part->body.contents.text.data = (void *) so_get(PART_SO_TYPE,
 							    NULL,EDIT_ACCESS)){
-#if	defined(DOS) && !defined(WIN32)
-		mail_parameters(ps_global->mail_stream, SET_GETS,
-				(void *)dos_gets); /* fetched to disk */
-		append_file = (FILE *)so_text(
-				    (STORE_S *) part->body.contents.text.data);
-
-		if(!mail_fetchbody(stream, msgno, section,
-				   &part->body.size.bytes))
-		  mail_free_body(&body);
-
-		mail_parameters(stream, SET_GETS,(void *)NULL);
-		append_file = NULL;
-		mail_gc(stream, GC_TEXTS);
-#else
 		if(p = pine_mail_fetch_body(stream, msgno, section,
 					    &part->body.size.bytes, NIL)){
 		    so_nputs((STORE_S *)part->body.contents.text.data,
@@ -1140,7 +1118,6 @@ reply_body(MAILSTREAM *stream, ENVELOPE *env, struct mail_bodystruct *orig_body,
 		}
 		else
 		  mail_free_body(&body);
-#endif
 	    }
 	    else
 	      mail_free_body(&body);
@@ -1310,14 +1287,10 @@ get_addr_data(ENVELOPE *env, IndexColType type, char *buf, size_t maxlen)
        */
       case iInit:
 	if(env && env->from && env->from->personal){
-	    char *name, *initials = NULL, *dummy = NULL;
+	    char *name, *initials = NULL;
 
-	    name = (char *)rfc1522_decode((unsigned char *)tmp_20k_buf,
-					  SIZEOF_20KBUF, env->from->personal,
-					  &dummy);
-	    if(dummy)
-	      fs_give((void **)&dummy);
-
+	    name = (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+						  SIZEOF_20KBUF, env->from->personal);
 	    if(name == env->from->personal){
 		strncpy(tmp_20k_buf, name, SIZEOF_20KBUF-1);
 		tmp_20k_buf[SIZEOF_20KBUF - 1] = '\0';
@@ -1741,7 +1714,6 @@ get_reply_data(ENVELOPE *env, ACTION_S *role, IndexColType type, char *buf, size
 	if(env && env->subject){
 	    size_t n, len;
 	    unsigned char *p, *tmp = NULL;
-	    char  *dummy = NULL;
 
 	    if((n = 4*strlen(env->subject)) > SIZEOF_20KBUF-1){
 		len = n+1;
@@ -1752,12 +1724,10 @@ get_reply_data(ENVELOPE *env, ACTION_S *role, IndexColType type, char *buf, size
 		p = (unsigned char *)tmp_20k_buf;
 	    }
 	  
-	    istrncpy(buf, (char *)rfc1522_decode(p, len, env->subject, &dummy),
-		     maxlen);
+	    istrncpy(buf, (char *)rfc1522_decode_to_utf8(p, len, env->subject), maxlen);
 
 	    buf[maxlen] = '\0';
-	    if(dummy)
-	      fs_give((void **)&dummy);
+
 	    if(tmp)
 	      fs_give((void **)&tmp);
 	}
@@ -2037,7 +2007,7 @@ char *
 forward_subject(ENVELOPE *env, int flags)
 {
     size_t l;
-    char  *p, *cs = NULL, buftmp[MAILTMPLEN];
+    char  *p, buftmp[MAILTMPLEN];
     
     if(!env)
       return(NULL);
@@ -2049,17 +2019,16 @@ forward_subject(ENVELOPE *env, int flags)
 	snprintf(buftmp, sizeof(buftmp), "%s", env->subject);
 	buftmp[sizeof(buftmp)-1] = '\0';
 	/* decode any 8bit (copy to the temp buffer if decoding doesn't) */
-	if(rfc1522_decode((unsigned char *) tmp_20k_buf,
-			  SIZEOF_20KBUF, buftmp, &cs) == (unsigned char *) buftmp)
+	if(rfc1522_decode_to_utf8((unsigned char *) tmp_20k_buf,
+				  SIZEOF_20KBUF, buftmp) == (unsigned char *) buftmp)
 	  strncpy(tmp_20k_buf, buftmp, SIZEOF_20KBUF);
 
 	tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
 
 	removing_trailing_white_space(tmp_20k_buf);
-	if((l=strlen(tmp_20k_buf)) < 1000 &&
+	if((l = strlen(tmp_20k_buf)) < 1000 &&
 	   (l < 5 || strcmp(tmp_20k_buf+l-5,"(fwd)"))){
-	    snprintf(tmp_20k_buf+2000, SIZEOF_20KBUF-2000, "%s (fwd)",
-		     (!cs || !strucmp(cs, "us-ascii") || !strucmp(cs, "utf-8")) ? tmp_20k_buf : env->subject);
+	    snprintf(tmp_20k_buf+2000, SIZEOF_20KBUF-2000, "%s (fwd)", tmp_20k_buf);
 	    tmp_20k_buf[SIZEOF_20KBUF-2000-1] = '\0';
 	    strncpy(tmp_20k_buf, tmp_20k_buf+2000, SIZEOF_20KBUF);
 	    tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
@@ -2073,9 +2042,6 @@ forward_subject(ENVELOPE *env, int flags)
 	  while(p = strchr(tmp_20k_buf, QUOTE))
 	    (void)rplstr(p, SIZEOF_20KBUF-(p-tmp_20k_buf), 1, "''");
 
-	if(cs)
-	  fs_give((void **) &cs);
-	  
 	return(cpystr(tmp_20k_buf));
 
     }
@@ -2194,7 +2160,7 @@ forward_body(MAILSTREAM *stream, ENVELOPE *env, struct mail_bodystruct *orig_bod
 		     && fetch_contents(stream, msgno, sect_prefix, body)))
 		  mail_free_body(&body);
 		else if(new_charset)
-		  fix_charset_parameter(text_body, new_charset);
+		  set_parameter(&text_body->parameter, "charset", new_charset);
 
 /* BUG: ? matter that we're not setting body.size.bytes */
 	    }
@@ -2266,28 +2232,12 @@ forward_body(MAILSTREAM *stream, ENVELOPE *env, struct mail_bodystruct *orig_bod
 	 */
 	if(part->body.contents.text.data = (void *) so_get(PART_SO_TYPE, NULL,
 							   EDIT_ACCESS)){
-#if	defined(DOS) && !defined(WIN32)
-	    /* fetched text to disk */
-	    mail_parameters(stream, SET_GETS, (void *)dos_gets);
-	    append_file = (FILE *)so_text(
-				   (STORE_S *) part->body.contents.text.data);
-
-	    if(mail_fetchbody(stream, msgno, part, &part->body.size.bytes)){
-		/* next time body may stay in core */
-		mail_parameters(stream, SET_GETS, (void *)NULL);
-		append_file = NULL;
-		mail_gc(stream, GC_TEXTS);
-	    }
-	    else
-	      mail_free_body(&body);
-#else
 	    if(tmp_text = pine_mail_fetch_body(stream, msgno, section,
 					 &part->body.size.bytes, NIL))
 	      so_nputs((STORE_S *)part->body.contents.text.data, tmp_text,
 		       part->body.size.bytes);
 	    else
 	      mail_free_body(&body);
-#endif
 	}
 	else
 	  mail_free_body(&body);
@@ -2485,7 +2435,7 @@ get_body_part_text(MAILSTREAM *stream, struct mail_bodystruct *body, long int ms
 	(void) pine_mail_fetchstructure(stream, msg_no, NULL);
 
 	if(text = pine_mail_fetch_text(stream, msg_no, part_no, NULL, 0)){
-	    gf_set_readc(&gc, text, (unsigned long)strlen(text), src);
+	    gf_set_readc(&gc, text, (unsigned long)strlen(text), src, 0);
 
 	    gf_filter_init();		/* no filters needed */
 	    if(prefix)
@@ -2515,20 +2465,9 @@ get_body_part_text(MAILSTREAM *stream, struct mail_bodystruct *body, long int ms
 
     charset = rfc2231_get_param(body->parameter, "charset", NULL, NULL);
 
-    flags |= FM_UTF8;
     if(charset && strucmp(charset, "utf-8") && strucmp(charset, "us-ascii")){
-	/* translate filtered message text to UTF-8? */
-	if(utf8able(charset)){
-	    filters[filtcnt].filter = gf_utf8;
-	    filters[filtcnt++].data = gf_utf8_opt(charset);
-
-	    if(ret_charset)
-	      *ret_charset = "UTF-8";
-	}
-	else{
-	    /* BUG: what to do if not transliterable? */
-	    flags &= ~FM_UTF8;
-	}
+	if(ret_charset)
+	  *ret_charset = "UTF-8";
     }
 
     /*
@@ -2537,7 +2476,6 @@ get_body_part_text(MAILSTREAM *stream, struct mail_bodystruct *body, long int ms
      */
     if(ps_global->full_header != 2
        && !ps_global->postpone_no_flow
-       && (flags & FM_UTF8)
        && (!body->subtype || !strucmp(body->subtype, "plain"))){
 	char *parmval;
 
@@ -2551,8 +2489,7 @@ get_body_part_text(MAILSTREAM *stream, struct mail_bodystruct *body, long int ms
 		wrapflags |= GFW_FLOWED;
 
 		fs_give((void **) &parmval);
-		if(parmval = rfc2231_get_param(body->parameter,
-					       "delsp", NULL, NULL)){
+		if(parmval = rfc2231_get_param(body->parameter, "delsp", NULL, NULL)){
 		    if(!strucmp(parmval, "yes")){
 			filters[filtcnt++].filter = gf_preflow;
 			wrapflags |= GFW_DELSP;
@@ -2569,9 +2506,6 @@ get_body_part_text(MAILSTREAM *stream, struct mail_bodystruct *body, long int ms
  		 */
  		if(flow_res)
 		  wrapflags |= GFW_FLOW_RESULT;
-
-		if(flags & FM_UTF8)
-		  wrapflags |= GFW_UTF8;
 
 		filters[filtcnt].filter = gf_wrap;
 		/* 
@@ -2619,13 +2553,15 @@ get_body_part_text(MAILSTREAM *stream, struct mail_bodystruct *body, long int ms
 	}
     }
     else if(body->subtype){
+	int plain_opt = 1;
+
 	if(strucmp(body->subtype,"richtext") == 0){
 	    filters[filtcnt].filter = gf_rich2plain;
-	    filters[filtcnt++].data = gf_rich2plain_opt(1);
+	    filters[filtcnt++].data = gf_rich2plain_opt(&plain_opt);
 	}
 	else if(strucmp(body->subtype,"enriched") == 0){
 	    filters[filtcnt].filter = gf_enriched2plain;
-	    filters[filtcnt++].data = gf_enriched2plain_opt(1);
+	    filters[filtcnt++].data = gf_enriched2plain_opt(&plain_opt);
 	}
 	else if(strucmp(body->subtype,"html") == 0){
 	    filters[filtcnt].filter = gf_html2plain;
@@ -2855,26 +2791,6 @@ fetch_contents(MAILSTREAM *stream, long int msgno, char *section, struct mail_bo
 	     */
 	    body->contents.text.data = (void *) so_get(PART_SO_TYPE, NULL,
 						    EDIT_ACCESS);
-#if	defined(DOS) && !defined(WIN32)
-	    if(body->contents.text.data){
-		/* fetch text to disk */
-		mail_parameters(stream, SET_GETS, (void *)dos_gets);
-		append_file =(FILE *)so_text((STORE_S *)body->contents.text.data);
-
-		if(mail_fetchbody(stream, msgno, section, &body->size.bytes)){
-		    so_release((STORE_S *)body->contents.text.data);
-		    got_one = 1;
-		}
-		else
-		  q_status_message1(SM_ORDER | SM_DING, 3, 3,
-				    _("Error fetching part %s"), section);
-
-		/* next time body may stay in core */
-		mail_parameters(stream, SET_GETS, (void *)NULL);
-		append_file = NULL;
-		mail_gc(stream, GC_TEXTS);
-	    }
-#else
 	    if(body->contents.text.data
 	       && (tp = pine_mail_fetch_body(stream, msgno, section,
 				       &body->size.bytes, NIL))){
@@ -2884,7 +2800,6 @@ fetch_contents(MAILSTREAM *stream, long int msgno, char *section, struct mail_bo
 			 body->size.bytes);
 		got_one = 1;
 	    }
-#endif
 	    else
 	      q_status_message1(SM_ORDER | SM_DING, 3, 3,
 				_("Error fetching part %s"), section);
@@ -2897,25 +2812,6 @@ fetch_contents(MAILSTREAM *stream, long int msgno, char *section, struct mail_bo
 	 * so, grab one, then fetch the body part
 	 */
 	body->contents.text.data = (void *)so_get(PART_SO_TYPE,NULL,EDIT_ACCESS);
-#if	defined(DOS) && !defined(WIN32)
-	if(body->contents.text.data){
-	    /* write fetched text to disk */
-	    mail_parameters(stream, SET_GETS, (void *)dos_gets);
-	    append_file = (FILE *)so_text((STORE_S *)body->contents.text.data);
-	    if(mail_fetchbody(stream, msgno, section, &body->size.bytes)){
-		so_release((STORE_S *)body->contents.text.data);
-		got_one = 1;
-	    }
-	    else
-	      q_status_message1(SM_ORDER | SM_DING, 3, 3,
-				_("Error fetching part %s"), section);
-
-	    /* next time body may stay in core */
-	    mail_parameters(stream, SET_GETS, (void *)NULL);
-	    append_file = NULL;
-	    mail_gc(stream, GC_TEXTS);
-	}
-#else
 	if(body->contents.text.data
 	   && (tp=pine_mail_fetch_body(stream, msgno, section,
 				       &body->size.bytes, NIL))){
@@ -2925,7 +2821,6 @@ fetch_contents(MAILSTREAM *stream, long int msgno, char *section, struct mail_bo
 		     body->size.bytes);
 	    got_one = 1;
 	}
-#endif
 	else
 	  q_status_message1(SM_ORDER | SM_DING, 3, 3,
 			    _("Error fetching part %s"), section);
@@ -3009,7 +2904,6 @@ copy_body(struct mail_bodystruct *new_body, struct mail_bodystruct *old_body)
  Allocates storage for new part, and returns pointer to new paramter
 list. If old_p is NULL, NULL is returned.
  ----*/
-
 PARAMETER *
 copy_parameters(struct mail_body_parameter *old_p)
 {
@@ -3019,17 +2913,12 @@ copy_parameters(struct mail_body_parameter *old_p)
       return((PARAMETER *)NULL);
 
     new_p = p2 = NULL;
-    for(p1 = old_p; p1 != NULL; p1 = p1->next) {
-        if(new_p == NULL) {
-            p2 = mail_newbody_parameter();
-            new_p = p2;
-        } else {
-            p2->next = mail_newbody_parameter();
-            p2 = p2->next;
-        }
-        p2->attribute = cpystr(p1->attribute);
-        p2->value     = cpystr(p1->value);
+    for(p1 = old_p; p1 != NULL; p1 = p1->next){
+	set_parameter(&p2, p1->attribute, p1->value);
+	if(new_p == NULL)
+	  new_p = p2;
     }
+
     return(new_p);
 }
     
@@ -3409,7 +3298,7 @@ read_remote_sigfile(char *name)
 	}
     }
 
-    file = read_file(rd->lf, 0);
+    file = read_file(rd->lf, READ_FROM_LOCALE);
 
 bail_out:
     if(rd)
@@ -3476,38 +3365,13 @@ forward_multi_alt(MAILSTREAM *stream, ENVELOPE *env, struct mail_bodystruct *ori
 	 * We need to record that fact in body.
 	 */
 	if(new_charset)
-	  fix_charset_parameter(body, new_charset);
+	  set_parameter(&body->parameter, "charset", new_charset);
     }
     else
       q_status_message(SM_ORDER | SM_DING, 3, 3,
 		       "No suitable part found.  Forwarding as attachment");
 
     return(body);
-}
-
-
-/*
- * Change existing charset parameter to new value.
- */
-void
-fix_charset_parameter(struct mail_bodystruct *body, char *new_charset)
-{
-    PARAMETER *pm;
-
-    if(!body)
-      return;
-
-    for(pm = body->parameter; pm; pm = pm->next)
-      if(pm->attribute && !strucmp(pm->attribute, "charset"))
-        break;
-
-    if(pm){
-	if(pm->value)
-	  fs_give((void **) &pm->value);
-
-	if(new_charset)
-	  pm->value = cpystr(new_charset);
-    }
 }
 
 

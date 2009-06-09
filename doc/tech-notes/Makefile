@@ -42,14 +42,12 @@
 #        If you do not have the PNUTS program, set variable to /bin/true
 
 SOURCES= index.html introduction.html background.html installation.html \
-	cmd-line.html config.html config-notes.html low-level.html \
-	porting.html
+	cmd-line.html config.html config-notes.html low-level.html
 
 ALLSRC= $(SOURCES) for.pnuts
 
 TXTS= index.txt introduction.txt background.txt installation.txt \
-	cmd-line.txt config.txt config-notes.txt low-level.txt \
-	porting.txt
+	cmd-line.txt config.txt config-notes.txt low-level.txt
 
 HTML2TXT= lynx -underscore -nolist -dump
 

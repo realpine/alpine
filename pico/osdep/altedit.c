@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: altedit.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: altedit.c 444 2007-02-22 19:48:09Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -78,10 +78,12 @@ alt_editor(int f, int n)
     RETSIGTYPE (*oint)(int);
     RETSIGTYPE (*osize)(int);
     int status;
+    EML eml;
+
+    eml.s = f ? "speller" : "editor";
 
     if(gmode&MDSCUR){
-	emlwrite("Alternate %s not available in restricted mode",
-		 f ? "speller" : "editor");
+	emlwrite("Alternate %s not available in restricted mode", &eml);
 	return(-1);
     }
 
@@ -137,7 +139,7 @@ alt_editor(int f, int n)
 
 	if(!eb[0]){
 	    if(!(gmode&MDADVN)){
-		emlwrite("\007Unknown Command",NULL);
+		unknown_command(0);
 		return(-1);
 	    }
 
@@ -150,7 +152,7 @@ alt_editor(int f, int n)
 
 	    while(!done){
 		pid = mlreplyd_utf8("Which alternate editor ? ", eb,
-			       NLINE, QDEFLT, NULL);
+			       sizeof(eb), QDEFLT, NULL);
 		switch(pid){
 		  case ABORT:
 		    curwp->w_flag |= WFMODE;
@@ -330,7 +332,7 @@ alt_editor(int f, int n)
     ttopen();				/* reset the signals */
     pico_refresh(0, 1);			/* redraw */
     update();
-    emlwrite(result, f ? "speller" : "editor");
+    emlwrite(result, &eml);
     return(ret);
 #else /* _WINDOWS */
     char   eb[2 * PATH_MAX];			/* buf holding edit command */
@@ -362,7 +364,8 @@ alt_editor(int f, int n)
 		  rc = alt_editor_valid((*lp) + 1, eb, sizeof(eb));
 		  *p = '\"';
 		  if(rc){
-		      strcat(eb, p + 1);
+		      strncat(eb, p + 1, sizeof(eb)-strlen(eb));
+		      eb[sizeof(eb)-1] = '\0';
 		      break;
 		  }
 	      }
@@ -378,8 +381,10 @@ alt_editor(int f, int n)
 		    *p = ' ';
 
 		  if(rc){
-		      if(p)
-			strcat(eb, p);
+		      if(p){
+			  strncat(eb, p, sizeof(eb)-strlen(eb));
+			  eb[sizeof(eb)-1] = '\0';
+		      }
 
 		      break;
 		  }
@@ -398,20 +403,22 @@ alt_editor(int f, int n)
 
     if(!eb[0]){
 	if(!(gmode&MDADVN)){
-	    emlwrite("\007Unknown Command",NULL);
+	    unknown_command(0);
 	    return(-1);
 	}
 	
 	/* Guess which editor they want. */
-	if(getenv("EDITOR"))
-	  strcpy(eb, (char *)getenv("EDITOR"));
+	if(getenv("EDITOR")){
+	  strncpy(eb, (char *)getenv("EDITOR"), sizeof(eb));
+	  eb[sizeof(eb)-1] = '\0';
+	}
 	else
 	  *eb = '\0';
   
 	done = FALSE;
 	while(!done){
 	    rc = mlreplyd_utf8("Which alternate editor ? ", eb,
-			       NLINE,QDEFLT,NULL);
+			       sizeof(eb),QDEFLT,NULL);
 
 	    switch(rc){
 	      case ABORT:
@@ -448,15 +455,24 @@ alt_editor(int f, int n)
 	return(-1);
     }
 
+    emlwrite("Waiting for alternate editor to finish...", NULL);
+
+#ifdef ALTED_DOT
+    if(eb[0] == '.' && eb[1] == '\0') {
+        status = mswin_exec_and_wait ("alternate editor", eb, fn, fn,
+    				  NULL, 0);
+    }
+    else
+#endif /* ALTED_DOT */
+    {				/* just here in case ALTED_DOT is defined */
     strncat(eb, " ", sizeof(eb)-strlen(eb));
     eb[sizeof(eb)-1] = '\0';
     strncat(eb, fn, sizeof(eb)-strlen(eb));
     eb[sizeof(eb)-1] = '\0';
     
-    emlwrite("Waiting for alternate editor to finish...", NULL);
-    
     status = mswin_exec_and_wait ("alternate editor", eb, NULL, NULL,
 				  NULL, 0);
+    }
 
     switch (status) {
 
@@ -590,6 +606,15 @@ alt_editor_valid(char *exe, char *cmdbuf, size_t ncmdbuf)
 
     if(!exe)
       return(FALSE);
+
+#ifdef ALTED_DOT
+    if(exe[0] == '.' && exe[1] == '\0') {
+        cmdbuf[0] = '.';
+        cmdbuf[1] = '\0';
+        return(TRUE);
+    }
+    else
+#endif /* ALTED_DOT */
 
     if((isalpha((unsigned char) *exe) && *exe == ':') || strchr(exe, '\\')){
 	char *path;

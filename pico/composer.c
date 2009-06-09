@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: composer.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: composer.c 421 2007-02-05 22:53:41Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -715,10 +715,9 @@ HeaderEditor(int f, int n)
 		bktoshell();
 		PaintBody(0);
 	    }
-	    else{
-		(*term.t_beep)();
-		emlwrite(_("Unknown Command: ^Z"), NULL);
-	    }
+	    else
+	      unknown_command(ch);
+
 	    break;
 
 	  case (CTRL|'O') :			/* Suspend message */
@@ -821,7 +820,158 @@ HeaderEditor(int f, int n)
 #endif
 
 	  case (CTRL|'I') :			/* tab */
-	    ods.p_ind = 0;			/* fall through... */
+	    if(headents[ods.cur_e].nickcmpl != NULL){
+		char *new_nickname = NULL;
+		UCS *strng;
+		UCS *start = NULL, *end = NULL, *before_start = NULL;
+		UCS *uprefix = NULL, *up1, *up2;
+		char *prefix = NULL, *saveprefix = NULL, *insert = NULL;
+		int offset, prefixlen, add_a_comma = 0;
+		size_t l, l1, l2;
+		int ambiguity;
+
+		strng = ods.cur_l->text;
+		offset = HeaderOffset(ods.cur_e);
+
+		if(ods.p_ind > 0
+		   && (start = &strng[ods.p_ind-1])
+		   && (!*(start+1)
+		       || ucs4_isspace(*(start+1))
+		       || *(start+1) == ',')
+		   && (*start
+		       && !ucs4_isspace(*start)
+		       && *start != ',')){
+		    while(start > strng
+			  && *(start-1)
+			  && !ucs4_isspace(*(start-1))
+		          && *(start-1) != ',')
+		      start--;
+
+		    for(end = start;
+			*end && !ucs4_isspace(*end) && *end != ',';
+			end++)
+		      ;
+
+		    if(*end != ',' && ods.cur_l->next)
+		      add_a_comma++;
+
+		    /*
+		     * Nickname prefix begins with start and ends
+		     * with end-1. Replace those characters with
+		     * completed nickname.
+		     */
+		    prefixlen = end-start;
+		    uprefix = (UCS *) fs_get((prefixlen+1) * sizeof(UCS));
+		    ucs4_strncpy(uprefix, start, prefixlen);
+		    uprefix[prefixlen] = '\0';
+		    prefix = ucs4_to_utf8_cpystr(uprefix);
+		    fs_give((void **) &uprefix);
+
+		    ambiguity = (*(headents[ods.cur_e].nickcmpl))(prefix, &new_nickname, 0);
+
+		    if(new_nickname){
+			if(strlen(new_nickname) > strlen(prefix)){
+			    /*
+			     * We're trying to work with the way
+			     * FormatLines works. It inserts text at the
+			     * beginning of the line we pass in.
+			     * So, remove the beginning of the line and
+			     * have FormatLines put it back.
+			     */
+
+			    /* save part before start */
+			    before_start = strng;
+			    uprefix = (UCS *) fs_get((start-before_start+1) * sizeof(UCS));
+			    ucs4_strncpy(uprefix, before_start, start-before_start);
+			    uprefix[start-before_start] = '\0';
+			    saveprefix = ucs4_to_utf8_cpystr(uprefix);
+
+			    /* figure out new cursor offset */
+			    up1 = utf8_to_ucs4_cpystr(new_nickname);
+			    if(up1){
+				offset += (ucs4_strlen(up1) - prefixlen);
+				fs_give((void **) &up1);
+			    }
+
+			    fs_give((void **) &uprefix);
+
+			    /*
+			     * Delete everything up to end by
+			     * copying characters to start of buffer.
+			     */
+			    up1 = before_start;
+			    up2 = end;
+			    for(i = ods.p_len - (end - before_start) + 1; i > 0; i--)
+			      *up1++ = *up2++;
+
+			    ods.p_len -= (end - before_start);
+
+			    if(saveprefix){
+				l1 = strlen(saveprefix);
+				l2 = strlen(new_nickname);
+				l = l1 + l2;
+
+				/* add a comma? */
+				if(add_a_comma && ambiguity == 2){
+				    l++;
+				    offset++;
+				}
+				else
+				  add_a_comma = 0;
+
+				insert = (char *) fs_get((l+1) * sizeof(char));
+
+				/*
+				 * Insert is the before start stuff plus the
+				 * new nickname, and we're going to let
+				 * FormatLines put it together for us.
+				 */
+				if(insert){
+				    strncpy(insert, saveprefix, l);
+				    strncpy(insert+l1, new_nickname, l-l1);
+				    if(add_a_comma)
+				      insert[l-1] = ',';
+
+				    insert[l] = '\0';
+				}
+
+				fs_give((void **) &saveprefix);
+			    }
+
+
+			    if(insert && FormatLines(ods.cur_l, insert,
+					 term.t_ncol - headents[ods.cur_e].prwid,
+					 headents[ods.cur_e].break_on_comma,0)==-1){
+				emlwrite("\007Format lines failed!", NULL);
+			    }
+
+			    if(insert)
+			      fs_give((void **) &insert);
+
+			    HeaderFocus(ods.cur_e, offset);
+			}
+
+			fs_give((void **) &new_nickname);
+		    }
+
+		    if(prefix)
+		      fs_give((void **) &prefix);
+
+		    if(ambiguity != 2)
+		      (*term.t_beep)();
+
+		    UpdateHeader(0);
+		    PaintBody(0);
+		}
+		else{
+		    (*term.t_beep)();
+		}
+
+		break;
+	    }
+	    else{
+		ods.p_ind = 0;			/* fall through... */
+	    }
 
 	  case (CTRL|'N') :
 	  case KEY_DOWN :
@@ -1297,11 +1447,7 @@ HeaderEditor(int f, int n)
 
 	  default :				/* huh? */
 bleep:
-	    if(ch&CTRL && (ch & ~CTRL) < 0xff)
-	      emlwrite(_("\007Unknown command: ^%c"), (void *)(ch&0xff));
-	    else
-	  case BADESC:
-	      emlwrite(_("\007Unknown command"), NULL);
+	    unknown_command(ch);
 
 	  case NODATA:
 	    break;
@@ -1448,15 +1594,17 @@ header_upline(int gripe)
 {
     struct hdr_line *new_l, *l;
     int    new_e, status, fullpaint, len, e, incr = 0;
+    EML    eml;
 
     /* calculate the next line: physical *and* logical */
     status    = 0;
     new_e     = ods.cur_e;
     if(!(new_l = prev_sel_hline(&new_e, ods.cur_l))){	/* all the way up! */
 	ods.p_line = COMPOSER_TOP_LINE;
-	if(gripe)
-	  emlwrite(_("Can't move beyond top of %s"),
-	      (Pmaster->pine_flags & MDHDRONLY) ? "entry" : "header");
+	if(gripe){
+	    eml.s = (Pmaster->pine_flags & MDHDRONLY) ? "entry" : "header";
+	    emlwrite(_("Can't move beyond top of %s"), &eml);
+	}
 
 	return(0);
     }
@@ -1588,8 +1736,12 @@ AppendAttachment(char *fn, char *sz, char *cmt)
 
     /* validate the new attachment, and reformat if needed */
     if(status = SyncAttach()){
-	if(status < 0)
-	  emlwrite("\007Problem attaching: %s", fn);
+	EML eml;
+
+	if(status < 0){
+	    eml.s = fn;
+	    emlwrite("\007Problem attaching: %s", &eml);
+	}
 
 	if(FormatLines(headents[a_e].hd_text, "",
 		       term.t_ncol - headents[a_e].prwid,
@@ -1606,11 +1758,8 @@ AppendAttachment(char *fn, char *sz, char *cmt)
 }
 
 
-
-
 /*
- * LineEdit - the idea is to manage 7 bit ascii character only input.
- *            Always use insert mode and handle line wrapping
+ * LineEdit - Always use insert mode and handle line wrapping
  *
  *	returns:
  *		Any characters typed in that aren't printable 
@@ -2436,7 +2585,6 @@ FormatLines(struct hdr_line *h,			/* where to begin formatting */
 	    rv = TRUE;
 	}
 
-	fs_give((void **) &utf8);
 	return(rv);
     }
     else

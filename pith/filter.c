@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: filter.c 390 2007-01-25 02:48:29Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: filter.c 448 2007-02-23 01:55:41Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -51,6 +51,7 @@ static char rcsid[] = "$Id: filter.c 390 2007-01-25 02:48:29Z mikes@u.washington
 #include "../pith/string.h"
 #include "../pith/util.h"
 #include "../pith/init.h"
+#include "../pico/keydefs.h"
 
 
 /*
@@ -59,15 +60,22 @@ static char rcsid[] = "$Id: filter.c 390 2007-01-25 02:48:29Z mikes@u.washington
 int	gf_so_writec(int);
 int	gf_so_readc(unsigned char *);
 int	gf_freadc(unsigned char *);
+int	gf_freadc_locale(unsigned char *);
+int	gf_freadc_getchar(unsigned char *, void *);
 int	gf_fwritec(int);
 int	gf_fwritec_locale(int);
 #ifdef _WINDOWS
 int	gf_fwritec_windows(int);
+int	gf_freadc_windows(unsigned char *);
 #endif /* _WINDOWS */
 int	gf_preadc(unsigned char *);
+int	gf_preadc_locale(unsigned char *);
+int	gf_preadc_getchar(unsigned char *, void *);
 int	gf_pwritec(int);
 int	gf_pwritec_locale(int);
 int	gf_sreadc(unsigned char *);
+int	gf_sreadc_locale(unsigned char *);
+int	gf_sreadc_getchar(unsigned char *, void *);
 int	gf_swritec(int);
 int	gf_swritec_locale(int);
 void	gf_terminal(FILTER_S *, int);
@@ -211,9 +219,7 @@ static struct gf_io_struct {
     char          *txtp;
     unsigned long  n;
     int            flags;
-    unsigned char  cbuf[6];	/* used for converting to or from	*/
-    unsigned char *cbufp;	/*   locale-specific charset		*/
-    unsigned char *cbufend;
+    CBUF_S         cb;
 } gf_in, gf_out;
 
 #define	GF_SO_STACK	struct gf_so_stack
@@ -245,21 +251,35 @@ pc_is_picotext(gf_io_t pc)
  * getc function
  */
 void
-gf_set_readc(gf_io_t *gc, void *txt, long unsigned int len, SourceType src)
+gf_set_readc(gf_io_t *gc, void *txt, long unsigned int len, SourceType src, int flags)
 {
     gf_in.n = len;
+    gf_in.flags = flags;
+    gf_in.cb.cbuf[0] = '\0';
+    gf_in.cb.cbufp   = gf_in.cb.cbuf;
+    gf_in.cb.cbufend = gf_in.cb.cbuf;
+
     if(src == FileStar){
 	gf_in.file = (FILE *)txt;
 	fseek(gf_in.file, 0L, 0);
-	*gc = gf_freadc;
+#ifdef _WINDOWS
+	*gc = (flags & READ_FROM_LOCALE) ? gf_freadc_windows
+					 : gf_freadc;
+#else /* UNIX */
+	*gc = (flags & READ_FROM_LOCALE) ? gf_freadc_locale
+					 : gf_freadc;
+#endif /* UNIX */
     }
     else if(src == PipeStar){
 	gf_in.pipe = (PIPE_S *)txt;
 	*gc = gf_preadc;
+	*gc = (flags & READ_FROM_LOCALE) ? gf_preadc_locale
+					 : gf_preadc;
     }
     else{
 	gf_in.txtp = (char *)txt;
-	*gc = gf_sreadc;
+	*gc = (flags & READ_FROM_LOCALE) ? gf_sreadc_locale
+					 : gf_sreadc;
     }
 }
 
@@ -273,9 +293,9 @@ gf_set_writec(gf_io_t *pc, void *txt, long unsigned int len, SourceType src, int
 {
     gf_out.n = len;
     gf_out.flags = flags;
-    gf_out.cbuf[0] = '\0';
-    gf_out.cbufp   = gf_out.cbuf;
-    gf_out.cbufend = gf_out.cbuf;
+    gf_out.cb.cbuf[0] = '\0';
+    gf_out.cb.cbufp   = gf_out.cb.cbuf;
+    gf_out.cb.cbufend = gf_out.cb.cbuf;
 
     if(src == FileStar){
 	gf_out.file = (FILE *)txt;
@@ -405,6 +425,34 @@ gf_freadc(unsigned char *c)
 }
 
 
+int
+gf_freadc_locale(unsigned char *c)
+{
+    return(generic_readc_locale(c, gf_freadc_getchar, (void *) gf_in.file, &gf_in.cb));
+}
+
+
+/*
+ * This is just to make it work with generic_readc_locale.
+ */
+int
+gf_freadc_getchar(unsigned char *c, void *extraarg)
+{
+    FILE *file;
+    int rv = 0;
+
+    file = (FILE *) extraarg;
+
+    do {
+	errno = 0;
+	clearerr(file);
+	rv = fread(c, sizeof(unsigned char), (size_t)1, file);
+    } while(!rv && ferror(file) && errno == EINTR);
+
+    return(rv);
+}
+
+
 /*
  * Put a character to a file.
  * Assumes gf_out struct is filled in.
@@ -435,8 +483,7 @@ gf_fwritec_locale(int c)
     int i, outchars;
     unsigned char obuf[MAX(MB_LEN_MAX,32)];
 
-    if(outchars = utf8_to_locale(c, gf_out.cbuf, sizeof(gf_out.cbuf), &gf_out.cbufp,
-				 obuf, sizeof(obuf))){
+    if(outchars = utf8_to_locale(c, &gf_out.cb, obuf, sizeof(obuf))){
 	for(i = 0; i < outchars; i++)
 	  if(gf_fwritec(obuf[i]) != 1){
 	      rv = 0;
@@ -463,10 +510,65 @@ gf_fwritec_windows(int c)
     UCS ucs;
 
     /* outchars should be 1 or 0 (if in middle of a UTF-8 char) */
-    if(outchars = utf8_to_ucs4_oneatatime(c, gf_out.cbuf, sizeof(gf_out.cbuf),
-					  &gf_out.cbufp, &ucs, NULL))
+    if(outchars = utf8_to_ucs4_oneatatime(c, &gf_out.cb, &ucs, NULL))
       if(write_a_wide_char(ucs, gf_out.file) == EOF)
 	rv = 0;
+
+    return(rv);
+}
+
+
+/*
+ * Read unicode characters from windows filesystem and return
+ * them as a stream of UTF-8 characters. The stream is assumed
+ * opened so that it will know how to put together the unicode.
+ *
+ * (This is totally untested, copied loosely from so_file_readc_windows
+ *  which may or may not be appropriate.)
+ */
+int
+gf_freadc_windows(unsigned char *c)
+{
+    int rv = 0;
+    UCS ucs;
+
+    /* already got some from previous call? */
+    if(gf_in.cb.cbufend > gf_in.cb.cbuf){
+	*c = *gf_in.cb.cbufp;
+	gf_in.cb.cbufp++;
+	rv++;
+	if(gf_in.cb.cbufp >= gf_in.cb.cbufend){
+	    gf_in.cb.cbufend = gf_in.cb.cbuf;
+	    gf_in.cb.cbufp   = gf_in.cb.cbuf;
+	}
+
+	return(rv);
+    }
+
+    if(gf_in.file){
+	/* windows only so second arg is ignored */
+	ucs = read_a_wide_char(gf_in.file, NULL);
+	rv = (ucs == CCONV_EOF) ? 0 : 1;
+    }
+
+    if(rv){
+	/*
+	 * Now we need to convert the UCS character to UTF-8
+	 * and dole out the UTF-8 one char at a time.
+	 */
+	gf_in.cb.cbufend = utf8_put(gf_in.cb.cbuf, (unsigned long) ucs);
+	gf_in.cb.cbufp = gf_in.cb.cbuf;
+	if(gf_in.cb.cbufend > gf_in.cb.cbuf){
+	    *c = *gf_in.cb.cbufp;
+	    gf_in.cb.cbufp++;
+	    if(gf_in.cb.cbufp >= gf_in.cb.cbufend){
+		gf_in.cb.cbufend = gf_in.cb.cbuf;
+		gf_in.cb.cbufp   = gf_in.cb.cbuf;
+	    }
+	}
+	else
+	  *c = '?';
+    }
 
     return(rv);
 }
@@ -477,6 +579,27 @@ int
 gf_preadc(unsigned char *c)
 {
     return(pipe_readc(c, gf_in.pipe));
+}
+
+
+int
+gf_preadc_locale(unsigned char *c)
+{
+    return(generic_readc_locale(c, gf_preadc_getchar, (void *) gf_in.pipe, &gf_in.cb));
+}
+
+
+/*
+ * This is just to make it work with generic_readc_locale.
+ */
+int
+gf_preadc_getchar(unsigned char *c, void *extraarg)
+{
+    PIPE_S *pipe;
+
+    pipe = (PIPE_S *) extraarg;
+
+    return(pipe_readc(c, pipe));
 }
 
 
@@ -503,8 +626,7 @@ gf_pwritec_locale(int c)
     int i, outchars;
     unsigned char obuf[MAX(MB_LEN_MAX,32)];
 
-    if(outchars = utf8_to_locale(c, gf_out.cbuf, sizeof(gf_out.cbuf), &gf_out.cbufp,
-				 obuf, sizeof(obuf))){
+    if(outchars = utf8_to_locale(c, &gf_out.cb, obuf, sizeof(obuf))){
 	for(i = 0; i < outchars; i++)
 	  if(gf_pwritec(obuf[i]) != 1){
 	      rv = 0;
@@ -522,6 +644,24 @@ int
 gf_sreadc(unsigned char *c)
 {
     return((gf_in.n) ? *c = *(gf_in.txtp)++, gf_in.n-- : 0);
+}
+
+
+int
+gf_sreadc_locale(unsigned char *c)
+{
+    return(generic_readc_locale(c, gf_sreadc_getchar, NULL, &gf_in.cb));
+}
+
+
+int
+gf_sreadc_getchar(unsigned char *c, void *extraarg)
+{
+    /*
+     * extraarg is ignored and gf_sreadc just uses globals instead.
+     * That's ok as long as we don't call it more than once at a time.
+     */
+    return(gf_sreadc(c));
 }
 
 
@@ -548,8 +688,7 @@ gf_swritec_locale(int c)
     int i, outchars;
     unsigned char obuf[MAX(MB_LEN_MAX,32)];
 
-    if(outchars = utf8_to_locale(c, gf_out.cbuf, sizeof(gf_out.cbuf), &gf_out.cbufp,
-				 obuf, sizeof(obuf))){
+    if(outchars = utf8_to_locale(c, &gf_out.cb, obuf, sizeof(obuf))){
 	for(i = 0; i < outchars; i++)
 	  if(gf_swritec(obuf[i]) != 1){
 	      rv = 0;
@@ -586,6 +725,107 @@ gf_nputs(register char *s, long int n, gf_io_t pc)
 	return(0);		/* ERROR putting char ! */
 
     return(1);
+}
+
+
+/*
+ * Read a stream of multi-byte characters from the
+ * user's locale charset and return a stream of
+ * UTF-8 characters, one at a time. The input characters
+ * are obtained by using the get_a_char function.
+ *
+ * Args        c -- the returned octet
+ *    get_a_char -- function to get a single octet of the multibyte
+ *                  character. The first arg of that function is the
+ *                  returned value and the second arg is for the
+ *                  functions use. The second arg is replaced with
+ *                  extraarg when it is called.
+ *      extraarg -- The second arg to get_a_char.
+ *            cb -- Storage area for state between calls to this func.
+ */
+int
+generic_readc_locale(unsigned char *c,
+		     int (*get_a_char)(unsigned char *, void *),
+		     void *extraarg,
+		     CBUF_S *cb)
+{
+    unsigned long octets_so_far = 0, remaining_octets;
+    unsigned char *inputp;
+    unsigned char ch;
+    UCS ucs;
+    unsigned char inputbuf[20];
+    int rv = 0;
+    int got_one = 0;
+
+    /* already got some from previous call? */
+    if(cb->cbufend > cb->cbuf){
+	*c = *cb->cbufp;
+	cb->cbufp++;
+	rv++;
+	if(cb->cbufp >= cb->cbufend){
+	    cb->cbufend = cb->cbuf;
+	    cb->cbufp   = cb->cbuf;
+	}
+
+	return(rv);
+    }
+
+    memset(inputbuf, 0, sizeof(inputbuf));
+    if((*get_a_char)(&ch, extraarg) == 0)
+      return(0);
+
+    inputbuf[octets_so_far++] = ch;
+
+    while(!got_one){
+	remaining_octets = octets_so_far;
+	inputp = inputbuf;
+	ucs = mbtow(ps_global->input_cs, &inputp, &remaining_octets);
+	switch(ucs){
+	  case CCONV_BADCHAR:
+	    return(rv);
+	  
+	  case CCONV_NEEDMORE:
+/*
+ * Do we need to do something with the characters we've
+ * collected that don't form a valid UCS character?
+ * Probably need to try discarding them one at a time
+ * from the front instead of just throwing them all out.
+ */
+	    if(octets_so_far >= sizeof(inputbuf))
+	      return(rv);
+
+	    if((*get_a_char)(&ch, extraarg) == 0)
+	      return(rv);
+
+	    inputbuf[octets_so_far++] = ch;
+	    break;
+
+	  default:
+	    /* got a good UCS-4 character */
+	    got_one++;
+	    break;
+	}
+    }
+
+    /*
+     * Now we need to convert the UCS character to UTF-8
+     * and dole out the UTF-8 one char at a time.
+     */
+    rv++;
+    cb->cbufend = utf8_put(cb->cbuf, (unsigned long) ucs);
+    cb->cbufp = cb->cbuf;
+    if(cb->cbufend > cb->cbuf){
+	*c = *cb->cbufp;
+	cb->cbufp++;
+	if(cb->cbufp >= cb->cbufend){
+	    cb->cbufend = cb->cbuf;
+	    cb->cbufp   = cb->cbuf;
+	}
+    }
+    else
+      *c = '?';
+
+    return(rv);
 }
 
 
@@ -788,19 +1028,32 @@ char *
 gf_filter(char *cmd, char *prepend, STORE_S *source_so, gf_io_t pc,
 	  FILTLIST_S *aux_filters, int disable_reset)
 {
-    unsigned char c;
-    int	     flags;
+    unsigned char c, obuf[MAX(MB_LEN_MAX,32)];
+    int	     flags, n, outchars, i;
     char   *errstr = NULL, buf[MAILTMPLEN];
     PIPE_S *fpipe;
+    CBUF_S  cb;
 
     dprint((4, "so_filter: \"%s\"\n", cmd ? cmd : "?"));
 
     gf_filter_init();
+    
+    /*
+     * After coming back from user's pipe command we need to convert
+     * the output from the pipe back to UTF-8.
+     */
+    if(ps_global->keyboard_charmap && strucmp("UTF-8", ps_global->keyboard_charmap))
+      gf_link_filter(gf_utf8, gf_utf8_opt(ps_global->keyboard_charmap));
+
     for( ; aux_filters && aux_filters->filter; aux_filters++)
       gf_link_filter(aux_filters->filter, aux_filters->data);
 
     gf_set_terminal(pc);
     gf_link_filter(gf_terminal, NULL);
+
+    cb.cbuf[0] = '\0';
+    cb.cbufp   = cb.cbuf;
+    cb.cbufend = cb.cbuf;
 
     /*
      * Spawn filter feeding it data, and reading what it writes.
@@ -810,8 +1063,8 @@ gf_filter(char *cmd, char *prepend, STORE_S *source_so, gf_io_t pc,
 			    (!disable_reset ? PIPE_RESET : 0);
 
     if(fpipe = open_system_pipe(cmd, NULL, NULL, flags, 0, NULL, pipe_report_error)){
+
 #ifdef	NON_BLOCKING_IO
-	int     n;
 
 	if(fcntl(fileno(fpipe->in.f), F_SETFL, NON_BLOCKING_IO) == -1)
 	  errstr = "Can't set up non-blocking IO";
@@ -829,8 +1082,17 @@ gf_filter(char *cmd, char *prepend, STORE_S *source_so, gf_io_t pc,
 		  fclose(fpipe->out.f);
 		  fpipe->out.f = NULL;
 	      }
-	      else if(fputc(c, fpipe->out.f) == EOF)
-		errstr = error_description(errno);
+	      else{
+		  /*
+		   * Got a UTF-8 character from source_so.
+		   * We need to convert it to the user's locale charset
+		   * and then send the result to the pipe.
+		   */
+		  if(outchars = utf8_to_locale((int) c, &cb, obuf, sizeof(obuf)))
+		    for(i = 0; i < outchars && !errstr; i++)
+		      if(fputc(obuf[i], fpipe->out.f) == EOF)
+		        errstr = error_description(errno);
+	      }
 
 	    /*
 	     * Note: We clear errno here and test below, before ferror,
@@ -853,7 +1115,9 @@ gf_filter(char *cmd, char *prepend, STORE_S *source_so, gf_io_t pc,
 	    else if(errno == EAGAIN || errno == EWOULDBLOCK)
 	      clearerr(fpipe->in.f);
 	}
+
 #else /* !NON_BLOCKING_IO */
+
 	if(prepend && (pipe_puts(prepend, fpipe) == EOF
 		       || pipe_putc('\n', fpipe) == EOF))
 	  errstr = error_description(errno);
@@ -863,13 +1127,17 @@ gf_filter(char *cmd, char *prepend, STORE_S *source_so, gf_io_t pc,
 	 * doesn't fill up before we start reading...
 	 */
 	while(!errstr && so_readc(&c, source_so))
-	  if(pipe_putc(c, fpipe) == EOF)
-	    errstr = error_description(errno);
+	  if(outchars = utf8_to_locale((int) c, &cb, obuf, sizeof(obuf)))
+	    for(i = 0; i < outchars && !errstr; i++)
+	      if(pipe_putc(obuf[i], fpipe) == EOF)
+		errstr = error_description(errno);
 
 	if(pipe_close_write(fpipe))
 	  errstr = _("Pipe command returned error.");
+
 	while(!errstr && pipe_gets(buf, sizeof(buf), fpipe))
 	  errstr = gf_filter_puts(buf);
+
 #endif /* !NON_BLOCKING_IO */
 
 	if(close_system_pipe(&fpipe, NULL, NULL) && !errstr)
@@ -1986,7 +2254,11 @@ typedef	struct _utf8_s {
 				    intext.data = (unsigned char *) f->line; \
 				    intext.size = p - f->line; \
 				    memset(&outtext, 0, sizeof(SIZEDTEXT)); \
-				    if(utf8_text_cs(&intext, ((UTF8_S *) f->opt)->charset, &outtext, NULL, NULL)){ \
+				    if(!((UTF8_S *) f->opt)->charset){ \
+					for(n = 0; n < intext.size; n++) \
+					  GF_PUTC(f->next, (intext.data[n] & 0x80) ? '?' : intext.data[n]); \
+				    } \
+				    else if(utf8_text_cs(&intext, ((UTF8_S *) f->opt)->charset, &outtext, NULL, NULL)){ \
 					for(n = 0; n < outtext.size; n++) \
 					  GF_PUTC(f->next, outtext.data[n]); \
 					if(intext.data != outtext.data) \
@@ -2114,6 +2386,9 @@ gf_rich2plain(FILTER_S *f, int flg)
     if(flg == GF_DATA){
 	 register unsigned char c;
 	 register int state = f->f1;
+	 register int plain;
+
+	 plain = f->opt ? (*(int *) f->opt) : 0;
 
 	 while(GF_GETC(f, c)){
 
@@ -2141,7 +2416,7 @@ gf_rich2plain(FILTER_S *f, int flg)
 			 GF_PUTC(f->next, '\r');
 			 GF_PUTC(f->next, '\n');
 		     }
-		     else if(!f->opt /* gf_rich_plain */){
+		     else if(!plain /* gf_rich_plain */){
 			 if(!strcmp(f->line, "bold")) {
 			     GF_PUTC(f->next, TAG_EMBED);
 			     GF_PUTC(f->next, TAG_BOLDON);
@@ -2244,7 +2519,7 @@ gf_rich2plain(FILTER_S *f, int flg)
  * richtext filter's options
  */
 void *
-gf_rich2plain_opt(int plain)
+gf_rich2plain_opt(int *plain)
 {
     return((void *) plain);
 }
@@ -2286,6 +2561,9 @@ gf_enriched2plain(FILTER_S *f, int flg)
     if(flg == GF_DATA){
 	 register unsigned char c;
 	 register int state = f->f1;
+	 register int plain;
+
+	 plain = f->opt ? (*(int *) f->opt) : 0;
 
 	 while(GF_GETC(f, c)){
 
@@ -2308,7 +2586,7 @@ gf_enriched2plain(FILTER_S *f, int flg)
 			 else
 			   f->f2 |= TEF_NOFILL;
 		     }
-		     else if(!f->opt /* gf_enriched_plain */){
+		     else if(!plain /* gf_enriched_plain */){
 			 /* Following is a cute hack or two to get
 			    bold and underline on the screen.
 			    See Putline0n() where these codes are
@@ -2439,7 +2717,7 @@ gf_enriched2plain(FILTER_S *f, int flg)
  * richtext filter's options
  */
 void *
-gf_enriched2plain_opt(int plain)
+gf_enriched2plain_opt(int *plain)
 {
     return((void *) plain);
 }
@@ -2531,7 +2809,6 @@ typedef	struct _center_s {
     WRAPLINE_S line;			/* buf to assembled centered text */
     WRAPLINE_S word;			/* word being to append to Line */
     int	       anchor;
-    short      embedded;
     short      space;
 } CENTER_S;
 
@@ -2574,9 +2851,11 @@ typedef struct html_data {
     int		prefix_used;
     long        line_bufsize;           /* current size of the line buffer */
     COLOR_PAIR *color;
-    unsigned char  utf8buf[6];		/* utf8->ucs4 conversion accumulator */
-    unsigned char *utf8bufp;		/* utf8->ucs4 conversion pointer */
-    unsigned char *utf8bufendp;		/* utf8->ucs4 conversion pointer */
+    struct {
+	 int   state;			/* embedded data state */
+	 char *color;			/* embedded color pointer */
+    } embedded;
+    CBUF_S      cb;			/* utf8->ucs4 conversion state */
     unsigned	wrapstate:1;		/* whether or not to wrap output */
     unsigned	li_pending:1;		/* <LI> next token expected */
     unsigned	de_pending:1;		/* <DT> or <DD> next token expected */
@@ -3799,7 +4078,7 @@ html_a(HANDLER_S *hd, int ch, int cmd)
 	  if(!strucmp(p->attribute, "HREF")
 	     && p->value
 	     && (HANDLES_LOC(hd->html_data)
-		 || struncmp(p->value, "x-pine-", 7)))
+		 || struncmp(p->value, "x-alpine-", 9)))
 	    href = p;
 	  else if(!strucmp(p->attribute, "NAME"))
 	    name = p;
@@ -5626,7 +5905,7 @@ gf_html2plain(FILTER_S *f, int flg)
 	HD(f)->line_bufsize = HTML_BUF_LEN; /* initial bufsize of line */
 	HD(f)->alt_entity =  (!ps_global->display_charmap
 			      || strucmp(ps_global->display_charmap, "iso-8859-1"));
-	HD(f)->utf8bufp = HD(f)->utf8bufendp = HD(f)->utf8buf;
+	HD(f)->cb.cbufp = HD(f)->cb.cbufend = HD(f)->cb.cbuf;
     }
 }
 
@@ -5718,22 +5997,21 @@ html_output(FILTER_S *f, int ch)
      * utf8-encoded characters to determine width,then feed into
      * output routines
      */
-    if(ch == TAG_EMBED || (ch > 0xff && IS_LITERAL(ch) == 0)){
+    if(ch == TAG_EMBED || HD(f)->embedded.state || (ch > 0xff && IS_LITERAL(ch) == 0)){
 	(*o_f)(f, ch, 1);
     }
-    else if(utf8_to_ucs4_oneatatime(ch & 0xff, HD(f)->utf8buf, sizeof(HD(f)->utf8buf),
-				    &(HD(f)->utf8bufp), &uc, &width)){
+    else if(utf8_to_ucs4_oneatatime(ch & 0xff, &(HD(f)->cb), &uc, &width)){
 	unsigned char *cp;
 
-	for(cp = HD(f)->utf8buf; cp <= HD(f)->utf8bufendp; cp++){
+	for(cp = HD(f)->cb.cbuf; cp <= HD(f)->cb.cbufend; cp++){
 	    (*o_f)(f, *cp, width);
 	    width = 0;		/* only count it once */
 	}
 
-	HD(f)->utf8bufp = HD(f)->utf8bufendp = HD(f)->utf8buf;
+	HD(f)->cb.cbufp = HD(f)->cb.cbufend = HD(f)->cb.cbuf;
     }
     else
-      HD(f)->utf8bufendp = HD(f)->utf8bufp;
+      HD(f)->cb.cbufend = HD(f)->cb.cbufp;
     /* else do nothing until we have a full character */
 }
 
@@ -5741,9 +6019,6 @@ html_output(FILTER_S *f, int ch)
 void
 html_output_normal(FILTER_S *f, int ch, int width)
 {
-    static short embedded = 0; /* BUG: reset on entering filter */
-    static char *color_ptr = NULL;
-
     if(HD(f)->centered){
 	html_centered_flush(f);
 	fs_give((void **) &HD(f)->centered->line.buf);
@@ -5760,34 +6035,34 @@ html_output_normal(FILTER_S *f, int ch, int width)
 	  HD(f)->blanks = 0;		/* reset blank line counter */
 
 	if(ch == TAG_EMBED){	/* takes up no space */
-	    embedded = 1;
+	    HD(f)->embedded.state = 1;
 	    HTML_LINEP_PUTC(f, TAG_EMBED);
 	}
-	else if(embedded){	/* ditto */
+	else if(HD(f)->embedded.state){	/* ditto */
 	    if(ch == TAG_HANDLE)
-	      embedded = -1;	/* next ch is length */
+	      HD(f)->embedded.state = -1;	/* next ch is length */
 	    else if(ch == TAG_FGCOLOR || ch == TAG_BGCOLOR){
 		if(!HD(f)->color)
 		  HD(f)->color = new_color_pair(NULL, NULL);
 
 		if(ch == TAG_FGCOLOR)
-		  color_ptr = HD(f)->color->fg;
+		  HD(f)->embedded.color = HD(f)->color->fg;
 		else
-		  color_ptr = HD(f)->color->bg;
+		  HD(f)->embedded.color = HD(f)->color->bg;
 
-		embedded = 11;
+		HD(f)->embedded.state = 11;
 	    }
-	    else if(embedded < 0){
-		embedded = ch;	/* number of embedded chars */
+	    else if(HD(f)->embedded.state < 0){
+		HD(f)->embedded.state = ch;	/* number of embedded chars */
 	    }
 	    else{
-		embedded--;
-		if(color_ptr)
-		  *color_ptr++ = ch;
+		(HD(f)->embedded.state)--;
+		if(HD(f)->embedded.color)
+		  *HD(f)->embedded.color++ = ch;
 
-		if(embedded == 0 && color_ptr){
-		    *color_ptr = '\0';
-		    color_ptr = NULL;
+		if(HD(f)->embedded.state == 0 && HD(f)->embedded.color){
+		    *HD(f)->embedded.color = '\0';
+		    HD(f)->embedded.color = NULL;
 		}
 	    }
 
@@ -5817,7 +6092,7 @@ html_output_normal(FILTER_S *f, int ch, int width)
 
 	html_output_flush(f);
 
-	switch(embedded){
+	switch(HD(f)->embedded.state){
 	  case 0 :
 	    switch(ch){
 	      default :
@@ -5828,7 +6103,7 @@ html_output_normal(FILTER_S *f, int ch, int width)
 
 	      case TAG_EMBED :	/* takes up no space */
 		html_putc(f, TAG_EMBED);
-		embedded = -2;
+		HD(f)->embedded.state = -2;
 		break;
 
 	      case HTML_NEWLINE :		/* newline handling */
@@ -5845,10 +6120,10 @@ html_output_normal(FILTER_S *f, int ch, int width)
 	    break;
 
 	  case -2 :
-	    embedded = 0;
+	    HD(f)->embedded.state = 0;
 	    switch(ch){
 	      case TAG_HANDLE :
-		embedded = -1;	/* next ch is length */
+		HD(f)->embedded.state = -1;	/* next ch is length */
 		break;
 
 	      case TAG_BOLDON :
@@ -5871,16 +6146,16 @@ html_output_normal(FILTER_S *f, int ch, int width)
 		if(!HD(f)->color)
 		  HD(f)->color = new_color_pair(NULL, NULL);
 
-		color_ptr = HD(f)->color->fg;
-		embedded = 11;
+		HD(f)->embedded.color = HD(f)->color->fg;
+		HD(f)->embedded.state = 11;
 		break;
 
 	      case TAG_BGCOLOR :
 		if(!HD(f)->color)
 		  HD(f)->color = new_color_pair(NULL, NULL);
 
-		color_ptr = HD(f)->color->bg;
-		embedded = 11;
+		HD(f)->embedded.color = HD(f)->color->bg;
+		HD(f)->embedded.state = 11;
 		break;
 
 	      case TAG_HANDLEOFF :
@@ -5896,18 +6171,18 @@ html_output_normal(FILTER_S *f, int ch, int width)
 	    break;
 
 	  case -1 :
-	    embedded = ch;	/* number of embedded chars */
+	    HD(f)->embedded.state = ch;	/* number of embedded chars */
 	    html_putc(f, ch);
 	    break;
 
 	  default :
-	    embedded--;
-	    if(color_ptr)
-	      *color_ptr++ = ch;
+	    HD(f)->embedded.state--;
+	    if(HD(f)->embedded.color)
+	      *HD(f)->embedded.color++ = ch;
 
-	    if(embedded == 0 && color_ptr){
-		*color_ptr = '\0';
-		color_ptr = NULL;
+	    if(HD(f)->embedded.state == 0 && HD(f)->embedded.color){
+		*HD(f)->embedded.color = '\0';
+		HD(f)->embedded.color = NULL;
 	    }
 
 	    html_putc(f, ch);
@@ -5974,37 +6249,35 @@ html_output_centered(FILTER_S *f, int ch, int width)
 	html_centered_flush(f);
     }
     else if(ch == TAG_EMBED){		/* takes up no space */
-	HD(f)->centered->embedded = 1;
+	HD(f)->embedded.state = 1;
 	html_centered_putc(&HD(f)->centered->word, TAG_EMBED);
     }
-    else if(HD(f)->centered->embedded){
-	static char *color_ptr = NULL;
-
+    else if(HD(f)->embedded.state){
 	if(ch == TAG_HANDLE){
-	    HD(f)->centered->embedded = -1; /* next ch is length */
+	    HD(f)->embedded.state = -1; /* next ch is length */
 	}
 	else if(ch == TAG_FGCOLOR || ch == TAG_BGCOLOR){
 	    if(!HD(f)->color)
 	      HD(f)->color = new_color_pair(NULL, NULL);
 	    
 	    if(ch == TAG_FGCOLOR)
-	      color_ptr = HD(f)->color->fg;
+	      HD(f)->embedded.color = HD(f)->color->fg;
 	    else
-	      color_ptr = HD(f)->color->bg;
+	      HD(f)->embedded.color = HD(f)->color->bg;
 
-	    HD(f)->centered->embedded = 11;
+	    HD(f)->embedded.state = 11;
 	}
-	else if(HD(f)->centered->embedded < 0){
-	    HD(f)->centered->embedded = ch; /* number of embedded chars */
+	else if(HD(f)->embedded.state < 0){
+	    HD(f)->embedded.state = ch; /* number of embedded chars */
 	}
 	else{
-	    HD(f)->centered->embedded--;
-	    if(color_ptr)
-	      *color_ptr++ = ch;
+	    HD(f)->embedded.state--;
+	    if(HD(f)->embedded.color)
+	      *HD(f)->embedded.color++ = ch;
 	    
-	    if(HD(f)->centered->embedded == 0 && color_ptr){
-		*color_ptr = '\0';
-		color_ptr = NULL;
+	    if(HD(f)->embedded.state == 0 && HD(f)->embedded.color){
+		*HD(f)->embedded.color = '\0';
+		HD(f)->embedded.color = NULL;
 	    }
 	}
 
@@ -6615,7 +6888,6 @@ typedef struct wrap_col_s {
     unsigned	hard_nl:1;
     unsigned	leave_flowed:1;
     unsigned    use_color:1;
-    unsigned    utf8:1;
     unsigned char  utf8buf[7];
     unsigned char *utf8bufp;
     COLOR_PAIR *color;
@@ -6653,7 +6925,6 @@ typedef struct wrap_col_s {
 #define	WRAP_HARD(F)	(((WRAP_S *)(F)->opt)->hard_nl)
 #define	WRAP_LV_FLD(F)	(((WRAP_S *)(F)->opt)->leave_flowed)
 #define	WRAP_USE_CLR(F)	(((WRAP_S *)(F)->opt)->use_color)
-#define	WRAP_UTF8(F)	(((WRAP_S *)(F)->opt)->utf8)
 #define	WRAP_UTF8BUF(F, C) (((WRAP_S *)(F)->opt)->utf8buf[C])
 #define	WRAP_UTF8BUFP(F)   (((WRAP_S *)(F)->opt)->utf8bufp)
 #define	WRAP_STATE(F)	(((WRAP_S *)(F)->opt)->state)
@@ -7164,9 +7435,7 @@ gf_wrap(FILTER_S *f, int flg)
      * matches ascii characters, which will never be in the middle
      * of a UTF-8 multi-byte character.
      */
-		if(WRAP_UTF8(f)
-		   && (WRAP_UTF8BUFP(f) - &WRAP_UTF8BUF(f, 0)) == 0
-		   && WRAP_SPEC(f, c)){
+		if((WRAP_UTF8BUFP(f) - &WRAP_UTF8BUF(f, 0)) == 0 && WRAP_SPEC(f, c)){
 		    switch(c){
 		      default :
 			if(WRAP_QUOTED(f))
@@ -7258,7 +7527,8 @@ gf_wrap(FILTER_S *f, int flg)
 		}
 
 		full_character = 0;
-		if(WRAP_UTF8(f)){			/* always true */
+
+		{
 		    unsigned char *inputp;
 		    unsigned long remaining_octets;
 		    UCS ucs;
@@ -7349,22 +7619,6 @@ gf_wrap(FILTER_S *f, int flg)
 			full_character++;
 		    }
 		}
-		else{
-		    /* this code should be unused now */
-		    if(c == TAB){
-			int i = (int) f->n;
-
-			while(i & 0x07)
-			  i++;
-
-			width = i - f->n;
-		    }
-		    else if(iscntrl((unsigned char) c)){
-			width = 2;
-		    }
-		    else
-		      width = 1;
-		}
 
 		if(WRAP_ALLWSP(f)){
 		    /*
@@ -7445,20 +7699,15 @@ gf_wrap(FILTER_S *f, int flg)
 		 * instead of writing partial characters into the
 		 * buffer.
 		 */
-		if(WRAP_UTF8(f)){
-		    if(full_character){
-			unsigned char *q;
+		if(full_character){
+		    unsigned char *q;
 
-			for(q = &WRAP_UTF8BUF(f, 0); q < WRAP_UTF8BUFP(f); q++){
-			    WRAP_PUTC(f, *q, width);
-			    width = 0;
-			}
-
-			WRAP_UTF8BUFP(f) = &WRAP_UTF8BUF(f, 0);
+		    for(q = &WRAP_UTF8BUF(f, 0); q < WRAP_UTF8BUFP(f); q++){
+			WRAP_PUTC(f, *q, width);
+			width = 0;
 		    }
-		}
-		else{
-		    WRAP_PUTC(f, c, width);
+
+		    WRAP_UTF8BUFP(f) = &WRAP_UTF8BUF(f, 0);
 		}
 
 		break;
@@ -7546,8 +7795,7 @@ gf_wrap(FILTER_S *f, int flg)
 						 && !WRAP_QUOTED(f))
 					     || ASCII_ISSPACE(i));
 	WRAP_SPACES(f) = so_get(CharStar, NULL, EDIT_ACCESS);
-	if(WRAP_UTF8(f))
-	  WRAP_UTF8BUFP(f) = &WRAP_UTF8BUF(f, 0);
+	WRAP_UTF8BUFP(f) = &WRAP_UTF8BUF(f, 0);
     }
 }
 
@@ -7921,7 +8169,6 @@ gf_wrap_filter_opt(int width, int width_max, int *margin, int indent, int flags)
     wrap->leave_flowed = (GFW_FLOW_RESULT & flags) == GFW_FLOW_RESULT;
     wrap->delsp	       = (GFW_DELSP & flags) == GFW_DELSP;
     wrap->use_color    = (GFW_USECOLOR & flags) == GFW_USECOLOR;
-    wrap->utf8	       = (GFW_UTF8 & flags) == GFW_UTF8;
 
     return((void *) wrap);
 }

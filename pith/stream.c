@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: stream.c 394 2007-01-25 20:29:45Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: stream.c 428 2007-02-07 23:04:27Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,6 +47,10 @@ void	 carefully_reset_sp_flags(MAILSTREAM *, unsigned long);
 char	*partial_text_gets(readfn_t, void *, unsigned long, GETS_DATA *);
 void	 mail_list_internal(MAILSTREAM *, char *, char *);
 int	 recent_activity(MAILSTREAM *);
+int	 hibit_in_searchpgm(SEARCHPGM *);
+int	 hibit_in_strlist(STRINGLIST *);
+int	 hibit_in_header(SEARCHHEADER *);
+int	 hibit_in_sizedtext(SIZEDTEXT *);
 int      sp_nusepool_notperm(void);
 int      sp_add(MAILSTREAM *, int);
 void     sp_delete(MAILSTREAM *);
@@ -1335,9 +1339,99 @@ maybe_kill_old_stream(MAILSTREAM *stream)
  */
 long
 pine_mail_search_full(MAILSTREAM *stream, char *charset,
-		      struct search_program *pgm, long int flags)
+		      SEARCHPGM *pgm, long int flags)
 {
+    /*
+     * The charset should either be UTF-8 or NULL for alpine.
+     * If it is UTF-8 we may be able to change it to NULL if
+     * everything in the search is actually ascii. We try to
+     * do this because not all servers understand the CHARSET
+     * parameter.
+     */
+    if(charset && !strucmp(charset, "utf-8")
+       && is_imap_stream(stream) && !hibit_in_searchpgm(pgm))
+      charset = NULL;
+
     return(stream ? mail_search_full(stream, charset, pgm, flags) : NIL);
+}
+
+
+int
+hibit_in_searchpgm(SEARCHPGM *pgm)
+{
+    SEARCHOR *or;
+    SEARCHPGMLIST *not;
+
+    if(!pgm)
+      return 0;
+
+    if((pgm->subject && hibit_in_strlist(pgm->subject))
+       || (pgm->text && hibit_in_strlist(pgm->text))
+       || (pgm->body && hibit_in_strlist(pgm->body))
+       || (pgm->cc && hibit_in_strlist(pgm->cc))
+       || (pgm->from && hibit_in_strlist(pgm->from))
+       || (pgm->to && hibit_in_strlist(pgm->to))
+       || (pgm->bcc && hibit_in_strlist(pgm->bcc))
+       || (pgm->keyword && hibit_in_strlist(pgm->keyword))
+       || (pgm->unkeyword && hibit_in_strlist(pgm->return_path))
+       || (pgm->sender && hibit_in_strlist(pgm->sender))
+       || (pgm->reply_to && hibit_in_strlist(pgm->reply_to))
+       || (pgm->in_reply_to && hibit_in_strlist(pgm->in_reply_to))
+       || (pgm->message_id && hibit_in_strlist(pgm->message_id))
+       || (pgm->newsgroups && hibit_in_strlist(pgm->newsgroups))
+       || (pgm->followup_to && hibit_in_strlist(pgm->followup_to))
+       || (pgm->references && hibit_in_strlist(pgm->references))
+       || (pgm->header && hibit_in_header(pgm->header)))
+      return 1;
+
+    for(or = pgm->or; or; or = or->next)
+      if(hibit_in_searchpgm(or->first) || hibit_in_searchpgm(or->second))
+        return 1;
+
+    for(not = pgm->not; not; not = not->next)
+      if(hibit_in_searchpgm(not->pgm))
+        return 1;
+
+    return 0;
+}
+
+
+int
+hibit_in_strlist(STRINGLIST *sl)
+{
+    for(; sl; sl = sl->next)
+      if(hibit_in_sizedtext(&sl->text))
+        return 1;
+
+    return 0;
+}
+
+
+int
+hibit_in_header(SEARCHHEADER *header)
+{
+    SEARCHHEADER *hdr;
+
+    for(hdr = header; hdr; hdr = hdr->next)
+      if(hibit_in_sizedtext(&hdr->line) || hibit_in_sizedtext(&hdr->text))
+        return 1;
+
+    return 0;
+}
+
+
+int
+hibit_in_sizedtext(SIZEDTEXT *st)
+{
+    unsigned char *p, *end;
+
+    p = st ? st->data : NULL;
+    if(p)
+      for(end = p + st->size; p < end; p++)
+        if(*p & 0x80)
+	  return 1;
+
+    return 0;
 }
 
 

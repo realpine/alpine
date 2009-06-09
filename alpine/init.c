@@ -4,7 +4,7 @@ static char rcsid[] = "$Id: init.c 101 2006-08-10 22:53:04Z mikes@u.washington.e
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -265,16 +265,16 @@ prune_folders(CONTEXT_S *prune_cntxt, char *folder_base, int cur_month,
     free_folder_list(prune_cntxt);
 
 #ifdef	DEBUG
-    for(sm = mail_list; sm != NULL && sm->name[0] != '\0'; sm++)
+    for(sm = mail_list; sm != NULL && sm->name != NULL; sm++)
       dprint((5,"Old sent-mail: %5d  %s\n", sm->month_num,
-	     sm->name ? sm->name : "?"));
+	     sm->name[0] ? sm->name : "?"));
 #endif
 
-    for(sm = mail_list; sm != NULL && sm->name[0] != '\0'; sm++)
+    for(sm = mail_list; sm != NULL && sm->name != NULL; sm++)
       if(sm->month_num == cur_month - 1)
         break;  /* matched a month */
  
-    month_to_use = (sm == NULL || sm->name[0] == '\0') ? cur_month - 1 : 0;
+    month_to_use = (sm == NULL || sm->name == NULL) ? cur_month - 1 : 0;
 
     dprint((5, "Month_to_use : %d\n", month_to_use));
 
@@ -362,7 +362,10 @@ delete_old_mail(struct sm_folder *sml, CONTEXT_S *fcc_cntxt, char *type)
     char  prompt[150];
     struct sm_folder *sm;
 
-    for(sm = sml; sm != NULL && sm->name[0] != '\0'; sm++){
+    for(sm = sml; sm != NULL && sm->name != NULL; sm++){
+	if(sm->name[0] == '\0')		/* can't happen */
+	  continue;
+
         snprintf(prompt, sizeof(prompt),
 	       "To save disk space, delete old%.10s mail folder \"%.30s\" ",
 	       type, sm->name);
@@ -370,9 +373,8 @@ delete_old_mail(struct sm_folder *sml, CONTEXT_S *fcc_cntxt, char *type)
 
 	    if(!context_delete(fcc_cntxt, NULL, sm->name)){
 		q_status_message1(SM_ORDER,
-				  3, 3, "Error deleting \"%.200s\".", sm->name);
-		dprint((1, "Error context_deleting %s in %s\n",
-			   sm->name ? sm->name : "?",
+				  3, 3, "Error deleting \"%s\".", sm->name);
+		dprint((1, "Error context_deleting %s in %s\n", sm->name,
 			   (fcc_cntxt && fcc_cntxt->context)
 				     ? fcc_cntxt->context : "<null>"));
             }

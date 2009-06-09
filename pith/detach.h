@@ -1,8 +1,8 @@
 /*
- * $Id: detach.h 211 2006-11-01 00:34:10Z hubert@u.washington.edu $
+ * $Id: detach.h 442 2007-02-16 23:01:28Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,9 +48,17 @@ extern FETCH_READC_S *g_fr_desc;
 
 #define	AVOID_MICROSOFT_SSL_CHUNKING_BUG ((unsigned long)(12 * 1024L))
 
+
+/*
+ * This lazily gets combined with FT_ flags from c-client so make
+ * it different from all those possible values.
+ */
+#define DT_NODFILTER   (long) 0x10000
+
+
 /* exported protoypes */
 char	   *detach_raw(MAILSTREAM *, long, char *, gf_io_t, int);
-char	   *detach(MAILSTREAM *, long, char *, long, long *, gf_io_t, FILTLIST_S *, int);
+char	   *detach(MAILSTREAM *, long, char *, long, long *, gf_io_t, FILTLIST_S *, long);
 int	    valid_filter_command(char **);
 
 #endif /* PITH_DETACH_INCLUDED */

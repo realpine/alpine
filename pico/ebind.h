@@ -1,5 +1,5 @@
 /*
- * $Id: ebind.h 113 2006-09-01 21:54:31Z hubert@u.washington.edu $
+ * $Id: ebind.h 404 2007-01-30 18:54:06Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -86,12 +86,17 @@ KEYTAB  keytab[NBINDS] = {
 	{CTRL|'W',		forwsearch},
 	{CTRL|'X',		wquit},
 	{CTRL|'Y',		backpage},
-#ifdef	SIGTSTP
+#if defined(SIGTSTP) || defined(_WINDOWS)
 	{CTRL|'Z',		bktoshell},
 #endif
 	{CTRL|'@',		forwword},
 	{CTRL|'^',		setmark},
 	{CTRL|'_',		alt_editor},
+#ifdef _WINDOWS
+	{CTRL|KEY_LEFT, backword},
+	{CTRL|KEY_HOME,	gotobob},
+	{CTRL|KEY_END,	gotoeob},
+#endif
 	{0x7F,			backdel},
 	{0,			NULL}
 };
@@ -141,11 +146,16 @@ KEYTAB  pkeytab[NBINDS] = {
 	{CTRL|'W',		forwsearch},
 	{CTRL|'X',		wquit},
 	{CTRL|'Y',		backpage},
-#ifdef	SIGTSTP
+#if defined(SIGTSTP) || defined(_WINDOWS)
 	{CTRL|'Z',		bktoshell},
 #endif
 	{CTRL|'@',		forwword},
 	{CTRL|'^',		setmark},
+#ifdef _WINDOWS
+	{CTRL|KEY_LEFT, backword},
+	{CTRL|KEY_HOME,	gotobob},
+	{CTRL|KEY_END,	gotoeob},
+#endif
 	{0x7F,			backdel},
 	{0,			NULL}
 };

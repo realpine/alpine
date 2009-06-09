@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: init.c 155 2006-09-29 23:28:46Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: init.c 424 2007-02-06 21:52:46Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -332,7 +332,7 @@ compare_sm_files(const qsort_t *aa, const qsort_t *bb)
     struct sm_folder *a = (struct sm_folder *)aa,
                      *b = (struct sm_folder *)bb;
 
-    if(a->month_num == -1 && b->month_num == -1)
+    if(a->month_num == -1 && b->month_num == -1 && a->name && b->name)
       return(strucmp(a->name, b->name));
     if(a->month_num == -1)      return(-1);
     if(b->month_num == -1)      return(1);
@@ -355,17 +355,16 @@ itself.
 struct sm_folder *
 get_mail_list(CONTEXT_S *list_cntxt, char *folder_base)
 {
-#define MAX_FILES  (150)
     register struct sm_folder *sm  = NULL;
     struct sm_folder          *sml = NULL;
     char                      *filename;
     int                        i, folder_base_len;
+    int                        max_files;
     char		       searchname[MAXPATH+1];
 
-    sml = sm = (struct sm_folder *)fs_get(sizeof(struct sm_folder)*MAX_FILES);
-    memset((void *)sml, 0, sizeof(struct sm_folder) * MAX_FILES);
     if((folder_base_len = strlen(folder_base)) == 0 || !list_cntxt){
-        sml->name = cpystr("");
+	sml = (struct sm_folder *) fs_get(sizeof(struct sm_folder));
+	memset((void *)sml, 0, sizeof(struct sm_folder));
         return(sml);
     }
 
@@ -379,6 +378,11 @@ get_mail_list(CONTEXT_S *list_cntxt, char *folder_base)
     snprintf(searchname, sizeof(searchname), "%.*s*", sizeof(searchname)-2, folder_base);
 
     build_folder_list(NULL, list_cntxt, searchname, NULL, BFL_FLDRONLY);
+
+    max_files = MIN(MAX(0, folder_total(FOLDERS(list_cntxt))), 5000);
+    sml = sm = (struct sm_folder *) fs_get(sizeof(struct sm_folder)*(max_files+1));
+    memset((void *)sml, 0, sizeof(struct sm_folder) * (max_files+1));
+
     for(i = 0; i < folder_total(FOLDERS(list_cntxt)); i++){
 	filename = folder_entry(i, FOLDERS(list_cntxt))->name;
 #ifdef	DOS
@@ -413,12 +417,10 @@ get_mail_list(CONTEXT_S *list_cntxt, char *folder_base)
 #endif
             sm->month_num = month_num(sm->name + (size_t)folder_base_len + 1);
             sm++;
-            if(sm >= &sml[MAX_FILES - 1])
+            if(sm >= &sml[max_files])
                break; /* Too many files, ignore the rest ; shouldn't occur */
         }
     }
-
-    sm->name = cpystr("");
 
     /* anything to sort?? */
     if(sml->name && *(sml->name) && (sml+1)->name && *((sml+1)->name)){
@@ -533,20 +535,20 @@ prune_move_folder(char *oldpath, char *newpath, CONTEXT_S *prune_cntxt)
     spath[sizeof(spath)-1] = '\0';
 
     /*--- User says OK to rename ---*/
-    dprint((5, "rename \"%.100s\" to \"%.100s\"\n",
+    dprint((5, "rename \"%s\" to \"%s\"\n",
 	   spath ? spath : "?", newpath ? newpath : "?"));
     q_status_message1(SM_ORDER, 1, 3,
 		      /* TRANSLATORS: arg is a filename */
-		      _("Renaming \"%.200s\" at start of month"),
+		      _("Renaming \"%s\" at start of month"),
 		      pretty_fn(spath ? spath : "?"));
 
     if(!context_rename(prune_cntxt, NULL, spath, newpath)){
         q_status_message2(SM_ORDER | SM_DING, 3, 4,
 			  /* TRANSLATORS: 1st arg is filename, 2nd is error message */
-			  _("Error renaming \"%.200s\": %.200s"),
+			  _("Error renaming \"%s\": %s"),
                           pretty_fn(spath ? spath : "?"),
 			  error_description(errno));
-        dprint((1, "Error renaming %.100s to %.100s: %.100s\n",
+        dprint((1, "Error renaming %s to %s: %s\n",
                    spath ? spath : "?", newpath ? newpath : "?",
 		   error_description(errno)));
         display_message('x');

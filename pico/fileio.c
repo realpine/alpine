@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: fileio.c 203 2006-10-26 17:23:46Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: fileio.c 417 2007-02-03 01:33:25Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -62,6 +62,7 @@ int
 ffputline(CELL buf[], int nbuf)
 {
     register int    i;
+    EML eml;
 
     for(i = 0; i < nbuf; ++i)
        if(write_a_wide_char((UCS) buf[i].c, g_pico_fio.fp) == EOF)
@@ -71,7 +72,8 @@ ffputline(CELL buf[], int nbuf)
      write_a_wide_char((UCS) '\n', g_pico_fio.fp);
 
     if(ferror(g_pico_fio.fp)){
-        emlwrite("\007Write error: %s", errstr(errno));
+	eml.s = errstr(errno);
+        emlwrite("\007Write error: %s", &eml);
 	sleep(5);
         return FIOERR;
     }

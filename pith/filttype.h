@@ -1,5 +1,5 @@
 /*
- * $Id: filttype.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: filttype.h 435 2007-02-09 23:35:33Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -58,6 +58,13 @@ typedef	struct filtlist_s {
     filter_t  filter;
     void     *data;
 } FILTLIST_S;
+
+
+typedef struct cbuf_s {
+    unsigned char  cbuf[6];	/* used for converting to or from	*/
+    unsigned char *cbufp;	/*   locale-specific charset		*/
+    unsigned char *cbufend;
+} CBUF_S;
 
 
 /* exported protoypes */

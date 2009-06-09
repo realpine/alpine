@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: keymenu.c 597 2007-06-12 00:02:51Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: keymenu.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -18,6 +18,8 @@ static char rcsid[] = "$Id: keymenu.c 597 2007-06-12 00:02:51Z hubert@u.washingt
 #include "headers.h"
 #include "keymenu.h"
 #include "mailcmd.h"
+#include "signal.h"
+#include "status.h"
 #include "../pith/bitmap.h"
 #include "../pith/conf.h"
 #include "../pith/state.h"
@@ -762,7 +764,7 @@ struct key att_index_keys[] =
 	/* TRANSLATORS: About Attachment, a short description of the attachment */
 	{"A",N_("AboutAttch"),{MC_ABOUTATCH,1,{'a'}},KS_NONE},
 	WHEREIS_MENU,
-	{"%", N_("Print"), MC_PRINTMSG,1,{'%'}, KS_PRINT},
+	{"%", N_("Print"), {MC_PRINTMSG,1,{'%'}}, KS_PRINT},
 	INDEX_MENU,
 	REPLY_MENU,
 	FORWARD_MENU,
@@ -808,7 +810,7 @@ struct key att_view_keys[] =
 	BOUNCE_MENU,
 	HDRMODE_MENU,
 	WHEREIS_MENU,
-	{"%", N_("Print"), MC_PRINTMSG,1,{'%'}, KS_PRINT},
+	{"%", N_("Print"), {MC_PRINTMSG,1,{'%'}}, KS_PRINT},
 	NULL_MENU,
 	REPLY_MENU,
 	FORWARD_MENU};
@@ -1462,12 +1464,12 @@ struct key sel_from_list_keys_lm[] =
        {HELP_MENU,
 	OTHER_MENU,
         {"E", N_("Exit"),     {MC_EXIT,1,{'e'}}, KS_EXITMODE},
-        {"S", N_("Select"), {MC_SELECT,1,{'s'}}, KS_NONE},
+        {"S", "[" N_("Select") "]", {MC_SELECT,3,{'s',ctrl('J'),ctrl('M')}}, KS_NONE},
 	{"P", N_("Prev"), {MC_PREVITEM, 1, {'p'}}, KS_NONE},
 	{"N", N_("Next"), {MC_NEXTITEM, 2, {'n', TAB}}, KS_NONE},
 	PREVPAGE_MENU,
 	NEXTPAGE_MENU,
-	{"X","[" N_("Set/Unset") "]", {MC_TOGGLE,3,{'x',ctrl('M'),ctrl('J')}}, KS_NONE},
+	{"X", N_("Set/Unset"), {MC_TOGGLE,1,{'x'}}, KS_NONE},
 	{"1",N_("SinglMode"),{MC_LISTMODE,1,{'1'}},KS_NONE},
 	PRYNTTXT_MENU,
 	WHEREIS_MENU,
@@ -1491,12 +1493,12 @@ struct key sel_from_list_keys_olm[] =
        {HELP_MENU,
 	OTHER_MENU,
         {"E", N_("Exit"),     {MC_EXIT,1,{'e'}}, KS_EXITMODE},
-        {"S", N_("Select"), {MC_SELECT,1,{'s'}}, KS_NONE},
+        {"S", "[" N_("Select") "]", {MC_SELECT,3,{'s',ctrl('J'),ctrl('M')}}, KS_NONE},
 	{"P", N_("Prev"), {MC_PREVITEM, 1, {'p'}}, KS_NONE},
 	{"N", N_("Next"), {MC_NEXTITEM, 2, {'n', TAB}}, KS_NONE},
 	PREVPAGE_MENU,
 	NEXTPAGE_MENU,
-	{"X","[" N_("Set/Unset") "]", {MC_TOGGLE,3,{'x',ctrl('M'),ctrl('J')}}, KS_NONE},
+	{"X", N_("Set/Unset"), {MC_TOGGLE,1,{'x'}}, KS_NONE},
 	NULL_MENU,
 	PRYNTTXT_MENU,
 	WHEREIS_MENU,
@@ -2655,8 +2657,6 @@ output_keymenu(struct key_menu *km, unsigned char *bm, int row, int column)
 		     * to go all the way to the edge
 		     */
 		    if(utf8_width(this_label) >= trunc){
-			char *p;
-
 			if(trunc > 1){
 			    strncpy(tmp_label, this_label, sizeof(tmp_label));
 			    tmp_label[sizeof(tmp_label)-1] = '\0';
@@ -2745,7 +2745,7 @@ output_keymenu(struct key_menu *km, unsigned char *bm, int row, int column)
 		    if(c < max_column){
 			temp[0] = SPACE;
 			temp[1] = '\0';
-			strncat(temp, this_label, sizeof(temp)-1);
+			strncat(temp, this_label, sizeof(temp)-strlen(temp)-1);
 			
 			/* Don't run over the right hand edge */
 			if(utf8_width(temp) > max_column - c){
@@ -2761,19 +2761,19 @@ output_keymenu(struct key_menu *km, unsigned char *bm, int row, int column)
 		    }
 		    
 #ifdef	MOUSE
-		    strncat(keystr, temp, sizeof(keystr)-strlen(keystr));
+		    strncat(keystr, temp, sizeof(keystr)-strlen(keystr)-1);
 		    keystr[sizeof(keystr)-1] = '\0';
 #endif
 		    /* fill out rest of this key with spaces */
 		    if(c < max_column){
 			if(last_in_row){
-			    strncat(temp, repeat_char(max_column - c, SPACE), sizeof(temp));
+			    strncat(temp, repeat_char(max_column - c, SPACE), sizeof(temp)-strlen(temp)-1);
 			    c = max_column;
 			}
 			else{
 			    if(c < (k+2)->column){
 				strncat(temp,
-				    repeat_char((k+2)->column - c, SPACE), sizeof(temp));
+				    repeat_char((k+2)->column - c, SPACE), sizeof(temp)-strlen(temp)-1);
 				c = (k+2)->column;
 			    }
 			}
@@ -2949,8 +2949,6 @@ format_keymenu(struct key_menu *km, unsigned char *bm, int width)
     for(set = 0; set < km->how_many; set++){
 	int         k_top, k_bot, top_name_width, bot_name_width,
 	            top_label_width, bot_label_width, done, offset, next_one;
-	char *tlabel;
-
 	struct key *keytop, *keybot;
 
 	offset = set * 12;		/* offset into keymenu */
@@ -3540,13 +3538,12 @@ void
 print_inverted_label(int state, MENUITEM *m)
 {
     unsigned i, j, k;
-    int      col_offsetwid, col_offsetchars, f, do_color = 0, skipwid = 0, skipchars = 0, len, c;
+    int      col_offsetwid, col_offsetchars, do_color = 0, skipwid = 0, skipchars = 0, len, c;
     char     prename[100];
     char     namepart[100];
     char     labelpart[100];
     char    *lp, *label;
     COLOR_PAIR *name_color = NULL, *label_color = NULL, *lastc = NULL;
-    COLOR_PAIR *deflabelc = NULL;
     struct variable *vars = ps_global->vars;
 
     if(m->label &&  (lp=strchr(m->label, ' '))){

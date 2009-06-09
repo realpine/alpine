@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: addrbook.c 592 2007-06-07 17:46:58Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: addrbook.c 678 2007-08-20 23:05:24Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -33,6 +33,7 @@ static char rcsid[] = "$Id: addrbook.c 592 2007-06-07 17:46:58Z hubert@u.washing
 #include "titlebar.h"
 #include "help.h"
 #include "folder.h"
+#include "signal.h"
 #include "alpine.h"
 #include "../pith/adrbklib.h"
 #include "../pith/abdlc.h"
@@ -47,18 +48,17 @@ static char rcsid[] = "$Id: addrbook.c 592 2007-06-07 17:46:58Z hubert@u.washing
 #include "../pith/util.h"
 #include "../pith/thread.h"
 #include "../pith/hist.h"
+#include "../pith/list.h"
 
 
 HelpType    gAbookHelp = NO_HELP;
 
 
 /* internal prototypes */
-int            cur_addr_book(void);
 void           end_adrbks(void);
 int	       init_disp_form_prefix(PerAddrBook *, int *);
 void           display_book(int, int, int, int, Pos *);
 void           paint_line(int, long, int, Pos *);
-int            calculate_field_widths(void);
 void           redraw_addr_screen(void);
 char          *addr_book(AddrBookArg, char *, char **);
 void           ab_zoom(EXPANDED_S *, int *);
@@ -73,26 +73,20 @@ int            ab_select_text(AdrBk *, int);
 int            match_check(AdrBk_Entry *, int, char *);
 void           ab_goto_folder(int);
 long           ab_whereis(int *, int);
-void           ab_resize(void);
 int            any_addrs_avail(long);
 int            entry_is_clickable(long);
 int            entry_is_clickable_title(long);
-int            is_addr(long);
 int            is_empty(long);
 int            entry_is_listent(long);
 int            entry_is_addkey(long);
 int            entry_is_askserver(long);
 int            add_is_global(long);
-long           first_line(long);
 int            next_selectable_line(long, long *);
 int            prev_selectable_line(long, long *);
-int            resync_screen(PerAddrBook *, AddrBookArg, int);
 void           erase_checks(void);
-void           erase_selections(void);
 int            search_book(long, int, long *, int *, int *);
 int            find_in_book(long, char *, long *, int *);
 int            search_in_one_line(AddrScrn_Disp *, AdrBk_Entry *, char *, char *);
-int            nickname_check(char *, char **);
 int            abook_select_tool(struct pine *, int, CONF_S **, unsigned);
 char          *choose_a_nickname_with_prefix(char *);
 #ifdef	_WINDOWS
@@ -432,6 +426,9 @@ paint_line(int line, long int global_row, int highlight, Pos *start_pos)
       case Beginning:
       case End:
         return;
+
+      default:
+	break;
     }
 
     p = get_abook_display_line(global_row, line == HEADER_ROWS(ps_global),
@@ -528,7 +525,7 @@ get_abook_display_line(long int global_row, int continuation, char **s_hilite,
 		  fld_width[NFIELDS],
 		  screen_width, width,
 		  col, special_col = 0,
-		  width_consumed, j,
+		  width_consumed,
 		  scol = -1,
 		  fld;
     char	  *string, *writeptr;
@@ -557,6 +554,9 @@ get_abook_display_line(long int global_row, int continuation, char **s_hilite,
       case Beginning:
       case End:
         return lbuf;
+
+      default:
+	break;
     }
 
     screen_width = ps_global->ttyo->screen_cols;
@@ -653,6 +653,9 @@ get_abook_display_line(long int global_row, int continuation, char **s_hilite,
 	  *retcol = col;
 
 	return lbuf;
+
+      default:
+	break;
     }
 
     pab = &as.adrbks[adrbk_num_from_lineno(global_row)];
@@ -690,6 +693,9 @@ get_abook_display_line(long int global_row, int continuation, char **s_hilite,
 	      writeptr += strlen(writeptr);
 	      width_consumed += fld_width[fld];
 	      break;
+
+	    default:
+	      break;
 	  }
 
 	  break;
@@ -712,8 +718,7 @@ get_abook_display_line(long int global_row, int continuation, char **s_hilite,
 	    case ListEnt:
 	      /* continuation line */
 	      if(continuation){
-	        char temp[50];
-		int  i, width, width1, width2;
+		int  width1, width2;
 
 		width2 = MIN(11, fld_width[fld]);
 		width1 = MAX(fld_width[fld] - width2 - 1, 0);
@@ -722,7 +727,6 @@ get_abook_display_line(long int global_row, int continuation, char **s_hilite,
 	        string = (abe && abe->fullname) ? abe->fullname : "";
 
 		if(width1){
-		  size_t ll;
 		  utf8_pad_to_width(writeptr, string, LSPACE(), width1, 1);
 		  writeptr += strlen(writeptr);
 		  if(LSPACE() > 0)
@@ -741,6 +745,9 @@ get_abook_display_line(long int global_row, int continuation, char **s_hilite,
 		lbuf[lbufsize-1] = '\0';
 	      }
 
+	      break;
+
+	    default:
 	      break;
 	  }
 
@@ -833,6 +840,9 @@ get_abook_display_line(long int global_row, int continuation, char **s_hilite,
 	      width_consumed += fld_width[fld];
 
 	      break;
+
+	    default:
+	      break;
 	  }
 	  break;
 
@@ -853,6 +863,9 @@ get_abook_display_line(long int global_row, int continuation, char **s_hilite,
 	      utf8_pad_to_width(writeptr, string, LSPACE(), fld_width[fld], 1);
 	      writeptr += strlen(writeptr);
 	      width_consumed += fld_width[fld];
+	      break;
+
+	    default:
 	      break;
 	  }
 
@@ -875,6 +888,9 @@ get_abook_display_line(long int global_row, int continuation, char **s_hilite,
 	      writeptr += strlen(writeptr);
 	      width_consumed += fld_width[fld];
 	      break;
+
+	    default:
+	      break;
 	  }
 
 	  break;
@@ -895,6 +911,9 @@ get_abook_display_line(long int global_row, int continuation, char **s_hilite,
 	      utf8_pad_to_width(writeptr, string, LSPACE(), fld_width[fld], 1);
 	      writeptr += strlen(writeptr);
 	      width_consumed += fld_width[fld];
+	      break;
+
+	    default:
 	      break;
 	  }
 
@@ -921,8 +940,14 @@ get_abook_display_line(long int global_row, int continuation, char **s_hilite,
 	      special_col = screen_width - fld_width[fld];
 	      special_col = MAX(0, special_col);
 	      break;
+
+	    default:
+	      break;
 	  }
 
+	  break;
+
+        default:
 	  break;
       }
 
@@ -1046,6 +1071,9 @@ calculate_field_widths(void)
 
 	case Addr:
 	  addr = i;
+	  break;
+
+        default:
 	  break;
       }
     }
@@ -1266,6 +1294,9 @@ calculate_field_widths(void)
 		    weight  += MAX(third_fcc, pab->disp_form[i].width);
 		    used_wt += pab->disp_form[i].width;
 		    break;
+
+		  default:
+		    break;
 		}
 	      }
 	    }
@@ -1295,6 +1326,9 @@ calculate_field_widths(void)
 			this_fix = third_fcc - pab->disp_form[i].width;
 			space_left -= this_fix;
 			pab->disp_form[i].width += this_fix;
+			break;
+
+		      default:
 			break;
 		    }
 		  }
@@ -1338,6 +1372,9 @@ calculate_field_widths(void)
 			this_fix = (third_fcc * was_sl)/weight;
 			space_left -= this_fix;
 			pab->disp_form[i].width += this_fix;
+			break;
+
+		      default:
 			break;
 		    }
 		  }
@@ -1444,6 +1481,8 @@ none_to_calculate:
 	    break;
 	  case Comment:
 	    pab->comment_is_displayed++;
+	    break;
+	  default:
 	    break;
 	}
       }
@@ -3161,8 +3200,8 @@ select:
 				to[alloced-1] = '\0';
 			      }
 			      else{
-				  strncat(to, ",", alloced-strlen(to));
-				  strncat(to, a_string, alloced-strlen(to));
+				  strncat(to, ",", alloced-strlen(to)-1);
+				  strncat(to, a_string, alloced-strlen(to)-1);
 			      }
 
 			      avail -= (strlen(a_string) + 1);
@@ -3938,7 +3977,7 @@ change_abook:
 		fl = first_selectable_line(new_top_ent);
 
 		/* If we didn't move, we'd better move now */
-		if(fl == as.top_ent+as.cur_row)
+		if(fl == as.top_ent+as.cur_row){
 		  if(!prev_selectable_line(as.cur_row+as.top_ent, &new_line)){
 		      long lineno;
 
@@ -3959,6 +3998,7 @@ change_abook:
 		  }
 		  else
 		    fl = new_line;
+		}
 
 		if(fl == NO_LINE)
 		    break;
@@ -4344,16 +4384,16 @@ q_server:
 
 	    {int were_selections = as.selections;
 
-	    ab_select(ps, pab ? pab->address_book : NULL,
+	      ab_select(ps, pab ? pab->address_book : NULL,
 		         as.top_ent+as.cur_row, command_line, &start_disp);
 
-	    if(!were_selections && as.selections ||
-	       were_selections && !as.selections){
+	      if((!were_selections && as.selections)
+	         || (were_selections && !as.selections)){
 		ps->mangled_footer = 1;
 		for(i = 0; i < as.n_addrbk; i++)
 		  init_disp_form(&as.adrbks[i],
 				 ps->VAR_ABOOK_FORMATS, i);
-	    }
+	      }
 	    }
 
             break;
@@ -4728,7 +4768,6 @@ q_server:
 	    /* else, fall through */
 
 	  default:
-          bleep:
 	    bogus_command(c, F_ON(F_USE_FK, ps) ? "F1" : "?");
 	    break;
 	}
@@ -4986,7 +5025,7 @@ ab_select(struct pine *ps, AdrBk *abook, long int cur_line, int command_line, in
 	{'f', 'f', "F", "Flip selected"},
 	{-1, 0, NULL, NULL}
     };
-    static char *sel_pmt1 = "ALTER message selection : ";
+    static char *sel_pmt1 = "ALTER selection : ";
     static ESCKEY_S sel_opts2[] = {
 	{'a', 'a', "A", "select All"},
 	{'c', 'c', "C", "select Cur"},
@@ -5822,6 +5861,8 @@ any_addrs_avail(long int starting_hint)
 	  case ListClickHere:
 	  case ClickHereCmb:
 	    return 1;
+	  default:
+	    break;
 	}
     }
 
@@ -5842,6 +5883,8 @@ any_addrs_avail(long int starting_hint)
 	  case ListClickHere:
 	  case ClickHereCmb:
 	    return 1;
+	  default:
+	    break;
 	}
     }
 
@@ -6569,7 +6612,7 @@ find_in_book(long int cur_line, char *string, long int *new_line, int *wrapped)
 	else
 	  abe = (AdrBk_Entry *)NULL;
 
-	if(fields=search_in_one_line(dl, abe, listaddr, string))
+	if((fields=search_in_one_line(dl, abe, listaddr, string)) != 0)
 	  goto found;
 
 	dl = dlist(++nl);
@@ -6601,7 +6644,7 @@ find_in_book(long int cur_line, char *string, long int *new_line, int *wrapped)
 	else
 	  abe = (AdrBk_Entry *)NULL;
 
-	if(fields=search_in_one_line(dl, abe, listaddr, string))
+	if((fields=search_in_one_line(dl, abe, listaddr, string)) != 0)
 	  goto found;
 
 	dlc = get_dlc(++nl);
@@ -6685,6 +6728,9 @@ search_in_one_line(AddrScrn_Disp *dl, AdrBk_Entry *abe, char *listaddr, char *st
 	    case AskServer:
 	      if(srchstr(dl->usst, string))
 		ret_val |= MATCH_BIGFIELD;
+
+	    default:
+	      break;
 	  }
 	  break;
 
@@ -6697,6 +6743,9 @@ search_in_one_line(AddrScrn_Disp *dl, AdrBk_Entry *abe, char *listaddr, char *st
 						       SIZEOF_20KBUF, abe->fullname),
 			string))
 		ret_val |= MATCH_FULL;
+
+	    default:
+	      break;
 	  }
 	  break;
 
@@ -6750,6 +6799,9 @@ search_in_one_line(AddrScrn_Disp *dl, AdrBk_Entry *abe, char *listaddr, char *st
 		ret_val |= MATCH_BIGFIELD;
 
 	      break;
+
+	    default:
+	      break;
 	  }
 	  break;
 
@@ -6759,6 +6811,9 @@ search_in_one_line(AddrScrn_Disp *dl, AdrBk_Entry *abe, char *listaddr, char *st
 	    case ListHead:
 	      if(abe && srchstr(abe->fcc, string))
 		ret_val |= MATCH_FCC;
+
+	    default:
+	      break;
 	  }
 	  break;
 
@@ -6787,6 +6842,9 @@ search_in_one_line(AddrScrn_Disp *dl, AdrBk_Entry *abe, char *listaddr, char *st
 		    fs_give((void **)&tmp);
 
 	      }
+
+	    default:
+	      break;
 	  }
 	  break;
       }
@@ -7092,7 +7150,8 @@ choose_a_nickname_with_prefix(char *prefix)
 						_("SELECT A NICKNAME"),
 						_("nicknames"),
 						h_select_nickname_screen,
-						_("HELP FOR SELECTING A NICKNAME"));
+						_("HELP FOR SELECTING A NICKNAME"),
+						NULL);
 	free_list_array(&possible_nicks);
     }
 

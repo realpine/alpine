@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: newmail.c 583 2007-05-29 23:10:02Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: newmail.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -29,6 +29,11 @@ static char rcsid[] = "$Id: newmail.c 583 2007-05-29 23:10:02Z hubert@u.washingt
 #include "../pith/thread.h"
 #include "../pith/options.h"
 #include "../pith/folder.h"
+#include "../pith/ablookup.h"
+
+#ifdef _WINDOWS
+#include "../pico/osdep/mswin.h"
+#endif
 
 
 /*
@@ -82,7 +87,7 @@ new_mail(int force_arg, CheckPointTime time_for_check_point, int flags)
     time_t        now;
     long          n, rv = 0, t_nm_count = 0, exp_count;
     MAILSTREAM   *m;
-    int           checknow = 0, force, i, started_on, cp;
+    int           force, i, started_on;
     int           new_mail_was_announced = 0;
     int           have_pinged_non_special = 0;
     int		  timeo;
@@ -718,13 +723,13 @@ new_mail_mess(MAILSTREAM *stream, long int number, long int max_num, int for_new
 	long inbox_nm;
 	if(!sp_flagged(stream, SP_INBOX) 
 	   && (inbox_nm = sp_mail_since_cmd(sp_inbox_stream()))){
-	    snprintf(tmp_20k_buf, SIZEOF_20KBUF, "[%d, %d] %s",
-		    inbox_nm > 1L ? inbox_nm : 1,
-		    number > 1L ? number: 1,
+	    snprintf(tmp_20k_buf, SIZEOF_20KBUF, "[%ld, %ld] %s",
+		    inbox_nm > 1L ? inbox_nm : 1L,
+		    number > 1L ? number: 1L,
 		    ps_global->pine_name);
 	}
 	else
-	  snprintf(tmp_20k_buf, SIZEOF_20KBUF, "[%d] %s", number > 1L ? number: 1,
+	  snprintf(tmp_20k_buf, SIZEOF_20KBUF, "[%ld] %s", number > 1L ? number: 1L,
 		  ps_global->pine_name);
     }
     else

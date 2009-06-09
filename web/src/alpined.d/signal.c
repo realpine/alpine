@@ -23,6 +23,9 @@ static char rcsid[] = "$Id: signal.c 91 2006-07-28 19:02:07Z mikes@u.washington.
 #include "../../../pith/status.h"
 #include "../../../pith/signal.h"
 #include "../../../pith/debug.h"
+#include "../../../pith/adrbklib.h"
+#include "../../../pith/remote.h"
+#include "../../../pith/imap.h"
 
 #include "alpined.h"
 #include "debug.h"
@@ -237,6 +240,8 @@ usr1_signal(int sig)
     if(debug < 11)
       debug++;
 
+    setup_imap_debug();
+
     dprint((SYSDBG_INFO, "Debug level now %d", debug));
 }
 
@@ -250,6 +255,8 @@ usr2_signal(int sig)
 {
     if(debug > 0)
       debug--;
+
+    setup_imap_debug();
 
     dprint((SYSDBG_INFO, "Debug level now %d", debug));
 

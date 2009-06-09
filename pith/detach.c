@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: detach.c 602 2007-06-18 18:25:20Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: detach.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -29,6 +29,8 @@ static char rcsid[] = "$Id: detach.c 602 2007-06-18 18:25:20Z hubert@u.washingto
 #include "../pith/adjtime.h"
 #include "../pith/pipe.h"
 #include "../pith/busy.h"
+#include "../pith/signal.h"
+#include "../pico/osdep/filesys.h"
 
 
 /*
@@ -80,8 +82,6 @@ int	    df_trigger_cmp(long, char *, LT_INS_S **, void *);
 int	    df_trigger_cmp_text(char *, char *);
 int	    df_trigger_cmp_lwsp(char *, char *);
 int	    df_trigger_cmp_start(char *, char *);
-void	    fetch_readc_init(FETCH_READC_S *, MAILSTREAM *, long, char *,
-			     unsigned long, long, long);
 int	    fetch_readc_cleanup(void);
 char	   *fetch_gets(readfn_t, void *, unsigned long, GETS_DATA *);
 int	    fetch_readc(unsigned char *);
@@ -263,7 +263,7 @@ detach(MAILSTREAM *stream,		/* c-client stream to use         */
       err_string[sizeof(err_string)-1] = '\0';
     }
 
-    if(status = gf_pipe(FETCH_READC, detach_so ? detach_writec : pc)) {
+    if((status = gf_pipe(FETCH_READC, detach_so ? detach_writec : pc)) != NULL) {
 	snprintf(err_string, sizeof(err_string), "Formatting error: %s", status);
         rv = 0L;
     }
@@ -297,7 +297,7 @@ detach(MAILSTREAM *stream,		/* c-client stream to use         */
 		p->filter = gf_nvtnl_local;
 	    }
 
-	    if(status = (*ps_global->tools.display_filter)(display_filter, detach_so, pc, aux)){
+	    if((status = (*ps_global->tools.display_filter)(display_filter, detach_so, pc, aux)) != NULL){
 		snprintf(err_string, sizeof(err_string), "Formatting error: %s", status);
 		rv = 0L;
 	    }
@@ -322,7 +322,7 @@ detach(MAILSTREAM *stream,		/* c-client stream to use         */
 		gf_link_filter(gf_nvtnl_local, NULL);
 	    }
 
-	    if(status = gf_pipe(gc, pc)){	/* Second pass, sheesh */
+	    if((status = gf_pipe(gc, pc)) != NULL){	/* Second pass, sheesh */
 		snprintf(err_string, sizeof(err_string), "Formatting error: %s", status);
 		rv = 0L;
 	    }
@@ -517,7 +517,7 @@ valid_filter_command(char **cmd)
 	p = (char *) fs_get((l+1) * sizeof(char));
 	strncpy(p, cpath, l);		/* copy new path */
 	p[l] = '\0';
-	strncat(p, &(*cmd)[i], l-strlen(p));		/* and old args */
+	strncat(p, &(*cmd)[i], l+1-1-strlen(p));		/* and old args */
 	p[l] = '\0';
 	fs_give((void **) cmd);		/* free it */
 	*cmd = p;			/* and assign new buf */
@@ -531,7 +531,7 @@ valid_filter_command(char **cmd)
 	    p = (char *) fs_get((l+1) * sizeof(char));
 	    strncpy(p, cpath, l);		/* copy new path */
 	    p[l] = '\0';
-	    strncat(p, &(*cmd)[i], l-strlen(p));		/* and old args */
+	    strncat(p, &(*cmd)[i], l+1-1-strlen(p));		/* and old args */
 	    p[l] = '\0';
 	    fs_give((void **) cmd);	/* free it */
 	    *cmd = p;			/* and assign new buf */

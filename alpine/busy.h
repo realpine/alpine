@@ -2,7 +2,7 @@
  * $Id: busy.h 137 2006-09-22 21:34:06Z mikes@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,12 +19,19 @@
 
 #define MAX_BM			150  /* max length of busy message */
 
+/* busy_cue_state values */
+#define BUSY_CUE_OFF   0
+#define BUSY_CUE_ON    1
+#define BUSY_CUE_DYING 2
+
 
 /* exported prototypes */
 
 void	    suspend_busy_cue(void);
 void	    resume_busy_cue(unsigned);
-
+int	    get_busy_cue_state(void);
+int	    set_busy_cue_state(int);
+int	    short_wait_for_busy_thread(void);
 
 
 #endif	/* PINE_BUSY_INCLUDED */

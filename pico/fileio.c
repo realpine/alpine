@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: fileio.c 417 2007-02-03 01:33:25Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: fileio.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -91,9 +91,9 @@ ffputline(CELL buf[], int nbuf)
  * Translate the line from the user's locale charset to UCS-4.
  */
 int
-ffgetline(UCS buf[], size_t nbuf, int *charsreturned, int msg)
+ffgetline(UCS buf[], size_t nbuf, size_t *charsreturned, int msg)
 {
-    int    i;
+    size_t i;
     UCS    ucs;
 
     if(charsreturned)

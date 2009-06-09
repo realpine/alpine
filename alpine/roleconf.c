@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: roleconf.c 596 2007-06-09 00:20:47Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: roleconf.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -17,6 +17,7 @@ static char rcsid[] = "$Id: roleconf.c 596 2007-06-09 00:20:47Z hubert@u.washing
 
 #include "headers.h"
 #include "roleconf.h"
+#include "colorconf.h"
 #include "conftype.h"
 #include "confscroll.h"
 #include "keymenu.h"
@@ -26,6 +27,7 @@ static char rcsid[] = "$Id: roleconf.c 596 2007-06-09 00:20:47Z hubert@u.washing
 #include "folder.h"
 #include "addrbook.h"
 #include "mailcmd.h"
+#include "setup.h"
 #include "../pith/state.h"
 #include "../pith/conf.h"
 #include "../pith/msgno.h"
@@ -38,6 +40,10 @@ static char rcsid[] = "$Id: roleconf.c 596 2007-06-09 00:20:47Z hubert@u.washing
 #include "../pith/news.h"
 #include "../pith/util.h"
 #include "../pith/detoken.h"
+#include "../pith/icache.h"
+#include "../pith/ablookup.h"
+#include "../pith/pattern.h"
+#include "../pith/tempfile.h"
 
 
 #define NOT		"! "
@@ -258,6 +264,8 @@ role_config_screen(struct pine *ps, long int rflags, int edit_exceptions)
 	    prc = ps->post_prc;
 	    rflags |= PAT_USE_POST;
 	    break;
+	  default:
+	    break;
 	}
 
 	readonly_warning = prc ? prc->readonly : 1;
@@ -465,6 +473,8 @@ role_take(struct pine *ps, MSGNO_S *msgmap, int rtype)
 	break;
       case Post:
 	rflags |= PAT_USE_POST;
+	break;
+      default:
 	break;
     }
 
@@ -850,12 +860,12 @@ add_patline_to_display(struct pine *ps, CONF_S **ctmp, int before, CONF_S **firs
 	/* Check that pattern has a role and is of right type */
 	if(pat->inherit ||
 	   (pat->action &&
-	    ((rflags & ROLE_DO_ROLES)  && pat->action->is_a_role  ||
-	     (rflags & ROLE_DO_INCOLS) && pat->action->is_a_incol ||
-	     (rflags & ROLE_DO_SRCH)   && pat->action->is_a_srch  ||
-	     (rflags & ROLE_DO_OTHER)  && pat->action->is_a_other ||
-	     (rflags & ROLE_DO_SCORES) && pat->action->is_a_score ||
-	     (rflags & ROLE_DO_FILTER) && pat->action->is_a_filter))){
+	    (((rflags & ROLE_DO_ROLES)  && pat->action->is_a_role)  ||
+	     ((rflags & ROLE_DO_INCOLS) && pat->action->is_a_incol) ||
+	     ((rflags & ROLE_DO_SRCH)   && pat->action->is_a_srch)  ||
+	     ((rflags & ROLE_DO_OTHER)  && pat->action->is_a_other) ||
+	     ((rflags & ROLE_DO_SCORES) && pat->action->is_a_score) ||
+	     ((rflags & ROLE_DO_FILTER) && pat->action->is_a_filter)))){
 	    add_role_to_display(ctmp, patline, pat, 0,
 				(first_line && *first_line == NULL)
 				  ? first_line :
@@ -1145,7 +1155,7 @@ role_config_add(struct pine *ps, CONF_S **cl, long int rflags)
 	cur_patline = first_pat ? (*cur_pat_h)->patlinehead : cur_pat->patline;
 
 	/* need a new pat_line */
-	if(first_pat || cur_patline && cur_patline->type == Literal){
+	if(first_pat || (cur_patline && cur_patline->type == Literal)){
 	    new_patline = (PAT_LINE_S *)fs_get(sizeof(*new_patline));
 	    memset((void *)new_patline, 0, sizeof(*new_patline));
 	    new_patline->type = Literal;
@@ -1244,12 +1254,12 @@ role_config_replicate(struct pine *ps, CONF_S **cl, long int rflags)
 	    char *oldnick = defpat->patgrp->nick;
 	    size_t len;
 
-	    len = strlen(oldnick)+strlen(CLONEWORD)+1;
-	    defpat->patgrp->nick = (char *)fs_get(len * sizeof(char));
-	    strncpy(defpat->patgrp->nick, oldnick, len-1);
-	    defpat->patgrp->nick[len-1] = '\0';
+	    len = strlen(oldnick)+strlen(CLONEWORD);
+	    defpat->patgrp->nick = (char *)fs_get((len+1) * sizeof(char));
+	    strncpy(defpat->patgrp->nick, oldnick, len);
+	    defpat->patgrp->nick[len] = '\0';
 	    strncat(defpat->patgrp->nick, CLONEWORD,
-		    len-1-strlen(defpat->patgrp->nick));
+		    len+1-1-strlen(defpat->patgrp->nick));
 	    fs_give((void **)&oldnick);
 	    if(defpat->action){
 		if(defpat->action->nick)
@@ -1299,7 +1309,7 @@ role_config_replicate(struct pine *ps, CONF_S **cl, long int rflags)
 	cur_patline = first_pat ? (*cur_pat_h)->patlinehead : cur_pat->patline;
 
 	/* need a new pat_line */
-	if(first_pat || cur_patline && cur_patline->type == Literal){
+	if(first_pat || (cur_patline && cur_patline->type == Literal)){
 	    new_patline = (PAT_LINE_S *)fs_get(sizeof(*new_patline));
 	    memset((void *)new_patline, 0, sizeof(*new_patline));
 	    new_patline->type = Literal;
@@ -2536,13 +2546,13 @@ move_role_around_file(CONF_S **cl, int up)
     ctmp->value     = cpystr(set_choose);				\
 									\
     /* find longest value's name */					\
-    for(lv = 0, i = 0; f = role_status_types(i); i++)			\
+    for(lv = 0, i = 0; (f = role_status_types(i)); i++)			\
       if(lv < (j = utf8_width(f->name)))				\
 	lv = j;								\
     									\
     lv = MIN(lv, 100);							\
     									\
-    for(i = 0; f = role_status_types(i); i++){				\
+    for(i = 0; (f = role_status_types(i)); i++){			\
 	new_confline(&ctmp);						\
 	ctmp->help_title= htitle;					\
 	ctmp->var       = &svar;					\
@@ -2605,13 +2615,13 @@ move_role_around_file(CONF_S **cl, int up)
     ctmp->value     = cpystr(set_choose);				\
 									\
     /* find longest value's name */					\
-    for(lv = 0, i = 0; f = msg_state_types(i); i++)			\
+    for(lv = 0, i = 0; (f = msg_state_types(i)); i++)			\
       if(lv < (j = utf8_width(f->name)))				\
 	lv = j;								\
     									\
     lv = MIN(lv, 100);							\
     									\
-    for(i = 0; f = msg_state_types(i); i++){				\
+    for(i = 0; (f = msg_state_types(i)); i++){				\
 	new_confline(&ctmp);						\
 	ctmp->help_title= htitle;					\
 	ctmp->var       = &svar;					\
@@ -2741,7 +2751,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
     int              rv, i, j, lv, pindent, maxpindent, rindent,
 		     scoreval = 0, edit_role, wid,
 		     edit_incol, edit_score, edit_filter, edit_other, edit_srch,
-		     dval, ival, nval, aval, fval, noselect,
+		     dval, ival, nval, aval, fval,
 		     per_folder_only, need_uses, need_options;
     int	        (*radio_tool)(struct pine *, int, CONF_S **, unsigned);
     int	        (*addhdr_tool)(struct pine *, int, CONF_S **, unsigned);
@@ -3137,7 +3147,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
     if(def && def->patgrp && def->patgrp->category_cmd &&
        def->patgrp->category_cmd[0] && def->patgrp->cat_lim != -1){
 	*apval = (char *) fs_get(20 * sizeof(char));
-	snprintf(*apval, 20, "%d", def->patgrp->cat_lim);
+	snprintf(*apval, 20, "%ld", def->patgrp->cat_lim);
 	(*apval)[20-1] = '\0';
     }
 
@@ -3459,14 +3469,14 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
     ctmp->value     = cpystr(set_choose);				\
 
     /* find longest value's name */
-    for(lv = 0, i = 0; f = pat_fldr_types(i); i++)
+    for(lv = 0, i = 0; (f = pat_fldr_types(i)); i++)
       if(lv < (j = utf8_width(f->name)))
 	lv = j;
     
     lv = MIN(lv, 100);
 
     fval = -1;
-    for(i = 0; f = pat_fldr_types(i); i++){
+    for(i = 0; (f = pat_fldr_types(i)); i++){
 	new_confline(&ctmp);
 	ctmp->help_title= _("HELP FOR CURRENT FOLDER TYPE");
 	ctmp->var       = &fldr_type_var;
@@ -3744,14 +3754,14 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
     ctmp->value     = cpystr(set_choose);				\
 
     /* find longest value's name */
-    for(lv = 0, i = 0; f = inabook_fldr_types(i); i++)
+    for(lv = 0, i = 0; (f = inabook_fldr_types(i)); i++)
       if(lv < (j = utf8_width(f->name)))
 	lv = j;
     
     lv = MIN(lv, 100);
 
     fval = -1;
-    for(i = 0; f = inabook_fldr_types(i); i++){
+    for(i = 0; (f = inabook_fldr_types(i)); i++){
 	new_confline(&ctmp);
 	ctmp->help_title= _("HELP FOR ADDRESS IN ADDRESS BOOK");
 	ctmp->var       = &abook_type_var;
@@ -3842,14 +3852,14 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
     ctmp->value     = cpystr(set_choose);
 
     /*  find longest value's name */
-    for(lv = 0, i = 0; f = inabook_feature_list(i); i++){
+    for(lv = 0, i = 0; (f = inabook_feature_list(i)); i++){
 	if(lv < (j = utf8_width(f->name)))
 	  lv = j;
     }
     
     lv = MIN(lv, 100);
 
-    for(i = 0; f = inabook_feature_list(i); i++){
+    for(i = 0; (f = inabook_feature_list(i)); i++){
 	new_confline(&ctmp);
 	ctmp->var       = &opt_var;
 	ctmp->help_title= _("HELP FOR ADDRESS TYPES");
@@ -4314,13 +4324,13 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	ctmp->value     = cpystr(set_choose);				\
 
 	/* find longest value's name */
-	for(lv = 0, i = 0; f = filter_types(i); i++)
+	for(lv = 0, i = 0; (f = filter_types(i)); i++)
 	  if(lv < (j = utf8_width(f->name)))
 	    lv = j;
 	
 	lv = MIN(lv, 100);
 	
-	for(i = 0; f = filter_types(i); i++){
+	for(i = 0; (f = filter_types(i)); i++){
 	    new_confline(&ctmp);
 	    ctmp->help_title= _("HELP FOR FILTER ACTION");
 	    ctmp->var       = &filter_type_var;
@@ -4585,7 +4595,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	ctmp->value     = cpystr(set_choose);				\
 
 	/*  find longest value's name */
-	for(lv = 0, i = 0; f = feat_feature_list(i); i++){
+	for(lv = 0, i = 0; (f = feat_feature_list(i)); i++){
 	    if(!edit_filter && (i == FEAT_IFNOTDEL || i == FEAT_NONTERM))
 	      continue;
 
@@ -4595,7 +4605,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	
 	lv = MIN(lv, 100);
 
-	for(i = 0; f = feat_feature_list(i); i++){
+	for(i = 0; (f = feat_feature_list(i)); i++){
 	    if(!edit_filter && (i == FEAT_IFNOTDEL || i == FEAT_NONTERM))
 	      continue;
 
@@ -4684,13 +4694,13 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	ctmp->value     = cpystr(set_choose);				\
 
 	/* find longest value's name */
-	for(lv = 0, i = 0; f = role_repl_types(i); i++)
+	for(lv = 0, i = 0; (f = role_repl_types(i)); i++)
 	  if(lv < (j = utf8_width(f->name)))
 	    lv = j;
 	
 	lv = MIN(lv, 100);
 
-	for(i = 0; f = role_repl_types(i); i++){
+	for(i = 0; (f = role_repl_types(i)); i++){
 	    new_confline(&ctmp);
 	    ctmp->help_title= _("HELP FOR ROLE REPLY USE");
 	    ctmp->var       = &repl_type_var;
@@ -4748,13 +4758,13 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	ctmp->value     = cpystr(set_choose);				\
 
 	/* find longest value's name */
-	for(lv = 0, i = 0; f = role_forw_types(i); i++)
+	for(lv = 0, i = 0; (f = role_forw_types(i)); i++)
 	  if(lv < (j = utf8_width(f->name)))
 	    lv = j;
 	
 	lv = MIN(lv, 100);
 
-	for(i = 0; f = role_forw_types(i); i++){
+	for(i = 0; (f = role_forw_types(i)); i++){
 	    new_confline(&ctmp);
 	    ctmp->help_title= _("HELP FOR ROLE FORWARD USE");
 	    ctmp->var       = &forw_type_var;
@@ -4812,13 +4822,13 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	ctmp->value     = cpystr(set_choose);				\
 
 	/* find longest value's name */
-	for(lv = 0, i = 0; f = role_comp_types(i); i++)
+	for(lv = 0, i = 0; (f = role_comp_types(i)); i++)
 	  if(lv < (j = utf8_width(f->name)))
 	    lv = j;
 	
 	lv = MIN(lv, 100);
 	
-	for(i = 0; f = role_comp_types(i); i++){
+	for(i = 0; (f = role_comp_types(i)); i++){
 	    new_confline(&ctmp);
 	    ctmp->help_title= _("HELP FOR ROLE COMPOSE USE");
 	    ctmp->var       = &comp_type_var;
@@ -5293,7 +5303,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	}
 
 	if(stat_del && *stat_del){
-	    for(j = 0; f = role_status_types(j); j++)
+	    for(j = 0; (f = role_status_types(j)); j++)
 	      if(!strucmp(stat_del, f->name)){
 		  (*result)->patgrp->stat_del = f->value;
 		  break;
@@ -5303,7 +5313,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	  (*result)->patgrp->stat_del = PAT_STAT_EITHER;
 
 	if(stat_new && *stat_new){
-	    for(j = 0; f = role_status_types(j); j++)
+	    for(j = 0; (f = role_status_types(j)); j++)
 	      if(!strucmp(stat_new, f->name)){
 		  (*result)->patgrp->stat_new = f->value;
 		  break;
@@ -5313,7 +5323,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	  (*result)->patgrp->stat_new = PAT_STAT_EITHER;
 
 	if(stat_rec && *stat_rec){
-	    for(j = 0; f = role_status_types(j); j++)
+	    for(j = 0; (f = role_status_types(j)); j++)
 	      if(!strucmp(stat_rec, f->name)){
 		  (*result)->patgrp->stat_rec = f->value;
 		  break;
@@ -5323,7 +5333,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	  (*result)->patgrp->stat_rec = PAT_STAT_EITHER;
 
 	if(stat_imp && *stat_imp){
-	    for(j = 0; f = role_status_types(j); j++)
+	    for(j = 0; (f = role_status_types(j)); j++)
 	      if(!strucmp(stat_imp, f->name)){
 		  (*result)->patgrp->stat_imp = f->value;
 		  break;
@@ -5333,7 +5343,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	  (*result)->patgrp->stat_imp = PAT_STAT_EITHER;
 
 	if(stat_ans && *stat_ans){
-	    for(j = 0; f = role_status_types(j); j++)
+	    for(j = 0; (f = role_status_types(j)); j++)
 	      if(!strucmp(stat_ans, f->name)){
 		  (*result)->patgrp->stat_ans = f->value;
 		  break;
@@ -5343,7 +5353,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	  (*result)->patgrp->stat_ans = PAT_STAT_EITHER;
 
 	if(stat_8bit && *stat_8bit){
-	    for(j = 0; f = role_status_types(j); j++)
+	    for(j = 0; (f = role_status_types(j)); j++)
 	      if(!strucmp(stat_8bit, f->name)){
 		  (*result)->patgrp->stat_8bitsubj = f->value;
 		  break;
@@ -5353,7 +5363,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	  (*result)->patgrp->stat_8bitsubj = PAT_STAT_EITHER;
 
 	if(stat_bom && *stat_bom){
-	    for(j = 0; f = role_status_types(j); j++)
+	    for(j = 0; (f = role_status_types(j)); j++)
 	      if(!strucmp(stat_bom, f->name)){
 		  (*result)->patgrp->stat_bom = f->value;
 		  break;
@@ -5363,7 +5373,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	  (*result)->patgrp->stat_bom = PAT_STAT_EITHER;
 
 	if(stat_boy && *stat_boy){
-	    for(j = 0; f = role_status_types(j); j++)
+	    for(j = 0; (f = role_status_types(j)); j++)
 	      if(!strucmp(stat_boy, f->name)){
 		  (*result)->patgrp->stat_boy = f->value;
 		  break;
@@ -5388,7 +5398,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	iform_act = NULL;
 
 	if(startup_act && *startup_act){
-	    for(j = 0; f = startup_rules(j); j++)
+	    for(j = 0; (f = startup_rules(j)); j++)
 	      if(!strucmp(startup_act, f->name)){
 		  (*result)->action->startup_rule = f->value;
 		  break;
@@ -5432,7 +5442,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	}
 
 	if(fldr_type_pat && *fldr_type_pat){
-	    for(j = 0; f = pat_fldr_types(j); j++)
+	    for(j = 0; (f = pat_fldr_types(j)); j++)
 	      if(!strucmp(fldr_type_pat, f->name)){
 		  (*result)->patgrp->fldr_type = f->value;
 		  break;
@@ -5447,7 +5457,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	(*result)->patgrp->folder = editlist_to_pattern(folder_pat);
 
 	if(abook_type_pat && *abook_type_pat){
-	    for(j = 0; f = inabook_fldr_types(j); j++)
+	    for(j = 0; (f = inabook_fldr_types(j)); j++)
 	      if(!strucmp(abook_type_pat, f->name)){
 		  (*result)->patgrp->inabook = f->value;
 		  break;
@@ -5537,7 +5547,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	if(filter_type && *filter_type){
 	  (*result)->action->non_terminating =
 			bitnset(FEAT_NONTERM, feat_option_list) ? 1 : 0;
-	  for(i = 0; f = filter_types(i); i++){
+	  for(i = 0; (f = filter_types(i)); i++){
 	    if(!strucmp(filter_type, f->name)){
 	      if(f->value == FILTER_FOLDER){
 		(*result)->action->folder = editlist_to_pattern(folder_act);
@@ -5562,7 +5572,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	       * action bits along with the Delete.
 	       */
 		if(filt_imp && *filt_imp){
-		  for(j = 0; f = msg_state_types(j); j++){
+		  for(j = 0; (f = msg_state_types(j)); j++){
 		    if(!strucmp(filt_imp, f->name)){
 		      switch(f->value){
 			case ACT_STAT_LEAVE:
@@ -5580,7 +5590,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 		}
 
 		if(filt_del && *filt_del){
-		  for(j = 0; f = msg_state_types(j); j++){
+		  for(j = 0; (f = msg_state_types(j)); j++){
 		    if(!strucmp(filt_del, f->name)){
 		      switch(f->value){
 			case ACT_STAT_LEAVE:
@@ -5598,7 +5608,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 		}
 
 		if(filt_ans && *filt_ans){
-		  for(j = 0; f = msg_state_types(j); j++){
+		  for(j = 0; (f = msg_state_types(j)); j++){
 		    if(!strucmp(filt_ans, f->name)){
 		      switch(f->value){
 			case ACT_STAT_LEAVE:
@@ -5616,7 +5626,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 		}
 
 		if(filt_new && *filt_new){
-		  for(j = 0; f = msg_state_types(j); j++){
+		  for(j = 0; (f = msg_state_types(j)); j++){
 		    if(!strucmp(filt_new, f->name)){
 		      switch(f->value){
 			case ACT_STAT_LEAVE:
@@ -5658,7 +5668,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	  (*result)->action->scorevalhdrtok = stringform_to_hdrtok(hdrtok_act);
 
 	if(repl_type && *repl_type){
-	    for(j = 0; f = role_repl_types(j); j++)
+	    for(j = 0; (f = role_repl_types(j)); j++)
 	      if(!strucmp(repl_type, f->name)){
 		  (*result)->action->repl_type = f->value;
 		  break;
@@ -5671,7 +5681,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	}
 
 	if(forw_type && *forw_type){
-	    for(j = 0; f = role_forw_types(j); j++)
+	    for(j = 0; (f = role_forw_types(j)); j++)
 	      if(!strucmp(forw_type, f->name)){
 		  (*result)->action->forw_type = f->value;
 		  break;
@@ -5684,7 +5694,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	}
 
 	if(comp_type && *comp_type){
-	    for(j = 0; f = role_comp_types(j); j++)
+	    for(j = 0; (f = role_comp_types(j)); j++)
 	      if(!strucmp(comp_type, f->name)){
 		  (*result)->action->comp_type = f->value;
 		  break;
@@ -5864,8 +5874,6 @@ void
 setup_dummy_pattern_var(struct variable *v, char *name, PATTERN_S *defpat)
 {
     char ***alval;
-    char   *s, *p;
-    int     cnt = 0;
 
     if(!(v && name))
       panic("setup_dummy_pattern_var");
@@ -6025,7 +6033,7 @@ calculate_inick_stuff(struct pine *ps)
 
     for(i = INICK_FROM_CONF; i <= INICK_NNTP_CONF; i++){
 	v = inick_confs[i] ? inick_confs[i]->var : NULL;
-	if(v)
+	if(v){
 	  if(v->is_list){
 	      if(v->global_val.l)
 		free_list_array(&v->global_val.l);
@@ -6034,6 +6042,7 @@ calculate_inick_stuff(struct pine *ps)
 	      if(v->global_val.p)
 		fs_give((void **)&v->global_val.p);
 	  }
+	}
     }
 
     nick = PVAL(inick_confs[INICK_INICK_CONF]->var, ew);
@@ -6222,7 +6231,7 @@ calculate_inick_stuff(struct pine *ps)
 		 * Turn off NOSELECT, but possibly turn it on again
 		 * in next line.
 		 */
-		if(ctmpsig = inick_confs[INICK_SIG_CONF])
+		if((ctmpsig = inick_confs[INICK_SIG_CONF]) != NULL)
 		  ctmpsig->flags &= ~CF_NOSELECT;
 
 		if(inick_confs[INICK_LITSIG_CONF] && 
@@ -6528,7 +6537,7 @@ role_filt_exitcheck(CONF_S **cl, unsigned int flags)
      */
     action = ACT_UNKNOWN;
     if(flags & CF_CHANGES && role_filt_ptr && PVAL(role_filt_ptr,ew)){
-	for(j = 0; f = filter_types(j); j++)
+	for(j = 0; (f = filter_types(j)); j++)
 	  if(!strucmp(PVAL(role_filt_ptr,ew), f->name))
 	    break;
 	
@@ -6596,7 +6605,7 @@ role_filt_exitcheck(CONF_S **cl, unsigned int flags)
 	  case 'y':
 	    switch(action){
 	      case ACT_KILL:
-		if(spec_fldr = get_role_specific_folder(cl)){
+		if((spec_fldr = get_role_specific_folder(cl)) != NULL){
 		  rv = check_role_folders(spec_fldr, 0);
 		  free_list_array(&spec_fldr);
 		  if(rv == 2)
@@ -6610,7 +6619,7 @@ role_filt_exitcheck(CONF_S **cl, unsigned int flags)
 		break;
 
 	      case ACT_MOVE:
-		if(spec_fldr = get_role_specific_folder(cl)){
+		if((spec_fldr = get_role_specific_folder(cl)) != NULL){
 		  rv = check_role_folders(spec_fldr, 0);
 		  free_list_array(&spec_fldr);
 		  if(to_folder && rv == 2)
@@ -6628,7 +6637,7 @@ role_filt_exitcheck(CONF_S **cl, unsigned int flags)
 		break;
 
 	      case ACT_STATE:
-		if(spec_fldr = get_role_specific_folder(cl)){
+		if((spec_fldr = get_role_specific_folder(cl)) != NULL){
 		  rv = check_role_folders(spec_fldr, 0);
 		  free_list_array(&spec_fldr);
 		}
@@ -7071,7 +7080,7 @@ role_text_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 	if(flags & CF_CHANGES){
 	  switch(want_to(EXIT_PMT, 'y', 'x', h_config_role_undo, WT_FLUSH_IN)){
 	    case 'y':
-	      if(spec_fldr = get_role_specific_folder(cl)){
+	      if((spec_fldr = get_role_specific_folder(cl)) != NULL){
 		rv = check_role_folders(spec_fldr, 0);
 		free_list_array(&spec_fldr);
 	      }
@@ -7100,8 +7109,6 @@ role_text_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 	if(ctmp->varname && ctmp->var && ctmp->var->name){
 	    if(!strncmp(ctmp->varname, NOT, NOTLEN) &&
 	       !strncmp(ctmp->var->name, NOT, NOTLEN)){
-		char *pp;
-
 		rplstr(ctmp->var->name, strlen(ctmp->var->name)+1, NOTLEN, "");
 		rplstr(ctmp->varname, strlen(ctmp->varname)+1, NOTLEN, "");
 		strncpy(ctmp->varname+strlen(ctmp->varname)-1,
@@ -7708,7 +7715,7 @@ role_text_tool_kword(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 
 	saved_screen = opt_screen;
 
-	if(kw=choose_list_of_keywords()){
+	if((kw=choose_list_of_keywords()) != NULL){
 	    for(i = 0; kw[i]; i++){
 		esc = add_roletake_escapes(kw[i]);
 		fs_give((void **) &kw[i]);
@@ -7795,7 +7802,7 @@ role_text_tool_charset(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags
 
 	saved_screen = opt_screen;
 
-	if(kw=choose_list_of_charsets()){
+	if((kw=choose_list_of_charsets()) != NULL){
 	    for(i = 0; kw[i]; i++){
 		esc = add_roletake_escapes(kw[i]);
 		fs_give((void **) &kw[i]);
@@ -7868,8 +7875,6 @@ int
 role_text_tool_afrom(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 {
     int   rv = -1;
-    char **apval;
-    char  *abook;
 
     switch(cmd){
       case MC_EXIT :
@@ -7877,9 +7882,7 @@ role_text_tool_afrom(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 	break;
 
       case MC_CHOICE :		/* Choose an addressbook */
-	{void (*prev_screen)(struct pine *) = ps->prev_screen,
-	      (*redraw)(void) = ps->redrawer;
-	 OPT_SCREEN_S *saved_screen;
+	{OPT_SCREEN_S *saved_screen;
 	 char *abook = NULL, *abookesc = NULL;
 
 	ps->redrawer = NULL;

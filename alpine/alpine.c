@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: alpine.c 615 2007-06-28 17:39:01Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: alpine.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -21,8 +21,11 @@ static char rcsid[] = "$Id: alpine.c 615 2007-06-28 17:39:01Z jpf@u.washington.e
 #include "../pith/init.h"
 #include "../pith/sort.h"
 #include "../pith/options.h"
+#include "../pith/list.h"
 
 #include "osdep/debuging.h"
+#include "osdep/termout.gen.h"
+#include "osdep/chnge_pw.h"
 
 #include "alpine.h"
 #include "mailindx.h"
@@ -47,6 +50,13 @@ static char rcsid[] = "$Id: alpine.c 615 2007-06-28 17:39:01Z jpf@u.washington.e
 #include "pattern.h"
 #include "newuser.h"
 #include "setup.h"
+#include "adrbkcmd.h"
+#include "signal.h"
+#include "kblock.h"
+#include "ldapconf.h"
+#include "roleconf.h"
+#include "colorconf.h"
+#include "print.h"
 #ifndef _WINDOWS
 #include "../pico/osdep/raw.h"	/* for STD*_FD */
 #endif
@@ -79,6 +89,8 @@ void	 process_init_cmds(struct pine *, char **);
 void	 goodnight_gracey(struct pine *, int);
 void	 pine_read_progress(GETS_DATA *, unsigned long);
 int	 remote_pinerc_failure(void);
+void	 dump_supported_options(void);
+int      prune_folders_ok(void);
 #ifdef	WIN32
 char	*pine_user_callback(void);
 #endif
@@ -125,6 +137,7 @@ static int   in_panic   = 0;
  NOTE: The Windows port def's this to "app_main"
   ----*/
 
+int
 main(int argc, char **argv)
 {
     ARGDATA_S	 args;
@@ -167,6 +180,7 @@ main(int argc, char **argv)
     pith_opt_get_signature_file	   = get_signature_file;
     pith_opt_pretty_var_name	   = pretty_var_name;
     pith_opt_pretty_feature_name   = pretty_feature_name;
+    pith_opt_closing_stream        = titlebar_stream_closing;
 #ifdef	ENABLE_LDAP
     pith_opt_save_ldap_entry	 = save_ldap_entry;
 #endif
@@ -218,7 +232,7 @@ main(int argc, char **argv)
 	}
 	
 	if(argc == 1){
-	    strncat(args_for_debug, no_args, len+2-strlen(args_for_debug));
+	    strncat(args_for_debug, no_args, len+2-strlen(args_for_debug)-1);
 	    args_for_debug[len+2-1] = '\0';
 	}
     }
@@ -714,6 +728,9 @@ main(int argc, char **argv)
 		exit_val = copy_abook(args.data.copy.local,
 				      args.data.copy.remote, &err_msg);
 		break;
+
+	      default:
+		break;
 	    }
 	}
 	if(err_msg){
@@ -809,7 +826,7 @@ main(int argc, char **argv)
 
 		    gf_set_so_writec(&pc, store);
 		    gf_filter_init();
-		    if(decode_error = gf_pipe(stdin_getc, pc)){
+		    if((decode_error = gf_pipe(stdin_getc, pc)) != NULL){
 			dice = 0;
 			q_status_message1(SM_ORDER, 3, 4,
 					  _("Problem reading standard input: %s"),
@@ -886,11 +903,11 @@ main(int argc, char **argv)
 	    to = (char *) fs_get((len + 5) * sizeof(char));
 	    for(p = args.data.mail.addrlist, *to = '\0'; p; p = p->next){
 		if(*to){
-		    strncat(to, ", ", len+5-strlen(to));
+		    strncat(to, ", ", len+5-strlen(to)-1);
 		    to[len+5-1] = '\0';
 		}
 
-		strncat(to, p->name, len+5-strlen(to));
+		strncat(to, p->name, len+5-strlen(to)-1);
 		to[len+5-1] = '\0';
 	    }
 
@@ -949,7 +966,7 @@ main(int argc, char **argv)
 		  fs_give((void **) &(pine_state->free_initial_cmds));
 		pine_state->initial_cmds = NULL;
 	    }
-	    if(f = url_local_handler(args.url)){
+	    if((f = url_local_handler(args.url)) != NULL){
 		if(args.data.mail.attachlist){
 		    if(f == url_local_mailto){
 			if(!(url_local_mailto_and_atts(args.url,
@@ -1277,6 +1294,8 @@ _("Note: Mail-Check-Interval=0 may cause IMAP server connection to time out"));
             (*(pine_state->next_screen))(pine_state);
         }
     }
+
+    exit(0);
 }
 
 
@@ -1415,7 +1434,7 @@ read_stdin_char(char *c)
  */
 #define MNSKIP(X) (((HEADER_ROWS(X)+FOOTER_ROWS(X)+(MAX_MENU_ITEM+1)+1+MAX_MENU_ITEM+1+1) <= (X)->ttyo->screen_rows) ? 1 : 0)
 
-static unsigned char menu_index = DEFAULT_MENU_ITEM;
+static unsigned menu_index = DEFAULT_MENU_ITEM;
 
 /*
  * One of these for each line that gets printed in the middle of the
@@ -1834,7 +1853,7 @@ setup_case :
 	  case MC_MOUSE :
 	    {   
 		MOUSEPRESS mp;
-		unsigned char ndmi;
+		unsigned ndmi;
 		struct pine *ps = pine_state;
 
 		mouse_get_last (NULL, &mp);
@@ -2536,6 +2555,8 @@ do_setup_task(int command)
 		   case Post:
 		     readonly = ps_global->post_prc->readonly;
 		     break;
+		   default:
+		     break;
 	    }
 
 	    if(readonly)
@@ -3124,9 +3145,9 @@ goodnight_gracey(struct pine *pine_state, int exit_val)
     if(final_msg){
 	strncpy(msg, pf, sizeof(msg));
 	msg[sizeof(msg)-1] = '\0';
-	strncat(msg, " -- ", sizeof(msg)-strlen(msg));
+	strncat(msg, " -- ", sizeof(msg)-strlen(msg)-1);
 	msg[sizeof(msg)-1] = '\0';
-	strncat(msg, final_msg, sizeof(msg)-strlen(msg));
+	strncat(msg, final_msg, sizeof(msg)-strlen(msg)-1);
 	msg[sizeof(msg)-1] = '\0';
 	fs_give((void **)&final_msg);
     }
@@ -3393,6 +3414,36 @@ remote_pinerc_failure(void)
 }
 
 
+void
+dump_supported_options(void)
+{
+    char **config;
+
+    config = get_supported_options();
+    if(config){
+	display_args_err(NULL, config, 0);
+	free_list_array(&config);
+    }
+}
+
+
+/*----------------------------------------------------------------------
+     Check pruned-folders for validity, making sure they are in the 
+     same context as sent-mail.
+
+  ----*/
+int
+prune_folders_ok(void)
+{
+    char **p;
+
+    for(p = ps_global->VAR_PRUNED_FOLDERS; p && *p && **p; p++)
+      if(!context_isambig(*p))
+	return(0);
+
+    return(1);
+}
+
 
 #ifdef	WIN32
 char *
@@ -3462,7 +3513,7 @@ pcpine_main_cursor(col, row)
     int  col;
     long row;
 {
-    unsigned char ndmi;
+    unsigned ndmi;
 
     if (row >= (HEADER_ROWS(ps_global) + MNSKIP(ps_global)))
       ndmi = (row+1 - HEADER_ROWS(ps_global) - (MNSKIP(ps_global)+1))/(MNSKIP(ps_global)+1);

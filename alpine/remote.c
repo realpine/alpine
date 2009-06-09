@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: remote.c 543 2007-04-26 04:06:02Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: remote.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -211,10 +211,7 @@ try_wantto:
 	p += strlen(p);
 	snprintf(p, sizeof(tmp)-(p-tmp), _("Suspicious data in \"%s\": Continue anyway "),
 		(rd && rd->t.i.special_hdr) ? rd->t.i.special_hdr
-					    : unknown,
-		(rd && rd->rn) ? rd->rn : unknown,
-		short_str((rd && rd->rn) ? rd->rn : "<noname>", tmp+1900, sizeof(tmp)-1900,
-			  33, FrontDots));
+					    : unknown);
 	tmp[sizeof(tmp)-1] = '\0';
 	if(want_to(tmp, 'n', 'x', NO_HELP, WT_NORM) == 'y'){
 	    rv = 1;

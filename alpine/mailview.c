@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailview.c 589 2007-06-04 22:35:52Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailview.c 702 2007-08-31 19:11:47Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -40,6 +40,9 @@ static char rcsid[] = "$Id: mailview.c 589 2007-06-04 22:35:52Z hubert@u.washing
 #include "alpine.h"
 #include "titlebar.h"
 #include "signal.h"
+#include "send.h"
+#include "dispfilt.h"
+#include "busy.h"
 #include "../pith/conf.h"
 #include "../pith/filter.h"
 #include "../pith/msgno.h"
@@ -57,6 +60,9 @@ static char rcsid[] = "$Id: mailview.c 589 2007-06-04 22:35:52Z hubert@u.washing
 #include "../pith/editorial.h"
 #include "../pith/maillist.h"
 #include "../pith/hist.h"
+#include "../pith/busy.h"
+#include "../pith/list.h"
+#include "../pith/detach.h"
 
 
 /*----------------------------------------------------------------------
@@ -344,7 +350,7 @@ mail_view_screen(struct pine *ps)
 	    while(!scroll_handle_selectable(hp) && hp != NULL)
 	      hp = hp->next;
 
-	    if(scrollargs.text.handles = hp)
+	    if((scrollargs.text.handles = hp) != NULL)
 	      scrollargs.body_valid = (hp == handles);
 	    else
 	      free_handles(&handles);
@@ -1236,7 +1242,7 @@ int
 scroll_handle_index(int row, int column)
 {
     SCRLCTRL_S *st = scroll_state(SS_CUR);
-    int index = 0, n;
+    int index = 0;
 
     for(index = 0; column > 0;)
       switch(st->text_lines[row][index++]){
@@ -1493,7 +1499,7 @@ url_launch(HANDLE_S *handle)
 	  return(url_launch_too_long(rv));
 	
 	mode = PIPE_RESET | PIPE_USER | PIPE_RUNNOW ;
-	if(syspipe = open_system_pipe(cmd, NULL, NULL, mode, 0, pipe_callback, pipe_report_error)){
+	if((syspipe = open_system_pipe(cmd, NULL, NULL, mode, 0, pipe_callback, pipe_report_error)) != NULL){
 	    close_system_pipe(&syspipe, NULL, pipe_callback);
 	    q_status_message(SM_ORDER, 0, 4, _("VIEWER command completed"));
 	}
@@ -1502,7 +1508,7 @@ url_launch(HANDLE_S *handle)
 			    /* TRANSLATORS: Cannot start command : <command name> */
 			    _("Cannot start command : %s"), cmd);
     }
-    else if(f = url_local_handler(handle->h.url.path)){
+    else if((f = url_local_handler(handle->h.url.path)) != NULL){
 	if((*f)(handle->h.url.path) > 1)
 	  rv = 1;		/* done! */
     }
@@ -1538,7 +1544,7 @@ url_external_handler(HANDLE_S *handle, int specific)
 	if(valid_filter_command(&cmd)){
 	    specific_match = 0;
 
-	    if(p = test){
+	    if((p = test) != NULL){
 		while(*p && cmd)
 		  if(*p == '_'){
 		      if(!strncmp(p+1, "TEST(", 5)
@@ -1559,7 +1565,7 @@ url_external_handler(HANDLE_S *handle, int specific)
 
 			  p += 8;
 			  do
-			    if(q = strchr(p, ','))
+			    if((q = strchr(p, ',')) != NULL)
 			      *q++ = '\0';
 			    else
 			      q = ep;
@@ -1698,7 +1704,7 @@ url_local_mailto_and_atts(char *url, PATMT *attachlist)
     outgoing->message_id = generate_message_id();
     body		 = mail_newbody();
     body->type		 = TYPETEXT;
-    if(body->contents.text.data = (void *) so_get(PicoText,NULL,EDIT_ACCESS)){
+    if((body->contents.text.data = (void *) so_get(PicoText,NULL,EDIT_ACCESS)) != NULL){
 	/*
 	 * URL format is:
 	 *
@@ -1712,7 +1718,7 @@ url_local_mailto_and_atts(char *url, PATMT *attachlist)
 	 * NOTE2: "from" and "bcc" are intentionally excluded from
 	 *	  the list of understood "header" fields
 	 */
-	if(p = strchr(urlp = cpystr(url+7), '?'))
+	if((p = strchr(urlp = cpystr(url+7), '?')) != NULL)
 	  *p++ = '\0';			/* headers?  Tie off mailbox */
 
 	/* grok mailbox as first "to", then roll thru specific headers */
@@ -1723,10 +1729,10 @@ url_local_mailto_and_atts(char *url, PATMT *attachlist)
 
 	while(p){
 	    /* Find next "header" */
-	    if(p = strchr(hname = p, '&'))
+	    if((p = strchr(hname = p, '&')) != NULL)
 	      *p++ = '\0';		/* tie off "header" */
 
-	    if(hvalue = strchr(hname, '='))
+	    if((hvalue = strchr(hname, '=')) != NULL)
 	      *hvalue++ = '\0';		/* tie off hname */
 
 	    if(!hvalue || !strucmp(hname, "subject")){
@@ -1814,7 +1820,7 @@ url_local_mailto_and_atts(char *url, PATMT *attachlist)
 	}
 
 	memset((void *)&fake_reply, 0, sizeof(fake_reply));
-	fake_reply.flags = REPLY_PSEUDO;
+	fake_reply.pseudo = 1;
 	fake_reply.data.pico_flags = (outgoing->subject) ? P_BODY : P_HEADEND;
 
 
@@ -1825,7 +1831,7 @@ url_local_mailto_and_atts(char *url, PATMT *attachlist)
 	  create_message_body(&body, attachlist, 0);
 
 	pine_send(outgoing, &body, "\"MAILTO\" COMPOSE",
-		  role, fcc, &fake_reply, redraft_pos, NULL, NULL, 0);
+		  role, fcc, &fake_reply, redraft_pos, NULL, NULL, PS_STICKY_TO);
 	rv++;
 	ps_global->mangled_screen = 1;
     }
@@ -1881,7 +1887,7 @@ url_local_imap(char *url)
     switch(rv & URL_IMAP_MASK){
       case URL_IMAP_IMAILBOXLIST :
 /* BUG: deal with lsub tag */
-	if(fake_context = new_context(folder, NULL)){
+	if((fake_context = new_context(folder, NULL)) != NULL){
 	    newfolder[0] = '\0';
 	    if(display_folder_list(&fake_context, newfolder,
 				   0, folders_for_goto))
@@ -1964,7 +1970,7 @@ url_local_imap(char *url)
 		    set_lflag(ps_global->mail_stream,
 			      ps_global->msgmap, i, MN_SLCT, 1);
 
-		if(i = any_lflagged(ps_global->msgmap, MN_SLCT)){
+		if((i = any_lflagged(ps_global->msgmap, MN_SLCT)) != 0){
 
 		    q_status_message2(SM_ORDER, 0, 3,
 				      "%s message%s selected",
@@ -1995,7 +2001,7 @@ url_local_nntp(char *url)
     long i, article_num;
 
 	/* no hostport, no url, end of story */
-	if(group = strchr(url + 7, '/')){
+	if((group = strchr(url + 7, '/')) != 0){
 	    group++;
 	    for(group_len = 0; group[group_len] && group[group_len] != '/';
 		group_len++)
@@ -2036,7 +2042,7 @@ url_local_nntp(char *url)
 		for(i = 1; i <= mn_get_nmsgs(ps_global->msgmap); i++)
 		  if(mail_uid(ps_global->mail_stream, i) == article_num){
 		      ps_global->next_screen = mail_view_screen;
-		      if(i = mn_raw2m(ps_global->msgmap, i))
+		      if((i = mn_raw2m(ps_global->msgmap, i)) != 0)
 			mn_set_cur(ps_global->msgmap, i);
 		      break;
 		  }
@@ -2098,11 +2104,11 @@ url_local_news(char *url)
 	  ;
 
 	if(cntxt){
-	    if(alphaorder = F_OFF(F_READ_IN_NEWSRC_ORDER, ps_global))
-	      F_SET(F_READ_IN_NEWSRC_ORDER, ps_global, 1);
+	    if((alphaorder = F_OFF(F_READ_IN_NEWSRC_ORDER, ps_global)) != 0)
+	      (void) F_SET(F_READ_IN_NEWSRC_ORDER, ps_global, 1);
 
 	    build_folder_list(NULL, cntxt, NULL, NULL, BFL_LSUB);
-	    if(f = folder_entry(0, FOLDERS(cntxt))){
+	    if((f = folder_entry(0, FOLDERS(cntxt))) != NULL){
 		strncpy(folder, f->name, sizeof(folder));
 		folder[sizeof(folder)-1] = '\0';
 	    }
@@ -2110,7 +2116,7 @@ url_local_news(char *url)
 	    free_folder_list(cntxt);
 
 	    if(alphaorder)
-	      F_SET(F_READ_IN_NEWSRC_ORDER, ps_global, 0);
+	      (void) F_SET(F_READ_IN_NEWSRC_ORDER, ps_global, 0);
 	}
 
 	if(folder[0] == '\0'){
@@ -2350,7 +2356,7 @@ scrolltool(SCROLL_S *sparms)
     set_scroll_text(sparms, cur_top_line, scroll_state(SS_NEW));
     format_scroll_text();
 
-    if(km = sparms->keys.menu){
+    if((km = sparms->keys.menu) != NULL){
 	memcpy(bitmap, sparms->keys.bitmap, sizeof(bitmap_t));
     }
     else{
@@ -2397,8 +2403,6 @@ scrolltool(SCROLL_S *sparms)
 
       case Offset :
 	if(sparms->start.loc.offset){
-	    SCRLCTRL_S *st = scroll_state(SS_CUR);
-
 	    for(cur_top_line = 0L;
 		cur_top_line + 1 < scroll_text_lines()
 		  && (sparms->start.loc.offset 
@@ -2779,7 +2783,7 @@ scrolltool(SCROLL_S *sparms)
 		if(sparms->text.handles){
 		    HANDLE_S *h = sparms->text.handles;
 
-		    while(h = scroll_handle_next_sel(h))
+		    while((h = scroll_handle_next_sel(h)) != NULL)
 		      next_handle = h;
 		}
 	    }
@@ -2798,7 +2802,7 @@ scrolltool(SCROLL_S *sparms)
 	    if(sparms->text.handles){
 		HANDLE_S *h = sparms->text.handles;
 
-		while(h = scroll_handle_prev_sel(h))
+		while((h = scroll_handle_prev_sel(h)) != NULL)
 		  next_handle = h;
 	    }
 	    break;
@@ -2814,7 +2818,7 @@ scrolltool(SCROLL_S *sparms)
 	    if(sparms->text.handles){
 		HANDLE_S *h = sparms->text.handles;
 
-		while(h = scroll_handle_next_sel(h))
+		while((h = scroll_handle_next_sel(h)) != NULL)
 		  next_handle = h;
 	    }
 	    break;
@@ -2852,7 +2856,7 @@ scrolltool(SCROLL_S *sparms)
 		    if(h){
 			whereis_pos.row = 0;
 			next_handle = h;
-			if(result = scroll_handle_obscured(next_handle)){
+			if((result = scroll_handle_obscured(next_handle)) != 0){
 			    long new_top;
 
 			    if(scroll_handle_obscured(sparms->text.handles)
@@ -2919,7 +2923,7 @@ scrolltool(SCROLL_S *sparms)
 		    if(h){
 			whereis_pos.row = 0;
 			next_handle = h;
-			if(result = scroll_handle_obscured(next_handle)){
+			if((result = scroll_handle_obscured(next_handle)) != 0){
 			    long new_top;
 
 			    if(scroll_handle_obscured(sparms->text.handles)
@@ -2955,9 +2959,9 @@ scrolltool(SCROLL_S *sparms)
 
 
 	  case MC_NEXT_HANDLE :
-	    if(next_handle = scroll_handle_next_sel(sparms->text.handles)){
+	    if((next_handle = scroll_handle_next_sel(sparms->text.handles)) != NULL){
 		whereis_pos.row = 0;
-		if(result = scroll_handle_obscured(next_handle)){
+		if((result = scroll_handle_obscured(next_handle)) != 0){
 		    long new_top;
 
 		    if(scroll_handle_obscured(sparms->text.handles)
@@ -2990,9 +2994,9 @@ scrolltool(SCROLL_S *sparms)
 
 
 	  case MC_PREV_HANDLE :
-	    if(next_handle = scroll_handle_prev_sel(sparms->text.handles)){
+	    if((next_handle = scroll_handle_prev_sel(sparms->text.handles)) != NULL){
 		whereis_pos.row = 0;
-		if(result = scroll_handle_obscured(next_handle)){
+		if((result = scroll_handle_obscured(next_handle)) != 0){
 		    long new_top;
 
 		    if(scroll_handle_obscured(sparms->text.handles)
@@ -3087,7 +3091,7 @@ scrolltool(SCROLL_S *sparms)
 	     else if(sparms->srch_handle){
 		 HANDLE_S   *h;
 
-		 if(h = scroll_handle_next_sel(sparms->text.handles)){
+		 if((h = scroll_handle_next_sel(sparms->text.handles)) != NULL){
 		     /*
 		      * Translate the screen's column into the
 		      * line offset to start on...
@@ -3135,7 +3139,7 @@ scrolltool(SCROLL_S *sparms)
 		 if((h = sparms->text.handles) && sparms->srch_handle)
 		   do
 		     key = h->key;
-		   while(h = h->next);
+		   while((h = h->next) != NULL);
 	     }
 	     else if(found_on == -3){
 		 whereis_pos.row = found_on = start_row;
@@ -3321,7 +3325,6 @@ scrolltool(SCROLL_S *sparms)
             /*-------------- Display Resize -------------*/
           case MC_RESIZE :
 	    if(sparms->resize_exit){
-		SCRLCTRL_S *st = scroll_state(SS_CUR);
 		long	    line;
 		
 		/*
@@ -3443,7 +3446,6 @@ scrolltool(SCROLL_S *sparms)
 		done = 1;
 		if(cmd == MC_FULLHDR){
 		  if(ps_global->full_header == 1){
-		      SCRLCTRL_S *st = scroll_state(SS_CUR);
 		      long	    line;
 		    
 		      /*
@@ -3558,8 +3560,8 @@ print_to_printer(SCROLL_S *sparms)
 
 	    fseek((FILE *)sparms->text.text, 0L, 0);
 	    n = SIZEOF_20KBUF - 1;
-	    while(i = fread((void *)tmp_20k_buf, sizeof(char),
-			    n, (FILE *)sparms->text.text)) {
+	    while((i = fread((void *)tmp_20k_buf, sizeof(char),
+			    n, (FILE *)sparms->text.text)) != 0) {
 		tmp_20k_buf[i] = '\0';
 		print_text(tmp_20k_buf);
 	    }
@@ -5050,7 +5052,7 @@ display_output_file(char *filename, char *title, char *alt_msg, int mode)
 	    gf_set_so_readc(&gc, in_file);
 	    gf_set_so_writec(&pc, out_store);
 
-	    if(errstr = gf_pipe(gc, pc)){
+	    if((errstr = gf_pipe(gc, pc)) != NULL){
 		so_give(&in_file);
 		so_give(&out_store);
 		our_unlink(filename);
@@ -5061,6 +5063,7 @@ display_output_file(char *filename, char *title, char *alt_msg, int mode)
 
 	    gf_clear_so_writec(out_store);
 	    gf_clear_so_readc(in_file);
+	    so_give(&in_file);
 	}
 
 	if(out_store){
@@ -5451,7 +5454,6 @@ long	scroll_pos;
     int		  paint = FALSE;
     int		  num_display_lines;
     int		  scroll_lines;
-    int		  num_text_lines;
     char	  message[64];
     long	  maxscroll;
     

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: setup.c 607 2007-06-22 17:47:59Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: setup.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -25,11 +25,14 @@ static char rcsid[] = "$Id: setup.c 607 2007-06-22 17:47:59Z hubert@u.washington
 #include "radio.h"
 #include "listsel.h"
 #include "folder.h"
+#include "mailcmd.h"
 #include "../pith/state.h"
 #include "../pith/conf.h"
 #include "../pith/util.h"
 #include "../pith/sort.h"
 #include "../pith/folder.h"
+#include "../pith/list.h"
+#include "../pith/icache.h"
 
 
 /*
@@ -82,6 +85,8 @@ option_screen(struct pine *ps, int edit_exceptions)
 	    break;
 	  case Post:
 	    prc = ps->post_prc;
+	    break;
+	  default:
 	    break;
 	}
 
@@ -194,7 +199,7 @@ option_screen(struct pine *ps, int edit_exceptions)
 	    ctmpa->flags		 |= CF_NOSELECT;
 	    ctmpa->value = cpystr("---  ----------------------");
 
-	    for(i = 0, this_sect = NULL; feature = feature_list(i); i++)
+	    for(i = 0, this_sect = NULL; (feature = feature_list(i)); i++)
 	      if((new_sect = feature_list_section(feature)) &&
 		 (strcmp(new_sect, HIDDEN_PREF) != 0)){
 		  if(this_sect != new_sect){
@@ -391,7 +396,7 @@ option_screen(struct pine *ps, int edit_exceptions)
 	ctmpa->flags		 |= CF_NOSELECT;
 	ctmpa->value = cpystr("---  ----------------------");
 
-	for(i = 0; feature = feature_list(i); i++)
+	for(i = 0; (feature = feature_list(i)); i++)
 	  if((new_sect = feature_list_section(feature)) &&
 	     (strcmp(new_sect, HIDDEN_PREF) == 0)){
 
@@ -658,7 +663,6 @@ incoming_monitoring_list_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned in
     CONTEXT_S  *cntxt;
     char      **the_list;
     CONF_S     *ctmp;
-    char      **newval = NULL;
     char     ***alval;
     OPT_SCREEN_S *saved_screen;
 
@@ -813,7 +817,7 @@ adjust_list_of_monitored_incoming(CONTEXT_S *cntxt, EditWhich which, int varnum)
 			SFL_ALLOW_LISTMODE|SFL_STARTIN_LISTMODE|SFL_ONLY_LISTMODE,
 			        _("SELECT FOLDERS TO MONITOR"), _("folders"),
 				h_select_incoming_to_monitor,
-				_("HELP FOR SELECTING FOLDERS"))){
+				_("HELP FOR SELECTING FOLDERS"), NULL)){
 
 	for(cnt = 0, p = listhead; p; p = p->next)
 	  if(p->selected)

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pattern.c 596 2007-06-09 00:20:47Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pattern.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
 #endif
 /*
  * ========================================================================
@@ -44,6 +44,9 @@ static char rcsid[] = "$Id: pattern.c 596 2007-06-09 00:20:47Z hubert@u.washingt
 #include "../pith/busy.h"
 #include "../pith/indxtype.h"
 #include "../pith/mailindx.h"
+#include "../pith/send.h"
+#include "../pith/icache.h"
+#include "../pith/ablookup.h"
 
 
 /*
@@ -84,10 +87,6 @@ int	    non_eh(char *);
 void        add_eh(char **, char **, char *, int *);
 void        set_extra_hdrs(char *);
 int         is_ascii_string(char *);
-void        free_patline(PAT_LINE_S **);
-void        free_patgrp(PATGRP_S **);
-void        free_arbhdr(ARBHDR_S **);
-void        free_intvl(INTVL_S **);
 ACTION_S   *combine_inherited_role_guts(ACTION_S *);
 int	    move_filtered_msgs(MAILSTREAM *, MSGNO_S *, char *, int, char *);
 void        set_some_flags(MAILSTREAM *, MSGNO_S *, long, char **, char **, int, char *);
@@ -334,9 +333,7 @@ static PAT_HANDLE	*pattern_h_roles_ne,    *pattern_h_roles_any,
 			*pattern_h_incol_ne,    *pattern_h_incol_any,
 			*pattern_h_other_ne,    *pattern_h_other_any,
 			*pattern_h_srch_ne,     *pattern_h_srch_any,
-			*pattern_h_oldpat_ne,   *pattern_h_oldpat_any,
-			*pattern_h_oldfilt_ne,  *pattern_h_oldfilt_any,
-			*pattern_h_oldscore_ne, *pattern_h_oldscore_any;
+			*pattern_h_oldpat_ne,   *pattern_h_oldpat_any;
 
 /*
  * These contain the PAT_OPEN_MASK open status and the PAT_USE_MASK use status.
@@ -413,7 +410,7 @@ static long	  	 pat_status_roles_ne,    pat_status_roles_any,
      NAMEVAL_S *vv;							\
      if((qq = srchstr(srchin, srchfor)) != NULL){			\
 	if((pp = remove_pat_escapes(qq+strlen(srchfor))) != NULL){	\
-	    for(ii = 0; vv = role_status_types(ii); ii++)		\
+	    for(ii = 0; (vv = role_status_types(ii)); ii++)		\
 	      if(!strucmp(pp, vv->shortname)){				\
 		  assignto = vv->value;					\
 		  break;						\
@@ -430,7 +427,7 @@ static long	  	 pat_status_roles_ne,    pat_status_roles_any,
      NAMEVAL_S *vv;							\
      if((qq = srchstr(srchin, srchfor)) != NULL){			\
 	if((pp = remove_pat_escapes(qq+strlen(srchfor))) != NULL){	\
-	    for(ii = 0; vv = msg_state_types(ii); ii++)			\
+	    for(ii = 0; (vv = msg_state_types(ii)); ii++)		\
 	      if(!strucmp(pp, vv->shortname)){				\
 		  assignto = vv->value;					\
 		  break;						\
@@ -777,7 +774,6 @@ edit_pattern(PAT_S *newpat, int pos, long int rflags)
 int
 add_pattern(PAT_S *newpat, long int rflags)
 {
-    PAT_S *oldpat;
     PAT_LINE_S *tpatline, *newpatline;
     PAT_STATE pstate;
 
@@ -806,7 +802,6 @@ add_pattern(PAT_S *newpat, long int rflags)
 int
 delete_pattern(int pos, long int rflags)
 {
-    PAT_S *oldpat;
     PAT_LINE_S *tpatline;
     int i;
     PAT_STATE pstate;
@@ -835,7 +830,6 @@ delete_pattern(int pos, long int rflags)
 int
 shuffle_pattern(int pos, int up, long int rflags)
 {
-    PAT_S *oldpat;
     PAT_LINE_S *tpatline, *shufpatline;
     int i;
     PAT_STATE pstate;
@@ -938,7 +932,7 @@ parse_pat_file(char *filename)
     patline->filename = cpystr(filename);
     patline->filepath = cpystr(path);
 
-    if(q = last_cmpnt(path)){
+    if((q = last_cmpnt(path)) != NULL){
 	int save;
 
 	save = *--q;
@@ -1410,7 +1404,7 @@ parse_patgrp_slash(char *str, PATGRP_S *patgrp)
 	    int        i;
 	    NAMEVAL_S *v;
 
-	    for(i = 0; v = pat_fldr_types(i); i++)
+	    for(i = 0; (v = pat_fldr_types(i)); i++)
 	      if(!strucmp(p, v->shortname)){
 		  patgrp->fldr_type = v->value;
 		  break;
@@ -1424,7 +1418,7 @@ parse_patgrp_slash(char *str, PATGRP_S *patgrp)
 	    int        i;
 	    NAMEVAL_S *v;
 
-	    for(i = 0; v = inabook_fldr_types(i); i++)
+	    for(i = 0; (v = inabook_fldr_types(i)); i++)
 	      if(!strucmp(p, v->shortname)){
 		  patgrp->inabook |= v->value;
 		  break;
@@ -1627,7 +1621,7 @@ parse_action_slash(char *str, ACTION_S *action)
 	/* reply type */
 	action->repl_type = ROLE_REPL_DEFL;
 	if((p = remove_pat_escapes(str+7)) != NULL){
-	    for(i = 0; v = role_repl_types(i); i++)
+	    for(i = 0; (v = role_repl_types(i)); i++)
 	      if(!strucmp(p, v->shortname)){
 		  action->repl_type = v->value;
 		  break;
@@ -1640,7 +1634,7 @@ parse_action_slash(char *str, ACTION_S *action)
 	/* forward type */
 	action->forw_type = ROLE_FORW_DEFL;
 	if((p = remove_pat_escapes(str+7)) != NULL){
-	    for(i = 0; v = role_forw_types(i); i++)
+	    for(i = 0; (v = role_forw_types(i)); i++)
 	      if(!strucmp(p, v->shortname)){
 		  action->forw_type = v->value;
 		  break;
@@ -1653,7 +1647,7 @@ parse_action_slash(char *str, ACTION_S *action)
 	/* compose type */
 	action->comp_type = ROLE_COMP_DEFL;
 	if((p = remove_pat_escapes(str+7)) != NULL){
-	    for(i = 0; v = role_comp_types(i); i++)
+	    for(i = 0; (v = role_comp_types(i)); i++)
 	      if(!strucmp(p, v->shortname)){
 		  action->comp_type = v->value;
 		  break;
@@ -1775,7 +1769,7 @@ parse_action_slash(char *str, ACTION_S *action)
     /* per-folder startup-rule */
     else if(!strncmp(str, "/START=", 7)){
 	if((p = remove_pat_escapes(str+7)) != NULL){
-	    for(i = 0; v = startup_rules(i); i++)
+	    for(i = 0; (v = startup_rules(i)); i++)
 	      if(!strucmp(p, S_OR_L(v))){
 		  action->startup_rule = v->value;
 		  break;
@@ -2162,7 +2156,6 @@ config_to_hdrtok(char *str)
     if(str && *str){
 	if((q = remove_pat_escapes(str)) != NULL){
 	    char *hn = NULL, *fn = NULL, *fs = NULL, *z;
-	    long i;
 
 	    if((z = srchstr(q, "/HN=")) != NULL)
 	      hn = remove_pat_escapes(z+4);
@@ -2436,7 +2429,7 @@ parse_arbhdr(char *str)
       return(NULL);
 
     aa = NULL;
-    for(s = str; q = next_arb(s); s = q+1){
+    for(s = str; (q = next_arb(s)); s = q+1){
 	not = (q[1] == '!') ? 1 : 0;
 	empty = (q[not+1] == 'E') ? 1 : 0;
 	skip = 4 + not + empty;
@@ -2909,7 +2902,6 @@ PAT_S *
 first_pattern(PAT_STATE *pstate)
 {
     PAT_S           *pat;
-    struct variable *vars = ps_global->vars;
     long             rflags;
 
     pstate->cur_rflag_num = 1;
@@ -2924,7 +2916,8 @@ first_pattern(PAT_STATE *pstate)
 	           (rflags & ROLE_DO_OTHER && pat->action->is_a_other) ||
 	           (rflags & ROLE_DO_SRCH && pat->action->is_a_srch) ||
 	           (rflags & ROLE_DO_SCORES && pat->action->is_a_score) ||
-		   (rflags & ROLE_SCORE && pat->action->scoreval) ||
+		   (rflags & ROLE_SCORE && (pat->action->scoreval
+		                            || pat->action->scorevalhdrtok)) ||
 		   (rflags & ROLE_DO_FILTER && pat->action->is_a_filter) ||
 	           (rflags & ROLE_REPLY &&
 		    (pat->action->repl_type == ROLE_REPL_YES ||
@@ -3050,7 +3043,6 @@ PAT_S *
 last_pattern(PAT_STATE *pstate)
 {
     PAT_S           *pat;
-    struct variable *vars = ps_global->vars;
     long             rflags;
 
     pstate->cur_rflag_num = PATTERN_N;
@@ -3065,7 +3057,8 @@ last_pattern(PAT_STATE *pstate)
 	           (rflags & ROLE_DO_OTHER && pat->action->is_a_other) ||
 	           (rflags & ROLE_DO_SRCH && pat->action->is_a_srch) ||
 	           (rflags & ROLE_DO_SCORES && pat->action->is_a_score) ||
-		   (rflags & ROLE_SCORE && pat->action->scoreval) ||
+		   (rflags & ROLE_SCORE && (pat->action->scoreval
+		                            || pat->action->scorevalhdrtok)) ||
 		   (rflags & ROLE_DO_FILTER && pat->action->is_a_filter) ||
 	           (rflags & ROLE_REPLY &&
 		    (pat->action->repl_type == ROLE_REPL_YES ||
@@ -3137,7 +3130,6 @@ PAT_S *
 next_pattern(PAT_STATE *pstate)
 {
     PAT_S           *pat;
-    struct variable *vars = ps_global->vars;
     long             rflags;
 
     rflags = pstate->rflags;
@@ -3150,7 +3142,8 @@ next_pattern(PAT_STATE *pstate)
 	           (rflags & ROLE_DO_OTHER && pat->action->is_a_other) ||
 	           (rflags & ROLE_DO_SRCH && pat->action->is_a_srch) ||
 	           (rflags & ROLE_DO_SCORES && pat->action->is_a_score) ||
-		   (rflags & ROLE_SCORE && pat->action->scoreval) ||
+		   (rflags & ROLE_SCORE && (pat->action->scoreval
+		                            || pat->action->scorevalhdrtok)) ||
 		   (rflags & ROLE_DO_FILTER && pat->action->is_a_filter) ||
 	           (rflags & ROLE_REPLY &&
 		    (pat->action->repl_type == ROLE_REPL_YES ||
@@ -3221,7 +3214,6 @@ PAT_S *
 prev_pattern(PAT_STATE *pstate)
 {
     PAT_S           *pat;
-    struct variable *vars = ps_global->vars;
     long             rflags;
 
     rflags = pstate->rflags;
@@ -3234,7 +3226,8 @@ prev_pattern(PAT_STATE *pstate)
 	           (rflags & ROLE_DO_OTHER && pat->action->is_a_other) ||
 	           (rflags & ROLE_DO_SRCH && pat->action->is_a_srch) ||
 	           (rflags & ROLE_DO_SCORES && pat->action->is_a_score) ||
-		   (rflags & ROLE_SCORE && pat->action->scoreval) ||
+		   (rflags & ROLE_SCORE && (pat->action->scoreval
+		                            || pat->action->scorevalhdrtok)) ||
 		   (rflags & ROLE_DO_FILTER && pat->action->is_a_filter) ||
 	           (rflags & ROLE_REPLY &&
 		    (pat->action->repl_type == ROLE_REPL_YES ||
@@ -3397,7 +3390,7 @@ write_pattern_file(char **lvalue, PAT_LINE_S *patline)
 	p = (char *) fs_get((l+1) * sizeof(char));
 	strncpy(p, "FILE:", l+1);
 	p[l] = '\0';
-	strncat(p, patline->filename, l+1-strlen(p));
+	strncat(p, patline->filename, l+1-1-strlen(p));
 	p[l] = '\0';
 	*lvalue = p;
     }
@@ -3497,7 +3490,7 @@ write_pattern_lit(char **lvalue, PAT_LINE_S *patline)
 	*lvalue = (char *) fs_get((l+1) * sizeof(char));
 	strncpy(*lvalue, "LIT:", l+1);
 	(*lvalue)[l] = '\0';
-	strncat(*lvalue, p, l+1-strlen(*lvalue));
+	strncat(*lvalue, p, l+1-1-strlen(*lvalue));
 	(*lvalue)[l] = '\0';
     }
     else{
@@ -4028,7 +4021,7 @@ data_for_patline(PAT_S *pat)
 
 	if(action->is_a_filter){
 	    if(action->folder){
-		if(folder_act = pattern_to_config(action->folder)){
+		if((folder_act = pattern_to_config(action->folder)) != NULL){
 		    if(action->move_only_if_not_deleted)
 		      filt_ifnotdel = cpystr("/NOTDEL=1");
 		}
@@ -5463,7 +5456,8 @@ match_pattern_folder_specific(PATTERN_S *folders, MAILSTREAM *stream, int flags)
 		   same_stream(patfolder, stream) &&
 		   (streamfolder = strindex(&stream->mailbox[1], '}')) &&
 		   (t = strindex(&patfolder[1], '}')) &&
-		   !strcmp(t+1, streamfolder+1))
+		   (!strcmp(t+1, streamfolder+1) ||
+		    (*(t+1) == '\0' && !strcmp("INBOX", streamfolder+1))))
 		  match++;
 
 		break;
@@ -6038,10 +6032,6 @@ set_search_by_age(INTVL_S *age, SEARCHPGM *pgm, int age_uses_sentdate)
 void
 set_search_by_size(INTVL_S *size, SEARCHPGM *pgm)
 {
-    time_t         now, comparetime;
-    struct tm     *tm;
-    unsigned short i;
-
     if(!(size && pgm))
       return;
     
@@ -6132,12 +6122,17 @@ calc_extra_hdrs(void)
       }
 
     /*
-     * Check for use of HEADER in index-format.
+     * Check for use of HEADER or X-Priority in index-format.
      */
-    for(cdesc = ps_global->index_disp_format; cdesc->ctype != iNothing; cdesc++)
-      if(cdesc->ctype == iHeader && cdesc->hdrtok && cdesc->hdrtok->hdrname
-         && cdesc->hdrtok->hdrname[0] && non_eh(cdesc->hdrtok->hdrname))
-	add_eh(&q, &p, cdesc->hdrtok->hdrname, &alloced_size);
+    for(cdesc = ps_global->index_disp_format; cdesc->ctype != iNothing; cdesc++){
+	if(cdesc->ctype == iHeader && cdesc->hdrtok && cdesc->hdrtok->hdrname
+           && cdesc->hdrtok->hdrname[0] && non_eh(cdesc->hdrtok->hdrname))
+	  add_eh(&q, &p, cdesc->hdrtok->hdrname, &alloced_size);
+	else if(cdesc->ctype == iPrio
+		|| cdesc->ctype == iPrioAlpha
+		|| cdesc->ctype == iPrioBang)
+	  add_eh(&q, &p, PRIORITYNAME, &alloced_size);
+    }
 
     /*
      * Check for use of scorevalhdrtok in scoring patterns.
@@ -6196,7 +6191,7 @@ add_eh(char **start, char **ptr, char *field, int *asize)
       char *s;
 
       /* already there? */
-      for(s = *start; s = srchstr(s, field); s++)
+      for(s = *start; (s = srchstr(s, field)) != NULL; s++)
 	if(s[strlen(field)] == SPACE || s[strlen(field)] == '\0')
 	  return;
     
@@ -6976,7 +6971,7 @@ mail_expunge_prefilter(MAILSTREAM *stream, int flags)
 void
 process_filter_patterns(MAILSTREAM *stream, MSGNO_S *msgmap, long int recent)
 {
-    long	  i, n, raw, orig_nmsgs;
+    long	  i, n, raw;
     imapuid_t     uid;
     int           we_cancel = 0, any_msgs = 0, any_to_filter = 0;
     int		  exbits, nt = 0, pending_actions = 0, for_debugging = 0;
@@ -7003,11 +6998,6 @@ process_filter_patterns(MAILSTREAM *stream, MSGNO_S *msgmap, long int recent)
     if(!msgmap || !stream)
       return;
 
-    if(stream->rdonly){
-	dprint((5, "process_filter_patterns: skipping because stream is readonly\n"));
-	return;
-    }
-
     if(!recent)
       sp_set_flags(stream, sp_flags(stream) | SP_FILTERED);
 
@@ -7025,9 +7015,6 @@ process_filter_patterns(MAILSTREAM *stream, MSGNO_S *msgmap, long int recent)
 	 */
 	if(is_imap_stream(stream) && !modern_imap_stream(stream))
 	  flags |= SE_NOSERVER;
-	else if(stream->dtb && stream->dtb->name
-	        && !strcmp(stream->dtb->name, "nntp"))
-	  flags |= SO_OVERVIEW;
 
 	/*
 	 * ignore all previously filtered messages
@@ -7280,13 +7267,14 @@ process_filter_patterns(MAILSTREAM *stream, MSGNO_S *msgmap, long int recent)
 		    for(i = 1L, n = 0L; i <= stream->nmsgs; i++)
 		      if((mc = mail_elt(stream, i)) && mc->searched
 			 && !(msgno_exceptions(stream, i, "0", &exbits, FALSE)
-			      && (exbits & MSG_EX_FILTERED)))
+			      && (exbits & MSG_EX_FILTERED))){
 			if(!n++){
 			    mn_set_cur(tmpmap, i);
 			}
 			else{
 			    mn_add_cur(tmpmap, i);
 			}
+		      }
 
 		    if(n){
 			long flagbits;
@@ -7480,13 +7468,14 @@ process_filter_patterns(MAILSTREAM *stream, MSGNO_S *msgmap, long int recent)
 		    for(i = 1L, n = 0L; i <= stream->nmsgs; i++)
 		      if((mc = mail_elt(stream, i)) && mc->searched
 			 && !(msgno_exceptions(stream, i, "0", &exbits, FALSE)
-			      && (exbits & MSG_EX_FILED)))
+			      && (exbits & MSG_EX_FILED))){
 			if(!n++){
 			    mn_set_cur(tmpmap, i);
 			}
 			else{
 			    mn_add_cur(tmpmap, i);
 			}
+		      }
 
 		    /*
 		     * Remove already deleted messages from the tmp
@@ -7504,7 +7493,7 @@ process_filter_patterns(MAILSTREAM *stream, MSGNO_S *msgmap, long int recent)
 			 * First, make sure elts are valid for all the
 			 * interesting messages.
 			 */
-			if(seq = invalid_elt_sequence(stream, tmpmap)){
+			if((seq = invalid_elt_sequence(stream, tmpmap)) != NULL){
 			    pine_mail_fetch_flags(stream, seq, NIL);
 			    fs_give((void **) &seq);
 			}
@@ -8028,8 +8017,8 @@ set_some_flags(MAILSTREAM *stream, MSGNO_S *msgmap, long int flagbits,
 		    ((flagbits & F_UNSEEN) ? F_SEEN : 0)        |
 		    ((flagbits & F_KEYWORD) ? F_UNKEYWORD : 0)  |
 		    ((flagbits & F_UNKEYWORD) ? F_KEYWORD : 0);
-    if(seq = currentf_sequence(stream, msgmap, flipped_flags, &count, 0,
-			       kw_off, kw_on)){
+    if((seq = currentf_sequence(stream, msgmap, flipped_flags, &count, 0,
+			       kw_off, kw_on)) != NULL){
 	char *sets = NULL, *clears = NULL;
 	char *ps, *pc, **t;
 	size_t clen, slen;
@@ -8203,7 +8192,7 @@ delete_filtered_msgs(MAILSTREAM *stream)
       else if((mc = mail_elt(stream, i)) != NULL)
 	mc->sequence = 0;
 
-    if(seq = build_sequence(stream, NULL, NULL)){
+    if((seq = build_sequence(stream, NULL, NULL)) != NULL){
 	mail_flag(stream, seq, "\\DELETED", ST_SET | ST_SILENT);
 	fs_give((void **) &seq);
     }

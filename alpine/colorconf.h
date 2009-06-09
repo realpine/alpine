@@ -1,5 +1,5 @@
 /*
- * $Id: colorconf.h 577 2007-05-22 22:16:43Z hubert@u.washington.edu $
+ * $Id: colorconf.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -66,6 +66,13 @@ extern int treat_color_vars_as_text;
 void     color_config_screen(struct pine *, int);
 int	 color_setting_tool(struct pine *, int, CONF_S **, unsigned);
 char    *sampleexc_text(struct pine *, struct variable *);
+int	 color_related_var(struct pine *, struct variable *);
+int	 color_holding_var(struct pine *, struct variable *);
+char	*sample_text(struct pine *, struct variable *);
+char	*color_parenthetical(struct variable *);
+void	 add_color_setting_disp(struct pine *, CONF_S **, struct variable *, CONF_S *,
+			        struct key_menu *, struct key_menu *, HelpType,
+			        int, int, char *, char *, int);
 
 
 #endif /* PINE_COLORCONF_INCLUDED */

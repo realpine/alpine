@@ -1,5 +1,5 @@
 /*
- * $Id: pico.h 618 2007-06-28 21:23:25Z jpf@u.washington.edu $
+ * $Id: pico.h 698 2007-08-30 01:12:18Z jpf@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -99,6 +99,7 @@ struct headerentry {
         unsigned  dirty:1;           /* We've changed this entry            */
 	unsigned  start_here:1;	     /* begin composer on first on lit      */
 	unsigned  blank:1;	     /* blank line separator                */
+	unsigned  sticky_special:1;  /* special treatment                   */
 #ifdef	KS_OSDATAVAR
 	KS_OSDATAVAR		     /* Port-Specific keymenu data */
 #endif
@@ -375,7 +376,7 @@ typedef struct  KBSTREE {
  */
 #ifdef	maindef
 PICO	*Pmaster = NULL;		/* composer specific stuff */
-char	*version = "4.96";		/* PICO version number */
+char	*version = "4.97";		/* PICO version number */
 
 #else
 extern	PICO *Pmaster;			/* composer specific stuff */
@@ -411,7 +412,6 @@ extern	char *version;			/* pico version! */
 #define	CHKPTDELAY	100
 #endif
 
-/*
 #include "./keydefs.h"
 
 

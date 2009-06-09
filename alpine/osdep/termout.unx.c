@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: termout.unx.c 561 2007-05-09 17:48:49Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: termout.unx.c 694 2007-08-29 19:51:50Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -33,7 +33,15 @@ static char rcsid[] = "$Id: termout.unx.c 561 2007-05-09 17:48:49Z hubert@u.wash
 
 #include "../../pico/estruct.h"
 #include "../../pico/pico.h"
+#include "../../pico/edef.h"
+#include "../../pico/efunc.h"
+#include "../../pico/osdep/color.h"
 
+#include "../status.h"
+#include "../keymenu.h"
+#include "../titlebar.h"
+
+#include "termout.gen.h"
 #include "termout.unx.h"
 
 
@@ -76,6 +84,7 @@ static int   _lines, _columns;
 /*
  * Internal prototypes
  */
+static int outchar(int);
 static void moveabsolute(int, int);
 static void CursorUp(int);
 static void CursorDown(int);
@@ -95,7 +104,8 @@ extern int  _tlines, _tcolumns, _bce;
 
 static enum  {NoScroll,UseScrollRegion,InsertDelete} _scrollmode;
 
-char  *tgoto();				/* and the goto stuff    */
+extern int      tputs(char *, int, int (*)(int));
+extern char    *tgoto(char *, int, int);
 
 
 
@@ -133,7 +143,7 @@ config_screen(struct ttyo **tt)
      * from pine.
      */
     Pmaster = (PICO *)1;
-    if(err = vtterminalinfo(F_ON(F_TCAP_WINS, ps_global)))
+    if((err = vtterminalinfo(F_ON(F_TCAP_WINS, ps_global))) != 0)
       return(err);
 
     Pmaster = NULL;
@@ -610,6 +620,7 @@ CursorRight(int n)
 -----*/
 static int __t, __b;
 
+int
 BeginScroll(int top, int bottom)
 {
     char *stuff;
@@ -665,6 +676,7 @@ EndScroll(void)
 
  0,0 is the upper left
  -----*/
+int
 ScrollRegion(int lines)
 {
     int l;
@@ -784,9 +796,14 @@ Writewchar(UCS ucs)
 	     * is a double wide and we're in last column.
 	     * Fill with spaces instead and toss the
 	     * character.
+	     *
+	     * Put a > in the right column to show we tried to write
+	     * past the end.
 	     */
-	    while(outchars < ps_global->ttyo->screen_cols - _col)
+	    while(outchars < ps_global->ttyo->screen_cols - _col - 1)
 	      obuf[outchars++] = ' ';
+
+	    obuf[outchars++] = '>';
 	}
 	else{
 	    /*
@@ -811,32 +828,21 @@ Writewchar(UCS ucs)
 	  putchar(obuf[i]);
     }
 
-
-    /* Here we are at the end of the line. We've decided to make no
-       assumptions about how the terminal behaves at this point.
-       What can happen now are the following
-           1. Cursor is at start of next line, and next character will
-              apear there. (autowrap, !newline glitch)
-           2. Cursor is at start of next line, and if a newline is output
-              it'll be ignored. (autowrap, newline glitch)
-           3. Cursor is still at end of line and next char will apear
-              there over the top of what is there now (no autowrap).
-       We ignore all this and force the cursor to the next line, just 
-       like case 1. A little expensive but worth it to avoid problems
-       with terminals configured so they don't match termcap
-       */
+    /*
+     * We used to wrap by moving to the next line and making _col = 0
+     * when we went past the end. We don't believe that this is useful
+     * anymore. If we wrap it is unintentional. Instead, stay at the
+     * end of the line.
+     */
     if(_col >= ps_global->ttyo->screen_cols) {
-        _col = 0;
-        if(_line + 1 < ps_global->ttyo->screen_rows)
-	  _line++;
-
-	moveabsolute(_col, _line);
+	_col = ps_global->ttyo->screen_cols;
+	moveabsolute(_col-1, _line);
     }
 }
 
 
 void
-Write_to_screen(register char *string)				/* UNIX */
+Write_to_screen(char *string)				/* UNIX */
                              
 {
     while(*string)
@@ -853,7 +859,7 @@ Write_to_screen(register char *string)				/* UNIX */
  Result: String written to the screen
   ----*/
 void
-Write_to_screen_n(register char *string, int n)				/* UNIX */
+Write_to_screen_n(char *string, int n)				/* UNIX */
                              
                        
 {
@@ -931,13 +937,13 @@ CleartoEOS(void)
 
  Result: character output to screen via stdio
   ----*/
-void
+int
 outchar(int c)
 {
 	/** output the given character.  From tputs... **/
 	/** Note: this CANNOT be a macro!              **/
 
-	putc((unsigned char)c, stdout);
+	return(putc((unsigned char)c, stdout));
 }
 
 

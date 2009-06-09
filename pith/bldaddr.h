@@ -1,8 +1,8 @@
 /*
- * $Id: bldaddr.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: bldaddr.h 701 2007-08-31 18:52:30Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@
  *
  * The bldr_private pointer points to a PrivateTop which consists of two
  * parts, whose purposes are independent:
+ *    ******* This part no longer exists ******
  *   encoded -- This is used to preserve the charset information for
  *                addresses in this entry. For example, if the user types
  *                in a nickname which has a charset in it, the encoded
@@ -88,14 +89,14 @@ typedef struct private_affector {
     unsigned long cksumval;
 } PrivateAffector;
 
-typedef struct private_encoded {
-    char    *etext;
-    int      cksumlen;
-    unsigned long cksumval;
-} PrivateEncoded;
-
+/*
+ * This used to have more than one member. We could get rid
+ * of this structure now if we wanted to, and just have the
+ * PrivateAffector at the top-level, but it's easier alone.
+ * Who knows, we may have a need for something else to be added
+ * to the structure in the future.
+ */
 typedef struct private_top {
-    PrivateEncoded  *encoded;
     PrivateAffector *affector;
 } PrivateTop;
 
@@ -114,7 +115,7 @@ char	*get_fcc(char *);
 void	 set_last_fcc(char *);
 char	*get_fcc_based_on_to(ADDRESS *);
 void	 free_privatetop(PrivateTop **);
-void	 free_privateencoded(PrivateEncoded **);
+void     strip_personal_quotes(ADDRESS *);
 
 
 #endif /* PITH_BLDADDR_INCLUDED */

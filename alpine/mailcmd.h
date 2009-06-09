@@ -1,5 +1,5 @@
 /*
- * $Id: mailcmd.h 609 2007-06-22 23:38:20Z hubert@u.washington.edu $
+ * $Id: mailcmd.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -21,6 +21,7 @@
 #include "context.h"
 #include "mailview.h"
 #include "radio.h"
+#include "listsel.h"
 #include "../pith/mailcmd.h"
 #include "../pith/mailindx.h"
 #include "../pith/state.h"
@@ -78,12 +79,13 @@ int	    select_by_current(struct pine *, MSGNO_S *, CmdWhere);
 int	    apply_command(struct pine *, MAILSTREAM *, MSGNO_S *, UCS, int, int);
 char      **choose_list_of_keywords(void);
 char      **choose_list_of_charsets(void);
-char       *choose_item_from_list(char **, char *, char *, HelpType, char *);
+char       *choose_item_from_list(char **, char *, char *, HelpType, char *, char *);
 int	    display_folder_list(CONTEXT_S **, char *, int,
 				int (*)(struct pine *, CONTEXT_S **, char *, int));
 int	    file_lister(char *, char *, size_t, char *, size_t, int, int);
 int	    read_msg_prompt(long, char *);
 void        advance_cur_after_delete(struct pine *, MAILSTREAM *, MSGNO_S *, CmdWhere);
+void        free_list_sel(LIST_SEL_S **);
 #ifdef	_WINDOWS
 int	    header_mode_callback(int, long);
 int	    zoom_mode_callback(int, long);

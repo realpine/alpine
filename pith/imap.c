@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: imap.c 600 2007-06-15 23:23:02Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: imap.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -27,9 +27,16 @@ static char rcsid[] = "$Id: imap.c 600 2007-06-15 23:23:02Z hubert@u.washington.
 #include "../pith/mailview.h"
 #include "../pith/mailpart.h"
 #include "../pith/mailindx.h"
+#include "../pith/mailcmd.h"
 #include "../pith/save.h"
 #include "../pith/util.h"
 #include "../pith/stream.h"
+#include "../pith/newmail.h"
+#include "../pith/icache.h"
+
+#ifdef _WINDOWS
+#include "../pico/osdep/mswin.h"
+#endif
 
 
 /*
@@ -216,7 +223,7 @@ mm_expunged(MAILSTREAM *stream, long unsigned int rawno)
     if(ps_global->mail_stream == stream)
       is_current++;
 
-    if(i = mn_raw2m(msgmap, (long) rawno)){
+    if((i = mn_raw2m(msgmap, (long) rawno)) != 0L){
 	dprint((7, "mm_expunged: rawno=%lu msgno=%ld nmsgs=%ld max_msgno=%ld flagged_exld=%ld\n", rawno, i, mn_get_nmsgs(msgmap), mn_get_total(msgmap), msgmap->flagged_exld));
 
 	sp_set_mail_box_changed(stream, 1);
@@ -684,7 +691,6 @@ imap_seq_exec(MAILSTREAM *stream, char *sequence,
 	      void *args)
 {
     unsigned long i,j,x;
-    MESSAGECACHE *mc;
 
     while (*sequence) {		/* while there is something to parse */
 	if (*sequence == '*') {	/* maximum message */
@@ -767,12 +773,12 @@ imap_seq_exec_append(MAILSTREAM *stream, long int msgno, void *args)
 
     save_stream = save_msg_stream(cntxt, save_folder, &our_stream);
 
-    if(so = so_get(CharStar, NULL, WRITE_ACCESS)){
+    if((so = so_get(CharStar, NULL, WRITE_ACCESS)) != NULL){
 	/* store flags before the fetch so UNSEEN bit isn't flipped */
 	mc = (msgno > 0L && stream && msgno <= stream->nmsgs)
 		? mail_elt(stream, msgno) : NULL;
 
-	flags = flag_string(stream, msgno, F_ANS|F_FLAG|F_SEEN|F_KEYWORD);
+	flags = flag_string(stream, msgno, F_ANS|F_FWD|F_FLAG|F_SEEN|F_KEYWORD);
 	if(mc && mc->day)
 	  mail_date(date, mc);
 	else
@@ -845,7 +851,7 @@ cached_user_name(char *host)
 	for(h = l->hosts; h; h = h->next)
 	  if(!strucmp(host, h->name))
 	    return(l->user);
-      while(l = l->next);
+      while((l = l->next) != NULL);
 
     return(NULL);
 }
@@ -959,13 +965,14 @@ imap_set_passwd(MMLOGIN_S **l, char *passwd, char *user, STRLIST_S *hostlist,
     for(; *l; l = &(*l)->next)
       if(imap_same_host((*l)->hosts, hostlist)
 	 && !strcmp(user, (*l)->user)
-	 && altflag == (*l)->altflag)
+	 && altflag == (*l)->altflag){
 	if(strcmp(passwd, (*l)->passwd) ||
 	   (*l)->ok_novalidate != ok_novalidate ||
 	   (*l)->warned != warned)
 	  break;
 	else
 	  return;
+      }
 
     if(!*l){
 	*l = (MMLOGIN_S *)fs_get(sizeof(MMLOGIN_S));
@@ -1016,7 +1023,7 @@ imap_flush_passwd_cache(int dumpcache)
     if(dumpcache){
 	MMLOGIN_S *l;
 
-	while(l = mm_login_list){
+	while((l = mm_login_list) != NULL){
 	    mm_login_list = mm_login_list->next;
 	    if(l->user)
 	      fs_give((void **) &l->user);
@@ -1026,7 +1033,7 @@ imap_flush_passwd_cache(int dumpcache)
 	    fs_give((void **) &l);
 	}
 
-	while(l = cert_failure_list){
+	while((l = cert_failure_list) != NULL){
 	    cert_failure_list = cert_failure_list->next;
 	    if(l->user)
 	      fs_give((void **) &l->user);

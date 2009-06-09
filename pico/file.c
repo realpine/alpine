@@ -1,10 +1,10 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: file.c 449 2007-02-23 22:31:28Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: file.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,6 @@ static char rcsid[] = "$Id: file.c 449 2007-02-23 22:31:28Z hubert@u.washington.
 #include	"../pith/charconv/filesys.h"
 
 
-int   ifile(char *);
 void  init_insmsgchar_cbuf(void);
 int   insmsgchar(int);
 char *file_split(char *, size_t, char *, int);
@@ -208,8 +207,7 @@ insfile(int f, int n)
 	    switch(s){
 	      case (CTRL|'I') :
 		{
-		    char *fn, *p;
-		    int   dirlen;
+		    char *fn;
 
 		    dir[0] = '\0';
 		    fn = file_split(dir, sizeof(dir), fname, 0);
@@ -245,11 +243,11 @@ insfile(int f, int n)
 
 			    dirlen = strlen(dir);
 			    if(dirlen && dir[dirlen - 1] != C_FILESEP){
-			      strncat(dir, S_FILESEP, sizeof(dir));
+			      strncat(dir, S_FILESEP, sizeof(dir)-strlen(dir)-1);
 			      dir[sizeof(dir)-1] = '\0';
 			    }
 
-			    strncat(dir, fn, sizeof(dir));
+			    strncat(dir, fn, sizeof(dir)-strlen(dir)-1);
 			    dir[sizeof(dir)-1] = '\0';
 			    if(!isdir(dir, NULL, NULL))
 			      dir[MIN(dirlen,sizeof(dir)-1)] = '\0';
@@ -268,12 +266,12 @@ insfile(int f, int n)
 			    size_t len;
 
 			    len = strlen(dir)+strlen(S_FILESEP)+strlen(fname);
-			    if (infile = (char *)malloc((len+1)*sizeof(char))){
+			    if ((infile = (char *)malloc((len+1)*sizeof(char))) != NULL){
 			      strncpy(infile, dir, len);
 			      infile[len] = '\0';
-			      strncat(infile, S_FILESEP, len-strlen(infile));
+			      strncat(infile, S_FILESEP, len+1-1-strlen(infile));
 			      infile[len] = '\0';
-			      strncat(infile, fname, len-strlen(infile));
+			      strncat(infile, fname, len+1-1-strlen(infile));
 			      infile[len] = '\0';
 			      retval = ifile(infile);
 			      free((char *) infile);
@@ -373,7 +371,7 @@ char *
 file_split(char *dirbuf, size_t dirbuflen, char *orig_fname, int is_for_browse)
 {
     char *p, *fn;
-    int   dirlen;
+    size_t dirlen;
 
     if(*orig_fname && (p = strrchr(orig_fname, C_FILESEP))){
 	fn = p + 1;
@@ -456,7 +454,7 @@ insmsgchar(int c)
 	int outchars;
 	UCS ucs;
 
-	if(outchars = utf8_to_ucs4_oneatatime(c, &insmsgchar_cb, &ucs, NULL))
+	if((outchars = utf8_to_ucs4_oneatatime(c, &insmsgchar_cb, &ucs, NULL)) != 0)
 	  if(!linsert(1, ucs))
 	    return(0);
     }
@@ -498,7 +496,7 @@ readin(char fname[],		/* name of file to read */
 	      fioperr(s, fname);
 	}
 	else{
-	    int charsread = 0;
+	    size_t charsread = 0;
 
 	    emlwrite(_("Reading file"), NULL);
 	    nline = 0L;
@@ -510,7 +508,7 @@ readin(char fname[],		/* name of file to read */
 		  curbp->b_flag &= ~(BFTEMP|BFCHG);
 		  gotobob(FALSE, 1);
 		  if(nline > 1)
-		    snprintf(b, sizeof(b), _("Read %d lines"), nline);
+		    snprintf(b, sizeof(b), _("Read %ld lines"), nline);
 		  else
 		    snprintf(b, sizeof(b), _("Read 1 line"));
 
@@ -697,9 +695,9 @@ filewrite(int f, int n)
 		if ((s = FileBrowse(shows, sizeof(shows), fname, sizeof(fname), NULL, 0,
 				    FB_SAVE, NULL)) == 1) {
 		  if (strlen(shows)+strlen(S_FILESEP)+strlen(fname) < NLINE){
-		    strncat(shows, S_FILESEP, sizeof(shows)-strlen(shows));
+		    strncat(shows, S_FILESEP, sizeof(shows)-strlen(shows)-1);
 		    shows[sizeof(shows)-1] = '\0';
-		    strncat(shows, fname, sizeof(shows)-strlen(shows));
+		    strncat(shows, fname, sizeof(shows)-strlen(shows)-1);
 		    shows[sizeof(shows)-1] = '\0';
 		    strncpy(fname, shows, sizeof(fname));
 		    fname[sizeof(fname)-1] = '\0';
@@ -710,9 +708,9 @@ filewrite(int f, int n)
 		  }
 		}
 		else if (s == 0 && strcmp(shows, origshows)){
-		    strncat(shows, S_FILESEP, sizeof(shows)-strlen(shows));
+		    strncat(shows, S_FILESEP, sizeof(shows)-strlen(shows)-1);
 		    shows[sizeof(shows)-1] = '\0';
-		    strncat(shows, fname, sizeof(shows)-strlen(shows));
+		    strncat(shows, fname, sizeof(shows)-strlen(shows)-1);
 		    shows[sizeof(shows)-1] = '\0';
 		    strncpy(fname, shows, sizeof(fname));
 		    fname[sizeof(fname)-1] = '\0';
@@ -938,7 +936,8 @@ ifile(char fname[])
 {
         UCS  line[NLINE], *linep;
 	long nline;
-	int  s, done, newline, charsread = 0;
+	int  s, done, newline;
+	size_t charsread = 0;
 	EML eml;
 
         if ((s=ffropen(fname)) != FIOSUC){      /* Hard file open.      */
@@ -966,7 +965,7 @@ ifile(char fname[])
 		forwchar(FALSE, 1);
 
 	      if(nline > 1)
-	        snprintf(b, sizeof(b), _("Inserted %d lines"), nline);
+	        snprintf(b, sizeof(b), _("Inserted %ld lines"), nline);
 	      else
 	        snprintf(b, sizeof(b), _("Inserted 1 line"));
 
@@ -1051,12 +1050,12 @@ pico_fncomplete(char *dir, size_t dirlen, char *fn, size_t fnlen)
 	fn[fnlen-1] = '\0';
 	if(match == 1){
 	  if ((strlen(dir)+strlen(S_FILESEP)+strlen(fn)) < dirlen){
-	    strncat(dir, S_FILESEP, dirlen);
+	    strncat(dir, S_FILESEP, dirlen-strlen(dir)-1);
 	    dir[dirlen-1] = '\0';
-	    strncat(dir, fn, dirlen);
+	    strncat(dir, fn, dirlen-strlen(dir)-1);
 	    dir[dirlen-1] = '\0';
 	    if(isdir(dir, NULL, NULL)){
-		strncat(fn, S_FILESEP, fnlen);
+		strncat(fn, S_FILESEP, fnlen-strlen(fn)-1);
 		fn[fnlen-1] = '\0';
 	    }
 	  }

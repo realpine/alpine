@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: flag.c 203 2006-10-26 17:23:46Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: flag.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -195,6 +195,19 @@ flag_search(MAILSTREAM *stream, int flags, MsgNo set_start, MSGNO_S *set_msgmap,
 	if(flags & F_UNFLAG)
 	  pgm->unflagged = 1;
 
+	if(flags & (F_FWD | F_UNFWD)){
+	    STRINGLIST **slpp;
+
+	    for(slpp = (flags & F_FWD) ? &pgm->keyword : &pgm->unkeyword;
+		*slpp;
+		slpp = &(*slpp)->next)
+	      ;
+
+	    *slpp = mail_newstringlist();
+	    (*slpp)->text.data = (unsigned char *) cpystr(FORWARDED_FLAG);
+	    (*slpp)->text.size = (unsigned long) strlen(FORWARDED_FLAG);
+	}
+
 	if(flags & F_RECENT)
 	  pgm->recent = 1;
 
@@ -270,6 +283,27 @@ flag_search(MAILSTREAM *stream, int flags, MsgNo set_start, MSGNO_S *set_msgmap,
 	    pgm = pgm2;
 	}
 
+	if(flags & (F_OR_FWD | F_OR_UNFWD)){
+	    STRINGLIST **slpp;
+	    SEARCHPGM *pgm2 = mail_newsearchpgm();
+	    pgm2->or = mail_newsearchor();
+	    pgm2->or->first = pgm;
+	    pgm2->or->second = mail_newsearchpgm();
+
+	    for(slpp = (flags & F_OR_FWD)
+			 ? &pgm2->or->second->keyword
+			 : &pgm2->or->second->unkeyword;
+		*slpp;
+		slpp = &(*slpp)->next)
+	      ;
+
+	    *slpp = mail_newstringlist();
+	    (*slpp)->text.data = (unsigned char *) cpystr(FORWARDED_FLAG);
+	    (*slpp)->text.size = (unsigned long) strlen(FORWARDED_FLAG);
+
+	    pgm = pgm2;
+	}
+
 	if(flags & F_OR_RECENT){
 	    SEARCHPGM *pgm2 = mail_newsearchpgm();
 	    pgm2->or = mail_newsearchor();
@@ -312,7 +346,7 @@ flag_search(MAILSTREAM *stream, int flags, MsgNo set_start, MSGNO_S *set_msgmap,
 	  if((mc = mail_elt(stream, i)) != NULL)
 	    mc->searched = 0;
 
-	if(seq = build_sequence(stream, NULL, NULL)){
+	if((seq = build_sequence(stream, NULL, NULL)) != NULL){
 	    pine_mail_fetch_flags(stream, seq, 0L);
 	    fs_give((void **) &seq);
 	}
@@ -352,7 +386,7 @@ count_flagged(MAILSTREAM *stream, long int flags)
     /* Paw thru once more since all should be updated */
     for(n = 1L, count = 0L; n <= stream->nmsgs; n++)
       if((((mc = mail_elt(stream, n)) && mc->searched)
-	  || (mc && mc->valid && FLAG_MATCH(flags, mc)))
+	  || (mc && mc->valid && FLAG_MATCH(flags, mc, stream)))
 	 && !get_lflag(stream, NULL, n, MN_EXLD)){	  
 	  mc->searched = 1;	/* caller may be interested! */
 	  count++;
@@ -396,7 +430,7 @@ first_sorted_flagged(long unsigned int flags, MAILSTREAM *stream, long int set_s
 	(flags & F_SRCHBACK) ? i-- : i++)
       if(n > 0L && n <= stream->nmsgs
 	 && (((mc = mail_elt(stream, n)) && mc->searched)
-	       || (mc && mc->valid && FLAG_MATCH(flags, mc)))){
+	     || (mc && mc->valid && FLAG_MATCH(flags, mc, stream)))){
 	  winner = i;
 	  if(!last)
 	    break;
@@ -467,7 +501,7 @@ next_sorted_flagged(long unsigned int flags, MAILSTREAM *stream, long int start,
 	i += dir)
       if(n > 0L && n <= stream->nmsgs
 	 && (((mc = mail_elt(stream, n)) && mc->searched)
-	       || (mc && mc->valid && FLAG_MATCH(flags, mc)))){
+	     || (mc && mc->valid && FLAG_MATCH(flags, mc, stream)))){
 	  /* actually found a msg matching the flags */
 	  if(opts)
 	    (*opts) |= NSF_FLAG_MATCH;
@@ -545,8 +579,8 @@ set_lflag(MAILSTREAM *stream, MSGNO_S *msgs, long int n, int f, int v)
 
 	was_invisible = (mc->spare || mc->spare4) ? 1 : 0;
 
-	if(chk_thrd_cnt = ((msgs->visible_threads >= 0L)
-	   && THRD_INDX_ENABLED() && (f & MN_HIDE) && (mc->spare != v))){
+	if((chk_thrd_cnt = ((msgs->visible_threads >= 0L)
+	   && THRD_INDX_ENABLED() && (f & MN_HIDE) && (mc->spare != v))) != 0){
 	    thrd = fetch_thread(stream, rawno);
 	    if(thrd && thrd->top){
 		if(thrd->top == thrd->rawno)

@@ -1,4 +1,4 @@
-# $Id: pine.hlp 621 2007-06-28 22:25:37Z jpf@u.washington.edu $
+# $Id: pine.hlp 693 2007-08-28 23:11:53Z hubert@u.washington.edu $
 #
 #        T H E   A L P I N E    M E S S A G E   S Y S T E M
 #
@@ -172,6 +172,92 @@ addresses bugs found in previous releases and has a few additions as well.
 Additions include:
 <P>
 <UL>
+   <LI> New feature 
+        <A HREF="h_config_thread_sorts_by_arrival"><!--#echo var="FEAT_thread-sorts-by-arrival"--></A>
+	to rearrange by threads that have the most recent arrivals.
+   <LI> New feature
+	<A HREF="h_config_dates_to_local"><!--#echo var="FEAT_convert-dates-to-localtime"--></A>
+	to convert dates to your local timezone before displaying them
+   <LI> Small changes to Lcc behavior in composer. Lcc will usually append
+	to the To line contents now instead of replacing them. Lcc in a role
+	will set the To line, like it does if you type in the nickname in
+	the Lcc field. It still won't set the Fcc but you can set up the
+	role to do that if you want.
+   <LI> Attempt to handle so-called soft hyphens but only in a simple way
+   <LI> New color option <A HREF="h_config_incunseen_color">Incoming Unseen Color</A>
+	to color Incoming folders containing unseen messages
+   <LI> New feature <A HREF="h_config_nntp_search_uses_overview"><!--#echo var="FEAT_nntp-search-uses-overview"--></A> to improve search response in news. This feature is
+	turned on by default. If it causes trouble please let the alpha list know.
+   <LI> In addition to the automatically set status flags for &quot;New&quot;,
+        &quot;Answered&quot;, and &quot;Deleted&quot; state that already existed,
+	a new &quot;Forwarded&quot; state flag has been added. This flag is a
+	little different from the others in that it is implemented by using the
+	non-standard &quot;$Forwarded&quot; keyword instead of one of the
+	IMAP standard system flags.
+   <LI> New tokens
+	(<A HREF="h_index_tokens">Tokens for Index and Replying</A>)
+       for the
+	<A HREF="h_config_index_format"><!--#echo var="VAR_index-format"--></A> option.
+	The tokens are PRIORITY, PRIORITYALPHA, and PRIORITY!. These give a way
+	to display the value of the X-Priority header. It's also possible to
+	set the value of the X-Priority header on outgoing mail by using the
+	&quot;Priority&quot; subcommand that is available after typing Ctrl-X
+	to send. These tokens may be colored using the
+	<A HREF="h_config_index_pri_color">Index Priority Symbol Colors</A>.
+</UL>
+
+<P>
+Bugs that have been addressed in this release include:
+<P>
+
+<UL>
+   <LI> Alternate editor did not work in PC-Alpine
+   <LI> Crash when choosing from several postponed messages if postponed
+	message folder was local
+   <LI> Crash when saving to a local folder (error was &quot;imap_cap called on non-IMAP stream!&quot;)
+   <LI> Terminal reset not working correctly with display and sending filters
+   <LI> Cutting / pasting addresses with commas inside quotes did not work
+	correctly in the composer
+   <LI> If both <A HREF="h_config_separate_fold_dir_view"><!--#echo var="FEAT_separate-folder-and-directory-entries"--></A>
+	and <A HREF="h_config_quell_empty_dirs"><!--#echo var="FEAT_quell-empty-directories"--></A>
+	were set then empty dual-use directories were not hidden
+   <LI> If the <A HREF="h_config_fld_sort_rule"><!--#echo var="VAR_folder-sort-rule"--></A>
+	sorted directories to the front or back of the list,
+	<A HREF="h_config_quell_empty_dirs"><!--#echo var="FEAT_quell-empty-directories"--></A>
+	was turned on, and
+	<A HREF="h_config_separate_fold_dir_view"><!--#echo var="FEAT_separate-folder-and-directory-entries"--></A>
+	was turned off; the sort order could be incorrect
+   <LI> Calculating a Score using the &quot;Score From Header&quot; method
+	did not work unless the &quot;Score Value&quot; was set to something
+	other than zero
+   <LI> Left arrow did not exit from Setup/Config screen by default
+   <LI> SHORTIMAPSTATUS token added in last version was not quite right
+   <LI> We were breaking the References: header and thus threading when we 
+        encountered reasonably long Message-Ids
+   <LI> Windows Alpine could freeze when receiving a message in Hebrew or
+        other languages with zero-length Unicode characters
+   <LI> Windows Alpine was ignoring characters input via Alt-Gr, such as
+        the &quot;@&quot; symbol on a German keyboard.
+   <LI> Filters that used an incoming folder as a Specific folder to match
+        did not work if the folder name ended with an implicit &quot;INBOX&quot;
+   <LI> Character set was wrong when forwarding a multi-part alternative and
+	typing in text in a character set different from the character set
+	of the part being forwarded
+   <LI> Bounce was sometimes translating text instead of just sending
+	it as labeled
+   <LI> Several small adjustments to message-to-message navigation in threaded
+	index screens and some small adjustments in the appearance of index
+	lines in those screens
+   <LI> Eliminate status message flicker when holding down the down arrow
+</UL>
+
+<P>
+Version 0.999
+addressed bugs found in previous releases and had a few additions as well.
+<P>
+Additions included:
+<P>
+<UL>
    <LI> Configuration support for Tru64 and some fixes for other systems
    <LI> New color option <A HREF="h_config_header_general_color">Header General Color</A>
 	to color all headers in MESSAGE TEXT screen
@@ -206,7 +292,7 @@ Additions include:
 	<A HREF="h_config_index_format"><!--#echo var="VAR_index-format"--></A> option
 	to include one of the Subject tokens that causes this behavior
 	(SUBJECTTEXT, SUBJKEYTEXT, or SUBJKEYINITTEXT).
-   <LI> Added tokens OPENINGTEXT and OPENINGTEXTDQ for use with the
+   <LI> Added tokens OPENINGTEXT and OPENINGTEXTNQ for use with the
 	<A HREF="h_config_index_format"><!--#echo var="VAR_index-format"--></A> option.
         These are alternative ways to display the opening text of a
 	message in the index screen.
@@ -221,7 +307,7 @@ Additions include:
 </UL>
 
 <P>
-Bugs that have been addressed in this release include:
+Bugs addressed in the 0.999 release included:
 <P>
 
 <UL>
@@ -3212,10 +3298,11 @@ There are also additional details on
 <li><a href="h_config_compose_rejects_unqual">FEATURE: <!--#echo var="FEAT_compose-rejects-unqualified-addrs"--></a>
 <li><a href="h_config_send_filter_dflt">FEATURE: <!--#echo var="FEAT_compose-send-offers-first-filter"--></a>
 <li><a href="h_config_compose_news_wo_conf">FEATURE: <!--#echo var="FEAT_compose-sets-newsgroup-without-confirm"--></a>
-<li><a href="h_config_confirm_role">FEATURE: <!--#echo var="FEAT_confirm-role-even-for-default"--></a>
-<li><a href="h_config_tab_no_prompt">FEATURE: <!--#echo var="FEAT_continue-tab-without-confirm"--></a>
 <li><a href="h_config_del_from_dot">FEATURE: <!--#echo var="FEAT_compose-cut-from-cursor"--></a>
 <li><a href="h_config_compose_maps_del">FEATURE: <!--#echo var="FEAT_compose-maps-delete-key-to-ctrl-d"--></a>
+<li><a href="h_config_confirm_role">FEATURE: <!--#echo var="FEAT_confirm-role-even-for-default"--></a>
+<li><a href="h_config_tab_no_prompt">FEATURE: <!--#echo var="FEAT_continue-tab-without-confirm"--></a>
+<li><a href="h_config_dates_to_local">FEATURE: <!--#echo var="FEAT_convert-dates-to-localtime"--></a>
 <li><a href="h_config_del_skips_del">FEATURE: <!--#echo var="FEAT_delete-skips-deleted"--></a>
 <li><a href="h_config_disable_config_cmd">FEATURE: <!--#echo var="FEAT_disable-config-cmd"--></a>
 <li><a href="h_config_disable_index_locale_dates">FEATURE: <!--#echo var="FEAT_disable-index-locale-dates"--></a>
@@ -3314,6 +3401,8 @@ There are also additional details on
 <li><a href="h_config_news_catchup">FEATURE: <!--#echo var="FEAT_news-offers-catchup-on-close"--></a>
 <li><a href="h_config_post_wo_validation">FEATURE: <!--#echo var="FEAT_news-post-without-validation"--></a>
 <li><a href="h_config_read_in_newsrc_order">FEATURE: <!--#echo var="FEAT_news-read-in-newsrc-order"--></a>
+<li><a href="h_config_nntp_search_uses_overview">FEATURE: <!--#echo var="FEAT_nntp-search-uses-overview"--></a>
+<li><a href="h_config_thread_sorts_by_arrival">FEATURE: <!--#echo var="FEAT_thread-sorts-by-arrival"--></a>
 <li><a href="h_config_expunge_inbox">FEATURE: <!--#echo var="FEAT_offer-expunge-of-inbox"--></a>
 <li><a href="h_config_expunge_stayopens">FEATURE: <!--#echo var="FEAT_offer-expunge-of-stayopen-folders"--></a>
 <li><a href="h_config_pass_c1_control">FEATURE: <!--#echo var="FEAT_pass-c1-control-characters-as-is"--></a>
@@ -3508,11 +3597,13 @@ There are also additional details on
 <li><a href="h_config_incoming_timeo">OPTION: <!--#echo var="VAR_incoming-check-timeout"--></a>
 <li><a href="h_config_incoming_folders">OPTION: <!--#echo var="VAR_incoming-folders"--></a>
 <li><a href="h_config_inc_startup">OPTION: <!--#echo var="VAR_incoming-startup-rule"--></a>
+<li><a href="h_config_incunseen_color">OPTION: Incoming Unseen Color</a>
 <li><a href="h_config_index_arrow_color">OPTION: Index Arrow Color</a>
 <li><a href="h_config_index_color">OPTION: Index Colors</a>
 <li><a href="h_config_index_format">OPTION: <!--#echo var="VAR_index-format"--></a>
 <li><a href="h_config_index_from_color">OPTION: Index From Color</a>
 <li><a href="h_config_index_opening_color">OPTION: Index Opening Color</a>
+<li><a href="h_config_index_pri_color">OPTION: Index Priority Symbol Colors</a>
 <li><a href="h_config_index_subject_color">OPTION: Index Subject Color</a>
 <li><a href="h_config_init_cmd_list">OPTION: <!--#echo var="VAR_initial-keystroke-list"--></a>
 <li><a href="h_config_key_char_set">OPTION: <!--#echo var="VAR_keyboard-character-set"--></a>
@@ -4365,6 +4456,7 @@ status.  You may see one or more of the following codes on any given
 thread:
 <UL>
   <LI> &quot;D&quot; for Deleted. All of the messages in this thread are marked for deletion but not yet eXpunged from the folder.
+  <LI> &quot;A&quot; for Answered. All of the messages in this thread are marked answered.
   <LI> &quot;N&quot; for New. At least one message in the thread is New (you haven't looked at it yet).
   <LI> &quot;+&quot; for direct-to-you. The &quot;+&quot; indicates that a message in the thread was sent directly to your account, your copy is not part of a cc: or a mailing list.
   <LI> &quot;-&quot; for cc-to-you. The &quot;-&quot; indicates that a
@@ -4494,7 +4586,18 @@ This is useful if you want to quickly
 scan new messages, or find a particular message without having to go
 through the text of each message, or to quickly get rid of junk
 messages, etc.
-The current message is always highlighted.
+<P>
+The current message is always highlighted
+and many commands operate on the current message.
+For example, the Delete command will delete the current message.
+If the folder is sorted by either Threads or OrderedSubject, then, depending
+on some of your configuration settings, a single line in the index may
+refer to an entire thread or to a subthread.
+If that is the case, then the commands that normally operate on the current
+message will operate on the thread or subthread instead.
+For example, the Delete command will delete the whole collapsed thread
+instead of just a single message.
+<P>
 Each line of the MESSAGE INDEX contains the following columns (by default -- 
 you can change this with the 
 &quot;<A HREF="h_config_index_format"><!--#echo var="VAR_index-format"--></A>&quot; option
@@ -4510,6 +4613,8 @@ message:
   <LI> &quot;N&quot; for New.  You have not looked at the text of the message yet.
   <LI> &quot;A&quot; for Answered.  Any time you reply to a message it is considered
 	 to be answered.
+  <LI> &quot;F&quot; for Forwarded.  Similar to Answered, this is set whenever you
+         forward a message.
   <LI> &quot;+&quot; for direct-to-you.  The &quot;+&quot; indicates that a message was sent
 	directly to your account, your copy is not part of a cc: or a
 	mailing list.
@@ -4735,7 +4840,8 @@ We describe the various selection criteria briefly:
 </DD>
 
 <DT>select Cur</DT>
-<DD> Selects the currently highlighted message.
+<DD> Selects the currently highlighted message or currently highlighted
+set of messages if in a threaded view.
 </DD>
 
 <DT>select by Number</DT>
@@ -4747,6 +4853,9 @@ Some examples are 7 to select only message number 7; 2-5 to select messages
 2 through 5; and 2-5,7-9,11 to select messages 2, 3, 4, 5, 7, 8, 9, and 11.
 The word &quot;end&quot; may be used as a substitute for the highest numbered
 message in the folder.
+If in a separate thread index where the numbers refer to threads instead of
+to messages, then you will be selecting all of the messages in the
+referenced threads instead of selecting by message number.
 </DD>
 
 <DT>select by Date</DT>
@@ -4875,6 +4984,8 @@ and Larger.
 a particular <A HREF="h_config_keywords">Keyword</A> set.
 One way to select a keyword is to use the &quot;^T&nbsp;To&nbsp;List&quot;
 command to select one from your list of keywords.
+The
+<A HREF="h_config_flag_screen_kw_shortcut"><!--#echo var="FEAT_enable-flag-screen-keyword-shortcut"--></A> option allows selecting by Keyword initials if set.
 </DD>
 
 <DT>select by Rule</DT>
@@ -7782,6 +7893,67 @@ Alpine actually just gets the nickname of the rule that you select and then
 looks up that rule using the nickname.
 So if there are duplicate nicknames, the first rule that has that
 nickname will be used.
+
+<P><UL>
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL>
+<P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+===== h_select_priority_screen =====
+<HTML>
+<HEAD>
+<TITLE>SELECT A PRIORITY SCREEN</TITLE>
+</HEAD>
+<BODY>
+<H1>SELECT A PRIORITY SCREEN</H1>
+<H2>COMMANDS</H2>
+<!--chtml if pinemode="function_key"-->
+<PRE>
+Available  Commands                        
+-------------------------------            
+F1  Show Help Text
+F3  Exit without selecting anything
+F4  Select the highlighted priority
+F5  Move highlight to previous priority
+F6  Move highlight to next priority
+F7  Previous page of priorities
+F8  Next page of priorities
+F11 Print
+F12 WhereIs
+</PRE>
+<!--chtml else-->
+<PRE>
+Navigation                     General Alpine Commands
+-----------------------        ---------------------
+ P  Prev Priority               ?  Display this help text
+ N  Next Priority               E  Exit without selecting anything
+ -  Previous page               %  Print
+Spc (space bar) Next page
+ W  WhereIs
+
+Select Command
+------------------------------------------------
+ S  Select the highlighted priority
+</PRE>
+<!--chtml endif-->
+
+<H2>Description of the Select Priority Screen</H2>
+
+This screen gives you a way to select a priority for the message you are sending.
+This priority will be placed in the non-standard X-Priority header of your outgoing mail.
+Some mail programs will display an indication of the priority level to
+the recipient of the message, some will ignore it.
+Even in cases where the mail programs of both the sender and the recipient
+agree on the meaning of this header, keep in mind that it is
+something that the sender sets so it is only an indication
+of the priority that the sender attaches to the mail.
+Alpine can be made to display an indication of this priority in incoming
+messages by use of one of the tokens
+(<A HREF="h_index_tokens">Tokens for Index and Replying</A>)
+PRIORITY, PRIORITYALPHA, or PRIORITY! in the
+<A HREF="h_config_index_format"><!--#echo var="VAR_index-format"--></A> option.
 
 <P><UL>
 <LI><A HREF="h_finding_help">Finding more information and requesting help</A>
@@ -13753,8 +13925,16 @@ the index line itself will have).
 This option affects the colors used to display the current line in the
 MESSAGE INDEX screen.
 If you do not have Index Color Rules defined, then this option will
-have no effect.
+have no effect in the index.
 Those Rules may be defined by going to the Setup/Rules/Indexcolor screen.
+<P>
+If the option
+<A HREF="h_config_enable_incoming_checking"><!--#echo var="FEAT_enable-incoming-folders-checking"--></A>
+is turned on and the
+<A HREF="h_config_incunseen_color">Incoming Unseen Color</A>
+is set to something other than the default, then
+this option also affects the color used to display the current folder
+in the Incoming FOLDER LIST screen.
 
 <P>
 The available options include:
@@ -18183,6 +18363,11 @@ If there is no personal name, it is blank.
 This token represents the date on which the message was sent, according
 to the &quot;Date&quot; header field.
 It has the format MMM DD. For example, &quot;Oct 23&quot;.
+The feature
+<A HREF="h_config_dates_to_local"><!--#echo var="FEAT_convert-dates-to-localtime"--></A>,
+which adjusts for the timezone the message was sent from,
+may have an affect on the value of this token as well as the values of
+all of the other DATE or TIME tokens.
 </DD>
 
 <DT>SMARTDATE</DT>
@@ -18193,9 +18378,6 @@ It is &quot;Today&quot; if the message was sent today,
 &quot;Yesterday&quot; for yesterday,
 &quot;Wednesday&quot; if it was last Wednesday, and so on. If the
 message is from last year and is more than six months old it includes the year, as well.
-There is no adjustment made for different time zones, so you'll get
-the day the message was sent according to the time zone the sender
-was in.
 See the SMARTDATE alternatives below, as well.
 </DD>
 
@@ -18209,9 +18391,6 @@ the past week, the day of the week and the hour are used
 (e.g. &quot;Wed09am&quot;, &quot;Thu10pm&quot;); other dates are
 given as date, month, and year (e.g. &quot;23Aug00&quot;,
 &quot;9Apr98&quot;).
-There is no adjustment made for different time zones, so you'll get
-the day/time the message was sent according to the time zone the sender
-was in.
 </DD>
 
 <DT>SMARTDATETIME</DT>
@@ -18278,6 +18457,9 @@ for the way they format dates far in the past.
 SMARTDATE formats the date using the information from your locale settings
 to format the date string. It may end up formatting dates so that they look
 like DATEISO tokens, or SHORTDATE2 tokens, or something else entirely.
+The feature
+<A HREF="h_config_dates_to_local"><!--#echo var="FEAT_convert-dates-to-localtime"--></A>
+may have an affect on the values of these tokens.
 If you want more control you may use one of the following.
   <DL>
   <DT>SMARTDATE</DT> <DD>If the option
@@ -18308,6 +18490,9 @@ for the way they format dates far in the past.
 SMARTDATETIME and SMARTDATETIME24 format the date using the information from your locale settings
 to format the date string. It may end up formatting dates so that they look
 like DATEISO tokens, or SHORTDATE2 tokens, or something else entirely.
+The feature
+<A HREF="h_config_dates_to_local"><!--#echo var="FEAT_convert-dates-to-localtime"--></A>
+may have an affect on the values of these tokens.
 The possible choices are:
   <DL>
   <DT>SMARTDATETIME</DT> <DD>If the option
@@ -18481,6 +18666,7 @@ or the
 is set (or you actually are on a slow link).
 The third character is either '<A HREF="h_flag_deleted">D</A>' (Deleted),
 '<A HREF="h_flag_answered">A</A>' (Answered),
+'<A HREF="h_flag_forwarded">F</A>' (Forwarded),
 '<A HREF="h_flag_new">N</A>' (New), or blank.
 <P>
 If you are using a threaded view of the index and this message is at the
@@ -18491,7 +18677,10 @@ The first character will be a '*' if <EM>any</EM> of the messages in the thread
 are marked Important, else a '+' if any of the messages are addressed
 to you, else a '-' if any of the messages are cc'd to you.
 The third character will be a 'D' if <EM>all</EM> of the messages
-in the collapsed thread are marked deleted, else it will be 'N' if any of
+in the collapsed thread are marked deleted,
+an 'A' if <EM>all</EM> of the messages
+in the collapsed thread are marked answered,
+it will be an 'N' if any of
 the messages are undeleted and unseen, and it will be blank otherwise.
 </DD>
 
@@ -18699,10 +18888,10 @@ You may color this opening text differently by using the
 the <A HREF="h_color_setup">Setup Kolor</A> screen.
 </DD>
 
-<DT>OPENINGTEXTDQ</DT>
+<DT>OPENINGTEXTNQ</DT>
 <DD>
 This is very similar to OPENINGTEXT.
-The DQ stands for Delete Quotes.
+The NQ stands for No Quotes.
 The only difference is that quoted text (lines beginning with &gt;) is deleted.
 For some messages this may be confusing.
 For example, a message might have a line preceding some quoted
@@ -18735,6 +18924,50 @@ If you have given a keyword a nickname
 is displayed instead of the initial of the actual keyword.
 It is also possible to color keyword initials in the index using the
 Setup/Kolor screen (<A HREF="h_config_kw_color">Keyword Colors</A>).
+</DD>
+
+<DT>PRIORITY</DT>
+<DD>
+The X-Priority header is a non-standard header that is used in a
+somewhat standard way by many mail programs.
+Alpine expects the value of this header to be a digit with a value
+from 1 to 5, with 1 being the highest priority and 5 the lowest priority.
+Since this priority is something that the sender sets it is only an indication
+of the priority that the sender attaches to the mail and it is therefore almost
+totally unreliable for use as a filtering criterion.
+This token will display the numeric value of the priority if it is between
+1 and 5.
+It will be suppressed (blank) if the value is 3, which is normal priority.
+This token may be colored with the
+<A HREF="h_config_index_pri_color">Index Priority Symbol Colors</A>.
+</DD>
+
+<DT>PRIORITYALPHA</DT>
+<DD>
+This is a more verbose interpretation of the X-Priority field.
+Once again nothing is displayed unless the value of the field
+is 1, 2, 4, or 5.
+The values displayed for those values are:
+<P>
+<TABLE>
+<TR> <TD>1</TD> <TD>Highest</TD> </TR>
+<TR> <TD>2</TD> <TD>High</TD> </TR>
+<TR> <TD>4</TD> <TD>Low</TD> </TR>
+<TR> <TD>5</TD> <TD>Lowest</TD> </TR>
+</TABLE>
+<P>
+This token may be colored with the
+<A HREF="h_config_index_pri_color">Index Priority Symbol Colors</A>.
+</DD>
+
+<DT>PRIORITY!</DT>
+<DD>
+This is a one character, non-numeric version of the X-Priority field.
+If the value of the X-Priority header is 1 or 2 an exclamation
+point is displayed.
+If the value is 4 or 5 a &quot;v&quot; (think down arrow) is displayed.
+This token may be colored with the
+<A HREF="h_config_index_pri_color">Index Priority Symbol Colors</A>.
 </DD>
 
 <DT>ATT</DT>
@@ -18872,7 +19105,7 @@ Another example we've seen has headers that look like
 Because there are two equals and a comma before the 7% and a comma
 after it, the token
 <P>
-<CENTER><SAMP>HEADER:X-Spam(3,4,=&#92;,R)</SAMP></CENTER>
+<CENTER><SAMP>HEADER:X-Spam(3,4,=&#92;,,R)</SAMP></CENTER>
 <P>
 should display the probability (for example 7% or 83%) right justified
 in a 3-wide field.
@@ -19959,6 +20192,21 @@ easily by <A HREF="h_common_flag">explicitly</A> resetting the <EM>New</EM> flag
 The <EM>Answered</EM> flag, indicated by the letter 'A' in Alpine's
 MESSAGE&nbsp;INDEX
 screen, is automatically set when you reply to a message.  This flag is not
+automatically cleared.
+
+<P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+======= h_flag_forwarded =======
+<html>
+<title>STATUS FLAG: Forwarded</title>
+<body>
+<h1>STATUS FLAG: Forwarded</h1>
+
+The <EM>Forwarded</EM> flag, indicated by the letter 'F' in Alpine's
+MESSAGE&nbsp;INDEX
+screen, is automatically set when you forward a message.  This flag is not
 automatically cleared.
 
 <P>
@@ -26332,7 +26580,8 @@ The
 <H1>FEATURE: <!--#echo var="FEAT_enable-flag-screen-keyword-shortcut"--></H1>
 
 This feature modifies the behavior of the
-<a href="h_common_flag">Flag</a> command.
+<a href="h_common_flag">Flag</a> command
+and the <A HREF="h_index_cmd_select">Select</A> command.
 This feature is set by default.
 When this feature is not set, when the "* Flag" command is selected,
 Alpine offers a prompt to set one of several flags and also offers the
@@ -26386,6 +26635,9 @@ Because enabling the
 option causes Alpine to skip directly to the Flag Details screen when the
 Flag command is used, 
 setting it will cause this feature to have no effect at all.
+<P>
+Similarly, when Selecting by Keyword, setting this option will allow you
+to use Keyword initials instead of full keywords.
 <P>
 &lt;End of help on this topic&gt;
 </BODY>
@@ -29127,6 +29379,27 @@ It will be assumed that you do want to return to the INBOX.
 &lt;End of help on this topic&gt;
 </BODY>
 </HTML>
+====== h_config_dates_to_local =====
+<HTML>
+<HEAD>
+<TITLE>FEATURE: <!--#echo var="FEAT_convert-dates-to-localtime"--></TITLE>
+</HEAD>
+<BODY>
+<H1>FEATURE: <!--#echo var="FEAT_convert-dates-to-localtime"--></H1>
+
+Normally, the date that you see in the Date header of a message you
+are viewing or in the MESSAGE INDEX is displayed as is.
+If this feature is set those dates will be converted to your local timezone
+to be displayed.
+Note that this does not affect the results of Select by Date or of
+anything else other than these displayed dates.
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
 ====== h_config_tab_no_prompt =====
 <HTML>
 <HEAD>
@@ -29309,6 +29582,9 @@ This feature only has an effect in the MESSAGE INDEX screen.
 If you then view a particular message from that screen and press the
 Next command, you will be sent to the next thread without being asked,
 independent of the setting of this feature.
+<P>
+The feature
+<A HREF="h_config_auto_open_unread">&quot;<!--#echo var="FEAT_auto-open-next-unread"-->&quot;</A> also has some similar effects.
 <P>
 &lt;End of help on this topic&gt;
 </BODY>
@@ -30271,6 +30547,45 @@ to see the available Editing and Navigation commands.
 &lt;End of help on this topic&gt;
 </BODY>
 </HTML>
+====== h_config_index_pri_color =====
+<HTML>
+<HEAD>
+<TITLE>OPTION: Index Priority Symbol Colors</TITLE>
+</HEAD>
+<BODY>
+<H1>OPTION: Index Priority Symbol Colors</H1>
+
+The X-Priority header is a non-standard header that is used in a
+somewhat standard way by many mail programs.
+Alpine expects the value of this header to be a digit with a value
+from 1 to 5, with 1 being the highest priority and 5 the lowest priority.
+Alpine can be made to display an indication of this priority in
+messages by use of one of the tokens
+(<A HREF="h_index_tokens">Tokens for Index and Replying</A>)
+PRIORITY, PRIORITYALPHA, or PRIORITY! in the
+<A HREF="h_config_index_format"><!--#echo var="VAR_index-format"--></A> option.
+
+<P>
+You may set the color used to draw these tokens by use of the colors
+Index High Priority Symbol Color and Index Low Priority Symbol Color.
+This coloring takes place for all but the current index line, and the Priority
+Color appears to be in front of any color from an Index Color Rule.
+If the priority has a value of 1 or 2 the High Priority color will be
+used,
+and if the value is 4 or 5 the Low Priority color will be used.
+<P>
+If you don't set these colors the index line will be colored in the same color as
+the bulk of the index line.
+
+<P>
+<A HREF="h_color_setup">Descriptions of the available commands</A>
+<P>
+Look <A HREF="h_edit_nav_cmds">here</A>
+to see the available Editing and Navigation commands.
+<P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
 ====== h_config_index_subject_color =====
 <HTML>
 <HEAD>
@@ -30556,6 +30871,36 @@ color regardless of the quoting levels.
 By default, the Quote1 Color is black characters on a greenish-blue background;
 the Quote2 Color is black characters on a dull yellow background; and
 the Quote3 Color is black characters on a green background.
+<P>
+<A HREF="h_color_setup">Descriptions of the available commands</A>
+<P>
+Look <A HREF="h_edit_nav_cmds">here</A>
+to see the available Editing and Navigation commands.
+<P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_incunseen_color =====
+<HTML>
+<HEAD>
+<TITLE>OPTION: Incoming Unseen Color</TITLE>
+</HEAD>
+<BODY>
+<H1>OPTION: Incoming Unseen Color</H1>
+
+If the option
+<A HREF="h_config_enable_incoming_checking"><!--#echo var="FEAT_enable-incoming-folders-checking"--></A>
+is turned on it is possible to highlight the folders that contain
+unseen messages by coloring them with this color.
+By default, this is the same as the Normal Color and no highlighting is done.
+<P>
+Usually the &quot;current&quot; folder (the folder the cursor is on)
+is highlighted using reverse video.
+If the current folder is colored because it contains unseen messages then
+the color used to show that it is also the current folder is controlled
+by the
+<A HREF="h_config_index_color_style"><!--#echo var="VAR_current-indexline-style"--></A>
+feature at the top of the SETUP COLOR screen.
 <P>
 <A HREF="h_color_setup">Descriptions of the available commands</A>
 <P>
@@ -32845,6 +33190,50 @@ the <!--#echo var="VAR_nntp-server"--> variable.
 <P>
 This feature can be especially handy when used in conjunction with
 <a href="h_config_enable_mulnewsrcs"><!--#echo var="FEAT_enable-multiple-newsrcs"--></a>.
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_nntp_search_uses_overview =====
+<HTML>
+<HEAD>
+<TITLE>FEATURE: <!--#echo var="FEAT_nntp-search-uses-overview"--></TITLE>
+</HEAD>
+<BODY>
+<H1>FEATURE: <!--#echo var="FEAT_nntp-search-uses-overview"--></H1>
+
+This feature should probably be turned on unless it causes trouble.
+The results of the NNTP overview command (XOVER) may be used to help
+with some searches in news groups.
+It should result in quicker response time.
+Turning this feature on apparently causes search results which are
+different from what you would get with the feature turned off on some
+servers.
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_thread_sorts_by_arrival =====
+<HTML>
+<HEAD>
+<TITLE>FEATURE: <!--#echo var="FEAT_thread-sorts-by-arrival"--></TITLE>
+</HEAD>
+<BODY>
+<H1>FEATURE: <!--#echo var="FEAT_thread-sorts-by-arrival"--></H1>
+
+This feature affects how a threading sort arranges threads.  The default way
+to arrange threads is by the date of the earliest message in the thread.
+This feature arranges threads by the last message to arrive in a thread.
+<P>
+This feature causes old threads that get recent messages to sort to the bottom,
+where previously a message arrival to a thread would not rearrange the order of
+that thread.
 <P>
 <UL>   
 <LI><A HREF="h_finding_help">Finding more information and requesting help</A>

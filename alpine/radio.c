@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: radio.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: radio.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -18,6 +18,11 @@ static char rcsid[] = "$Id: radio.c 380 2007-01-23 00:09:18Z hubert@u.washington
 #include "headers.h"
 #include "radio.h"
 #include "keymenu.h"
+#include "busy.h"
+#include "status.h"
+#include "mailcmd.h"
+#include "titlebar.h"
+#include "roleconf.h"
 #include "../pith/state.h"
 #include "../pith/conf.h"
 #include "../pith/newmail.h"
@@ -184,12 +189,15 @@ one_try_want_to(char *question, int dflt, int on_ctrl_C, HelpType help, int flag
 {
     char     *q2;
     int	      rv;
+    size_t    l;
 
-    q2 = fs_get(strlen(question) + 6);
-    strncpy(q2, question, strlen(question)+6);
+    l = strlen(question) + 5;
+    q2 = fs_get((l+1) * sizeof(char));
+    strncpy(q2, question, l);
+    q2[l] = '\0';
     (void) utf8_truncate(q2, ps_global->ttyo->screen_cols - 6);
-    strncat(q2, "? ", strlen(question) + 6 - strlen(q2));
-    q2[strlen(question)+6-1] = '\0';
+    strncat(q2, "? ", l+1 - strlen(q2) - 1);
+    q2[l] = '\0';
     rv = radio_buttons(q2,
 	(ps_global->ttyo->screen_rows > 4) ? - FOOTER_ROWS(ps_global) : -1,
 	yorn, dflt, on_ctrl_C, help, flags | RB_ONE_TRY);
@@ -717,7 +725,7 @@ int
 double_radio_buttons(char *prompt, int line, ESCKEY_S *esc_list, int dflt, int on_ctrl_C, HelpType help_text, int flags)
 {
     ESCKEY_S *list = NULL, *list1 = NULL, *list2 = NULL;
-    int       count, i = 0, j;
+    int       i = 0, j;
     int       v = OTHER_RETURN_VAL, listnum = 0;
 
 #ifdef _WINDOWS

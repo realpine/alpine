@@ -1,5 +1,5 @@
 /*
- * $Id: send.h 442 2007-02-16 23:01:28Z hubert@u.washington.edu $
+ * $Id: send.h 700 2007-08-30 22:33:35Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -21,6 +21,7 @@
 #include "../pith/pattern.h"
 #include "../pith/repltype.h"
 #include "../pith/store.h"
+#include "../pith/osdep/pipe.h"
 
 
 #ifndef TCPSTREAM
@@ -117,7 +118,7 @@ typedef struct {
 /*
  * call_mailer flags
  */
-#define	CM_NONE		NULL
+#define	CM_NONE		0x00
 #define	CM_VERBOSE	0x01	/* request verbose mode */
 #define CM_DSN_NEVER	0x02	/* request NO DSN */
 #define CM_DSN_DELAY	0x04	/* DSN delay notification */
@@ -160,40 +161,7 @@ struct local_message_copy {
 #define TONAME "To"
 #define CCNAME "cc"
 #define SUBJNAME "Subject"
-
-
-/* this is used in pine_send and pine_simple_send */
-/* name::type::canedit::writehdr::localcopy::rcptto */
-static PINEFIELD pf_template[] = {
-  {"X-Auth-Received",    FreeText,	0, 1, 1, 0},	/* N_AUTHRCVD */
-  {"From",        Address,	0, 1, 1, 0},
-  {"Reply-To",    Address,	0, 1, 1, 0},
-  {TONAME,        Address,	1, 1, 1, 1},
-  {CCNAME,        Address,	1, 1, 1, 1},
-  {"bcc",         Address,	1, 0, 1, 1},
-  {"Newsgroups",  FreeText,	1, 1, 1, 0},
-  {"Fcc",         Fcc,		1, 0, 0, 0},
-  {"Lcc",         Address,	1, 0, 1, 1},
-  {"Attchmnt",    Attachment,	1, 1, 1, 0},
-  {SUBJNAME,      Subject,	1, 1, 1, 0},
-  {"References",  FreeText,	0, 1, 1, 0},
-  {"Date",        FreeText,	0, 1, 1, 0},
-  {"In-Reply-To", FreeText,	0, 1, 1, 0},
-  {"Message-ID",  FreeText,	0, 1, 1, 0},
-  {"To",          Address,	0, 0, 0, 0},	/* N_NOBODY */
-  {"X-Post-Error",FreeText,	0, 0, 0, 0},	/* N_POSTERR */
-  {"X-Reply-UID", FreeText,	0, 0, 0, 0},	/* N_RPLUID */
-  {"X-Reply-Mbox",FreeText,	0, 0, 0, 0},	/* N_RPLMBOX */
-  {"X-SMTP-Server",FreeText,	0, 0, 0, 0},	/* N_SMTP */
-  {"X-NNTP-Server",FreeText,	0, 0, 0, 0},	/* N_NNTP */
-  {"X-Cursor-Pos",FreeText,	0, 0, 0, 0},	/* N_CURPOS */
-  {"X-Our-ReplyTo",FreeText,	0, 0, 0, 0},	/* N_OURREPLYTO */
-  {OUR_HDRS_LIST, FreeText,	0, 0, 0, 0},	/* N_OURHDRS */
-#if	!(defined(DOS) || defined(OS2)) || defined(NOAUTH)
-  {"X-X-Sender",    Address,	0, 1, 1, 0},
-#endif
-  {NULL,         FreeText}
-};
+#define PRIORITYNAME "X-Priority"
 
 
 /*
@@ -214,22 +182,31 @@ static PINEFIELD pf_template[] = {
 #define N_DATE		(N_FROM + 11)
 #define N_INREPLY	(N_FROM + 12)
 #define N_MSGID		(N_FROM + 13)
-#define N_NOBODY	(N_FROM + 14)
-#define	N_POSTERR	(N_FROM + 15)
-#define	N_RPLUID	(N_FROM + 16)
-#define	N_RPLMBOX	(N_FROM + 17)
-#define	N_SMTP		(N_FROM + 18)
-#define	N_NNTP		(N_FROM + 19)
-#define	N_CURPOS	(N_FROM + 20)
-#define	N_OURREPLYTO	(N_FROM + 21)
-#define	N_OURHDRS	(N_FROM + 22)
-#define N_SENDER	(N_FROM + 23)
+#define N_PRIORITY	(N_FROM + 14)
+#define N_NOBODY	(N_FROM + 15)
+#define	N_POSTERR	(N_FROM + 16)
+#define	N_RPLUID	(N_FROM + 17)
+#define	N_RPLMBOX	(N_FROM + 18)
+#define	N_SMTP		(N_FROM + 19)
+#define	N_NNTP		(N_FROM + 20)
+#define	N_CURPOS	(N_FROM + 21)
+#define	N_OURREPLYTO	(N_FROM + 22)
+#define	N_OURHDRS	(N_FROM + 23)
+#define N_SENDER	(N_FROM + 24)
+
+
+typedef struct {
+    int   val;
+    char *desc;
+} PRIORITY_S;
 
 
 /* ugly globals we'd like to get rid of */
 extern struct local_message_copy lmc;
 extern char verbose_requested;
 extern unsigned char dsn_requested;
+extern PRIORITY_S priorities[];
+extern PINEFIELD pf_template[];
 
 
 /* exported protoypes */
@@ -245,7 +222,8 @@ int	    check_addresses(METAENV *);
 void	    update_answered_flags(REPLY_S *);
 ADDRESS	   *phone_home_from(void);
 unsigned int phone_home_hash(char *);
-int         call_mailer(METAENV *, BODY *, char **, int, void (*)(char *, int));
+int         call_mailer(METAENV *, BODY *, char **, int, void (*)(char *, int),
+			void (*)(PIPE_S *, int, void *));
 int         write_postponed(METAENV *, BODY *);
 int         commence_fcc(char *, CONTEXT_S **, int);
 int         wrapup_fcc(char *, CONTEXT_S *, METAENV *, BODY *);
@@ -264,7 +242,6 @@ long        pine_rfc822_header(METAENV *, BODY *, soutr_t, TCPSTREAM *);
 long        pine_rfc822_output(METAENV *, BODY *, soutr_t, TCPSTREAM *);
 void	    pine_free_body(BODY **);
 long	    send_body_size(BODY *);
-long	    pine_smtp_verbose(SENDSTREAM *);
 void	    pine_smtp_verbose_out(char *);
 int         pine_header_forbidden(char *);
 int         hdr_is_in_list(char *, PINEFIELD *);
@@ -278,7 +255,9 @@ PINEFIELD  *parse_custom_hdrs(char **, CustomType);
 PINEFIELD  *combine_custom_headers(PINEFIELD *, PINEFIELD *);
 void        free_customs(PINEFIELD *);
 int         encode_whole_header(char *, METAENV *);
-int         news_poster(METAENV *, BODY *, char **);
+int         news_poster(METAENV *, BODY *, char **, void (*)(PIPE_S *, int, void *));
+void        set_priority_header(METAENV *header, char *value);
+void        pine_free_body_data(BODY *);
 
 
 #endif /* PITH_SEND_INCLUDED */

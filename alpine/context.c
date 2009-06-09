@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: context.c 587 2007-06-01 17:00:28Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: context.c 678 2007-08-20 23:05:24Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -76,6 +76,8 @@ context_config_screen(struct pine *ps, CONT_SCR_S *cs, int edit_exceptions)
 	  case Post:
 	    prc = ps->post_prc;
 	    break;
+	  default:
+	    break;
 	}
 
 	readonly_warning = prc ? prc->readonly : 1;
@@ -142,7 +144,7 @@ go_again:
 		cp->use = CNTXT_INHERIT;
 		cp->label = cpystr("Default collections are inherited");
 	    }
-	    else if(cp = new_context(lval[i], &prime)){
+	    else if((cp = new_context(lval[i], &prime)) != NULL){
 		cp->var.v = fake_fspec;
 		cp->var.i = i;
 	    }
@@ -175,7 +177,7 @@ go_again:
 		cp->use = CNTXT_INHERIT;
 		cp->label = cpystr("Default collections are inherited");
 	    }
-	    else if(cp = new_context(lval[i], &prime)){
+	    else if((cp = new_context(lval[i], &prime)) != NULL){
 		cp->var.v = fake_nspec;
 		cp->var.i = i;
 	    }
@@ -299,9 +301,9 @@ go_again:
 	}
 
 	/* resolve variable changes */
-	if(lval1 && !equal_list_arrays(lval1, LVAL(fake_fspec, ew)) ||
-	   fake_fspec && !equal_list_arrays(ps->VAR_FOLDER_SPEC,
-					    LVAL(fake_fspec, ew))){
+	if((lval1 && !equal_list_arrays(lval1, LVAL(fake_fspec, ew))) ||
+	   (fake_fspec && !equal_list_arrays(ps->VAR_FOLDER_SPEC,
+					     LVAL(fake_fspec, ew)))){
 	    i = set_variable_list(V_FOLDER_SPEC,
 				  LVAL(fake_fspec, ew), TRUE, ew);
 	    set_current_val(&ps->vars[V_FOLDER_SPEC], TRUE, FALSE);
@@ -323,9 +325,9 @@ go_again:
 	    }
 	}
 
-	if(lval2 && !equal_list_arrays(lval2, LVAL(fake_nspec, ew)) ||
-	   fake_nspec && !equal_list_arrays(ps->VAR_NEWS_SPEC,
-					    LVAL(fake_nspec, ew))){
+	if((lval2 && !equal_list_arrays(lval2, LVAL(fake_nspec, ew))) ||
+	   (fake_nspec && !equal_list_arrays(ps->VAR_NEWS_SPEC,
+					     LVAL(fake_nspec, ew)))){
 	    i = set_variable_list(V_NEWS_SPEC,
 				  LVAL(fake_nspec, ew), TRUE, ew);
 	    set_news_spec_current_val(TRUE, FALSE);
@@ -395,6 +397,8 @@ context_select_screen(struct pine *ps, CONT_SCR_S *cs, int ro_warn)
 	  case Post:
 	    prc = ps->post_prc;
 	    break;
+	  default:
+	    break;
 	}
 
 	readonly_warning = prc ? prc->readonly : 1;
@@ -458,7 +462,7 @@ context_select_screen(struct pine *ps, CONT_SCR_S *cs, int ro_warn)
 	ctmpa->flags	  |= CF_NOSELECT | CF_B_LINE;
 	ctmpa->valoffset   = 0;
     }
-    while(cp = cp->next);
+    while((cp = cp->next) != NULL);
 
 
     saved_screen = opt_screen;
@@ -526,7 +530,7 @@ context_config_add(struct pine *ps, CONF_S **cl)
     char           **lval;
     int              count;
 
-    if(raw_ctxt = context_edit_screen(ps, "ADD", NULL, NULL, NULL, NULL)){
+    if((raw_ctxt = context_edit_screen(ps, "ADD", NULL, NULL, NULL, NULL)) != NULL){
 
 	/*
 	 * If var is non-NULL we add to the end of that var.
@@ -732,35 +736,43 @@ context_config_edit(struct pine *ps, CONF_S **cl)
 		      : (*cl)->d.c.ct->context, sizeof(tpath)-1);
     tpath[sizeof(tpath)-1] = '\0';
 
-    if(p = strstr(tpath, "%s"))
+    if((p = strstr(tpath, "%s")) != NULL)
       *p = '\0';
 
-    if(raw_ctxt = context_edit_screen(ps, "EDIT", (*cl)->d.c.ct->nickname,
+    if((raw_ctxt = context_edit_screen(ps, "EDIT", (*cl)->d.c.ct->nickname,
 				      (*cl)->d.c.ct->server, tpath,
 				      (*cl)->d.c.ct->dir ?
 				             (*cl)->d.c.ct->dir->view.user
-					     : NULL)){
+					     : NULL)) != NULL){
 
 	if((*cl)->var){
 	    var = (*cl)->var;
 	    lval = LVAL(var, ew);
 	    i = (*cl)->d.c.ct->var.i;
-	    if(lval && lval[i])
-	      fs_give((void **)&lval[i]);
-	    
-	    if(lval)
-	      lval[i] = raw_ctxt;
+
+	    if(lval && lval[i] && !strcmp(lval[i], raw_ctxt))
+	      q_status_message(SM_ORDER, 0, 3, _("No change"));
+	    else if(lval){
+		if(lval[i])
+		  fs_give((void **) &lval[i]);
+
+		lval[i] = raw_ctxt;
+		raw_ctxt = NULL;
+
+		q_status_message(SM_ORDER, 0, 3, _("Collection list entry updated"));
+	    }
 
 	    (*cl)->d.c.cs->starting_var = var;
 	    (*cl)->d.c.cs->starting_varmem = i;
+
+	    if(raw_ctxt)
+	      fs_give((void **) &raw_ctxt);
 	}
 	else{
 	    q_status_message(SM_ORDER|SM_DING, 3, 3,
 			     "Programmer botch in context_config_edit");
 	    return(0);
 	}
-
-	q_status_message(SM_ORDER, 0, 3, _("Collection list entry updated"));
 
 	return(15);
     }

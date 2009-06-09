@@ -206,7 +206,7 @@ void		mswin_setprintfont (char *fontName, char *fontSize,
 			char *fontStyle, char *fontCharSet);
 void		mswin_getprintfont (char *, size_t, char *, size_t,
 				    char *, size_t, char *, size_t);
-int		mswin_yeild (void);
+int		mswin_yield (void);
 int		mswin_charavail (void);
 UCS		mswin_getc_fast (void);
 void		mswin_flush_input (void);
@@ -312,6 +312,13 @@ BOOL		MSWRPeek(HKEY hRootKey, LPTSTR subkey, LPTSTR valstr,
 int             mswin_store_pass_prompt(void);
 void            mswin_set_erasecreds_callback(cbvoid_t);
 void		mswin_setviewinwindcallback (cbvoid_t);
+int             mswin_setgenhelptextcallback(cbstr_t);
+int             mswin_caninput(void);
+void            mswin_beginupdate(void);
+void            mswin_endupdate(void);
+int             mswin_sethelptextcallback(cbstr_t);
+int             strucmp(char *, char *);
+int             struncmp(char *, char *, int);
 
 #ifdef	MSC_MALLOC
 /*

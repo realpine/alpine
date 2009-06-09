@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: stream.c 600 2007-06-15 23:23:02Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: stream.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -38,6 +38,11 @@ static char rcsid[] = "$Id: stream.c 600 2007-06-15 23:23:02Z hubert@u.washingto
 #include "../pith/news.h"
 #include "../pith/sequence.h"
 #include "../pith/options.h"
+#include "../pith/mimedesc.h"
+
+
+void     (*pith_opt_closing_stream)(MAILSTREAM *);
+
 
 /*
  * Internal prototypes
@@ -343,8 +348,9 @@ pine_mail_open(MAILSTREAM *stream, char *mailbox, long int openflags, long int *
 
 	    carefully_reset_sp_flags(stream, flags);
 
-	    stream->silent = (openflags & OP_SILENT) ? T : NIL;
-		
+	    if(stream->silent && !(openflags & OP_SILENT))
+	      stream->silent = NIL;
+
 	    dprint((9, "pine_mail_open: stream was already open\n"));
 	    if(stream && stream->dtb && stream->dtb->name
 	       && !strcmp(stream->dtb->name, "imap")){
@@ -407,12 +413,15 @@ pine_mail_open(MAILSTREAM *stream, char *mailbox, long int openflags, long int *
 
 	    /*
 	     * We may be re-using a stream that was previously open
-	     * with OP_SILENT and now we don't want OP_SILENT, or vice
-	     * versa, I suppose. Fix it.
+	     * with OP_SILENT and now we don't want OP_SILENT.
+	     * We don't turn !silent into silent because the !silentness
+	     * could be important in the original context (for example,
+	     * silent suppresses mm_expunged calls).
 	     *
-	     * WARNING: we're messing with c-client internals (by necessity).
+	     * WARNING: we're messing with c-client internals.
 	     */
-	    stream->silent = (openflags & OP_SILENT) ? T : NIL;
+	    if(stream->silent && !(openflags & OP_SILENT))
+	      stream->silent = NIL;
 
 	    dprint((9, "pine_mail_open: stream already open\n"));
 	    if(stream && stream->dtb && stream->dtb->name
@@ -533,7 +542,8 @@ pine_mail_open(MAILSTREAM *stream, char *mailbox, long int openflags, long int *
 		       stream->gensym));
 	    }
 
-	    stream->silent = (openflags & OP_SILENT) ? T : NIL;
+	    if(stream->silent && !(openflags & OP_SILENT))
+	      stream->silent = NIL;
 
 	    return(stream);
 	}
@@ -1296,9 +1306,6 @@ pine_mail_close(MAILSTREAM *stream)
 void
 pine_mail_actually_close(MAILSTREAM *stream)
 {
-    int  i;
-    long n;
-
     if(!stream)
       return;
 
@@ -1371,6 +1378,9 @@ pine_mail_search_full(MAILSTREAM *stream, char *charset,
     if(charset && !strucmp(charset, "utf-8")
        && is_imap_stream(stream) && !hibit_in_searchpgm(pgm))
       charset = NULL;
+
+    if(F_ON(F_NNTP_SEARCH_USES_OVERVIEW, ps_global))
+      flags |= SO_OVERVIEW;
 
     return(stream ? mail_search_full(stream, charset, pgm, flags) : NIL);
 }
@@ -1788,7 +1798,7 @@ pine_mail_list(MAILSTREAM *stream, char *ref, char *pat, unsigned int *options)
 	       pat ? pat : "(NULL)",
 	       stream ? "" : " (stream was NULL)"));
 
-    if(!ref && check_for_move_mbox(pat, source, sizeof(source), &target)
+    if((!ref && check_for_move_mbox(pat, source, sizeof(source), &target))
        ||
        check_for_move_mbox(ref, source, sizeof(source), &target)){
 	ref = NIL;
@@ -1888,8 +1898,6 @@ pine_mail_status_full(MAILSTREAM *stream, char *mailbox, long int flags,
     MAILSTREAM *ourstream = NULL;
 
     if(check_for_move_mbox(mailbox, source, sizeof(source), &target)){
-	DRIVER *d;
-
 	memset(&status, 0, sizeof(status));
 	memset(&cache,  0, sizeof(cache));
 
@@ -2852,6 +2860,9 @@ sp_delete(MAILSTREAM *stream)
     
     /* remote address books may have open stream pointers */
     note_closed_adrbk_stream(stream);
+
+    if(pith_opt_closing_stream)
+      (*pith_opt_closing_stream)(stream);
 
     for(i = 0; i < ps_global->s_pool.nstream; i++){
 	m = ps_global->s_pool.streams[i];

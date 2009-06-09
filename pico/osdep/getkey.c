@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: getkey.c 530 2007-04-19 02:37:54Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: getkey.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -531,14 +531,11 @@ UCS
 GetKey(void)
 {
     UCS			ch = 0;
-    unsigned int	lch;
     long		timein;
-    MEvent		mouse;
     
 
     ch = NODATA;
     timein = time(0L);
-
 
     /*
      * Main character processing loop.

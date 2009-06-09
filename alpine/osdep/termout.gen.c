@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: termout.gen.c 509 2007-04-04 23:30:55Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: termout.gen.c 694 2007-08-29 19:51:50Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -36,12 +36,17 @@ static char rcsid[] = "$Id: termout.gen.c 509 2007-04-04 23:30:55Z hubert@u.wash
 #include "../../pico/estruct.h"
 #include "../../pico/pico.h"
 #include "../../pico/keydefs.h"
+#include "../../pico/osdep/color.h"
 
 #include "../status.h"
 #include "../radio.h"
 #include "../folder.h"
 #include "../keymenu.h"
 #include "../send.h"
+#include "../mailindx.h"
+
+int   _line  = FARAWAY;
+int   _col   = FARAWAY;
 
 #include "termout.gen.h"
 
@@ -49,8 +54,6 @@ static char rcsid[] = "$Id: termout.gen.c 509 2007-04-04 23:30:55Z hubert@u.wash
 #define	PUTLINE_BUFLEN	256
 
 
-int   _line  = FARAWAY;
-int   _col   = FARAWAY;
 
 /*
  * Generic tty output routines...
@@ -164,16 +167,35 @@ PutLine0n8b(int x, int y, register char *line, int length, HANDLE_S *handles)
 		      current_key = handles->key;
 
 		    if(key == current_key){
-			if(pico_usingcolor() &&
-			   ps_global->VAR_SLCTBL_FORE_COLOR &&
-			   ps_global->VAR_SLCTBL_BACK_COLOR){
-			    pico_set_normal_color();
-			}
-			else
-			  EndBold();
+			COLOR_PAIR *curcolor = NULL;
+			COLOR_PAIR *revcolor = NULL;
 
-			StartInverse();
-			is_inv = 1;
+			if(handles->color_unseen
+			   && (curcolor = pico_get_cur_color())
+			   && (colorcmp(curcolor->fg, ps_global->VAR_NORM_FORE_COLOR)
+			       || colorcmp(curcolor->bg, ps_global->VAR_NORM_BACK_COLOR))
+			   && (revcolor = apply_rev_color(curcolor,
+							  ps_global->index_color_style)))
+			  (void) pico_set_colorp(revcolor, PSC_NONE);
+			else{
+
+			    if(pico_usingcolor() &&
+			       ps_global->VAR_SLCTBL_FORE_COLOR &&
+			       ps_global->VAR_SLCTBL_BACK_COLOR){
+				pico_set_normal_color();
+			    }
+			    else
+			      EndBold();
+
+			    StartInverse();
+			    is_inv = 1;
+			}
+
+			if(curcolor)
+			  free_color_pair(&curcolor);
+
+			if(revcolor)
+			  free_color_pair(&revcolor);
 		    }
 		}
 		else{
@@ -241,9 +263,9 @@ PutLine0n8b(int x, int y, register char *line, int length, HANDLE_S *handles)
 	    strncpy(mtype, body_type_names(h->h.attach->body->type), sizeof(mtype));
 	    mtype[sizeof(mtype)-1] = '\0';
 	    if (h->h.attach->body->subtype) {
-		strncat (mtype, "/", sizeof(mtype)-strlen(mtype));
+		strncat (mtype, "/", sizeof(mtype)-strlen(mtype)-1);
 		mtype[sizeof(mtype)-1] = '\0';
-		strncat (mtype, h->h.attach->body->subtype, sizeof(mtype)-strlen(mtype));
+		strncat (mtype, h->h.attach->body->subtype, sizeof(mtype)-strlen(mtype)-1);
 		mtype[sizeof(mtype)-1] = '\0';
 	    }
 
@@ -527,7 +549,7 @@ Writechar(unsigned int ch, int new_esc_len)
 		for(inputp = cbuf; inputp < cbufp; inputp++){
 		    int width = 0;
 
-		    if(_col + width < ps_global->ttyo->screen_cols){
+		    if(_col + width <= ps_global->ttyo->screen_cols){
 			Writewchar('?');
 			width++;
 		    }

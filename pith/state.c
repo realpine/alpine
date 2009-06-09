@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: state.c 482 2007-03-14 21:27:23Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: state.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,8 @@ static char rcsid[] = "$Id: state.c 482 2007-03-14 21:27:23Z hubert@u.washington
 #include "../pith/atttype.h"
 #include "../pith/util.h"
 #include "../pith/mailindx.h"
+#include "../pith/remote.h"
+#include "../pith/list.h"
 
 
 /*

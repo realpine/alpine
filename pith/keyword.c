@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: keyword.c 600 2007-06-15 23:23:02Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: keyword.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -37,25 +37,20 @@ KEYWORD_S *
 init_keyword_list(char **keywordarray)
 {
     char     **t, *nickname, *keyword;
-    KEYWORD_S *head = NULL, *new, *kl = NULL;
+    KEYWORD_S *head = NULL, **tail;
 
+    tail = &head;
     for(t = keywordarray; t && *t && **t; t++){
 	nickname = keyword = NULL;
 	get_pair(*t, &nickname, &keyword, 0, 0);
-	new = new_keyword_s(keyword, nickname);
+	*tail = new_keyword_s(keyword, nickname);
+	tail  = &(*tail)->next;
+
 	if(keyword)
 	  fs_give((void **) &keyword);
 
 	if(nickname)
 	  fs_give((void **) &nickname);
-
-	if(kl)
-	  kl->next = new;
-
-	kl = new;
-
-	if(!head)
-	  head = kl;
     }
 
     return(head);
@@ -144,6 +139,45 @@ keyword_to_nick(char *keyword)
 }
 
 
+/*
+ * Return a pointer to the keyword associated with an initial, or the
+ * input itself if no match.
+ * Only works for ascii initials.
+ */
+char *
+initial_to_keyword(char *initial)
+{
+    KEYWORD_S *kw;
+    char      *ret;
+    int        init;
+    int        kwinit;
+
+    ret = initial;
+    if(initial[0] && initial[1] == '\0'){
+	init = initial[0];
+	if(isascii(init) && isupper(init))
+	  init = tolower((unsigned char) init);
+
+	for(kw = ps_global->keywords; kw; kw = kw->next){
+	    if(kw->nick)
+	      kwinit = kw->nick[0];
+	    else if(kw->kw)
+	      kwinit = kw->kw[0];
+
+	    if(isascii(kwinit) && isupper(kwinit))
+	      kwinit = tolower((unsigned char) kwinit);
+
+	    if(kwinit == init){
+		ret = kw->kw;
+		break;
+	    }
+	}
+    }
+    
+    return(ret);
+}
+
+
 int
 user_flag_is_set(MAILSTREAM *stream, long unsigned int rawno, char *keyword)
 {
@@ -210,6 +244,9 @@ flag_string(MAILSTREAM *stream, long rawno, long int flags)
     if((flags & F_ANS) && mc->answered)
       len += strlen("\\ANSWERED") + 1;
 
+    if((flags & F_FWD) && user_flag_is_set(stream, rawno, FORWARDED_FLAG))
+      len += strlen(FORWARDED_FLAG) + 1;
+
     if((flags & F_FLAG) && mc->flagged)
       len += strlen("\\FLAGGED") + 1;
 
@@ -235,6 +272,11 @@ flag_string(MAILSTREAM *stream, long rawno, long int flags)
 
     if((flags & F_ANS) && mc->answered)
       sstrncpy(&p, "\\ANSWERED ", len+1-(p-returned_flags));
+
+    if((flags & F_FWD) && user_flag_is_set(stream, rawno, FORWARDED_FLAG)){
+	sstrncpy(&p, FORWARDED_FLAG, len+1-(p-returned_flags));
+	sstrncpy(&p, " ", len+1-(p-returned_flags));
+    }
 
     if((flags & F_FLAG) && mc->flagged)
       sstrncpy(&p, "\\FLAGGED ", len+1-(p-returned_flags));
@@ -266,12 +308,12 @@ get_msgno_by_msg_id(MAILSTREAM *stream, char *message_id, MSGNO_S *msgmap)
     SEARCHPGM  *pgm = NULL;
     long        hint = mn_m2raw(msgmap, mn_get_cur(msgmap));
     long        newmsgno = -1L;
-    int         iter = 0, k;
+    int         iter = 0;
     MESSAGECACHE *mc;
     extern MAILSTREAM *mm_search_stream;
     extern long        mm_search_count;
 
-    if(!(message_id && message_id[0]))
+    if(!(message_id && message_id[0]) || stream->nmsgs < 1L)
       return(newmsgno);
 
     mm_search_count = 0L;

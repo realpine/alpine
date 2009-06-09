@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: init.c 424 2007-02-06 21:52:46Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: init.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -44,6 +44,7 @@ int	 compare_sm_files(const qsort_t *, const qsort_t *);
           returns 0 on success, -1 if not.
   ----*/
 
+int
 init_username(struct pine *ps)
 {
     char *expanded;
@@ -128,6 +129,7 @@ init_username(struct pine *ps)
           returns 0 on success, -1 if not.
   ----*/
 
+int
 init_userdir(struct pine *ps)
 {
     char fld_dir[MAXPATH+1];
@@ -218,6 +220,7 @@ the "user-domain" variable in pine.conf.  To set the domain name for an
 individual user, set the "user-domain" variable in his .pinerc.
 The .pinerc setting overrides any other setting.
  ----*/
+int
 init_hostname(struct pine *ps)
 {
     char hostname[MAX_ADDRESS+1], domainname[MAX_ADDRESS+1];
@@ -503,24 +506,6 @@ first_run_of_year(void)
 }
 
 
-/*----------------------------------------------------------------------
-     Check pruned-folders for validity, making sure they are in the 
-     same context as sent-mail.
-
-  ----*/
-int
-prune_folders_ok(void)
-{
-    char **p;
-
-    for(p = ps_global->VAR_PRUNED_FOLDERS; p && *p && **p; p++)
-      if(!context_isambig(*p))
-	return(0);
-
-    return(1);
-}
-
-
 /*
  * prune_move_folder - rename folder in context and delete old copy
  * Returns -1 if unsuccessful.
@@ -528,7 +513,6 @@ prune_folders_ok(void)
 int
 prune_move_folder(char *oldpath, char *newpath, CONTEXT_S *prune_cntxt)
 {
-    MAILSTREAM *prune_stream = NULL;
     char spath[MAXPATH+1];
 
     strncpy(spath, oldpath, sizeof(spath)-1);

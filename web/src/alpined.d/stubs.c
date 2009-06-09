@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: stubs.c 391 2007-01-25 03:53:59Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: stubs.c 701 2007-08-31 18:52:30Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -22,6 +22,7 @@ static char rcsid[] = "$Id: stubs.c 391 2007-01-25 03:53:59Z mikes@u.washington.
 #include "../../../pith/takeaddr.h"
 #include "../../../pith/ldap.h"
 #include "../../../pith/debug.h"
+#include "../../../pith/osdep/coredump.h"
 
 #include "alpined.h"
 

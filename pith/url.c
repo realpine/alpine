@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: url.c 392 2007-01-25 18:56:49Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: url.c 695 2007-08-29 22:31:51Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,7 +55,7 @@ rfc1738_scan(char *line, int *len)
     int   n;
 
     /* process each : in the line */
-    for(; colon = strindex(line, ':'); line = end){
+    for(; (colon = strindex(line, ':')) != NULL; line = end){
 	end = colon + 1;
 	if(colon == line)		/* zero length scheme? */
 	  continue;
@@ -171,7 +171,7 @@ rfc1738_scheme_part(char *s)
     while(1)
       switch(*s){
 	default :
-	  if(n = rfc1738xchar(s)){
+	  if((n = rfc1738xchar(s)) != 0){
 	      s += n;
 	      break;
 	  }
@@ -356,7 +356,7 @@ rfc1808_tokens(char *url, char **scheme, char **net_loc, char **path,
     char *p, *q, *start, *tmp = cpystr(url);
 
     start = tmp;
-    if(p = strchr(start, '#')){		/* fragment spec? */
+    if((p = strchr(start, '#')) != NULL){	/* fragment spec? */
 	*p++ = '\0';
 	if(*p)
 	  *frag = cpystr(p);
@@ -377,7 +377,7 @@ rfc1808_tokens(char *url, char **scheme, char **net_loc, char **path,
     }
 
     if(*start == '/' && *(start+1) == '/'){ /* net_loc */
-	if(p = strchr(start+2, '/'))
+	if((p = strchr(start+2, '/')) != NULL)
 	  *p++ = '\0';
 
 	*net_loc = cpystr(start+2);
@@ -386,12 +386,12 @@ rfc1808_tokens(char *url, char **scheme, char **net_loc, char **path,
 	else *start = '\0';		/* End of parse */
     }
 
-    if(p = strchr(start, '?')){
+    if((p = strchr(start, '?')) != NULL){
 	*p++ = '\0';
 	*query = cpystr(p);
     }
 
-    if(p = strchr(start, ';')){
+    if((p = strchr(start, ';')) != NULL){
 	*p++ = '\0';
 	*parms = cpystr(p);
     }
@@ -419,12 +419,12 @@ web_host_scan(char *line, int *len)
     for(; *line; last = *line++)
       if((*line == 'w' || *line == 'W')
 	 && (!last || !(isalnum((unsigned char) last)
-			|| last == '.' || last == '-'))
-	 && (((*(line + 1) == 'w' || *(line + 1) == 'W')	/* "www" */
+			|| last == '.' || last == '-' || last == '/'))
+	 && (((*(line + 1) == 'w' || *(line + 1) == 'W')	/* "www." */
 	      && (*(line + 2) == 'w' || *(line + 2) == 'W'))
 	     || ((*(line + 1) == 'e' || *(line + 1) == 'E')	/* "web." */
-		 && (*(line + 2) == 'b' || *(line + 2) == 'B')
-		 && *(line + 3) == '.'))){
+		 && (*(line + 2) == 'b' || *(line + 2) == 'B')))
+	 && (*(line + 3) == '.')){
 	  end = rfc1738_scheme_part(line + 3);
 	  if((*len = end - line) > ((*(line+3) == '.') ? 4 : 3)){
 	      /* Dread comma exception, see note in rfc1738_scan */
@@ -454,12 +454,19 @@ char *
 mail_addr_scan(char *line, int *len)
 {
     char *amp, *start, *end;
+/*
+ * This list is not the whole standards-based list, this is just a list
+ * of likely email address characters. We don't want to include everything
+ * because punctuation in the text might get mixed in with the address.
+ */
+#define NONALPHANUMOK ".-_+%/="
 
     /* process each : in the line */
-    for(; amp = strindex(line, '@'); line = end){
+    for(; (amp = strindex(line, '@')) != NULL; line = end){
 	end = amp + 1;
 	/* zero length addr? */
-	if(amp == line || !isalnum((unsigned char) *(start = amp - 1)))
+	if(amp == line || !(isalnum((unsigned char) *(start = amp - 1))
+			    || strchr(NONALPHANUMOK, *start)))
 	  continue;
 
 	/*
@@ -468,12 +475,10 @@ mail_addr_scan(char *line, int *len)
 	 */
 	while(1)
 	  /* NOTE: we're not doing quoted-strings */
-	  if(!(isalnum((unsigned char) *start) || strchr(".-_+", *start))){
+	  if(!(isalnum((unsigned char) *start) || strchr(NONALPHANUMOK, *start))){
 	      /* advance over bogus char, and erase leading punctuation */
-	      for(start++;
-		  *start == '.' || *start == '-' || *start == '_';
-		  start++)
-		;
+	      for(start++; *start && strchr(NONALPHANUMOK, *start); start++)
+	        ;
 
 	      break;
 	  }

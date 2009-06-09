@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: print.c 584 2007-05-30 18:05:14Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: print.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -22,6 +22,7 @@ static char rcsid[] = "$Id: print.c 584 2007-05-30 18:05:14Z hubert@u.washington
 #include "radio.h"
 #include "status.h"
 #include "../pith/state.h"
+#include "../pith/mailcmd.h"
 
 
 /*
@@ -83,6 +84,8 @@ select_printer(struct pine *ps, int edit_exceptions)
 	    break;
 	  case Post:
 	    prc = ps->post_prc;
+	    break;
+	  default:
 	    break;
 	}
 
@@ -573,8 +576,12 @@ print_select_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 	if(cl && *cl){
 	    char aname[100], wname[100];
 
-	    strncat(strncpy(aname, ANSI_PRINTER, 50), no_ff, 30);
-	    strncat(strncpy(wname, WYSE_PRINTER, 50), no_ff, 30);
+	    strncpy(aname, ANSI_PRINTER, sizeof(aname)-1);
+	    aname[sizeof(aname)-1] = '\0';
+	    strncat(aname, no_ff, sizeof(aname)-strlen(aname)-1);
+	    strncpy(wname, WYSE_PRINTER, sizeof(wname)-1);
+	    wname[sizeof(wname)-1] = '\0';
+	    strncat(wname, no_ff, sizeof(wname)-strlen(wname)-1);
 	    if((*cl)->var){
 		vtmp = (*cl)->var;
 		lval = (no_ex || !vtmp->is_user) ? vtmp->current_val.l

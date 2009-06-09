@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: chnge_pw.c 217 2006-11-04 02:52:05Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: chnge_pw.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,10 @@ static char rcsid[] = "$Id: chnge_pw.c 217 2006-11-04 02:52:05Z jpf@u.washington
 
 #include "../../pith/osdep/color.h"
 #include "../../pith/state.h"
+
+#include "termin.gen.h"
+#include "termout.gen.h"
+#include "chnge_pw.h"
 
 /*----------------------------------------------------------------------
        Call the system to change the passwd

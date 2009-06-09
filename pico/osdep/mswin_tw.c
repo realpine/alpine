@@ -283,8 +283,6 @@ mswin_tw_puts_lptstr(MSWIN_TEXTWINDOW *mswin_tw, LPTSTR msg)
 {
     if(mswin_tw && mswin_tw->hwnd_edit)
     {
-        POINT pt;
-        RECT rc;
         TCHAR lf_str[] = TEXT("\n");
 
         Edit_ExSetSel(mswin_tw->hwnd_edit, -1, -1);
@@ -514,7 +512,6 @@ mswin_tw_wm_command(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
     case IDM_EDIT_COPY_APPEND:
     {
         CHARRANGE cr;
-        CHARRANGE cr_temp;
         int text_len0, text_len1;
         HWND hwnd_edit = mswin_tw->hwnd_edit;
         BOOL EditIsReadOnly = Edit_ExIsReadOnly(hwnd_edit);

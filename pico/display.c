@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: display.c 582 2007-05-24 19:01:54Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: display.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -25,6 +25,14 @@ static char rcsid[] = "$Id: display.c 582 2007-05-24 19:01:54Z hubert@u.washingt
  * functions use hints that are left in the windows by the commands.
  *
  */
+
+#include	"../c-client/mail.h"
+#include	"../c-client/utf8.h"
+
+#ifdef _WINDOWS
+/* wingdi.h uses ERROR (!) and we aren't using the c-client ERROR so... */
+#undef ERROR
+#endif
 
 #include	"headers.h"
 #include	"../pith/charconv/filesys.h"
@@ -1221,7 +1229,7 @@ modeline(WINDOW *wp)
 
 	    c.a = 1;
 	    ucsp = ucs;
-	    while(c.c = CELLMASK & *ucsp++)
+	    while((c.c = CELLMASK & *ucsp++))
 	      vtputc(c);
 
 	    fs_give((void **) &ucs);
@@ -1357,7 +1365,7 @@ mlyesno(UCS *prompt, int dflt)
     ucs4_strncpy(buf, prompt, NLINE);
     buf[NLINE-1] = '\0';
     lbuf[0] = ' '; lbuf[1] = '?'; lbuf[2] = ' '; lbuf[3] = '\0';
-    ucs4_strncat(buf, lbuf, NLINE - ucs4_strlen(buf));
+    ucs4_strncat(buf, lbuf, NLINE - ucs4_strlen(buf) - 1);
     buf[NLINE-1] = '\0';
     mlwrite(buf, NULL);
     if(Pmaster && Pmaster->colors && Pmaster->colors->prcp
@@ -1553,7 +1561,7 @@ mlreplyd(UCS *prompt, UCS *buf, int nbuf, int flg, EXTRAKEYS *extras)
 {
     UCS      c;				/* current char       */
     UCS     *b;				/* pointer in buf     */
-    int      i, j, w;
+    int      i, j;
     int      plen;
     int      changed = FALSE;
     int      return_val = 0;
@@ -2253,7 +2261,7 @@ unknown_command(UCS c)
       case F10	     :
       case F11	     :
       case F12	     :
-        snprintf(s, sizeof(buf), "F%ld", c - PF1 + 1);
+        snprintf(s, sizeof(buf), "F%ld", (long) (c - PF1 + 1));
 	break;
 
       default:
@@ -2789,7 +2797,7 @@ dumblroot(long x, int b)
 int
 pinsert(CELL c)
 {
-    int   i, ind = 0, wid = 0, ww;
+    int   i, ind = 0, ww;
     CELL *p;
 
     if(o_insert((UCS) c.c)){		/* if we've got it, use it! */
@@ -2820,7 +2828,7 @@ pinsert(CELL c)
 int
 pdel(void)
 {
-    int   i, ind = 0, wid = 0, w;
+    int   i, ind = 0, w;
     CELL *p;
 
     if(TERM_DELCHAR){			/* if we've got it, use it! */
@@ -2866,7 +2874,6 @@ void
 wstripe(int line, int column, char *utf8pmt, int key)
 {
     UCS  *ucs4pmt, *u;
-    char *buf;
     int  i = 0, col = 0;
     int  j = 0;
     int  l, ww;
@@ -3176,7 +3183,6 @@ pico_config_menu_items (KEYMENU *keymenu)
     int		i;
     KEYMENU	*k;
     UCS		key;
-    char	*rb;
 
     mswin_menuitemclear ();
 

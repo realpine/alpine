@@ -1,5 +1,5 @@
 /*
- * $Id: conf.h 607 2007-06-22 17:47:59Z hubert@u.washington.edu $
+ * $Id: conf.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -390,6 +390,8 @@
 #define GLO_IND_NEW_BACK_COLOR	     vars[V_IND_NEW_BACK_COLOR].global_val.p
 #define VAR_IND_REC_FORE_COLOR	     vars[V_IND_REC_FORE_COLOR].current_val.p
 #define VAR_IND_REC_BACK_COLOR	     vars[V_IND_REC_BACK_COLOR].current_val.p
+#define VAR_IND_FWD_FORE_COLOR	     vars[V_IND_FWD_FORE_COLOR].current_val.p
+#define VAR_IND_FWD_BACK_COLOR	     vars[V_IND_FWD_BACK_COLOR].current_val.p
 #define VAR_IND_UNS_FORE_COLOR	     vars[V_IND_UNS_FORE_COLOR].current_val.p
 #define VAR_IND_UNS_BACK_COLOR	     vars[V_IND_UNS_BACK_COLOR].current_val.p
 #define VAR_IND_OP_FORE_COLOR	     vars[V_IND_OP_FORE_COLOR].current_val.p
@@ -400,6 +402,10 @@
 #define VAR_IND_SUBJ_BACK_COLOR	     vars[V_IND_SUBJ_BACK_COLOR].current_val.p
 #define VAR_IND_FROM_FORE_COLOR	     vars[V_IND_FROM_FORE_COLOR].current_val.p
 #define VAR_IND_FROM_BACK_COLOR	     vars[V_IND_FROM_BACK_COLOR].current_val.p
+#define VAR_IND_HIPRI_FORE_COLOR     vars[V_IND_HIPRI_FORE_COLOR].current_val.p
+#define VAR_IND_HIPRI_BACK_COLOR     vars[V_IND_HIPRI_BACK_COLOR].current_val.p
+#define VAR_IND_LOPRI_FORE_COLOR     vars[V_IND_LOPRI_FORE_COLOR].current_val.p
+#define VAR_IND_LOPRI_BACK_COLOR     vars[V_IND_LOPRI_BACK_COLOR].current_val.p
 #define VAR_IND_ARR_FORE_COLOR	     vars[V_IND_ARR_FORE_COLOR].current_val.p
 #define VAR_IND_ARR_BACK_COLOR	     vars[V_IND_ARR_BACK_COLOR].current_val.p
 #define VAR_KEYLABEL_FORE_COLOR	     vars[V_KEYLABEL_FORE_COLOR].current_val.p
@@ -424,6 +430,8 @@
 #define GLO_QUOTE3_FORE_COLOR	     vars[V_QUOTE3_FORE_COLOR].global_val.p
 #define VAR_QUOTE3_BACK_COLOR	     vars[V_QUOTE3_BACK_COLOR].current_val.p
 #define GLO_QUOTE3_BACK_COLOR	     vars[V_QUOTE3_BACK_COLOR].global_val.p
+#define VAR_INCUNSEEN_FORE_COLOR     vars[V_INCUNSEEN_FORE_COLOR].current_val.p
+#define VAR_INCUNSEEN_BACK_COLOR     vars[V_INCUNSEEN_BACK_COLOR].current_val.p
 #define VAR_SIGNATURE_FORE_COLOR     vars[V_SIGNATURE_FORE_COLOR].current_val.p
 #define GLO_SIGNATURE_FORE_COLOR     vars[V_SIGNATURE_FORE_COLOR].global_val.p
 #define VAR_SIGNATURE_BACK_COLOR     vars[V_SIGNATURE_BACK_COLOR].current_val.p
@@ -838,6 +846,7 @@ SPEC_COLOR_S *spec_colors_from_varlist(char **, int);
 char      *var_from_spec_color(SPEC_COLOR_S *);
 char     **varlist_from_spec_colors(SPEC_COLOR_S *);
 void	   update_posting_charset(struct pine *, int);
+int	   test_old_growth_bits(struct pine *, int);
 int        feature_gets_an_x(struct pine *, struct variable *, FEATURE_S *, char **, EditWhich);
 void       toggle_feature(struct pine *, struct variable *, FEATURE_S *, int, EditWhich);
 int        feature_in_list(char **, char *);
@@ -849,8 +858,9 @@ int        copy_pinerc(char *, char *, char **);
 int        copy_abook(char *, char *, char **);
 HelpType   config_help(int, int);
 char     **get_supported_options(void);
-void	   dump_supported_options(void);
 unsigned   reset_startup_rule(MAILSTREAM *);
+void	   free_pinerc_lines(PINERC_LINE **);
+void	   panic1(char *, char *);
 
 /* mandatory to implement prototypes */
 int	   set_input_timeout(int);

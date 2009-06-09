@@ -1,8 +1,8 @@
 /*
- * $Id: listsel.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: listsel.h 649 2007-07-18 23:45:23Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ typedef struct list_selection {
 
 
 /* exported protoypes */
-int         select_from_list_screen(LIST_SEL_S *, unsigned long, char *, char *, HelpType, char *);
+int         select_from_list_screen(LIST_SEL_S *, unsigned long, char *, char *, HelpType, char *, LIST_SEL_S *);
 
 
 #endif /* PINE_LISTSEL_INCLUDED */

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcap.c 409 2007-02-01 22:44:01Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: mailcap.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -245,7 +245,7 @@ mc_process_file(char *file)
 	/*NOTREACHED*/
     }
 
-    if(file_data = read_file(file, READ_FROM_LOCALE)){
+    if((file_data = read_file(file, READ_FROM_LOCALE)) != NULL){
 	STRINGLIST *newsl, **sl;
 
 	/* Create a new container */
@@ -445,7 +445,7 @@ mc_build_entry(char **tokens)
 	    continue;
 	}
 
-	if(arg = strindex(*tokens, '=')){
+	if((arg = strindex(*tokens, '=')) != NULL){
 	    *arg = ' ';
 	    while(arg > *tokens && isspace((unsigned char) arg[-1]))
 	      arg--;
@@ -517,6 +517,7 @@ mc_build_entry(char **tokens)
 /*
  * Tests for mailcap defined command's sanity
  */
+int
 mc_sane_command(char *command)
 {
     /* First, test that a command string actually exists */
@@ -575,7 +576,7 @@ mc_get_command(int type, char *subtype, struct mail_body_parameter *params,
 	 *       typically two scans through the check_extension
 	 *       mechanism, the mailcap entry now takes precedence.
 	 */
-	if(namep = rfc2231_get_param(params, "name", NULL, NULL)){
+	if((namep = rfc2231_get_param(params, "name", NULL, NULL)) != NULL){
 	    if(namep[0] == '=' && namep[1] == '?'){
 		size_t len;
 	    /*
@@ -828,7 +829,7 @@ mc_cmd_bldr(char *controlstring, int type, char *subtype,
 		    dprint((2, "mc_cmd_bldr: param subs %s\n",
 			    from ? from : "?"));
 		    if(err){
-			if(s = strindex(from, '}')){
+			if((s = strindex(from, '}')) != NULL){
 			  save = *++s;
 			  *s = '\0';
 			}

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: arg.c 617 2007-06-28 20:58:19Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: arg.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -28,6 +28,8 @@ static char rcsid[] = "$Id: arg.c 617 2007-06-28 20:58:19Z jpf@u.washington.edu 
 #include "../pith/list.h"
 #include "../pith/util.h"
 
+#include "imap.h"
+
 #include "arg.h"
 
 
@@ -48,9 +50,13 @@ int  pinerc_cmdline_opt(char *);
    early on with the argument list. Be careful not to change literal
    option names mentioned in the strings. */
 static char args_err_missing_pinerc[] =	N_("missing argument for option \"-pinerc\" (use - for standard out)");
+#if	defined(DOS) || defined(OS2)
 static char args_err_missing_aux[] =		N_("missing argument for option \"-aux\"");
+#endif
+#ifdef	PASSFILE
 static char args_err_missing_passfile[] =	N_("missing argument for option \"-passfile\"");
 static char args_err_non_abs_passfile[] =	N_("argument to \"-passfile\" should be fully-qualified");
+#endif
 static char args_err_missing_sort[] =		N_("missing argument for option \"-sort\"");
 static char args_err_missing_flag_arg[] =	N_("missing argument for flag \"%c\"");
 static char args_err_missing_flag_num[] =	N_("Non numeric argument for flag \"%c\"");
@@ -185,7 +191,6 @@ pine_args(struct pine *pine_state, int argc, char **argv, ARGDATA_S *args)
     char *debug_str           = NULL;
     char *sort                = NULL;
     char *pinerc_file         = NULL;
-    char *ab_sort_descrip     = NULL;
     char *lc		      = NULL;
     int   do_help             = 0;
     int   do_conf             = 0;
@@ -776,21 +781,21 @@ Loop: while(--ac > 0)
 
         if(do_use_fk){
 	    if(list[0]){
-		strncat(list, ",", sizeof(list)-strlen(list));
+		strncat(list, ",", sizeof(list)-strlen(list)-1);
 		list[sizeof(list)-1] = '\0';
 	    }
 
-	    strncat(list, "use-function-keys", sizeof(list)-strlen(list));
+	    strncat(list, "use-function-keys", sizeof(list)-strlen(list)-1);
 	    list[sizeof(list)-1] = '\0';
 	}
 
 	if(do_can_suspend){
 	    if(list[0]){
-		strncat(list, ",", sizeof(list)-strlen(list));
+		strncat(list, ",", sizeof(list)-strlen(list)-1);
 		list[sizeof(list)-1] = '\0';
 	    }
 
-	    strncat(list, "enable-suspend", sizeof(list)-strlen(list));
+	    strncat(list, "enable-suspend", sizeof(list)-strlen(list)-1);
 	    list[sizeof(list)-1] = '\0';
 	}
 
@@ -1051,8 +1056,10 @@ args_add_attach(PATMT **alpp, char *s, int deleted)
 void
 args_help(void)
 {
-    char **a;
     char *pp[2];
+#ifndef _WINDOWS
+    char **a;
+#endif
 
     pp[1] = NULL;
 

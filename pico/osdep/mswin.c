@@ -476,9 +476,7 @@ LOCAL void	TBSwap (HWND, int);
 LOCAL unsigned  scrwidth(LPTSTR lpText, int nLength);
 LOCAL long      pscreen_offset_from_cord(int row, int col, PTTYINFO pTTYInfo);
 
-LOCAL int       struncmp(char *o, char *r, int n);
 LOCAL int       tcsucmp(LPTSTR o, LPTSTR r);
-LOCAL int       strucmp(char *o, char *r);
 LOCAL int       _print_send_page(void);
 
 /* defined in region.c */
@@ -524,7 +522,7 @@ LOCAL int	MSWRAlpineGet(HKEY hKey, LPTSTR subkey, LPTSTR val,
 LOCAL void	MSWIconAddList(int row, int id, HICON hIcon);
 LOCAL int	MSWIconPaint(int row, HDC hDC);
 LOCAL void	MSWIconFree(IconList **ppIcon);
-LOCAL int       MSWRLineBufAdd(MSWR_LINE_BUFFER_S *lpLineBuf, LPTSTR line);
+LOCAL void      MSWRLineBufAdd(MSWR_LINE_BUFFER_S *lpLineBuf, LPTSTR line);
 LOCAL int       MSWRDump(HKEY hKey, LPTSTR pSubKey, int keyDepth,
 			 MSWR_LINE_BUFFER_S *lpLineBuf);
 
@@ -2158,7 +2156,7 @@ PaintTTY (HWND hWnd)
 	    }
 
 	    /* Move pointer to end of this span of characters. */
-	    col += scrwidth(pTTYInfo->pScreen+offset, count);
+	    col += MAX(scrwidth(pTTYInfo->pScreen+offset, count), 1);
 	    pLastAttrib = pNewAttrib;
 
 	    if(hTmpFont != NULL){
@@ -3021,8 +3019,15 @@ ProcessTTYKeyDown (HWND hWnd, TCHAR key)
 {
     UCS		myKey;
     BOOL        fKeyControlDown = GetKeyState(VK_CONTROL) < 0;
+    BOOL        fKeyAltDown = GetKeyState(VK_MENU) < 0;
+
+    // If the alt key is down, let Windows handle the message. This will
+    //  allow the Ctrl+Alt (AltGr) processing to work.
+    if(fKeyAltDown)
+        return FALSE;
 
     switch (key) {
+    case VK_MENU:
     case VK_CONTROL:
     case VK_SHIFT:
         return FALSE;
@@ -3123,7 +3128,11 @@ dtime()
 LOCAL BOOL
 ProcessTTYCharacter (HWND hWnd, TCHAR bOut)
 {
-    BOOL fKeyControlDown = GetKeyState(VK_CONTROL) < 0;
+    // Only check for control key being down if the alt key isn't also down.
+    //  Windows uses Ctrl+Alt as AltGr.
+    BOOL fKeyAltDown = GetKeyState(VK_MENU) < 0;
+    BOOL fKeyControlDown = fKeyAltDown ?
+        FALSE : (GetKeyState(VK_CONTROL) < 0);
 
     if(fKeyControlDown) {
         if(bOut == ' ')
@@ -3670,7 +3679,6 @@ AboutDlgProc (HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
    switch (uMsg) {
       case WM_INITDIALOG:
       {
-         int          idModeString ;
          TCHAR        szTemp [81];
 
          /* sets up version number for PINE */
@@ -6152,9 +6160,9 @@ mswin_getwindow(char *fontName_utf8, size_t nfontName,
         }
 
 	if(gpTTYInfo->lfTTYFont.lfItalic){
-	    strncat(fontStyle_utf8, sep[iSep], nfontStyle-strlen(fontStyle_utf8));
+	    strncat(fontStyle_utf8, sep[iSep], nfontStyle-strlen(fontStyle_utf8)-1);
 	    fontStyle_utf8[nfontStyle-1] = '\0';
-	    strncat(fontStyle_utf8, "italic", nfontStyle-strlen(fontStyle_utf8));
+	    strncat(fontStyle_utf8, "italic", nfontStyle-strlen(fontStyle_utf8)-1);
 	    fontStyle_utf8[nfontStyle-1] = '\0';
         }
     }
@@ -6182,17 +6190,17 @@ mswin_getwindow(char *fontName_utf8, size_t nfontName,
 
 	if(gpTTYInfo->toolBarSize > 0){
 	    strncat(windowPosition, gpTTYInfo->toolBarTop ? "t" : "b",
-		    nwindowPosition-strlen(windowPosition));
+		    nwindowPosition-strlen(windowPosition)-1);
 	    windowPosition[nwindowPosition-1] = '\0';
 	}
 
 	if(gfUseDialogs){
-	    strncat(windowPosition, "d", nwindowPosition-strlen(windowPosition));
+	    strncat(windowPosition, "d", nwindowPosition-strlen(windowPosition)-1);
 	    windowPosition[nwindowPosition-1] = '\0';
 	}
 
 	if(gpTTYInfo->hAccel){
-	    strncat(windowPosition, "a", nwindowPosition-strlen(windowPosition));
+	    strncat(windowPosition, "a", nwindowPosition-strlen(windowPosition)-1);
 	    windowPosition[nwindowPosition-1] = '\0';
 	}
     }
@@ -6657,7 +6665,7 @@ mswin_setclosetext (char *pCloseText)
  * to other applications.
  */
 int
-mswin_yeild (void)
+mswin_yield (void)
 {
     MSG		msg;
     DWORD	start;
@@ -6693,7 +6701,7 @@ mswin_yeild (void)
  *	We can't process input when we are in a scrolling mode.
  */
 int
-mswin_caninput ()
+mswin_caninput (void)
 {
     return (!gScrolling && !gMouseTracking);
 }
@@ -7285,7 +7293,7 @@ mswin_pause (int seconds)
 
     stoptime = GetTickCount () + (DWORD) seconds * 1000;
     while (stoptime > GetTickCount ())
-	mswin_yeild ();
+	mswin_yield ();
 }
 	
 
@@ -10213,8 +10221,10 @@ mswin_exec_and_wait (char *utf8_whatsit, char *utf8_command,
     TCHAR		waitingFor[256];
     PROCESS_INFORMATION	proc_info;
     DWORD		exit_code;
-    BOOL                b_use_mswin_tw;
     MSWIN_EXEC_DATA     exec_data;
+#ifdef ALTED_DOT
+    BOOL                b_use_mswin_tw;
+#endif
 
     mswin_exec_data_init(&exec_data);
 
@@ -10385,7 +10395,7 @@ mswin_exec_and_wait (char *utf8_whatsit, char *utf8_command,
          */
 #ifdef ALTED_DOT
         if(!b_use_mswin_tw || !exec_data.mswin_tw || exec_data.mswin_tw->out_file)
-#endif /* ALTED_DOT
+#endif /* ALTED_DOT */
 	  BringWindowToTop (ghTTYWnd);
 
         mswin_exec_data_free(&exec_data, FALSE);
@@ -11168,12 +11178,9 @@ MSWRPoke(HKEY hKey, LPTSTR subkey, LPTSTR valstr, LPTSTR data_lptstr)
 }
 
 
-LOCAL int
+LOCAL void
 MSWRLineBufAdd(MSWR_LINE_BUFFER_S *lpLineBuf, LPTSTR line)
 {
-    LPTSTR new_line;
-    unsigned long new_line_len;
-
     if(lpLineBuf->offset >= lpLineBuf->size){
 	/* this probably won't happen, but just in case */
 	lpLineBuf->size *= 2;

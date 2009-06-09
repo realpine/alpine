@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: icache.c 526 2007-04-16 19:52:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: icache.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -250,7 +250,6 @@ fetch_ice(MAILSTREAM *stream, long unsigned int rawno)
 {
     PINELT_S    **peltp;
     MESSAGECACHE *mc;
-    ICE_S        *ice = NULL;
 
     if(!stream || rawno < 1L || rawno > stream->nmsgs)
       return NULL;

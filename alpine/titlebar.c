@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: titlebar.c 582 2007-05-24 19:01:54Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: titlebar.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,20 +44,23 @@ char *percentage(long, long, int);
 #define	MS_DEL			(0x01)
 #define	MS_NEW			(0x02)
 #define	MS_ANS			(0x04)
+#define	MS_FWD			(0x08)
 
 #define	STATUS_BITS(X)	(!(X && (X)->valid) ? 0				      \
 			   : (X)->deleted ? MS_DEL			      \
 			     : (X)->answered ? MS_ANS			      \
-			       : (as.stream				      \
-				  && (ps_global->unseen_in_view		      \
-				      || (!(X)->seen			      \
-					  && (!IS_NEWS(as.stream)	      \
-					      || F_ON(F_FAKE_NEW_IN_NEWS,     \
-						      ps_global)))))          \
-				      ? MS_NEW : 0)
+				: (as.stream && user_flag_is_set(as.stream, (X)->msgno, FORWARDED_FLAG)) ? MS_FWD \
+				   : (as.stream				      \
+				      && (ps_global->unseen_in_view	      \
+				          || (!(X)->seen		      \
+					      && (!IS_NEWS(as.stream)	      \
+					          || F_ON(F_FAKE_NEW_IN_NEWS, \
+						          ps_global)))))      \
+				        ? MS_NEW : 0)
 
 #define	BAR_STATUS(X)	(((X) & MS_DEL) ? "DEL"   \
 			 : ((X) & MS_ANS) ? "ANS"   \
+			  : ((X) & MS_FWD) ? "FWD"   \
 		           : (as.stream		      \
 			      && (!IS_NEWS(as.stream)   \
 				  || F_ON(F_FAKE_NEW_IN_NEWS, ps_global)) \
@@ -300,6 +303,8 @@ set_titlebar(char *title, MAILSTREAM *stream, CONTEXT_S *cntxt, char *folder,
 
       case FolderName:		        /* nothing more to do for this one */
 	break;
+      default:
+	break;
     }
 
     tc = format_titlebar();
@@ -342,6 +347,14 @@ output_titlebar(TITLE_S *tc)
     }
 
     fflush(stdout);
+}
+
+
+void
+titlebar_stream_closing(MAILSTREAM *stream)
+{
+    if(stream == as.stream)
+      as.stream = NULL;
 }
 
 
@@ -391,7 +404,7 @@ format_titlebar(void)
     int     title_len = 0, ver_len, loc1_len = 0, loc2_len = 0, fold_len = 0, num_len,
 	    s1 = 0, s2 = 0, s3 = 0, s4 = 0, s5 = 0, s6 = 0, tryloc = 1,
 	    cur_mess_col_offset = -1, percent_column_offset = -1, page_column_offset = -1,
-	    ss_len, thd_len, is_context, avail, extra, cur;
+	    ss_len, thd_len, is_context, avail, extra;
 
     titlebar_is_dirty = 0;
 
@@ -612,6 +625,8 @@ try_smaller_loc:
 			comatose(as.total_lines),
 			percentage(as.current_line, as.total_lines, 1));
 		loc1[sizeof(loc1)-1]= '\0';
+		break;
+	      default:
 		break;
 	    }
 	}
@@ -967,6 +982,10 @@ update_titlebar_status(void)
     else if(mc->answered){		/* then answered */
 	if(as.msg_state & MS_ANS)
 	  return(1);
+    }					/* then forwarded */
+    else if(user_flag_is_set(as.stream, mc->msgno, FORWARDED_FLAG)){
+	if(as.msg_state & MS_FWD)
+	  return(1);
     }
     else if(!mc->seen && as.stream
 	    && (!IS_NEWS(as.stream)
@@ -1141,7 +1160,7 @@ check_cue_display(char *putstr)
   
     if(ps_global->read_predicted && 
        (check_cue_char == putstr[0]
-	|| putstr[0] == ' ' && putstr[1] == '\0'))
+	|| (putstr[0] == ' ' && putstr[1] == '\0')))
         return;
     else{
         if(putstr[0] == ' ')

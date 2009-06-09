@@ -190,4 +190,11 @@ extern char *(*pith_opt_pretty_feature_name)(char *);
 extern int (*pith_opt_truncate_sfstr)(void);
 
 
+/*
+ * A stream is being closed. If there is something in the
+ * application that needs to react to that handle it here.
+ */
+extern void (*pith_opt_closing_stream)(MAILSTREAM *);
+
+
 #endif /* PITH_OPTIONS_INCLUDED */

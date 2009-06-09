@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: color.c 577 2007-05-22 22:16:43Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: color.c 701 2007-08-31 18:52:30Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -18,9 +18,10 @@ static char rcsid[] = "$Id: color.c 577 2007-05-22 22:16:43Z hubert@u.washington
 #include <general.h>
 
 #include "../../../pith/osdep/color.h"
+#include "../../../pith/osdep/collate.h"
 
 
-static COLOR_PAIR *the_rev_color, *the_normal_color;
+static COLOR_PAIR *the_rev_color;
 static char   *_nfcolor, *_nbcolor, *_rfcolor, *_rbcolor;
 static char   *_last_fg_color, *_last_bg_color;
 static int     _force_fg_color_change, _force_bg_color_change;
@@ -305,7 +306,7 @@ colorx(int color)
       if(color == webcoltab[i].number)
 	return(webcoltab[i].rgb);
 
-    sprintf(cbuf, "color%03.3d", color);
+    sprintf(cbuf, "color%3.3d", color);
     return(cbuf);
 }
 
@@ -370,7 +371,7 @@ alpine_valid_rgb(char *s)
     /* has to be three spaces or decimal digits followed by a dot.*/
 
     for(i = 0; i < 3; i++){
-	int w = 0, n = 0;
+	int n = 0;
 
 	for(j = 0; j < 3; j++, s++) {
 	    if(*s == ' '){
@@ -444,7 +445,7 @@ pico_set_colors(char *fg, char *bg, int flags)
 	    pico_set_normal_color();
 	}
 	else if(flags & PSC_REV){
-	    if(rev = pico_get_rev_color()){
+	    if((rev = pico_get_rev_color()) != NULL){
 		pico_set_fg_color(rev->fg);	/* these will succeed */
 		pico_set_bg_color(rev->bg);
 	    }
@@ -602,7 +603,7 @@ pico_set_fg_color(char *s)
 	if(_last_fg_color)
 	  free(_last_fg_color);
 
-	if(_last_fg_color = (char *) malloc(strlen(s) + 1))
+	if((_last_fg_color = (char *) malloc(strlen(s) + 1)) != NULL)
 	  strcpy(_last_fg_color, s);
 
 	return(TRUE);
@@ -631,7 +632,7 @@ pico_set_bg_color(char *s)
 	if(_last_bg_color)
 	  free(_last_bg_color);
 
-	if(_last_bg_color = (char *) malloc(strlen(s) + 1))
+	if((_last_bg_color = (char *) malloc(strlen(s) + 1)) != NULL)
 	  strcpy(_last_bg_color, s);
 
 	return(TRUE);
@@ -658,7 +659,7 @@ pico_get_last_fg_color(void)
     char *ret = NULL;
 
     if(_last_fg_color)
-      if(ret = (char *)malloc(strlen(_last_fg_color)+1))
+      if((ret = (char *)malloc(strlen(_last_fg_color)+1)) != NULL)
 	strcpy(ret, _last_fg_color);
 
     return(ret);
@@ -670,7 +671,7 @@ pico_get_last_bg_color(void)
     char *ret = NULL;
 
     if(_last_bg_color)
-      if(ret = (char *)malloc(strlen(_last_bg_color)+1))
+      if((ret = (char *)malloc(strlen(_last_bg_color)+1)) != NULL)
 	strcpy(ret, _last_bg_color);
 
     return(ret);

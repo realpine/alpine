@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: color.c 577 2007-05-22 22:16:43Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: color.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -55,8 +55,6 @@ color_embed(char *fg, char *bg)
 int
 colorcmp(char *color1, char *color2)
 {
-    char buf[RGBLEN+1];
-
     if(color1 && color2)
       return(strcmp(color_to_asciirgb(color1), color_to_asciirgb(color2)));
 

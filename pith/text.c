@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: text.c 605 2007-06-20 21:15:13Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: text.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -122,8 +122,8 @@ decode_text(ATTACH_S	    *att,
 	fs_give((void **) &parmval);
 
 	if(is_flowed_msg){
-	    if(parmval = rfc2231_get_param(att->body->parameter,
-					   "delsp", NULL, NULL)){
+	    if((parmval = rfc2231_get_param(att->body->parameter,
+					   "delsp", NULL, NULL)) != NULL){
 		if(!strucmp(parmval, "yes"))
 		  is_delsp_yes = 1;
 
@@ -309,7 +309,8 @@ decode_text(ATTACH_S	    *att,
     }
 
     if(wrapit && !(flags & FM_NOWRAP)){
-	int   margin = 0, wrapflags = (flags & FM_DISPLAY) ? GFW_HANDLES : GFW_NONE;
+	int wrapflags = (flags & FM_DISPLAY) ? (GFW_HANDLES|GFW_SOFTHYPHEN)
+					     : GFW_NONE;
 
 	if(flags & FM_DISPLAY
 	   && !(flags & FM_NOCOLOR)
@@ -761,7 +762,6 @@ translate_utf8_to_2022_jp(long int linenum, char *line, LT_INS_S **ins, void *lo
 
     if(line && line[0]){
 	char *converted;
-	char *last_ptr;
 	size_t len;
 
 	converted = utf8_to_charset(line, "ISO-2022-JP", lpj ? lpj->report_err : 0);
@@ -772,7 +772,7 @@ translate_utf8_to_2022_jp(long int linenum, char *line, LT_INS_S **ins, void *lo
 	if(converted && converted != line){
 	    /* delete the old line and replace it with the translation */
 	    len = strlen(line);
-	    ins = gf_line_test_new_ins(ins, line, "", -len);
+	    ins = gf_line_test_new_ins(ins, line, "", -((int) len));
 	    ins = gf_line_test_new_ins(ins, line+len, converted, strlen(converted));
 	    fs_give((void **) &converted);
 	}
@@ -812,7 +812,7 @@ replace_quotes(long int linenum, char *line, LT_INS_S **ins, void *local)
 	  case '>':
 	    if(*lp == ' '){
 		ins = gf_line_test_new_ins(ins, lp - 1, "", -2);
-		*lp++;
+		lp++;
 	    }
 	    else
 	      ins = gf_line_test_new_ins(ins, lp - 1, "", -1);

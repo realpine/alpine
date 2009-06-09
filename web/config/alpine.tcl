@@ -12,7 +12,7 @@
 # ========================================================================
 
 set _wp(appname)	Alpine
-set _wp(version)	0.80
+set _wp(version)	0.999
 set _wp(admin)		admin@sample-domain.edu
 set _wp(helpdesk)	admin@sample-domain.edu
 set _wp(comments)	help@sample-domain.edu
@@ -68,11 +68,11 @@ set _wp(staticondir)	env
 set _wp(servername)	[info hostname]
 
 # MUST specify SSL/TLS connection
-set _wp(serverport)	5131
+set _wp(serverport)	{}
 set _wp(serverpath)	https://[file join [join [eval list $_wp(servername) $_wp(serverport)] :] $_wp(cgidir)]
 
 # MAY specify a plaintext connection (comment out if plain support undesired)
-set _wp(plainport)	5132
+set _wp(plainport)	{}
 set _wp(plainservpath)	http://[file join [join [eval list $_wp(servername) $_wp(plainport)] :] $_wp(cgidir)]
 
 # url of faq page(s) available from initial greeting page

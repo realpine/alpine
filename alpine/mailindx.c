@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailindx.c 605 2007-06-20 21:15:13Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailindx.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -38,6 +38,9 @@ static char rcsid[] = "$Id: mailindx.c 605 2007-06-20 21:15:13Z hubert@u.washing
 #include "../pith/sequence.h"
 #include "../pith/sort.h"
 #include "../pith/hist.h"
+#include "../pith/busy.h"
+#include "../pith/signal.h"
+
 
 struct save_thrdinfo {
     ICE_S    *(*format_index_line)(INDEXDATA_S *);
@@ -67,7 +70,6 @@ int	 paint_index_line(ICE_S *, int, long, IndexColType, IndexColType, IndexColTy
 			  struct entry_state *, int, int);
 void	 pine_imap_envelope(MAILSTREAM *, unsigned long, ENVELOPE *);
 void     index_search(struct pine *, MAILSTREAM *, int, MSGNO_S *);
-COLOR_PAIR *apply_rev_color(COLOR_PAIR *, int);
 #ifdef	_WINDOWS
 int	 index_scroll_callback(int,long);
 int	 index_gettext_callback(char *, size_t, void **, long *, int *);
@@ -372,9 +374,9 @@ index_lister(struct pine *state, CONTEXT_S *cntxt, char *folder, MAILSTREAM *str
 	 */
 
 	if(format_includes_msgno(stream) &&
-	   (old_max_msgno < 1000L && mn_get_total(msgmap) >= 1000L
-	    || old_max_msgno < 10000L && mn_get_total(msgmap) >= 10000L
-	    || old_max_msgno < 100000L && mn_get_total(msgmap) >= 100000L)){
+	   ((old_max_msgno < 1000L && mn_get_total(msgmap) >= 1000L)
+	    || (old_max_msgno < 10000L && mn_get_total(msgmap) >= 10000L)
+	    || (old_max_msgno < 100000L && mn_get_total(msgmap) >= 100000L))){
 	    clear_index_cache(stream, IC_CLEAR_WIDTHS_DONE);
 	    state->mangled_body = 1;
         }
@@ -1186,6 +1188,7 @@ update_index(struct pine *state, struct index_state *screen)
     int  i, retval = -1, row, already_fetched = 0;
     long n, visible;
     PINETHRD_S *thrd = NULL;
+    int  we_cancel = 0;
 
     dprint((7, "--update_index--\n"));
 
@@ -1426,8 +1429,6 @@ update_index(struct pine *state, struct index_state *screen)
 	    }
 	}
 	else{
-	    long x;
-
 	    /*
 	     * This works for forward or reverse sort because the thrdno's
 	     * will have been reversed.
@@ -1503,6 +1504,8 @@ update_index(struct pine *state, struct index_state *screen)
       visible = mn_get_total(screen->msgmap)
 		  - any_lflagged(screen->msgmap, MN_HIDE|MN_CHID);
 
+    we_cancel = busy_cue(_("Fetching index data"), NULL, 1);
+
     /*---- march thru display lines, painting whatever is needed ----*/
     for(i = 0, n = screen->msg_at_top; i < (int) screen->lines_per_page; i++){
 	if(visible == 0L || n < 1 || n > mn_get_total(screen->msgmap)){
@@ -1556,6 +1559,9 @@ update_index(struct pine *state, struct index_state *screen)
 	      && msgline_hidden(screen->stream, screen->msgmap, n, 0))
 	  ;
     }
+
+    if(we_cancel)
+      cancel_busy_cue(-1);
 
     mail_parameters(NULL, SET_IMAPENVELOPE, (void *) NULL);
 
@@ -1619,7 +1625,7 @@ paint_index_line(ICE_S *argice, int line, long int msgno, IndexColType sfld,
   ICE_S      *ice;
   IFIELD_S   *ifield, *previfield = NULL;
   IELEM_S    *ielem;
-  int         save_schar1 = -1, save_schar2 = -1, save_pchar = -1, save, i;
+  int         save_schar1 = -1, save_schar2 = -1, save_pchar = -1, i;
   int         draw_whole_line = 0, draw_partial_line = 0;
   int         n = MAX_SCREEN_COLS*6;
   char        draw[MAX_SCREEN_COLS*6+1], *p;
@@ -1793,7 +1799,7 @@ paint_index_line(ICE_S *argice, int line, long int msgno, IndexColType sfld,
       int   doing_bold = 0;
 
       /* so we can restore current color at the end */
-      if(uc=pico_usingcolor())
+      if((uc=pico_usingcolor()) != 0)
         lastc = pico_get_cur_color();
 
       /*
@@ -1845,7 +1851,7 @@ paint_index_line(ICE_S *argice, int line, long int msgno, IndexColType sfld,
 	  if(uc){
 	      COLOR_PAIR *rev;
 
-	      if(rev = pico_get_rev_color()){
+	      if((rev = pico_get_rev_color()) != NULL){
 		  base_color = new_color_pair(rev->fg, rev->bg);
 		  (void)pico_set_colorp(base_color, PSC_NONE);
 	      }
@@ -2619,7 +2625,7 @@ on the page.
 long
 top_ent_calc(MAILSTREAM *stream, MSGNO_S *msgs, long int at_top, long int lines_per_page)
 {
-    long current, hidden, visible, lastn;
+    long current, hidden, lastn;
     long n, m = 0L, t = 1L;
 
     current = (mn_total_cur(msgs) <= 1L) ? mn_get_cur(msgs) : at_top;
@@ -2641,7 +2647,6 @@ top_ent_calc(MAILSTREAM *stream, MSGNO_S *msgs, long int at_top, long int lines_
 	if(THRD_INDX()){
 
 	    if(any_lflagged(msgs, MN_HIDE)){
-		long vis = 0L;
 		PINETHRD_S *is_current_thrd;
 
 		is_current_thrd = thrd;
@@ -2755,7 +2760,7 @@ top_ent_calc(MAILSTREAM *stream, MSGNO_S *msgs, long int at_top, long int lines_
 
 	return(t);
     }
-    else if(hidden = any_lflagged(msgs, MN_HIDE | MN_CHID)){
+    else if((hidden = any_lflagged(msgs, MN_HIDE | MN_CHID)) != 0){
 
 	if(current < mn_get_total(msgs) / 2){
 	    t = 1L;
@@ -2809,7 +2814,7 @@ redraw_index_body(void)
 {
     int agg;
 
-    if(agg = (mn_total_cur(current_index_state->msgmap) > 1L))
+    if((agg = (mn_total_cur(current_index_state->msgmap) > 1L)) != 0)
       restore_selected(current_index_state->msgmap);
 
     ps_global->mangled_body = 1;
@@ -2898,8 +2903,6 @@ thread_command(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
     copy_lflags(stream, msgmap, MN_STMP, MN_SLCT);
 
     if(any_lflagged(msgmap, MN_HIDE) > 0L){
-	long cur;
-
 	/* if nothing left selected, unhide all */
 	if(any_lflagged(msgmap, MN_SLCT) == 0L){
 	    (void) unzoom_index(ps_global, stream, msgmap);
@@ -2927,7 +2930,7 @@ away.
 void
 index_search(struct pine *state, MAILSTREAM *stream, int command_line, MSGNO_S *msgmap)
 {
-    int         rc, select_all = 0, flags, sectnum, prefetch;
+    int         rc, select_all = 0, flags, prefetch;
     long        i, sorted_msg, selected = 0L;
     char        prompt[MAX_SEARCH+50], new_string[MAX_SEARCH+1];
     char        buf[MAX_SCREEN_COLS+1], *p;
@@ -3627,6 +3630,9 @@ pcpine_resize_index()
     mswin_endupdate();
     return(0);
 }
+
+
+#include "../pico/osdep/mswin_tw.h"
 
 
 void

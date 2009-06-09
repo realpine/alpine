@@ -1499,14 +1499,26 @@ are deleted. In that case set it to the last message.
  </DL>
 <P>
 
+<DT> <A NAME="incoming-unseen-background-color"><EM>incoming-unseen-background-color</EM></A>
+<DT> <A NAME="incoming-unseen-foreground-color"><EM>incoming-unseen-foreground-color</EM></A>
+
+<DD> <A HREF="#incoming-unseen-color"><EM>Incoming Unseen Color</EM></A>.
+<P>
+
 <DT> <A NAME="index-answered-background-color"><EM>index-answered-background-color</EM></A>
 <DT> <A NAME="index-answered-foreground-color"><EM>index-answered-foreground-color</EM></A>
 <DT> <A NAME="index-arrow-background-color"><EM>index-arrow-background-color</EM></A>
 <DT> <A NAME="index-arrow-foreground-color"><EM>index-arrow-foreground-color</EM></A>
 <DT> <A NAME="index-deleted-background-color"><EM>index-deleted-background-color</EM></A>
 <DT> <A NAME="index-deleted-foreground-color"><EM>index-deleted-foreground-color</EM></A>
+<DT> <A NAME="index-from-background-color"><EM>index-from-background-color</EM></A>
+<DT> <A NAME="index-from-foreground-color"><EM>index-from-foreground-color</EM></A>
+<DT> <A NAME="index-highpriority-background-color"><EM>index-highpriority-background-color</EM></A>
+<DT> <A NAME="index-highpriority-foreground-color"><EM>index-highpriority-foreground-color</EM></A>
 <DT> <A NAME="index-important-background-color"><EM>index-important-background-color</EM></A>
 <DT> <A NAME="index-important-foreground-color"><EM>index-important-foreground-color</EM></A>
+<DT> <A NAME="index-lowpriority-background-color"><EM>index-lowpriority-background-color</EM></A>
+<DT> <A NAME="index-lowpriority-foreground-color"><EM>index-lowpriority-foreground-color</EM></A>
 <DT> <A NAME="index-new-background-color"><EM>index-new-background-color</EM></A>
 <DT> <A NAME="index-new-foreground-color"><EM>index-new-foreground-color</EM></A>
 <DT> <A NAME="index-opening-background-color"><EM>index-opening-background-color</EM></A>
@@ -4368,6 +4380,16 @@ It will be assumed that you want to continue.
 This feature is displayed as &quot;Continue NextNew Without Confirming&quot;.
 <P>
 
+<DT> <A NAME="convert-dates-to-localtime"><EM>convert-dates-to-localtime</EM></A>
+
+<DD> Normally, the date that you see in the Date header of a message you
+are viewing or in the MESSAGE INDEX is displayed as is.
+If this feature is set those dates will be converted to your local timezone
+to be displayed.
+Note that this does not affect the results of Select by Date or of
+anything else other than these displayed dates.
+<P>
+
 <DT> <A NAME="delete-skips-deleted"><EM>delete-skips-deleted</EM></A>
 
 <DD> If set, this
@@ -4939,7 +4961,7 @@ The
 <DT> <A NAME="enable-flag-screen-keyword-shortcut"><EM>enable-flag-screen-keyword-shortcut</EM></A>
 
 <DD> This feature modifies the behavior of the
-Flag command.
+Flag command and the Select command.
 By default, when the "* Flag" command is selected,
 <EM>Alpine</EM> offers a prompt to set one of several flags and also offers the
 option of entering the detailed flag manipulation screen via the "^T"
@@ -4992,6 +5014,9 @@ Because enabling the
 option causes <EM>Alpine</EM> to skip directly to the Flag Details screen when the
 Flag command is used, 
 setting it will cause this feature to have no effect at all.
+<P>
+Similarly, when Selecting by Keyword, setting this option will allow you
+to use Keyword initials instead of full keywords.
 <P>
 
 <DT> <A NAME="enable-full-header-cmd"><EM>enable-full-header-cmd</EM></A>
@@ -5927,6 +5952,10 @@ This feature only has an effect in the MESSAGE INDEX screen.
 If you then view a particular message from that screen and press the
 Next command, you will be sent to the next thread without being asked,
 independent of the setting of this feature.
+<P>
+The feature
+<A HREF="#auto-open-next-unread">auto-open-next-unread</A>,
+also has some similar effects.
 <P>
 This feature is displayed as &quot;Read Next Thread Without Confirming&quot;.
 <P>
@@ -7811,6 +7840,11 @@ If there is no personal name, it is blank.
 This token represents the date on which the message was sent, according
 to the &quot;Date&quot; header field.
 It has the format MMM DD. For example, &quot;Oct 23&quot;.
+The feature
+<A HREF="#convert-dates-to-localtime"><EM>convert-dates-to-localtime</EM></A>,
+which adjusts for the timezone the message was sent from,
+may have an affect on the value of this token as well as the values of
+all of the other DATE or TIME tokens.
 </DD>
 
 <DT>SMARTDATE</DT>
@@ -7906,6 +7940,9 @@ for the way they format dates far in the past.
 SMARTDATE formats the date using the information from your locale settings
 to format the date string. It may end up formatting dates so that they look
 like DATEISO tokens, or SHORTDATE2 tokens, or something else entirely.
+The feature
+<A HREF="#convert-dates-to-localtime"><EM>convert-dates-to-localtime</EM></A>
+may have an affect on the values of these tokens.
 If you want more control you may use one of the following.
   <DL>
   <DT>SMARTDATE</DT> <DD>If the option
@@ -7936,12 +7973,15 @@ for the way they format dates far in the past.
 SMARTDATETIME and SMARTDATETIME24 format the date using the information from your locale settings
 to format the date string. It may end up formatting dates so that they look
 like DATEISO tokens, or SHORTDATE2 tokens, or something else entirely.
+The feature
+<A HREF="#convert-dates-to-localtime"><EM>convert-dates-to-localtime</EM></A>
+may have an affect on the values of these tokens.
 The possible choices are:
   <DL>
   <DT>SMARTDATETIME</DT> <DD>Locale specific. Control this with the
 LC_TIME locale setting on a UNIX system. On Windows
 the Regional Options control panel may be used to set the Short date
-format. At the programming level, the strftime routine is what Alpine
+format. At the programming level, the strftime routine is what <EM>Alpine</EM>
 uses to print the date.</DD>
   <DT>SMARTDATETIME</DT> <DD>If the option
 <A HREF="#disable-index-locale-dates"><EM>Disable-Index-Locale-Dates</EM></A> is not set
@@ -8124,7 +8164,10 @@ The first character will be a '*' if <EM>any</EM> of the messages in the thread
 are marked Important, else a '+' if any of the messages are addressed
 to you, else a '-' if any of the messages are cc'd to you.
 The third character will be a 'D' if <EM>all</EM> of the messages
-in the collapsed thread are marked deleted, else it will be 'N' if any of
+in the collapsed thread are marked deleted,
+an 'A' if <EM>all</EM> of the messages
+in the collapsed thread are marked answered,
+it will be an 'N' if any of
 the messages are undeleted and unseen, and it will be blank otherwise.
 </DD>
 
@@ -8259,7 +8302,7 @@ message than just its size, but it isn't very useful at this point.
 The plus sign in this view means there are attachments.
 Note that including this token in
 the &quot;Index-Format&quot; could slow down the
-display a little while Alpine collects the necessary information.
+display a little while <EM>Alpine</EM> collects the necessary information.
 </DD>
 
 <DT>SUBJKEY</DT>
@@ -8285,7 +8328,7 @@ This token is the same as the SUBJKEY token except that instead of
 prepending a list of keywords to the subject, a list of first initials
 of keywords will be prepended instead.
 For example, if a message has the keywords <EM>Work</EM> and <EM>Now</EM>
-set (or Work and Now are the Alpine nicknames of keywords which are set)
+set (or Work and Now are the <EM>Alpine</EM> nicknames of keywords which are set)
 then the SUBJKEY token would cause a result like
 <P>
 <CENTER><SAMP>{Work Now} actual subject</SAMP></CENTER>
@@ -8337,10 +8380,10 @@ You may color this opening text differently by using the
 the Setup Kolor screen.
 </DD>
 
-<DT>OPENINGTEXTDQ</DT>
+<DT>OPENINGTEXTNQ</DT>
 <DD>
 This is very similar to OPENINGTEXT.
-The DQ stands for Delete Quotes.
+The NQ stands for No Quotes.
 The only difference is that quoted text (lines beginning with &gt;) is deleted.
 For some messages this may be confusing.
 For example, a message might have a line preceding some quoted
@@ -8370,6 +8413,54 @@ It is also possible to color keyword initials in the index using the
 Setup/Kolor screen.
 </DD>
 
+<DT>PRIORITY</DT>
+<DD>
+The X-Priority header is a non-standard header that is used in a
+somewhat standard way by many mail programs.
+<EM>Alpine</EM> expects the value of this header to be a digit with a value
+from 1 to 5, with 1 being the highest priority and 5 the lowest priority.
+Since this priority is something that the sender sets it is only an indication
+of the priority that the sender attaches to the mail and it is therefore almost
+totally unreliable for use as a filtering criterion.
+This token will display the numeric value of the priority if it is between
+1 and 5.
+It will be suppressed (blank) if the value is 3, which is normal priority.
+It is also possible to set the color of the PRIORITY field.
+By default the token is colored the same
+as the index line it is part of.
+You may set it to be another color with the 
+<A HREF="#index-pri-color">Index Priority Colors</A> options available from
+the Setup Kolor screen.
+</DD>
+
+<DT>PRIORITYALPHA</DT>
+<DD>
+This is a more verbose interpretation of the X-Priority field.
+Once again nothing is displayed unless the value of the field
+is 1, 2, 4, or 5.
+The values displayed for those values are:
+<P>
+<TABLE>
+<TR> <TD>1</TD> <TD>Highest</TD> </TR>
+<TR> <TD>2</TD> <TD>High</TD> </TR>
+<TR> <TD>4</TD> <TD>Low</TD> </TR>
+<TR> <TD>5</TD> <TD>Lowest</TD> </TR>
+</TABLE>
+<P>
+You may color this token with the
+<A HREF="#index-pri-color">Index Priority Colors</A> options.
+</DD>
+
+<DT>PRIORITY!</DT>
+<DD>
+This is a one character, non-numeric version of the X-Priority field.
+If the value of the X-Priority header is 1 or 2 an exclamation
+point is displayed.
+If the value is 4 or 5 a &quot;v&quot; (think down arrow) is displayed.
+You may color this token with the
+<A HREF="#index-pri-color">Index Priority Colors</A> options.
+</DD>
+
 <DT>ATT</DT>
 <DD>
 This is a one column wide field which represents the number of attachments
@@ -8377,7 +8468,7 @@ a message has. It will be blank if there are no attachments, a single
 digit for one to nine attachments, or an asterisk for more than nine.
 Note that including this token in
 the &quot;Index-Format&quot; could slow down the
-display a little while Alpine collects the necessary information.
+display a little while <EM>Alpine</EM> collects the necessary information.
 </DD>
 
 <DT>FROMORTO</DT>
@@ -8390,8 +8481,8 @@ the first person specified in the
 message's &quot;To:&quot; header field
 with the prefix &quot;To: &quot; prepended.
 If the from address is yours and there is also no &quot;To&quot; address,
-Alpine will use the address on the &quot;Cc&quot; line.
-If there is no address there, either, Alpine will look for a newsgroup name
+<EM>Alpine</EM> will use the address on the &quot;Cc&quot; line.
+If there is no address there, either, <EM>Alpine</EM> will look for a newsgroup name
 from the &quot;Newsgroups&quot; header field and put
 that after the &quot;To: &quot; prefix.
 </DD>
@@ -8505,7 +8596,7 @@ Another example we've seen has headers that look like
 Because there are two equals and a comma before the 7% and a comma
 after it, the token
 <P>
-<CENTER><SAMP>HEADER:X-Spam-Status(3,4,=&#92;,R)</SAMP></CENTER>
+<CENTER><SAMP>HEADER:X-Spam-Status(3,4,=&#92;,,R)</SAMP></CENTER>
 <P>
 should display the probability (for example 7% or 83%) right justified
 in a 3-wide field.
@@ -8751,7 +8842,7 @@ This token does not work with Filter Rule folder names.
 <DT>CURSORPOS</DT>
 <DD>
 This token is different from the others.
-When it is replaced it is replaced with nothing, but it sets a Alpine
+When it is replaced it is replaced with nothing, but it sets a <EM>Alpine</EM>
 internal variable which tells the composer to start with the cursor
 positioned at the position where this token was.
 If both the template file and the signature file contain
@@ -9244,7 +9335,16 @@ This option affects the colors used to display the current line in the
 MESSAGE INDEX screen.
 If you do not have
 <A HREF="#index-color-config">Index Line Colors</A>
-defined, then this option will have no effect.
+defined, then this option will have no effect in the index.
+Those Rules may be defined by going to the Setup/Rules/Indexcolor screen.
+<P>
+If the option
+<A HREF="#enable-incoming-folders-checking"><EM>enable-incoming-folders-checking</EM></A>
+is turned on and the
+<A HREF="#incoming-unseen-color"><EM>Incoming Unseen Color</EM></A>
+is set to something other than the default, then
+this option also affects the color used to display the current folder
+in the Incoming FOLDER LIST screen.
 
 <P>
 The available options include:
@@ -9483,6 +9583,22 @@ the Quote2 Color is black characters on a dull yellow background; and
 the Quote3 Color is black characters on a green background.
 <P>
 
+<DT> <A NAME="incoming-unseen-color"><EM>Incoming Unseen Color</EM></A>
+
+<DD> If the option
+<A HREF="#enable-incoming-folders-checking"><EM>enable-incoming-folders-checking</EM></A>
+is turned on it is possible to highlight the folders that contain
+unseen messages by coloring them with this color.
+By default, this is the same as the Normal Color and no highlighting is done.
+<P>
+Usually the &quot;current&quot; folder (the folder the cursor is on)
+is highlighted using reverse video.
+If the current folder is colored because it contains unseen messages then
+the color used to show that it is also the current folder is controlled
+by the <A HREF="#cur-il-style"><EM>current-indexline-style</EM></A>
+feature at the top of the SETUP COLOR screen.
+<P>
+
 <DT> <A NAME="signature-color"><EM>Signature Color</EM></A>
 
 <DD> The color <EM>Alpine</EM> uses for coloring the signature in the MESSAGE TEXT
@@ -9579,6 +9695,24 @@ part of the
 message is Unseen (only visible if the &quot;IMAPSTATUS&quot; or &quot;SHORTIMAPSTATUS&quot; token is
 part of the
 <A HREF="#index-format"><EM>Index-Format</EM></A> option).
+<P>
+
+<DT> <A NAME="index-pri-color"><EM>Index-priority Symbol Colors</EM></A>
+
+<DD> The colors used for drawing the tokens &quot;PRIORITY&quot;,
+ &quot;PRIORITYALPHA&quot;, and  &quot;PRIORITY!&quot; when these are
+configured as part of the
+<A HREF="#index-format"><EM>Index-Format</EM></A> option.
+You may set the color used to draw these tokens by use of the colors
+Index High Priority Symbol Color and Index Low Priority Symbol Color.
+This coloring takes place for all but the current index line, and the Priority
+Color appears to be in front of any color from an Index Color Rule.
+If the priority has a value of 1 or 2 the High Priority color will be
+used,
+and if the value is 4 or 5 the Low Priority color will be used.
+<P>
+If you don't set these colors the index line will be colored in the same color as
+the bulk of the index line.
 <P>
 
 <DT> <A NAME="index-arrow-color"><EM>Index-arrow Symbol Color</EM></A>

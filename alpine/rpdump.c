@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: rpdump.c 433 2007-02-08 23:59:30Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: rpdump.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -61,6 +61,7 @@ app_main (argc, argv)
  *
  *   Note: We're not worrying about memory leaks.
  */
+int
 main(argc, argv)
     int   argc;
     char *argv[];
@@ -338,6 +339,8 @@ ptype(rtype)
       case Sig:
         ret = cpystr("sig");
 	break;
+      default:
+	break;
     }
 
     return(ret);
@@ -359,6 +362,8 @@ spechdr(rtype)
 	break;
       case Sig:
         ret = cpystr(REMOTE_SIG_SUBTYPE);
+	break;
+      default:
 	break;
     }
 
@@ -762,7 +767,7 @@ last_cmpnt(filename)
     if(!q)
       return(q);
 
-    while(q = strchr(q, '/'))
+    while((q = strchr(q, '/')) != NULL)
       if(*++q)
 	p = q;
 

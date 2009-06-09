@@ -1,5 +1,5 @@
 /*
- * $Id: help.h 380 2007-01-23 00:09:18Z hubert@u.washington.edu $
+ * $Id: help.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -36,12 +36,14 @@ int	    url_local_config(char *);
 void	    init_helper_getc(char **);
 int	    helper_getc(char *);
 int	    helper(HelpType, char *, int);
+void	    review_messages(void);
+void	    print_help(char **);
 #ifdef	_WINDOWS
 char	   *pcpine_help(HelpType);
 #endif
 #ifdef	DEBUG
-void	dump_config(struct pine *, gf_io_t, int);
-void	dump_pine_struct(struct pine *, gf_io_t);
+void	    dump_config(struct pine *, gf_io_t, int);
+void	    dump_pine_struct(struct pine *, gf_io_t);
 #endif
 
 

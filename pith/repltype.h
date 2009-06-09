@@ -1,5 +1,5 @@
 /*
- * $Id: repltype.h 394 2007-01-25 20:29:45Z hubert@u.washington.edu $
+ * $Id: repltype.h 660 2007-07-31 20:49:58Z mikes@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -30,7 +30,11 @@ typedef struct redraft_pos_s {
  * Message Reply control structure
  */
 typedef struct reply_s {
-    unsigned int   flags:4;	/* how to interpret handle field */
+    unsigned int   pseudo:1;
+    unsigned int   forw:1;
+    unsigned int   msgno:1;
+    unsigned int   uid:1;
+    unsigned int   forwarded:1;
     char	  *mailbox;	/* mailbox handles are valid in */
     char	  *origmbox;	/* above is canonical name, this is orig */
     char	  *prefix;	/* string to prepend reply-to text */
@@ -44,11 +48,6 @@ typedef struct reply_s {
     } data;
 } REPLY_S;
 
-
-#define	REPLY_PSEUDO	1
-#define	REPLY_FORW	2	/* very similar to REPLY_PSEUDO */
-#define	REPLY_MSGNO	3
-#define	REPLY_UID	4
 
 
 /*

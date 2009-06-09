@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: kblock.c 140 2006-09-26 19:30:49Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: kblock.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -88,6 +88,7 @@ draw_klocked_body(char *login, char *username)
   Result: keyboard is locked until user gives password
   ---*/
 
+int
 lock_keyboard(void)
 {
     struct pine *ps = ps_global;
@@ -156,7 +157,7 @@ lock_keyboard(void)
 		  ps->VAR_PERSONAL_NAME ? ps->VAR_PERSONAL_NAME : "<no-name>");
 
     ps->redrawer = redraw_klocked_body;
-    if(old_suspend = F_ON(F_CAN_SUSPEND, ps_global))
+    if((old_suspend = F_ON(F_CAN_SUSPEND, ps_global)) != 0)
       F_TURN_OFF(F_CAN_SUSPEND, ps_global);
 
     while(strcmp(inpasswd, passwd)){

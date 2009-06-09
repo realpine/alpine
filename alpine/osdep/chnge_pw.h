@@ -1,5 +1,5 @@
 /*
- * $Id: termin.unx.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
+ * $Id: chnge_pw.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -13,16 +13,12 @@
  * ========================================================================
  */
 
-#ifndef PINE_OSDEP_TERMIN_UNX_INCLUDED
-#define PINE_OSDEP_TERMIN_UNX_INCLUDED
-
-
-#include <general.h>
+#ifndef PINE_OSDEP_CHNGE_PW_INCLUDED
+#define PINE_OSDEP_CHNGE_PW_INCLUDED
 
 
 /* exported prototypes */
-void		tty_chmod(struct pine *, int, int);
+void    change_passwd(void);
 
 
-
-#endif /* PINE_OSDEP_TERMIN_UNX_INCLUDED */
+#endif /* PINE_OSDEP_CHNGE_PW_INCLUDED */

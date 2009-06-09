@@ -9,7 +9,7 @@
 # General Public License and is *not* in the public domain.
 
 PACKAGE = alpine
-VERSION = 0.999
+VERSION = 0.9999
 
 SHELL = /bin/sh
 

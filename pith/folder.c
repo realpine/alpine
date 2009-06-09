@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: folder.c 612 2007-06-27 17:07:47Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: folder.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -27,6 +27,7 @@ static char rcsid[] = "$Id: folder.c 612 2007-06-27 17:07:47Z hubert@u.washingto
 #include "../pith/flag.h"
 #include "../pith/status.h"
 #include "../pith/busy.h"
+#include "../pith/mailindx.h"
 
 
 typedef struct _build_folder_list_data {
@@ -46,18 +47,18 @@ typedef struct _build_folder_list_data {
  */
 void	    mail_list_exists(MAILSTREAM *, char *, int, long, void *, unsigned);
 void        init_incoming_folder_list(struct pine *, CONTEXT_S *);
-int	    update_bboard_spec(char *, char *, size_t);
 void	    mail_list_filter(MAILSTREAM *, char *, int, long, void *, unsigned);
 void	    mail_lsub_filter(MAILSTREAM *, char *, int, long, void *, unsigned);
 int	    mail_list_in_collection(char **, char *, char *, char *);
-void	    refresh_folder_list(CONTEXT_S *, int, int, MAILSTREAM **);
-int	    folder_complete_internal(CONTEXT_S *, char *, size_t, int *, int);
 char	   *folder_last_cmpnt(char *, int);
 void        free_folder_entries(FLIST **);
 int	    folder_insert_sorted(int, int, int, FOLDER_S *, FLIST *,
 				 int (*)(FOLDER_S *, FOLDER_S *));
 void        folder_insert_index(FOLDER_S *, int, FLIST *);
-void        folder_delete(int, FLIST *);
+void        resort_folder_list(FLIST *flist);
+int         compare_folders_alpha_qsort(const qsort_t *a1, const qsort_t *a2);
+int         compare_folders_dir_alpha_qsort(const qsort_t *a1, const qsort_t *a2);
+int         compare_folders_alpha_dir_qsort(const qsort_t *a1, const qsort_t *a2);
 int         compare_names(const qsort_t *, const qsort_t *);
 void        init_incoming_unseen_data(struct pine *, FOLDER_S *f);
 
@@ -212,9 +213,9 @@ get_folder_delimiter(char *folder)
     if(*folder == '{'
        && !(ldata.stream = sp_stream_get(folder, SP_MATCH))
        && !(ldata.stream = sp_stream_get(folder, SP_SAME))){
-	if(ldata.stream = pine_mail_open(NULL,folder,
+	if((ldata.stream = pine_mail_open(NULL,folder,
 				 OP_HALFOPEN|OP_SILENT|SP_USEPOOL|SP_TEMPUSE,
-					 NULL)){
+					 NULL)) != NULL){
 	    ourstream++;
 	}
 	else{
@@ -321,7 +322,7 @@ folder_name_exists(CONTEXT_S *cntxt, char *file, char **fullpath)
 	if(!(parms.args.reference = cntxt->dir->ref)){
 	    char *p;
 
-	    if(p = strstr(cntxt->context, "%s")){
+	    if((p = strstr(cntxt->context, "%s")) != NULL){
 		strncpy(parms.args.reference = reference,
 			cntxt->context,
 			MIN(p - cntxt->context, sizeof(reference)-1));
@@ -484,7 +485,7 @@ folder_as_breakout(CONTEXT_S *cntxt, char *name)
 	    cntxt->dir->delim = get_folder_delimiter(tmp);
 	}
 
-	if(p = strindex(name, cntxt->dir->delim)){
+	if((p = strindex(name, cntxt->dir->delim)) != NULL){
 	    if(p == name){		/* assumption 6,321: delim is root */
 		if(cntxt->context[0] == '{'
 		   && (p = strindex(cntxt->context, '}'))){
@@ -574,7 +575,7 @@ init_folders(struct pine *ps)
      * "bogus format" messages...
      */
     for(i = 0; ps->VAR_FOLDER_SPEC && ps->VAR_FOLDER_SPEC[i] ; i++)
-      if(tc = new_context(ps->VAR_FOLDER_SPEC[i], &prime)){
+      if((tc = new_context(ps->VAR_FOLDER_SPEC[i], &prime)) != NULL){
 	  *clist    = tc;			/* add it to list   */
 	  clist	    = &tc->next;		/* prepare for next */
 	  tc->var.v = &ps->vars[V_FOLDER_SPEC];
@@ -629,7 +630,7 @@ init_folders(struct pine *ps)
 void
 init_incoming_folder_list(struct pine *ps, CONTEXT_S *cntxt)
 {
-    int       i, j, in_list;
+    int       i;
     char     *folder_string, *nickname;
     FOLDER_S *f;
 
@@ -793,9 +794,9 @@ new_fdir(char *ref, char *view, int wildcard)
 	else{			/* must be mail */
 	    char *p;
 
-	    if(p = strpbrk(view, "*%")){
+	    if((p = strpbrk(view, "*%")) != NULL){
 		rv->view.internal = p = cpystr(view);
-		while(p = strpbrk(p, "*%"))
+		while((p = strpbrk(p, "*%")) != NULL)
 		  *p++ = '%';	/* convert everything to '%' */
 	    }
 	}
@@ -908,7 +909,7 @@ build_folder_list(MAILSTREAM **stream, CONTEXT_S *context, char *pat, char *cont
 {
     MM_LIST_S  ldata;
     BFL_DATA_S response;
-    int	       local_open = 0, we_cancel = 0;
+    int	       local_open = 0, we_cancel = 0, resort = 0;
     char       reference[2*MAILTMPLEN], *p;
 
     if(!(context->dir->status & CNTXT_NOFIND)
@@ -992,7 +993,7 @@ build_folder_list(MAILSTREAM **stream, CONTEXT_S *context, char *pat, char *cont
      */
     response.args.name = pat;
     if(!(response.args.reference = context->dir->ref)){
-	if(p = strstr(context->context, "%s")){
+	if((p = strstr(context->context, "%s")) != NULL){
 	    strncpy(response.args.reference = reference,
 		    context->context,
 		    MIN(p - context->context, sizeof(reference)/2));
@@ -1056,18 +1057,12 @@ build_folder_list(MAILSTREAM **stream, CONTEXT_S *context, char *pat, char *cont
 	      if(f->hasnochildren){
 		  if(f->isfolder){
 		      f->isdir = 0;
+		      if(ps_global->fld_sort_rule == FLD_SORT_ALPHA_DIR_FIRST
+			 || ps_global->fld_sort_rule == FLD_SORT_ALPHA_DIR_LAST)
+		        resort = 1;
 		  }
 		  /*
-		   * If F_QUELL_EMPTY_DIRS really means to quell
-		   * all empty dirs then we would include the
-		   * following code here.
-		   *
-		   * else{
-		   *     folder_delete(i, FOLDERS(context));
-		   *     i--;
-		   * }
-		   *
-		   * However, we don't want to hide directories
+		   * We don't want to hide directories
 		   * that are only directories even if they are
 		   * empty. We only want to hide the directory
 		   * piece of a dual-use folder when there are
@@ -1075,9 +1070,16 @@ build_folder_list(MAILSTREAM **stream, CONTEXT_S *context, char *pat, char *cont
 		   * most likely thinks of it as a folder instead
 		   * of a folder and a directory).
 		   */
+		  else if(f->isdir && f->isdual){
+		      folder_delete(i, FOLDERS(context));
+		      i--;
+		  }
 	      }
 	  }
     }
+
+    if(resort)
+      resort_folder_list(response.list);
 
     if(local_open && !stream)
       pine_mail_close(ldata.stream);
@@ -1367,6 +1369,7 @@ default_save_context(CONTEXT_S *cntxt)
  *		       replaced with the completion)
  *
  */
+int
 folder_complete(CONTEXT_S *context, char *name, size_t namelen, int *completions)
 {
     return(folder_complete_internal(context, name, namelen, completions, FC_NONE));
@@ -1473,7 +1476,7 @@ folder_last_cmpnt(char *s, int d)
     register char *p;
     
     if(d)
-      for(p = s; p = strindex(p, d); s = ++p)
+      for(p = s; (p = strindex(p, d)); s = ++p)
 	;
 
     return(s);
@@ -1583,7 +1586,7 @@ folder_index(char *name, CONTEXT_S *cntxt, int flags)
     FOLDER_S *f;
     char     *fname;
 
-    for(i = 0; f = folder_entry(i, FOLDERS(cntxt)); i++)
+    for(i = 0; (f = folder_entry(i, FOLDERS(cntxt))); i++)
       if(((flags & FI_FOLDER) && (f->isfolder || (cntxt->use & CNTXT_INCMNG)))
 	 || ((flags & FI_DIR) && f->isdir)){
 	  fname = FLDR_NAME(f);
@@ -1620,7 +1623,7 @@ folder_is_nick(char *nickname, void *flist, int flags)
     register  int  i = 0;
     FOLDER_S *f;
 
-    while(f = folder_entry(i, flist)){
+    while((f = folder_entry(i, flist)) != NULL){
 	if(f->nickname && strcmp(nickname, f->nickname) == 0){
 	    char source[MAILTMPLEN], *target = NULL;
 
@@ -1730,6 +1733,19 @@ folder_insert_index(FOLDER_S *folder, int index, FLIST *flist)
 }
 
 
+void
+resort_folder_list(FLIST *flist)
+{
+    if(flist && folder_total(flist) > 1 && flist->folders)
+      qsort(flist->folders, folder_total(flist), sizeof(flist->folders[0]),
+	    (ps_global->fld_sort_rule == FLD_SORT_ALPHA_DIR_FIRST)
+		? compare_folders_dir_alpha_qsort
+		: (ps_global->fld_sort_rule == FLD_SORT_ALPHA_DIR_LAST)
+		     ? compare_folders_alpha_dir_qsort
+		     : compare_folders_alpha_qsort);
+}
+
+
 /*----------------------------------------------------------------------
     Removes a folder at the given index in the given context's
     list.
@@ -1831,6 +1847,16 @@ compare_folders_alpha(FOLDER_S *f1, FOLDER_S *f2)
 }
 
 
+int
+compare_folders_alpha_qsort(const qsort_t *a1, const qsort_t *a2)
+{
+    FOLDER_S *f1 = *((FOLDER_S **) a1);
+    FOLDER_S *f2 = *((FOLDER_S **) a2);
+
+    return(compare_folders_alpha(f1, f2));
+}
+
+
 /*----------------------------------------------------------------------
       compare two folder structs alphabetically with dirs first
 
@@ -1854,6 +1880,16 @@ compare_folders_dir_alpha(FOLDER_S *f1, FOLDER_S *f2)
 }
 
 
+int
+compare_folders_dir_alpha_qsort(const qsort_t *a1, const qsort_t *a2)
+{
+    FOLDER_S *f1 = *((FOLDER_S **) a1);
+    FOLDER_S *f2 = *((FOLDER_S **) a2);
+
+    return(compare_folders_dir_alpha(f1, f2));
+}
+
+
 /*----------------------------------------------------------------------
       compare two folder structs alphabetically with dirs last
 
@@ -1874,6 +1910,16 @@ compare_folders_alpha_dir(FOLDER_S *f1, FOLDER_S *f2)
     }
 
     return(i);
+}
+
+
+int
+compare_folders_alpha_dir_qsort(const qsort_t *a1, const qsort_t *a2)
+{
+    FOLDER_S *f1 = *((FOLDER_S **) a1);
+    FOLDER_S *f2 = *((FOLDER_S **) a2);
+
+    return(compare_folders_alpha_dir(f1, f2));
 }
 
 
@@ -1999,13 +2045,16 @@ update_folder_unseen(FOLDER_S *f, CONTEXT_S *ctxt, unsigned long flags)
 	}
     }
     else{
-	stream_is_open = sp_stream_get(mailbox_name, SP_MATCH | SP_RO_OK) ? 1 : 0;
+	stream_is_open = (sp_stream_get(mailbox_name, SP_MATCH | SP_RO_OK)
+	                  || (!IS_REMOTE(mailbox_name)
+			      && already_open_stream(mailbox_name, AOS_NONE))) ? 1 : 0;
+
 	if(!stream_is_open){
 	    /*
 	     * If it's IMAP or local we use a shorter interval.
 	     */
 	    d = mail_valid(NIL, mailbox_name, (char *) NIL);
-	    if(d && !strcmp(d->name, "imap") || !IS_REMOTE(mailbox_name))
+	    if((d && !strcmp(d->name, "imap")) || !IS_REMOTE(mailbox_name))
 	      use_imap_interval++;
 	}
     }
@@ -2174,7 +2223,10 @@ get_recent_in_folder(char *mailbox_name, long unsigned int *new,
     }
 
     /* do we already have it selected? */
-    if(!gotit && (strm = sp_stream_get(mailbox_name, SP_MATCH | SP_RO_OK))){
+    if(!gotit
+       && ((strm = sp_stream_get(mailbox_name, SP_MATCH | SP_RO_OK))
+           || (!IS_REMOTE(mailbox_name)
+	       && (strm = already_open_stream(mailbox_name, AOS_NONE))))){
 	gotit++;
 	if(strm == ps_global->mail_stream){
 

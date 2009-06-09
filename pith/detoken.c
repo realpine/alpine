@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: detoken.c 203 2006-10-26 17:23:46Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: detoken.c 670 2007-08-14 19:02:07Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -278,7 +278,7 @@ top:
 			subbuf[0] = '_';
 			strncpy(subbuf+1, pt->name, sizeof(subbuf)-2);
 			subbuf[sizeof(subbuf)-1] = '\0';
-			strncat(subbuf, "_", sizeof(subbuf)-strlen(subbuf));
+			strncat(subbuf, "_", sizeof(subbuf)-strlen(subbuf)-1);
 			subbuf[sizeof(subbuf)-1] = '\0';
 		    }
 

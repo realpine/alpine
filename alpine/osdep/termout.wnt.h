@@ -29,31 +29,11 @@ typedef	struct DLG_SORTPARAM {
 				 * ids. */
 } DLG_SORTPARAM;
 
-extern int   _line;
-extern int   _col;
-
 
 /* exported prototypes */
-void    init_screen(void);
-void	end_screen(char *, int);
-void	MoveCursor(int, int);
-void	Writechar(register unsigned int, int);
-void    Write_to_screen(char *);
-void    Write_to_screen_n(char *, int);
-void    Writewchar(UCS ucs);
 
-/* void	Writewchar(UCS); */
-void    ClearScreen(void);
-void    CleartoEOLN(void);
-int     get_windsize(struct ttyo *);
-void	icon_text(char *, int);
-
-/* scroll stuff */
 void scroll_setpos(long);
 void scroll_setrange(long, long);
-void EndScroll(void);
-int ScrollRegion(int);
-int BeginScroll(int, int);
 
 /* dialog stuff */
 int init_install_get_vars(void);

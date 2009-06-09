@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: context.c 394 2007-01-25 20:29:45Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: context.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ static char rcsid[] = "$Id: context.c 394 2007-01-25 20:29:45Z hubert@u.washingt
 #include "../pith/stream.h"
 #include "../pith/folder.h"
 #include "../pith/util.h"
+#include "../pith/tempfile.h"
 
 
 /*
@@ -55,7 +56,7 @@ char *
 context_digest(char *context, char *scontext, char *host, char *rcontext,
 	       char *view, size_t len)
 {
-    char *p, *viewp = view, tmp[MAILTMPLEN];
+    char *p, *viewp = view;
     char *scontextp = scontext;
     int   i = 0;
 
@@ -587,7 +588,7 @@ context_copy (CONTEXT_S *context, MAILSTREAM *stream, char *sequence, char *name
     tmp[0] = '\0';
 
     if(context_apply(tmp, context, name, sizeof(tmp))[0] == '{'){
-	if(s = strindex(tmp, '}'))
+	if((s = strindex(tmp, '}')) != NULL)
 	  s++;
 	else
 	  return(0L);
@@ -648,7 +649,7 @@ new_context(char *cntxt_string, int *prime)
      */
     get_pair(cntxt_string, &nickname, &c_string, 0, 0);
 
-    if(update_bboard_spec(c_string, tmp_20k_buf)){
+    if(update_bboard_spec(c_string, tmp_20k_buf, SIZEOF_20KBUF)){
 	fs_give((void **) &c_string);
 	c_string = cpystr(tmp_20k_buf);
     }
@@ -656,7 +657,7 @@ new_context(char *cntxt_string, int *prime)
     if(c_string && *c_string == '\"')
       (void)removing_double_quotes(c_string);
 
-    if(p = context_digest(c_string, dcontext, host, rcontext, view, MAXPATH)){
+    if((p = context_digest(c_string, dcontext, host, rcontext, view, MAXPATH)) != NULL){
 	q_status_message2(SM_ORDER | SM_DING, 3, 4,
 			  "Bad context, %.200s : %.200s", p, c_string);
 	fs_give((void **) &c_string);

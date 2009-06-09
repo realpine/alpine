@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: handle.c 140 2006-09-26 19:30:49Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: handle.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ get_handle(HANDLE_S *handles, int key)
 {
     HANDLE_S *h;
 
-    if(h = handles){
+    if((h = handles) != NULL){
 	for( ; h ; h = h->next)
 	  if(h->key == key)
 	    return(h);

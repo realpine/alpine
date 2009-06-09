@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: imap.c 617 2007-06-28 20:58:19Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: imap.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -35,12 +35,16 @@ static char rcsid[] = "$Id: imap.c 617 2007-06-28 20:58:19Z jpf@u.washington.edu
 #include "signal.h"
 #include "mailpart.h"
 #include "mailindx.h"
+#include "arg.h"
+#include "busy.h"
+#include "titlebar.h"
 #include "../pith/state.h"
 #include "../pith/conf.h"
 #include "../pith/msgno.h"
 #include "../pith/filter.h"
 #include "../pith/news.h"
 #include "../pith/util.h"
+#include "../pith/list.h"
 
 #if	(WINCRED > 0)
 #include <wincred.h>
@@ -60,9 +64,10 @@ typedef VOID (WINAPI CREDFREE) ( __in PVOID Buffer );
 /*
  * WinCred functions
  */
-int              g_CredInited = 0;  // 1 for loaded successfully,
-                                    // -1 for not available.
-                                    // 0 for not initialized yet.
+int              g_CredInited = 0;  /* 1 for loaded successfully,
+                                     * -1 for not available.
+                                     * 0 for not initialized yet.
+				     */
 CREDWRITEW       *g_CredWriteW;
 CREDENUMERATEW   *g_CredEnumerateW;
 CREDDELETEW      *g_CredDeleteW;
@@ -109,6 +114,7 @@ char *passfile_name(char *, char *, size_t);
 
 #if	(WINCRED > 0)
 void  ask_erase_credentials(void);
+int   init_wincred_funcs(void);
 #endif	/* WINCRED */
 
 
@@ -334,8 +340,10 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
     HelpType  help ;
     int       len, rc, q_line, flags;
     int       oespace, avail, need, save_dont_use;
-    int       preserve_password = -1;
     struct servent *sv;
+#if defined(_WINDOWS) || defined(LOCAL_PASSWD_CACHE)
+    int       preserve_password = -1;
+#endif
 
     dprint((9, "mm_login_work trial=%ld user=%s service=%s%s%s%s%s\n",
 	       trial, mb->user ? mb->user : "(null)",
@@ -585,7 +593,7 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 	    char *p;
 
 	    len = strlen(hostname);
-	    if(p = strchr(hostname, '.')){
+	    if((p = strchr(hostname, '.')) != NULL){
 	      *p = '\0';
 	      need -= (len - strlen(hostname));
 	    }
@@ -824,7 +832,7 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 	char *p;
 
 	len = strlen(hostname);
-	if(p = strchr(hostname, '.')){
+	if((p = strchr(hostname, '.')) != NULL){
 	  *p = '\0';
 	  need -= (len - strlen(hostname));
 	}
@@ -944,7 +952,9 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
         return;
     }
 
+#ifdef _WINDOWS
  nopwpmt:
+#endif
     /* remember the password for next time */
     if(F_OFF(F_DISABLE_PASSWORD_CACHING,ps_global))
       imap_set_passwd(&mm_login_list, pwd,
@@ -1209,7 +1219,7 @@ pine_tcptimeout(long int elapsed, long int sincelast)
 	int clear_inverse;
 
 	ClearLine(ps_global->ttyo->screen_rows - FOOTER_ROWS(ps_global));
-	if(clear_inverse = !InverseState())
+	if((clear_inverse = !InverseState()) != 0)
 	  StartInverse();
 
 	Writechar(BELL, 0);
@@ -1413,8 +1423,9 @@ try_wantto:
 	memset((void *)tmp, 0, sizeof(tmp));
 	strncpy(tmp,
 		reason ? reason : _("SSL/TLS certificate validation failure"),
-		sizeof(tmp)/2);
-	strncat(tmp, _(": Continue anyway "), sizeof(tmp)/2);
+		sizeof(tmp));
+	tmp[sizeof(tmp)-1] = '\0';
+	strncat(tmp, _(": Continue anyway "), sizeof(tmp)-strlen(tmp)-1);
 
 	if(want_to(tmp, 'n', 'x', NO_HELP, WT_NORM) == 'y')
 	  rv++;
@@ -2751,13 +2762,13 @@ update_passfile_hostlist(pinerc, user, hostlist, altflag)
  * if the dll doesn't exist.
  */
 int
-init_wincred_funcs()
+init_wincred_funcs(void)
 {
     if(!g_CredInited)
     {
         HMODULE hmod;
 
-        // Assume the worst.
+        /* Assume the worst. */
         g_CredInited = -1;
 
         hmod = LoadLibrary(TEXT("advapi32.dll"));

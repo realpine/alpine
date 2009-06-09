@@ -1,8 +1,8 @@
 /*
- * $Id: addrstring.h 493 2007-03-27 21:51:48Z hubert@u.washington.edu $
+ * $Id: addrstring.h 671 2007-08-15 20:28:09Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: utf8stub.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: utf8stub.c 672 2007-08-15 23:07:18Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -71,8 +71,8 @@ compare_cstring(unsigned char *s1, unsigned char *s2)
   if (!s1) return s2 ? -1 : 0;	/* empty string cases */
   else if (!s2) return 1;
   for (; *s1 && *s2; s1++,s2++)
-    if (i = (compare_ulong (islower (*s1) ? toupper (*s1) : *s1,
-			    islower (*s2) ? toupper (*s2) : *s2)))
+    if ((i = (compare_ulong (islower (*s1) ? toupper (*s1) : *s1,
+			    islower (*s2) ? toupper (*s2) : *s2))) != 0)
       return i;			/* found a difference */
   if (*s1) return 1;		/* first string is longer */
   return *s2 ? -1 : 0;		/* second string longer : strings identical */

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: termin.unx.c 564 2007-05-11 00:09:05Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: termin.unx.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -28,23 +28,37 @@ static char rcsid[] = "$Id: termin.unx.c 564 2007-05-11 00:09:05Z hubert@u.washi
 #include "../../pith/charconv/filesys.h"
 
 #include "../../pith/osdep/color.h"
+#include "../../pith/osdep/collate.h"
+#include "../../pith/osdep/err_desc.h"
 
 #include "../../pith/debug.h"
 #include "../../pith/state.h"
 #include "../../pith/conf.h"
 #include "../../pith/detach.h"
+#include "../../pith/adrbklib.h"
+#include "../../pith/remote.h"
+#include "../../pith/imap.h"
 
 #include "../pico/estruct.h"
 
+#include "../../pico/estruct.h"
+#include "../../pico/pico.h"
 #include "../../pico/osdep/raw.h"
 #include "../../pico/osdep/signals.h"
+#include "../../pico/osdep/mouse.h"
+#include "../../pico/osdep/read.h"
+#include "../../pico/osdep/getkey.h"
+#include "../../pico/osdep/tty.h"
 #include "../../pico/keydefs.h"
 
 #include "../talk.h"
 #include "../radio.h"
 #include "../dispfilt.h"
+#include "../signal.h"
+#include "../mailcmd.h"
 
 #include "termin.gen.h"
+#include "termout.gen.h"
 #include "termin.unx.h"
 
 
@@ -539,9 +553,6 @@ read_char(int time_out)
 void
 read_bail(void)
 {
-    int         i;
-    MAILSTREAM *m;
-
     dprint((1, "read_bail: cleaning up\n"));
     end_signals(1);
 

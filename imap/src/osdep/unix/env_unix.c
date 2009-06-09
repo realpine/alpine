@@ -23,7 +23,7 @@
  *		Internet: MRC@CAC.Washington.EDU
  *
  * Date:	1 August 1988
- * Last Edited:	29 May 2007
+ * Last Edited:	15 August 2007
  */
 
 #include <grp.h>
@@ -1166,6 +1166,8 @@ long dotlock_lock (char *file,DOTLOCK *base,int fd)
     MM_CRITICAL (NIL);		/* go critical */
 				/* make command pipes */
     if (!closedBox && !stat (LOCKPGM,&sb) && (pipe (pi) >= 0)) {
+      long cf;
+      char *argv[4],arg[20];
 				/* if input pipes usable create output pipes */
       if ((pi[0] < FD_SETSIZE) && (pi[1] < FD_SETSIZE) && (pipe (po) >= 0)) {
 				/* make sure output pipes are usable */
@@ -1173,8 +1175,6 @@ long dotlock_lock (char *file,DOTLOCK *base,int fd)
 				/* all is good, make inferior process */
 	else if (!(j = fork ())) {
 	  if (!fork ()) {	/* make grandchild so it's inherited by init */
-	    long cf;		/* don't change caller vars in case vfork() */
-	    char *argv[4],arg[20];
 				/* prepare argument vector */
 	    sprintf (arg,"%d",fd);
 	    argv[0] = LOCKPGM; argv[1] = arg;

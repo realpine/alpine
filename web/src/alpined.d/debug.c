@@ -22,6 +22,9 @@ static char rcsid[] = "$Id: wimap.c 73 2006-06-13 16:46:59Z hubert@u.washington.
 #include <system.h>
 #include <general.h>
 
+#include "../../../c-client/c-client.h"
+
+#include "../../../pith/state.h"
 #include "../../../pith/debug.h"
 
 #include "debug.h"
@@ -111,4 +114,38 @@ dump_contexts(void)
     dprint((8, "asked to dump_contexts"));
 }
 
+
+void
+setup_imap_debug(void)
+{
+    int olddebug;
+
+    olddebug = debug;
+
+    if(debug > 7)
+      ps_global->debug_imap = 4;
+    else if(debug > 6)
+      ps_global->debug_imap = 3;
+    else if(debug > 4)
+      ps_global->debug_imap = 2;
+    else if(debug > 2)
+      ps_global->debug_imap = 1;
+    else
+      ps_global->debug_imap = 0;
+
+    if(ps_global->mail_stream){
+	if(ps_global->debug_imap > 0){
+	    mail_debug(ps_global->mail_stream);
+	}
+	else{
+	    mail_nodebug(ps_global->mail_stream);
+	}
+    }
+
+    if(debug > 7 && olddebug <= 7)
+      mail_parameters(NULL, SET_TCPDEBUG, (void *) TRUE);
+    else if(debug <= 7 && olddebug > 7 && !ps_global->debugmem)
+      mail_parameters(NULL, SET_TCPDEBUG, (void *) FALSE);
+
+}
 #endif	/* DEBUG */

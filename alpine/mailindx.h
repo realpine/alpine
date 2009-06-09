@@ -1,5 +1,5 @@
 /*
- * $Id: mailindx.h 585 2007-05-30 22:59:07Z hubert@u.washington.edu $
+ * $Id: mailindx.h 649 2007-07-18 23:45:23Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -24,6 +24,7 @@
 #include "../pith/msgno.h"
 #include "../pith/indxtype.h"
 #include "../pith/thread.h"
+#include "../pith/color.h"
 
 
 /*-----------
@@ -102,6 +103,7 @@ void		 paint_index_hline(MAILSTREAM *, long, ICE_S *);
 void		 setup_index_state(int);
 void		 warn_other_cmds(void);
 void		 thread_command(struct pine *, MAILSTREAM *, MSGNO_S *, UCS, int);
+COLOR_PAIR      *apply_rev_color(COLOR_PAIR *, int);
 #ifdef	_WINDOWS
 int		 index_sort_callback(int, long);
 void             view_in_new_window(void);

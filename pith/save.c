@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: save.c 610 2007-06-23 00:19:52Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: save.c 675 2007-08-17 19:46:28Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -184,7 +184,7 @@ save_get_fldr_from_env(char *fbuf, int nfbuf, ENVELOPE *e, struct pine *state,
 	    fakedomain[1] = '\0';
 
 	    /* find the news group name */
-	    if(ng_name = strstr(state->mail_stream->mailbox,"#news"))
+	    if((ng_name = strstr(state->mail_stream->mailbox,"#news")) != NULL)
 	      ng_name += 6;
 	    else
 	      ng_name = state->mail_stream->mailbox; /* shouldn't happen */
@@ -412,13 +412,13 @@ save(struct pine *state, MAILSTREAM *stream, CONTEXT_S *context, char *folder,
      MSGNO_S *msgmap, int flgs)
 {
     int		  rv, rc, j, our_stream = 0, cancelled = 0;
-    int           delete, filter, preserve, k, worry_about_keywords = 0;
+    int           delete, filter, k, worry_about_keywords = 0;
     char	 *save_folder, *seq, *flags = NULL, date[64], tmp[MAILTMPLEN];
     long	  i, nmsgs, rawno;
     size_t        len;
     STORE_S	 *so = NULL;
-    MAILSTREAM	 *save_stream = NULL, *dstn_stream = NULL;
-    MESSAGECACHE *mc, *mcdst;
+    MAILSTREAM	 *save_stream = NULL;
+    MESSAGECACHE *mc;
 
     delete = flgs & SV_DELETE;
     filter = flgs & SV_FOR_FILT;
@@ -571,7 +571,7 @@ save(struct pine *state, MAILSTREAM *stream, CONTEXT_S *context, char *folder,
 		 * so we don't affect other messages.
 		 */
 
-		if(LEVELUIDPLUS (dstn_stream)){
+		if(is_imap_stream(dstn_stream) && LEVELUIDPLUS (dstn_stream)){
 		    au = mail_parameters(NIL, GET_APPENDUID, NIL);
 		    mail_parameters(NIL, SET_APPENDUID, (void *) appenduid_cb);
 		}
@@ -579,7 +579,9 @@ save(struct pine *state, MAILSTREAM *stream, CONTEXT_S *context, char *folder,
 		INIT(&msg, mail_string, (void *) dummymsg, strlen(dummymsg));
 		if(pine_mail_append(dstn_stream, dstn_stream->mailbox, &msg)){
 
-		    if(LEVELUIDPLUS(dstn_stream))
+		    (void) pine_mail_ping(dstn_stream);
+
+		    if(is_imap_stream(dstn_stream) && LEVELUIDPLUS (dstn_stream))
 		      dummy_uid = get_last_append_uid();
 
 		    if(dummy_uid == 0L){
@@ -612,17 +614,17 @@ save(struct pine *state, MAILSTREAM *stream, CONTEXT_S *context, char *folder,
 			  else if((mc = mail_elt(dstn_stream, i)) != NULL)
 			    mc->sequence = 0;
 
-			if(seq = build_sequence(dstn_stream, NULL, NULL)){
+			if((seq = build_sequence(dstn_stream, NULL, NULL)) != NULL){
 			    mail_flag(dstn_stream, seq, "\\DELETED", ST_SILENT);
 			    fs_give((void **) &seq);
 			}
 		    }
 
 		    if(dummy_uid > 0L)
-		      mail_flag(dstn_stream, long2string(dummy_uid),
+		      mail_flag(dstn_stream, ulong2string(dummy_uid),
 			        flags, ST_SET | ST_UID | ST_SILENT);
 		    else
-		      mail_flag(dstn_stream, long2string(dummy_msgno),
+		      mail_flag(dstn_stream, ulong2string(dummy_msgno),
 			        flags, ST_SET | ST_SILENT);
 
 		    ps_global->mm_log_error = 0;
@@ -647,14 +649,14 @@ save(struct pine *state, MAILSTREAM *stream, CONTEXT_S *context, char *folder,
 			    }
 			  }
 
-			if(seq = build_sequence(dstn_stream, NULL, NULL)){
+			if((seq = build_sequence(dstn_stream, NULL, NULL)) != NULL){
 			    mail_flag(dstn_stream, seq, "\\DELETED", ST_SET | ST_SILENT);
 			    fs_give((void **) &seq);
 			}
 		    }
 		}
 
-		if(LEVELUIDPLUS(dstn_stream))
+		if(is_imap_stream(dstn_stream) && LEVELUIDPLUS (dstn_stream))
 		  mail_parameters(NIL, SET_APPENDUID, (void *) au);
 
 		if(id)
@@ -824,7 +826,7 @@ save(struct pine *state, MAILSTREAM *stream, CONTEXT_S *context, char *folder,
 	/*
 	 * get a sequence of invalid elt's so we can get their flags...
 	 */
-	if(seq = invalid_elt_sequence(stream, msgmap)){
+	if((seq = invalid_elt_sequence(stream, msgmap)) != NULL){
 	    mail_fetch_fast(stream, seq, 0L);
 	    fs_give((void **) &seq);
 	}
@@ -924,7 +926,7 @@ save(struct pine *state, MAILSTREAM *stream, CONTEXT_S *context, char *folder,
 	    mc = (rawno > 0L && stream && rawno <= stream->nmsgs)
 		    ? mail_elt(stream, rawno) : NULL;
 
-	    flags = flag_string(stream, rawno, F_ANS|F_FLAG|F_SEEN|F_KEYWORD);
+	    flags = flag_string(stream, rawno, F_ANS|F_FWD|F_FLAG|F_SEEN|F_KEYWORD);
 	      
 	    if(mc && mc->day)
 	      mail_date(date, mc);
@@ -1037,15 +1039,15 @@ long save_fetch_append_cb(MAILSTREAM *stream, void *data, char **flags,
 	    if(pkg->flags)
 	      fs_give((void **) &pkg->flags);
 
-	    pkg->flags = flag_string(pkg->stream, raw, F_ANS|F_FLAG|F_SEEN|F_KEYWORD);
+	    pkg->flags = flag_string(pkg->stream, raw, F_ANS|F_FWD|F_FLAG|F_SEEN|F_KEYWORD);
 	}
 
 	if(mc && mc->day)
 	  mail_date(pkg->date, mc);
 	else
 	  *pkg->date = '\0';
-	if(fetch = mail_fetch_header(pkg->stream, raw, NULL, NULL, &hlen,
-				     FT_PEEK)){
+	if((fetch = mail_fetch_header(pkg->stream, raw, NULL, NULL, &hlen,
+				     FT_PEEK)) != NULL){
 	    if(!*pkg->date)
 	      saved_date(pkg->date, fetch);
 	}
@@ -1148,7 +1150,7 @@ save_fetch_append(MAILSTREAM *stream, long int raw, char *sect,
     unsigned long  hlen, tlen, mlen;
     STRING	   msg;
 
-    if(fetch = mail_fetch_header(stream, raw, sect, NULL, &hlen, FT_PEEK)){
+    if((fetch = mail_fetch_header(stream, raw, sect, NULL, &hlen, FT_PEEK)) != NULL){
 	/*
 	 * If there's no date string, then caller found the
 	 * MESSAGECACHE for this message element didn't already have it.
@@ -1443,7 +1445,7 @@ save_ex_output_body(MAILSTREAM *stream, long int raw, char *section,
 	    else
 	      return(0);
 	}
-	while (part = part->next);	/* until done */
+	while ((part = part->next) != NULL);	/* until done */
 
 	snprintf(boundary, sizeof(boundary), "--%.*s--\015\012", sizeof(boundary)-10,param->value);
 	*len += blen + 2;
@@ -1582,7 +1584,7 @@ save_ex_explain_parts(struct mail_bodystruct *body, int depth, long unsigned int
 	    *len += ilen;
 	  else
 	    return(0);
-	while (part = part->next);	/* until done */
+	while ((part = part->next) != NULL);	/* until done */
     }
     else{
 	snprintf(tmp, sizeof(tmp), "%*.*sA %s/%.*s%.10s%.100s%.10s segment of about %s bytes%s",
@@ -1646,7 +1648,7 @@ saved_date(char *date, char *header)
 	for(d += 7; *d == ' '; d++)
 	  ;					/* skip white space */
 
-	if(p = strstr(d, "\015\012")){
+	if((p = strstr(d, "\015\012")) != NULL){
 	    for(; p > d && *p == ' '; p--)
 	      ;					/* skip white space */
 
@@ -1672,9 +1674,9 @@ save_msg_stream(CONTEXT_S *context, char *folder, int *we_opened)
     if(IS_REMOTE(context_apply(tmp, context, folder, sizeof(tmp)))
        && !(save_stream = sp_stream_get(tmp, SP_MATCH))
        && !(save_stream = sp_stream_get(tmp, SP_SAME))){
-	if(save_stream = context_open(context, NULL, folder,
+	if((save_stream = context_open(context, NULL, folder,
 				      OP_HALFOPEN | SP_USEPOOL | SP_TEMPUSE,
-				      NULL))
+				      NULL)) != NULL)
 	  *we_opened = 1;
     }
 

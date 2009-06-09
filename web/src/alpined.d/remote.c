@@ -24,6 +24,7 @@ static char rcsid[] = "$Id: remote.c 101 2006-08-10 22:53:04Z mikes@u.washington
 #include "../../../pith/filter.h"
 #include "../../../pith/util.h"
 #include "../../../pith/debug.h"
+#include "../../../pith/osdep/collate.h"
 
 
 /*

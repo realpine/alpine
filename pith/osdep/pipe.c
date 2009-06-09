@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pipe.c 259 2006-11-22 20:17:50Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pipe.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,10 @@ static char rcsid[] = "$Id: pipe.c 259 2006-11-22 20:17:50Z hubert@u.washington.
 #include "../charconv/utf8.h"
 #include "../charconv/filesys.h"
 #include "../debug.h"
+
+#ifdef _WINDOWS
+#include "../../pico/osdep/mswin.h"
+#endif
 
 
 
@@ -117,7 +121,7 @@ open_system_pipe(char *command, char **outfile, char **errfile, int mode,
     PIPE_S *syspipe = NULL;
 #ifdef	_WINDOWS
     int exit_code = 0;
-    char cmdbuf[1024], *p;
+    char cmdbuf[1024];
     unsigned flags = 0;
 #else
     char    shellpath[32], *shell;
@@ -252,7 +256,7 @@ open_system_pipe(char *command, char **outfile, char **errfile, int mode,
 	if(*p){
 	    int l = strlen(p);
 
-	    if(syspipe->args = (char *) malloc((l + 1) * sizeof(char))){
+	    if((syspipe->args = (char *) malloc((l + 1) * sizeof(char))) != NULL){
 		strncpy(syspipe->args, p, l);
 		syspipe->args[l] = '\0';
 	    }
@@ -391,7 +395,7 @@ open_system_pipe(char *command, char **outfile, char **errfile, int mode,
 		shellpath[sizeof(shellpath)-1] = '\0';
 	    }
 
-	    execl(shellpath, shell, command ? "-c" : 0, fname_to_locale(command), 0);
+	    execl(shellpath, shell, command ? "-c" : (char *)NULL, fname_to_locale(command), (char *)NULL);
 	}
 
 	fprintf(stderr, "Can't exec %s\nReason: %s",
@@ -481,6 +485,8 @@ pipe_error_msg(char *cmd, char *op, char *res)
 
     snprintf(ebuf, 256, "Pipe can't %.256s \"%.32sb\": %.223s",
 	     op ? op : "?", cmd ? cmd : "?", res ? res : "?");
+
+    return(ebuf);
 }
 #endif /* !_WINDOWS */
 

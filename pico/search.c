@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: search.c 417 2007-02-03 01:33:25Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: search.c 692 2007-08-28 21:32:05Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -465,9 +465,11 @@ replace_pat(UCS *defpat, int *wrapt)
 	  default:
 	    if(status == ABORT)
 	      emlwrite(_("Replacement Cancelled"), NULL);
-	    else 
-	      mlerase();
-	    chword(defpat, origpat);
+	    else{
+		mlerase();
+		chword(defpat, origpat);
+	    }
+
 	    update();
 	    return(FALSE);
 	}

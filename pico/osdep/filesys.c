@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: filesys.c 417 2007-02-03 01:33:25Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: filesys.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -273,8 +273,7 @@ homeless(char *f)
 char *
 getfnames(char *dn, char *pat, int *n, char *e, size_t elen)
 {
-    long           l;
-    size_t	   avail, alloced, incr = 1024;
+    size_t	   l, avail, alloced, incr = 1024;
     char          *names, *np, *p;
     struct stat    sbuf;
 #if	defined(ct)
@@ -289,7 +288,9 @@ getfnames(char *dn, char *pat, int *n, char *e, size_t elen)
     DIR           *dirp;			/* opened directory */
 #endif
 #endif
+#if	defined(ct) || !defined(_WINDOWS)
     struct dirent *dp;
+#endif
 
     *n = 0;
 
@@ -406,7 +407,7 @@ getfnames(char *dn, char *pat, int *n, char *e, size_t elen)
 
 	  avail -= (l+1);
 
-	  while(*np++ = *p++)
+	  while((*np++ = *p++) != '\0')
 	    ;
 #ifdef _WINDOWS
       }
@@ -476,10 +477,10 @@ fioperr(int e, char *f)
 char *
 pfnexpand(char *fn, size_t fnlen)
 {
-    struct passwd *pw;
     register char *x, *y, *z;
     char *home = NULL;
 #ifndef _WINDOWS
+    struct passwd *pw;
     char name[50];
 
     if(*fn == '~'){
@@ -491,11 +492,11 @@ pfnexpand(char *fn, size_t fnlen)
         *y = '\0';
         if(x == fn + 1){			/* ~/ */
 	    if (!(home = (char *) getenv("HOME")))
-	      if (pw = getpwuid(geteuid()))
+	      if ((pw = getpwuid(geteuid())) != NULL)
 		home = pw->pw_dir;
 	}
 	else if(*name){				/* ~username/ */
-	    if(pw = getpwnam(name))
+	    if((pw = getpwnam(name)) != NULL)
 	      home = pw->pw_dir;
 	}
 
@@ -690,9 +691,9 @@ compresspath(char *base, char *path, size_t pathlen)
 
     path[0] = '\0';
     for(i = 0; i < depth; i++){
-	strncat(path, S_FILESEP, pathlen-strlen(path));
+	strncat(path, S_FILESEP, pathlen-strlen(path)-1);
 	path[pathlen-1] = '\0';
-	strncat(path, stack[i], pathlen-strlen(path));
+	strncat(path, stack[i], pathlen-strlen(path)-1);
 	path[pathlen-1] = '\0';
     }
 
@@ -711,7 +712,7 @@ tmpname(char *dir, char *name)
 {
     char *t;
 #ifndef _WINDOWS
-    if(t = temp_nam((dir && *dir) ? dir : NULL, "pico.", 0)){
+    if((t = temp_nam((dir && *dir) ? dir : NULL, "pico.", 0)) != NULL){
 #else /* _WINDOWS */
     char  tmp[_MAX_PATH];
 
@@ -723,7 +724,7 @@ tmpname(char *dir, char *name)
 	   && fexist(dir, "w", (off_t *) NULL) == FIOSUC))
 	dir = "c:\\";
       
-    if(t = temp_nam_ext(dir, "ae", 0, "txt")){
+    if((t = temp_nam_ext(dir, "ae", 0, "txt")) != NULL){
 #endif /* _WINDOWS */
 	strncpy(name, t, NFILEN-1);
 	name[NFILEN-1] = '\0';
@@ -877,9 +878,11 @@ copy(char *a, char *b)
 int
 ffwopen(char *fn, int readonly)
 {
-    int		 fd;
     extern FIOINFO g_pico_fio;
+#ifndef _WINDOWS
+    int		 fd;
     EML          eml;
+#endif
 #ifndef	MODE_READONLY
 #define	MODE_READONLY	(0600)
 #endif
@@ -926,9 +929,9 @@ int
 ffclose(void)
 {
     extern FIOINFO g_pico_fio;
+#ifndef _WINDOWS
     EML eml;
 
-#ifndef _WINDOWS
     errno = 0;
     if((g_pico_fio.flags & FIOINFO_WRITE)
        && (fflush(g_pico_fio.fp) == EOF

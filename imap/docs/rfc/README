@@ -23,6 +23,7 @@ Items marked with "*" are supported in this distribution:
  * rfc3516.txt	BINARY
    rfc4469.txt	CATENATE
  * rfc3348.txt	CHILDREN
+   rfc4978.txt	COMPRESS
    rfc4551.txt	CONDSTORE
  * rfc4731.txt	ESEARCH
    rfc2971.txt	ID

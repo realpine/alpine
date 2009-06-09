@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: terminal.c 530 2007-04-19 02:37:54Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: terminal.c 672 2007-08-15 23:07:18Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -26,6 +26,8 @@ static char rcsid[] = "$Id: terminal.c 530 2007-04-19 02:37:54Z mikes@u.washingt
 #include "../pico.h"
 #include "../mode.h"
 
+#include "raw.h"
+#include "color.h"
 #include "tty.h"
 #include "terminal.h"
 #include "getkey.h"
@@ -76,8 +78,12 @@ static void     tinfoinsert(UCS);
 static void     tinfodelete(void);
 
 extern int      tput();
+extern int      tputs(char *, int, int (*)(int));
 extern char    *tgoto(char *, int, int);
 extern char    *tigetstr ();
+extern int      setupterm(char *, int, int *);
+extern int      tigetnum(char *);
+extern int      tigetflag(char *);
 
 /**
  ** Note: The tgoto calls should really be replaced by tparm calls for
@@ -291,7 +297,7 @@ tinfoterminalinfo(int termcap_wins)
 
 	strncpy(term_name, ttnm, sizeof(term_name));
 	term_name[sizeof(term_name)-1] = '\0';
-	setupterm (0, 1, &err);
+	setupterm ((char *) 0, 1, &err);
 	if (err != 1) return(err-2);
     }
     else {
@@ -300,7 +306,7 @@ tinfoterminalinfo(int termcap_wins)
 	 *		terminfo data base is gone or the term type is
 	 *		unknown, if arg2 is 0.
 	 */
-	setupterm (0, 1, 0);
+	setupterm ((char *) 0, 1, (int *) 0);
     }
 
     _clearscreen	= tigetstr("clear");
@@ -789,7 +795,7 @@ tinfobeep(void)
 void
 putpad(char *str)
 {
-    tputs(str, 1, ttputc);
+    tputs(str, 1, putchar);
 }
 
 #elif	HAS_TERMCAP
@@ -1547,7 +1553,7 @@ tcapbeep(void)
 void
 putpad(char *str)
 {
-    tputs(str, 1, ttputc);
+    tputs(str, 1, putchar);
 }
 
 #else  /* HARD_CODED_ANSI_TERMINAL */

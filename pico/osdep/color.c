@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: color.c 577 2007-05-22 22:16:43Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: color.c 672 2007-08-15 23:07:18Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -24,6 +24,7 @@ static char rcsid[] = "$Id: color.c 577 2007-05-22 22:16:43Z hubert@u.washington
 #include "terminal.h"
 #include "color.h"
 #include "../../pith/osdep/color.h"
+#include "../../pith/osdep/collate.h"
 
 #ifndef	_WINDOWS
 
@@ -81,7 +82,6 @@ extern int    _bce, _colors;
 /* internal prototypes */
 void     flip_rev_color(int);
 void     flip_bold(int);
-void     flip_inv(int);
 void     flip_ul(int);
 void     reset_attr_state(void);
 void     add_to_color_name_list(struct color_table *t, char *name);
@@ -389,7 +389,7 @@ tfgcolor(int color)
 	char buf[20];
 
 	if(COL_TRANS() && color == pico_count_in_color_table()-1)
-	  snprintf(buf, sizeof(buf), "\033[39m", color);
+	  snprintf(buf, sizeof(buf), "\033[39m");
 	else if(ANSI256_COLOR())
 	  snprintf(buf, sizeof(buf), "\033[38;5;%dm", color);
 	else{
@@ -457,7 +457,7 @@ tbgcolor(int color)
 	char buf[20];
 
 	if(COL_TRANS() && color == pico_count_in_color_table()-1)
-	  snprintf(buf, sizeof(buf), "\033[49m", color);
+	  snprintf(buf, sizeof(buf), "\033[49m");
 	else if(ANSI256_COLOR())
 	  snprintf(buf, sizeof(buf), "\033[48;5;%dm", color);
 	else{
@@ -527,7 +527,6 @@ init_color_table(void)
     struct color_table *ct = NULL, *t;
     int                 i, count;
     char                colorname[12];
-    char               *col;
 
     count = pico_count_in_color_table();
 
@@ -608,7 +607,7 @@ init_color_table(void)
 		colorname[sizeof(colorname)-1] = '\0';
 		break;
 	      default:
-		snprintf(colorname, sizeof(colorname), "color%03.3d", i);
+		snprintf(colorname, sizeof(colorname), "color%3.3d", i);
 		break;
 	    }
 
@@ -899,7 +898,7 @@ colorx(int color)
 	  case COL_WHITE:
 	    return("white");
 	  default:
-	    snprintf(cbuf, sizeof(cbuf), "color%03.3d", color);
+	    snprintf(cbuf, sizeof(cbuf), "color%3.3d", color);
 	    return(cbuf);
 	}
     }
@@ -913,7 +912,7 @@ colorx(int color)
       return(ct->rgb);
 
     /* not supposed to get here */
-    snprintf(cbuf, sizeof(cbuf), "color%03.3d", color);
+    snprintf(cbuf, sizeof(cbuf), "color%3.3d", color);
     return(cbuf);
 }
 
@@ -1396,7 +1395,7 @@ pico_set_colors(char *fg, char *bg, int flags)
 	if(uc && flags & PSC_NORM)
 	  pico_set_normal_color();
 	else if(flags & PSC_REV){
-	    if(rev = pico_get_rev_color()){
+	    if((rev = pico_get_rev_color()) != NULL){
 		pico_set_fg_color(rev->fg);	/* these will succeed */
 		pico_set_bg_color(rev->bg);
 	    }
@@ -1520,7 +1519,7 @@ pico_set_fg_color(char *s)
 	      fs_give((void **) &_last_fg_color);
 	    
 	    len = strlen(colorx(val));
-	    if(_last_fg_color = (char *) fs_get((len+1) * sizeof(char))){
+	    if((_last_fg_color = (char *) fs_get((len+1) * sizeof(char))) != NULL){
 	      strncpy(_last_fg_color, colorx(val), len+1);
 	      _last_fg_color[len] = '\0';
 	    }
@@ -1569,7 +1568,7 @@ pico_set_bg_color(char *s)
 	      fs_give((void **) &_last_bg_color);
 	    
 	    len = strlen(colorx(val));
-	    if(_last_bg_color = (char *) fs_get((len+1) * sizeof(char))){
+	    if((_last_bg_color = (char *) fs_get((len+1) * sizeof(char))) != NULL){
 	      strncpy(_last_bg_color, colorx(val), len+1);
 	      _last_bg_color[len] = '\0';
 	    }
@@ -1699,7 +1698,7 @@ pico_get_last_fg_color(void)
       size_t len;
 
       len = strlen(_last_fg_color);
-      if(ret = (char *) fs_get((len+1) * sizeof(char))){
+      if((ret = (char *) fs_get((len+1) * sizeof(char))) != NULL){
 	strncpy(ret, _last_fg_color, len+1);
 	ret[len] = '\0';
       }
@@ -1718,7 +1717,7 @@ pico_get_last_bg_color(void)
       size_t len;
 
       len = strlen(_last_bg_color);
-      if(ret = (char *) fs_get((len+1) * sizeof(char))){
+      if((ret = (char *) fs_get((len+1) * sizeof(char))) != NULL){
 	strncpy(ret, _last_bg_color, len+1);
 	ret[len] = '\0';
       }

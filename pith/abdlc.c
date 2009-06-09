@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: abdlc.c 203 2006-10-26 17:23:46Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: abdlc.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,13 +21,13 @@ static char rcsid[] = "$Id: abdlc.c 203 2006-10-26 17:23:46Z hubert@u.washington
 #include "../pith/conf.h"
 #include "../pith/status.h"
 #include "../pith/ldap.h"
+#include "../pith/tempfile.h"
 
 
 /*
  * Internal prototypes
  */
 void           initialize_dlc_cache(void);
-void           done_with_dlc_cache(void);
 int            dlc_siblings(DL_CACHE_S *, DL_CACHE_S *);
 DL_CACHE_S    *dlc_mgr(long, DlMgrOps, DL_CACHE_S *);
 void           free_cache_array(DL_CACHE_S **, int);
@@ -480,6 +480,8 @@ free_cache_array(DL_CACHE_S **c_array, int size)
 	    if(dlc->dl.usst)
 	      fs_give((void **)&dlc->dl.usst);
 
+	    break;
+	  default:
 	    break;
 	}
     }
@@ -1478,6 +1480,8 @@ warp_to_dlc(DL_CACHE_S *new_dlc, long int row_number_to_assign_it)
       case DlcGlobAdd:
 	dlc.adrbk_num = as.n_addrbk;
 	break;
+      default:
+	break;
     }
 
     (void)dlc_mgr(row_number_to_assign_it, ArbitraryStartingPoint, &dlc);
@@ -1589,6 +1593,9 @@ matching_dlcs(DL_CACHE_S *dlc1, DL_CACHE_S *dlc2)
       case DlcEnd:
       case DlcNoAbooks:
 	return 0;
+
+      default:
+	break;
     }
     /*NOTREACHED*/
 
@@ -1611,9 +1618,6 @@ fill_in_dl_field(DL_CACHE_S *new)
     char *q;
     unsigned screen_width = ps_global->ttyo->screen_cols;
     unsigned got_width, need_width, cellwidth;
-    int len;
-    static char *eight_spaces = "        ";
-    char *four_spaces = eight_spaces + 4;
 
     screen_width = MIN(MAX_SCREEN_COLS, screen_width);
 
@@ -1627,6 +1631,8 @@ fill_in_dl_field(DL_CACHE_S *new)
       case AskServer:
 	if(dl->usst)
 	  fs_give((void **)&dl->usst);
+      default:
+        break;
     }
 
     /* set up new dl */

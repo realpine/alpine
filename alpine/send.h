@@ -1,5 +1,5 @@
 /*
- * $Id: send.h 380 2007-01-23 00:09:18Z hubert@u.washington.edu $
+ * $Id: send.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -28,6 +28,11 @@
 #define	SS_NULLRP		0x02	/* Null Return-path		*/
 
 
+/* pine_send flags */
+#define PS_STICKY_FCC		0x01
+#define PS_STICKY_TO		0x02
+
+
 /* exported protoypes */
 void	    compose_screen(struct pine *); 
 void	    alt_compose_screen(struct pine *);
@@ -40,6 +45,8 @@ void	    phone_home(char *);
 void        create_message_body(BODY **, PATMT *, int);
 char	   *pine_send_status(int, char *, char *, size_t, int *);
 int	    confirm_daemon_send(void);
+int	    build_address(char *, char **,char **, BUILDER_ARG *, int *);
+void	    free_attachment_list(PATMT **);
 
 
 #endif /* PINE_SEND_INCLUDED */

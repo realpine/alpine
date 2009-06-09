@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailindx.c 605 2007-06-20 21:15:13Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailindx.c 700 2007-08-30 22:33:35Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -38,6 +38,7 @@ static char rcsid[] = "$Id: mailindx.c 605 2007-06-20 21:15:13Z hubert@u.washing
 #include "../pith/string.h"
 #include "../pith/send.h"
 #include "../pith/options.h"
+#include "../pith/ablookup.h"
 #ifdef _WINDOWS
 #include "../pico/osdep/mswin.h"
 #endif
@@ -90,6 +91,7 @@ char           *fetch_header(INDEXDATA_S *idata, char *hdrname);
 void		subj_str(INDEXDATA_S *, int, char *, SubjKW, int, ICE_S *);
 void		key_str(INDEXDATA_S *, SubjKW, ICE_S *);
 void		header_str(INDEXDATA_S *, HEADER_TOK_S *, ICE_S *);
+void		prio_str(INDEXDATA_S *, IndexColType, ICE_S *);
 void		from_str(IndexColType, INDEXDATA_S *, int, char *, ICE_S *);
 int             day_of_week(struct date *);
 int             day_of_year(struct date *);
@@ -100,7 +102,6 @@ char           *format_str(int, int);
 char           *copy_format_str(int, int, char *, int);
 void            set_print_format(IELEM_S *, int, int);
 void            set_ielem_widths_in_field(IFIELD_S *);
-void            free_hdrtok(HEADER_TOK_S **);
 
 
 #define BIGWIDTH 2047
@@ -180,11 +181,15 @@ init_index_format(char *format, INDEX_COL_S **answer)
 	      case iSDateTime24:
 		(*answer)[column].ctype = iSDateTimeS124;
 		break;
+	      default:
+		break;
 	    }
 	}
 
 	if((*answer)[column].wtype == WeCalculate){
 	    switch((*answer)[column].ctype){
+	      case iPrio:
+	      case iPrioBang:
 	      case iAtt:
 		(*answer)[column].req_width = 1;
 		break;
@@ -220,6 +225,7 @@ init_index_format(char *format, INDEX_COL_S **answer)
 	      case iSTime:
 	      case iKSize:
 	      case iSize:
+	      case iPrioAlpha:
 		(*answer)[column].req_width = 7;
 		break;
 	      case iS1Date:
@@ -326,6 +332,8 @@ init_index_format(char *format, INDEX_COL_S **answer)
 		break;
 	      case iRDate:
 		(*answer)[column].req_width = 16;
+		break;
+	      default:
 		break;
 	    }
 	}
@@ -441,6 +449,9 @@ static INDEX_PARSE_T itokens[] = {
     {"DESCRIPSIZE",	iDescripSize,	FOR_INDEX},
     {"ATT",		iAtt,		FOR_INDEX},
     {"SCORE",		iScore,		FOR_INDEX},
+    {"PRIORITY",	iPrio,		FOR_INDEX},
+    {"PRIORITYALPHA",	iPrioAlpha,	FOR_INDEX},
+    {"PRIORITY!",	iPrioBang,	FOR_INDEX},
     {"LONGDATE",	iLDate,		FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"SHORTDATE1",	iS1Date,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"SHORTDATE2",	iS2Date,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
@@ -702,9 +713,8 @@ parse_index_format(char *format_str, INDEX_COL_S **answer)
 		}
 
 		/* skip over rest of bogus config */
-		while(!(!(*p & 0x80) && isspace((unsigned char)*p)) &&
-		      *p != '(')
-		  *p++;
+		while(!(!(*p & 0x80) && isspace((unsigned char)*p)) && *p != '(')
+		  p++;
 	    }
 	}
 	else{
@@ -894,6 +904,7 @@ static IndexColType fixed_ctypes[] = {
     iSDateTimeIso24, iSDateTimeIsoS24,
     iSDateTimeS124, iSDateTimeS224, iSDateTimeS324, iSDateTimeS424,
     iSize, iSizeComma, iSizeNarrow, iKSize, iDescripSize,
+    iPrio, iPrioBang, iPrioAlpha,
     iAtt, iTime24, iTime12, iTimezone, iMonAbb, iYear, iYear2Digit,
     iDay2Digit, iMon2Digit, iDayOfWeekAbb, iScore, iMonLong, iDayOfWeek
 };
@@ -924,7 +935,7 @@ setup_index_header_widths(MAILSTREAM *stream)
 {
     int		 colspace;	/* for reserving space between columns */
     int		 j, some_to_calculate;
-    int		 space_left, screen_width, width, fix, col;
+    int		 space_left, screen_width, fix;
     int		 keep_going, tot_pct, was_sl;
     long         max_msgno;
     WidthType	 wtype;
@@ -999,6 +1010,8 @@ setup_index_header_widths(MAILSTREAM *stream)
 	if(wtype == WeCalculate || wtype == Percent || cdesc->width != 0){
 	    if(ctype_is_fixed_length(cdesc->ctype)){
 		switch(cdesc->ctype){
+		  case iPrio:
+		  case iPrioBang:
 		  case iAtt:
 		    cdesc->actual_length = 1;
 		    cdesc->adjustment = Left;
@@ -1075,6 +1088,12 @@ setup_index_header_widths(MAILSTREAM *stream)
 		    cdesc->actual_length = 7;
 		    cdesc->adjustment = Left;
 		    break;
+
+		  case iPrioAlpha:
+		    cdesc->actual_length = 7;
+		    cdesc->adjustment = Left;
+		    break;
+
 
 		  case iS1Date:
 		  case iS2Date:
@@ -1391,7 +1410,7 @@ ICE_S *
 build_header_work(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
 		  long int msgno, long int top_msgno, int msgcount, int *fetched)
 {
-    ICE_S        *ice;
+    ICE_S        *ice, *ic;
     MESSAGECACHE *mc;
     long          n, i, cnt, rawno, visible, limit = -1L;
 
@@ -1400,6 +1419,9 @@ build_header_work(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
     /* cache hit? */
     if(THRD_INDX()){
 	ice = fetch_ice(stream, rawno);
+	if(!ice)
+	  return(NULL);
+
 	if(ice->tice && ice->tice->ifield
 	   && ice->tice->color_lookup_done && ice->tice->widths_done){
 #ifdef DEBUG
@@ -1414,8 +1436,11 @@ build_header_work(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
 	}
     }
     else{
-	if((ice = fetch_ice(stream, rawno))->ifield
-	   && ice->color_lookup_done && ice->widths_done){
+	ice = fetch_ice(stream, rawno);
+	if(!ice)
+	  return(NULL);
+
+	if(ice->ifield && ice->color_lookup_done && ice->widths_done){
 #ifdef DEBUG
 	    char buf[MAX_SCREEN_COLS+1];
 	    simple_index_line(buf, sizeof(buf), ps_global->ttyo->screen_cols, ice, msgno);
@@ -1451,8 +1476,7 @@ build_header_work(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
     if(!(fetched && *fetched) && index_in_overview(stream)
        && ((THRD_INDX() && !(ice->tice && ice->tice->ifield))
            || (!THRD_INDX() && !ice->ifield))){
-	char	     *seq, *p;
-	long	      next;
+	char	     *seq;
 	int	      count;
 	MESSAGECACHE *mc;
 	PINETHRD_S   *thrd;
@@ -1501,8 +1525,6 @@ build_header_work(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
 	limit = MIN(visible, msgcount);
 
 	if(THRD_INDX()){
-	    ICE_S *ic;
-
 	    count = i = 0;
 
 	    /*
@@ -1511,11 +1533,9 @@ build_header_work(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
 	     */
 	    thrd = fetch_thread(stream,	mn_m2raw(msgmap, msgno));
 	    if(msgno <= mn_get_total(msgmap)
-	       && !((ic=fetch_ice(stream,thrd->rawno)->tice)
-	       && ic->ifield)){
+	       && (!(ic=fetch_ice(stream,thrd->rawno)) || !(ic=ic->tice) || !ic->ifield)){
 		count += mark_msgs_in_thread(stream, thrd, msgmap);
 	    }
-
 
 	    thrd = fetch_thread(stream,	mn_m2raw(msgmap, top_msgno));
 
@@ -1528,8 +1548,7 @@ build_header_work(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
 		n = mn_raw2m(msgmap, thrd->rawno);
 		if(n >= msgno
 		   && n <= mn_get_total(msgmap)
-		   && !((ic=fetch_ice(stream,thrd->rawno)->tice)
-		   && ic->ifield)){
+		   && (!(ic=fetch_ice(stream,thrd->rawno)) || !(ic=ic->tice) || !ic->ifield)){
 		    count += mark_msgs_in_thread(stream, thrd, msgmap);
 		}
 
@@ -1557,8 +1576,8 @@ build_header_work(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
 	     * isn't visible.
 	     */
 	    if(msgno > 0L && msgno <= mn_get_total(msgmap)
-	       && !fetch_ice(stream, (rawno=mn_m2raw(msgmap,msgno)))->ifield){
-		if(thrd = fetch_thread(stream, rawno)){
+	       && (!(ic=fetch_ice(stream, (rawno=mn_m2raw(msgmap,msgno)))) || !ic->ifield)){
+		if((thrd = fetch_thread(stream, rawno)) != NULL){
 		    /*
 		     * If we're doing a MUTTLIKE display the index line
 		     * may depend on the thread parent, and grandparent,
@@ -1584,8 +1603,8 @@ build_header_work(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
 	    while(1){
 		if(n >= msgno
 		   && n <= mn_get_total(msgmap)
-		   && !fetch_ice(stream, (rawno=mn_m2raw(msgmap,n)))->ifield){
-		    if(thrd = fetch_thread(stream, rawno)){
+		   && (!(ic=fetch_ice(stream, (rawno=mn_m2raw(msgmap,n)))) || !ic->ifield)){
+		    if((thrd = fetch_thread(stream, rawno)) != NULL){
 			/*
 			 * If we're doing a MUTTLIKE display the index line
 			 * may depend on the thread parent, and grandparent,
@@ -1637,6 +1656,8 @@ build_header_work(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
 	 */
 	rawno = mn_m2raw(msgmap, msgno);
 	ice = fetch_ice(stream, rawno);
+	if(!ice)
+	  return(NULL);
     }
 
     if((THRD_INDX() && !(ice->tice && ice->tice->ifield))
@@ -1660,6 +1681,8 @@ build_header_work(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
 	  idata.bogus = 2;
 
 	ice = (*format_index_line)(&idata);
+	if(!ice)
+	  return(NULL);
     }
 
     /*
@@ -1673,8 +1696,6 @@ build_header_work(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
     if((!THRD_INDX() && ice->ifield && !ice->widths_done)){
 	ICE_S       *working_ice;
 	IFIELD_S    *ifield;
-	IELEM_S     *ielem;
-	int          width;
 	INDEX_COL_S *cdesc;
 
 	if(need_format_setup(stream))
@@ -1707,9 +1728,9 @@ build_header_work(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
 	  /* fix the print_format strings and widths */
 	  for(ifield = working_ice->ifield; ifield; ifield = ifield->next)
 	    set_ielem_widths_in_field(ifield);
-	}
 
-	working_ice->widths_done = 1;
+	  working_ice->widths_done = 1;
+	}
     }
 
     if(THRD_INDX() && ice->tice)
@@ -1759,7 +1780,7 @@ build_header_work(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
 	    while(1){
 		if(n >= msgno
 		   && n <= mn_get_total(msgmap)
-		   && !fetch_ice(stream,(rawno = mn_m2raw(msgmap, n)))->color_lookup_done){
+		   && (!(ic=fetch_ice(stream,(rawno = mn_m2raw(msgmap, n)))) || !ic->color_lookup_done)){
 
 		    if(rawno >= 1L && rawno <= stream->nmsgs
 		       && (mc = mail_elt(stream, rawno))){
@@ -1811,10 +1832,12 @@ build_header_work(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
 				cnt--;
 				mc->sequence = 0;
 				ic = fetch_ice(stream, n);
-				ic->color_lookup_done = 1;
-				if(linecolor)
-				  ic->linecolor = new_color_pair(linecolor->fg,
-							         linecolor->bg);
+				if(ic){
+				    ic->color_lookup_done = 1;
+				    if(linecolor)
+				      ic->linecolor = new_color_pair(linecolor->fg,
+								     linecolor->bg);
+				}
 			    }
 			  }
 			}
@@ -1831,7 +1854,8 @@ build_header_work(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
 			       && mc->sequence){
 				cnt--;
 				ic = fetch_ice(stream, n);
-				ic->color_lookup_done = 1;
+				if(ic)
+				  ic->color_lookup_done = 1;
 			    }
 			  }
 			}
@@ -1888,7 +1912,7 @@ day_of_year(struct date *d)
       return(-1);
 
     doy = d->day;
-    leap = d->year%4 == 0 && d->year%100 != 0 || d->year%400 == 0;
+    leap = (d->year%4 == 0 && d->year%100 != 0) || d->year%400 == 0;
     for(i = 1; i < d->month; i++)
       doy += daytab[leap][i];
     
@@ -1911,9 +1935,8 @@ ICE_S *
 format_index_index_line(INDEXDATA_S *idata)
 {
     char          str[BIGWIDTH+1], to_us, status, *field,
-		 *buffer, *s_tmp, *p, *newsgroups;
-    int		  i, j, smallest, collapsed = 0, start,
-		  fromfield, noff = 0;
+		 *p, *newsgroups;
+    int		  i, collapsed = 0, start, fromfield;
     long	  l, score;
     BODY	 *body = NULL;
     MESSAGECACHE *mc;
@@ -1930,6 +1953,8 @@ format_index_index_line(INDEXDATA_S *idata)
 
 
     ice = fetch_ice(idata->stream, idata->rawno);
+    if(!ice)
+      return(NULL);
 
     free_ifield(&ice->ifield);
 
@@ -2009,6 +2034,9 @@ format_index_index_line(INDEXDATA_S *idata)
 		     if(mc->answered)
 		       status = 'A';
 
+		     if(user_flag_is_set(idata->stream, idata->rawno, FORWARDED_FLAG))
+		       status = 'F';
+
 		     if(mc->deleted)
 		       status = 'D';
 		}
@@ -2055,6 +2083,13 @@ format_index_index_line(INDEXDATA_S *idata)
 			    ielem = ifield->ielem->next->next;
 			    ielem->freecolor = 1;
 			    ielem->color = new_color_pair(VAR_IND_ANS_FORE_COLOR, VAR_IND_ANS_BACK_COLOR);
+			}
+		    }
+		    else if(str[2] == 'F'){
+			if(VAR_IND_FWD_FORE_COLOR && VAR_IND_FWD_BACK_COLOR){
+			    ielem = ifield->ielem->next->next;
+			    ielem->freecolor = 1;
+			    ielem->color = new_color_pair(VAR_IND_FWD_FORE_COLOR, VAR_IND_FWD_BACK_COLOR);
 			}
 		    }
 		    else if(str[2] == 'N'){
@@ -2136,7 +2171,7 @@ format_index_index_line(INDEXDATA_S *idata)
 		            && idata->rawno <= idata->stream->nmsgs)
 			    ? mail_elt(idata->stream, idata->rawno) : NULL;
 		      if(mc && mc->valid){
-			  if(cdesc->ctype == iIStatus){
+			  if(cdesc->ctype == iIStatus || cdesc->ctype == iSIStatus){
 			      if(mc->recent)
 				new = mc->seen ? 'R' : 'N';
 			      else if (!mc->seen)
@@ -2368,7 +2403,7 @@ format_index_index_line(INDEXDATA_S *idata)
 			      : NULL))
 		    && !set_index_addr(idata, field, addr, NULL, BIGWIDTH, str))
 		   || !field)
-		  if(newsgroups = fetch_newsgroups(idata))
+		  if((newsgroups = fetch_newsgroups(idata)) != NULL)
 		    snprintf(str, sizeof(str), "%-.*s", BIGWIDTH, newsgroups);
 
 		break;
@@ -2398,7 +2433,7 @@ format_index_index_line(INDEXDATA_S *idata)
 
 	      case iSender:
 		fromfield++;
-		if(addr = fetch_sender(idata))
+		if((addr = fetch_sender(idata)) != NULL)
 		  set_index_addr(idata, "Sender", addr, NULL, BIGWIDTH, str);
 
 		break;
@@ -2538,7 +2573,7 @@ format_index_index_line(INDEXDATA_S *idata)
 		break;
 
 	      case iDescripSize:
-		if(body = fetch_body(idata))
+		if((body = fetch_body(idata)) != NULL)
 		  switch(body->type){
 		    case TYPETEXT:
 		    {
@@ -2695,7 +2730,7 @@ format_index_index_line(INDEXDATA_S *idata)
 		break;
 
 	      case iNews:
-		if(newsgroups = fetch_newsgroups(idata)){
+		if((newsgroups = fetch_newsgroups(idata)) != NULL){
 		    strncpy(str, newsgroups, BIGWIDTH);
 		    str[BIGWIDTH] = '\0';
 		}
@@ -2703,7 +2738,7 @@ format_index_index_line(INDEXDATA_S *idata)
 		break;
 
 	      case iNewsAndTo:
-		if(newsgroups = fetch_newsgroups(idata))
+		if((newsgroups = fetch_newsgroups(idata)) != NULL)
 		  strncpy(str, newsgroups, sizeof(str));
 
 		if((l = strlen(str)) < sizeof(str)){
@@ -2746,7 +2781,7 @@ format_index_index_line(INDEXDATA_S *idata)
 		break;
 
 	      case iNewsAndRecips:
-		if(newsgroups = fetch_newsgroups(idata))
+		if((newsgroups = fetch_newsgroups(idata)) != NULL)
 		  strncpy(str, newsgroups, BIGWIDTH);
 
 		if((l = strlen(str)) < BIGWIDTH){
@@ -2815,6 +2850,12 @@ format_index_index_line(INDEXDATA_S *idata)
 
 		break;
 
+	      case iPrio:
+	      case iPrioAlpha:
+	      case iPrioBang:
+		prio_str(idata, cdesc->ctype, ice);
+		break;
+
 	      case iHeader:
 		header_str(idata, cdesc->hdrtok, ice);
 		break;
@@ -2822,6 +2863,9 @@ format_index_index_line(INDEXDATA_S *idata)
 	      case iText:
 		strncpy(str, (cdesc->hdrtok && cdesc->hdrtok->hdrname) ? cdesc->hdrtok->hdrname : "", sizeof(str));
 		str[sizeof(str)-1] = '\0';
+		break;
+
+	      default:
 		break;
 	    }
 
@@ -2895,6 +2939,7 @@ format_thread_index_line(INDEXDATA_S *idata)
     IFIELD_S     *ifield;
     IELEM_S      *ielem;
     int         (*save_sfstr_func)(void);
+    struct variable *vars = ps_global->vars;
 
     dprint((8, "=== format_thread_index_line(%ld,%ld) ===\n",
 	       idata ? idata->msgno : -1, idata ? idata->rawno : -1));
@@ -2961,8 +3006,6 @@ format_thread_index_line(INDEXDATA_S *idata)
 	}
 
 	if(pico_usingcolor()){
-	    struct variable *vars = ps_global->vars;
-
 	    if(to_us == '*'
 	       && VAR_IND_IMP_FORE_COLOR && VAR_IND_IMP_BACK_COLOR){
 		ielem = ifield->ielem;
@@ -3049,7 +3092,6 @@ format_thread_index_line(INDEXDATA_S *idata)
     if(space_left > 3){
 	int   from_width, subj_width, bigthread_adjust;
 	long  in_thread;
-	char *subj_start;
 	char  from[BIGWIDTH+1];
 	char  tcnt[50];
 
@@ -3059,7 +3101,11 @@ format_thread_index_line(INDEXDATA_S *idata)
 					   ps_global->msgmap, MN_NONE);
 
 	p = buffer;
-	snprintf(tcnt, sizeof(tcnt), "(%ld)", in_thread);
+	if(in_thread == 1 && THRD_AUTO_VIEW())
+	  snprintf(tcnt, sizeof(tcnt), "   ");
+	else
+	  snprintf(tcnt, sizeof(tcnt), "(%ld)", in_thread);
+
 	bigthread_adjust = MAX(0, strlen(tcnt) - 3);
 	
 	/* third of the rest */
@@ -3081,11 +3127,18 @@ format_thread_index_line(INDEXDATA_S *idata)
 	ifield->leftadj = 1;
 	ielem  = new_ielem(&ifield->ielem);
 	ielem->freedata = 1;
+	ielem->type = eTypeCol;
 	ielem->data = cpystr(from);
 	ielem->datalen = strlen(from);
 	ifield->width = from_width;
 	set_print_format(ielem, ifield->width, ifield->leftadj);
 	ifield->ctype = iFrom;
+	if(from_width > 0 && pico_usingcolor()
+	   && VAR_IND_FROM_FORE_COLOR && VAR_IND_FROM_BACK_COLOR){
+	    ielem->freecolor = 1;
+	    ielem->color = new_color_pair(VAR_IND_FROM_FORE_COLOR,
+					  VAR_IND_FROM_BACK_COLOR);
+	}
 
         ifield = new_ifield(&tice->ifield);
 	ifield->leftadj = 0;
@@ -3121,11 +3174,17 @@ format_thread_index_line(INDEXDATA_S *idata)
 	    ifield->leftadj = 1;
 	    ielem  = new_ielem(&ifield->ielem);
 	    ielem->freedata = 1;
+	    ielem->type = eTypeCol;
 	    ielem->data = cpystr(p);
 	    ielem->datalen = strlen(p);
 	    ifield->width = subj_width;
 	    set_print_format(ielem, ifield->width, ifield->leftadj);
 	    ifield->ctype = iSubject;
+	    if(pico_usingcolor() && VAR_IND_SUBJ_FORE_COLOR && VAR_IND_SUBJ_BACK_COLOR){
+		ielem->freecolor = 1;
+		ielem->color = new_color_pair(VAR_IND_SUBJ_FORE_COLOR,
+					      VAR_IND_SUBJ_BACK_COLOR);
+	    }
 	}
     }
     else if(space_left > 1){
@@ -3163,7 +3222,7 @@ format_thread_index_line(INDEXDATA_S *idata)
 char *
 simple_index_line(char *buf, size_t buflen, int n, ICE_S *ice, long int msgno)
 {
-    char     *p, *q;
+    char     *p;
     IFIELD_S *ifield;
     IELEM_S  *ielem;
 
@@ -3339,7 +3398,7 @@ resent_to_us(INDEXDATA_S *idata)
 	    return(FALSE);
 	}
 
-	if(h = pine_fetchheader_lines(idata->stream,idata->rawno,NULL,fields)){
+	if((h = pine_fetchheader_lines(idata->stream,idata->rawno,NULL,fields)) != NULL){
 	    idata->resent_to_us = parsed_resent_to_us(h);
 	    fs_give((void **) &h);
 	}
@@ -3358,8 +3417,8 @@ parsed_resent_to_us(char *h)
     ADDRESS *addr = NULL;
     int	     rv = FALSE;
 
-    if(p = strindex(h, ':')){
-	for(q = ++p; q = strpbrk(q, "\015\012"); q++)
+    if((p = strindex(h, ':')) != NULL){
+	for(q = ++p; (q = strpbrk(q, "\015\012")) != NULL; q++)
 	  *q = ' ';		/* quash junk */
 
 	rfc822_parse_adrlist(&addr, p, ps_global->maildomain);
@@ -3388,7 +3447,7 @@ fetch_from(INDEXDATA_S *idata)
 	ENVELOPE *env;
 
 	/* c-client call's just cache access at this point */
-	if(env = pine_mail_fetchenvelope(idata->stream, idata->rawno))
+	if((env = pine_mail_fetchenvelope(idata->stream, idata->rawno)) != NULL)
 	  return(env->from);
 
 	idata->bogus = 1;
@@ -3417,7 +3476,7 @@ fetch_to(INDEXDATA_S *idata)
 	ENVELOPE *env;
 
 	/* c-client call's just cache access at this point */
-	if(env = pine_mail_fetchenvelope(idata->stream, idata->rawno))
+	if((env = pine_mail_fetchenvelope(idata->stream, idata->rawno)) != NULL)
 	  return(env->to);
 
 	idata->bogus = 1;
@@ -3446,7 +3505,7 @@ fetch_cc(INDEXDATA_S *idata)
 	ENVELOPE *env;
 
 	/* c-client call's just cache access at this point */
-	if(env = pine_mail_fetchenvelope(idata->stream, idata->rawno))
+	if((env = pine_mail_fetchenvelope(idata->stream, idata->rawno)) != NULL)
 	  return(env->cc);
 
 	idata->bogus = 1;
@@ -3476,7 +3535,7 @@ fetch_sender(INDEXDATA_S *idata)
 	ENVELOPE *env;
 
 	/* c-client call's just cache access at this point */
-	if(env = pine_mail_fetchenvelope(idata->stream, idata->rawno))
+	if((env = pine_mail_fetchenvelope(idata->stream, idata->rawno)) != NULL)
 	  return(env->sender);
 
 	idata->bogus = 1;
@@ -3505,7 +3564,7 @@ fetch_newsgroups(INDEXDATA_S *idata)
 	ENVELOPE *env;
 
 	/* c-client call's just cache access at this point */
-	if(env = pine_mail_fetchenvelope(idata->stream, idata->rawno))
+	if((env = pine_mail_fetchenvelope(idata->stream, idata->rawno)) != NULL)
 	  return(env->newsgroups);
 
 	idata->bogus = 1;
@@ -3529,7 +3588,7 @@ fetch_subject(INDEXDATA_S *idata)
 	ENVELOPE *env;
 
 	/* c-client call's just cache access at this point */
-	if(env = pine_mail_fetchenvelope(idata->stream, idata->rawno))
+	if((env = pine_mail_fetchenvelope(idata->stream, idata->rawno)) != NULL)
 	  return(env->subject);
 
 	idata->bogus = 1;
@@ -3556,10 +3615,23 @@ fetch_firsttext(INDEXDATA_S *idata, int delete_quotes)
     STORE_S *so;
     gf_io_t pc;
     long partial_fetch_len = 0L;
+    SEARCHSET *ss, **sset;
 
 try_again:
 
-    if(env = pine_mail_fetchstructure(idata->stream, idata->rawno, &body)){
+    /*
+     * Prevent wild prefetch, just get the one we're after.
+     * Can we get this somehow in the overview call in build_header_work?
+     */
+    ss = mail_newsearchset();
+    ss->first = idata->rawno;
+    sset = (SEARCHSET **) mail_parameters(idata->stream,
+					  GET_FETCHLOOKAHEAD,
+					  (void *) idata->stream);
+    if(sset)
+      *sset = ss;
+
+    if((env = pine_mail_fetchstructure(idata->stream, idata->rawno, &body)) != NULL){
 	if(body){
 	    char *subtype = NULL;
 	    char *partno;
@@ -3666,6 +3738,9 @@ try_again:
 	}
     }
 
+    if(ss)
+      mail_free_searchset(&ss);
+
     return(firsttext);
 }
 
@@ -3684,7 +3759,7 @@ fetch_date(INDEXDATA_S *idata)
 	ENVELOPE *env;
 
 	/* c-client call's just cache access at this point */
-	if(env = pine_mail_fetchenvelope(idata->stream, idata->rawno))
+	if((env = pine_mail_fetchenvelope(idata->stream, idata->rawno)) != NULL)
 	  return((char *) env->date);
 
 	idata->bogus = 1;
@@ -3832,8 +3907,8 @@ set_index_addr(INDEXDATA_S	   *idata,
 
 	  fields[0] = field;
 	  fields[1] = NULL;
-	  if(h = pine_fetchheader_lines(idata->stream, idata->rawno,
-					NULL, fields)){
+	  if((h = pine_fetchheader_lines(idata->stream, idata->rawno,
+					NULL, fields)) != NULL){
 	      /* skip "field:" */
 	      for(p = h + strlen(field) + 1;
 		  *p && isspace((unsigned char)*p); p++)
@@ -3883,7 +3958,7 @@ set_index_addr(INDEXDATA_S	   *idata,
 	char  buftmp[MAILTMPLEN];
 	int   l;
 
-	if(l = prefix ? strlen(prefix) : 0)
+	if((l = prefix ? strlen(prefix) : 0) != 0)
 	  strncpy(s, prefix, width+1);
 
 	snprintf(buftmp, sizeof(buftmp), "%s", addr->personal);
@@ -3911,7 +3986,7 @@ set_index_addr(INDEXDATA_S	   *idata,
 	if(save_personal)
 	  addr->personal = save_personal;
 
-	if(l = prefix ? strlen(prefix) : 0)
+	if((l = prefix ? strlen(prefix) : 0) != 0)
 	  strncpy(s, prefix, width+1);
 
 	iutf8ncpy(s + l, a_string, width - l);
@@ -4060,7 +4135,8 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len,
 	}
     }
     else
-      parse_date(datesrc, &d);
+      parse_date(F_ON(F_DATES_TO_LOCAL,ps_global)
+		    ? convert_date_to_local(datesrc) : datesrc, &d);
 
     strncpy(monabb, (d.month > 0 && d.month < 13)
 		    ? month_abbrev_locale(d.month) : "", sizeof(monabb));
@@ -4323,6 +4399,8 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len,
 		snprintf(str, str_len, "%4s-%2s-%2s",
 			year4, monzero, dayzero);
 		break;
+	      default:
+		break;
 	    }
 	}
 
@@ -4481,6 +4559,8 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len,
 		      snprintf(str, str_len, "%4s-%2s-%2s",
 			    year4, monzero, dayzero);
 		      break;
+		    default:
+		      break;
 		  }
 	      }
 
@@ -4500,6 +4580,9 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len,
 	}
 
 	break;
+
+	default:
+	  break;
     }
 
     str[str_len-1] = '\0';
@@ -4627,8 +4710,6 @@ key_str(INDEXDATA_S *idata, SubjKW kwtype, ICE_S *ice)
     SPEC_COLOR_S *sc = ps_global->kw_colors;
     IELEM_S      *ielem = NULL;
     IFIELD_S     *ourifield = NULL;
-    char         *p;
-    SIZEDTEXT     src, result;
 
     if(ice && ice->ifield){
 	/* move to last ifield, the one we're working */
@@ -4741,6 +4822,109 @@ key_str(INDEXDATA_S *idata, SubjKW kwtype, ICE_S *ice)
 
 
 void
+prio_str(INDEXDATA_S *idata, IndexColType ctype, ICE_S *ice)
+{
+    IFIELD_S     *ourifield = NULL;
+    IELEM_S      *ielem = NULL;
+    char         *hdrval;
+    PRIORITY_S   *p;
+    int           v;
+
+    if(ice && ice->ifield){
+	/* move to last ifield, the one we're working */
+	for(ourifield = ice->ifield;
+	    ourifield && ourifield->next;
+	    ourifield = ourifield->next)
+	  ;
+    }
+
+    if(!ourifield)
+      return;
+
+    hdrval = fetch_header(idata, PRIORITYNAME);
+
+    if(hdrval && hdrval[0] && isdigit(hdrval[0])){
+	v = atoi(hdrval);
+	if(v >= 1 && v <= 5 && v != 3){
+
+	    ielem = new_ielem(&ourifield->ielem);
+	    ielem->freedata = 1;
+
+	    switch(ctype){
+	      case iPrio:
+		ielem->data = (char *) fs_get(2 * sizeof(char));
+		ielem->data[0] = hdrval[0];
+		ielem->data[1] = '\0';
+		break;
+
+	      case iPrioAlpha:
+		for(p = priorities; p && p->desc; p++)
+		  if(p->val == v)
+		    break;
+
+		if(p && p->desc)
+		  ielem->data = cpystr(p->desc);
+		  
+		break;
+
+	      case iPrioBang:
+		ielem->data = (char *) fs_get(2 * sizeof(char));
+		ielem->data[0] = '\0';
+		switch(v){
+		  case 1: case 2:
+		    ielem->data[0] = '!';
+		    break;
+
+		  case 4: case 5:
+		    /*
+		     * We could put a Unicode downarrow in here but
+		     * we have no way of knowing if the user's font
+		     * will have it (I think).
+		     */
+		    ielem->data[0] = 'v';
+		    break;
+		}
+
+		ielem->data[1] = '\0';
+	        
+		break;
+	  
+	      default:
+		panic("Unhandled case in prio_str");
+		break;
+	    }
+
+	    if(!ielem->data)
+	      ielem->data = cpystr("");
+
+	    if(ielem && ielem->data)
+	      ielem->datalen = strlen(ielem->data);
+
+	    if((v == 1 || v == 2) && pico_usingcolor()
+	       && ps_global->VAR_IND_HIPRI_FORE_COLOR
+	       && ps_global->VAR_IND_HIPRI_BACK_COLOR){
+		ielem->type = eTypeCol;
+		ielem->freecolor = 1;
+		ielem->color = new_color_pair(ps_global->VAR_IND_HIPRI_FORE_COLOR, ps_global->VAR_IND_HIPRI_BACK_COLOR);
+	    }
+	    else if((v == 4 || v == 5) && pico_usingcolor()
+	       && ps_global->VAR_IND_LOPRI_FORE_COLOR
+	       && ps_global->VAR_IND_LOPRI_BACK_COLOR){
+		ielem->type = eTypeCol;
+		ielem->freecolor = 1;
+		ielem->color = new_color_pair(ps_global->VAR_IND_LOPRI_FORE_COLOR, ps_global->VAR_IND_LOPRI_BACK_COLOR);
+	    }
+
+	    ourifield->leftadj = 1;
+	    set_ielem_widths_in_field(ourifield);
+	}
+
+	fs_give((void **) &hdrval);
+    }
+}
+
+
+void
 header_str(INDEXDATA_S *idata, HEADER_TOK_S *hdrtok, ICE_S *ice)
 {
     IFIELD_S     *ourifield = NULL;
@@ -4777,7 +4961,7 @@ char *
 get_fieldval(INDEXDATA_S *idata, HEADER_TOK_S *hdrtok)
 {
     int           sep, fieldnum;
-    char         *hdrval = NULL, *p, *testval;
+    char         *hdrval = NULL, *testval;
     char         *fieldval = NULL, *firstval;
     char         *retfieldval = NULL;
 
@@ -4882,11 +5066,11 @@ subj_str(INDEXDATA_S *idata, int width, char *str, SubjKW kwtype, int opening, I
     char          *p, *border, *q = NULL, *free_subj = NULL;
     char	  *sp;
     size_t         len;
-    int            depth = 0, mult = 2, collapsed, i;
+    int            depth = 0, mult = 2;
     int            save;
     int            do_subj = 0;
     PINETHRD_S    *thd, *thdorig;
-    IELEM_S       *ielem = NULL, *anotherielem, *subjielem = NULL;
+    IELEM_S       *ielem = NULL, *subjielem = NULL;
     IFIELD_S      *ourifield = NULL;
 
     /*
@@ -5039,7 +5223,7 @@ subj_str(INDEXDATA_S *idata, int width, char *str, SubjKW kwtype, int opening, I
 			q = str + width-5;
 		    }
 		    else{
-			snprintf(str, width+1, "%s", repeat_char(width, '.'), width);
+			snprintf(str, width+1, "%s", repeat_char(width, '.'));
 			q = str;
 		    }
 
@@ -5099,7 +5283,6 @@ subj_str(INDEXDATA_S *idata, int width, char *str, SubjKW kwtype, int opening, I
 				   *this_prep = NULL,  /* includes prepend */
 				   *prev_prep = NULL;
 			ENVELOPE   *env;
-			char       *prevsubj = NULL;
 			mailcache_t mc;
 			SORTCACHE  *sc = NULL;
 
@@ -5139,15 +5322,15 @@ subj_str(INDEXDATA_S *idata, int width, char *str, SubjKW kwtype, int opening, I
 						    ps_global->VAR_KW_BRACES);
 
 			    if((this_prep || prev_prep)
-			       && (this_prep && !prev_prep
-				   || prev_prep && !this_prep
+			       && ((this_prep && !prev_prep)
+				   || (prev_prep && !this_prep)
 				   || strucmp(this_prep, prev_prep)))
 			      do_subj++;
 			}
 			else{
 			    if((this_orig || prev_orig)
-			       && (this_orig && !prev_orig
-				   || prev_orig && !this_orig
+			       && ((this_orig && !prev_orig)
+				   || (prev_orig && !this_orig)
 				   || strucmp(this_orig, prev_orig)))
 			      do_subj++;
 			}
@@ -5377,7 +5560,6 @@ char *
 prepend_keyword_subject(MAILSTREAM *stream, long int rawno, char *subject,
 			SubjKW kwtype, IELEM_S **ielemp, char *braces)
 {
-    char        **t;
     char         *p, *next_piece, *retsubj = NULL, *str;
     char         *left_brace = NULL, *right_brace = NULL;
     size_t        len;
@@ -5386,7 +5568,6 @@ prepend_keyword_subject(MAILSTREAM *stream, long int rawno, char *subject,
     KEYWORD_S    *kw;
     COLOR_PAIR   *color = NULL;
     SPEC_COLOR_S *sc = ps_global->kw_colors;
-    char         *tmp = NULL;
 
     if(!subject)
       subject = "";
@@ -5649,7 +5830,7 @@ from_str(IndexColType ctype, INDEXDATA_S *idata, int width, char *str, ICE_S *ic
 			q = str + width-5;
 		    }
 		    else{
-			snprintf(str, width+1, "%s", repeat_char(width, '.'), width);
+			snprintf(str, width+1, "%s", repeat_char(width, '.'));
 			q = str;
 		    }
 
@@ -5755,6 +5936,9 @@ from_str(IndexColType ctype, INDEXDATA_S *idata, int width, char *str, ICE_S *ic
 		  snprintf(fptr, width+1, "%s@%-*.*s", mb, width-len-1, width-len-1, hst);
 	    }
 
+	    break;
+
+	  default:
 	    break;
 	}
     }
@@ -5985,7 +6169,6 @@ char *
 copy_format_str(int width, int left, char *dest, int n)
 {
     char  *p;
-    size_t len;
 
     p = int2string(width);
 

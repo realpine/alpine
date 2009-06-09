@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: fltrname.c 245 2006-11-18 02:46:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: fltrname.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,10 @@ static char rcsid[] = "$Id: fltrname.c 245 2006-11-18 02:46:41Z hubert@u.washing
 #include <system.h>
 #include <general.h>
 
-#include "./fltrname.h"
+#include "../../pith/osdep/writ_dir.h"
+#include "../../pith/osdep/bldpath.h"
+
+#include "fltrname.h"
 
 
 /*----------------------------------------------------------------------

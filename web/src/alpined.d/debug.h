@@ -44,6 +44,7 @@ extern int debug;
 
 /* exported prototypes */
 void	debug_init(void);
+void    setup_imap_debug(void);
 
 
 #endif /* _WEB_ALPINE_DEBUG_INCLUDED */

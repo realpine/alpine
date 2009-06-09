@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: creatdir.c 215 2006-11-02 01:43:37Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: creatdir.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ static char rcsid[] = "$Id: creatdir.c 215 2006-11-02 01:43:37Z jpf@u.washington
  Result: Directory is created.  Returns 0 on success, else -1 on error
 	 and errno is valid.
   ----*/
+int
 create_mail_dir(char *dir)
 {
     if(our_mkdir(dir, MAILDIR_MODE) < 0)

@@ -1,9 +1,9 @@
 /*----------------------------------------------------------------------
-  $Id: system.h 487 2007-03-23 16:53:15Z hubert@u.washington.edu $
+  $Id: system.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
   ----------------------------------------------------------------------*/
 
 /* ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,6 +47,10 @@
 
 # if	HAVE_STRINGS_H
 #  include <strings.h>
+# endif
+
+# if	HAVE_WCHAR_H
+#  include <wchar.h>
 # endif
 
 # include <stdarg.h>

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: bldpath.c 165 2006-10-04 01:09:47Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: bldpath.c 681 2007-08-21 23:37:23Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -27,7 +27,7 @@ static char rcsid[] = "$Id: bldpath.c 165 2006-10-04 01:09:47Z jpf@u.washington.
  * Useful definitions
  */
 #ifdef	_WINDOWS
-#define	ROOTED(S)	(*(S) == '//' || (isalpha((unsigned char) (S)[0]) && (S)[1] == ':'))
+#define	ROOTED(S)	(*(S) == '\\' || (isalpha((unsigned char) (S)[0]) && (S)[1] == ':'))
 #define	HOMERELATIVE(S)	(FALSE)
 #else	/* UNIX */
 #define	ROOTED(S)	(*(S) == '/')
@@ -90,7 +90,7 @@ build_path(char *pathbuf, char *first_part, char *second_part, size_t len)
 	    pathbuf[fpl] = '\0';
 	}
 
-	strncat(pathbuf, second_part, len-1-fpl);
+	strncat(pathbuf, second_part, len-1-strlen(pathbuf));
 	pathbuf[len-1] = '\0';
 
 #endif

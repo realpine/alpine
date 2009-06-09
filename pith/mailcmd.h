@@ -1,8 +1,8 @@
 /*
- * $Id: mailcmd.h 220 2006-11-06 19:58:04Z hubert@u.washington.edu $
+ * $Id: mailcmd.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -68,5 +68,7 @@ int	   unzoom_index(struct pine *, MAILSTREAM *, MSGNO_S *);
 int	   agg_text_select(MAILSTREAM *, MSGNO_S *, char, int, char *, char *, SEARCHSET **);
 int	   agg_flag_select(MAILSTREAM *, int, int, SEARCHSET **);
 char	  *get_uname(char *, char *, int);
+int        expand_foldername(char *, size_t);
+
 
 #endif /* PITH_MAILCMD_INCLUDED */

@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: msdlg.c 254 2006-11-21 21:54:24Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: msdlg.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 /*---------------------------------------------------------------------------
  *
@@ -45,6 +45,7 @@ static char rcsid[] = "$Id: msdlg.c 254 2006-11-21 21:54:24Z hubert@u.washington
 #include "../keydefs.h"
 #include "../edef.h"
 #include "../efunc.h"
+#include "../utf8stub.h"
 #include "../../pith/charconv/filesys.h"
 
 
@@ -258,7 +259,6 @@ mswin_dialog_proc (HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
     int		biCount;
     HWND	hEdit;
     MDlgButton	built_in[3];
-    LPTSTR      lpstr;
     long        l;
     
     
@@ -375,7 +375,7 @@ mswin_dialog_proc (HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	     * return it's result code.  Retreive text.
 	     */
 	    if (  wParam >= BTN_FIRSTID && 
-		  wParam < BTN_FIRSTID + gOEInfo.button_count) {
+		  wParam < BTN_FIRSTID + (WPARAM) gOEInfo.button_count) {
 		GetDlgItemText(hDlg, IDC_RESPONCE, gOEInfo.string, gOEInfo.strlen);
 		i = wParam - BTN_FIRSTID;
 		gOEInfo.result = gOEInfo.button_list[i].rval;
@@ -399,8 +399,6 @@ LONG FAR PASCAL __export
 EditProc (HWND hEdit, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     HWND	hDlg;
-    int		i;
-    int		id;
     LONG	ret;
     
     hDlg = GetParent (hEdit);
@@ -442,8 +440,6 @@ LONG FAR PASCAL __export
 ButtonProc (HWND hBtn, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     HWND	hDlg;
-    int		i;
-    int		id;
     LONG	ret;
     
 
@@ -466,7 +462,7 @@ ButtonProc (HWND hBtn, UINT uMsg, WPARAM wParam, LPARAM lParam)
 int
 mswin_yesno(UCS *prompt_ucs4)
 {
-    int ret, i;
+    int ret;
     LPTSTR prompt_lptstr;
 
     prompt_lptstr = ucs4_to_lptstr(prompt_ucs4);
@@ -480,7 +476,7 @@ mswin_yesno(UCS *prompt_ucs4)
 int
 mswin_yesno_utf8(char *prompt_utf8)
 {
-    int ret, i;
+    int ret;
     LPTSTR prompt_lptstr;
 
     prompt_lptstr = utf8_to_lptstr(prompt_utf8);
@@ -648,9 +644,8 @@ BOOL CALLBACK  __export
 mswin_select_proc (HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     BOOL	ret = FALSE;
-    int		i, l;
+    int		i;
     int		biCount;
-    HWND	hEdit;
     MDlgButton	built_in[3];
     
     if (mswin_debug >= 1)
@@ -733,7 +728,7 @@ mswin_select_proc (HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	    
 	default:
 	    if (  wParam >= BTN_FIRSTID && 
-		  wParam < BTN_FIRSTID + gOEInfo.button_count) {
+		  wParam < BTN_FIRSTID + (WPARAM) gOEInfo.button_count) {
 		i = wParam - BTN_FIRSTID;
 		gOEInfo.result = gOEInfo.button_list[i].rval;
 		EndDialog (hDlg, gOEInfo.result);
@@ -753,7 +748,6 @@ mswin_select_proc (HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 LONG FAR PASCAL __export
 KBCProc (HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-    int		i;
     LONG	ret;
     
 

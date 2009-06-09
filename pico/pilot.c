@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pilot.c 417 2007-02-03 01:33:25Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pilot.c 672 2007-08-15 23:07:18Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -31,6 +31,11 @@ static char rcsid[] = "$Id: pilot.c 417 2007-02-03 01:33:25Z hubert@u.washington
  */
 
 #include	"headers.h"
+#include	"../c-client/mail.h"
+#include	"../c-client/rfc822.h"
+#include	"../pith/osdep/collate.h"
+#include	"../pith/charconv/filesys.h"
+#include	"../pith/conf.h"
 
 
 #define		PILOT_VERSION	"UW PILOT 2.99"
@@ -113,7 +118,7 @@ main(int argc, char *argv[])
      * Read command line flags before initializing, otherwise, we never
      * know to init for f_keys...
      */
-    if(dir = pilot_args(argc, argv, &setlocale_collate)){
+    if((dir = pilot_args(argc, argv, &setlocale_collate)) != NULL){
 	strncpy(filedir, dir, sizeof(filedir));
 	filedir[sizeof(filedir)-1] = '\0';
 	fixpath(filedir, sizeof(filedir));
@@ -207,6 +212,7 @@ main(int argc, char *argv[])
     set_browser_title(PILOT_VERSION);
     FileBrowse(filedir, sizeof(filedir), filename, sizeof(filename), NULL, 0, 0, NULL);
     wquit(1, 0);
+    exit(0);
 }
 
 

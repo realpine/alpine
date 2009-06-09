@@ -1,8 +1,8 @@
 /*
- * $Id: titlebar.h 567 2007-05-14 21:14:56Z hubert@u.washington.edu $
+ * $Id: titlebar.h 676 2007-08-20 19:46:37Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,6 +46,9 @@ COLOR_PAIR *current_titlebar_color(void);
 void	    update_titlebar_message(void);
 void	    update_titlebar_percent(long);
 void	    update_titlebar_lpercent(long);
+void	    titlebar_stream_closing(MAILSTREAM *);
+int         update_titlebar_status(void);
+void        check_cue_display(char *);
 
 
 #endif /* PINE_TITLEBAR_INCLUDED */

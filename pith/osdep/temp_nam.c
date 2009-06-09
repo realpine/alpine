@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: temp_nam.c 229 2006-11-13 23:14:48Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: temp_nam.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -28,6 +28,8 @@ static char rcsid[] = "$Id: temp_nam.c 229 2006-11-13 23:14:48Z hubert@u.washing
 
 
 #ifdef	_WINDOWS
+
+#include <process.h>
 
 #define	ACCESSIBLE	(WRITE_ACCESS)
 #define	PATH_SEP	"\\"
@@ -83,9 +85,9 @@ was_nonexistent_tmp_name(char *as, size_t aslen, int flags, char *ext)
 
     /* add the extension, enough room guaranteed by caller */
     if(ext){
-	strncat(as, ".", aslen);
+	strncat(as, ".", aslen-strlen(as)-1);
 	as[aslen-1] = '\0';
-	strncat(as, ext, aslen);
+	strncat(as, ext, aslen-strlen(as)-1);
 	as[aslen-1] = '\0';
     }
 
@@ -215,7 +217,7 @@ temp_nam(char *dir, char *prefix, int flags)
     size_t      l, ll;
     char       *f, *name;
 
-    if(!(name = (char *)malloc((unsigned int) MAXPATH)))
+    if(!(name = (char *)malloc(MAXPATH * sizeof(char))))
         return((char *)NULL);
 
     if(!dir && (f = getenv("TMPDIR")) && !our_stat(f, &buf) &&
@@ -248,7 +250,7 @@ temp_nam(char *dir, char *prefix, int flags)
 #ifdef	_WINDOWS
 
 	if(!*dir || (isalpha(*dir) && *(dir+1) == ':' && !*(dir+2))){
-	    strncat(name, "\\", MAXPATH);
+	    strncat(name, "\\", MAXPATH-strlen(name)-1);
 	    name[MAXPATH-1] = '\0';
 	}
 
@@ -370,7 +372,7 @@ temp_nam_ext(char *dir, char *prefix, int flags, char *ext)
 
 #ifdef	_WINDOWS
 	if(!*dir || (isalpha(*dir) && *(dir+1) == ':' && !*(dir+2))){
-	    strncat(name, PATH_SEP, MAXPATH);
+	    strncat(name, PATH_SEP, MAXPATH-strlen(name)-1);
 	    name[MAXPATH-1] = '\0';
 	}
 #endif

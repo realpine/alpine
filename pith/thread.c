@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: thread.c 598 2007-06-12 17:36:59Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: thread.c 688 2007-08-24 22:14:09Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,9 @@ static char rcsid[] = "$Id: thread.c 598 2007-06-12 17:36:59Z hubert@u.washingto
 #include "../pith/pineelt.h"
 #include "../pith/status.h"
 #include "../pith/news.h"
+#include "../pith/search.h"
+#include "../pith/mailcmd.h"
+#include "../pith/ablookup.h"
 
 
 /*
@@ -44,6 +47,10 @@ struct pass_along *sort_thread_flatten(THREADNODE *, MAILSTREAM *,
 				       struct pass_along *, PINETHRD_S *, unsigned);
 void		   make_thrdflags_consistent(MAILSTREAM *, MSGNO_S *, PINETHRD_S *, int);
 THREADNODE	  *collapse_threadnode_tree(THREADNODE *);
+THREADNODE	  *collapse_threadnode_tree_sorted(THREADNODE *);
+THREADNODE	  *sort_threads_and_collapse(THREADNODE *);
+THREADNODE	  *promote_orphans(THREADNODE *);
+unsigned long      branch_greatest_num(THREADNODE *, int);
 long		   calculate_visible_threads(MAILSTREAM *);
 
 
@@ -155,9 +162,8 @@ sort_thread_callback(MAILSTREAM *stream, struct thread_node *tree)
 {
     THREADNODE *collapsed_tree = NULL;
     long          i;
-    PINETHRD_S   *thrd = NULL, *nthrd, *top;
-    unsigned long msgno, rawno, set_in_thread, in_thread;
-    int           bail, this_is_vis;
+    PINETHRD_S   *thrd = NULL;
+    unsigned long msgno, rawno;
     int           un_view_thread = 0;
     long          raw_current;
 
@@ -178,7 +184,10 @@ sort_thread_callback(MAILSTREAM *stream, struct thread_node *tree)
      * way. If the dummy node is at the top-level, then its children are
      * promoted to the top-level as separate threads.
      */
-    collapsed_tree = collapse_threadnode_tree(tree);
+    if(F_ON(F_THREAD_SORTS_BY_ARRIVAL, ps_global))
+      collapsed_tree = collapse_threadnode_tree_sorted(tree);
+    else
+      collapsed_tree = collapse_threadnode_tree(tree);
     (void) sort_thread_flatten(collapsed_tree, stream, thrd_flatten_array,
 			       NULL, THD_TOP);
     mail_free_threadnode(&collapsed_tree);
@@ -569,6 +578,135 @@ collapse_threadnode_tree(struct thread_node *tree)
 
 
 /*
+ * Like collapse_threadnode_tree, we collapse the dummy nodes.
+ * In addition we rearrange the threads by order of arrival of
+ * the last message in the thread, rather than the first message
+ * in the thread.
+ */
+THREADNODE *
+collapse_threadnode_tree_sorted(struct thread_node *tree)
+{
+    THREADNODE *sorted_tree = NULL;
+
+    sorted_tree = sort_threads_and_collapse(tree);
+    promote_orphans(sorted_tree);
+
+    return(sorted_tree);
+}
+
+/*
+ * Recurse through the tree, sorting each top-level branch by the
+ * greatest num in the thread.
+ */
+THREADNODE *
+sort_threads_and_collapse(struct thread_node *tree)
+{
+    THREADNODE *newtree = NULL, *newbranchtree = NULL, *node = NULL;
+    unsigned long newtree_greatest_num = 0;
+
+    if(tree){
+	newtree = mail_newthreadnode(NULL);
+	newtree->num  = tree->num;
+
+	/* 
+	 * Only sort at the top level.  Individual threads can
+	 * rely on collapse_threadnode_treee 
+	 */
+	if(tree->next)
+	  newtree->next = collapse_threadnode_tree(tree->next);
+
+	if(tree->branch){
+	    /*
+	     * This recursive call returns an already re-sorted tree.
+	     * With that, we can loop through and inject ourselves
+	     * where we fit in with that sort, and pass back to the
+	     * caller to inject themselves.
+	     */
+	    newbranchtree = sort_threads_and_collapse(tree->branch);
+	    newtree_greatest_num = branch_greatest_num(newtree, 0);
+	    if(newtree_greatest_num < branch_greatest_num(newbranchtree, 0))
+	      newtree->branch = newbranchtree;
+	    else{
+		for(node = newbranchtree; node->branch; node = node->branch){
+		    if(newtree_greatest_num < branch_greatest_num(node->branch, 0)){
+			newtree->branch = node->branch;
+			node->branch = newtree;
+			break;
+		    }
+		}
+		if(!node->branch)
+		  node->branch = newtree;
+
+		newtree = newbranchtree;
+	    }
+	}
+    }
+
+    return(newtree);
+}
+
+/*
+ * Given a thread, return the greatest num in the tree.
+ * is_subthread tells us not to recurse through branches, so
+ * we can split the top level into threads.
+ */
+unsigned long
+branch_greatest_num(struct thread_node *tree, int is_subthread)
+{
+    unsigned long ret, branch_ret;
+
+    ret = tree->num;
+
+    if(tree->next && (branch_ret = branch_greatest_num(tree->next, 1)) > ret)
+      ret = branch_ret;
+    if(is_subthread && tree->branch &&
+       (branch_ret = branch_greatest_num(tree->branch, 1)) > ret)
+      ret = branch_ret;
+
+    return ret;
+}
+
+
+/*
+ * Loop through the top-level threads and promote parentless children to the
+ * top level.  All subthreads will have had this happen by now.  We had
+ * to wait at the top level until after we did the arrival sort.
+ */
+THREADNODE *
+promote_orphans(struct thread_node *tree)
+{
+    THREADNODE *branch = NULL, *subthread = NULL, *free_node = NULL;
+
+    /* Looping through the top level ... */
+    for(branch = tree; branch; branch = branch->branch){
+	if(!branch->num){
+
+	    /* go to the last branch of the subthread */
+	    for(subthread = branch->next;
+		subthread->branch;
+		subthread = subthread->branch);
+
+	    /* 
+	     * parent becomes child, points to childs sibling,
+	     * and last sibling points to parent's old sibling.
+	     *
+	     * free top child no longer being pointed to.
+	     */
+	    branch->num = branch->next->num;
+	    subthread->branch = branch->branch;
+	    branch->branch = branch->next->branch;
+	    free_node = branch->next;
+	    branch->next = branch->next->next;
+	    free_node->next = NULL;
+	    free_node->branch = NULL;
+	    mail_free_threadnode(&free_node);
+	}
+    }
+    return(tree);
+}
+
+
+/*
  * Args      stream -- the usual
  *            rawno -- the raw msg num associated with this new node
  * attached_to_thrd -- the PINETHRD_S node that this is either a next or branch
@@ -707,7 +845,7 @@ collapse_or_expand(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
 	if(msgno > 0L && msgno <= mn_get_total(msgmap)){
 	    set_lflag(stream, msgmap, msgno, MN_COLL, 0);
 	    if(thrd->next){
-		if(nthrd = fetch_thread(stream, thrd->next))
+		if((nthrd = fetch_thread(stream, thrd->next)) != NULL)
 		  set_thread_subtree(stream, nthrd, msgmap, 0, MN_CHID);
 
 		clear_index_cache_ent(stream, msgno, 0);
@@ -718,7 +856,7 @@ collapse_or_expand(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
 	msgno = mn_raw2m(msgmap, thrd->rawno);
 	if(msgno > 0L && msgno <= mn_get_total(msgmap)){
 	    set_lflag(stream, msgmap, msgno, MN_COLL, 1);
-	    if(nthrd = fetch_thread(stream, thrd->next))
+	    if((nthrd = fetch_thread(stream, thrd->next)) != NULL)
 	      set_thread_subtree(stream, nthrd, msgmap, 1, MN_CHID);
 
 	    clear_index_cache_ent(stream, msgno, 0);
@@ -808,7 +946,7 @@ select_thread_stmp(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap)
 unsigned long
 count_flags_in_thread(MAILSTREAM *stream, PINETHRD_S *thrd, long int flags)
 {
-    unsigned long rawno, count = 0;
+    unsigned long count = 0;
     PINETHRD_S *nthrd, *bthrd;
     MESSAGECACHE *mc;
 
@@ -829,7 +967,7 @@ count_flags_in_thread(MAILSTREAM *stream, PINETHRD_S *thrd, long int flags)
 
     mc = (thrd && thrd->rawno > 0L && stream && thrd->rawno <= stream->nmsgs)
 	  ? mail_elt(stream, thrd->rawno) : NULL;
-    if(mc && mc->valid && FLAG_MATCH(flags, mc))
+    if(mc && mc->valid && FLAG_MATCH(flags, mc, stream))
       count++;
 
     return count;
@@ -849,7 +987,7 @@ count_flags_in_thread(MAILSTREAM *stream, PINETHRD_S *thrd, long int flags)
 unsigned long
 count_lflags_in_thread(MAILSTREAM *stream, PINETHRD_S *thrd, MSGNO_S *msgmap, int flags)
 {
-    unsigned long rawno, count = 0;
+    unsigned long count = 0;
     PINETHRD_S *nthrd, *bthrd;
 
     if(!thrd || !stream || thrd->rawno < 1L || thrd->rawno > stream->nmsgs)
@@ -882,7 +1020,6 @@ count_lflags_in_thread(MAILSTREAM *stream, PINETHRD_S *thrd, MSGNO_S *msgmap, in
 int
 thread_has_some_visible(MAILSTREAM *stream, PINETHRD_S *thrd)
 {
-    unsigned long rawno, count = 0;
     PINETHRD_S *nthrd, *bthrd;
 
     if(!thrd || !stream || thrd->rawno < 1L || thrd->rawno > stream->nmsgs)
@@ -958,7 +1095,7 @@ set_thread_lflags(MAILSTREAM *stream, PINETHRD_S *thrd, MSGNO_S *msgmap, int fla
                       		/* flags to set or clear */
                   		/* set or clear? */
 {
-    unsigned long rawno, msgno;
+    unsigned long msgno;
     PINETHRD_S *nthrd, *bthrd;
 
     if(!thrd || !stream || thrd->rawno < 1L || thrd->rawno > stream->nmsgs)
@@ -1005,7 +1142,6 @@ char
 status_symbol_for_thread(MAILSTREAM *stream, PINETHRD_S *thrd, IndexColType type)
 {
     char        status = ' ';
-    PINETHRD_S *nthrd, *bthrd;
     unsigned long save_branch, cnt, tot_in_thrd;
 
     if(!thrd || !stream || thrd->rawno < 1L || thrd->rawno > stream->nmsgs)
@@ -1015,10 +1151,13 @@ status_symbol_for_thread(MAILSTREAM *stream, PINETHRD_S *thrd, IndexColType type
     thrd->branch = 0L;		/* branch is a sibling, not part of thread */
     
     if(type == iStatus){
+	tot_in_thrd = count_flags_in_thread(stream, thrd, F_NONE);
 	/* all deleted */
-	if(count_flags_in_thread(stream, thrd, F_DEL) ==
-	   count_flags_in_thread(stream, thrd, F_NONE))
+	if(count_flags_in_thread(stream, thrd, F_DEL) == tot_in_thrd)
 	  status = 'D';
+	/* all answered */
+	else if(count_flags_in_thread(stream, thrd, F_ANS) == tot_in_thrd)
+	  status = 'A';
 	/* or any new and not deleted */
 	else if((!IS_NEWS(stream)
 		 || F_ON(F_FAKE_NEW_IN_NEWS, ps_global))
@@ -1091,7 +1230,7 @@ to_us_symbol_for_thread(MAILSTREAM *stream, PINETHRD_S *thrd, int consider_flagg
 	if(consider_flagged && thrd && thrd->rawno > 0L
 	   && stream && thrd->rawno <= stream->nmsgs
 	   && (mc = mail_elt(stream, thrd->rawno))
-	   && FLAG_MATCH(F_FLAG, mc))
+	   && FLAG_MATCH(F_FLAG, mc, stream))
 	  to_us = '*';
 	else if(to_us != '+' && !IS_NEWS(stream)){
 	    INDEXDATA_S   idata;
@@ -1153,7 +1292,7 @@ set_thread_subtree(MAILSTREAM *stream, PINETHRD_S *thrd, MSGNO_S *msgmap, int v,
                       		/* flags to set or clear */
 {
     int hiding;
-    unsigned long rawno, msgno;
+    unsigned long msgno;
     PINETHRD_S *nthrd, *bthrd;
 
     hiding = (flags == MN_CHID) && v;
@@ -1260,7 +1399,7 @@ int
 unview_thread(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap)
 {
     PINETHRD_S   *thrd = NULL, *topthrd = NULL;
-    unsigned long rawno, i;
+    unsigned long rawno;
 
     if(!(stream && msgmap))
       return 0;

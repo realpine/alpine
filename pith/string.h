@@ -1,8 +1,8 @@
 /*
- * $Id: string.h 549 2007-04-27 23:25:32Z hubert@u.washington.edu $
+ * $Id: string.h 671 2007-08-15 20:28:09Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -113,6 +113,7 @@ char	   *day_name_locale(int);
 size_t      our_strftime(char *, size_t, char *, struct tm *);
 int	    month_num(char *);
 void	    parse_date(char *, struct date *);
+char       *convert_date_to_local(char *);
 char	   *repeat_char(int, int);
 char	   *byte_string(long);
 char	   *enth_string(int);
@@ -143,6 +144,7 @@ STRLIST_S  *new_strlist(char *);
 STRLIST_S  *copy_strlist(STRLIST_S *);
 void	    combine_strlists(STRLIST_S **, STRLIST_S *);
 void	    free_strlist(STRLIST_S **);
+int         read_octal(char **);
 
 
 #endif /* PITH_STRING_INCLUDED */

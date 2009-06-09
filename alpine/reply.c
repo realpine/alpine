@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: reply.c 605 2007-06-20 21:15:13Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: reply.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -44,6 +44,7 @@ The evolution continues...
 #include "signal.h"
 #include "mailcmd.h"
 #include "alpine.h"
+#include "roleconf.h"
 #include "../pith/state.h"
 #include "../pith/conf.h"
 #include "../pith/init.h"
@@ -57,6 +58,8 @@ The evolution continues...
 #include "../pith/detoken.h"
 #include "../pith/newmail.h"
 #include "../pith/readfile.h"
+#include "../pith/tempfile.h"
+#include "../pith/busy.h"
 
 
 /*
@@ -583,13 +586,13 @@ reply(struct pine *pine_state, ACTION_S *role_arg)
 				    ? pine_state->mail_stream->original_mailbox
 				    : pine_state->mail_stream->mailbox);
     reply.data.uid.msgs = (imapuid_t *) fs_get((times + 1) * sizeof(imapuid_t));
-    if(reply.data.uid.validity = pine_state->mail_stream->uid_validity){
-	reply.flags = REPLY_UID;
+    if((reply.data.uid.validity = pine_state->mail_stream->uid_validity) != 0){
+	reply.uid = 1;
 	for(i = 0; i < times ; i++)
 	  reply.data.uid.msgs[i] = mail_uid(pine_state->mail_stream, seq[i]);
     }
     else{
-	reply.flags = REPLY_MSGNO;
+	reply.msgno = 1;
 	for(i = 0; i < times ; i++)
 	  reply.data.uid.msgs[i] = seq[i];
     }
@@ -603,7 +606,7 @@ reply(struct pine *pine_state, ACTION_S *role_arg)
     /* partially formatted outgoing message */
     pine_send(outgoing, &body, _("COMPOSE MESSAGE REPLY"),
 	      role, fcc, &reply, redraft_pos, NULL, NULL, 0);
-  done:
+
     rv++;
     pine_free_body(&body);
     if(reply.mailbox)
@@ -1123,8 +1126,8 @@ get_signature_file(char *file, int prenewlines, int postnewlines, int is_sig)
 
 		    start = time(0);
 
-		    if(syspipe = open_system_pipe(sig_path, NULL, NULL, flags, 5,
-						  pipe_callback, pipe_report_error)){
+		    if((syspipe = open_system_pipe(sig_path, NULL, NULL, flags, 5,
+						  pipe_callback, pipe_report_error)) != NULL){
 			unsigned char c;
 			char         *error, *q;
 
@@ -1133,7 +1136,7 @@ get_signature_file(char *file, int prenewlines, int postnewlines, int is_sig)
 			gf_filter_init();
 
 			if((error = gf_pipe(gc, pc)) != NULL){
-			    (void)close_system_pipe(&syspipe, NULL, NULL);
+			    (void)close_system_pipe(&syspipe, NULL, pipe_callback);
 			    gf_clear_so_writec(store);
 			    so_give(&store);
 			    q_status_message1(SM_ORDER | SM_DING, 3, 4,
@@ -1141,7 +1144,7 @@ get_signature_file(char *file, int prenewlines, int postnewlines, int is_sig)
 			    return(NULL);
 			}
 
-			if(close_system_pipe(&syspipe, NULL, NULL)){
+			if(close_system_pipe(&syspipe, NULL, pipe_callback)){
 			    long now;
 
 			    now = time(0);
@@ -1226,7 +1229,7 @@ int
 forward(struct pine *ps, ACTION_S *role_arg)
 {
     char	  *sig;
-    int		   ret, forward_raw_body = 0, rv = 0;
+    int		   ret, forward_raw_body = 0, rv = 0, i;
     long	   msgno, j, totalmsgs, rflags;
     ENVELOPE	  *env, *outgoing;
     BODY	  *orig_body, *body = NULL;
@@ -1348,7 +1351,7 @@ forward(struct pine *ps, ACTION_S *role_arg)
     else
       impl = 1;
      
-    if(sig = detoken(role, NULL, 2, 0, 1, &redraft_pos, &impl)){
+    if((sig = detoken(role, NULL, 2, 0, 1, &redraft_pos, &impl)) != NULL){
 	if(impl == 2)
 	  redraft_pos->offset += template_len;
 
@@ -1526,15 +1529,39 @@ forward(struct pine *ps, ACTION_S *role_arg)
 	  fs_give((void **) &charset);
 
 	if(reply.orig_charset)
-	  reply.flags = REPLY_FORW;
+	  reply.forw = 1;
     }
+
+    /* fill in reply structure */
+    reply.forwarded	= 1;
+    reply.mailbox	= cpystr(ps->mail_stream->mailbox);
+    reply.origmbox	= cpystr(ps->mail_stream->original_mailbox
+				    ? ps->mail_stream->original_mailbox
+				    : ps->mail_stream->mailbox);
+    reply.data.uid.msgs = (imapuid_t *) fs_get((totalmsgs + 1) * sizeof(imapuid_t));
+    if((reply.data.uid.validity = ps->mail_stream->uid_validity) != 0){
+	reply.uid = 1;
+	for(msgno = mn_first_cur(ps->msgmap), i = 0;
+	    msgno > 0L;
+	    msgno = mn_next_cur(ps->msgmap), i++)
+	  reply.data.uid.msgs[i] = mail_uid(ps->mail_stream, mn_m2raw(ps->msgmap, msgno));
+    }
+    else{
+	reply.msgno = 1;
+	for(msgno = mn_first_cur(ps->msgmap), i = 0;
+	    msgno > 0L;
+	    msgno = mn_next_cur(ps->msgmap), i++)
+	  reply.data.uid.msgs[i] = mn_m2raw(ps->msgmap, msgno);
+    }
+
+    reply.data.uid.msgs[i] = 0;			/* tie off list */
 
 #if	defined(DOS) && !defined(_WINDOWS)
     free((void *)reserve);
 #endif
     pine_send(outgoing, &body, "FORWARD MESSAGE",
-	      role, NULL, reply.flags ? &reply : NULL, redraft_pos,
-	      NULL, NULL, FALSE);
+	      role, NULL, &reply, redraft_pos,
+	      NULL, NULL, 0);
     rv++;
 
   clean:
@@ -1585,7 +1612,7 @@ forward_text(struct pine *pine_state, void *text, SourceType source)
     PAT_STATE dummy;
     long      rflags = ROLE_COMPOSE;
 
-    if(msgtext = so_get(PicoText, NULL, EDIT_ACCESS)){
+    if((msgtext = so_get(PicoText, NULL, EDIT_ACCESS)) != NULL){
 	env                   = mail_newenvelope();
 	env->message_id       = generate_message_id();
 	body                  = mail_newbody();
@@ -1627,7 +1654,7 @@ forward_text(struct pine *pine_state, void *text, SourceType source)
 
 	if((enc_error = gf_pipe(gc, pc)) == NULL){
 	    pine_send(env, &body, "SEND MESSAGE", role, NULL, NULL, NULL,
-		      NULL, NULL, FALSE);
+		      NULL, NULL, 0);
 	    pine_state->mangled_screen = 1;
 	}
 	else{
@@ -1674,11 +1701,11 @@ bounce(struct pine *pine_state, ACTION_S *role)
 
     if(mn_total_cur(pine_state->msgmap) > 1L){
 	save_toptr = &save_to;
-	snprintf(tmp_20k_buf, SIZEOF_20KBUF, _("BOUNCE (redirect) %d messages to : "),
+	snprintf(tmp_20k_buf, SIZEOF_20KBUF, _("BOUNCE (redirect) %ld messages to : "),
 		mn_total_cur(pine_state->msgmap));
 	tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
 	prmpt_who = cpystr(tmp_20k_buf);
-	snprintf(tmp_20k_buf, SIZEOF_20KBUF, _("Send %d messages "),
+	snprintf(tmp_20k_buf, SIZEOF_20KBUF, _("Send %ld messages "),
 		mn_total_cur(pine_state->msgmap));
 	tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
 	prmpt_cnf = cpystr(tmp_20k_buf);
@@ -1689,7 +1716,7 @@ bounce(struct pine *pine_state, ACTION_S *role)
 	msgno = mn_next_cur(pine_state->msgmap)){
 
 	rawno = mn_m2raw(pine_state->msgmap, msgno);
-	if(env = pine_mail_fetchstructure(pine_state->mail_stream, rawno, NULL))
+	if((env = pine_mail_fetchstructure(pine_state->mail_stream, rawno, NULL)) != NULL)
 	  errstr = bounce_msg(pine_state->mail_stream, rawno, NULL, role,
 			      save_toptr, env->subject, prmpt_who, prmpt_cnf);
 	else
@@ -1898,7 +1925,7 @@ signature_edit(char *sigfile, char *title)
 	gf_set_so_readc(&gc, tmpso);	/* read from file, write pico buf */
 	gf_set_so_writec(&pc, msgso);
 	gf_filter_init();		/* no filters needed */
-	if(errstr = gf_pipe(gc, pc)){
+	if((errstr = gf_pipe(gc, pc)) != NULL){
 	    snprintf(errbuf, sizeof(errbuf), _("Error reading file: \"%s\""), errstr);
 	    errbuf[sizeof(errbuf)-1] = '\0';
 	    ret = cpystr(errbuf);
@@ -1933,12 +1960,12 @@ signature_edit(char *sigfile, char *title)
 	else{
             /*------ Must have an edited buffer, write it to .sig -----*/
 	    our_unlink(sig_path);	/* blast old copy */
-	    if(tmpso = so_get(FileStar, sig_path, WRITE_ACCESS|WRITE_TO_LOCALE)){
+	    if((tmpso = so_get(FileStar, sig_path, WRITE_ACCESS|WRITE_TO_LOCALE)) != NULL){
 		so_seek(msgso, 0L, 0);
 		gf_set_so_readc(&gc, msgso);	/* read from pico buf */
 		gf_set_so_writec(&pc, tmpso);	/* write sig file */
 		gf_filter_init();		/* no filters needed */
-		if(errstr = gf_pipe(gc, pc)){
+		if((errstr = gf_pipe(gc, pc)) != NULL){
 		    snprintf(errbuf, sizeof(errbuf), _("Error writing file: \"%s\""),
 				      errstr);
 		    errbuf[sizeof(errbuf)-1] = '\0';

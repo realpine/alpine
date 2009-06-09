@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: random.c 513 2007-04-05 21:45:30Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: random.c 672 2007-08-15 23:07:18Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -26,7 +26,6 @@ static char rcsid[] = "$Id: random.c 513 2007-04-05 21:45:30Z hubert@u.washingto
 
 #include "osdep/terminal.h"
 
-int	getccol(int);
 int	worthit(int *);
 
 int     tabsize;                        /* Tab size (0: use real tabs)  */

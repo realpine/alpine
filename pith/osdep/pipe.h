@@ -1,5 +1,5 @@
 /*
- * $Id: pipe.h 491 2007-03-26 18:18:35Z hubert@u.washington.edu $
+ * $Id: pipe.h 666 2007-08-10 23:25:17Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -42,6 +42,7 @@
 #define	PIPE_SILENT	0x0100			/* no screen clear, etc	   */
 #define PIPE_RUNNOW     0x0200			/* don't wait for child (PC-Pine) */
 #define PIPE_RAW        0x0400			/* don't convert to locale */
+#define PIPE_NONEWMAIL  0x0800			/* don't call new_mail     */
 
 #ifdef _WINDOWS
 /*

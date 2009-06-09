@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: string.c 483 2007-03-15 18:43:40Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: string.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -62,9 +62,9 @@ static char rcsid[] = "$Id: string.c 483 2007-03-15 18:43:40Z hubert@u.washingto
 #include "../pith/util.h"
 
 
-int         read_octal(char **);
 void        char_to_octal_triple(int, char *);
 char       *dollar_escape_dollars(char *);
+time_t      date_to_local_time_t(char *date);
 
 
 
@@ -141,7 +141,7 @@ sqzspaces(char *string)
 {
     char *p = string;
 
-    while(*string = *p++)		   /* while something to copy       */
+    while((*string = *p++) != '\0')	   /* while something to copy       */
       if(!isspace((unsigned char)*string)) /* only really copy if non-blank */
 	string++;
 }
@@ -156,7 +156,7 @@ sqznewlines(char *string)
 {
     char *p = string;
 
-    while(*string = *p++)		      /* while something to copy  */
+    while((*string = *p++) != '\0')	      /* while something to copy  */
       if(*string != '\r' && *string != '\n')  /* only copy if non-newline */
 	string++;
 }
@@ -178,7 +178,7 @@ removing_leading_white_space(char *string)
 
     for(p = string; *p; p++)		/* find the first non-blank  */
       if(!isspace((unsigned char) *p)){
-	  while(*string++ = *p++)	/* copy back from there... */
+	  while((*string++ = *p++) != '\0')	/* copy back from there... */
 	    ;
 
 	  return;
@@ -223,7 +223,7 @@ removing_leading_and_trailing_white_space(char *string)
 		q = (!isspace((unsigned char)*string)) ? NULL : (!q) ? string : q;
 	  }
 	  else{
-	      for(; *string = *p++; string++)
+	      for(; (*string = *p++) != '\0'; string++)
 		q = (!isspace((unsigned char)*string)) ? NULL : (!q) ? string : q;
 	  }
 
@@ -312,7 +312,7 @@ removing_quotes(char *string)
 	do
 	  if(*q == '\"' || *q == '\\')
 	    q++;
-	while(*p++ = *q++);
+	while((*p++ = *q++) != '\0');
     }
 
     return(string);
@@ -1069,8 +1069,8 @@ it's value is left as -1.
 void
 parse_date(char *given_date, struct date *d)
 {
-    char *p, **i, *q, n;
-    int   month;
+    char *p, **i, *q;
+    int   month, n;
 
     d->sec   = -1;
     d->minute= -1;
@@ -1247,8 +1247,89 @@ parse_date(char *given_date, struct date *d)
 	}
     }
 }
-        
-    
+
+
+char *
+convert_date_to_local(char *date)
+{
+    struct tm  *tm;
+    time_t      ltime;
+    static char datebuf[26];
+
+    ltime = date_to_local_time_t(date);
+    if(ltime == (time_t) -1)
+      return(date);
+
+    tm = localtime(&ltime);
+
+    if(tm == NULL)
+      return(date);
+
+    snprintf(datebuf, sizeof(datebuf), "%.3s, %d %.3s %d %02d:%02d:%02d",
+	     day_abbrev(tm->tm_wday), tm->tm_mday, month_abbrev(tm->tm_mon+1),
+	     tm->tm_year+1900, tm->tm_hour, tm->tm_min, tm->tm_sec);
+
+    return(datebuf);
+}
+
+
+time_t
+date_to_local_time_t(char *date)
+{
+    time_t      ourtime;
+    struct tm   theirtime;
+    struct date d;
+    static int  zone = 1000000;		/* initialize timezone offset */
+    static int  dst;
+
+    if(zone == 1000000){
+      int julian;
+      struct tm *tm;
+      time_t     now;
+
+      zone = 0;
+      /* find difference between gmtime and localtime, from c-client do_date */
+      now = time((time_t *) 0);
+      if(now != (time_t) -1){
+	tm = gmtime(&now);
+	if(tm != NULL){
+	  zone = tm->tm_hour * 60 + tm->tm_min;		/* minutes */
+	  julian = tm->tm_yday;
+
+	  tm = localtime(&now);
+	  dst = tm->tm_isdst;		/* for converting back to our time */
+
+	  zone = tm->tm_hour * 60 + tm->tm_min - zone;
+	  if((julian = tm->tm_yday - julian) != 0)
+	    zone += ((julian < 0) == (abs(julian) == 1)) ? -24*60 : 24*60;
+
+	  zone *= 60;		/* change to seconds */
+        }
+      }
+    }
+
+    parse_date(date, &d);
+
+    /* put d into struct tm so we can use mktime */
+    memset(&theirtime, 0, sizeof(theirtime));
+    theirtime.tm_year = d.year - 1900;
+    theirtime.tm_mon = d.month - 1;
+    theirtime.tm_mday = d.day;
+    theirtime.tm_hour = d.hour - d.hours_off_gmt;
+    theirtime.tm_min = d.minute;
+    theirtime.tm_sec = d.sec;
+
+    theirtime.tm_isdst = dst;
+
+    ourtime = mktime(&theirtime);	/* still theirtime, actually */
+
+    /* convert to the time we want to show */
+    if(ourtime != (time_t) -1)
+      ourtime += zone;
+
+    return(ourtime);
+}
+
 
 /*----------------------------------------------------------------------
      Create a little string of blanks of the specified length.
@@ -1571,8 +1652,6 @@ fold(char *src, int width, int maxwidth, char *first_indent, char *indent, unsig
 char *
 strsquish(char *buf, size_t buflen, char *src, int width)
 {
-    int i, offset;
-
     /*
      * Replace strsquish() with calls to short_str().
      */

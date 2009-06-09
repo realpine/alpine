@@ -1,8 +1,8 @@
 /*
- * $Id: altedit.h 113 2006-09-01 21:54:31Z hubert@u.washington.edu $
+ * $Id: altedit.h 672 2007-08-15 23:07:18Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,9 @@
 
 /* exported prototypes */
 int	alt_editor(int, int);
-
+#ifndef _WINDOWS
+int	   pathcat(char *, char **, char *);
+#endif
 
 
 #endif /* PICO_OSDEP_ALTEDIT_INCLUDED */

@@ -1,5 +1,5 @@
 /*
- * $Id: detach.h 602 2007-06-18 18:25:20Z hubert@u.washington.edu $
+ * $Id: detach.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -61,5 +61,7 @@ extern FETCH_READC_S *g_fr_desc;
 char	   *detach_raw(MAILSTREAM *, long, char *, gf_io_t, int);
 char	   *detach(MAILSTREAM *, long, char *, long, long *, gf_io_t, FILTLIST_S *, long);
 int	    valid_filter_command(char **);
+void	    fetch_readc_init(FETCH_READC_S *, MAILSTREAM *, long, char *,
+			     unsigned long, long, long);
 
 #endif /* PITH_DETACH_INCLUDED */

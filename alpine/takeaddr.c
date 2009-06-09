@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: takeaddr.c 596 2007-06-09 00:20:47Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: takeaddr.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -32,6 +32,9 @@ static char rcsid[] = "$Id: takeaddr.c 596 2007-06-09 00:20:47Z hubert@u.washing
 #include "titlebar.h"
 #include "alpine.h"
 #include "help.h"
+#include "mailcmd.h"
+#include "mailpart.h"
+#include "roleconf.h"
 #include "../pith/state.h"
 #include "../pith/msgno.h"
 #include "../pith/adrbklib.h"
@@ -45,6 +48,8 @@ static char rcsid[] = "$Id: takeaddr.c 596 2007-06-09 00:20:47Z hubert@u.washing
 #include "../pith/abdlc.h"
 #include "../pith/ablookup.h"
 #include "../pith/stream.h"
+#include "../pith/mailcmd.h"
+#include "../pith/busy.h"
 
 
 typedef struct takeaddress_screen {
@@ -202,13 +207,12 @@ edit_nickname(AdrBk *abook, AddrScrn_Disp *dl, int command_line, char *orig,
 	    ClearScreen();
 	    pop_titlebar_state();
 	    redraw_titlebar();
-	    if(ps_global->redrawer = redraw) /* reset old value, and test */
+	    if((ps_global->redrawer = redraw) != NULL) /* reset old value, and test */
 	      (*ps_global->redrawer)();
 	}
 	else if(rc == 11){ /* TAB */
 	    if(edit_buf[0]){
 	      char *new_nickname = NULL;
-	      int l;
 	      int ambiguity;
 
 	      ambiguity = abook_nickname_complete(edit_buf, &new_nickname,
@@ -285,7 +289,7 @@ add_abook_entry(TA_S *ta_entry, char *nick, char *fullname, char *fcc,
 {
     ADDRESS *addr;
     char     new_fullname[6*MAX_FULLNAME + 1], new_address[6*MAX_ADDRESS + 1];
-    char   **new_list, *charset = NULL;
+    char   **new_list;
 
     dprint((5, "-- add_abook_entry --\n"));
 
@@ -324,7 +328,7 @@ add_abook_entry(TA_S *ta_entry, char *nick, char *fullname, char *fcc,
 	rbuf.end = scratch+es-1;
 	rfc822_output_address_list(&rbuf, addr, 0L, NULL);
 	*rbuf.cur = '\0';
-	if(p = srchstr(scratch, "@" RAWFIELD)){
+	if((p = srchstr(scratch, "@" RAWFIELD)) != NULL){
 	  for(t = p; ; t--)
 	    if(*t == '&'){		/* find "leading" token */
 		*t++ = ' ';		/* replace token */
@@ -1333,7 +1337,7 @@ takeaddr_screen(struct pine *ps, TA_S *ta_list, int how_many_selected,
 	    break;
 
 	  case MC_CHARDOWN :			/* next list element */
-	    if(ctmp = next_sel_taline(current))
+	    if((ctmp = next_sel_taline(current)) != NULL)
 	      current = ctmp;
 	    else
 	      q_status_message(SM_INFO, 0, 1, _("Already on last line."));
@@ -1341,7 +1345,7 @@ takeaddr_screen(struct pine *ps, TA_S *ta_list, int how_many_selected,
 	    break;
 
 	  case MC_CHARUP:			/* previous list element */
-	    if(ctmp = pre_sel_taline(current))
+	    if((ctmp = pre_sel_taline(current)) != NULL)
 	      current = ctmp;
 	    else
 	      q_status_message(SM_INFO, 0, 1, _("Already on first line."));
@@ -1351,7 +1355,7 @@ takeaddr_screen(struct pine *ps, TA_S *ta_list, int how_many_selected,
 	  case MC_PAGEDN :			/* page forward */
 	    give_warn_message = 1;
 	    while(dline++ < ps->ttyo->screen_rows - FOOTER_ROWS(ps)){
-	        if(ctmp = next_sel_taline(current)){
+	        if((ctmp = next_sel_taline(current)) != NULL){
 		    current = ctmp;
 		    give_warn_message = 0;
 		}
@@ -1368,7 +1372,7 @@ takeaddr_screen(struct pine *ps, TA_S *ta_list, int how_many_selected,
 	    /* move to top of screen */
 	    give_warn_message = 1;
 	    while(dline-- > HEADER_ROWS(ps_global)){
-	        if(ctmp = pre_sel_taline(current)){
+	        if((ctmp = pre_sel_taline(current)) != NULL){
 		    current = ctmp;
 		    give_warn_message = 0;
 		}
@@ -1378,7 +1382,7 @@ takeaddr_screen(struct pine *ps, TA_S *ta_list, int how_many_selected,
 
 	    /* page back one screenful */
 	    while(++dline < ps->ttyo->screen_rows - FOOTER_ROWS(ps)){
-	        if(ctmp = pre_sel_taline(current)){
+	        if((ctmp = pre_sel_taline(current)) != NULL){
 		    current = ctmp;
 		    give_warn_message = 0;
 		}
@@ -1392,7 +1396,7 @@ takeaddr_screen(struct pine *ps, TA_S *ta_list, int how_many_selected,
 	    break;
 
 	  case MC_WHEREIS :			/* whereis */
-	    if(ctmp = whereis_taline(current))
+	    if((ctmp = whereis_taline(current)) != NULL)
  	      current = ctmp;
 	    
 	    ps->mangled_footer = 1;
@@ -1514,7 +1518,6 @@ takeaddr_screen(struct pine *ps, TA_S *ta_list, int how_many_selected,
 void
 takeaddr_bypass(struct pine *ps, TA_S *current, TA_STATE_S **tasp)
 {
-    TA_S       *ctmp;
     TA_SCREEN_S screen;	 /* We have to fake out ta_do_take because */
 			 /* we're bypassing takeaddr_screen.       */
     ta_screen = &screen;
@@ -1588,7 +1591,7 @@ whereis_taline(TA_S *current)
 
     if(rc == 0 && buf[0]){
 	p = current;
-	while(p = next_taline(p))
+	while((p = next_taline(p)) != NULL)
 	  if(srchstr((char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
 						    SIZEOF_20KBUF, p->strvalue),
 		     buf)){
@@ -1861,7 +1864,6 @@ update_takeaddr_screen(struct pine *ps, TA_S *current, TA_SCREEN_S *screen, Pos 
 	    if(ctmp->print){
 		int width, actual_width;
 		size_t len;
-		char *start_printing;
 
 		/*
 		 * In buf2 make ------string--------
@@ -1980,7 +1982,7 @@ cmd_take_addr(struct pine *ps, MSGNO_S *msgmap, int agg)
       switch(rtype){
 	case 'e':
 	  {
-	      LINES_TO_TAKE *lines_to_take = NULL, *lt;
+	      LINES_TO_TAKE *lines_to_take = NULL;
 
 	      rtype = set_up_takeaddr('e', ps, msgmap, &ta_list, &how_many_selected,
 				      agg ? TA_AGG : 0, NULL);
@@ -2242,7 +2244,7 @@ take_without_edit(TA_S *ta_list, int num_in_list, int command_line, TA_STATE_S *
 		rbuf.end = scratch+es-1;
 		rfc822_output_address_list(&rbuf, sw->ta->addr, 0L, NULL);
 		*rbuf.cur = '\0';
-		if(p = srchstr(scratch, "@" RAWFIELD)){
+		if((p = srchstr(scratch, "@" RAWFIELD)) != NULL){
 		  for(t = p; ; t--)
 		    if(*t == '&'){		/* find "leading" token */
 			*t++ = ' ';		/* replace token */
@@ -2332,7 +2334,7 @@ take_without_edit(TA_S *ta_list, int num_in_list, int command_line, TA_STATE_S *
 		    rbuf.end = scratch+es-1;
 		    rfc822_output_address_list(&rbuf, a, 0L, NULL);
 		    *rbuf.cur = '\0';
-		    if(p = srchstr(scratch, "@" RAWFIELD)){
+		    if((p = srchstr(scratch, "@" RAWFIELD)) != NULL){
 		      for(t = p; ; t--)
 			if(*t == '&'){		/* find "leading" token */
 			    *t++ = ' ';		/* replace token */
@@ -2601,7 +2603,7 @@ void
 save_vcard_att(struct pine *ps, int qline, long int msgno, ATTACH_S *a)
 {
     int       how_many_selected, j;
-    TA_S     *current = NULL, *ctmp;
+    TA_S     *current = NULL;
     TA_STATE_S tas, *tasp;
 
 
@@ -3072,9 +3074,8 @@ save_ldap_entry(struct pine *ps, LDAP_SERV_RES_S *e, int save)
     }
 
     if(save){				/* save into the address book */
-	ADDRESS *addr, *a, *a2;
-	char    *tmp_a_string,
-		*d,
+	ADDRESS *addr;
+	char    *d,
 		*fakedomain = "@";
 	size_t   len;
 	char   **cm;
@@ -3157,7 +3158,7 @@ save_ldap_entry(struct pine *ps, LDAP_SERV_RES_S *e, int save)
 		if(addr && addr->mailbox && addr->host){
 		    strncpy(buf, addr->mailbox, sizeof(buf)-2),
 		    buf[sizeof(buf)-2] = '\0';
-		    strncat(buf, "@", 1);
+		    strncat(buf, "@", sizeof(buf)-1-strlen(buf));
 		    strncat(buf, addr->host, sizeof(buf)-1-strlen(buf));
 		    buf[sizeof(buf)-1] = '\0';
 		    backup_mail = cpystr(buf);
@@ -3263,7 +3264,7 @@ save_ldap_entry(struct pine *ps, LDAP_SERV_RES_S *e, int save)
 
     }
     else if(export){				/* export to filesystem */
-	STORE_S *store = NULL, *srcstore = NULL;
+	STORE_S *srcstore = NULL;
 	SourceType srctype;
 	static ESCKEY_S text_or_vcard[] = {
 	    {'t', 't', "T", N_("Text")},
@@ -3300,8 +3301,6 @@ save_ldap_entry(struct pine *ps, LDAP_SERV_RES_S *e, int save)
 		if(!(srcstore = so_get(srctype, NULL, EDIT_ACCESS)))
 		  q_status_message(SM_ORDER,0,2, _("Error allocating space"));
 		else{
-		    ADDRESS *a, *b;
-
 		    for(ll = mail; ll && *ll; ll++){
 			so_puts(srcstore, *ll);
 			so_puts(srcstore, "\n");
@@ -3349,7 +3348,7 @@ save_ldap_entry(struct pine *ps, LDAP_SERV_RES_S *e, int save)
 
 		gf_set_so_writec(&pc, srcstore);
 
-		write_single_vcard_entry(ps_global, pc, 0, NULL, vinfo);
+		write_single_vcard_entry(ps_global, pc, vinfo);
 
 		free_vcard_info(&vinfo);
 
@@ -3436,7 +3435,7 @@ ta_scroll_down(count)
     long i,dline;
     long page_size = ps_global->ttyo->screen_rows - 
                       FOOTER_ROWS(ps_global) - HEADER_ROWS(ps_global);
-    TA_S *prev_sel, *ctmp;
+    TA_S *ctmp;
     TA_S *first = first_taline(ta_screen->top_line);
 
     i=count;

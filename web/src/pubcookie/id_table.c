@@ -1,14 +1,14 @@
 #include "id_table.h"
 #include "wp_uidmapper_lib.h"
 
-#include <sys/types.h> // opendir
-#include <sys/stat.h> // stat
-#include <stdlib.h> //mallloc,free,strtol
-#include <string.h> //memcpy
-#include <errno.h> // errno
+#include <sys/types.h> /* opendir */
+#include <sys/stat.h> /* stat */
+#include <stdlib.h> /* mallloc,free,strtol */
+#include <string.h> /* memcpy */
+#include <errno.h> /* errno */
 
-#include <dirent.h> // opendir
-#include <unistd.h> // stat
+#include <dirent.h> /* opendir */
+#include <unistd.h> /* stat */
 
 unsigned long hash_func(char *string,unsigned long num_buckets) {
   unsigned long i;

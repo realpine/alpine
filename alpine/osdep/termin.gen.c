@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: termin.gen.c 520 2007-04-11 16:28:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: termin.gen.c 674 2007-08-16 23:09:50Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -31,16 +31,20 @@ static char rcsid[] = "$Id: termin.gen.c 520 2007-04-11 16:28:41Z hubert@u.washi
 #include "../../pith/debug.h"
 #include "../../pith/newmail.h"
 #include "../../pith/conf.h"
+#include "../../pith/busy.h"
 
 #include "../../pico/estruct.h"
 #include "../../pico/pico.h"
 #include "../../pico/keydefs.h"
+
+#include "../../pico/osdep/color.h"
 
 #include "../status.h"
 #include "../folder.h"
 #include "../keymenu.h"
 #include "../send.h"
 #include "../radio.h"
+#include "../busy.h"
 
 #ifdef _WINDOWS
 #include "../../pico/osdep/mswin.h"
@@ -51,6 +55,9 @@ static char rcsid[] = "$Id: termin.gen.c 520 2007-04-11 16:28:41Z hubert@u.washi
 #endif
 
 #include "termin.gen.h"
+#include "termout.gen.h"
+
+#include "../mailcmd.h"
 
 
 #ifdef	_WINDOWS

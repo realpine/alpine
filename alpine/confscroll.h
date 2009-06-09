@@ -1,8 +1,8 @@
 /*
- * $Id: confscroll.h 529 2007-04-18 22:41:05Z hubert@u.washington.edu $
+ * $Id: confscroll.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -82,14 +82,17 @@ void     standard_radio_setup(struct pine *, CONF_S **, struct variable *, CONF_
 int      standard_radio_var(struct pine *, struct variable *);
 int      delete_user_vals(struct variable *);
 CONF_S	*new_confline(CONF_S **);
+void	 free_conflines(CONF_S **);
 CONF_S	*first_confline(CONF_S *);
 CONF_S  *first_sel_confline(CONF_S *);
+void	 snip_confline(CONF_S **);
 char    *pretty_value(struct pine *, CONF_S *);
 SAVED_CONFIG_S *save_config_vars(struct pine *, int);
 int      text_tool(struct pine *, int, CONF_S **, unsigned);
 int	 checkbox_tool(struct pine *, int, CONF_S **, unsigned);
 int	 radiobutton_tool(struct pine *, int, CONF_S **, unsigned);
 int	 yesno_tool(struct pine *, int, CONF_S **, unsigned);
+int      text_toolit(struct pine *, int, CONF_S **, unsigned, int);
 char    *generalized_sort_pretty_value(struct pine *, CONF_S *, int);
 int	 exclude_config_var(struct pine *, struct variable *, int);
 int      config_exit_cmd(unsigned);

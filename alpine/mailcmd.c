@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcmd.c 609 2007-06-22 23:38:20Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailcmd.c 696 2007-08-29 23:13:02Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -44,6 +44,9 @@ static char rcsid[] = "$Id: mailcmd.c 609 2007-06-22 23:38:20Z hubert@u.washingt
 #include "signal.h"
 #include "radio.h"
 #include "pipe.h"
+#include "send.h"
+#include "takeaddr.h"
+#include "roleconf.h"
 #include "../pith/state.h"
 #include "../pith/msgno.h"
 #include "../pith/store.h"
@@ -61,6 +64,13 @@ static char rcsid[] = "$Id: mailcmd.c 609 2007-06-22 23:38:20Z hubert@u.washingt
 #include "../pith/stream.h"
 #include "../pith/mailcmd.h"
 #include "../pith/hist.h"
+#include "../pith/list.h"
+#include "../pith/icache.h"
+#include "../pith/busy.h"
+#include "../pith/mimedesc.h"
+#include "../pith/pattern.h"
+#include "../pith/tempfile.h"
+#include "../pith/search.h"
 #ifdef _WINDOWS
 #include "../pico/osdep/mswin.h"
 #endif
@@ -88,7 +98,7 @@ int       cmd_print(struct pine *, MSGNO_S *, int, CmdWhere);
 int       cmd_pipe(struct pine *, MSGNO_S *, int);
 STORE_S	 *list_mgmt_text(RFC2369_S *, long);
 void	  list_mgmt_screen(STORE_S *);
-void	  aggregate_select(struct pine *, MSGNO_S *, int, CmdWhere,int);
+int	  aggregate_select(struct pine *, MSGNO_S *, int, CmdWhere,int);
 int	  select_by_number(MAILSTREAM *, MSGNO_S *, SEARCHSET **);
 int	  select_by_thrd_number(MAILSTREAM *, MSGNO_S *, SEARCHSET **);
 int	  select_by_date(MAILSTREAM *, MSGNO_S *, long, SEARCHSET **);
@@ -101,7 +111,6 @@ char     *choose_a_rule(int);
 int	  select_by_keyword(MAILSTREAM *, SEARCHSET **);
 char     *choose_a_keyword(void);
 int	  select_sort(struct pine *, int, SortOrder *, int *);
-void      free_list_sel(LIST_SEL_S **);
 int       print_index(struct pine *, MSGNO_S *, int);
 
 
@@ -185,20 +194,10 @@ static ESCKEY_S sel_opts4[] = {
 };
 
 
-static ESCKEY_S other_opts[] = {
-    { -1,   0, NULL, NULL},
-    { -1,   0, NULL, NULL},
-    { -1,   0, NULL, NULL},
-    { -1,   0, NULL, NULL},
-    { -1,   0, NULL, NULL},
-    {-1,    0, NULL, NULL}
-};
-
-
 static char *sel_flag = 
-    N_("Select New, Deleted, Answered, or Important messages ? ");
+    N_("Select New, Deleted, Answered, Forwarded, or Important messages ? ");
 static char *sel_flag_not = 
-    N_("Select NOT New, NOT Deleted, NOT Answered or NOT Important msgs ? ");
+    N_("Select NOT New, NOT Deleted, NOT Answered, NOT Forwarded or NOT Important msgs ? ");
 static ESCKEY_S sel_flag_opt[] = {
     /* TRANSLATORS: When selecting messages by message Status these are the
        different types of Status you can select on. Is the message New, Recent,
@@ -208,9 +207,9 @@ static ESCKEY_S sel_flag_opt[] = {
     {'*', '*', "*", N_("Important")},
     {'d', 'd', "D", N_("Deleted")},
     {'a', 'a', "A", N_("Answered")},
+    {'f', 'f', "F", N_("Forwarded")},
+    {-2, 0, NULL, NULL},
     {'!', '!', "!", N_("Not")},
-    {-2, 0, NULL, NULL},
-    {-2, 0, NULL, NULL},
     {-2, 0, NULL, NULL},
     {'r', 'r', "R", N_("Recent")},
     {'u', 'u', "U", N_("Unseen")},
@@ -290,6 +289,7 @@ static ESCKEY_S flag_text_opt[] = {
     {'*', '*', "*", N_("Important")},
     {'d', 'd', "D", N_("Deleted")},
     {'a', 'a', "A", N_("Answered")},
+    {'f', 'f', "F", N_("Forwarded")},
     {'!', '!', "!", N_("Not")},
     {ctrl('T'), 10, "^T", N_("To Flag Details")},
     {-1, 0, NULL, NULL}
@@ -312,13 +312,12 @@ int
 process_cmd(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
 	    int command, CmdWhere in_index, int *force_mailchk)
 {
-    int           question_line, a_changed, we_cancel, flags = 0, ret;
+    int           question_line, a_changed, flags = 0, ret, j;
     int           notrealinbox;
-    long          new_msgno, del_count, old_msgno, i, old_max_msgno;
+    long          new_msgno, del_count, old_msgno, i;
     long          start;
     char         *newfolder, prompt[MAX_SCREEN_COLS+1];
     CONTEXT_S    *tc;
-    COLOR_PAIR   *lastc = NULL;
     MESSAGECACHE *mc;
 #if	defined(DOS) && !defined(_WINDOWS)
     extern long coreleft();
@@ -394,7 +393,7 @@ view_text:
 			     : (in_index == View)
 			       ? MH_ANYTHD : MH_NONE);
 		if(i == mn_get_cur(msgmap)){
-		    PINETHRD_S *thrd;
+		    PINETHRD_S *thrd, *topthrd;
 
 		    if(THRD_INDX_ENABLED()){
 			mn_dec_cur(stream, msgmap, MH_ANYTHD);
@@ -441,8 +440,22 @@ view_text:
 				    }
 				}
 
-				if(view_thread(state, stream, msgmap, 1) && current_index_state)
-				  msgmap->top_after_thrd = current_index_state->msg_at_top;
+				j = 0;
+				if(THRD_AUTO_VIEW() && in_index != View){
+				    thrd = fetch_thread(stream, mn_m2raw(msgmap, new_msgno));
+				    if(thrd && thrd->top)
+				      topthrd = fetch_thread(stream, thrd->top);
+
+				    if(topthrd)
+				      j = count_lflags_in_thread(stream, topthrd, msgmap, MN_NONE);
+				}
+
+				if(!THRD_AUTO_VIEW() || in_index == View || j != 1){
+				    if(view_thread(state, stream, msgmap, 1)
+				       && current_index_state)
+				      msgmap->top_after_thrd = current_index_state->msg_at_top;
+
+				}
 
 				state->next_screen = SCREEN_FUN_NULL;
 			    }
@@ -456,9 +469,19 @@ view_text:
 				  THRD_INDX() ? _("thread") : _("message"));
 		}
 	    }
-	    else
-	      q_status_message1(SM_ORDER, 0, 1, _("Already on first %s"),
-				THRD_INDX() ? _("thread") : _("message"));
+	    else{
+		time_t now;
+
+		if(!IS_NEWS(stream)
+		   && ((now = time(0)) > state->last_nextitem_forcechk)){
+		    *force_mailchk = 1;
+		    /* check at most once a second */
+		    state->last_nextitem_forcechk = now;
+		}
+
+		q_status_message1(SM_ORDER, 0, 1, _("Already on first %s"),
+				  THRD_INDX() ? _("thread") : _("message"));
+	    }
 	}
 
 	break;
@@ -475,7 +498,7 @@ view_text:
 			 : (in_index == View)
 			   ? MH_ANYTHD : MH_NONE);
 	    if(i == mn_get_cur(msgmap)){
-		PINETHRD_S *thrd;
+		PINETHRD_S *thrd, *topthrd;
 
 		if(THRD_INDX_ENABLED()){
 		    if(!THRD_INDX())
@@ -526,8 +549,22 @@ view_text:
 				}
 			    }
 
-			    if(view_thread(state, stream, msgmap, 1) && current_index_state)
-			      msgmap->top_after_thrd = current_index_state->msg_at_top;
+			    j = 0;
+			    if(THRD_AUTO_VIEW() && in_index != View){
+				thrd = fetch_thread(stream, mn_m2raw(msgmap, new_msgno));
+				if(thrd && thrd->top)
+				  topthrd = fetch_thread(stream, thrd->top);
+
+				if(topthrd)
+				j = count_lflags_in_thread(stream, topthrd, msgmap, MN_NONE);
+			    }
+
+			    if(!THRD_AUTO_VIEW() || in_index == View || j != 1){
+				if(view_thread(state, stream, msgmap, 1)
+				   && current_index_state)
+				  msgmap->top_after_thrd = current_index_state->msg_at_top;
+
+			    }
 
 			    state->next_screen = SCREEN_FUN_NULL;
 			}
@@ -1100,7 +1137,7 @@ get_out:
 		dprint((4, "\n\n ---- Exiting ZOOM mode ----\n"));
 		q_status_message(SM_ORDER,0,2, _("Index Zoom Mode is now off"));
 	    }
-	    else if(i = zoom_index(state, stream, msgmap)){
+	    else if((i = zoom_index(state, stream, msgmap)) != 0){
 		if(any_lflagged(msgmap, MN_HIDE)){
 		    dprint((4,"\n\n ---- Entering ZOOM mode ----\n"));
 		    q_status_message4(SM_ORDER, 0, 2,
@@ -1250,12 +1287,11 @@ get_out:
           /*------- Make Selection -----------*/
       case MC_SELECT :
 	if(any_messages(msgmap, NULL, "to Select")){
-	    aggregate_select(state, msgmap, question_line, in_index,
-			     THRD_INDX());
-	    if((in_index == MsgIndx || in_index == ThrdIndx)
+	    if(aggregate_select(state, msgmap, question_line, in_index, THRD_INDX()) == 0
+	       && (in_index == MsgIndx || in_index == ThrdIndx)
+	       && F_ON(F_AUTO_ZOOM, state)
 	       && any_lflagged(msgmap, MN_SLCT) > 0L
-	       && !any_lflagged(msgmap, MN_HIDE)
-	       && F_ON(F_AUTO_ZOOM, state))
+	       && !any_lflagged(msgmap, MN_HIDE))
 	      (void) zoom_index(state, stream, msgmap);
 	}
 
@@ -1450,10 +1486,21 @@ pretty_command(UCS c)
       case KEY_END   : s = "End";		break;
       case KEY_DEL   : s = "Delete";		break; /* Not necessary DEL! */
       case KEY_JUNK  : s = "Junk!";		break;
-      case NO_OP_IDLE : s = "NO_OP_IDLE";	break;
-      case NO_OP_COMMAND : s = "NO_OP_COMMAND";	break;
-      case KEY_RESIZE : s = "KEY_RESIZE";	break;
-      case KEY_UTF8  : s = "KEY_UTF8";		break;
+      case BADESC    : s = "Bad Esc";		break;
+      case NO_OP_IDLE      : s = "NO_OP_IDLE";		break;
+      case NO_OP_COMMAND   : s = "NO_OP_COMMAND";	break;
+      case KEY_RESIZE      : s = "KEY_RESIZE";		break;
+      case KEY_UTF8        : s = "KEY_UTF8";		break;
+      case KEY_MOUSE       : s = "KEY_MOUSE";		break;
+      case KEY_SCRLUPL     : s = "KEY_SCRLUPL";		break;
+      case KEY_SCRLDNL     : s = "KEY_SCRLDNL";		break;
+      case KEY_SCRLTO      : s = "KEY_SCRLTO";		break;
+      case KEY_XTERM_MOUSE : s = "KEY_XTERM_MOUSE";	break;
+      case KEY_DOUBLE_ESC  : s = "KEY_DOUBLE_ESC";	break;
+      case CTRL_KEY_UP     : s = "Ctrl Up Arrow";	break;
+      case CTRL_KEY_DOWN   : s = "Ctrl Down Arrow";	break;
+      case CTRL_KEY_RIGHT  : s = "Ctrl Right Arrow";	break;
+      case CTRL_KEY_LEFT   : s = "Ctrl Left Arrow";	break;
       case PF1	     :
       case PF2	     :
       case PF3	     :
@@ -1466,7 +1513,7 @@ pretty_command(UCS c)
       case PF10	     :
       case PF11	     :
       case PF12	     :
-        snprintf(s = buf, sizeof(buf), "F%ld", c - PF1 + 1);
+        snprintf(s = buf, sizeof(buf), "F%ld", (long) (c - PF1 + 1));
 	break;
 
       default:
@@ -1545,7 +1592,6 @@ int
 cmd_flag(struct pine *state, MSGNO_S *msgmap, int aopt)
 {
     char	  *flagit, *seq, *screen_text[20], **exp, **p, *answer = NULL;
-    char          *q, **t;
     char          *keyword_array[2];
     long	   unflagged, flagged, flags, rawno;
     MESSAGECACHE  *mc = NULL;
@@ -1571,6 +1617,7 @@ cmd_flag(struct pine *state, MSGNO_S *msgmap, int aopt)
 	{N_("Important"), h_flag_important, F_FLAG, 0, 0, NULL, NULL},
 	{N_("New"),	  h_flag_new, F_SEEN, 0, 0, NULL, NULL},
 	{N_("Answered"),  h_flag_answered, F_ANS, 0, 0, NULL, NULL},
+	{N_("Forwarded"),  h_flag_forwarded, F_FWD, 0, 0, NULL, NULL},
 	{N_("Deleted"),   h_flag_deleted, F_DEL, 0, 0, NULL, NULL},
 	{NULL, NO_HELP, 0, 0, 0, NULL, NULL}
     };
@@ -1578,8 +1625,7 @@ cmd_flag(struct pine *state, MSGNO_S *msgmap, int aopt)
     /* Only check for dead stream for now.  Should check permanent flags
      * eventually
      */
-    if(!(any_messages(msgmap, NULL, "to Flag")
-	 && can_set_flag(state, "flag", 1)))
+    if(!(any_messages(msgmap, NULL, "to Flag") && can_set_flag(state, "flag", 1)))
       return rv;
 
     if(sp_io_error_on_stream(state->mail_stream)){
@@ -1653,6 +1699,13 @@ cmd_flag(struct pine *state, MSGNO_S *msgmap, int aopt)
 		fp->set = CMD_FLAG_CLEAR;
 		if(user_flag_is_set(state->mail_stream,
 				    rawno, fp->keyword))
+		  fp->set = CMD_FLAG_SET;
+	    }
+	    else if(fp->flag == F_FWD){
+		/* see if forwarded keyword is defined for this message */
+		fp->set = CMD_FLAG_CLEAR;
+		if(user_flag_is_set(state->mail_stream,
+				    rawno, FORWARDED_FLAG))
 		  fp->set = CMD_FLAG_SET;
 	    }
 	    else
@@ -1802,6 +1855,31 @@ cmd_flag(struct pine *state, MSGNO_S *msgmap, int aopt)
 
 	    break;
 
+	  case F_FWD :
+	    if(!MCMD_ISAGG(aopt)){
+		/* see if forwarded is defined for this message */
+		is_set = CMD_FLAG_CLEAR;
+		if(user_flag_is_set(state->mail_stream,
+				    mn_m2raw(msgmap, mn_get_cur(msgmap)),
+				    FORWARDED_FLAG))
+		  is_set = CMD_FLAG_SET;
+	    }
+
+	    if((!MCMD_ISAGG(aopt) && fp->set != is_set)
+	       || (MCMD_ISAGG(aopt) && fp->set != CMD_FLAG_UNKN)){
+		flagit = FORWARDED_FLAG;
+		if(fp->set){
+		    flags     = ST_SET;
+		    unflagged = F_UNFWD;
+		}
+		else{
+		    flags     = 0L;
+		    unflagged = F_FWD;
+		}
+	    }
+
+	    break;
+
 	  case F_KEYWORD:
 	    if(!MCMD_ISAGG(aopt)){
 		/* see if this keyword is defined for this message */
@@ -1926,13 +2004,13 @@ cmd_flag_prompt(struct pine *state, struct flag_screen *flags, int allow_keyword
     ESCKEY_S           *ek;
     char               *ftext, *ftext_not;
     static char *flag_text =
-  N_("Flag New, Deleted, Answered or Important ? ");
+  N_("Flag New, Deleted, Answered, Forwarded or Important ? ");
     static char *flag_text_ak =
-  N_("Flag New, Deleted, Answered, Important or Keyword initial ? ");
+  N_("Flag New, Deleted, Answered, Forwarded, Important or Keyword initial ? ");
     static char *flag_text_not =
-  N_("Flag !New, !Deleted, !Answered or !Important ? ");
+  N_("Flag !New, !Deleted, !Answered, !Forwarded, or !Important ? ");
     static char *flag_text_ak_not =
-  N_("Flag !New, !Deleted, !Answered, !Important or !Keyword initial ? ");
+  N_("Flag !New, !Deleted, !Answered, !Forwarded, !Important or !Keyword initial ? ");
 
     if(allow_keyword_shortcuts){
 	int       cnt = 0;
@@ -2008,10 +2086,11 @@ cmd_flag_prompt(struct pine *state, struct flag_screen *flags, int allow_keyword
     }
 
     for(fp = (flags->flag_table ? *flags->flag_table : NULL); fp->name; fp++){
-	if(r == 'n' || r == '*' || r == 'd' || r == 'a'){
+	if(r == 'n' || r == '*' || r == 'd' || r == 'a' || r == 'f'){
 	    if((r == 'n' && fp->flag == F_SEEN)
 	       || (r == '*' && fp->flag == F_FLAG)
 	       || (r == 'd' && fp->flag == F_DEL)
+	       || (r == 'f' && fp->flag == F_FWD)
 	       || (r == 'a' && fp->flag == F_ANS)){
 		fp->set = setflag ? CMD_FLAG_SET : CMD_FLAG_CLEAR;
 		break;
@@ -2290,7 +2369,7 @@ cmd_save(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap, int aopt, CmdW
 	    }
 
 	    if(del == RetDel){
-		strncat(tmp_20k_buf, " and deleted", SIZEOF_20KBUF-strlen(tmp_20k_buf));
+		strncat(tmp_20k_buf, " and deleted", SIZEOF_20KBUF-strlen(tmp_20k_buf)-1);
 		tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
 	    }
 
@@ -2680,7 +2759,7 @@ save_prompt(struct pine *state, CONTEXT_S **cntxt, char *nfldr, size_t len_nfldr
 				}
 			    }
 			    else
-			      strncat(tmp, "[]", sizeof(tmp));
+			      strncat(tmp, "[]", sizeof(tmp)-strlen(tmp)-1);
 
 			    tmp[sizeof(tmp)-1] = '\0';
 
@@ -2707,7 +2786,7 @@ save_prompt(struct pine *state, CONTEXT_S **cntxt, char *nfldr, size_t len_nfldr
 			}
 		    }
 		    else{			/* Doesn't exist, create! */
-			if(fullname = folder_as_breakout(*cntxt, name)){
+			if((fullname = folder_as_breakout(*cntxt, name)) != NULL){
 			    strncpy(name = nfldr, fullname, len_nfldr-1);
 			    nfldr[len_nfldr-1] = '\0';
 			    fs_give((void **) &fullname);
@@ -2959,7 +3038,7 @@ cmd_expunge(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap)
     long del_count;
     int we_cancel = 0;
     char prompt[MAX_SCREEN_COLS+1];
-    COLOR_PAIR   *lastc = NULL, *newc = NULL;
+    COLOR_PAIR   *lastc = NULL;
 
     dprint((2, "\n - expunge -\n"));
 
@@ -3012,7 +3091,7 @@ cmd_expunge(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap)
 	return;
     }
 
-    if(del_count = count_flagged(stream, F_DEL|F_NOFILT)){
+    if((del_count = count_flagged(stream, F_DEL|F_NOFILT)) != 0){
 	int ret;
 
 	snprintf(prompt, sizeof(prompt), "Expunge %ld message%s from %.*s", del_count,
@@ -3302,7 +3381,7 @@ cmd_export(struct pine *state, MSGNO_S *msgmap, int qline, int aopt)
 	build_updown_cmd(cmd, sizeof(cmd), ps_global->VAR_DOWNLOAD_CMD_PREFIX,
 			 ps_global->VAR_DOWNLOAD_CMD, tfp);
 	dprint((1, "Download cmd called: \"%s\"\n", cmd));
-	if(so = so_get(FileStar, tfp, WRITE_ACCESS|OWNER_ONLY|WRITE_TO_LOCALE)){
+	if((so = so_get(FileStar, tfp, WRITE_ACCESS|OWNER_ONLY|WRITE_TO_LOCALE)) != NULL){
 	    gf_set_so_writec(&pc, so);
 
 	    for(i = mn_first_cur(msgmap); i > 0L; i = mn_next_cur(msgmap)){
@@ -3331,9 +3410,9 @@ cmd_export(struct pine *state, MSGNO_S *msgmap, int qline, int aopt)
 	    }
 
 	    if(!err){
-		if(syspipe = open_system_pipe(cmd, NULL, NULL,
+		if((syspipe = open_system_pipe(cmd, NULL, NULL,
 					      PIPE_USER | PIPE_RESET,
-					      0, pipe_callback, pipe_report_error))
+					      0, pipe_callback, pipe_report_error)) != NULL)
 		  (void) close_system_pipe(&syspipe, NULL, pipe_callback);
 		else
 		  q_status_message(SM_ORDER | SM_DING, 3, 3,
@@ -3455,7 +3534,7 @@ cmd_export(struct pine *state, MSGNO_S *msgmap, int qline, int aopt)
 	    }
 
 	    ok = 0;
-	    snprintf(dir, sizeof(dir), "%s.d", full_filename, S_FILESEP);
+	    snprintf(dir, sizeof(dir), "%s.d", full_filename);
 	    dir[sizeof(dir)-1] = '\0';
 
 	    do {
@@ -5269,7 +5348,7 @@ broach_folder(int qline, int allow_list, int *notrealinbox, CONTEXT_S **context)
 			    }
 			}
 			else
-			  strncat(tmp, "[]", sizeof(tmp));
+			  strncat(tmp, "[]", sizeof(tmp)-strlen(tmp)-1);
 
 			tmp[sizeof(tmp)-1] = '\0';
 
@@ -6027,7 +6106,7 @@ cmd_pipe(struct pine *state, MSGNO_S *msgmap, int aopt)
 						mn_m2raw(msgmap, i), -1L, 0L);
 			    gf_filter_init();
 			    gf_link_filter(gf_nvtnl_local, NULL);
-			    if(pipe_err = gf_pipe(raw_pipe_getc, pc)){
+			    if((pipe_err = gf_pipe(raw_pipe_getc, pc)) != NULL){
 				q_status_message1(SM_ORDER|SM_DING,
 						  3, 3,
 						  _("Internal Error: %s"),
@@ -6116,12 +6195,12 @@ rfc2369_display(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno)
     RFC2369_S  data[MLCMD_COUNT];
 
     /* for each header field */
-    if(h = pine_fetchheader_lines(stream, msgno, NULL, rfc2369_hdrs(hdrs))){
+    if((h = pine_fetchheader_lines(stream, msgno, NULL, rfc2369_hdrs(hdrs))) != NULL){
 	memset(&data[0], 0, sizeof(RFC2369_S) * MLCMD_COUNT);
 	if(rfc2369_parse_fields(h, &data[0])){
 	    STORE_S *explain;
 
-	    if(explain = list_mgmt_text(data, index_no)){
+	    if((explain = list_mgmt_text(data, index_no)) != NULL){
 		list_mgmt_screen(explain);
 		ps_global->mangled_screen = 1;
 		so_give(&explain);
@@ -6157,7 +6236,7 @@ list_mgmt_text(RFC2369_S *data, long int msgno)
 	NULL
     };
 
-    if(store = so_get(CharStar, NULL, EDIT_ACCESS)){
+    if((store = so_get(CharStar, NULL, EDIT_ACCESS)) != NULL){
 
 	/* Insert introductory text */
 	so_puts(store, rfc2369_intro1);
@@ -6266,7 +6345,7 @@ list_mgmt_screen(STORE_S *html)
 
 	init_handles(&handles);
 
-	if(store = so_get(CharStar, NULL, EDIT_ACCESS)){
+	if((store = so_get(CharStar, NULL, EDIT_ACCESS)) != NULL){
 	    gf_set_so_writec(&pc, store);
 	    gf_filter_init();
 
@@ -6327,13 +6406,15 @@ list_mgmt_screen(STORE_S *html)
 	 bits to reflect the search result.  Functions using
 	 mail_search() get this for free, the others must update 'em
 	 by hand.
+
+    Returns -1 if canceled without changing selection
+	     0 if selection may have changed
   ----*/
-void
+int
 aggregate_select(struct pine *state, MSGNO_S *msgmap, int q_line, CmdWhere in_index, int thrdindx)
 {
     long          i, diff, old_tot, msgno, raw;
-    int           q = 0, rv = 0, narrow = 0, hidden;
-    HelpType      help = NO_HELP;
+    int           q = 0, rv = 0, narrow = 0, hidden, ret = -1;
     ESCKEY_S     *sel_opts;
     MESSAGECACHE *mc;
     SEARCHSET    *limitsrch = NULL;
@@ -6346,7 +6427,7 @@ aggregate_select(struct pine *state, MSGNO_S *msgmap, int q_line, CmdWhere in_in
     mm_search_count  = 0L;
 
     sel_opts = thrdindx ? sel_opts4 : sel_opts2;
-    if(old_tot = any_lflagged(msgmap, MN_SLCT)){
+    if((old_tot = any_lflagged(msgmap, MN_SLCT)) != 0){
 	if(thrdindx){
 	    i = 0;
 	    thrd = fetch_thread(state->mail_stream,
@@ -6372,6 +6453,7 @@ aggregate_select(struct pine *state, MSGNO_S *msgmap, int q_line, CmdWhere in_in
 	  case 'f' :			/* flip selection */
 	    msgno = 0L;
 	    for(i = 1L; i <= mn_get_total(msgmap); i++){
+		ret = 0;
 		q = !get_lflag(state->mail_stream, msgmap, i, MN_SLCT);
 		set_lflag(state->mail_stream, msgmap, i, MN_SLCT, q);
 		if(hidden){
@@ -6381,7 +6463,7 @@ aggregate_select(struct pine *state, MSGNO_S *msgmap, int q_line, CmdWhere in_in
 		}
 	    }
 
-	    return;
+	    return(ret);
 
 	  case 'n' :			/* narrow selection */
 	    narrow++;
@@ -6397,7 +6479,7 @@ aggregate_select(struct pine *state, MSGNO_S *msgmap, int q_line, CmdWhere in_in
 	  default :
 	    q_status_message(SM_ORDER | SM_DING, 3, 3,
 			     "Unsupported Select option");
-	    return;
+	    return(ret);
 	}
     }
 
@@ -6438,24 +6520,27 @@ aggregate_select(struct pine *state, MSGNO_S *msgmap, int q_line, CmdWhere in_in
     switch(q){
       case 'x':				/* cancel */
 	cmd_cancelled("Select command");
-	return;
+	return(ret);
 
       case 'c' :			/* select/unselect current */
 	(void) select_by_current(state, msgmap, in_index);
-	return;
+	ret = 0;
+	return(ret);
 
       case 'a' :			/* select/unselect all */
 	msgno = any_lflagged(msgmap, MN_SLCT);
 	diff    = (!msgno) ? mn_get_total(msgmap) : 0L;
+	ret = 0;
 	agg_select_all(state->mail_stream, msgmap, &diff,
 		       any_lflagged(msgmap, MN_SLCT) <= 0L);
 	q_status_message4(SM_ORDER,0,2,
 			  "%s%s message%s %sselected",
 			  msgno ? "" : "All ", comatose(diff), 
 			  plural(diff), msgno ? "UN" : "");
-	return;
+	return(ret);
 
       case 'n' :			/* Select by Number */
+	ret = 0;
 	if(thrdindx)
 	  rv = select_by_thrd_number(state->mail_stream, msgmap, &limitsrch);
 	else
@@ -6464,42 +6549,48 @@ aggregate_select(struct pine *state, MSGNO_S *msgmap, int q_line, CmdWhere in_in
 	break;
 
       case 'd' :			/* Select by Date */
+	ret = 0;
 	rv = select_by_date(state->mail_stream, msgmap, mn_get_cur(msgmap),
 			 &limitsrch);
 	break;
 
       case 't' :			/* Text */
+	ret = 0;
 	rv = select_by_text(state->mail_stream, msgmap, mn_get_cur(msgmap),
 			 &limitsrch);
 	break;
 
       case 'z' :			/* Size */
+	ret = 0;
 	rv = select_by_size(state->mail_stream, &limitsrch);
 	break;
 
       case 's' :			/* Status */
+	ret = 0;
 	rv = select_by_status(state->mail_stream, &limitsrch);
 	break;
 
       case 'k' :			/* Keyword */
+	ret = 0;
 	rv = select_by_keyword(state->mail_stream, &limitsrch);
 	break;
 
       case 'r' :			/* Rule */
+	ret = 0;
 	rv = select_by_rule(state->mail_stream, &limitsrch);
 	break;
 
       default :
 	q_status_message(SM_ORDER | SM_DING, 3, 3,
 			 "Unsupported Select option");
-	return;
+	return(ret);
     }
 
     if(limitsrch)
       mail_free_searchset(&limitsrch);
 
     if(rv)				/* bad return value.. */
-      return;				/* error already displayed */
+      return(ret);			/* error already displayed */
 
     if(narrow)				/* make sure something was selected */
       for(i = 1L; i <= mn_get_total(msgmap); i++)
@@ -6589,6 +6680,8 @@ aggregate_select(struct pine *state, MSGNO_S *msgmap, int q_line, CmdWhere in_in
     else
       q_status_message2(SM_ORDER, 3, 3, _("Select matched %s message%s!"),
 			comatose(diff), plural(diff));
+
+    return(ret);
 }
 
 
@@ -6605,13 +6698,12 @@ select_by_current(struct pine *state, MSGNO_S *msgmap, CmdWhere in_index)
 {
     long cur;
     int  all_selected = 0;
-    unsigned long was, is, tot;
+    unsigned long was, tot, rawno;
+    PINETHRD_S *thrd;
 
     cur = mn_get_cur(msgmap);
 
     if(THRD_INDX()){
-	PINETHRD_S *thrd;
-
 	thrd = fetch_thread(state->mail_stream, mn_m2raw(msgmap, cur));
 	if(!thrd)
 	  return 0;
@@ -6657,9 +6749,24 @@ select_by_current(struct pine *state, MSGNO_S *msgmap, CmdWhere in_index)
 			  plural(all_selected ? was : tot-was),
 			  all_selected ? "UN" : "");
     }
+    /* collapsed thread */
+    else if(THREADING()
+            && ((rawno = mn_m2raw(msgmap, cur)) != 0L)
+            && ((thrd = fetch_thread(state->mail_stream, rawno)) != NULL)
+            && (thrd && thrd->next && get_lflag(state->mail_stream, NULL, rawno, MN_COLL))){
+	/*
+	 * This doesn't work quite the same as the colon command works, but
+	 * it is arguably doing the correct thing. The difference is
+	 * that aggregate_select will zoom after selecting back where it
+	 * was called from, but selecting a thread with colon won't zoom.
+	 * Maybe it makes sense to zoom after a select but not after a colon
+	 * command even though they are very similar.
+	 */
+	thread_command(state, state->mail_stream, msgmap, ':', -FOOTER_ROWS(state));
+    }
     else{
-	if(all_selected =
-	   get_lflag(state->mail_stream, msgmap, cur, MN_SLCT)){ /* set? */
+	if((all_selected =
+	    get_lflag(state->mail_stream, msgmap, cur, MN_SLCT)) != 0){ /* set? */
 	    set_lflag(state->mail_stream, msgmap, cur, MN_SLCT, 0);
 	    if(any_lflagged(msgmap, MN_HIDE) > 0L){
 		set_lflag(state->mail_stream, msgmap, cur, MN_HIDE, 1);
@@ -8014,7 +8121,7 @@ choose_a_rule(int rflags)
        "rules" is something1 */
     choice = choose_item_from_list(rule_list, _("SELECT A RULE"),
 				   _("rules"), h_select_rule_screen,
-				   _("HELP FOR SELECTING A RULE NICKNAME"));
+				   _("HELP FOR SELECTING A RULE NICKNAME"), NULL);
 
     if(!choice)
       q_status_message(SM_ORDER, 1, 4, "No choice");
@@ -8038,8 +8145,7 @@ select_by_keyword(MAILSTREAM *stream, struct search_set **limitsrch)
 {
     int        r, not = 0;
     char       keyword[MAXUSERFLAG+1], *kword;
-    char      *error = NULL, *p;
-    KEYWORD_S *kw;
+    char      *error = NULL, *p, *prompt;
     HelpType   help;
     SEARCHPGM *pgm;
 
@@ -8055,12 +8161,23 @@ select_by_keyword(MAILSTREAM *stream, struct search_set **limitsrch)
 	    fs_give((void **) &error);
 	}
 
+	if(F_ON(F_FLAG_SCREEN_KW_SHORTCUT, ps_global) && ps_global->keywords){
+	    if(not)
+	      prompt = _("Keyword (or keyword initial) to NOT match: ");
+	    else
+	      prompt = _("Keyword (or keyword initial) to match: ");
+	}
+	else{
+	    if(not)
+	      prompt = _("Keyword to NOT match: ");
+	    else
+	      prompt = _("Keyword to match: ");
+	}
+
 	oe_flags = OE_APPEND_CURRENT;
         r = optionally_enter(keyword, -FOOTER_ROWS(ps_global), 0,
 			     sizeof(keyword),
-			     not ? _("Keyword to NOT match: ")
-			         : _("Keyword to match: "),
-			     sel_key_opt, help, &oe_flags);
+			     prompt, sel_key_opt, help, &oe_flags);
 
 	if(r == 14){
 	    /* select keyword from a list */
@@ -8086,6 +8203,14 @@ select_by_keyword(MAILSTREAM *stream, struct search_set **limitsrch)
 
     }while(r == 3 || r == 4 || r == '!' || keyword_check(keyword, &error));
 
+
+    if(F_ON(F_FLAG_SCREEN_KW_SHORTCUT, ps_global) && ps_global->keywords){
+	p = initial_to_keyword(keyword);
+	if(p != keyword){
+	    strncpy(keyword, p, sizeof(keyword)-1);
+	    keyword[sizeof(keyword)-1] = '\0';
+	}
+    }
 
     /*
      * We want to check the keyword, not the nickname of the keyword,
@@ -8127,8 +8252,8 @@ select_by_keyword(MAILSTREAM *stream, struct search_set **limitsrch)
 char *
 choose_a_keyword(void)
 {
-    char      *choice = NULL, *q;
-    char     **keyword_list, **lp, **t;
+    char      *choice = NULL;
+    char     **keyword_list, **lp;
     int        cnt;
     KEYWORD_S *kw;
 
@@ -8156,7 +8281,7 @@ choose_a_keyword(void)
        "keywords" is something1 */
     choice = choose_item_from_list(keyword_list, _("SELECT A KEYWORD"),
 				   _("keywords"), h_select_keyword_screen,
-				   _("HELP FOR SELECTING A KEYWORD"));
+				   _("HELP FOR SELECTING A KEYWORD"), NULL);
 
     if(!choice)
       q_status_message(SM_ORDER, 1, 4, "No choice");
@@ -8176,9 +8301,8 @@ char **
 choose_list_of_keywords(void)
 {
     LIST_SEL_S *listhead, *ls, *p;
-    char      **ret = NULL, **t;
+    char      **ret = NULL;
     int         cnt, i;
-    size_t      len;
     KEYWORD_S  *kw;
 
     /*
@@ -8209,7 +8333,7 @@ choose_list_of_keywords(void)
     if(!select_from_list_screen(listhead, SFL_ALLOW_LISTMODE,
 				_("SELECT KEYWORDS"), _("keywords"),
 				h_select_multkeyword_screen,
-			        _("HELP FOR SELECTING KEYWORDS"))){
+			        _("HELP FOR SELECTING KEYWORDS"), NULL)){
 	for(cnt = 0, p = listhead; p; p = p->next)
 	  if(p->selected)
 	    cnt++;
@@ -8391,7 +8515,7 @@ choose_list_of_charsets(void)
     if(!select_from_list_screen(listhead, SFL_ALLOW_LISTMODE,
 				_("SELECT CHARACTER SETS"), _("character sets"),
 				h_select_multcharsets_screen,
-			        _("HELP FOR SELECTING CHARACTER SETS"))){
+			        _("HELP FOR SELECTING CHARACTER SETS"), NULL)){
 	for(cnt = 0, p = listhead; p; p = p->next)
 	  if(p->selected)
 	    cnt++;
@@ -8527,13 +8651,13 @@ display_folder_list(CONTEXT_S **c, char *f, int sublist, int (*lister) (struct p
 
     push_titlebar_state();
     tc = *c;
-    if(rc = (*lister)(ps_global, &tc, f, sublist))
+    if((rc = (*lister)(ps_global, &tc, f, sublist)) != 0)
       *c = tc;
 
     ClearScreen();
     pop_titlebar_state();
     redraw_titlebar();
-    if(ps_global->redrawer = redraw) /* reset old value, and test */
+    if((ps_global->redrawer = redraw) != NULL) /* reset old value, and test */
       (*ps_global->redrawer)();
 
     if(rc == 1 && F_ON(F_SELECT_WO_CONFIRM, ps_global))
@@ -8555,9 +8679,10 @@ display_folder_list(CONTEXT_S **c, char *f, int sublist, int (*lister) (struct p
  * Returns an allocated copy of the chosen item or NULL.
  */
 char *
-choose_item_from_list(char **list, char *title, char *pdesc, HelpType help, char *htitle)
+choose_item_from_list(char **list, char *title, char *pdesc, HelpType help,
+		      char *htitle, char *cursor_location)
 {
-    LIST_SEL_S *listhead, *ls, *p;
+    LIST_SEL_S *listhead, *ls, *p, *starting_val = NULL;
     char      **t;
     char       *ret = NULL, *choice = NULL;
 
@@ -8567,6 +8692,8 @@ choose_item_from_list(char **list, char *title, char *pdesc, HelpType help, char
 	ls = (LIST_SEL_S *) fs_get(sizeof(*ls));
 	memset(ls, 0, sizeof(*ls));
 	ls->item = cpystr(*t);
+	if(cursor_location && (cursor_location == (*t)))
+	  starting_val = ls;
 	
 	if(p){
 	    p->next = ls;
@@ -8580,7 +8707,7 @@ choose_item_from_list(char **list, char *title, char *pdesc, HelpType help, char
       return(ret);
 
     if(!select_from_list_screen(listhead, SFL_NONE, title, pdesc,
-				help, htitle))
+				help, htitle, starting_val))
       for(p = listhead; !choice && p; p = p->next)
 	if(p->selected)
 	  choice = p->item;
@@ -8636,7 +8763,7 @@ file_lister(char *title, char *path, size_t pathlen, char *file, size_t filelen,
     /* Restore display's titlebar and body */
     pop_titlebar_state();
     redraw_titlebar();
-    if(ps_global->redrawer = redraw)
+    if((ps_global->redrawer = redraw) != NULL)
       (*ps_global->redrawer)();
 
     return(rv);
@@ -8651,7 +8778,6 @@ int
 print_index(struct pine *state, MSGNO_S *msgmap, int agg)
 {
     long     i;
-    int      sectnum;
     ICE_S   *ice;
     char     buf[MAX_SCREEN_COLS+1];
 
@@ -8778,7 +8904,7 @@ flag_callback(set, flags)
 	 */
 	if(set){
 	    char *flagstr;
-	    long  ourflag, mflag;
+	    long  mflag;
 
 	    switch(set){
 	      case 1 :			/* Important */

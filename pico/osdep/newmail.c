@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: newmail.c 205 2006-10-26 23:04:44Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: newmail.c 672 2007-08-15 23:07:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,7 +45,7 @@ pico_new_mail(void)
     struct stat sbuf;
     char   inbox[256], *p;
 
-    if(p = (char *)getenv("MAIL"))
+    if((p = (char *)getenv("MAIL")) != NULL)
       /* fix unsafe sprintf - noticed by petter wahlman <petter@bluezone.no> */
       snprintf(inbox, sizeof(inbox), "%s", p);
     else

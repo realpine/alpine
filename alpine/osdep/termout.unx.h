@@ -1,8 +1,8 @@
 /*
- * $Id: termout.unx.h 221 2006-11-06 22:17:52Z jpf@u.washington.edu $
+ * $Id: termout.unx.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,17 +17,7 @@
 #define PINE_OSDEP_TERMOUT_UNX_INCLUDED
 
 
-
-extern int   _line;
-extern int   _col;
-
-
 /* exported prototypes */
-void	outchar(int);
-void	end_screen(char *, int);
-void	MoveCursor(int, int);
-void	Writewchar(UCS);
-void	icon_text(char *, int);
 
 
 #endif /* PINE_OSDEP_TERMOUT_UNX_INCLUDED */

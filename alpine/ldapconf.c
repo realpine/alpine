@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: ldapconf.c 245 2006-11-18 02:46:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: ldapconf.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,9 +21,14 @@ static char rcsid[] = "$Id: ldapconf.c 245 2006-11-18 02:46:41Z hubert@u.washing
 #include "radio.h"
 #include "status.h"
 #include "confscroll.h"
+#include "adrbkcmd.h"
+#include "titlebar.h"
+#include "takeaddr.h"
 #include "../pith/ldap.h"
 #include "../pith/state.h"
 #include "../pith/bitmap.h"
+#include "../pith/mailcmd.h"
+#include "../pith/list.h"
 
 
 /*
@@ -441,7 +446,7 @@ ldap_addr_select(struct pine *ps, ADDR_CHOOSE_S *ac, LDAP_SERV_RES_S **result,
 	ee[sizeof(ee)-1] = '\0';
 
 	/* TRANSLATORS: a request for user to choose Exit after they read text */
-	strncat(ee, _(" -- Choose Exit ]"),  sizeof(ee)-strlen(ee));
+	strncat(ee, _(" -- Choose Exit ]"),  sizeof(ee)-strlen(ee)-1);
 	ee[sizeof(ee)-1] = '\0';
 	ctmpa->value      = cpystr(ee);
 	ctmpa->valoffset  = 10;
@@ -490,7 +495,7 @@ ldap_addr_select(struct pine *ps, ADDR_CHOOSE_S *ac, LDAP_SERV_RES_S **result,
 	ClearScreen();
 	pop_titlebar_state();
 	redraw_titlebar();
-	if(ps_global->redrawer = prev_redrawer)
+	if((ps_global->redrawer = prev_redrawer) != NULL)
 	  (*ps_global->redrawer)();
 
 	if(result && retval == 0 && ac->selected_ld && ac->selected_entry){
@@ -696,6 +701,8 @@ directory_config(struct pine *ps, int edit_exceptions)
 	  case Post:
 	    prc = ps->post_prc;
 	    break;
+	  default:
+	    break;
 	}
 
 	readonly_warning = prc ? prc->readonly : 1;
@@ -809,7 +816,7 @@ dir_config_add(struct pine *ps, CONF_S **cl)
 
 	    /* catch the special "" case */
 	    if(cnt == 0 ||
-	       cnt == 1 && lval[0][0] == '\0'){
+	       (cnt == 1 && lval[0][0] == '\0')){
 		new_list = (char **)fs_get((1 + 1) * sizeof(char *));
 		new_list[0] = raw_server;
 		new_list[1] = NULL;
@@ -1463,13 +1470,13 @@ dir_edit_screen(struct pine *ps, LDAP_SERV_S *def, char *title, char **raw_serve
     ctmp->value     = cpystr(set_choose);
 
     /*  find longest value's name */
-    for(lv = 0, i = 0; f = ldap_feature_list(i); i++)
+    for(lv = 0, i = 0; (f = ldap_feature_list(i)); i++)
       if(lv < (j = utf8_width(f->name)))
 	lv = j;
     
     lv = MIN(lv, 100);
 
-    for(i = 0; f = ldap_feature_list(i); i++){
+    for(i = 0; (f = ldap_feature_list(i)); i++){
 	new_confline(&ctmp);
 	ctmp->var       = &opt_var;
 	ctmp->help_title= _("HELP FOR LDAP FEATURES");
@@ -1543,13 +1550,13 @@ dir_edit_screen(struct pine *ps, LDAP_SERV_S *def, char *title, char **raw_serve
     ctmp->value     = cpystr(set_choose);
 
     /* find longest value's name */
-    for(lv = 0, i = 0; f = ldap_search_types(i); i++)
+    for(lv = 0, i = 0; (f = ldap_search_types(i)); i++)
       if(lv < (j = utf8_width(f->name)))
 	lv = j;
     
     lv = MIN(lv, 100);
     
-    for(i = 0; f = ldap_search_types(i); i++){
+    for(i = 0; (f = ldap_search_types(i)); i++){
 	new_confline(&ctmp);
 	ctmp->help_title= _("HELP FOR SEARCH TYPE");
 	ctmp->var       = &srch_type_var;
@@ -1607,13 +1614,13 @@ dir_edit_screen(struct pine *ps, LDAP_SERV_S *def, char *title, char **raw_serve
     ctmp->value     = cpystr(set_choose);
 
     /* find longest value's name */
-    for(lv = 0, i = 0; f = ldap_search_rules(i); i++)
+    for(lv = 0, i = 0; (f = ldap_search_rules(i)); i++)
       if(lv < (j = utf8_width(f->name)))
 	lv = j;
     
     lv = MIN(lv, 100);
     
-    for(i = 0; f = ldap_search_rules(i); i++){
+    for(i = 0; (f = ldap_search_rules(i)); i++){
 	new_confline(&ctmp);
 	ctmp->help_title= _("HELP FOR SEARCH RULE");
 	ctmp->var       = &srch_rule_var;
@@ -2336,7 +2343,6 @@ void
 toggle_ldap_option_bit(struct pine *ps, int index, struct variable *var, char *value)
 {
     NAMEVAL_S  *f;
-    char      **vp, *p;
 
     f  = ldap_feature_list(index);
 

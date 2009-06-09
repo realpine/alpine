@@ -1,8 +1,8 @@
 /*
- * $Id: adrbkcmd.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: adrbkcmd.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,6 +48,8 @@ int        ab_agg_delete(struct pine *, int);
 int        single_entry_delete(AdrBk *, long, int *);
 char      *query_server(struct pine *, int, int *, int, char **);
 void	   free_headents(struct headerentry **);
+void       write_single_vcard_entry(struct pine *, gf_io_t, VCARD_INFO_S *);
+void       free_vcard_info(VCARD_INFO_S **);
 #ifdef	ENABLE_LDAP
 void       view_ldap_entry(struct pine *, LDAP_SERV_RES_S *);
 void       compose_to_ldap_entry(struct pine *, LDAP_SERV_RES_S *,int);

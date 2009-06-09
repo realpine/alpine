@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: folder.c 609 2007-06-22 23:38:20Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: folder.c 678 2007-08-20 23:05:24Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -54,6 +54,8 @@ or search for a folder name.
 #include "../pith/util.h"
 #include "../pith/stream.h"
 #include "../pith/save.h"
+#include "../pith/busy.h"
+#include "../pith/list.h"
 
 
 #define	SUBSCRIBE_PMT	\
@@ -158,7 +160,9 @@ int	    folder_selector(struct pine *, FSTATE_S *, char *, CONTEXT_S **);
 void	    folder_sublist_context(char *, CONTEXT_S *, CONTEXT_S *, FDIR_S **, int);
 CONTEXT_S  *context_screen(CONTEXT_S *, struct key_menu *, int);
 char	   *exit_collection_add(struct headerentry *, void (*)(void), int);
-char	   *cancel_collection_add(char *, void (*)(void));
+char	   *cancel_collection_add(void (*)(void));
+char	   *cancel_collection_edit(void (*)(void));
+char	   *cancel_collection_editing(char *, void (*)(void));
 int	    build_namespace(char *, char **, char **, BUILDER_ARG *, int *);
 int	    fl_val_gen(FOLDER_S *, FSTATE_S *);
 int	    fl_val_writable(FOLDER_S *, FSTATE_S *);
@@ -168,6 +172,7 @@ int	    folder_list_text(struct pine *, FPROC_S *, gf_io_t, HANDLE_S **, int);
 int         folder_list_write(gf_io_t, HANDLE_S **, CONTEXT_S *, int, char *, int);
 int	    folder_list_write_prefix(FOLDER_S *, int, gf_io_t);
 int	    folder_list_write_suffix(FOLDER_S *, int, gf_io_t);
+int         color_monitored_unseen(FOLDER_S *, int);
 int	    folder_list_ith(int, CONTEXT_S *);
 char	   *folder_list_center_space(char *, int);
 HANDLE_S   *folder_list_handle(FSTATE_S *, HANDLE_S *);
@@ -204,19 +209,12 @@ int	    shuffle_incoming_folders(CONTEXT_S *, int);
 int         swap_incoming_folders(int, int, FLIST *);
 int         search_folder_list(void *, char *);
 char       *get_post_list(char **);
-int         percent_formatted(void);
 #ifdef	_WINDOWS
 int	    folder_list_popup(SCROLL_S *, int);
 int	    folder_list_select_popup(SCROLL_S *, int);
 void	    folder_popup_config(FSTATE_S *, struct key_menu *,MPopup *);
 #endif
 
-
-static struct {
-       int num_done;
-       int total;
-} percent;
-  
 
 /*----------------------------------------------------------------------
       Front end to folder lister when it's called from the main menu
@@ -306,7 +304,7 @@ folder_screen(struct pine *ps)
 	if(F_ON(F_ENABLE_INCOMING_CHECKING, ps))
 	  ps->in_folder_screen = 1;
 
-	if(folders = folder_lister(ps, &fs)){
+	if((folders = folder_lister(ps, &fs)) != NULL){
 
 	    ps->in_folder_screen = 0;
 
@@ -578,7 +576,7 @@ folder_selector(struct pine *ps, FSTATE_S *fs, char *folder, CONTEXT_S **cntxtp)
 
     do{
 	fs->context = *cntxtp;
-	if(folders = folder_lister(ps, fs)){
+	if((folders = folder_lister(ps, fs)) != NULL){
 	    strncpy(folder, (char *) folders->name, MAILTMPLEN-1);
 	    folder[MAILTMPLEN-1] = '\0';
 	    free_strlist(&folders);
@@ -591,7 +589,7 @@ folder_selector(struct pine *ps, FSTATE_S *fs, char *folder, CONTEXT_S **cntxtp)
 		|| fs->combined_view)
 	  break;
     }
-    while(*cntxtp = context_screen(*cntxtp, &c_sel_km, 0));
+    while((*cntxtp = context_screen(*cntxtp, &c_sel_km, 0)) != NULL);
 
     return(rv);
 }
@@ -617,7 +615,7 @@ folder_sublist_context(char *folder, CONTEXT_S *cntxt, CONTEXT_S *new_cntxt, FDI
 
     wildcard = NEWS_TEST(new_cntxt) ? "*" : "%";
 
-    if(p = strrindex(folder, (*new_dir)->delim)){
+    if((p = strrindex(folder, (*new_dir)->delim)) != NULL){
 	snprintf(tmp_20k_buf, SIZEOF_20KBUF, "%s%s", p + 1, wildcard);
 	tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
 	(*new_dir)->view.internal = cpystr(tmp_20k_buf);
@@ -684,7 +682,7 @@ folders_for_fcc(char **errmsg)
     fs.context = default_save_context(ps_global->context_list);
 
     do{
-	if(folders = folder_lister(ps_global, &fs)){
+	if((folders = folder_lister(ps_global, &fs)) != NULL){
 	    char *name;
 
 	    /* replace nickname with full name */
@@ -722,7 +720,7 @@ folders_for_fcc(char **errmsg)
 		|| fs.combined_view)
 	  break;
     }
-    while(fs.context = context_screen(fs.context, &c_fcc_km, 0));
+    while((fs.context = context_screen(fs.context, &c_fcc_km, 0)) != NULL);
 
     return(rs);
 }
@@ -768,7 +766,7 @@ folder_for_config(int flags)
     fs.context = ps_global->context_current;
 
     do{
-	if(folders = folder_lister(ps_global, &fs)){
+	if((folders = folder_lister(ps_global, &fs)) != NULL){
 	    char *name = NULL;
 
 	    /* replace nickname with full name */
@@ -822,7 +820,7 @@ folder_for_config(int flags)
 		|| fs.combined_view)
 	  break;
     }
-    while(fs.context = context_screen(fs.context, &c_fcc_km, 0));
+    while((fs.context = context_screen(fs.context, &c_fcc_km, 0)) != NULL);
 
     return(rs);
 }
@@ -868,18 +866,18 @@ static struct headerentry headents_templ[]={
      term that can be used to restrict the View to fewer folders */
   {"Nickname  : ",  N_("Nickname"),  h_composer_cntxt_nick, 12, 0, NULL,
    NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-   1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
+   1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"Server    : ",  N_("Server"),  h_composer_cntxt_server, 12, 0, NULL,
    NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-   1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
+   1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"Path      : ",  N_("Path"),  h_composer_cntxt_path, 12, 0, NULL,
    NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-   1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
+   1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"View      : ",  N_("View"),  h_composer_cntxt_view, 12, 0, NULL,
    NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-   1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
+   1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {NULL, NULL, NO_HELP, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE}
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE}
 };
 #define	AC_NICK	0
 #define	AC_SERV	1
@@ -903,7 +901,8 @@ context_edit_screen(struct pine *ps, char *func, char *def_nick,
     standard_picobuf_setup(&pbf);
     pbf.pine_flags   |= P_NOBODY;
     pbf.exittest      = exit_collection_add;
-    pbf.canceltest    = cancel_collection_add;
+    pbf.canceltest    = (func && !strucmp(func, "EDIT")) ? cancel_collection_edit
+							 : cancel_collection_add;
     snprintf(tmp, sizeof(tmp), _("FOLDER COLLECTION %s"), func);
     tmp[sizeof(tmp)-1] = '\0';
     pbf.pine_anchor   = set_titlebar(tmp, ps_global->mail_stream,
@@ -912,7 +911,7 @@ context_edit_screen(struct pine *ps, char *func, char *def_nick,
 				      0, FolderName, 0, 0, NULL);
 
     /* An informational message */
-    if(msgso = so_get(PicoText, NULL, EDIT_ACCESS)){
+    if((msgso = so_get(PicoText, NULL, EDIT_ACCESS)) != NULL){
 	pbf.msgtext = (void *) so_text(msgso);
 	so_puts(msgso,
        _("\n   Fill in the fields above to add a Folder Collection to your"));
@@ -1021,7 +1020,7 @@ context_edit_screen(struct pine *ps, char *func, char *def_nick,
 		if(val != nick)
 		  fs_give((void **)&val);
 	    
-		strncat(tmp, " ", 1);
+		strncat(tmp, " ", sizeof(tmp)-strlen(tmp)-1);
 		tmp[sizeof(tmp)-1] = '\0';
 	    }
 	}
@@ -1044,8 +1043,8 @@ context_edit_screen(struct pine *ps, char *func, char *def_nick,
 
 	sstrncpy(&p, view, sizeof(btmp)-1-(p-btmp));
 	btmp[sizeof(btmp)-1] = '\0';
-	if((j=strlen(view)) < 2 || view[j-1] != ']' &&
-	   sizeof(btmp)-1-(p-btmp) > 0){
+	if((j=strlen(view)) < 2 || (view[j-1] != ']' &&
+	   sizeof(btmp)-1-(p-btmp) > 0)){
 	    *p++ = ']';
 	    *p = '\0';
 	}
@@ -1147,7 +1146,7 @@ exit_collection_add(struct headerentry *he, void (*redraw_pico)(void), int allow
 	  fs_give(&he[AC_PATH].bldr_private);
 
 	ps_global->mm_log_error = 0;
-	if(delim = folder_delimiter(tmp)){
+	if((delim = folder_delimiter(tmp)) != '\0'){
 	    if(*path){
 		if(tmp[(i = strlen(tmp)) - 1] == delim)
 		  tmpnodel[i-1] = '\0';
@@ -1205,25 +1204,39 @@ exit_collection_add(struct headerentry *he, void (*redraw_pico)(void), int allow
 }
 
 
-/*
- *  Call back for pico to prompt the user for exit confirmation
- *
- * Returns: either NULL if the user accepts exit, or string containing
- *	 reason why the user declined.
- */      
 char *
-cancel_collection_add(char *word, void (*redraw_pico)(void))
+cancel_collection_add(void (*redraw_pico)(void))
+{
+    return(cancel_collection_editing(_("Add"), redraw_pico));
+}
+
+
+char *
+cancel_collection_edit(void (*redraw_pico)(void))
+{
+    return(cancel_collection_editing(_("Edit"), redraw_pico));
+}
+
+
+char *
+cancel_collection_editing(char *func, void (*redraw_pico)(void))
 {
     char *rstr = NULL;
     void (*redraw)(void) = ps_global->redrawer;
+    static char rbuf[20];
+    char prompt[256];
 #define	CCA_PROMPT	\
 		_("Cancel Add (answering \"Yes\" will abandon any changes made) ")
 
+    snprintf(prompt, sizeof(prompt), _("Cancel %s (answering \"Yes\" will abandon any changes made) "), func ? func : "Add");
+    snprintf(rbuf, sizeof(rbuf), _("%s Cancelled) "), func ? func : "Add");
+
     ps_global->redrawer = redraw_pico;
     fix_windsize(ps_global);
-    switch(want_to(CCA_PROMPT, 'y', 'x', NO_HELP, WT_NORM)){
+
+    switch(want_to(prompt, 'y', 'x', NO_HELP, WT_NORM)){
       case 'y':
-	rstr = _("Add Cancelled");
+	rstr = rbuf;
 	break;
 
       case 'n':
@@ -1243,6 +1256,7 @@ build_namespace(char *server, char **server_too, char **error, BUILDER_ARG *barg
     int		  we_cancel = 0;
     MAILSTREAM	 *stream;
     NAMESPACE  ***namespace;
+    size_t        len;
 
     dprint((5, "- build_namespace - (%s)\n",
 	       server ? server : "nul"));
@@ -1256,7 +1270,7 @@ build_namespace(char *server, char **server_too, char **error, BUILDER_ARG *barg
     else
       *barg->me = (void *) 1;
 
-    if(p = server)		/* empty string? */
+    if((p = server) != NULL)		/* empty string? */
       while(*p && isspace((unsigned char) *p))
 	p++;
 
@@ -1264,9 +1278,9 @@ build_namespace(char *server, char **server_too, char **error, BUILDER_ARG *barg
 	if(server_too)
 	  *server_too = cpystr(p);
 
-	name = (char *) fs_get((strlen(p) + 3) * sizeof(char));
-	snprintf(name, sizeof(name), "{%s}", p);
-	name[sizeof(name)-1] = '\0';
+	len = strlen(p) + 2;
+	name = (char *) fs_get((len + 1) * sizeof(char));
+	snprintf(name, len+1, "{%s}", p);
     }
     else{
 	if(server_too)
@@ -1280,11 +1294,11 @@ build_namespace(char *server, char **server_too, char **error, BUILDER_ARG *barg
     init_sigwinch();
     clear_cursor_pos();
 
-    we_cancel = busy_cue("Fetching default directory", NULL, 1);
+    we_cancel = busy_cue(_("Fetching default directory"), NULL, 1);
 
-    if(stream = pine_mail_open(NULL, name,
+    if((stream = pine_mail_open(NULL, name,
 			   OP_HALFOPEN | OP_SILENT | SP_USEPOOL | SP_TEMPUSE,
-			       NULL)){
+			       NULL)) != NULL){
 	if((namespace = mail_parameters(stream, GET_NAMESPACE, NULL))
 	   && *namespace && (*namespace)[0]
 	   && (*namespace)[0]->name && (*namespace)[0]->name[0]){
@@ -1359,7 +1373,7 @@ folder_lister(struct pine *ps, FSTATE_S *fs)
     folder_proc_data.fs = fs;
 
     while(!folder_proc_data.done){
-	if(screen_text = so_get(CharStar, NULL, EDIT_ACCESS)){
+	if((screen_text = so_get(CharStar, NULL, EDIT_ACCESS)) != NULL){
 	    gf_set_so_writec(&pc, screen_text);
 	}
 	else{
@@ -1368,13 +1382,11 @@ folder_lister(struct pine *ps, FSTATE_S *fs)
 	    return(NULL);
 	}
 
-	we_cancel = busy_cue("Formatting scroll text", percent_formatted, 1);
+	we_cancel = busy_cue(_("Fetching folder data"), NULL, 1);
 	fltrv = folder_list_text(ps, &folder_proc_data, pc, &handles, 
 			    ps->ttyo->screen_cols);
-	if(we_cancel){
+	if(we_cancel)
 	  cancel_busy_cue(-1);
-	  percent.num_done = 0;
-	}
 
 	if(fltrv){
 
@@ -1386,7 +1398,7 @@ folder_lister(struct pine *ps, FSTATE_S *fs)
 	    sargs.text.text = so_text(screen_text);
 	    sargs.text.src  = CharStar;
 	    sargs.text.desc = "folder list";
-	    if(sargs.text.handles = folder_list_handle(fs, handles))
+	    if((sargs.text.handles = folder_list_handle(fs, handles)) != NULL)
 	      sargs.start.on = Handle;
 
 	    sargs.bar.title    = fs->f.title.bar;
@@ -1506,7 +1518,7 @@ int
 folder_list_text(struct pine *ps, FPROC_S *fp, gf_io_t pc, HANDLE_S **handlesp, int cols)
 {
     int	       rv = 1, i, j, ftotal, fcount, slot_width, slot_rows,
-	       slot_cols, index, findex, width, len, shown, selected;
+	       slot_cols, index, findex, width, shown, selected;
     CONTEXT_S *c_list;
     char       lbuf[6*MAX_SCREEN_COLS+1];
 
@@ -1526,9 +1538,9 @@ folder_list_text(struct pine *ps, FPROC_S *fp, gf_io_t pc, HANDLE_S **handlesp, 
 	ps->user_says_cancel = 0;
 
 	/* If we're displaying folders, fetch the list */
-	if(shown = (c_list == fp->fs->context
-		    || (c_list->dir->status & CNTXT_NOFIND) == 0
-		    || F_ON(F_EXPANDED_FOLDERS, ps_global))){
+	if((shown = (c_list == fp->fs->context
+		     || (c_list->dir->status & CNTXT_NOFIND) == 0
+		     || F_ON(F_EXPANDED_FOLDERS, ps_global))) != 0){
 	    /*
 	     * if select is allowed, flag context so any that are
 	     * are remembered even after the list is destroyed
@@ -1652,7 +1664,7 @@ folder_list_text(struct pine *ps, FPROC_S *fp, gf_io_t pc, HANDLE_S **handlesp, 
 
 	if(shown){
 	    /* Run thru list formatting as necessary */
-	    if(ftotal = folder_total(FOLDERS(c_list))){
+	    if((ftotal = folder_total(FOLDERS(c_list))) != 0){
 		/* If previously selected, mark members of new list */
 		selected = selected_folders(c_list);
 
@@ -1747,9 +1759,7 @@ folder_list_text(struct pine *ps, FPROC_S *fp, gf_io_t pc, HANDLE_S **handlesp, 
 		    }
 		}
 
-		percent.total = slot_rows;
 		for(i = index = 0; i < slot_rows; i++){
-		    percent.num_done = i;
 		    if(i)
 		      gf_puts("\n", pc);
 
@@ -1842,6 +1852,7 @@ folder_list_write(gf_io_t pc, HANDLE_S **handlesp, CONTEXT_S *ctxt, int fnum, ch
     int	      l = 0, ll = 0;
     FOLDER_S *fp;
     HANDLE_S *h;
+    int       cu = 0;
 
     if(flags & FLW_LUNK){
 	h		 = new_handle(handlesp);
@@ -1858,8 +1869,17 @@ folder_list_write(gf_io_t pc, HANDLE_S **handlesp, CONTEXT_S *ctxt, int fnum, ch
 
     fp = (fnum < 0) ? NULL : folder_entry(fnum, FOLDERS(ctxt));
 
+    if(h){
+	/* color unseen? */
+	cu = color_monitored_unseen(fp, flags);
+	if(cu)
+	  h->color_unseen = 1;
+    }
+
     /* embed handle pointer */
-    if((h ? ((*pc)(TAG_EMBED) && (*pc)(TAG_HANDLE)
+    if((cu ? gf_puts(color_embed(ps_global->VAR_INCUNSEEN_FORE_COLOR,
+				 ps_global->VAR_INCUNSEEN_BACK_COLOR), pc) : 1)
+       && (h ? ((*pc)(TAG_EMBED) && (*pc)(TAG_HANDLE)
 	     && (*pc)(strlen(buf)) && gf_puts(buf, pc)) : 1)
        && (fp ? ((l = folder_list_write_prefix(fp, flags, pc)) >= 0
 		 && gf_puts(FLDR_NAME(fp), pc)
@@ -1869,7 +1889,9 @@ folder_list_write(gf_io_t pc, HANDLE_S **handlesp, CONTEXT_S *ctxt, int fnum, ch
 		 && ((ll = folder_list_write_suffix(fp, flags, pc)) >= 0))
 	      : (alt_name ? gf_puts(alt_name, pc) : 0))
        && (h ? ((*pc)(TAG_EMBED) && (*pc)(TAG_BOLDOFF)
-		&& (*pc)(TAG_EMBED) && (*pc)(TAG_INVOFF)) : 1)){
+		&& (*pc)(TAG_EMBED) && (*pc)(TAG_INVOFF)) : 1)
+       && (cu ? gf_puts(color_embed(ps_global->VAR_NORM_FORE_COLOR,
+				    ps_global->VAR_NORM_BACK_COLOR), pc) : 1)){
 	if(fp){
 	    l += ll;
 	    l += utf8_width(FLDR_NAME(fp));
@@ -1954,6 +1976,22 @@ folder_list_write_suffix(FOLDER_S *f, int flags, gf_io_t pc)
 
 
 int
+color_monitored_unseen(FOLDER_S *f, int flags)
+{
+    return((flags & FLW_UNSEEN) && f && f->unseen_valid
+	   && ((F_ON(F_INCOMING_CHECKING_RECENT, ps_global) && f->new > 0L)
+	       || (F_OFF(F_INCOMING_CHECKING_RECENT, ps_global) && f->unseen > 0L))
+           && pico_usingcolor()
+	   && pico_is_good_color(ps_global->VAR_INCUNSEEN_FORE_COLOR)
+	   && pico_is_good_color(ps_global->VAR_INCUNSEEN_BACK_COLOR)
+	   && (colorcmp(ps_global->VAR_INCUNSEEN_FORE_COLOR,
+		        ps_global->VAR_NORM_FORE_COLOR)
+	       || colorcmp(ps_global->VAR_INCUNSEEN_BACK_COLOR,
+			   ps_global->VAR_NORM_BACK_COLOR)));
+}
+
+
+int
 folder_list_ith(int n, CONTEXT_S *cntxt)
 {
     int	      index, ftotal;
@@ -2007,8 +2045,8 @@ folder_list_handle(FSTATE_S *fs, HANDLE_S *handles)
 		 || ((fp = folder_entry(h->h.f.index, FOLDERS(h->h.f.context)))
 		     && ((fs->first_dir && fp->isdir)
 			 || (!fs->first_dir && fp->isfolder))
-		     && (fp->nickname && !strcmp(name ? name : fs->first_folder, fp->nickname)
-		         || fp->name && !strcmp(name ? name : fs->first_folder, fp->name)))){
+		     && ((fp->nickname && !strcmp(name ? name : fs->first_folder, fp->nickname))
+		         || (fp->name && !strcmp(name ? name : fs->first_folder, fp->name))))){
 		  h_found = h;
 		  break;
 	      }
@@ -2386,8 +2424,8 @@ folder_processor(int cmd, MSGNO_S *msgmap, SCROLL_S *sparms)
 		FOLDER_S *fp;
 
 		FPROC(sparms)->fs->context = sparms->text.handles->h.f.context;
-		if(fp = folder_entry(sparms->text.handles->h.f.index,
-				 FOLDERS(sparms->text.handles->h.f.context))){
+		if((fp = folder_entry(sparms->text.handles->h.f.index,
+				 FOLDERS(sparms->text.handles->h.f.context))) != NULL){
 		    if(strlen(FLDR_NAME(fp)) < MAXFOLDER - 1){
 			strncpy(FPROC(sparms)->fs->first_folder,  FLDR_NAME(fp), MAXFOLDER);
 			FPROC(sparms)->fs->first_folder[MAXFOLDER-1] = '\0';
@@ -2409,7 +2447,7 @@ folder_processor(int cmd, MSGNO_S *msgmap, SCROLL_S *sparms)
 	    FOLDER_S *fp;
 	    int	      n;
 
-	    if(n = selected_folders(sparms->text.handles->h.f.context)){
+	    if((n = selected_folders(sparms->text.handles->h.f.context)) != 0){
 		if(sparms->text.handles->h.f.context->use & CNTXT_ZOOM){
 		    sparms->text.handles->h.f.context->use &= ~CNTXT_ZOOM;
 		    q_status_message(SM_ORDER, 0, 3,
@@ -2592,7 +2630,7 @@ folder_lister_choice(SCROLL_S *sparms)
 		    }
 		}
 
-		if(FPROC(sparms)->rv = sl)
+		if((FPROC(sparms)->rv = sl) != NULL)
 		  FPROC(sparms)->done = rv = 1;
 		else if(!n)
 		  q_status_message(SM_ORDER, 0, 1, LISTMODE_GRIPE);
@@ -3032,23 +3070,25 @@ folder_select(struct pine *ps, CONTEXT_S *context, int cur_index)
 	{'c', 'c', "C", N_("select Cur")},
 	{'p', 'p', "P", N_("Properties")},
 	{'t', 't', "T", N_("Text")},
+	{-1, 0, NULL, NULL},
 	{-1, 0, NULL, NULL}
     };
     extern     ESCKEY_S sel_opts1[];
     extern     char *sel_pmt2;
+#define N_RECENT 4
 
     f = folder_entry(cur_index, FOLDERS(context));
 
     sel_opts = self_opts2;
-    if(old_tot = selected_folders(context)){
-	sel_opts1[1].label = N_("unselect Cur") + (f->selected ? 0 : 2);
+    if((old_tot = selected_folders(context)) != 0){
+	sel_opts1[1].label = f->selected ? N_("unselect Cur") : N_("select Cur");
 	sel_opts += 2;			/* disable extra options */
 	switch(q = radio_buttons(SEL_ALTER_PMT, -FOOTER_ROWS(ps_global),
 				 sel_opts1, 'c', 'x', help, RB_NORM)){
 	  case 'f' :			/* flip selection */
 	    n = folder_total(FOLDERS(context));
 	    for(total = i = 0; i < n; i++)
-	      if(f = folder_entry(i, FOLDERS(context)))
+	      if((f = folder_entry(i, FOLDERS(context))) != NULL)
 		f->selected = !f->selected;
 
 	    return(1);			/* repaint */
@@ -3076,6 +3116,27 @@ folder_select(struct pine *ps, CONTEXT_S *context, int cur_index)
 			     _("Unsupported Select option"));
 	    return(0);
 	}
+    }
+
+    if(context->use & CNTXT_INCMNG && F_ON(F_ENABLE_INCOMING_CHECKING, ps_global)){
+	if(F_ON(F_INCOMING_CHECKING_RECENT, ps_global)){
+	    self_opts2[N_RECENT].ch = 'r';
+	    self_opts2[N_RECENT].rval = 'r';
+	    self_opts2[N_RECENT].name = "R";
+	    self_opts2[N_RECENT].label = N_("Recent");
+	}
+	else{
+	    self_opts2[N_RECENT].ch = 'u';
+	    self_opts2[N_RECENT].rval = 'u';
+	    self_opts2[N_RECENT].name = "U";
+	    self_opts2[N_RECENT].label = N_("Unseen");
+	}
+    }
+    else{
+	self_opts2[N_RECENT].ch = -1;
+	self_opts2[N_RECENT].rval = 0;
+	self_opts2[N_RECENT].name = NULL;
+	self_opts2[N_RECENT].label = NULL;
     }
 
     if(!q)
@@ -3117,6 +3178,26 @@ folder_select(struct pine *ps, CONTEXT_S *context, int cur_index)
 
 	break;
 
+      case 'r' :
+	n = folder_total(FOLDERS(context));
+	for(i = 0; i < n; i++){
+	    f = folder_entry(i, FOLDERS(context));
+	    if(f->unseen_valid && f->new > 0L)
+	      f->selected = 1;
+	}
+
+	break;
+
+      case 'u' :
+	n = folder_total(FOLDERS(context));
+	for(i = 0; i < n; i++){
+	    f = folder_entry(i, FOLDERS(context));
+	    if(f->unseen_valid && f->unseen > 0L)
+	      f->selected = 1;
+	}
+
+	break;
+
       default :
 	q_status_message(SM_ORDER | SM_DING, 3, 3,
 			 _("Unsupported Select option"));
@@ -3140,7 +3221,7 @@ folder_select(struct pine *ps, CONTEXT_S *context, int cur_index)
      */
     if(i < n)
       for(i = 0; i < n; i++)
-	if(f = folder_entry(i, FOLDERS(context))){
+	if((f = folder_entry(i, FOLDERS(context))) != NULL){
 	    if(narrow){
 		if(f->selected){
 		    f->selected = f->scanned;
@@ -3169,7 +3250,7 @@ folder_select(struct pine *ps, CONTEXT_S *context, int cur_index)
     }
     else if(old_tot){
 	snprintf(tmp_20k_buf, SIZEOF_20KBUF,
-		"Select matched %ld folder%s.  %s %sfolder%s %sselected.",
+		"Select matched %d folder%s.  %s %sfolder%s %sselected.",
 		(diff > 0) ? diff : old_tot + diff,
 		plural((diff > 0) ? diff : old_tot + diff),
 		comatose((diff > 0) ? total : -diff),
@@ -3225,16 +3306,15 @@ folder_lister_parent(FSTATE_S *fs, CONTEXT_S *context, int index, int force_pare
 {
     int       rv = 0;
     FDIR_S   *fp;
-    FOLDER_S *f = context ? folder_entry(index, FOLDERS(context)) : NULL;
 
     if(!force_parent && (fp = context->dir->prev)){
 	char *s, oldir[MAILTMPLEN];
 
 	folder_select_preserve(context);
 	oldir[0] = '\0';
-	if(s = strrindex(context->dir->ref, context->dir->delim)){
+	if((s = strrindex(context->dir->ref, context->dir->delim)) != NULL){
 	    *s = '\0';
-	    if(s = strrindex(context->dir->ref, context->dir->delim)){
+	    if((s = strrindex(context->dir->ref, context->dir->delim)) != NULL){
 		strncpy(oldir, s+1, sizeof(oldir)-1);
 		oldir[sizeof(oldir)-1] = '\0';
 	    }
@@ -3333,7 +3413,7 @@ folder_export(SCROLL_S *sparms)
 {
     FOLDER_S   *f;
     MAILSTREAM *stream, *ourstream = NULL;
-    char        expanded_file[MAILTMPLEN], *p, cut[50],
+    char        expanded_file[MAILTMPLEN], *p,
 		tmp[MAILTMPLEN], *fname, *fullname = NULL,
 		filename[MAXPATH+1], full_filename[MAXPATH+1],
 		deefault[MAXPATH+1];
@@ -3371,7 +3451,7 @@ folder_export(SCROLL_S *sparms)
 		  open_inbox++;
 
 		if(!open_inbox && cntxt && context_isambig(fname)){
-		    if(p=folder_is_nick(fname, FOLDERS(cntxt), 0)){
+		    if((p=folder_is_nick(fname, FOLDERS(cntxt), 0)) != NULL){
 			strncpy(expanded_file, p, sizeof(expanded_file));
 			expanded_file[sizeof(expanded_file)-1] = '\0';
 		    }
@@ -3686,7 +3766,7 @@ folder_select_toggle(CONTEXT_S *context, int index, int (*func) (CONTEXT_S *, in
 {
     FOLDER_S *f;
 
-    if(f = folder_entry(index, FOLDERS(context))){
+    if((f = folder_entry(index, FOLDERS(context))) != NULL){
       f->selected = !f->selected;
       return((*func)(context, index));
     }
@@ -4100,7 +4180,7 @@ get_folder_name:
 	}
     }
 
-    if(offset = strlen(add_folder)){		/* must be host for incoming */
+    if((offset = strlen(add_folder)) != 0){		/* must be host for incoming */
 	int i;
 	if(maildrop)
 	  snprintf(tmp, sizeof(tmp),
@@ -4758,7 +4838,7 @@ group_subscription(char *folder, size_t len, CONTEXT_S *cntxt)
 	     * If we did a partial find on matches, then we faked a full
 	     * find which will cause this to just return.
 	     */
-	    if(i = folder_total(FOLDERS(&subscribe_cntxt))){
+	    if((i = folder_total(FOLDERS(&subscribe_cntxt))) != 0){
 		char *f;
 
 		/*
@@ -4869,7 +4949,7 @@ group_subscription(char *folder, size_t len, CONTEXT_S *cntxt)
 	     * Open stream before subscribing so c-client knows what newsrc
 	     * to use, along with other side-effects.
 	     */
-	    if(sub_stream = mail_cmd_stream(&subscribe_cntxt, &sclose)){
+	    if((sub_stream = mail_cmd_stream(&subscribe_cntxt, &sclose)) != NULL){
 		for(flp = folders; flp; flp = flp->next){
 		    (void) context_apply(tmp_20k_buf, &subscribe_cntxt,
 					 (char *) flp->name, SIZEOF_20KBUF);
@@ -4926,7 +5006,7 @@ group_subscription(char *folder, size_t len, CONTEXT_S *cntxt)
 	    free_strlist(&folders);
 	}
 	else{
-	    if(sub_stream = mail_cmd_stream(&subscribe_cntxt, &sclose)){
+	    if((sub_stream = mail_cmd_stream(&subscribe_cntxt, &sclose)) != NULL){
 		(void) context_apply(tmp_20k_buf, &subscribe_cntxt, folder,
 				     SIZEOF_20KBUF);
 		if(mail_subscribe(sub_stream, tmp_20k_buf) == 0L){
@@ -4983,7 +5063,7 @@ consistent.
 int
 rename_folder(CONTEXT_S *context, int index, char *new_name, size_t len, MAILSTREAM *possible_stream)
 {
-    char        *folder, prompt[64], *name_p = NULL, tmp[MAILTMPLEN];
+    char        *folder, prompt[64], *name_p = NULL;
     HelpType     help;
     FOLDER_S	*new_f;
     PINERC_S    *prc = NULL;
@@ -5189,7 +5269,7 @@ rename_folder(CONTEXT_S *context, int index, char *new_name, size_t len, MAILSTR
        && !context_same_stream(context, new_name, possible_stream))
       possible_stream = NULL;
       
-    if(rc = context_rename(context, possible_stream, folder, new_name)){
+    if((rc = context_rename(context, possible_stream, folder, new_name)) != 0){
 	if(name_p && *name_p == context->dir->delim)
 	  *name_p = '\0';		/* blat trailing delim */
 
@@ -5283,7 +5363,7 @@ delete_folder(CONTEXT_S *context, int index, char *next_folder, size_t len, MAIL
 	       folder ? folder : "?",
 	       context->context ? context->context : "?"));
 
-	if(sub_stream = mail_cmd_stream(context, &unsub_opened)){
+	if((sub_stream = mail_cmd_stream(context, &unsub_opened)) != NULL){
 	    (void) context_apply(tmp_20k_buf, context, folder, SIZEOF_20KBUF);
 	    if(!mail_unsubscribe(sub_stream, tmp_20k_buf)){
 		q_status_message1(SM_ORDER | SM_DING, 3, 3,
@@ -5700,7 +5780,7 @@ scan_scan_folder(MAILSTREAM *stream, CONTEXT_S *context, FOLDER_S *f, char *patt
     if(context && context_isambig(folder) && !(ref = context->dir->ref)){
 	char *p;
 
-	if(p = strstr(context->context, "%s")){
+	if((p = strstr(context->context, "%s")) != NULL){
 	    if(!*(p+2)){
 		snprintf(tmp, sizeof(tmp), "%.*s", MIN(p - context->context, sizeof(tmp)-1),
 			context->context);
@@ -6352,7 +6432,7 @@ shuffle_incoming_folders(CONTEXT_S *context, int index)
 	return(0);
     }
 
-    if(index_within_var == 0 || inheriting && index_within_var == 1){
+    if(index_within_var == 0 || (inheriting && index_within_var == 1)){
 	opts[0].ch = -2;			/* no back */
 	deefault = 'f';
     }
@@ -6502,7 +6582,7 @@ news_group_selector(char **error_mess)
 
     /*----- Call the browser -------*/
     tc = post_cntxt;
-    if(rc = folders_for_post(ps_global, &tc, post_folder))
+    if((rc = folders_for_post(ps_global, &tc, post_folder)) != 0)
       post_cntxt = tc;
 
     cancel_busy_cue(-1);
@@ -6561,16 +6641,6 @@ get_post_list(char **post_host)
 	  cancel_busy_cue(-1);
     }
     return(NULL);
-}
-
-
-int
-percent_formatted(void)
-{
-  if (percent.total == 0)
-    return percent.total;
-  else
-    return ((int)(100*percent.num_done/percent.total));
 }
 
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: conf.c 615 2007-06-28 17:39:01Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: conf.c 685 2007-08-23 23:01:00Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -41,6 +41,10 @@ static char rcsid[] = "$Id: conf.c 615 2007-06-28 17:39:01Z jpf@u.washington.edu
 #include "../pith/busy.h"
 #include "../pith/readfile.h"
 #include "../pith/hist.h"
+#include "../pith/mailindx.h"
+#include "../pith/tempfile.h"
+#include "../pith/icache.h"
+#include "../pith/sort.h"
 #include "../pith/charconv/utf8.h"
 #ifdef _WINDOWS
 #include "../pico/osdep/mswin.h"
@@ -63,14 +67,11 @@ void     convert_pinerc_patterns(long);
 void     convert_pinerc_filts_patterns(long);
 void     convert_pinerc_scores_patterns(long);
 void	 set_old_growth_bits(struct pine *, int);
-int	 test_old_growth_bits(struct pine *, int);
 int      var_is_in_rest_of_file(char *, char *);
 char    *skip_over_this_var(char *, char *);
 char    *native_nl(char *);
-void	 free_pinerc_lines(PINERC_LINE **);
 void     set_color_val(struct variable *, int);
 int      copy_localfile_to_remotefldr(RemType, char *, char *, void *, char **);
-void	 panic1(char *, char *);
 char    *backcompat_convert_from_utf8(char *, size_t, char *);
 #ifdef	_WINDOWS
 char    *transformed_color(char *);
@@ -772,6 +773,8 @@ static struct variable variables[] = {
 {"quote2-background-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
 {"quote3-foreground-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
 {"quote3-background-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"incoming-unseen-foreground-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"incoming-unseen-background-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
 {"signature-foreground-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
 {"signature-background-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
 {"prompt-foreground-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
@@ -790,8 +793,14 @@ static struct variable variables[] = {
 {"index-new-background-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
 {"index-recent-foreground-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
 {"index-recent-background-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-forward-foreground-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-forward-background-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
 {"index-unseen-foreground-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
 {"index-unseen-background-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-highpriority-foreground-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-highpriority-background-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-lowpriority-foreground-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-lowpriority-background-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
 {"index-arrow-foreground-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
 {"index-arrow-background-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
 {"index-subject-foreground-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
@@ -1611,6 +1620,9 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
     GLO_WP_INDEXHEIGHT          = cpystr("24");
     GLO_WP_AGGSTATE		= cpystr("1");
     GLO_WP_STATE		= cpystr("");
+#ifdef	DF_VAR_SPELLER
+    GLO_SPELLER			= cpystr(DF_VAR_SPELLER);
+#endif
 
     /*
      * Default first value for addrbook list if none set.
@@ -1842,8 +1854,12 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
 	char   aname[100], wname[100];
 	int    ok = 0;
 
-	strncat(strncpy(aname, ANSI_PRINTER, 60), "-no-formfeed", 30);
-	strncat(strncpy(wname, WYSE_PRINTER, 60), "-no-formfeed", 30);
+	strncpy(aname, ANSI_PRINTER, sizeof(aname));
+	aname[sizeof(aname)-1] = '\0';
+	strncat(aname, "-no-formfeed", sizeof(aname)-strlen(aname)-1);
+	strncpy(wname, WYSE_PRINTER, sizeof(wname));
+	wname[sizeof(wname)-1] = '\0';
+	strncat(wname, "-no-formfeed", sizeof(wname)-strlen(wname)-1);
 	if(strucmp(VAR_PRINTER, ANSI_PRINTER) == 0
 	  || strucmp(VAR_PRINTER, aname) == 0
 	  || strucmp(VAR_PRINTER, WYSE_PRINTER) == 0
@@ -1957,8 +1973,12 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
 	char **tt;
 	char aname[100], wname[100];
 
-	strncat(strncpy(aname, ANSI_PRINTER, 60), "-no-formfeed", 30);
-	strncat(strncpy(wname, WYSE_PRINTER, 60), "-no-formfeed", 30);
+	strncpy(aname, ANSI_PRINTER, sizeof(aname));
+	aname[sizeof(aname)-1] = '\0';
+	strncat(aname, "-no-formfeed", sizeof(aname)-strlen(aname)-1);
+	strncpy(wname, WYSE_PRINTER, sizeof(wname));
+	wname[sizeof(wname)-1] = '\0';
+	strncat(wname, "-no-formfeed", sizeof(wname)-strlen(wname)-1);
 	if(strucmp(VAR_PRINTER, ANSI_PRINTER) == 0
 	  || strucmp(VAR_PRINTER, aname) == 0
 	  || strucmp(VAR_PRINTER, WYSE_PRINTER) == 0
@@ -2414,7 +2434,7 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
 
     cur_rule_value(&vars[V_SAVED_MSG_NAME_RULE], TRUE, TRUE);
     {NAMEVAL_S *v; int i;
-    for(i = 0; v = save_msg_rules(i); i++)
+    for(i = 0; (v = save_msg_rules(i)); i++)
       if(v->value == ps_global->save_msg_rule)
 	break;
      
@@ -2801,6 +2821,8 @@ feature_list(int index)
 	 F_AUTO_OPEN_NEXT_UNREAD, h_config_auto_open_unread, PREF_INDX, 0},
 	{"continue-tab-without-confirm", "Continue NextNew Without Confirming",
 	 F_TAB_NO_CONFIRM, h_config_tab_no_prompt, PREF_INDX, 0},
+	{"convert-dates-to-localtime", NULL,
+	 F_DATES_TO_LOCAL, h_config_dates_to_local, PREF_INDX, 0},
 	{"delete-skips-deleted", NULL,
 	 F_DEL_SKIPS_DEL, h_config_del_skips_del, PREF_INDX, 1},
 	{"disable-index-locale-dates", NULL,
@@ -2823,6 +2845,8 @@ feature_list(int index)
 	 F_TAB_TO_NEW, h_config_tab_new_only, PREF_INDX, 0},
 	{"thread-index-shows-important-color", NULL,
 	 F_COLOR_LINE_IMPORTANT, h_config_color_thrd_import, PREF_INDX, 0},
+	{"thread-sorts-by-arrival", "Thread Sorts by Arrival",
+	 F_THREAD_SORTS_BY_ARRIVAL, h_config_thread_sorts_by_arrival, PREF_INDX, 0},
 
 /* Viewer prefs */
 	{"enable-msg-view-addresses", "Enable Message View Address Links",
@@ -2868,6 +2892,8 @@ feature_list(int index)
 	 F_NO_NEWS_VALIDATION, h_config_post_wo_validation, PREF_NEWS, 0},
 	{"news-read-in-newsrc-order", "News Read in Newsrc Order",
 	 F_READ_IN_NEWSRC_ORDER, h_config_read_in_newsrc_order, PREF_NEWS, 0},
+	{"nntp-search-uses-overview", "NNTP Search Uses Overview",
+	 F_NNTP_SEARCH_USES_OVERVIEW, h_config_nntp_search_uses_overview, PREF_NEWS, 1},
 	{"predict-nntp-server", "Predict NNTP Server",
 	 F_PREDICT_NNTP_SERVER, h_config_predict_nntp_server, PREF_NEWS, 0},
 	{"quell-extra-post-prompt", "Suppress Extra Posting Prompt",
@@ -3144,7 +3170,7 @@ feature_list_index(int id)
     FEATURE_S *feature;
     int	       i;
 
-    for(i = 0; feature = feature_list(i); i++)
+    for(i = 0; (feature = feature_list(i)); i++)
       if(id == feature->id)
 	return(i);
 
@@ -3170,7 +3196,7 @@ feature_list_id(char *name)
     FEATURE_S *f;
     int i;
 
-    for(i = 0; f = feature_list(i); i++)
+    for(i = 0; (f = feature_list(i)); i++)
       if(!strucmp(f->name, name))
         return(f->id);
 
@@ -3663,7 +3689,7 @@ cur_rule_value(struct variable *var, int expand, int cmdline)
 
     if(var == &ps_global->vars[V_SAVED_MSG_NAME_RULE]){
       if(ps_global->VAR_SAVED_MSG_NAME_RULE)
-	for(i = 0; v = save_msg_rules(i); i++)
+	for(i = 0; (v = save_msg_rules(i)); i++)
 	  if(!strucmp(ps_global->VAR_SAVED_MSG_NAME_RULE, S_OR_L(v))){
 	      ps_global->save_msg_rule = v->value;
 	      break;
@@ -3672,7 +3698,7 @@ cur_rule_value(struct variable *var, int expand, int cmdline)
 #ifndef	_WINDOWS
     else if(var == &ps_global->vars[V_COLOR_STYLE]){
       if(ps_global->VAR_COLOR_STYLE)
-	for(i = 0; v = col_style(i); i++)
+	for(i = 0; (v = col_style(i)); i++)
 	  if(!strucmp(ps_global->VAR_COLOR_STYLE, S_OR_L(v))){
 	      ps_global->color_style = v->value;
 	      break;
@@ -3681,7 +3707,7 @@ cur_rule_value(struct variable *var, int expand, int cmdline)
 #endif
     else if(var == &ps_global->vars[V_INDEX_COLOR_STYLE]){
       if(ps_global->VAR_INDEX_COLOR_STYLE)
-	for(i = 0; v = index_col_style(i); i++)
+	for(i = 0; (v = index_col_style(i)); i++)
 	  if(!strucmp(ps_global->VAR_INDEX_COLOR_STYLE, S_OR_L(v))){
 	      ps_global->index_color_style = v->value;
 	      break;
@@ -3689,7 +3715,7 @@ cur_rule_value(struct variable *var, int expand, int cmdline)
     }
     else if(var == &ps_global->vars[V_TITLEBAR_COLOR_STYLE]){
       if(ps_global->VAR_TITLEBAR_COLOR_STYLE)
-	for(i = 0; v = titlebar_col_style(i); i++)
+	for(i = 0; (v = titlebar_col_style(i)); i++)
 	  if(!strucmp(ps_global->VAR_TITLEBAR_COLOR_STYLE, S_OR_L(v))){
 	      ps_global->titlebar_color_style = v->value;
 	      break;
@@ -3697,7 +3723,7 @@ cur_rule_value(struct variable *var, int expand, int cmdline)
     }
     else if(var == &ps_global->vars[V_FCC_RULE]){
       if(ps_global->VAR_FCC_RULE)
-	for(i = 0; v = fcc_rules(i); i++)
+	for(i = 0; (v = fcc_rules(i)); i++)
 	  if(!strucmp(ps_global->VAR_FCC_RULE, S_OR_L(v))){
 	      ps_global->fcc_rule = v->value;
 	      break;
@@ -3705,7 +3731,7 @@ cur_rule_value(struct variable *var, int expand, int cmdline)
     }
     else if(var == &ps_global->vars[V_GOTO_DEFAULT_RULE]){
       if(ps_global->VAR_GOTO_DEFAULT_RULE)
-	for(i = 0; v = goto_rules(i); i++)
+	for(i = 0; (v = goto_rules(i)); i++)
 	  if(!strucmp(ps_global->VAR_GOTO_DEFAULT_RULE, S_OR_L(v))){
 	      ps_global->goto_default_rule = v->value;
 	      break;
@@ -3713,7 +3739,7 @@ cur_rule_value(struct variable *var, int expand, int cmdline)
     }
     else if(var == &ps_global->vars[V_INCOMING_STARTUP]){
       if(ps_global->VAR_INCOMING_STARTUP)
-	for(i = 0; v = incoming_startup_rules(i); i++)
+	for(i = 0; (v = incoming_startup_rules(i)); i++)
 	  if(!strucmp(ps_global->VAR_INCOMING_STARTUP, S_OR_L(v))){
 	      ps_global->inc_startup_rule = v->value;
 	      break;
@@ -3721,7 +3747,7 @@ cur_rule_value(struct variable *var, int expand, int cmdline)
     }
     else if(var == &ps_global->vars[V_PRUNING_RULE]){
       if(ps_global->VAR_PRUNING_RULE)
-	for(i = 0; v = pruning_rules(i); i++)
+	for(i = 0; (v = pruning_rules(i)); i++)
 	  if(!strucmp(ps_global->VAR_PRUNING_RULE, S_OR_L(v))){
 	      ps_global->pruning_rule = v->value;
 	      break;
@@ -3729,7 +3755,7 @@ cur_rule_value(struct variable *var, int expand, int cmdline)
     }
     else if(var == &ps_global->vars[V_REOPEN_RULE]){
       if(ps_global->VAR_REOPEN_RULE)
-	for(i = 0; v = reopen_rules(i); i++)
+	for(i = 0; (v = reopen_rules(i)); i++)
 	  if(!strucmp(ps_global->VAR_REOPEN_RULE, S_OR_L(v))){
 	      ps_global->reopen_rule = v->value;
 	      break;
@@ -3737,7 +3763,7 @@ cur_rule_value(struct variable *var, int expand, int cmdline)
     }
     else if(var == &ps_global->vars[V_FLD_SORT_RULE]){
       if(ps_global->VAR_FLD_SORT_RULE)
-	for(i = 0; v = fld_sort_rules(i); i++)
+	for(i = 0; (v = fld_sort_rules(i)); i++)
 	  if(!strucmp(ps_global->VAR_FLD_SORT_RULE, S_OR_L(v))){
 	      ps_global->fld_sort_rule = v->value;
 	      break;
@@ -3745,7 +3771,7 @@ cur_rule_value(struct variable *var, int expand, int cmdline)
     }
     else if(var == &ps_global->vars[V_AB_SORT_RULE]){
       if(ps_global->VAR_AB_SORT_RULE)
-	for(i = 0; v = ab_sort_rules(i); i++)
+	for(i = 0; (v = ab_sort_rules(i)); i++)
 	  if(!strucmp(ps_global->VAR_AB_SORT_RULE, S_OR_L(v))){
 	      ps_global->ab_sort_rule = v->value;
 	      break;
@@ -3753,7 +3779,7 @@ cur_rule_value(struct variable *var, int expand, int cmdline)
     }
     else if(var == &ps_global->vars[V_THREAD_DISP_STYLE]){
       if(ps_global->VAR_THREAD_DISP_STYLE)
-	for(i = 0; v = thread_disp_styles(i); i++)
+	for(i = 0; (v = thread_disp_styles(i)); i++)
 	  if(!strucmp(ps_global->VAR_THREAD_DISP_STYLE, S_OR_L(v))){
 	      ps_global->thread_disp_style = v->value;
 	      break;
@@ -3761,7 +3787,7 @@ cur_rule_value(struct variable *var, int expand, int cmdline)
     }
     else if(var == &ps_global->vars[V_THREAD_INDEX_STYLE]){
       if(ps_global->VAR_THREAD_INDEX_STYLE)
-	for(i = 0; v = thread_index_styles(i); i++)
+	for(i = 0; (v = thread_index_styles(i)); i++)
 	  if(!strucmp(ps_global->VAR_THREAD_INDEX_STYLE, S_OR_L(v))){
 	      ps_global->thread_index_style = v->value;
 	      break;
@@ -4685,7 +4711,7 @@ expand_variables(char *lineout, size_t lineoutlen, char *linein, int colon_path)
 	    if(dest < limit)
               *dest++ = *++src;		/* copy next as is */
         }else if(*src == '~' &&
-		 (src == linein || colon_path && *(src-1) == ':')){
+		 (src == linein || (colon_path && *(src-1) == ':'))){
 	    char buf[MAXPATH];
 	    int  i;
 
@@ -4911,7 +4937,7 @@ read_pinerc(PINERC_S *prc, struct variable *vars, ParsePinerc which_vars)
 	  ;
 
 	if(p > file && *p && *(p-1) == '\015')	/* cvt crlf to lf */
-	  for(p1 = p - 1; *p1 = *p; p++)
+	  for(p1 = p - 1; (*p1 = *p) != '\0'; p++)
 	    if(!(*p == '\015' && *(p+1) == '\012'))
 	      p1++;
     }
@@ -5271,7 +5297,7 @@ var_is_in_rest_of_file(char *varname, char *begin)
 
     p = begin;
 
-    while(p = srchstr(p, varname)){
+    while((p = srchstr(p, varname)) != NULL){
 	/* beginning of a line? */
 	if(p > begin && (*(p-1) != '\n' && *(p-1) != '\r')){
 	    p++;
@@ -5337,12 +5363,12 @@ static char quotes[3] = {'"', '"', '\0'};
  be the new .pinerc file to protect against disk error.  This has the 
  problem of possibly messing up file protections, ownership and links.
   ----*/
+int
 write_pinerc(struct pine *ps, EditWhich which, int flags)
 {
     char               *p, *dir, *tmp = NULL, *pinrc;
     char               *pval, **lval;
     int                 bc = 1;
-    FILE               *f;
     PINERC_LINE        *pline;
     struct variable    *var;
     time_t		mtime;
@@ -5360,6 +5386,8 @@ write_pinerc(struct pine *ps, EditWhich which, int flags)
 	break;
       case Post:
 	prc = ps ? ps->post_prc : NULL;
+	break;
+      default:
 	break;
     }
 
@@ -5505,7 +5533,7 @@ write_pinerc(struct pine *ps, EditWhich which, int flags)
     }
     else{
 	dir = ".";
-	if(p = last_cmpnt(filename)){
+	if((p = last_cmpnt(filename)) != NULL){
 	    *--p = '\0';
 	    dir = filename;
 	}
@@ -5906,6 +5934,7 @@ quit_to_edit_msg(PINERC_S *prc)
   Return TRUE if the given string was a feature name present in the
   pinerc as it was when pine was started...
   ----*/
+int
 var_in_pinerc(char *s)
 {
     PINERC_LINE *pline;
@@ -6041,7 +6070,6 @@ dump_new_pinerc(char *filename)
 #if defined(DOS) || defined(OS2)
     if(!ps_global->pinerc){
 	char *p;
-	int   l;
 
 	if(p = getenv("PINERC")){
 	    ps_global->pinerc = cpystr(p);
@@ -6142,6 +6170,7 @@ io_err:
 
  The vars data structure is updated and the pinerc saved.
  ----*/ 
+int
 set_variable(int var, char *value, int expand, int commit, EditWhich which)
 {
     struct variable *v;
@@ -6177,6 +6206,8 @@ set_variable(int var, char *value, int expand, int commit, EditWhich which)
       case Post:
 	prc = ps_global->post_prc;
 	break;
+      default:
+	break;
     }
 
     if(prc)
@@ -6196,6 +6227,7 @@ set_variable(int var, char *value, int expand, int commit, EditWhich which)
 
  The vars data structure is updated and if write_it, the pinerc is saved.
  ----*/ 
+int
 set_variable_list(int var, char **lvalue, int write_it, EditWhich which)
 {
     char          ***alval;
@@ -6240,6 +6272,8 @@ set_variable_list(int var, char **lvalue, int write_it, EditWhich which)
       case Post:
 	prc = ps_global->post_prc;
 	break;
+      default:
+	break;
     }
 
     if(prc)
@@ -6277,14 +6311,18 @@ set_current_color_vals(struct pine *ps)
     set_color_val(&vars[V_IND_PLUS_FORE_COLOR], 0);
     set_color_val(&vars[V_IND_IMP_FORE_COLOR], 0);
     set_color_val(&vars[V_IND_DEL_FORE_COLOR], 0);
+    set_color_val(&vars[V_IND_HIPRI_FORE_COLOR], 0);
+    set_color_val(&vars[V_IND_LOPRI_FORE_COLOR], 0);
     set_color_val(&vars[V_IND_ANS_FORE_COLOR], 0);
     set_color_val(&vars[V_IND_NEW_FORE_COLOR], 0);
     set_color_val(&vars[V_IND_REC_FORE_COLOR], 0);
+    set_color_val(&vars[V_IND_FWD_FORE_COLOR], 0);
     set_color_val(&vars[V_IND_UNS_FORE_COLOR], 0);
     set_color_val(&vars[V_IND_ARR_FORE_COLOR], 0);
     set_color_val(&vars[V_IND_SUBJ_FORE_COLOR], 0);
     set_color_val(&vars[V_IND_FROM_FORE_COLOR], 0);
     set_color_val(&vars[V_IND_OP_FORE_COLOR], 0);
+    set_color_val(&vars[V_INCUNSEEN_FORE_COLOR], 0);
     set_color_val(&vars[V_SIGNATURE_FORE_COLOR], 0);
 
     set_current_val(&ps->vars[V_VIEW_HDR_COLORS], TRUE, TRUE);
@@ -6665,7 +6703,7 @@ feature_gets_an_x(struct pine *ps, struct variable *var, FEATURE_S *feature,
     lvalnorm = LVAL(var, Main);
   
     /* feature value is administratively fixed */
-    if(j = feature_in_list(var->fixed_val.l, feature->name)){
+    if((j = feature_in_list(var->fixed_val.l, feature->name)) != 0){
 	if(j == 1)
 	  feature_fixed_on++;
 	else if(j == -1)
@@ -6781,6 +6819,7 @@ toggle_feature(struct pine *ps, struct variable *var, FEATURE_S *f,
 	break;
 
       case F_COLOR_LINE_IMPORTANT :
+      case F_DATES_TO_LOCAL :
 	clear_index_cache(ps->mail_stream, 0);
 	break;
 
@@ -6853,6 +6892,11 @@ toggle_feature(struct pine *ps, struct variable *var, FEATURE_S *f,
 	  q_status_message(SM_ORDER, 0, 3, _("This option has no effect without Enable-Incoming-Folders-Checking"));
 
 	clear_incoming_valid_bits();
+	break;
+
+      case F_THREAD_SORTS_BY_ARRIVAL :
+	clear_index_cache(ps->mail_stream, 0);
+	refresh_sort(ps->mail_stream, sp_msgmap(ps->mail_stream), SRT_NON);
 	break;
 
       default :
@@ -7045,7 +7089,7 @@ parse_printer(char *input, char **nick, char **cmd, char **init, char **trailer,
       input = "";
 
     if(nick || all_but_nick){
-	if(p = srchstr(input, " [")){
+	if((p = srchstr(input, " [")) != NULL){
 	    if(all_but_nick)
 	      *all_but_nick = cpystr(p+1);
 
@@ -7068,7 +7112,7 @@ parse_printer(char *input, char **nick, char **cmd, char **init, char **trailer,
 	}
     }
 
-    if(p = srchstr(input, "] ")){
+    if((p = srchstr(input, "] ")) != NULL){
 	do{
 	    ++p;
 	}while(isspace((unsigned char)*p));
@@ -7563,6 +7607,9 @@ config_help(int var, int feature)
       case V_QUOTE2_BACK_COLOR :
       case V_QUOTE3_BACK_COLOR :
 	return(h_config_quote_color);
+      case V_INCUNSEEN_FORE_COLOR :
+      case V_INCUNSEEN_BACK_COLOR :
+	return(h_config_incunseen_color);
       case V_SIGNATURE_FORE_COLOR :
       case V_SIGNATURE_BACK_COLOR :
 	return(h_config_signature_color);
@@ -7579,6 +7626,7 @@ config_help(int var, int feature)
       case V_IND_NEW_FORE_COLOR :
       case V_IND_UNS_FORE_COLOR :
       case V_IND_REC_FORE_COLOR :
+      case V_IND_FWD_FORE_COLOR :
       case V_IND_PLUS_BACK_COLOR :
       case V_IND_IMP_BACK_COLOR :
       case V_IND_DEL_BACK_COLOR :
@@ -7586,6 +7634,7 @@ config_help(int var, int feature)
       case V_IND_NEW_BACK_COLOR :
       case V_IND_UNS_BACK_COLOR :
       case V_IND_REC_BACK_COLOR :
+      case V_IND_FWD_BACK_COLOR :
 	return(h_config_index_color);
       case V_IND_OP_FORE_COLOR :
       case V_IND_OP_BACK_COLOR :
@@ -7596,6 +7645,11 @@ config_help(int var, int feature)
       case V_IND_FROM_FORE_COLOR :
       case V_IND_FROM_BACK_COLOR :
 	return(h_config_index_from_color);
+      case V_IND_HIPRI_FORE_COLOR :
+      case V_IND_HIPRI_BACK_COLOR :
+      case V_IND_LOPRI_FORE_COLOR :
+      case V_IND_LOPRI_BACK_COLOR :
+	return(h_config_index_pri_color);
       case V_IND_ARR_FORE_COLOR :
       case V_IND_ARR_BACK_COLOR :
 	return(h_config_index_arrow_color);
@@ -7785,21 +7839,6 @@ get_supported_options(void)
       config[cnt] = NULL;
 
     return(config);
-}
-
-
-void
-dump_supported_options(void)
-{
-    char **config;
-    char **p;
-    FILE  *f = stdout;
-
-    config = get_supported_options();
-    if(config){
-	display_args_err(NULL, config, 0);
-	free_list_array(&config);
-    }
 }
 
 

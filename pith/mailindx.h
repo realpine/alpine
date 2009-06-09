@@ -1,5 +1,5 @@
 /*
- * $Id: mailindx.h 516 2007-04-09 21:07:44Z hubert@u.washington.edu $
+ * $Id: mailindx.h 671 2007-08-15 20:28:09Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -53,6 +53,7 @@ ADDRESS	      *fetch_to(INDEXDATA_S *);
 char          *get_fieldval(INDEXDATA_S *, HEADER_TOK_S *);
 long           scorevalfrommsg(MAILSTREAM *, MsgNo, HEADER_TOK_S *, int);
 HEADER_TOK_S  *new_hdrtok(char *);
+void           free_hdrtok(HEADER_TOK_S **);
 
 
 #endif /* PITH_MAILINDX_INCLUDED */

@@ -3,7 +3,7 @@ static char rcsid[] = "$Id: pipe.c 155 2006-09-29 23:28:46Z hubert@u.washington.
 #endif
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -136,8 +136,8 @@ cmd_pipe_open(char *cmd, char **result, int flags, gf_io_t *pc)
     char    err[200];
     PIPE_S *pipe;
 
-    if(pipe = open_system_pipe(cmd, result, NULL, flags, 0,
-			       pipe_callback, pipe_report_error))
+    if((pipe = open_system_pipe(cmd, result, NULL, flags, 0,
+			       pipe_callback, pipe_report_error)) != NULL)
       gf_set_writec(pc, pipe, 0L, PipeStar, (flags & PIPE_RAW) ? 0 : WRITE_TO_LOCALE);
     else{
 	/* TRANSLATORS: The argument is the command name being piped to. */

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: helpindx.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: helpindx.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -32,6 +32,7 @@ struct hindx {
     short lines;			/* how many lines there are */
 };
 
+int
 main(int argc, char **argv)
 {
     char *p, s[1024];
@@ -126,4 +127,5 @@ main(int argc, char **argv)
     fclose(hp);
     fclose(hip);
     fclose(hhp);
+    exit(0);
 }

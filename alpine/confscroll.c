@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: confscroll.c 604 2007-06-19 22:46:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: confscroll.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -41,6 +41,13 @@ static char rcsid[] = "$Id: confscroll.c 604 2007-06-19 22:46:32Z hubert@u.washi
 #include "../pith/thread.h"
 #include "../pith/color.h"
 #include "../pith/hist.h"
+#include "../pith/icache.h"
+#include "../pith/conf.h"
+#include "../pith/init.h"
+#include "../pith/folder.h"
+#include "../pith/busy.h"
+#include "../pith/tempfile.h"
+#include "../pith/pattern.h"
 #include "../pith/charconv/utf8.h"
 
 
@@ -121,7 +128,6 @@ void	 config_scroll_up(long);
 void	 config_scroll_down(long);
 void	 config_scroll_to_pos(long);
 CONF_S  *config_top_scroll(struct pine *, CONF_S *);
-int      text_toolit(struct pine *, int, CONF_S **, unsigned, int);
 void	 update_option_screen(struct pine *, OPT_SCREEN_S *, Pos *);
 void	 print_option_screen(OPT_SCREEN_S *, char *);
 void	 option_screen_redrawer(void);
@@ -135,8 +141,6 @@ char    *sort_pretty_value(struct pine *, CONF_S *);
 COLOR_PAIR *sample_color(struct pine *, struct variable *);
 COLOR_PAIR *sampleexc_color(struct pine *, struct variable *);
 void     clear_feature(char ***, char *);
-void	 snip_confline(CONF_S **);
-void	 free_conflines(CONF_S **);
 CONF_S	*last_confline(CONF_S *);
 #ifdef	_WINDOWS
 int	 config_scroll_callback(int, long);
@@ -252,7 +256,7 @@ standard_radio_setup(struct pine *ps, CONF_S **cl, struct variable *v, CONF_S **
     (*cl)->value		 = cpystr("---  ----------------------");
 
     if(rulefunc)
-      for(i = 0; f = (*rulefunc)(i); i++){
+      for(i = 0; (f = (*rulefunc)(i)); i++){
 	new_confline(cl)->var	= v;
 	if(first_line && !*first_line && !pico_usingcolor())
 	  *first_line = (*cl);
@@ -531,8 +535,8 @@ conf_scroll_screen(struct pine *ps, OPT_SCREEN_S *screen, CONF_S *start_line, ch
 	    km                 = screen->current->keymenu;
 
 	    if(multicol &&
-	       (F_OFF(F_ARROW_NAV, ps_global)) ||
-	        F_ON(F_RELAXED_ARROW_NAV, ps_global)){
+	       (F_OFF(F_ARROW_NAV, ps_global) ||
+	        F_ON(F_RELAXED_ARROW_NAV, ps_global))){
 		menu_clear_binding(km, KEY_LEFT);
 		menu_clear_binding(km, KEY_RIGHT);
 		menu_clear_binding(km, KEY_UP);
@@ -1131,7 +1135,7 @@ no_down:
 		   ctmpa = ctmpb;
 
 		 started_here = next_confline(ctmpa);
-		 while(ctmpa = next_confline(ctmpa))
+		 while((ctmpa = next_confline(ctmpa)) != NULL)
 		   if(srchstr(ctmpa->varname, buf)
 		      || srchstr(ctmpa->value, buf)){
 
@@ -1453,7 +1457,7 @@ config_scroll_to_pos(long int n)
 
     if(n == 0)
       while(ctmp && ctmp != opt_screen->top_line)
-	if(ctmp = next_confline(ctmp))
+	if((ctmp = next_confline(ctmp)) != NULL)
 	  n--;
 
     config_scroll_up(n);
@@ -1669,7 +1673,7 @@ text_toolit(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags, int look_
 		k = MIN(18, MAX(maxwidth-33,0));
 		if(utf8_width(tmpval) > k && k >= 3){
 		    (void) utf8_truncate(tmpval, k-3);
-		    strncat(tmpval, "...", sizeof(tmpval));
+		    strncat(tmpval, "...", sizeof(tmpval)-strlen(tmpval)-1);
 		    tmpval[sizeof(tmpval)-1] = '\0';
 		}
 
@@ -1875,7 +1879,7 @@ replace_text:
 		    k = MIN(18, MAX(maxwidth-33,0));
 		    if(utf8_width(tmpval) > k && k >= 3){
 			(void) utf8_truncate(tmpval, k-3);
-			strncat(tmpval, "...", sizeof(tmpval));
+			strncat(tmpval, "...", sizeof(tmpval)-strlen(tmpval)-1);
 			tmpval[sizeof(tmpval)-1] = '\0';
 		    }
 
@@ -2441,6 +2445,7 @@ config_exit_cmd(unsigned int flags)
 }
 
 
+int
 simple_exit_cmd(unsigned int flags)
 {
     return(2);
@@ -2623,7 +2628,7 @@ config_del_list_item(CONF_S **cl, char ***newval)
 
     if((*alval)[(*cl)->varmem + 1]){
 	for(bufp = &(*alval)[(*cl)->varmem];
-	    *bufp = *(bufp+1); bufp++)
+	    (*bufp = *(bufp+1)) != NULL; bufp++)
 	  ;
 
 	if(*cl == (*cl)->varnamep){		/* leading value */
@@ -2709,9 +2714,11 @@ radiobutton_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 {
     char     **apval;
     int	       rv = 0;
+    NAMEVAL_S *rule = NULL;
+#ifndef	_WINDOWS
     int        old_uc, old_cs;
     CONF_S    *ctmp;
-    NAMEVAL_S *rule = NULL;
+#endif
 
     apval = APVAL((*cl)->var, ew);
 
@@ -3021,7 +3028,7 @@ update_option_screen(struct pine *ps, OPT_SCREEN_S *screen, Pos *cursor_pos)
      * calculate top line of display for reframing if the current field
      * is off the display defined by screen->top_line...
      */
-    if(ctmp = screen->top_line)
+    if((ctmp = screen->top_line) != NULL)
       for(dline = BODY_LINES(ps);
 	  dline && ctmp && ctmp != screen->current;
 	  ctmp = next_confline(ctmp), dline--)
@@ -3461,17 +3468,17 @@ update_option_screen(struct pine *ps, OPT_SCREEN_S *screen, Pos *cursor_pos)
 				invert = 0;
 				newc = sample_color(ps, ctmp->var);
 				if(newc){
-				    if(lastc = pico_get_cur_color())
+				    if((lastc = pico_get_cur_color()) != NULL)
 				      (void)pico_set_colorp(newc, PSC_NONE);
 
 				    free_color_pair(&newc);
 				}
 				else if(var_defaults_to_rev(ctmp->var)){
-				    if(newc = pico_get_rev_color()){
+				    if((newc = pico_get_rev_color()) != NULL){
 					/*
 					 * Note, don't have to free newc.
 					 */
-					if(lastc = pico_get_cur_color())
+					if((lastc = pico_get_cur_color()) != NULL)
 					  (void)pico_set_colorp(newc, PSC_NONE);
 				    }
 				    else{
@@ -3558,17 +3565,17 @@ update_option_screen(struct pine *ps, OPT_SCREEN_S *screen, Pos *cursor_pos)
 				invert = 0;
 				newc = sampleexc_color(ps, ctmp->var);
 				if(newc){
-				    if(lastc = pico_get_cur_color())
+				    if((lastc = pico_get_cur_color()) != NULL)
 				      (void)pico_set_colorp(newc, PSC_NONE);
 
 				    free_color_pair(&newc);
 				}
 				else if(var_defaults_to_rev(ctmp->var)){
-				    if(newc = pico_get_rev_color()){
+				    if((newc = pico_get_rev_color()) != NULL){
 					/*
 					 * Note, don't have to free newc.
 					 */
-					if(lastc = pico_get_cur_color())
+					if((lastc = pico_get_cur_color()) != NULL)
 					  (void)pico_set_colorp(newc, PSC_NONE);
 				    }
 				    else{
@@ -3994,7 +4001,7 @@ checkbox_pretty_value(struct pine *ps, CONF_S *cl)
     tmp[0] = '\0';
 
     /* find longest value's name */
-    for(lv = 0, i = 0; feature = feature_list(i); i++)
+    for(lv = 0, i = 0; (feature = feature_list(i)); i++)
       if(feature_list_section(feature)
 	 && lv < (j = utf8_width(pretty_feature_name(feature->name))))
 	lv = j;
@@ -4130,7 +4137,7 @@ radio_pretty_value(struct pine *ps, CONF_S *cl)
 
     /* find longest name */
     if(rulefunc)
-      for(lv = 0, i = 0; f = (*rulefunc)(i); i++)
+      for(lv = 0, i = 0; (f = (*rulefunc)(i)); i++)
         if(lv < (j = utf8_width(f->name)))
 	  lv = j;
 
@@ -4812,7 +4819,7 @@ offer_to_fix_pinerc(struct pine *ps)
 	    if(utf8_width(prompt) > ps->ttyo->screen_cols - need)
 	      (void) utf8_truncate(prompt, ps->ttyo->screen_cols - need);
 
-	    (void) strncat(prompt, clear, sizeof(prompt)-strlen(prompt));
+	    (void) strncat(prompt, clear, sizeof(prompt)-strlen(prompt)-1);
 	    prompt[sizeof(prompt)-1] = '\0';
 	    if(want_to(prompt, 'y', 'n', NO_HELP, WT_NORM) == 'y'){
 		if(v->is_list){
@@ -4866,7 +4873,7 @@ offer_to_fix_pinerc(struct pine *ps)
 	      if(utf8_width(prompt) > ps->ttyo->screen_cols - need)
 		(void) utf8_truncate(prompt, ps->ttyo->screen_cols - need);
 
-	      (void) strncat(prompt, clear, sizeof(prompt)-strlen(prompt));
+	      (void) strncat(prompt, clear, sizeof(prompt)-strlen(prompt)-1);
 	      prompt[sizeof(prompt)-1] = '\0';
 	      if(want_to(prompt, 'y', 'n', NO_HELP, WT_NORM) == 'y'){
 		  rv++;
@@ -5521,8 +5528,11 @@ fix_side_effects(struct pine *ps, struct variable *var, int revert)
             var == &ps->vars[V_IND_ANS_FORE_COLOR]  ||
             var == &ps->vars[V_IND_NEW_FORE_COLOR]  ||
             var == &ps->vars[V_IND_UNS_FORE_COLOR]  ||
+            var == &ps->vars[V_IND_HIPRI_FORE_COLOR]||
+            var == &ps->vars[V_IND_LOPRI_FORE_COLOR]||
             var == &ps->vars[V_IND_ARR_FORE_COLOR]  ||
             var == &ps->vars[V_IND_REC_FORE_COLOR]  ||
+            var == &ps->vars[V_IND_FWD_FORE_COLOR]  ||
 	    var == &ps->vars[V_IND_OP_FORE_COLOR]   ||
 	    var == &ps->vars[V_IND_FROM_FORE_COLOR] ||
 	    var == &ps->vars[V_IND_SUBJ_FORE_COLOR] ||
@@ -5534,6 +5544,7 @@ fix_side_effects(struct pine *ps, struct variable *var, int revert)
             var == &ps->vars[V_IND_UNS_BACK_COLOR]  ||
             var == &ps->vars[V_IND_ARR_BACK_COLOR]  ||
             var == &ps->vars[V_IND_REC_BACK_COLOR]  ||
+            var == &ps->vars[V_IND_FWD_BACK_COLOR]  ||
             var == &ps->vars[V_IND_OP_BACK_COLOR]   ||
             var == &ps->vars[V_IND_FROM_BACK_COLOR] ||
             var == &ps->vars[V_IND_SUBJ_BACK_COLOR]){

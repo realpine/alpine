@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: chkpoint.c 205 2006-10-26 23:04:44Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: chkpoint.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ static char rcsid[] = "$Id: chkpoint.c 205 2006-10-26 23:04:44Z hubert@u.washing
 #include "../edef.h"
 #include "../efunc.h"
 #include "../keydefs.h"
+#include "filesys.h"
 
 #include "../../pith/charconv/filesys.h"
 
@@ -38,8 +39,10 @@ static char rcsid[] = "$Id: chkpoint.c 205 2006-10-26 23:04:44Z hubert@u.washing
 void
 chkptinit(char *file, size_t filelen)
 {
+#ifndef _WINDOWS
     unsigned pid;
     char    *chp;
+#endif
 
     if(!file[0]){
 	long gmode_save = gmode;
@@ -57,7 +60,7 @@ chkptinit(char *file, size_t filelen)
 	gmode = gmode_save;
     }
     else{
-	int l = strlen(file);
+	size_t l = strlen(file);
 
 	if(l+2 <= filelen && file[l-1] != C_FILESEP){
 	    file[l++] = C_FILESEP;

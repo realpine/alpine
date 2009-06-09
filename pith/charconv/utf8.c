@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: utf8.c 583 2007-05-29 23:10:02Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: utf8.c 689 2007-08-24 23:34:55Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -32,6 +32,7 @@ static char rcsid[] = "$Id: utf8.c 583 2007-05-29 23:10:02Z hubert@u.washington.
 /* includable WITHOUT dependency on pico */
 #include "../../pico/keydefs.h"
 
+#include "../osdep/collate.h"
 #include "../filttype.h"
 
 #include "utf8.h"
@@ -288,7 +289,7 @@ convert_to_locale(char *utf8str)
 #define CHNK 500
     char *inp, *retp, *ret = NULL;
     CBUF_S cb;
-    int r, alloced, used = 0;
+    int r, alloced;
 
     if(native_utf8 || !utf8str || !utf8str[0])
       return(NULL);
@@ -542,7 +543,7 @@ utf8_to_ucs4_cpystr(char *utf8src)
     UCS            ucs;
     unsigned long  remaining_octets;
     unsigned char *readptr;
-    int            arrayindex;
+    size_t         arrayindex;
 
     /*
      * We don't know how big to allocate the return array
@@ -676,7 +677,7 @@ utf8_to_lptstr(LPSTR arg_utf8)
 
      if(!lptstr_len)
      {
-         // check GetLastError()?
+         /* check GetLastError()? */
          lptstr_ret = (LPTSTR)fs_get(sizeof(TCHAR));
          lptstr_ret[0] = 0;
      }
@@ -706,7 +707,7 @@ lptstr_to_utf8(LPTSTR arg_lptstr)
 
      if(!utf8str_len)
      {
-         // check GetLastError()?
+         /* check GetLastError()? */
          utf8str_ret = (LPSTR)fs_get(sizeof(CHAR));
          utf8str_ret[0] = 0;
      }
@@ -725,7 +726,7 @@ ucs4_to_lptstr(UCS *arg_ucs4)
 {
     LPTSTR ret_lptstr = NULL;
     size_t len;
-    int i;
+    size_t i;
 
     if(arg_ucs4){
 	len = ucs4_strlen(arg_ucs4);
@@ -751,7 +752,7 @@ lptstr_to_ucs4(LPTSTR arg_lptstr)
 {
     UCS *ret_ucs4 = NULL;
     size_t len;
-    int i;
+    size_t i;
 
     if(arg_lptstr){
 	len = _tcslen(arg_lptstr);
@@ -872,7 +873,7 @@ ucs4_cpystr(UCS *ucs4src)
 {
     size_t         arraysize;
     UCS           *ret = NULL;
-    int            i;
+    size_t         i;
 
     if(!ucs4src)
       return NULL;
@@ -892,7 +893,7 @@ ucs4_cpystr(UCS *ucs4src)
 UCS *
 ucs4_strncpy(UCS *ucs4dst, UCS *ucs4src, size_t n)
 {
-    int i;
+    size_t i;
 
     if(ucs4src && ucs4dst){
 	for(i = 0; i < n; i++){
@@ -909,7 +910,7 @@ ucs4_strncpy(UCS *ucs4dst, UCS *ucs4src, size_t n)
 UCS *
 ucs4_strncat(UCS *ucs4dst, UCS *ucs4src, size_t n)
 {
-    int i;
+    size_t i;
     UCS *u;
 
     if(ucs4src && ucs4dst){
@@ -921,6 +922,9 @@ ucs4_strncat(UCS *ucs4dst, UCS *ucs4src, size_t n)
 	    if(u[i] == '\0')
 	      break;
 	}
+
+	if(i == n)
+	  u[i] = '\0';
     }
 
     return ucs4dst;
@@ -1200,7 +1204,7 @@ utf8_to_width_rhs(char *dst,		/* destination buffer */
 int
 utf8_snprintf(char *dest, size_t size, char *fmt, ...)
 {
-    char    newfmt[100], buf[20], *q, *pdest, *p, *width_str, *end;
+    char    newfmt[100], buf[20], *q, *pdest, *width_str, *end;
     char   *start_of_specifier;
     char   *input_str;
     int     int_arg;
@@ -2120,7 +2124,6 @@ utf8_to_charset(char *orig, char *charset, int report_err)
 {
     SIZEDTEXT src, dst;
     char *ret = orig;
-    long r;
 
     if(!charset || !charset[0] || !orig || !orig[0] || !strucmp(charset, "utf-8"))
       return ret;
@@ -2129,7 +2132,7 @@ utf8_to_charset(char *orig, char *charset, int report_err)
     src.data = (unsigned char *) orig;
 
     if(!strucmp(charset, "us-ascii")){
-	int i;
+	size_t i;
 
 	for(i = 0; i < src.size; i++)
 	  if(src.data[i] & 0x80)
@@ -2188,7 +2191,7 @@ comatose(long int number)
 	    if(b != buf[whichbuf] && (b-buf[whichbuf]) <  sizeof(buf[0]))
 	      *b++ = ',';
 
-	    snprintf(b, sizeof(buf[0])-(b-buf[whichbuf]), done_one ? "%03ld" : "%d", x);
+	    snprintf(b, sizeof(buf[0])-(b-buf[whichbuf]), done_one ? "%03ld" : "%ld", x);
 	    b += strlen(b);
 	    done_one = 1;
 	}

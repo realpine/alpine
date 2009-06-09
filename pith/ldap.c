@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: ldap.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: ldap.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -23,6 +23,8 @@ static char rcsid[] = "$Id: ldap.c 380 2007-01-23 00:09:18Z hubert@u.washington.
 #include "../pith/util.h"
 #include "../pith/imap.h"
 #include "../pith/busy.h"
+#include "../pith/signal.h"
+#include "../pith/ablookup.h"
 
 
 /*
@@ -47,8 +49,6 @@ void (*pith_opt_save_ldap_entry)(struct pine *, LDAP_SERV_RES_S *, int);
  * Internal prototypes
  */
 LDAP_SERV_RES_S *ldap_lookup(LDAP_SERV_S *, char *, CUSTOM_FILT_S *, WP_ERR_S *, int);
-int              ask_user_which_entry(LDAP_SERV_RES_S *, char *,
-				      LDAP_SERV_RES_S **, WP_ERR_S *, LDAPLookupStyle);
 LDAP_SERV_S     *copy_ldap_serv_info(LDAP_SERV_S *);
 int              our_ldap_get_lderrno(LDAP *, char **, char **);
 int              our_ldap_set_lderrno(LDAP *, int, char *, char *);
@@ -460,11 +460,14 @@ ldap_lookup(LDAP_SERV_S *info, char *string, CUSTOM_FILT_S *cust,
       dprint((2, "%s\n", ebuf));
     }
     else if(!ps_global->intr_pending){
-      int proto = 3, rc, tlsmustbail = 0;
+      int proto = 3, tlsmustbail = 0;
       char pwd[NETMAXPASSWD], user[NETMAXUSER];
       char *passwd = NULL;
       char hostbuf[1024];
       NETMBX mb;
+#ifndef _WINDOWS
+      int rc;
+#endif
 
       memset(&mb, 0, sizeof(mb));
 
@@ -1043,6 +1046,9 @@ ask_user_which_entry(LDAP_SERV_RES_S *head, char *orig, LDAP_SERV_RES_S **result
     ADDR_CHOOSE_S ac;
     char          t[200];
     int           retval;
+/* This stuff should really be in alpine subdir */
+extern int ldap_addr_select(struct pine *, ADDR_CHOOSE_S *, LDAP_SERV_RES_S **,
+                            LDAPLookupStyle, WP_ERR_S *, char *);
 
     dprint((3, "ask_user_which(style=%s)\n",
 	style == AlwaysDisplayAndMailRequired ? "AlwaysDisplayAndMailRequired" :
@@ -1303,7 +1309,7 @@ break_up_ldap_server(char *serv_str)
 	    if((p = strindex(q, '/')) != NULL)
 	      *p = '\0';
 	    
-	    for(i = 0; v = ldap_search_types(i); i++)
+	    for(i = 0; (v = ldap_search_types(i)); i++)
 	      if(!strucmp(q, v->name)){
 		  info->type = v->value;
 		  break;
@@ -1321,7 +1327,7 @@ break_up_ldap_server(char *serv_str)
 	    if((p = strindex(q, '/')) != NULL)
 	      *p = '\0';
 	    
-	    for(i = 0; v = ldap_search_rules(i); i++)
+	    for(i = 0; (v = ldap_search_rules(i)); i++)
 	      if(!strucmp(q, v->name)){
 		  info->srch = v->value;
 		  break;
@@ -1339,7 +1345,7 @@ break_up_ldap_server(char *serv_str)
 	    if((p = strindex(q, '/')) != NULL)
 	      *p = '\0';
 	    
-	    for(i = 0; v = ldap_search_scope(i); i++)
+	    for(i = 0; (v = ldap_search_scope(i)); i++)
 	      if(!strucmp(q, v->name)){
 		  info->scope = v->value;
 		  break;

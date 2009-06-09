@@ -61,6 +61,7 @@ void	 delete_old_mail(struct sm_folder *, CONTEXT_S *, char *);
   Result: returns 0 if it exists or it is created and all is well
                   1 if it is missing and can't be created.
   ----*/
+int
 init_mail_dir(struct pine *ps)
 {
 
@@ -257,7 +258,6 @@ prune_folders(CONTEXT_S *prune_cntxt, char *folder_base, int cur_month,
 	      char *type, unsigned int pr)
 {
     char         path2[MAXPATH+1],  prompt[128], tmp[21];
-    char         ctmp[MAILTMPLEN];
     int          month_to_use, exists;
     struct sm_folder *mail_list, *sm;
 
@@ -285,7 +285,7 @@ prune_folders(CONTEXT_S *prune_cntxt, char *folder_base, int cur_month,
     path2[sizeof(path2)-1] = '\0';
 
     if(F_ON(F_PRUNE_USES_ISO,ps_global)){             /* sent-mail-yyyy-mm */
-	snprintf(path2 + strlen(path2), sizeof(path2)-strlen(path2), "-%04.4d-%02.2d", month_to_use/12,
+	snprintf(path2 + strlen(path2), sizeof(path2)-strlen(path2), "-%4.4d-%2.2d", month_to_use/12,
 		month_to_use % 12 + 1);
     }
     else{
@@ -335,7 +335,7 @@ prune_folders(CONTEXT_S *prune_cntxt, char *folder_base, int cur_month,
        || pr == PRUNE_NO_AND_ASK)
       delete_old_mail(mail_list, prune_cntxt, type);
 
-    if(sm = mail_list){
+    if((sm = mail_list) != NULL){
 	while(sm->name){
 	    fs_give((void **)&(sm->name));
 	    sm++;

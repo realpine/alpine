@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: wpcomm.c 391 2007-01-25 03:53:59Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: wpcomm.c 701 2007-08-31 18:52:30Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -67,7 +67,7 @@ Wpcomm_Init(Tcl_Interp *interp)
 int
 WPSendCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    char     buf[READBUF], lbuf[32], *errbuf = NULL, rbuf[RESULT_MAX], *fname, *cmd, *p;
+    char     buf[READBUF], lbuf[32], *errbuf = NULL, rbuf[RESULT_MAX], *fname, *cmd;
     int	     s, i, n, b, rs, rv = TCL_ERROR, wlen;
     struct   sockaddr_un name;
     Tcl_Obj *lObj;
@@ -90,7 +90,7 @@ WPSendCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 		else
 		  snprintf(errbuf = buf, sizeof(buf), "connect: %s", strerror(errno));
 	    }
-	    else if(wlen = n = strlen(cmd)){
+	    else if((wlen = n = strlen(cmd)) != 0){
 		if(n < 0x7fffffff){
 		    snprintf(lbuf, sizeof(lbuf), "%d\n", n);
 		    i = strlen(lbuf);

@@ -23,7 +23,7 @@
  *		Internet: MRC@CAC.Washington.EDU
  *
  * Date:	15 June 1988
- * Last Edited:	5 June 2007
+ * Last Edited:	31 July 2007
  *
  * This original version of this file is
  * Copyright 1988 Stanford University
@@ -967,6 +967,7 @@ MAILSTREAM *imap_open (MAILSTREAM *stream)
       ambx.type = ASTRING;
       ambx.text = (void *) mb.mailbox;
       args[0] = &ambx; args[1] = NIL;
+      stream->nmsgs = 0;
       if (imap_OK (stream,reply = imap_send (stream,stream->rdonly ?
 					     "EXAMINE": "SELECT",args))) {
 	strcat (tmp,mb.mailbox);/* mailbox name */
@@ -3684,8 +3685,10 @@ void imap_parse_unsolicited (MAILSTREAM *stream,IMAPPARSEDREPLY *reply)
     t = strtok_r (NIL,"\n",&r);
 				/* now take the action */
 				/* change in size of mailbox */
-    if (!strcmp (s,"EXISTS")) mail_exists (stream,msgno);
-    else if (!strcmp (s,"RECENT")) mail_recent (stream,msgno);
+    if (!strcmp (s,"EXISTS") && (msgno >= stream->nmsgs))
+      mail_exists (stream,msgno);
+    else if (!strcmp (s,"RECENT") && (msgno <= stream->nmsgs))
+      mail_recent (stream,msgno);
     else if (!strcmp (s,"EXPUNGE") && msgno && (msgno <= stream->nmsgs)) {
       mailcache_t mc = (mailcache_t) mail_parameters (NIL,GET_CACHE,NIL);
       MESSAGECACHE *elt = (MESSAGECACHE *) (*mc) (stream,msgno,CH_ELT);

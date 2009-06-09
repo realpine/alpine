@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: newuser.c 565 2007-05-14 19:23:26Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: newuser.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -88,7 +88,7 @@ new_user_or_version(struct pine *ps)
 	init_helper_getc(shown_text);
 	init_handles(&handles);
 
-	if(store = so_get(CharStar, NULL, EDIT_ACCESS)){
+	if((store = so_get(CharStar, NULL, EDIT_ACCESS)) != NULL){
 	    gf_set_so_writec(&pc, store);
 	    gf_filter_init();
 

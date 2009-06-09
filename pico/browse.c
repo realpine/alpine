@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: browse.c 582 2007-05-24 19:01:54Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: browse.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -40,8 +40,11 @@ static char rcsid[] = "$Id: browse.c 582 2007-05-24 19:01:54Z hubert@u.washingto
  *
  */
 #include "headers.h"
+#include "../c-client/mail.h"
+#include "../c-client/rfc822.h"
 #include "../pith/osdep/collate.h"
 #include "../pith/charconv/filesys.h"
+#include "../pith/conf.h"
 
 #ifndef	_WINDOWS
 
@@ -100,7 +103,6 @@ void   p_chdir(struct bmaster *);
 void   BrowserAnchor(char *);
 void   ClearBrowserScreen(void);
 void   BrowserRunChild(char *, char *);
-int    LikelyASCII(char *);
 int    fcell_is_selected(struct fcell *, struct bmaster *);
 void   add_cell_to_lmlist(struct fcell *, struct bmaster *);
 void   del_cell_from_lmlist(struct fcell *, struct bmaster *);
@@ -314,7 +316,6 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
     int status, i, j;
     int row, col, crow, ccol;
     char *p, *envp, child[NLINE], tmp[NLINE];
-    char lbuf[NLINE];
     struct bmaster *mp;
     struct fcell *tp;
     EML eml;
@@ -710,7 +711,7 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 		    break;
 		}
 
-		if(envp = (char *) getenv("EDITOR"))
+		if((envp = (char *) getenv("EDITOR")) != NULL)
 		  snprintf(tmp, sizeof(tmp), "%s \'%s\'", envp, child);
 		else
 		  snprintf(tmp, sizeof(tmp), "pico%s%s%s \'%s\'",
@@ -810,7 +811,7 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 		    sleep(3);
 		    break;
 		  case (CTRL|'X'):
-		    strncat(tmp, child, sizeof(tmp)-strlen(tmp));
+		    strncat(tmp, child, sizeof(tmp)-strlen(tmp)-1);
 		    tmp[sizeof(tmp)-1] = '\0';
 		    break;
 		  case (CTRL|'L'):
@@ -890,12 +891,12 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 		    tp = gmp->current;
 		    if(tp->next){
 			gmp->current = tp->next;
-			if(tp->next->prev = tp->prev)
+			if((tp->next->prev = tp->prev) != NULL)
 			  tp->prev->next = tp->next;
 		    }
 		    else if(tp->prev) {
 			gmp->current = tp->prev;
-			if(tp->prev->next = tp->next)
+			if((tp->prev->next = tp->next) != NULL)
 			  tp->next->prev = tp->prev;
 		    }
 
@@ -1119,7 +1120,7 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 			    strncpy(tmp, child, sizeof(tmp));
 			    tmp[sizeof(tmp)-1] = '\0';
 			    j = 0;
-			    while(child[j++] = *++p)
+			    while((child[j++] = *++p) != '\0')
 			      ;
 			}
 			else{
@@ -1434,7 +1435,7 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 			  {	/* is it root? */
 #if defined(DOS) || defined(OS2)
 			      if(*child){
-				strncat(tmp, S_FILESEP, sizeof(tmp)-strlen(tmp));
+				strncat(tmp, S_FILESEP, sizeof(tmp)-strlen(tmp)-1);
 				tmp[sizeof(tmp)-1] = '\0';
 			      }
 #else
@@ -1463,7 +1464,7 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 		}
 		else{
 		    if(tmp[1] != '\0'){		/* were in root? */
-		      strncat(tmp, S_FILESEP, sizeof(tmp)-strlen(tmp));
+		      strncat(tmp, S_FILESEP, sizeof(tmp)-strlen(tmp)-1);
 		      tmp[sizeof(tmp)-1] = '\0';
 		    }
 
@@ -1874,9 +1875,9 @@ getfcells(char *dname, int fb_flags)
 
 	  strncpy(tmpstr, dname, flength);
 	  tmpstr[flength] = '\0';
-	  tmpstr = strncat(tmpstr, S_FILESEP, flength-strlen(tmpstr));
+	  tmpstr = strncat(tmpstr, S_FILESEP, flength+1-1-strlen(tmpstr));
 	  tmpstr[flength] = '\0';
-	  tmpstr = strncat(tmpstr, ncp->fname, flength-strlen(tmpstr));
+	  tmpstr = strncat(tmpstr, ncp->fname, flength+1-1-strlen(tmpstr));
 	  tmpstr[flength] = '\0';
 	}
 
@@ -2027,12 +2028,12 @@ PaintCell(int row, int col,
     char  buf1[NLINE], buf2[NLINE];
     char  lbuf[5];
     int   need, l_wid, f_wid, f_to_s_wid, s_wid;
-    UCS  *ucs, double_space[3];
+    UCS  *ucs;
 
     if(cell == NULL)
 	return;
 
-    l_wid = (gmp && gmp->flags & FB_LMODEPOS > 4) ? 4 : 0;
+    l_wid = (gmp && ((gmp->flags & FB_LMODEPOS) > 4)) ? 4 : 0;
     f_wid = utf8_width(cell->fname ? cell->fname : "");
     f_to_s_wid = 1;
     s_wid = utf8_width(cell->size ? cell->size : "");
@@ -2265,8 +2266,8 @@ percdircells(struct bmaster *mp)
 	    if(lp->next)
 	      lp->next->prev = lp->prev;
 
-	    if(lp->prev = dirlp){		/* tie it into dir portion */
-		if(lp->next = dirlp->next)
+	    if((lp->prev = dirlp) != NULL){	/* tie it into dir portion */
+		if((lp->next = dirlp->next) != NULL)
 		  lp->next->prev = lp;
 
 		dirlp->next = lp;
@@ -2458,7 +2459,6 @@ void
 BrowserAnchor(char *utf8dir)
 {
     char *pdir;
-    int   i, j, l;
     char  titlebuf[NLINE];
     char  buf[NLINE];
     char  dirbuf[NLINE];
@@ -2643,7 +2643,7 @@ BrowserRunChild(char *child, char *dir)
     if(t_in && isdir(dir, NULL, &t_out) && t_in < t_out){
 	struct bmaster *mp;
 
-	if(mp = getfcells(dir, 0)){
+	if((mp = getfcells(dir, 0)) != NULL){
 	    zotmaster(&gmp);
 	    gmp = mp;
 	}
@@ -2751,8 +2751,9 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 		    if((strlen(new->dir) + strlen(S_FILESEP) +
 			strlen(new->fname) + 1) < sizeof(lfn)){
 			strncpy(lfn, new->dir, sizeof(lfn));
-			strncat(lfn, S_FILESEP, sizeof(lfn));
-			strncat(lfn, new->fname, sizeof(lfn));
+			lfn[sizeof(lfn)-1] = '\0';
+			strncat(lfn, S_FILESEP, sizeof(lfn)-strlen(lfn)-1);
+			strncat(lfn, new->fname, sizeof(lfn)-strlen(lfn)-1);
 			lfn[sizeof(lfn)-1] = '\0';
 			if(our_stat(lfn, &sbuf) < 0)
 			  strncpy(new->size, "0", 32);
@@ -2783,9 +2784,9 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 
 	    strncpy(lfn, dir, sizeof(lfn));
 	    lfn[sizeof(lfn)-1] = '\0';
-	    strncat(lfn, S_FILESEP, sizeof(lfn));
+	    strncat(lfn, S_FILESEP, sizeof(lfn)-strlen(lfn)-1);
 	    lfn[sizeof(lfn)-1] = '\0';
-	    strncat(lfn, fn, sizeof(lfn));
+	    strncat(lfn, fn, sizeof(lfn)-strlen(lfn)-1);
 	    lfn[sizeof(lfn)-1] = '\0';
 	    if(our_stat(lfn, &sbuf) < 0){
 		strncpy(sz, "0", szlen);
@@ -2820,7 +2821,7 @@ LikelyASCII(char *file)
     FILE	  *fp;
     EML            eml;
 
-    if(fp = our_fopen(file, "rb")){
+    if((fp = our_fopen(file, "rb")) != NULL){
 	clearerr(fp);
 	if((n = fread(buf, sizeof(char), LA_TEST_BUF * sizeof(char), fp)) > 0
 	   || !ferror(fp)){

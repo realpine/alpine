@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mimetype.c 343 2006-12-22 18:25:39Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mimetype.c 701 2007-08-31 18:52:30Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,17 +47,12 @@ static char rcsid[] = "$Id: mimetype.c 343 2006-12-22 18:25:39Z hubert@u.washing
  */
 #define MT_MAX_FILE_EXTENSION 3
 
-typedef int (* MT_OPERATORPROC)(MT_MAP_T *, FILE *);
-
 
 /*
  * Internal prototypes
  */
-int  mt_get_file_ext(char *, char **);
-int  mt_srch_mime_type(MT_OPERATORPROC, MT_MAP_T *);
 int  mt_browse_types_file(MT_OPERATORPROC, MT_MAP_T *, char *);
 int  mt_srch_by_type(MT_MAP_T *, FILE *);
-int  mt_translate_type(char *);
 
 
 
@@ -142,10 +137,10 @@ mt_srch_mime_type(MT_OPERATORPROC mt_operator, MT_MAP_T *mt_map)
 
     dprint((7, "mime_types: path: %s\n", path ? path : "?"));
     while(path){
-	if(s = strindex(path, MT_PATH_SEPARATOR))
+	if((s = strindex(path, MT_PATH_SEPARATOR)) != NULL)
 	  *s++ = '\0';
 
-	if(rv = mt_browse_types_file(mt_operator, mt_map, path))
+	if((rv = mt_browse_types_file(mt_operator, mt_map, path)) != 0)
 	  break;
 
 	path = s;
@@ -159,7 +154,7 @@ mt_srch_mime_type(MT_OPERATORPROC mt_operator, MT_MAP_T *mt_map)
 	    char buf[256];
 
 	    if(mime_get_os_mimetype_from_ext(mt_map->from.ext, buf, 256)){
-		if(s = strindex(buf, '/')){
+		if((s = strindex(buf, '/')) != NULL){
 		    *s++ = '\0';
 		    mt_map->to.mime.type = mt_translate_type(buf);
 		    mt_map->to.mime.subtype = cpystr(s);
@@ -172,7 +167,7 @@ mt_srch_mime_type(MT_OPERATORPROC mt_operator, MT_MAP_T *mt_map)
 				  mt_map->to.ext, 32)){
 		/* the 32 comes from var ext[] in display_attachment() */
 		if(*(s = mt_map->to.ext) == '.')
-		  while(*s = *(s+1))
+		  while((*s = *(s+1)) != '\0')
 		    s++;
 
 		rv = 1;
@@ -198,13 +193,14 @@ mt_browse_types_file(MT_OPERATORPROC mt_operator, MT_MAP_T *mt_map, char *filena
     int   rv = 0;
     FILE *file;
 
-    if(file = our_fopen(filename, "rb")){
+    if((file = our_fopen(filename, "rb")) != NULL){
 	rv = (*mt_operator)(mt_map, file);
 	fclose(file);
     }
-    else
+    else{
       dprint((1, "mt_browse: FAILED open(%s) : %s.\n",
 		 filename ? filename : "?", error_description(errno)));
+    }
 
     return(rv);
 }

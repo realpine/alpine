@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: adrbkcmd.c 596 2007-06-09 00:20:47Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: adrbkcmd.c 678 2007-08-20 23:05:24Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -35,7 +35,11 @@ static char rcsid[] = "$Id: adrbkcmd.c 596 2007-06-09 00:20:47Z hubert@u.washing
 #include "reply.h"
 #include "help.h"
 #include "titlebar.h"
+#include "signal.h"
+#include "roleconf.h"
+#include "send.h"
 #include "../pith/adrbklib.h"
+#include "../pith/addrbook.h"
 #include "../pith/abdlc.h"
 #include "../pith/ablookup.h"
 #include "../pith/bldaddr.h"
@@ -51,6 +55,8 @@ static char rcsid[] = "$Id: adrbkcmd.c 596 2007-06-09 00:20:47Z hubert@u.washing
 #include "../pith/detoken.h"
 #include "../pith/stream.h"
 #include "../pith/send.h"
+#include "../pith/list.h"
+#include "../pith/busy.h"
 
 
 /* internal prototypes */
@@ -74,8 +80,6 @@ int            do_the_shuffle(int *, int, int, char **);
 void           ab_compose_internal(BuildTo, int);
 int            ab_export(struct pine *, long, int, int);
 VCARD_INFO_S  *prepare_abe_for_vcard(struct pine *, AdrBk_Entry *, int);
-void           free_vcard_info(VCARD_INFO_S **);
-void           write_single_vcard_entry(struct pine *, gf_io_t, VCARD_INFO_S *);
 void           write_single_tab_entry(gf_io_t, VCARD_INFO_S *);
 int            percent_done_copying(void);
 int            cmp_action_list(const qsort_t *, const qsort_t *);
@@ -99,7 +103,7 @@ typedef struct _saved_query {
 
 int            process_ldap_cmd(int, MSGNO_S *, SCROLL_S *);
 char          *pico_simpleexit(struct headerentry *, void (*)(void), int);
-char          *pico_simplecancel(struct headerentry *, void (*)(void));
+char          *pico_simplecancel(void (*)(void));
 void           save_query_parameters(SAVED_QUERY_S *);
 SAVED_QUERY_S *copy_query_parameters(SAVED_QUERY_S *);
 void           free_query_parameters(SAVED_QUERY_S **);
@@ -135,7 +139,6 @@ view_abook_entry(struct pine *ps, long int cur_line)
 
     dprint((5, "- view_abook_entry -\n"));
 
-repaint_view:
     if(is_addr(cur_line)){
 	abe = ae(cur_line);
 	if(!abe){
@@ -260,7 +263,7 @@ repaint_view:
 	gf_set_so_readc(&gc, in_store);
 	gf_set_so_writec(&pc, out_store);
 
-	if(errstr = gf_pipe(gc, pc)){
+	if((errstr = gf_pipe(gc, pc)) != NULL){
 	    so_give(&in_store);
 	    so_give(&out_store);
 	    free_handles(&handles);
@@ -344,14 +347,6 @@ repaint_view:
 	}
 
 	cur_line = as.top_ent+as.cur_row;
-	/*
-	 * We've changed our opinion about how this should work. Now, instead
-	 * of updating and then ending back up at the view screen, you update
-	 * and end up back out at the index of entries screen.
-	 */
-    /*****
-	goto repaint_view;
-      *****/
     }
 
     ps->mangled_screen = 1;
@@ -681,11 +676,11 @@ expand_addrs_for_pico(struct headerentry *headents, char ***s)
     }
 
     for(j = 0; j < address_index && headents[j].name != NULL; j++){
-	if(tmp = fold(*headents[j].realaddr,
+	if((tmp = fold(*headents[j].realaddr,
 		      ps_global->ttyo->screen_cols,
 		      ps_global->ttyo->screen_cols,
 		      headents[j].prompt,
-		      repeat_char(headents[j].prwid, SPACE), FLD_NONE)){
+		      repeat_char(headents[j].prwid, SPACE), FLD_NONE)) != NULL){
 	    so_puts(store, tmp);
 	    fs_give((void **)&tmp);
 	}
@@ -711,14 +706,14 @@ expand_addrs_for_pico(struct headerentry *headents, char ***s)
 	    /*
 	     * Another assumption, all the prwids are the same.
 	     */
-	    if(tmp = fold(bufp,
+	    if((tmp = fold(bufp,
 			  ps_global->ttyo->screen_cols,
 			  ps_global->ttyo->screen_cols,
 			  (a == adrlist) ? (no_a_fld
 					      ? fakeaddrpmt
 					      : headents[address_index].prompt)
 					 : tmp3+2,
-			  tmp3, FLD_NONE)){
+			  tmp3, FLD_NONE)) != NULL){
 		so_puts(store, tmp);
 		fs_give((void **) &tmp);
 	    }
@@ -728,12 +723,12 @@ expand_addrs_for_pico(struct headerentry *headents, char ***s)
     }
     else{
 	tmp2 = NULL;
-	if(tmp = fold(tmp2=cpystr("<none>"),
+	if((tmp = fold(tmp2=cpystr("<none>"),
 		      ps_global->ttyo->screen_cols,
 		      ps_global->ttyo->screen_cols,
 		      no_a_fld ? fakeaddrpmt
 			       : headents[address_index].prompt,
-		      tmp3, FLD_NONE)){
+		      tmp3, FLD_NONE)) != NULL){
 	    so_puts(store, tmp);
 	    fs_give((void **) &tmp);
 	}
@@ -985,7 +980,7 @@ edit_entry(AdrBk *abook, AdrBk_Entry *abe, a_c_arg_t entry, Tag old_tag, int rea
       pbf.pine_flags |= P_VIEW;
 
     /* An informational message */
-    if(msgso = so_get(PicoText, NULL, EDIT_ACCESS)){
+    if((msgso = so_get(PicoText, NULL, EDIT_ACCESS)) != NULL){
 	pbf.msgtext = (void *)so_text(msgso);
 	/*
 	 * It's nice if we can make it so these lines make sense even if
@@ -1214,8 +1209,8 @@ _("\n to use single quotation marks; for example: George 'Husky' Washington."));
 	    if(comma_sep_addr)
 	      fs_give((void **) &comma_sep_addr);
 	}
-	else if(new_tag == List && old_tag == Single
-	       || new_tag == Single && old_tag == List){
+	else if((new_tag == List && old_tag == Single)
+	       || (new_tag == Single && old_tag == List)){
 	    /* delete old entry */
 	    rc = adrbk_delete(abook, (a_c_arg_t) old_entry_num, 0, 0, 0, 0);
 	    old_entry_num = NO_NEXT;
@@ -1297,6 +1292,9 @@ _("\n to use single quotation marks; for example: George 'Husky' Washington."));
 	  
 	  case List:
 	    dlc_restart.type = DlcListHead;
+	    break;
+
+	  default:
 	    break;
 	}
 
@@ -1708,8 +1706,8 @@ ab_modify_abook_list(int edit, int global, int abook_num, char *def_serv, char *
 
     ew = Main;
 
-    if(global && vars[V_GLOB_ADDRBOOK].is_fixed ||
-       !global && vars[V_ADDRESSBOOK].is_fixed){
+    if((global && vars[V_GLOB_ADDRBOOK].is_fixed) ||
+       (!global && vars[V_ADDRESSBOOK].is_fixed)){
 	if(global)
 	  /* TRANSLATORS: Operation was cancelled because the system management
 	     does not allow the changing of global address books */
@@ -1757,7 +1755,7 @@ ab_modify_abook_list(int edit, int global, int abook_num, char *def_serv, char *
     pbf.pine_flags   |= P_NOBODY;
 
     /* An informational message */
-    if(msgso = so_get(PicoText, NULL, EDIT_ACCESS)){
+    if((msgso = so_get(PicoText, NULL, EDIT_ACCESS)) != NULL){
 	int lines_avail;
 char *t1 =
 /* TRANSLATORS: The next few lines go together to explain how to add
@@ -2681,7 +2679,7 @@ convert_to_remote_config(struct pine *ps, int edit_exceptions)
        IS_REMOTE(context_apply(rem_pinerc_prefix, context, "",
 	         sizeof(rem_pinerc_prefix)))){
 	/* just use the host from the default collection, not the whole path */
-	if(end = strrindex(rem_pinerc_prefix, '}'))
+	if((end = strrindex(rem_pinerc_prefix, '}')) != NULL)
 	  *(end + 1) = '\0';
     }
     else{
@@ -3261,7 +3259,7 @@ ab_del_abook(long int cur_line, int command_line, char **err)
 	 */
 	if(pab->address_book){
 	    char       *file, *origfile = NULL;
-	    int         h=0, f=0, o=0;
+	    int         f=0, o=0;
 
 	    /*
 	     * We're about to destroy addrbook data, better ask again.
@@ -3271,7 +3269,7 @@ ab_del_abook(long int cur_line, int command_line, char **err)
 
 		/* TRANSLATORS: a question */
 		snprintf(prompt, sizeof(prompt),
-			_("About to delete the contents of address book (%ld entries), really delete "), adrbk_count(pab->address_book));
+			_("About to delete the contents of address book (%ld entries), really delete "), (long) adrbk_count(pab->address_book));
 		prompt[sizeof(prompt)-1] = '\0';
 
 		switch(want_to(prompt, 'n', 'n', h_ab_really_delete, WT_NORM)){
@@ -3575,7 +3573,7 @@ ab_shuffle(PerAddrBook *pab, int *slide, int command_line, char **msg)
 
     ps_global->mangled_footer = 1;
 
-    if(rv == 'u' && up_into_empty || rv == 'd' && down_into_empty)
+    if((rv == 'u' && up_into_empty) || (rv == 'd' && down_into_empty))
       target = -1;
     else
       target = as.cur + (rv == 'u' ? -1 : 1);
@@ -3676,8 +3674,8 @@ do_the_shuffle(int *slide, int anum1, int anum2, char **msg)
      * addrbook from one side of the boundary to the other, just that one
      * is moved.
      */
-    if(type1 == Glob && type2 == Glob ||
-       type1 == Pers && type2 == Pers){
+    if((type1 == Glob && type2 == Glob) ||
+       (type1 == Pers && type2 == Pers)){
 	int          how_many_in_list, varnum;
 	int          anum1_rel, anum2_rel;	/* position in specific list */
 	char       **list, **new_list;
@@ -3737,8 +3735,8 @@ do_the_shuffle(int *slide, int anum1, int anum2, char **msg)
 	as.adrbks[anum1] = as.adrbks[anum2];
 	as.adrbks[anum2] = tmppab;
     }
-    else if(type1 == Pers && type2 == Glob ||
-            type1 == Glob && type2 == Pers){
+    else if((type1 == Pers && type2 == Glob) ||
+            (type1 == Glob && type2 == Pers)){
 	int how_many_in_srclist, how_many_in_dstlist;
 	int srcvarnum, dstvarnum, srcanum;
 	int cnt, warn_about_revert = 0;
@@ -4026,9 +4024,9 @@ ab_compose_to_addr(long int cur_line, int agg, int allow_role)
 		    to[alloced-1] = '\0';
 		}
 		else{
-		    strncat(to, ",", alloced-strlen(to));
+		    strncat(to, ",", alloced-strlen(to)-1);
 		    to[alloced-1] = '\0';
-		    strncat(to, a_string, alloced-strlen(to));
+		    strncat(to, a_string, alloced-strlen(to)-1);
 		    to[alloced-1] = '\0';
 		}
 
@@ -4534,8 +4532,8 @@ ab_forward(struct pine *ps, long int cur_line, int agg)
     body->nested.part                       = mail_newbody_part();
     body->nested.part->body.type            = TYPETEXT;
     /*--- Allocate an object for the body ---*/
-    if(body->nested.part->body.contents.text.data =
-				(void *)so_get(PicoText, NULL, EDIT_ACCESS)){
+    if((body->nested.part->body.contents.text.data =
+				(void *)so_get(PicoText, NULL, EDIT_ACCESS)) != NULL){
 	int       did_sig = 0;
 	long      rflags = ROLE_COMPOSE;
 	PAT_STATE dummy;
@@ -4560,7 +4558,7 @@ ab_forward(struct pine *ps, long int cur_line, int agg)
 	  q_status_message1(SM_ORDER, 3, 4, _("Composing using role \"%s\""),
 			    role->nick);
 
-	if(sig = detoken(role, NULL, 2, 0, 1, NULL, NULL)){
+	if((sig = detoken(role, NULL, 2, 0, 1, NULL, NULL)) != NULL){
 	    if(*sig){
 		so_puts((STORE_S *)body->nested.part->body.contents.text.data,
 			sig);
@@ -4596,7 +4594,7 @@ ab_forward(struct pine *ps, long int cur_line, int agg)
     pb->parameter = NULL;
     set_parameter(&pb->parameter, "profile", "vCard");
 
-    if(pb->contents.text.data = (void *)so_get(CharStar, NULL, EDIT_ACCESS)){
+    if((pb->contents.text.data = (void *)so_get(CharStar, NULL, EDIT_ACCESS)) != NULL){
 	int are_some_unqualified = 0, expand_nicks = 0;
 	adrbk_cntr_t num;
 	PerAddrBook *pab;
@@ -5018,7 +5016,7 @@ write_single_vcard_entry(struct pine *ps, gf_io_t pc, VCARD_INFO_S *vinfo)
 
 	    tmp = vcard_escape(decoded);
 	    if(tmp){
-		if(tmp2 = fold(tmp, FOLD_BY, FOLD_BY, hdr, " ", FLD_PWS | (cr ? FLD_CRLF : 0))){
+		if((tmp2 = fold(tmp, FOLD_BY, FOLD_BY, hdr, " ", FLD_PWS | (cr ? FLD_CRLF : 0))) != NULL){
 		    gf_puts(tmp2, pc);
 		    fs_give((void **)&tmp2);
 		    if(i == 1)
@@ -5040,13 +5038,13 @@ write_single_vcard_entry(struct pine *ps, gf_io_t pc, VCARD_INFO_S *vinfo)
 					       : NULL;
 	snprintf(tmp_20k_buf, SIZEOF_20KBUF, "%s%s%s%s%s",
 		(pl && *pl) ? pl : "", 
-		(pf && *pf || pm && *pm) ? ";" : "",
+		((pf && *pf) || (pm && *pm)) ? ";" : "",
 		(pf && *pf) ? pf : "", 
 		(pm && *pm) ? ";" : "", 
 		(pm && *pm) ? pm : "");
 
-	if(tmp2 = fold(tmp_20k_buf, FOLD_BY, FOLD_BY, "N:", " ",
-		       FLD_PWS | (cr ? FLD_CRLF : 0))){
+	if((tmp2 = fold(tmp_20k_buf, FOLD_BY, FOLD_BY, "N:", " ",
+		       FLD_PWS | (cr ? FLD_CRLF : 0))) != NULL){
 	    gf_puts(tmp2, pc);
 	    fs_give((void **)&tmp2);
 	    did_n++;
@@ -5071,15 +5069,15 @@ write_single_vcard_entry(struct pine *ps, gf_io_t pc, VCARD_INFO_S *vinfo)
 		    (vinfo->first && *vinfo->first &&
 		     vinfo->middle && *vinfo->middle) ? " " : "", 
 		    (vinfo->middle && *vinfo->middle) ? vinfo->middle : "",
-		    ((vinfo->first && *vinfo->first ||
-		      vinfo->middle && *vinfo->middle) &&
+		    (((vinfo->first && *vinfo->first) ||
+		      (vinfo->middle && *vinfo->middle)) &&
 		     vinfo->last && *vinfo->last) ? " " : "", 
 		    (vinfo->last && *vinfo->last) ? vinfo->last : "");
 
 	    tmp = vcard_escape(tmp_20k_buf);
 	    if(tmp){
-		if(tmp2 = fold(tmp, FOLD_BY, FOLD_BY, "FN:", " ",
-			       FLD_PWS | (cr ? FLD_CRLF : 0))){
+		if((tmp2 = fold(tmp, FOLD_BY, FOLD_BY, "FN:", " ",
+			       FLD_PWS | (cr ? FLD_CRLF : 0))) != NULL){
 		    gf_puts(tmp2, pc);
 		    fs_give((void **)&tmp2);
 		    did_n++;
@@ -5581,7 +5579,6 @@ ab_save(struct pine *ps, AdrBk *abook, long int cur_line, int command_line, int 
     }
 
     if(need_write){
-	long old_size;
 	int sort_happened = 0;
 
 	if(adrbk_write(pab_dst->address_book, 0, NULL, &sort_happened, 0, 1)){
@@ -5853,7 +5850,7 @@ ab_print(int agg)
 		tmp = abe->nickname ? abe->nickname : "";
 		string = (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf, SIZEOF_20KBUF, tmp);
 		utf8_snprintf(b, sizeof(b), "%-*.*w: ", abook_indent, abook_indent, _("Nickname"));
-		if(tmp = fold(string, 80, 80, b, spaces, FLD_NONE)){
+		if((tmp = fold(string, 80, 80, b, spaces, FLD_NONE)) != NULL){
 		    print_text(tmp);
 		    fs_give((void **)&tmp);
 		}
@@ -5861,7 +5858,7 @@ ab_print(int agg)
 		tmp = abe->fullname ? abe->fullname : "";
 		string = (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf, SIZEOF_20KBUF, tmp);
 		utf8_snprintf(b, sizeof(b), "%-*.*w: ", abook_indent, abook_indent, _("Fullname"));
-		if(tmp = fold(string, 80, 80, b, spaces, FLD_NONE)){
+		if((tmp = fold(string, 80, 80, b, spaces, FLD_NONE)) != NULL){
 		    print_text(tmp);
 		    fs_give((void **)&tmp);
 		}
@@ -5869,7 +5866,7 @@ ab_print(int agg)
 		tmp = abe->fcc ? abe->fcc : "";
 		string = (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf, SIZEOF_20KBUF, tmp);
 		utf8_snprintf(b, sizeof(b), "%-*.*w: ", abook_indent, abook_indent, _("Fcc"));
-		if(tmp = fold(string, 80, 80, b, spaces, FLD_NONE)){
+		if((tmp = fold(string, 80, 80, b, spaces, FLD_NONE)) != NULL){
 		    print_text(tmp);
 		    fs_give((void **)&tmp);
 		}
@@ -5888,7 +5885,7 @@ ab_print(int agg)
 
 		 string = (char *)rfc1522_decode_to_utf8(p, len, tmp);
 		 utf8_snprintf(b, len, "%-*.*w: ", abook_indent, abook_indent, _("Comment"));
-		 if(tmp = fold(string, 80, 80, b, spaces, FLD_NONE)){
+		 if((tmp = fold(string, 80, 80, b, spaces, FLD_NONE)) != NULL){
 		    print_text(tmp);
 		    fs_give((void **)&tmp);
 		 }
@@ -5918,9 +5915,9 @@ ab_print(int agg)
 			string = (char *)rfc1522_decode_to_utf8((unsigned char *) tmp_20k_buf+10000,
 								SIZEOF_20KBUF-10000, tmp);
 			utf8_snprintf(b, sizeof(b), "%-*.*w: ", abook_indent, abook_indent, _("Addresses"));
-			if(tmp = fold(string, 80, 80,
+			if((tmp = fold(string, 80, 80,
 				      (a == adrlist) ? b : spaces,
-				      more_spaces, FLD_NONE)){
+				      more_spaces, FLD_NONE)) != NULL){
 			    print_text(tmp);
 			    fs_give((void **)&tmp);
 			}
@@ -5941,8 +5938,8 @@ ab_print(int agg)
 			string = (char *)rfc1522_decode_to_utf8((unsigned char *) (tmp_20k_buf+10000),
 								SIZEOF_20KBUF-10000, tmp);
 			utf8_snprintf(b, sizeof(b), "%-*.*w: ", abook_indent, abook_indent, _("Addresses"));
-			if(tmp = fold(string, 80, 80, b,
-				      more_spaces, FLD_NONE)){
+			if((tmp = fold(string, 80, 80, b,
+				      more_spaces, FLD_NONE)) != NULL){
 			    print_text(tmp);
 			    fs_give((void **)&tmp);
 			}
@@ -5959,10 +5956,10 @@ ab_print(int agg)
 			    string = (char *)rfc1522_decode_to_utf8((unsigned char *) (tmp_20k_buf+10000),
 								    SIZEOF_20KBUF-10000, *ll);
 			    utf8_snprintf(b, sizeof(b), "%-*.*w: ", abook_indent, abook_indent, _("Addresses"));
-			    if(tmp = fold(string, 80, 80,
+			    if((tmp = fold(string, 80, 80,
 					  (ll == abe->addr.list)
 					    ? b :  spaces,
-					  more_spaces, FLD_NONE)){
+					  more_spaces, FLD_NONE)) != NULL){
 				print_text(tmp);
 				fs_give((void **)&tmp);
 			    }
@@ -6006,6 +6003,8 @@ ab_print(int agg)
 			  case ZoomEmpty:
 			  case AskServer:
 			    continue;
+			  default:
+			    break;
 			}
 
 			p = get_abook_display_line(lineno, 0, NULL, NULL,
@@ -6048,6 +6047,8 @@ ab_print(int agg)
 			      case ListClickHere:
 			      case ClickHereCmb:
 				continue;
+			      default:
+				break;
 			    }
 
 			    p = get_abook_display_line(lineno, 0, NULL, NULL,
@@ -6102,6 +6103,8 @@ ab_print(int agg)
 		      case ListClickHere:
 		      case ClickHereCmb:
 			continue;
+		      default:
+			break;
 		    }
 
 		    p = get_abook_display_line(lineno, 0, NULL, NULL, NULL,
@@ -6367,6 +6370,9 @@ single_entry_delete(AdrBk *abook, long int cur_line, int *warped)
 					       SIZEOF_20KBUF, listmem_from_dl(abook, dl));
 	cmd   = _("Really delete \"%s\" from list");
         break;
+
+      default:
+        break;
     } 
 
     dname = dname ? dname : "";
@@ -6575,8 +6581,8 @@ query_server(struct pine *ps, int selecting, int *exit, int who, char **error)
 {
     struct headerentry *he = NULL;
     PICO pbf;
-    STORE_S *msgso = NULL, *store = NULL;
-    int i, lret, editor_result, mangled = 0;
+    STORE_S *msgso = NULL;
+    int i, lret, editor_result;
     int r = 4, flags;
     HelpType help = NO_HELP;
 #define FILTSIZE 1000
@@ -6615,7 +6621,7 @@ query_server(struct pine *ps, int selecting, int *exit, int who, char **error)
     /* strip quotes that user typed by mistake */
     (void)removing_double_quotes(fbuf);
 
-    if(r == 1 || r != 10 && fbuf[0] == '\0'){
+    if(r == 1 || (r != 10 && fbuf[0] == '\0')){
 	ps->mangled_footer = 1;
 	if(error)
 	  *error = cpystr(_("Cancelled"));
@@ -6646,7 +6652,7 @@ query_server(struct pine *ps, int selecting, int *exit, int who, char **error)
 	pbf.pine_flags   |= P_NOBODY;
 
 	/* An informational message */
-	if(msgso = so_get(PicoText, NULL, EDIT_ACCESS)){
+	if((msgso = so_get(PicoText, NULL, EDIT_ACCESS)) != NULL){
 	    pbf.msgtext = (void *)so_text(msgso);
 	    /*
 	     * It's nice if we can make it so these lines make sense even if
@@ -7173,7 +7179,7 @@ prep_ldap_for_viewing(struct pine *ps, LDAP_SERV_RES_S *winning_e, SourceType sr
     a = ldap_get_dn(winning_e->ld, winning_e->res);
 
     so_puts(store, obuf);
-    if(tmp = fold(a, width, width, "", "   ", FLD_NONE)){
+    if((tmp = fold(a, width, width, "", "   ", FLD_NONE)) != NULL){
 	so_puts(store, tmp);
 	fs_give((void **)&tmp);
     }
@@ -7290,10 +7296,10 @@ prep_ldap_for_viewing(struct pine *ps, LDAP_SERV_RES_S *winning_e, SourceType sr
 			    snprintf(obuf, sizeof(obuf), "%s", vals[i]);
 			    obuf[sizeof(obuf)-1] = '\0';
 
-			    if(tmp = fold(obuf, width, width,
+			    if((tmp = fold(obuf, width, width,
 					  (i==0) ? hdr : hdr2,
 					  repeat_char(indent+2, SPACE),
-					  FLD_NONE)){
+					  FLD_NONE)) != NULL){
 				so_puts(store, tmp);
 				fs_give((void **)&tmp);
 			    }
@@ -7303,10 +7309,10 @@ prep_ldap_for_viewing(struct pine *ps, LDAP_SERV_RES_S *winning_e, SourceType sr
 			snprintf(obuf, sizeof(obuf), "%s", vals[i]);
 			obuf[sizeof(obuf)-1] = '\0';
 
-			if(tmp = fold(obuf, width, width,
+			if((tmp = fold(obuf, width, width,
 				      (i==0) ? hdr : hdr2,
 				      repeat_char(indent+2, SPACE),
-				      FLD_NONE)){
+				      FLD_NONE)) != NULL){
 			    so_puts(store, tmp);
 			    fs_give((void **)&tmp);
 			}
@@ -7372,7 +7378,7 @@ pico_simpleexit(struct headerentry *he, void (*redraw_pico)(void), int allow_flo
 }
 
 char *
-pico_simplecancel(struct headerentry *he, void (*redraw_pico)(void))
+pico_simplecancel(void (*redraw_pico)(void))
 {
     return("Cancelled");
 }
@@ -7642,7 +7648,7 @@ url_local_ldap(char *url)
 	  memset(&wp_err, 0, sizeof(wp_err));
 	  wp_err.mangled = &mangled;
 
-	  ask_user_which_entry(serv_res, NULL, &wp_err, NULL, DisplayForURL);
+	  ask_user_which_entry(serv_res, NULL, NULL, &wp_err, DisplayForURL);
 	  if(wp_err.error){
 	    q_status_message(SM_ORDER, 3, 5, wp_err.error);
 	    fs_give((void **)&wp_err.error);

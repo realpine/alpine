@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcmd.c 583 2007-05-29 23:10:02Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailcmd.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -26,6 +26,7 @@ static char rcsid[] = "$Id: mailcmd.c 583 2007-05-29 23:10:02Z hubert@u.washingt
 #include "../pith/sort.h"
 #include "../pith/newmail.h"
 #include "../pith/mailview.h"
+#include "../pith/mailindx.h"
 #include "../pith/save.h"
 #include "../pith/news.h"
 #include "../pith/sequence.h"
@@ -33,7 +34,12 @@ static char rcsid[] = "$Id: mailcmd.c 583 2007-05-29 23:10:02Z hubert@u.washingt
 #include "../pith/ldap.h"
 #include "../pith/options.h"
 #include "../pith/busy.h"
+#include "../pith/icache.h"
 #include "../pith/charconv/utf8.h"
+
+#ifdef _WINDOWS
+#include "../pico/osdep/mswin.h"
+#endif
 
 
 /*
@@ -48,7 +54,7 @@ int	(*pith_opt_read_msg_prompt)(long, char *);
 int	(*pith_opt_reopen_folder)(struct pine *, int *);
 int	(*pith_opt_expunge_prompt)(MAILSTREAM *, char *, long);
 void	(*pith_opt_begin_closing)(int, char *);
-void	  get_new_message_count(MAILSTREAM *, int, unsigned long *, unsigned long *);
+void	  get_new_message_count(MAILSTREAM *, int, long *, long *);
 char	 *new_messages_string(MAILSTREAM *);
 
 
@@ -290,9 +296,9 @@ cmd_expunge_work(MAILSTREAM *stream, MSGNO_S *msgmap)
      * should be rare, we'll just do it whenever it happens.
      * Also have to check for an increase in max_msgno on new mail.
      */
-    if(old_max_msgno >= 1000L && mn_get_total(msgmap) < 1000L
-       || old_max_msgno >= 10000L && mn_get_total(msgmap) < 10000L
-       || old_max_msgno >= 100000L && mn_get_total(msgmap) < 100000L){
+    if((old_max_msgno >= 1000L && mn_get_total(msgmap) < 1000L)
+       || (old_max_msgno >= 10000L && mn_get_total(msgmap) < 10000L)
+       || (old_max_msgno >= 100000L && mn_get_total(msgmap) < 100000L)){
 	clear_index_cache(stream, 0);
 	rv = 1;
     }
@@ -394,7 +400,6 @@ do_broach_folder(char *newfolder, CONTEXT_S *new_context, MAILSTREAM **streamp,
     ENVELOPE   *env = NULL;
     char        status_msg[81];
     SortOrder	old_sort;
-    SEARCHSET  *srchset = NULL;
     unsigned    perfolder_startup_rule;
     char        tmp1[MAILTMPLEN], tmp2[MAILTMPLEN], *lname, *mname;
 
@@ -422,7 +427,7 @@ do_broach_folder(char *newfolder, CONTEXT_S *new_context, MAILSTREAM **streamp,
 
 	/* further checking for inbox open */
 	if(!open_inbox && new_context && context_isambig(newfolder)){
-	    if(p = folder_is_nick(newfolder, FOLDERS(new_context), FN_WHOLE_NAME)){
+	    if((p = folder_is_nick(newfolder, FOLDERS(new_context), FN_WHOLE_NAME)) != NULL){
 		/*
 		 * Check for an incoming folder other
 		 * than INBOX that also point to INBOX.
@@ -463,7 +468,7 @@ do_broach_folder(char *newfolder, CONTEXT_S *new_context, MAILSTREAM **streamp,
     /*----- Little to do to if reopening same folder -----*/
     if(new_context == ps_global->context_current && ps_global->mail_stream
        && (strcmp(newfolder, ps_global->cur_folder) == 0
-           || open_inbox && sp_flagged(ps_global->mail_stream, SP_INBOX))){
+           || (open_inbox && sp_flagged(ps_global->mail_stream, SP_INBOX)))){
 	if(stream){
 	    pine_mail_close(stream);	/* don't need it */
 	    stream = NULL;
@@ -543,7 +548,7 @@ do_broach_folder(char *newfolder, CONTEXT_S *new_context, MAILSTREAM **streamp,
     expanded_file[sizeof(expanded_file)-1] = '\0';
 
     if(!open_inbox && new_context && context_isambig(newfolder)){
-	if(p = folder_is_nick(newfolder, FOLDERS(new_context), FN_WHOLE_NAME)){
+	if((p = folder_is_nick(newfolder, FOLDERS(new_context), FN_WHOLE_NAME)) != NULL){
 	    strncpy(expanded_file, p, sizeof(expanded_file));
 	    expanded_file[sizeof(expanded_file)-1] = '\0';
 	    dprint((2, "broach_folder: nickname for %s is %s\n",
@@ -750,7 +755,7 @@ do_broach_folder(char *newfolder, CONTEXT_S *new_context, MAILSTREAM **streamp,
     strncat(status_msg, pretty_fn(newfolder),
 	    sizeof(status_msg)-strlen(status_msg) - 2);
     status_msg[sizeof(status_msg)-2] = '\0';
-    strncat(status_msg, "\"", 1);
+    strncat(status_msg, "\"", sizeof(status_msg)-strlen(status_msg) - 1);
     status_msg[sizeof(status_msg)-1] = '\0';
     we_cancel = busy_cue(status_msg, NULL, 0);
 
@@ -1524,7 +1529,7 @@ expunge_and_close(MAILSTREAM *stream, char **final_msg, long unsigned int flags)
 		      else if((mc = mail_elt(stream, i)) != NULL)
 			mc->sequence = 0;
 
-		    if(seq = build_sequence(stream, NULL, NULL)){
+		    if((seq = build_sequence(stream, NULL, NULL)) != NULL){
 			mail_flag(stream, seq, "\\DELETED", ST_SILENT);
 			fs_give((void **) &seq);
 		    }
@@ -1540,7 +1545,7 @@ expunge_and_close(MAILSTREAM *stream, char **final_msg, long unsigned int flags)
 			   = (msgno_exceptions(stream, i, "0", &expbits, FALSE)
 			      && (expbits & MSG_EX_DELETE));
 
-		    if(seq = build_sequence(stream, NULL, NULL)){
+		    if((seq = build_sequence(stream, NULL, NULL)) != NULL){
 			mail_flag(stream, seq, "\\DELETED", ST_SET|ST_SILENT);
 			fs_give((void **) &seq);
 		    }
@@ -1585,9 +1590,9 @@ expunge_and_close(MAILSTREAM *stream, char **final_msg, long unsigned int flags)
 		  }
 		}
 		/* first, look to archive read messages */
-		if(moved_msg = move_read_incoming(stream, context, folder,
+		if((moved_msg = move_read_incoming(stream, context, folder,
 						  VAR_ARCHIVED_FOLDERS,
-						  buff1, sizeof(buff1)))
+						  buff1, sizeof(buff1))) != NULL)
 		  q_status_message(SM_ORDER,
 		      F_ON(F_AUTO_READ_MSGS,ps_global) ? 0 : 3, 5, moved_msg);
 
@@ -1829,8 +1834,8 @@ cross_delete_crossposts(MAILSTREAM *stream)
 	  if(!get_lflag(stream, NULL, i, MN_EXLD)
 	     && (mc = mail_elt(stream, i)) && mc->deleted){
 
-	      if(xref = pine_fetchheader_lines(stream, i, NULL, fields)){
-		  if(p = strstr(xref, ": ")){
+	      if((xref = pine_fetchheader_lines(stream, i, NULL, fields)) != NULL){
+		  if((p = strstr(xref, ": ")) != NULL){
 		      p	     += 2;
 		      hostlatch = 0L;
 		      while(*p){
@@ -1858,13 +1863,13 @@ cross_delete_crossposts(MAILSTREAM *stream)
 							+ (newgrp - newfolder))
 				 && folder_index(group, fake_context,
 						 FI_FOLDER) >= 0){
-				  if(uid = strtoul(uidp, NULL, 10)){
+				  if((uid = strtoul(uidp, NULL, 10)) != 0L){
 				      strncpy(newgrp, group, sizeof(newfolder)-(newgrp-newfolder));
 				      newfolder[sizeof(newfolder)-1] = '\0';
-				      if(tstream = pine_mail_open(NULL,
+				      if((tstream = pine_mail_open(NULL,
 								  newfolder,
 								  SP_USEPOOL,
-								  NULL)){
+								  NULL)) != NULL){
 					  mail_flag(tstream, ulong2string(uid),
 						    "\\DELETED",
 						    ST_SET | ST_UID);
@@ -1913,26 +1918,28 @@ char *
 new_messages_string(MAILSTREAM *stream)
 {
     char message[80] = {'\0'};
-    unsigned long new = 0L, uns = 0L;
+    long new = 0L, uns = 0L;
     int i, imapstatus = 0;
 
     for (i = 0; ps_global->index_disp_format[i].ctype != iNothing
-		&& ps_global->index_disp_format[i].ctype != iIStatus; i++)
+		&& ps_global->index_disp_format[i].ctype != iIStatus
+		&& ps_global->index_disp_format[i].ctype != iSIStatus; i++)
       ;
 
-    imapstatus = ps_global->index_disp_format[i].ctype == iIStatus;
+    imapstatus = ps_global->index_disp_format[i].ctype == iIStatus
+		 || ps_global->index_disp_format[i].ctype == iSIStatus;
 
     get_new_message_count(stream, imapstatus, &new, &uns);
 
-    if(imapstatus && (new > 0L || uns > 0L))
+    if(imapstatus)
       snprintf(message, sizeof(message), " - %s%s%s%s%s%s%s",
-	       new > 0L ? comatose((long) new) : "",
-	       new > 0L ? " " : "",
-	       new > 0L ? _("new") : "",
-	       new > 0L && uns > 0L ? ", " : "",
-	       uns > 0L ? comatose((long) uns) : "",
-	       uns > 0L ? " " : "",
-	       uns > 0L ? _("unseen") : "");
+	       uns != 0L ? comatose((long) new) : "",
+	       uns != 0L ? " " : "",
+	       uns != 0L ? _("recent") : "",
+	       uns > 0L  ? ", " : "",
+	       uns != -1L ? comatose((long) uns) : "",
+	       uns != -1L ? " " : "",
+	       uns != -1L ? _("unseen") : "");
     else if(!imapstatus && new > 0L)
       snprintf(message, sizeof(message), " - %s %s",
 	       comatose((long) new), _("new"));
@@ -1943,7 +1950,7 @@ new_messages_string(MAILSTREAM *stream)
 
 void
 get_new_message_count(MAILSTREAM *stream, int imapstatus,
-		      unsigned long *new, unsigned long *unseen)
+		      long *new, long *unseen)
 {
     if(new)
       *new = 0L;
@@ -1959,6 +1966,8 @@ get_new_message_count(MAILSTREAM *stream, int imapstatus,
 	    if(unseen)
 	      *unseen = count_flagged(stream, F_UNSEEN | F_UNDEL);
 	}
+	else if(unseen)
+	  *unseen = -1L;
     }
     else{
 	if(IS_NEWS(stream)){
@@ -2392,6 +2401,22 @@ agg_flag_select(MAILSTREAM *stream, int not, int crit, struct search_set **limit
 	  pgm->unanswered = pgm->undeleted = 1;
 	else
 	  pgm->answered = pgm->undeleted = 1;
+	break;
+
+      case 'f':
+        {
+	    STRINGLIST **slpp;
+
+	    for(slpp = (not) ? &pgm->unkeyword : &pgm->keyword;
+		*slpp;
+		slpp = &(*slpp)->next)
+	      ;
+
+	    *slpp = mail_newstringlist();
+	    (*slpp)->text.data = (unsigned char *) cpystr(FORWARDED_FLAG);
+	    (*slpp)->text.size = (unsigned long) strlen(FORWARDED_FLAG);
+	}
+
 	break;
 
       case '*' :

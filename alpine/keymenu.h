@@ -1,5 +1,5 @@
 /*
- * $Id: keymenu.h 529 2007-04-18 22:41:05Z hubert@u.washington.edu $
+ * $Id: keymenu.h 639 2007-07-09 22:12:40Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -377,13 +377,13 @@ struct key_menu {
 #define	TOGGLE_MENU	{"X", "[" N_("Set/Unset") "]", \
 			 {MC_TOGGLE,3,{'x',ctrl('M'),ctrl('J')}}, \
 			 KS_NONE}
-#define	TOGGLEB_MENU	{"X", "[Set/Unset]", \
+#define	TOGGLEB_MENU	{"X", "[" N_("Set/Unset") "]", \
 			 {MC_TOGGLEB,3,{'x',ctrl('M'),ctrl('J')}}, \
 			 KS_NONE}
-#define	TOGGLEC_MENU	{"X", "[Set/Unset]", \
+#define	TOGGLEC_MENU	{"X", "[" N_("Set/Unset") "]", \
 			 {MC_TOGGLEC,3,{'x',ctrl('M'),ctrl('J')}}, \
 			 KS_NONE}
-#define	TOGGLED_MENU	{"X", "[Set/Unset]", \
+#define	TOGGLED_MENU	{"X", "[" N_("Set/Unset") "]", \
 			 {MC_TOGGLED,3,{'x',ctrl('M'),ctrl('J')}}, \
 			 KS_NONE}
 /* TRANSLATORS: go to the Previous Collection. A Collection in Alpine refers

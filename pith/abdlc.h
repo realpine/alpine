@@ -1,8 +1,8 @@
 /*
- * $Id: abdlc.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: abdlc.h 671 2007-08-15 20:28:09Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ char          *listmem_from_dl(AdrBk *, AddrScrn_Disp *);
 adrbk_cntr_t   listmem_count_from_abe(AdrBk_Entry *);
 AddrScrn_Disp *dlist(long);
 int            adrbk_num_from_lineno(long);
+void           done_with_dlc_cache(void);
 
 
 #endif /* PITH_ABDLC_INCLUDED */

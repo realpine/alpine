@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: canaccess.c 229 2006-11-13 23:14:48Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: canaccess.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ static char rcsid[] = "$Id: canaccess.c 229 2006-11-13 23:14:48Z hubert@u.washin
 
 #include <system.h>
 #include "bldpath.h"
+#include "fnexpand.h"
 #include "../charconv/utf8.h"
 #include "../charconv/filesys.h"
 #include "canaccess.h"
@@ -73,18 +74,18 @@ can_access(char *file, int mode)
 	 * We'd like to just call temp_nam here, since it creates a file
 	 * and does what we want. However, temp_nam calls us!
 	 */
-	if((testname = malloc((unsigned int)MAXPATH))){
+	if((testname = malloc(MAXPATH * sizeof(char)))){
 	    strncpy(testname, file, MAXPATH-1);
 	    testname[MAXPATH-1] = '\0';
 	    if(testname[0] && testname[(l=strlen(testname))-1] != '\\' &&
 	       l+1 < MAXPATH){
 		l++;
-		strncat(testname, "\\", MAXPATH);
+		strncat(testname, "\\", MAXPATH-strlen(testname)-1);
 		testname[MAXPATH-1] = '\0';
 	    }
 	    
 	    if(l+8 < MAXPATH &&
-	       strncat(testname, "caXXXXXX", MAXPATH) && mktemp(testname)){
+	       strncat(testname, "caXXXXXX", MAXPATH-strlen(testname)-1) && mktemp(testname)){
 		if((fd = our_open(testname, O_CREAT|O_EXCL|O_WRONLY|O_BINARY, 0600)) >= 0){
 		    (void)close(fd);
 		    our_unlink(testname);
@@ -122,6 +123,7 @@ can_access(char *file, int mode)
  Result: returns 0 if the user can access the file according to the mode,
          -1 if he can't (and errno is set).
  ----*/
+int
 can_access_in_path(char *path, char *file, int mode)
 {
     char tmp[MAXPATH];
@@ -143,7 +145,7 @@ can_access_in_path(char *path, char *file, int mode)
 	    path_copy[sizeof(path_copy)-1] = '\0';
 
 	    for(p = path_copy; p && *p; p = t){
-		if(t = strchr(p, PATH_SEP))
+		if((t = strchr(p, PATH_SEP)) != NULL)
 		  *t++ = '\0';
 
 		snprintf(tmp, sizeof(tmp), "%s%c%s", p, FILE_SEP, file);

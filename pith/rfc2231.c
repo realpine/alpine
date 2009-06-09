@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: rfc2231.c 476 2007-03-08 18:35:28Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: rfc2231.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@ rfc2231_get_param(struct mail_body_parameter *parms, char *name,
 
     name_len = strlen(name);
     for(; parms ; parms = parms->next)
-      if(!struncmp(name, parms->attribute, name_len))
+      if(!struncmp(name, parms->attribute, name_len)){
 	if(parms->attribute[name_len] == '*'){
 	    for(p = &parms->attribute[name_len + 1], n = 0; *(p+n); n++)
 	      ;
@@ -75,7 +75,7 @@ rfc2231_get_param(struct mail_body_parameter *parms, char *name,
 			return(NULL);		/* Too many segments! */
 		    }
 
-		    while(parms = parms->next)
+		    while((parms = parms->next) != NULL)
 		      if(!struncmp(name, parms->attribute, name_len)){
 			  if(*(p = &parms->attribute[name_len]) == '*'
 			      && isdigit((unsigned char) *++p))
@@ -99,7 +99,7 @@ rfc2231_get_param(struct mail_body_parameter *parms, char *name,
 		buf = (char *) fs_get((len + 1) * sizeof(char));
 
 		for(i = len = 0; i <= count; i++){
-		    if(n = *(p = pieces[i]) == '\"') /* quoted? */
+		    if((n = *(p = pieces[i]) == '\"') != 0) /* quoted? */
 		      p++;
 
 		    while(*p && !(n && *p == '\"' && !*(p+1)))
@@ -118,7 +118,7 @@ rfc2231_get_param(struct mail_body_parameter *parms, char *name,
 		cs[0] = '\0';
 		n = 0;
 
-		if(p = strchr(buf, '\'')){
+		if((p = strchr(buf, '\'')) != NULL){
 		    n = (p - buf) + 1;
 		    *p = '\0';
 		    strncpy(cs, buf, sizeof(cs));
@@ -127,7 +127,7 @@ rfc2231_get_param(struct mail_body_parameter *parms, char *name,
 		    if(charset)
 		      *charset = cpystr(cs);
 
-		    if(p = strchr(&buf[n], '\'')){
+		    if((p = strchr(&buf[n], '\'')) != NULL){
 			n = (p - buf) + 1;
 			if(lang){
 			    *p = '\0';
@@ -140,7 +140,7 @@ rfc2231_get_param(struct mail_body_parameter *parms, char *name,
 		if(n){
 		    /* Suck out the charset & lang while decoding hex */
 		    p = &buf[n];
-		    for(i = 0; buf[i] = *p; i++)
+		    for(i = 0; (buf[i] = *p) != '\0'; i++)
 		      if(*p++ == '%' && isxpair(p)){
 			  buf[i] = X2C(p);
 			  p += 2;
@@ -166,6 +166,7 @@ rfc2231_get_param(struct mail_body_parameter *parms, char *name,
 	}
 	else
 	  return(cpystr(parms->value ? parms->value : ""));
+      }
 
     return(NULL);
 }

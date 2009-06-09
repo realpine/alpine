@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright 1988-2006 University of Washington
+ * Copyright 1988-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,11 +23,10 @@
  *		Internet: MRC@CAC.Washington.EDU
  *
  * Date:	10 April 2001
- * Last Edited:	25 October 2006
+ * Last Edited:	16 August 2007
  */
  
 #undef flock			/* name is used as a struct for fcntl */
-#undef fork			/* make damn sure that we don't use vfork!! */
 
 #ifndef NOFSTATVFS		/* thank you, SUN.  NOT! */
 # ifndef NOFSTATVFS64

@@ -1,7 +1,7 @@
 
                             Alpine Technical Notes
 
-   Version 0.999, June 2007
+   Version 0.9999, August 2007
 
 Table of Contents
 
@@ -2196,14 +2196,23 @@ General Configuration Variables
                 Set the current message to the last undeleted message unless
                 all are deleted. In that case set it to the last message.
 
+   _incoming-unseen-background-color_
+   _incoming-unseen-foreground-color_
+          Incoming Unseen Color.
    _index-answered-background-color_
    _index-answered-foreground-color_
    _index-arrow-background-color_
    _index-arrow-foreground-color_
    _index-deleted-background-color_
    _index-deleted-foreground-color_
+   _index-from-background-color_
+   _index-from-foreground-color_
+   _index-highpriority-background-color_
+   _index-highpriority-foreground-color_
    _index-important-background-color_
    _index-important-foreground-color_
+   _index-lowpriority-background-color_
+   _index-lowpriority-foreground-color_
    _index-new-background-color_
    _index-new-foreground-color_
    _index-opening-background-color_
@@ -4146,6 +4155,12 @@ Configuration Features
           If this feature is set you will not be asked. It will be assumed that
           you want to continue.
           This feature is displayed as "Continue NextNew Without Confirming".
+   _convert-dates-to-localtime_
+          Normally, the date that you see in the Date header of a message you
+          are viewing or in the MESSAGE INDEX is displayed as is. If this
+          feature is set those dates will be converted to your local timezone
+          to be displayed. Note that this does not affect the results of Select
+          by Date or of anything else other than these displayed dates.
    _delete-skips-deleted_
           If set, this feature will cause the _Delete_ command to advance past
           other messages that are marked deleted. In other words, pressing _D_
@@ -4499,14 +4514,14 @@ Configuration Features
           the simple prompt. The Enable-Flag-Screen-Keyword-Shortcut option
           offers a slightly different way of setting keywords.
    _enable-flag-screen-keyword-shortcut_
-          This feature modifies the behavior of the Flag command. By default,
-          when the "* Flag" command is selected, _Alpine_ offers a prompt to
-          set one of several flags and also offers the option of entering the
-          detailed flag manipulation screen via the "^T" key. If you have
-          keywords defined, then enabling this feature adds a shortcut way to
-          set or unset keywords. You use "*" followed by the first letter of a
-          keyword (or the nickname of a keyword if you've given it a nickname)
-          and that will set the keyword.
+          This feature modifies the behavior of the Flag command and the Select
+          command. By default, when the "* Flag" command is selected, _Alpine_
+          offers a prompt to set one of several flags and also offers the
+          option of entering the detailed flag manipulation screen via the "^T"
+          key. If you have keywords defined, then enabling this feature adds a
+          shortcut way to set or unset keywords. You use "*" followed by the
+          first letter of a keyword (or the nickname of a keyword if you've
+          given it a nickname) and that will set the keyword.
           An example is easier to understand than the explanation. The flag
           command can always be used to set the system flags. For example, to
           set the Answered flag you would type
@@ -4537,6 +4552,8 @@ Configuration Features
           _Alpine_ to skip directly to the Flag Details screen when the Flag
           command is used, setting it will cause this feature to have no effect
           at all.
+          Similarly, when Selecting by Keyword, setting this option will allow
+          you to use Keyword initials instead of full keywords.
    _enable-full-header-cmd_
           This  feature  enables the _H Full Headers_ command which toggles
           between the display of all headers in the message and the normal
@@ -5133,6 +5150,7 @@ John: on a job well done!
           then view a particular message from that screen and press the Next
           command, you will be sent to the next thread without being asked,
           independent of the setting of this feature.
+          The feature auto-open-next-unread, also has some similar effects.
           This feature is displayed as "Read Next Thread Without Confirming".
    _offer-expunge-of-inbox_
           The INBOX is normally treated differently from regular folders in
@@ -6359,7 +6377,10 @@ Tokens for Index and Replying
    DATE
           This  token  represents the date on which the message was sent,
           according to the "Date" header field. It has the format MMM DD. For
-          example, "Oct 23".
+          example, "Oct 23". The feature convert-dates-to-localtime, which
+          adjusts for the timezone the message was sent from, may have an
+          affect on the value of this token as well as the values of all of the
+          other DATE or TIME tokens.
 
    SMARTDATE
           This  token  represents the date on which the message was sent,
@@ -6427,8 +6448,10 @@ Tokens for Index and Replying
           for the way they format dates far in the past. SMARTDATE formats the
           date using the information from your locale settings to format the
           date string. It may end up formatting dates so that they look like
-          DATEISO tokens, or SHORTDATE2 tokens, or something else entirely. If
-          you want more control you may use one of the following.
+          DATEISO tokens, or SHORTDATE2 tokens, or something else entirely. The
+          feature convert-dates-to-localtime may have an affect on the values
+          of these tokens. If you want more control you may use one of the
+          following.
 
         SMARTDATE
                 If the option Disable-Index-Locale-Dates is not set then this
@@ -6465,13 +6488,15 @@ Tokens for Index and Replying
           SMARTDATETIME24 format the date using the information from your
           locale settings to format the date string. It may end up formatting
           dates so that they look like DATEISO tokens, or SHORTDATE2 tokens, or
-          something else entirely. The possible choices are:
+          something else entirely. The feature convert-dates-to-localtime may
+          have an affect on the values of these tokens. The possible choices
+          are:
 
         SMARTDATETIME
                 Locale specific. Control this with the LC_TIME locale setting
                 on a UNIX system. On Windows the Regional Options control panel
                 may be used to set the Short date format. At the programming
-                level, the strftime routine is what Alpine uses to print the
+                level, the strftime routine is what _Alpine_ uses to print the
                 date.
 
         SMARTDATETIME
@@ -6620,9 +6645,10 @@ Tokens for Index and Replying
           the messages in the thread are marked Important, else a '+' if any of
           the messages are addressed to you, else a '-' if any of the messages
           are cc'd to you. The third character will be a 'D' if _all_ of the
-          messages in the collapsed thread are marked deleted, else it will be
-          'N' if any of the messages are undeleted and unseen, and it will be
-          blank otherwise.
+          messages in the collapsed thread are marked deleted, an 'A' if _all_
+          of the messages in the collapsed thread are marked answered, it will
+          be an 'N' if any of the messages are undeleted and unseen, and it
+          will be blank otherwise.
 
    FULLSTATUS
           This token represents a less abbreviated alternative to the "STATUS"
@@ -6716,7 +6742,7 @@ Tokens for Index and Replying
           message than just its size, but it isn't very useful at this point.
           The plus sign in this view means there are attachments. Note that
           including  this token in the "Index-Format" could slow down the
-          display a little while Alpine collects the necessary information.
+          display a little while _Alpine_ collects the necessary information.
 
    SUBJKEY
           This token is the same as the SUBJECT token unless keywords are set
@@ -6734,7 +6760,7 @@ Tokens for Index and Replying
           prepending  a  list of keywords to the subject, a list of first
           initials of keywords will be prepended instead. For example, if a
           message  has the keywords _Work_ and _Now_ set (or Work and Now are
-          the Alpine nicknames of keywords which are set) then the SUBJKEY
+          the _Alpine_ nicknames of keywords which are set) then the SUBJKEY
           token would cause a result like
 
                          {Work Now} actual subject
@@ -6773,9 +6799,9 @@ Tokens for Index and Replying
           using the Index Opening Color option available from the Setup Kolor
           screen.
 
-   OPENINGTEXTDQ
-          This is very similar to OPENINGTEXT. The DQ stands for Delete Quotes.
-          The only difference is that quoted text (lines beginning with >) is
+   OPENINGTEXTNQ
+          This is very similar to OPENINGTEXT. The NQ stands for No Quotes. The
+          only difference is that quoted text (lines beginning with >) is
           deleted. For some messages this may be confusing. For example, a
           message might have a line preceding some quoted text that reads
           something like "On May 8th person A said." That no longer makes sense
@@ -6796,12 +6822,46 @@ Tokens for Index and Replying
           possible to color keyword initials in the index using the Setup/Kolor
           screen.
 
+   PRIORITY
+          The X-Priority header is a non-standard header that is used in a
+          somewhat standard way by many mail programs. _Alpine_ expects the
+          value of this header to be a digit with a value from 1 to 5, with 1
+          being the highest priority and 5 the lowest priority. Since this
+          priority is something that the sender sets it is only an indication
+          of  the priority that the sender attaches to the mail and it is
+          therefore almost totally unreliable for use as a filtering criterion.
+          This token will display the numeric value of the priority if it is
+          between 1 and 5. It will be suppressed (blank) if the value is 3,
+          which is normal priority. It is also possible to set the color of the
+          PRIORITY field. By default the token is colored the same as the index
+          line it is part of. You may set it to be another color with the Index
+          Priority Colors options available from the Setup Kolor screen.
+
+   PRIORITYALPHA
+          This is a more verbose interpretation of the X-Priority field. Once
+          again nothing is displayed unless the value of the field is 1, 2, 4,
+          or 5. The values displayed for those values are:
+
+          1 Highest
+          2 High
+          4 Low
+          5 Lowest
+
+          You may color this token with the Index Priority Colors options.
+
+   PRIORITY!
+          This is a one character, non-numeric version of the X-Priority field.
+          If the value of the X-Priority header is 1 or 2 an exclamation point
+          is displayed. If the value is 4 or 5 a "v" (think down arrow) is
+          displayed. You may color this token with the Index Priority Colors
+          options.
+
    ATT
           This  is a one column wide field which represents the number of
           attachments  a  message  has.  It will be blank if there are no
           attachments,  a single digit for one to nine attachments, or an
           asterisk for more than nine. Note that including this token in the
-          "Index-Format" could slow down the display a little while Alpine
+          "Index-Format" could slow down the display a little while _Alpine_
           collects the necessary information.
 
    FROMORTO
@@ -6810,9 +6870,9 @@ Tokens for Index and Replying
           that address is yours or one of your alternate addresses, the first
           person specified in the message's "To:" header field with the prefix
           "To: " prepended. If the from address is yours and there is also no
-          "To" address, Alpine will use the address on the "Cc" line. If there
-          is no address there, either, Alpine will look for a newsgroup name
-          from the "Newsgroups" header field and put that after the "To: "
+          "To"  address, _Alpine_ will use the address on the "Cc" line. If
+          there is no address there, either, _Alpine_ will look for a newsgroup
+          name from the "Newsgroups" header field and put that after the "To: "
           prefix.
 
    FROMORTONOTNEWS
@@ -6907,7 +6967,7 @@ X-Spam-Status: Yes, hits=10.6 tagged_above=-999.0 required=7.0 tests=BAYE...
           Because there are two equals and a comma before the 7% and a comma
           after it, the token
 
-                       HEADER:X-Spam-Status(3,4,=\,R)
+                      HEADER:X-Spam-Status(3,4,=\,,R)
 
           should  display  the  probability (for example 7% or 83%) right
           justified in a 3-wide field.
@@ -7063,7 +7123,7 @@ X-Spam-Status: Yes, hits=10.6 tagged_above=-999.0 required=7.0 tests=BAYE...
 
    CURSORPOS
           This token is different from the others. When it is replaced it is
-          replaced with nothing, but it sets a Alpine internal variable which
+          replaced with nothing, but it sets a _Alpine_ internal variable which
           tells  the  composer to start with the cursor positioned at the
           position where this token was. If both the template file and the
           signature file contain a "CURSORPOS" token, then the position in the
@@ -7387,7 +7447,13 @@ Color Configuration
    _current-indexline-style_
           This option affects the colors used to display the current line in
           the  MESSAGE INDEX screen. If you do not have Index Line Colors
-          defined, then this option will have no effect.
+          defined, then this option will have no effect in the index. Those
+          Rules may be defined by going to the Setup/Rules/Indexcolor screen.
+
+          If the option enable-incoming-folders-checking is turned on and the
+          Incoming Unseen Color is set to something other than the default,
+          then this option also affects the color used to display the current
+          folder in the Incoming FOLDER LIST screen.
 
           The available options include:
 
@@ -7562,6 +7628,16 @@ Color Configuration
           black characters on a greenish-blue background; the Quote2 Color is
           black characters on a dull yellow background; and the Quote3 Color is
           black characters on a green background.
+   _Incoming Unseen Color_
+          If the option enable-incoming-folders-checking is turned on it is
+          possible to highlight the folders that contain unseen messages by
+          coloring them with this color. By default, this is the same as the
+          Normal Color and no highlighting is done.
+          Usually  the  "current" folder (the folder the cursor is on) is
+          highlighted using reverse video. If the current folder is colored
+          because it contains unseen messages then the color used to show that
+          it   is   also   the   current  folder  is  controlled  by  the
+          current-indexline-style feature at the top of the SETUP COLOR screen.
    _Signature Color_
           The color _Alpine_ uses for coloring the signature in the MESSAGE
           TEXT  screen. According to USENET conventions, the signature is
@@ -7614,6 +7690,18 @@ Color Configuration
           The color used for drawing the "U" symbol which signifies a message
           is Unseen (only visible if the "IMAPSTATUS" or "SHORTIMAPSTATUS"
           token is part of the Index-Format option).
+   _Index-priority Symbol Colors_
+          The colors used for drawing the tokens "PRIORITY", "PRIORITYALPHA",
+          and "PRIORITY!" when these are configured as part of the Index-Format
+          option. You may set the color used to draw these tokens by use of the
+          colors Index High Priority Symbol Color and Index Low Priority Symbol
+          Color. This coloring takes place for all but the current index line,
+          and the Priority Color appears to be in front of any color from an
+          Index Color Rule. If the priority has a value of 1 or 2 the High
+          Priority color will be used, and if the value is 4 or 5 the Low
+          Priority color will be used.
+          If you don't set these colors the index line will be colored in the
+          same color as the bulk of the index line.
    _Index-arrow Symbol Color_
           The color used for drawing the "ARROW" token when it is configured as
           part of the Index-Format option.

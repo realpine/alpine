@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mimedisp.c 485 2007-03-20 04:56:39Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: mimedisp.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -17,6 +17,13 @@ static char rcsid[] = "$Id: mimedisp.c 485 2007-03-20 04:56:39Z jpf@u.washington
 
 #include <system.h>
 #include <general.h>
+
+#include "../../c-client/fs.h"
+
+#ifdef _WINDOWS
+#include "../../pico/osdep/mswin.h"
+#endif
+
 #include "mimedisp.h"
 #include "../charconv/utf8.h"
 #ifdef OSX_TARGET

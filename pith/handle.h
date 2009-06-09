@@ -1,8 +1,8 @@
 /*
- * $Id: handle.h 214 2006-11-02 00:31:21Z mikes@u.washington.edu $
+ * $Id: handle.h 643 2007-07-13 19:07:05Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,6 +38,7 @@ typedef	struct handle_s {
     unsigned	     force_display:1;	/* Don't ask before launching */
     unsigned	     using_is_used:1;	/* bit below is being used     */
     unsigned	     is_used:1;		/* if not, remove it from list */
+    unsigned	     color_unseen:1;	/* we're coloring folders with unseen */
     union {
 	struct {			/* URL corresponding to this handle */
 	    char *path,			/* Actual url string */

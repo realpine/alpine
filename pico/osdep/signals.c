@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: signals.c 205 2006-10-26 23:04:44Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: signals.c 672 2007-08-15 23:07:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,12 +18,11 @@ static char rcsid[] = "$Id: signals.c 205 2006-10-26 23:04:44Z hubert@u.washingt
 #include <system.h>
 #include <general.h>
 
-#include "../estruct.h"
-#include "../mode.h"
-#include "../pico.h"
-#include "../edef.h"
+#include "../headers.h"
 
 #include "../../pith/charconv/filesys.h"
+
+#include "tty.h"
 
 #include "signals.h"
 
@@ -81,7 +80,7 @@ do_hup_signal(int sig)
 		curbp->b_fname[sizeof(curbp->b_fname)-1] = '\0';
 	    }
 	    else{
-		strncat(curbp->b_fname, ".save", sizeof(curbp->b_fname)-strlen(curbp->b_fname));
+		strncat(curbp->b_fname, ".save", sizeof(curbp->b_fname)-strlen(curbp->b_fname)-1);
 		curbp->b_fname[sizeof(curbp->b_fname)-1] = '\0';
 	    }
 

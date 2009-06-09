@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: execview.c 485 2007-03-20 04:56:39Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: execview.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,12 +32,16 @@ static char rcsid[] = "$Id: execview.c 485 2007-03-20 04:56:39Z jpf@u.washington
 #include "../../pith/osdep/mimedisp.h"
 
 #include "../../pith/charconv/utf8.h"
+#include "../../pith/charconv/filesys.h"
 
 #include "../pith/mailcap.h"
 
 #include "../status.h"
 #include "../radio.h"
 #include "../signal.h"
+#include "../../pico/estruct.h"
+#include "../../pico/pico.h"
+#include "../mailview.h"
 
 #ifdef _WINDOWS
 #include "../../pico/osdep/mswin.h"
@@ -76,7 +80,6 @@ exec_mailcap_cmd(MCAP_CMD_S *mc_cmd, char *image_file, int needsterminal)
 #ifdef _WINDOWS
     STARTUPINFO		start_info;
     PROCESS_INFORMATION	proc_info;
-    DWORD		exit_code;
     WINHAND		childProcess;
     int			success = 0;
     char               *cmd;
@@ -280,7 +283,7 @@ exec_mailcap_cmd(MCAP_CMD_S *mc_cmd, char *image_file, int needsterminal)
 	r_file_h    = &result_file;
     }
 
-    if(syspipe = open_system_pipe(command, r_file_h, NULL, mode, 0, pipe_callback, NULL)){
+    if((syspipe = open_system_pipe(command, r_file_h, NULL, mode, 0, pipe_callback, NULL)) != NULL){
 	close_system_pipe(&syspipe, NULL, pipe_callback);
 	if(needsterminal == 1)
 	  q_status_message(SM_ORDER, 0, 4, "VIEWER command completed");

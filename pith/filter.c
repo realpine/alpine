@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: filter.c 588 2007-06-01 22:42:27Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: filter.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -53,6 +53,10 @@ static char rcsid[] = "$Id: filter.c 588 2007-06-01 22:42:27Z mikes@u.washington
 #include "../pith/url.h"
 #include "../pith/init.h"
 #include "../pico/keydefs.h"
+
+#ifdef _WINDOWS
+#include "../pico/osdep/mswin.h"
+#endif
 
 
 /*
@@ -354,7 +358,7 @@ gf_clear_so_readc(STORE_S *so)
 {
     GF_SO_STACK *sp;
 
-    if(sp = gf_so_in){
+    if((sp = gf_so_in) != NULL){
 	if(so == sp->so){
 	    gf_so_in = gf_so_in->next;
 	    fs_give((void **) &sp);
@@ -388,7 +392,7 @@ gf_clear_so_writec(STORE_S *so)
 {
     GF_SO_STACK *sp;
 
-    if(sp = gf_so_out){
+    if((sp = gf_so_out) != NULL){
 	if(so == sp->so){
 	    gf_so_out = gf_so_out->next;
 	    fs_give((void **) &sp);
@@ -496,7 +500,7 @@ gf_fwritec_locale(int c)
     int i, outchars;
     unsigned char obuf[MAX(MB_LEN_MAX,32)];
 
-    if(outchars = utf8_to_locale(c, &gf_out.cb, obuf, sizeof(obuf))){
+    if((outchars = utf8_to_locale(c, &gf_out.cb, obuf, sizeof(obuf))) != 0){
 	for(i = 0; i < outchars; i++)
 	  if(gf_fwritec(obuf[i]) != 1){
 	      rv = 0;
@@ -639,7 +643,7 @@ gf_pwritec_locale(int c)
     int i, outchars;
     unsigned char obuf[MAX(MB_LEN_MAX,32)];
 
-    if(outchars = utf8_to_locale(c, &gf_out.cb, obuf, sizeof(obuf))){
+    if((outchars = utf8_to_locale(c, &gf_out.cb, obuf, sizeof(obuf))) != 0){
 	for(i = 0; i < outchars; i++)
 	  if(gf_pwritec(obuf[i]) != 1){
 	      rv = 0;
@@ -701,7 +705,7 @@ gf_swritec_locale(int c)
     int i, outchars;
     unsigned char obuf[MAX(MB_LEN_MAX,32)];
 
-    if(outchars = utf8_to_locale(c, &gf_out.cb, obuf, sizeof(obuf))){
+    if((outchars = utf8_to_locale(c, &gf_out.cb, obuf, sizeof(obuf))) != 0){
 	for(i = 0; i < outchars; i++)
 	  if(gf_swritec(obuf[i]) != 1){
 	      rv = 0;
@@ -890,7 +894,7 @@ gf_link_filter(filter_t f, void *data)
     new->opt = data;			/* set any optional parameter data */
     (*f)(new, GF_RESET);		/* have it setup initial state  */
 
-    if(tail = gf_master){		/* or add it to end of existing  */
+    if((tail = gf_master) != NULL){	/* or add it to end of existing  */
 	while(tail->next)		/* list  */
 	  tail = tail->next;
 
@@ -993,11 +997,11 @@ gf_pipe(gf_io_t gc, gf_io_t pc)
 
 #ifdef	_WINDOWS
 	    if(!(gf_byte_count & 0x3ff))
-	      /* Under windows we yeild to allow event processing.
+	      /* Under windows we yield to allow event processing.
 	       * Progress display is handled throught the alarm()
 	       * mechinism.
 	       */
-	      mswin_yeild ();
+	      mswin_yield ();
 #endif
 
 	    GF_PUTC(gf_master, c & 0xff);
@@ -1007,7 +1011,7 @@ gf_pipe(gf_io_t gc, gf_io_t pc)
 	 * toss an end-of-data marker down the pipe to give filters
 	 * that have any buffered data the opportunity to dump it
 	 */
-	GF_FLUSH(gf_master);
+	(void) GF_FLUSH(gf_master);
 	(*gf_master->f)(gf_master, GF_EOD);
     }
 
@@ -1039,13 +1043,17 @@ gf_bytes_piped(void)
  */
 char *
 gf_filter(char *cmd, char *prepend, STORE_S *source_so, gf_io_t pc,
-	  FILTLIST_S *aux_filters, int disable_reset)
+	  FILTLIST_S *aux_filters, int disable_reset,
+	  void (*pipecb_f)(PIPE_S *, int, void *))
 {
     unsigned char c, obuf[MAX(MB_LEN_MAX,32)];
-    int	     flags, n, outchars, i;
+    int	     flags, outchars, i;
     char   *errstr = NULL, buf[MAILTMPLEN];
     PIPE_S *fpipe;
     CBUF_S  cb;
+#ifdef	NON_BLOCKING_IO
+    int     n;
+#endif
 
     dprint((4, "so_filter: \"%s\"\n", cmd ? cmd : "?"));
 
@@ -1075,7 +1083,7 @@ gf_filter(char *cmd, char *prepend, STORE_S *source_so, gf_io_t pc,
     flags = PIPE_WRITE | PIPE_READ | PIPE_NOSHELL |
 			    (!disable_reset ? PIPE_RESET : 0);
 
-    if(fpipe = open_system_pipe(cmd, NULL, NULL, flags, 0, NULL, pipe_report_error)){
+    if((fpipe = open_system_pipe(cmd, NULL, NULL, flags, 0, pipecb_f, pipe_report_error)) != NULL){
 
 #ifdef	NON_BLOCKING_IO
 
@@ -1101,7 +1109,7 @@ gf_filter(char *cmd, char *prepend, STORE_S *source_so, gf_io_t pc,
 		   * We need to convert it to the user's locale charset
 		   * and then send the result to the pipe.
 		   */
-		  if(outchars = utf8_to_locale((int) c, &cb, obuf, sizeof(obuf)))
+		  if((outchars = utf8_to_locale((int) c, &cb, obuf, sizeof(obuf))) != 0)
 		    for(i = 0; i < outchars && !errstr; i++)
 		      if(fputc(obuf[i], fpipe->out.f) == EOF)
 		        errstr = error_description(errno);
@@ -1140,7 +1148,7 @@ gf_filter(char *cmd, char *prepend, STORE_S *source_so, gf_io_t pc,
 	 * doesn't fill up before we start reading...
 	 */
 	while(!errstr && so_readc(&c, source_so))
-	  if(outchars = utf8_to_locale((int) c, &cb, obuf, sizeof(obuf)))
+	  if((outchars = utf8_to_locale((int) c, &cb, obuf, sizeof(obuf))) != 0)
 	    for(i = 0; i < outchars && !errstr; i++)
 	      if(pipe_putc(obuf[i], fpipe) == EOF)
 		errstr = error_description(errno);
@@ -1153,7 +1161,7 @@ gf_filter(char *cmd, char *prepend, STORE_S *source_so, gf_io_t pc,
 
 #endif /* !NON_BLOCKING_IO */
 
-	if(close_system_pipe(&fpipe, NULL, NULL) && !errstr)
+	if(close_system_pipe(&fpipe, NULL, pipecb_f) && !errstr)
 	  errstr = _("Pipe command returned error.");
 
 	gf_filter_eod();
@@ -1198,7 +1206,7 @@ void
 gf_filter_eod(void)
 {
     GF_INIT(gf_master, gf_master);
-    GF_FLUSH(gf_master);
+    (void) GF_FLUSH(gf_master);
     (*gf_master->f)(gf_master, GF_EOD);
 }
 
@@ -1356,7 +1364,7 @@ gf_binary_b64(FILTER_S *f, int flg)
 	    GF_PUTC(f->next, '\012');
 	}
 
-	GF_FLUSH(f->next);
+	(void) GF_FLUSH(f->next);
 	(*f->next->f)(f->next, GF_EOD);
     }
     else if(flg == GF_RESET){
@@ -1447,7 +1455,7 @@ gf_b64_binary(FILTER_S *f, int flg)
 	GF_END(f, f->next);
     }
     else if(flg == GF_EOD){
-	GF_FLUSH(f->next);
+	(void) GF_FLUSH(f->next);
 	(*f->next->f)(f->next, GF_EOD);
     }
     else if(flg == GF_RESET){
@@ -1625,7 +1633,7 @@ gf_qp_8bit(FILTER_S *f, int flg)
     }
     else if(flg == GF_EOD){
 	fs_give((void **)&(f->line));
-	GF_FLUSH(f->next);
+	(void) GF_FLUSH(f->next);
 	(*f->next->f)(f->next, GF_EOD);
     }
     else if(flg == GF_RESET){
@@ -1766,7 +1774,7 @@ gf_8bit_qp(FILTER_S *f, int flg)
 	     break;
 	 }
 
-	 GF_FLUSH(f->next);
+	 (void) GF_FLUSH(f->next);
 	 (*f->next->f)(f->next, GF_EOD);
     }
     else if(flg == GF_RESET){
@@ -1798,7 +1806,7 @@ gf_convert_8bit_charset(FILTER_S *f, int flg)
 	 GF_END(f, f->next);
     }
     else if(flg == GF_EOD){
-	 GF_FLUSH(f->next);
+	 (void) GF_FLUSH(f->next);
 	 (*f->next->f)(f->next, GF_EOD);
     }
     else if(flg == GF_RESET){
@@ -1925,7 +1933,7 @@ gf_convert_utf8_charset(FILTER_S *f, int flg)
 	GF_END(f, f->next);
     }
     else if(flg == GF_EOD){
-	GF_FLUSH(f->next);
+	(void) GF_FLUSH(f->next);
 	if(f->opt)
 	  fs_give((void **) &f->opt);
 
@@ -2076,7 +2084,7 @@ gf_2022_jp_to_euc(FILTER_S *f, int flg)
 	    break;
 	}
 
-	GF_FLUSH(f->next);
+	(void) GF_FLUSH(f->next);
 	(*f->next->f)(f->next, GF_EOD);
     }
     else if(flg == GF_RESET){
@@ -2153,7 +2161,7 @@ gf_euc_to_2022_jp(FILTER_S *f, int flg)
 	    f->f2 = -1;
 	}
 
-	GF_FLUSH(f->next);
+	(void) GF_FLUSH(f->next);
 	(*f->next->f)(f->next, GF_EOD);
     }
     else if(flg == GF_RESET){
@@ -2224,7 +2232,7 @@ gf_sjis_to_2022_jp(FILTER_S *f, int flg)
 	    f->f2 = -1;
 	}
 
-	GF_FLUSH(f->next);
+	(void) GF_FLUSH(f->next);
 	(*f->next->f)(f->next, GF_EOD);
     }
     else if(flg == GF_RESET){
@@ -2338,7 +2346,7 @@ gf_utf8(FILTER_S *f, int flg)
 
 	fs_give((void **) &f->line);
 	fs_give((void **) &f->opt);
-	GF_FLUSH(f->next);
+	(void) GF_FLUSH(f->next);
 	(*f->next->f)(f->next, GF_EOD);
     }
     else if(GF_RESET){
@@ -2497,7 +2505,7 @@ gf_rich2plain(FILTER_S *f, int flg)
 	 GF_END(f, f->next);
     }
     else if(flg == GF_EOD){
-	 if(f->f1 = (f->linep != f->line)){
+	 if((f->f1 = (f->linep != f->line)) != 0){
 	     /* incomplete token!! */
 	     gf_error("Incomplete token in richtext");
 	     /* NO RETURN */
@@ -2515,7 +2523,7 @@ gf_rich2plain(FILTER_S *f, int flg)
 	 }
 
 	 fs_give((void **)&(f->line));
-	 GF_FLUSH(f->next);
+	 (void) GF_FLUSH(f->next);
 	 (*f->next->f)(f->next, GF_EOD);
     }
     else if(flg == GF_RESET){
@@ -2691,7 +2699,7 @@ gf_enriched2plain(FILTER_S *f, int flg)
 	 GF_END(f, f->next);
     }
     else if(flg == GF_EOD){
-	 if(f->f1 = (f->linep != f->line)){
+	 if((f->f1 = (f->linep != f->line)) != 0){
 	     /* incomplete token!! */
 	     gf_error("Incomplete token in richtext");
 	     /* NO RETURN */
@@ -2713,7 +2721,7 @@ gf_enriched2plain(FILTER_S *f, int flg)
 
 	 fs_give((void **)&(f->line));
 
-	 GF_FLUSH(f->next);
+	 (void) GF_FLUSH(f->next);
 	 (*f->next->f)(f->next, GF_EOD);
     }
     else if(flg == GF_RESET){
@@ -2932,7 +2940,7 @@ typedef	struct _html_opts {
 #define	FREE_CLCTR(X)	{						\
 			   if(ED(X)->attribs){				\
 			       PARAMETER *p;				\
-			       while(p = ED(X)->attribs){		\
+			       while((p = ED(X)->attribs) != NULL){	\
 				   ED(X)->attribs = ED(X)->attribs->next; \
 				   if(p->attribute)			\
 				     fs_give((void **)&p->attribute);	\
@@ -2956,7 +2964,7 @@ typedef	struct _html_opts {
 			   (X)->f2 = 0L;   				    \
 			 }
 #define	HTML_BOLD(X, S) if(! STRIP(X)){					\
-			   if(S){					\
+			   if((S)){					\
 			       html_output((X), TAG_EMBED);		\
 			       html_output((X), TAG_BOLDON);		\
 			   }						\
@@ -2967,7 +2975,7 @@ typedef	struct _html_opts {
 			 }
 #define	HTML_ULINE(X, S)						\
 			 if(! STRIP(X)){				\
-			   if(S){					\
+			   if((S)){					\
 			       html_output((X), TAG_EMBED);		\
 			       html_output((X), TAG_ULINEON);		\
 			   }						\
@@ -3039,7 +3047,7 @@ typedef	struct _html_opts {
 #define	HTML_PROC(F, C) {						    \
 			   if(HD(F)->token){				    \
 			       int i;					    \
-			       if(i = (*(HD(F)->token))(F, C)){		    \
+			       if((i = (*(HD(F)->token))(F, C)) != 0){	    \
 				   if(i < 0){				    \
 				       HTML_DUMP_LIT(F, "<", 1);	    \
 				       if(HD(F)->el_data->element){	    \
@@ -4187,7 +4195,7 @@ html_a(HANDLER_S *hd, int ch, int cmd)
 	    HD(hd->html_data)->prefix[x++] = TAG_EMBED;
 	    HD(hd->html_data)->prefix[x++] = TAG_HANDLE;
 
-	    snprintf(buf, sizeof(buf), "%d", hd->x = h->key);
+	    snprintf(buf, sizeof(buf), "%ld", hd->x = h->key);
 	    HD(hd->html_data)->prefix[x++] = n = strlen(buf);
 	    for(i = 0; i < n; i++)
 	      HD(hd->html_data)->prefix[x++] = buf[i];
@@ -4376,7 +4384,7 @@ html_a_output_info(HANDLER_S *hd)
 
 	/* Insert text of link's domain */
 	if(SHOWSERVER(hd->html_data)){
-	    char *fg = NULL, *bg = NULL, *q;
+	    char *q;
 	    COLOR_PAIR *col = NULL, *colnorm = NULL;
 
 	    html_output(hd->html_data, ' ');
@@ -4499,7 +4507,7 @@ html_a_relative(char *base_url, char *rel_url, HANDLE_S *h)
 		if(*path != '/'){
 		    if(base_path){
 			for(p = q = base_path;	/* Drop base path's tail */
-			    p = strchr(p, '/');
+			    (p = strchr(p, '/'));
 			    q = ++p)
 			  ;
 
@@ -4516,7 +4524,7 @@ html_a_relative(char *base_url, char *rel_url, HANDLE_S *h)
 			tmp[sizeof(tmp)-1] = '\0';
 
 			/* Follow RFC 1808 "Step 6" */
-			for(p = tmp; p = strchr(p, '.'); )
+			for(p = tmp; (p = strchr(p, '.')); )
 			  switch(*(p+1)){
 			      /*
 			       * a) All occurrences of "./", where "." is a
@@ -4524,7 +4532,7 @@ html_a_relative(char *base_url, char *rel_url, HANDLE_S *h)
 			       */
 			    case '/' :
 			      if(p > tmp)
-				for(q = p; *q = *(q+2); q++)
+				for(q = p; (*q = *(q+2)) != '\0'; q++)
 				  ;
 			      else
 				p++;
@@ -4579,7 +4587,7 @@ html_a_relative(char *base_url, char *rel_url, HANDLE_S *h)
 				    case '/' :
 				      len = (p - q) + 3;
 				      p = q;
-				      for(; *q = *(q+len); q++)
+				      for(; (*q = *(q+len)) != '\0'; q++)
 					;
 
 				      break;
@@ -4680,11 +4688,12 @@ html_href_relative(char *url)
 
     if(url)
       for(i = 0; i < 32 && url[i]; i++)
-	if(!(isalpha((unsigned char) url[i]) || url[i] == '_' || url[i] == '-'))
+	if(!(isalpha((unsigned char) url[i]) || url[i] == '_' || url[i] == '-')){
 	  if(url[i] == ':')
 	    return(FALSE);
 	  else
 	    break;
+	}
 
     return(TRUE);
 }
@@ -5710,7 +5719,7 @@ html_element_comment(FILTER_S *f, char *s)
 		break;
 
 	      case '[' :	/* test */
-		if(p = strindex(++s, ']')){
+		if((p = strindex(++s, ']')) != NULL){
 		    *p = '\0';		/* tie off test string */
 		    removing_leading_white_space(s);
 		    removing_trailing_white_space(s);
@@ -5916,7 +5925,7 @@ html_element_output(FILTER_S *f, int ch)
 int
 html_entity_collector(FILTER_S *f, int ch, UCS *ucs, char **alt)
 {
-    static char len = 0;
+    static int  len = 0;
     static char buf[MAX_ENTITY+2];
     int		rv, i;
 
@@ -6005,7 +6014,6 @@ gf_html2plain(FILTER_S *f, int flg)
 	     * not in quoted text.  Whew.
 	     */
 	    if(f->t){
-		int   i;
 		char *alt = NULL;
 		UCS   ucs;
 
@@ -6990,7 +6998,7 @@ gf_escape_filter(FILTER_S *f, int flg)
 	  GF_PUTC(f->next, *p);
 
 	fs_give((void **)&(f->line));	/* free temp line buffer */
-	GF_FLUSH(f->next);
+	(void) GF_FLUSH(f->next);
 	(*f->next->f)(f->next, GF_EOD);
     }
     else if(flg == GF_RESET){
@@ -7039,7 +7047,7 @@ gf_control_filter(FILTER_S *f, int flg)
 	GF_END(f, f->next);
     }
     else if(flg == GF_EOD){
-	GF_FLUSH(f->next);
+	(void) GF_FLUSH(f->next);
 	(*f->next->f)(f->next, GF_EOD);
     }
 }
@@ -7086,7 +7094,7 @@ gf_tag_filter(FILTER_S *f, int flg)
 	GF_END(f, f->next);
     }
     else if(flg == GF_EOD){
-	GF_FLUSH(f->next);
+	(void) GF_FLUSH(f->next);
 	(*f->next->f)(f->next, GF_EOD);
     }
 }
@@ -7114,6 +7122,8 @@ typedef struct wrap_col_s {
     unsigned    use_color:1;
     unsigned    hdr_color:1;
     unsigned    for_compose:1;
+    unsigned    handle_soft_hyphen:1;
+    unsigned    saw_soft_hyphen:1;
     unsigned char  utf8buf[7];
     unsigned char *utf8bufp;
     COLOR_PAIR *color;
@@ -7153,6 +7163,8 @@ typedef struct wrap_col_s {
 #define	WRAP_USE_CLR(F)	(((WRAP_S *)(F)->opt)->use_color)
 #define	WRAP_HDR_CLR(F)	(((WRAP_S *)(F)->opt)->hdr_color)
 #define	WRAP_FOR_CMPS(F) (((WRAP_S *)(F)->opt)->for_compose)
+#define	WRAP_HANDLE_SOFT_HYPHEN(F) (((WRAP_S *)(F)->opt)->handle_soft_hyphen)
+#define	WRAP_SAW_SOFT_HYPHEN(F) (((WRAP_S *)(F)->opt)->saw_soft_hyphen)
 #define	WRAP_UTF8BUF(F, C) (((WRAP_S *)(F)->opt)->utf8buf[C])
 #define	WRAP_UTF8BUFP(F)   (((WRAP_S *)(F)->opt)->utf8bufp)
 #define	WRAP_STATE(F)	(((WRAP_S *)(F)->opt)->state)
@@ -7241,7 +7253,6 @@ gf_wrap(FILTER_S *f, int flg)
     if(flg == GF_DATA){
 	register unsigned char c;
 	register int state = f->f1;
-	register int x;
 	int width, full_character;
 
 	while(GF_GETC(f, c)){
@@ -7664,6 +7675,7 @@ gf_wrap(FILTER_S *f, int flg)
      * of a UTF-8 multi-byte character.
      */
 		if((WRAP_UTF8BUFP(f) - &WRAP_UTF8BUF(f, 0)) == 0 && WRAP_SPEC(f, c)){
+		    WRAP_SAW_SOFT_HYPHEN(f) = 0;
 		    switch(c){
 		      default :
 			if(WRAP_QUOTED(f))
@@ -7752,6 +7764,69 @@ gf_wrap(FILTER_S *f, int flg)
 
 			break;
 		    }
+		}
+		else if(WRAP_HANDLE_SOFT_HYPHEN(f)
+			&& (WRAP_UTF8BUFP(f) - &WRAP_UTF8BUF(f, 0)) == 1
+			&& WRAP_UTF8BUF(f, 0) == 0xC2 && c == 0xAD){
+		    /*
+		     * This is a soft hyphen. If there is enough space for
+		     * a real hyphen to fit on the line here then we can
+		     * flush everything up to before the soft hyphen,
+		     * and simply remember that we saw a soft hyphen.
+		     * If it turns out that we can't fit the next piece in
+		     * then wrap_eol will append a real hyphen to the line.
+		     * If we can fit another piece in it will be because we've
+		     * reached the next break point. At that point we'll flush
+		     * everything but won't include the unneeded hyphen. We erase
+		     * the fact that we saw this soft hyphen because it have
+		     * become irrelevant.
+		     *
+		     * If the hyphen is the character that puts us over the edge
+		     * we go through the else case.
+		     */
+
+		    /* erase this soft hyphen character from buffer */
+		    WRAP_UTF8BUFP(f) = &WRAP_UTF8BUF(f, 0);
+
+		    if((f->n + WRAP_SPC_LEN(f) + f->f2 + 1) <= WRAP_COL(f)){
+			if(f->f2)			/* any non-lwsp to flush? */
+			  wrap_flush(f, &ip, &eib, &op, &eob);
+
+			/* remember that we saw the soft hyphen */
+			WRAP_SAW_SOFT_HYPHEN(f) = 1;
+		    }
+		    else{
+			/*
+			 * Everything up to the hyphen fits, otherwise it
+			 * would have already been flushed the last time
+			 * through the loop. But the hyphen won't fit. So
+			 * we need to go back to the last line break and
+			 * break there instead. Then start a new line with
+			 * the buffered up characters and the soft hyphen.
+			 */
+			wrap_flush_embed(f, &ip, &eib, &op, &eob);
+			wrap_eol(f, 1, &ip, &eib, &op,
+				 &eob);	    /* plunk down newline */
+			wrap_bol(f,1,1, &ip, &eib, &op,
+				 &eob);	      /* write any prefix */
+
+			/*
+			 * Now we're in the same situation as we would have
+			 * been above except we're on a new line. Try to
+			 * flush out the characters seen up to the hyphen.
+			 */
+			if((f->n + WRAP_SPC_LEN(f) + f->f2 + 1) <= WRAP_COL(f)){
+			    if(f->f2)			/* any non-lwsp to flush? */
+			      wrap_flush(f, &ip, &eib, &op, &eob);
+
+			    /* remember that we saw the soft hyphen */
+			    WRAP_SAW_SOFT_HYPHEN(f) = 1;
+			}
+			else
+			  WRAP_SAW_SOFT_HYPHEN(f) = 0;
+		    }
+
+		    continue;
 		}
 
 		full_character = 0;
@@ -7992,7 +8067,7 @@ gf_wrap(FILTER_S *f, int flg)
 	fs_give((void **) &f->line);	/* free temp line buffer */
 	so_give(&WRAP_SPACES(f));
 	fs_give((void **) &f->opt);	/* free wrap widths struct */
-	GF_FLUSH(f->next);
+	(void) GF_FLUSH(f->next);
 	(*f->next->f)(f->next, GF_EOD);
     }
     else if(flg == GF_RESET){
@@ -8183,6 +8258,11 @@ int
 wrap_eol(FILTER_S *f, int c, unsigned char **ipp, unsigned char **eibp,
 	 unsigned char **opp, unsigned char **eobp)
 {
+    if(WRAP_SAW_SOFT_HYPHEN(f)){
+	WRAP_SAW_SOFT_HYPHEN(f) = 0;
+	GF_PUTC_GLO(f->next, '-');	/* real hyphen */
+    }
+
     if(c && WRAP_LV_FLD(f))
       GF_PUTC_GLO(f->next, ' ');
 
@@ -8440,6 +8520,7 @@ gf_wrap_filter_opt(int width, int width_max, int *margin, int indent, int flags)
     wrap->use_color    = (GFW_USECOLOR & flags) == GFW_USECOLOR;
     wrap->hdr_color    = (GFW_HDRCOLOR & flags) == GFW_HDRCOLOR;
     wrap->for_compose  = (GFW_FORCOMPOSE & flags) == GFW_FORCOMPOSE;
+    wrap->handle_soft_hyphen = (GFW_SOFTHYPHEN & flags) == GFW_SOFTHYPHEN;
 
     return((void *) wrap);
 }
@@ -8685,7 +8766,7 @@ done_with_sig:
     }
     else if(flg == GF_EOD){
 	fs_give((void **) &f->opt);
-	GF_FLUSH(f->next);
+	(void) GF_FLUSH(f->next);
 	(*f->next->f)(f->next, GF_EOD);
     }
     else if(flg == GF_RESET){
@@ -8714,7 +8795,7 @@ done_with_sig:
 
 #define	GF_PREFIX_WRITE(s)	{ \
 				    register char *p; \
-				    if(p = (s)) \
+				    if((p = (s)) != NULL) \
 				      while(*p) \
 					GF_PUTC(f->next, *p++); \
 				}
@@ -8763,7 +8844,7 @@ gf_prefix(FILTER_S *f, int flg)
 	GF_END(f, f->next);
     }
     else if(flg == GF_EOD){
-	GF_FLUSH(f->next);
+	(void) GF_FLUSH(f->next);
 	(*f->next->f)(f->next, GF_EOD);
     }
     else if(flg == GF_RESET){
@@ -8923,7 +9004,7 @@ gf_line_test(FILTER_S *f, int flg)
 			while(GF_GETC(f, c))	/* pass input */
 			  GF_PUTC(f->next, c);
 
-			GF_FLUSH(f->next);	/* and drain queue */
+			(void) GF_FLUSH(f->next);	/* and drain queue */
 			fs_give((void **)&f->line);
 			fs_give((void **)&f);	/* wax our data */
 			return;
@@ -8950,7 +9031,7 @@ gf_line_test(FILTER_S *f, int flg)
 	GF_LINE_TEST_TEST(f, i);	/* examine remaining data */
 	fs_give((void **) &f->line);	/* free line buffer */
 	fs_give((void **) &f->opt);	/* free test struct */
-	GF_FLUSH(f->next);
+	(void) GF_FLUSH(f->next);
 	(*f->next->f)(f->next, GF_EOD);
     }
     else if(flg == GF_RESET){
@@ -9060,7 +9141,7 @@ gf_prepend_editorial(FILTER_S *f, int flg)
 
 	so_give((STORE_S **) &f->data);
 	fs_give((void **) &f->opt);
-	GF_FLUSH(f->next);
+	(void) GF_FLUSH(f->next);
 	(*f->next->f)(f->next, GF_EOD);
     }
     else if(flg == GF_RESET){
@@ -9121,7 +9202,7 @@ gf_nvtnl_local(FILTER_S *f, int flg)
 	GF_END(f, f->next);
     }
     else if(flg == GF_EOD){
-	GF_FLUSH(f->next);
+	(void) GF_FLUSH(f->next);
 	(*f->next->f)(f->next, GF_EOD);
     }
     else if(flg == GF_RESET){
@@ -9154,7 +9235,7 @@ gf_local_nvtnl(FILTER_S *f, int flg)
 	GF_END(f, f->next);
     }
     else if(flg == GF_EOD){
-	GF_FLUSH(f->next);
+	(void) GF_FLUSH(f->next);
 	(*f->next->f)(f->next, GF_EOD);
     }
     else if(GF_RESET){

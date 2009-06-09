@@ -23,12 +23,12 @@
  *		Internet: MRC@CAC.Washington.EDU
  *
  * Date:	22 November 1989
- * Last Edited:	14 June 2007
+ * Last Edited:	30 August 2007
  */
 
 /* The Version */
 
-#define CCLIENTVERSION "2006j"
+#define CCLIENTVERSION "2006k"
 
 /* Build parameters */
 
@@ -366,7 +366,7 @@
 #define DR_CRLF (long) 0x200	/* driver internal form uses CRLF newlines */
 #define DR_NOSTICKY (long) 0x400/* driver does not support sticky UIDs */
 #define DR_RECYCLE (long) 0x800	/* driver does stream recycling */
-#define DR_XPOINT (long) 0x1000	/* needs to be checkpointed when recycling */
+#define DR_XPOINT (long) 0x1000	/* needs to be checkpointed */
 				/* driver has no real internal date */
 #define DR_NOINTDATE (long) 0x2000
 				/* driver does not announce new mail */

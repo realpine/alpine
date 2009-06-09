@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: composer.c 537 2007-04-24 23:27:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: composer.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -78,6 +78,7 @@ struct hdr_line *prev_hline(int *, struct hdr_line *);
 struct hdr_line *prev_sel_hline(int *, struct hdr_line *);
 struct hdr_line *first_requested_hline(int *);
 void             fix_mangle_and_err(int *, char **, char *);
+void             mark_sticky(struct headerentry *);
 
 
 /*
@@ -97,7 +98,7 @@ struct on_display ods;				/* global on_display struct */
  * useful macros
  */
 #define	HALLOC()	(struct hdr_line *)malloc(sizeof(struct hdr_line))
-#define	LINEWID()	(term.t_ncol - headents[ods.cur_e].prwid)
+#define	LINEWID()	(((term.t_ncol - headents[ods.cur_e].prwid) > 0) ? ((unsigned) (term.t_ncol - headents[ods.cur_e].prwid)) : 0)
 #define	BOTTOM()	(term.t_nrow - term.t_mrow)
 #define	FULL_SCR()	(BOTTOM() - 3)
 #define	HALF_SCR()	(FULL_SCR()/2)
@@ -264,7 +265,7 @@ InitMailHeader(PICO *mp)
 			 }
 		     }
 
-                     strncat(addrbuf, buf, addrbuflen-strlen(addrbuf));
+                     strncat(addrbuf, buf, addrbuflen-strlen(addrbuf)-1);
 		     addrbuf[addrbuflen-1] = '\0';
                  }
                  ap = ap->next;
@@ -290,7 +291,7 @@ InitMailHeader(PICO *mp)
      * first, look for any field the caller requested we start in,
      * and set the offset into that field.
      */
-    if(ods.cur_l = first_requested_hline(&ods.cur_e)){
+    if((ods.cur_l = first_requested_hline(&ods.cur_e)) != NULL){
 	ods.top_e = 0;				/* init top_e */
 	ods.top_l = first_hline(&ods.top_e);
 	if(!HeaderFocus(ods.cur_e, Pmaster ? Pmaster->edit_offset : 0))
@@ -513,7 +514,7 @@ HeaderEditor(int f, int n)
 	    int              e = ods.cur_e;
 
 	    /*--- make sure on last field ---*/
-	    while(l = next_sel_hline(&e, l))
+	    while((l = next_sel_hline(&e, l)) != NULL)
 	      if(headents[ods.cur_e].display_it){
 		  ods.cur_l = l;
 		  ods.cur_e = e;
@@ -1420,7 +1421,7 @@ nomore_to_complete:
 
 		    free(bufp);
 		    /* mark this entry dirty */
-		    headents[ods.cur_e].sticky = 1;
+		    mark_sticky(&headents[ods.cur_e]);
 		    headents[ods.cur_e].dirty  = 1;
 		    fix_mangle_and_err(&mangled,&err,headents[ods.cur_e].name);
 		}
@@ -1479,7 +1480,7 @@ nomore_to_complete:
 		    if(u){
 			u[0] = '\0';
 			for(line = e->hd_text; line != NULL; line = line->next)
-			  ucs4_strncat(u, line->text, sz+1-ucs4_strlen(u));
+			  ucs4_strncat(u, line->text, sz+1-ucs4_strlen(u)-1);
 		    
 			filename = ucs4_to_utf8_cpystr(u);
 			free(u);
@@ -1570,9 +1571,9 @@ header_downline(int beyond, int gripe)
 			      ? "eXit/Save"
 			      : (gmode & MDVIEW)
 				? "eXit"
-				: "Send", sizeof(xx)-strlen(xx));
+				: "Send", sizeof(xx)-strlen(xx)-1);
 	    xx[sizeof(xx)-1] = '\0';
-	    strncat(xx, ".", sizeof(xx)-strlen(xx));
+	    strncat(xx, ".", sizeof(xx)-strlen(xx)-1);
 	    xx[sizeof(xx)-1] = '\0';
 	    emlwrite(xx, NULL);
 	}
@@ -1602,7 +1603,7 @@ header_downline(int beyond, int gripe)
 	  InvertPrompt(ods.cur_e, FALSE);	/* turn off current entry   */
 
 	if(headents[ods.cur_e].is_attach) {	/* verify data ?	    */
-	    if(status = FormatSyncAttach()){	/* fixup if 1 or -1	    */
+	    if((status = FormatSyncAttach()) != 0){	/* fixup if 1 or -1	    */
 		headents[ods.cur_e].rich_header = 0;
 		if(FormatLines(headents[ods.cur_e].hd_text, "",
 			       term.t_ncol-headents[new_e].prwid,
@@ -1704,7 +1705,7 @@ header_upline(int gripe)
     if(new_e != ods.cur_e){			/* new field ! */
 	InvertPrompt(ods.cur_e, FALSE);
 	if(headents[ods.cur_e].is_attach){
-	    if(status = FormatSyncAttach()){   /* non-zero ? reformat field */
+	    if((status = FormatSyncAttach()) != 0){   /* non-zero ? reformat field */
 		headents[ods.cur_e].rich_header = 0;
 		if(FormatLines(headents[ods.cur_e].hd_text, "",
 			       term.t_ncol - headents[ods.cur_e].prwid,
@@ -1786,8 +1787,8 @@ AppendAttachment(char *fn, char *sz, char *cmt)
 
 	comma[0] = ',';
 	comma[1] = '\0';
-	ucs4_strncat(lp->text, comma, HLSZ-ucs4_strlen(lp->text));	/* append delimiter */
-	if(lp->next = HALLOC()){	/* allocate new line */
+	ucs4_strncat(lp->text, comma, HLSZ-ucs4_strlen(lp->text)-1);	/* append delimiter */
+	if((lp->next = HALLOC()) != NULL){	/* allocate new line */
 	    lp->next->prev = lp;
 	    lp->next->next = NULL;
 	    lp = lp->next;
@@ -1811,7 +1812,7 @@ AppendAttachment(char *fn, char *sz, char *cmt)
     }
 
     /* validate the new attachment, and reformat if needed */
-    if(status = SyncAttach()){
+    if((status = SyncAttach()) != 0){
 	EML eml;
 
 	if(status < 0){
@@ -1996,7 +1997,7 @@ LineEdit(int allowedit, UCS *lastch)
 		}
 
 		/* mark this entry dirty */
-		headents[ods.cur_e].sticky = 1;
+		mark_sticky(&headents[ods.cur_e]);
 		headents[ods.cur_e].dirty  = 1;
 
 		/*
@@ -2141,7 +2142,7 @@ LineEdit(int allowedit, UCS *lastch)
 		    PaintBody(1);
 		    strng = ods.cur_l->text;
 		    ods.p_len = ucs4_strlen(strng);
-		    headents[ods.cur_e].sticky = 1;
+		    mark_sticky(&headents[ods.cur_e]);
 		    headents[ods.cur_e].dirty  = 1;
 		}
 		else
@@ -2220,7 +2221,7 @@ LineEdit(int allowedit, UCS *lastch)
 		    if(ods.p_len == 0)
 		      headents[ods.cur_e].sticky = 0;
 		    else
-		      headents[ods.cur_e].sticky = 1;
+		      mark_sticky(&headents[ods.cur_e]);
 
 		    tbufp = &strng[--ods.p_ind];
 		    while(*tbufp++ != '\0')
@@ -2364,7 +2365,7 @@ FormatLines(struct hdr_line *h,			/* where to begin formatting */
 
 		ucs4_strncpy(buf, tp, len+10);
 		buf[len+10-1] = '\0';
-		ucs4_strncat(buf, ostr, len+10-ucs4_strlen(buf));
+		ucs4_strncat(buf, ostr, len+10-ucs4_strlen(buf)-1);
 		buf[len+10-1] = '\0';
 
 		for(i = 0; &istr[i] < bp; i++)
@@ -2503,7 +2504,7 @@ FormatLines(struct hdr_line *h,			/* where to begin formatting */
 	    
 	    ucs4_strncpy(buf, breakp, len+10);	/* save broken line */
 	    buf[len+10-1] = '\0';
-	    ucs4_strncat(buf, ostr, len+10-ucs4_strlen(buf));	/* add line that was there */
+	    ucs4_strncat(buf, ostr, len+10-ucs4_strlen(buf)-1);	/* add line that was there */
 	    buf[len+10-1] = '\0';
 
 	    for(tp=ostr,bp=istr; bp < breakp; tp++, bp++)
@@ -2527,7 +2528,7 @@ FormatLines(struct hdr_line *h,			/* where to begin formatting */
 	    
 	    ucs4_strncpy(buf, breakp, len+10);	/* save broken line */
 	    buf[len+10-1] = '\0';
-	    ucs4_strncat(buf, ostr, len+10-ucs4_strlen(buf));	/* add line that was there */
+	    ucs4_strncat(buf, ostr, len+10-ucs4_strlen(buf)-1);	/* add line that was there */
 	    buf[len+10-1] = '\0';
 
 	    for(tp=ostr,bp=istr; bp < breakp; tp++, bp++)
@@ -2563,7 +2564,7 @@ FormatLines(struct hdr_line *h,			/* where to begin formatting */
 	    ucs4_strncpy(buf, istr, len+10);	/* insert istr before ostr */
 	    buf[len+10-1] = '\0';
 
-	    ucs4_strncat(buf, ostr, len+10-ucs4_strlen(buf));
+	    ucs4_strncat(buf, ostr, len+10-ucs4_strlen(buf)-1);
 	    buf[len+10-1] = '\0';
 
 	    ucs4_strncpy(ostr, buf, HLSZ);		/* copy back to ostr */
@@ -2633,7 +2634,7 @@ FormatLines(struct hdr_line *h,			/* where to begin formatting */
 		    }
 		}
 		else{
-		    ucs4_strncat(ostr, nlp->text, HLSZ-ucs4_strlen(ostr));
+		    ucs4_strncat(ostr, nlp->text, HLSZ-ucs4_strlen(ostr)-1);
 		    ostr[HLSZ-1] = '\0';
 
 		    if(TERM_OPTIMIZE && (i = physical_line(nlp)) != -1)
@@ -2722,7 +2723,6 @@ PaintHeader(int line,		/* physical line on screen */
     int	             curindex;
     int	             curoffset;
     UCS              buf[NLINE];
-    char             utf8buf[6*NLINE];
     UCS	            *bufp;
     int              i, e, w;
 
@@ -2897,7 +2897,7 @@ ArrangeHeader(void)
     e = ods.top_e = 0;
     l = ods.top_l = headents[e].hd_text;
     while(headents[e+1].name || (l && l->next))
-      if(l = next_sel_hline(&e, l)){
+      if((l = next_sel_hline(&e, l)) != NULL){
 	  ods.cur_l = l;
 	  ods.cur_e = e;
       }
@@ -3634,19 +3634,19 @@ call_builder(struct headerentry *entry, int *mangled, char **err)
 	    space = commaspace+1;
 
 	    if(i && line->text[i-1] == ','){
-	      ucs4_strncat(line->text, space, HLSZ-i);	/* help address builder */
+	      ucs4_strncat(line->text, space, HLSZ-i-1);	/* help address builder */
 	      line->text[HLSZ-1] = '\0';
 	    }
 	    else if(line->next != NULL && !strend(line->text, ',')){
 		if(ucs4_strqchr(line->text, ',', &quoted, -1)){
-		  ucs4_strncat(line->text, commaspace, HLSZ-i);	/* implied comma */
+		  ucs4_strncat(line->text, commaspace, HLSZ-i-1);	/* implied comma */
 		  line->text[HLSZ-1] = '\0';
 		}
 	    }
 	    else if(line->prev != NULL && line->next != NULL){
 		if(ucs4_strchr(line->prev->text, ' ') != NULL 
 		   && line->text[i-1] != ' '){
-		  ucs4_strncat(line->text, space, HLSZ-i);
+		  ucs4_strncat(line->text, space, HLSZ-i-1);
 		  line->text[HLSZ-1] = '\0';
 		}
 	    }
@@ -3654,7 +3654,7 @@ call_builder(struct headerentry *entry, int *mangled, char **err)
 
 	tmp = ucs4_to_utf8_cpystr(line->text);
 	if(tmp){
-	    strncat(sbuf, tmp, sbuflen-strlen(sbuf));
+	    strncat(sbuf, tmp, sbuflen-strlen(sbuf)-1);
 	    sbuf[sbuflen-1] = '\0';
 	    fs_give((void **) &tmp);
 	}
@@ -3859,7 +3859,7 @@ call_expander(void)
 		for(line = e->hd_text; line != NULL; line = line->next){
 		  p = ucs4_to_utf8_cpystr(line->text);
 		  if(p){
-		    strncat(tbuf, p, biggest+1-strlen(tbuf));
+		    strncat(tbuf, p, biggest+1-strlen(tbuf)-1);
 		    tbuf[biggest] = '\0';
 		    fs_give((void **) &p);
 		  }
@@ -4095,9 +4095,9 @@ SaveHeaderLines(void)
     i = MIN(ods.p_ind, work_buf_len);
     ucs4_strncpy(work_buf, ods.cur_l->text, i);
     work_buf[i] = '\0';
-    ucs4_strncat(work_buf, buf, work_buf_len+1);
+    ucs4_strncat(work_buf, buf, work_buf_len+1-ucs4_strlen(work_buf)-1);
     work_buf[work_buf_len] = '\0';
-    ucs4_strncat(work_buf, &ods.cur_l->text[ods.p_ind], work_buf_len+1);
+    ucs4_strncat(work_buf, &ods.cur_l->text[ods.p_ind], work_buf_len+1-ucs4_strlen(work_buf)-1);
     work_buf[work_buf_len] = '\0';
     empty[0]='\0';
     ods.p_ind = 0;
@@ -4199,18 +4199,28 @@ UCS *
 break_point(UCS *line, int maxwid, UCS breakch, int *quotedarg)
 {
     UCS           *bp;		/* break point */
-    int            quoted = (quotedarg) ? *quotedarg : 0;
+    int            quoted;
 
     /*
      * Start at maxwid and work back until first opportunity to break.
      */
     bp = ucs4_particular_width(line, maxwid);
 
+    /*
+     * Quoted should be set up for the start of line. Since we want
+     * to move to bp and work our way back we need to scan through the
+     * line up to bp setting quoted appropriately.
+     */
+    if(quotedarg)
+      ucs4_strqchr(line, '\0', quotedarg, bp-line);
+
+    quoted = quotedarg ? *quotedarg : 0;
+
     while(bp != line){
 	if(breakch == ',' && *bp == '"')	/* don't break on quoted ',' */
 	  quoted = !quoted;			/* toggle quoted state */
 
-	if(*bp == breakch){
+	if(*bp == breakch && !quoted){
 	    if(breakch == ' '){
 		if(ucs4_str_width_ptr_to_ptr(line, bp+1) < maxwid){
 		    bp++;			/* leave the ' ' */
@@ -4467,11 +4477,11 @@ packheader(void)
 
 		p = ucs4_to_utf8_cpystr(line->text);
 		if(p){
-		    strncat(*headents[i].realaddr, p, headents[i].maxlen+1-strlen(*headents[i].realaddr));
+		    strncat(*headents[i].realaddr, p, headents[i].maxlen+1-strlen(*headents[i].realaddr)-1);
 		    (*headents[i].realaddr)[headents[i].maxlen] = '\0';
 
 		    if(p[0] && p[strlen(p)-1] == ','){
-			strncat(*headents[i].realaddr, " ", headents[i].maxlen+1-strlen(*headents[i].realaddr));
+			strncat(*headents[i].realaddr, " ", headents[i].maxlen+1-strlen(*headents[i].realaddr)-1);
 			(*headents[i].realaddr)[headents[i].maxlen] = '\0';
 		    }
 
@@ -4714,6 +4724,20 @@ fix_mangle_and_err(int *mangled, char **errmsg, char *name)
 	free(*errmsg);
 	*errmsg = NULL;
     }
+}
+
+
+/*
+ * What is this for?
+ * This is so that the To line will be appended to by an Lcc
+ * entry unless the user types in the To line after the Lcc
+ * has already been set.
+ */
+void
+mark_sticky(struct headerentry *h)
+{
+    if(h && (!h->sticky_special || h->bldr_private))
+      h->sticky = 1;
 }
 
 

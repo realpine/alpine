@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailview.c 577 2007-05-22 22:16:43Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailview.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -46,6 +46,9 @@ static char rcsid[] = "$Id: mailview.c 577 2007-05-22 22:16:43Z hubert@u.washing
 #include "../pith/stream.h"
 #include "../pith/send.h"
 #include "../pith/filter.h"
+#include "../pith/string.h"
+#include "../pith/ablookup.h"
+#include "../pith/escapes.h"
 
 
 #define FBUF_LEN	(50)
@@ -98,8 +101,6 @@ int         is_an_addr_hdr(char *);
 void	    format_env_hdr(MAILSTREAM *, long, char *, ENVELOPE *,
 			   gf_io_t, char *, char *, int);
 int	    delineate_this_header(char *, char *, char **, char **);
-int	    handle_start_color(char *, size_t, int *, int);
-int	    handle_end_color(char *, size_t, int *);
 char	   *url_embed(int);
 int         color_headers(long, char *, LT_INS_S **, void *);
 int	    url_hilite_hdr(long, char *, LT_INS_S **, void *);
@@ -118,7 +119,7 @@ void	    format_newsgroup_string(char *, char *, int, gf_io_t);
 int	    format_raw_hdr_string(char *, char *, gf_io_t, char *, int);
 int	    format_env_puts(char *, gf_io_t);
 int	    find_field(char **, char *, size_t);
-void	    embed_color(COLOR_PAIR *, gf_io_t);
+int	    embed_color(COLOR_PAIR *, gf_io_t);
 COLOR_PAIR *get_cur_embedded_color(void);
 void        clear_cur_embedded_color(void);
 
@@ -205,8 +206,8 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
           ---*/
 	void *text2;
 
-        if(text2 = (void *)pine_mail_fetch_text(ps_global->mail_stream,
-						msgno, NULL, NULL, NIL)){
+        if((text2 = (void *)pine_mail_fetch_text(ps_global->mail_stream,
+						msgno, NULL, NULL, NIL)) != NULL){
 
  	    if(!gf_puts(NEWLINE, pc))		/* write delimiter */
 	      goto write_error;
@@ -269,7 +270,7 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 	    }
 
 	    if(!(flgs & FM_NOWRAP)){
-		wrapflags = (flgs & FM_DISPLAY) ? GFW_HANDLES : GFW_NONE;
+		wrapflags = (flgs & FM_DISPLAY) ? (GFW_HANDLES|GFW_SOFTHYPHEN) : GFW_NONE;
 		if(flgs & FM_DISPLAY
 		   && !(flgs & FM_NOCOLOR)
 		   && pico_usingcolor())
@@ -282,7 +283,7 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 	    }
 
 	    gf_link_filter(gf_nvtnl_local, NULL);
-	    if(decode_err = gf_pipe(gc, pc)){
+	    if((decode_err = gf_pipe(gc, pc)) != NULL){
 		/* TRANSLATORS: There was an error putting together a message for
 		   viewing. The arg is the description of the error. */
                 snprintf(tmp_20k_buf, SIZEOF_20KBUF, _("Formatting error: %s"), decode_err);
@@ -318,8 +319,29 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
        && (ps_global->atmts[1].description
 	   || ps_global->atmts[0].body->type != TYPETEXT)){
 	char tmp[6*MAX_SCREEN_COLS + 1], *tmpp;
-	int  n, maxnumwid = 0, maxsizewid = 0, *margin;
-	int  avail, m1, m2, hwid, s1, s2, s3, s4, s5, dwid, shownwid, sizewid, descwid, dashwid;
+	int  i, n, maxnumwid = 0, maxsizewid = 0, *margin;
+	int  avail, m1, m2, hwid, s1, s2, s3, s4, s5, dwid, shownwid;
+	int  sizewid, descwid, dashwid, partwid, padwid;
+	COLOR_PAIR *hdrcolor = NULL;
+
+	if((flgs & FM_DISPLAY)
+	   && !(flgs & FM_NOCOLOR)
+	   && pico_usingcolor()
+	   && ps_global->VAR_HEADER_GENERAL_FORE_COLOR
+	   && ps_global->VAR_HEADER_GENERAL_BACK_COLOR
+	   && ps_global->VAR_NORM_FORE_COLOR
+	   && ps_global->VAR_NORM_BACK_COLOR
+	   && (colorcmp(ps_global->VAR_HEADER_GENERAL_FORE_COLOR,
+		        ps_global->VAR_NORM_FORE_COLOR)
+	       || colorcmp(ps_global->VAR_HEADER_GENERAL_BACK_COLOR,
+		        ps_global->VAR_NORM_BACK_COLOR))){
+
+	    if((hdrcolor = new_color_pair(ps_global->VAR_HEADER_GENERAL_FORE_COLOR,
+					  ps_global->VAR_HEADER_GENERAL_BACK_COLOR)) != NULL){
+		if(!pico_is_good_colorpair(hdrcolor))
+		  free_color_pair(&hdrcolor);
+	    }
+	}
 
 	margin = (flgs & FM_NOINDENT) ? NULL : format_view_margin();
 
@@ -337,13 +359,23 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 
 	hwid = MAX(avail, 0);
 
-	utf8_snprintf(tmp, sizeof(tmp),
-	    "%*.*s%-.*w",
-	    m1, m1, "",				/* left margin */
-	    /* TRANSLATORS: A label */
-	    hwid, _("Parts/Attachments:"));
+	i = utf8_width(_("Parts/Attachments:"));
+	partwid = MIN(i, hwid);
+	padwid = hdrcolor ? (hwid-partwid) : 0;
 
-	if(!(gf_puts(tmp, pc) && gf_puts(NEWLINE, pc)))
+	if(m1 > 0){
+	    snprintf(tmp, sizeof(tmp), "%*.*s", m1, m1, "");
+	    if(!gf_puts(tmp, pc))
+	      goto write_error;
+	}
+
+	utf8_snprintf(tmp, sizeof(tmp),
+	    "%-*.*w%*.*s",
+	    /* TRANSLATORS: A label */
+	    partwid, partwid, _("Parts/Attachments:"),
+	    padwid, padwid, "");
+
+	if(!((!hdrcolor || embed_color(hdrcolor, pc)) && gf_puts(tmp, pc) && gf_puts(NEWLINE, pc)))
 	  goto write_error;
 
 
@@ -399,10 +431,20 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 	for(a = ps_global->atmts; a->description != NULL; a++){
 	    COLOR_PAIR *lastc = NULL;
 	    char numbuf[50];
+	    int thisdescwid, padwid;
+
+	    i = utf8_width((descwid > 2 && a->description) ? a->description : "");
+	    thisdescwid = MIN(i, descwid);
+	    padwid = hdrcolor ? (descwid-thisdescwid) : 0;
+		
+	    if(m1 > 0){
+		snprintf(tmp, sizeof(tmp), "%*.*s", m1, m1, "");
+		if(!gf_puts(tmp, pc))
+		  goto write_error;
+	    }
 
 	    utf8_snprintf(tmp, sizeof(tmp),
-		"%*.*s%*.*s%*.*w%*.*s%-*.*w%*.*s%*.*w%*.*s%*.*w%*.*s%-.*w",
-		m1, m1, "",
+		"%*.*s%*.*w%*.*s%-*.*w%*.*s%*.*w%*.*s%*.*w%*.*s%-*.*w",
 		s1, s1, "",
 		dwid, dwid,
 		msgno_part_deleted(ps_global->mail_stream, msgno, a->number) ? "D" : "",
@@ -420,8 +462,11 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 		sizewid, sizewid,
 		a->size ? a->size : "",
 		s5, s5, "",
-		descwid,
+		thisdescwid, thisdescwid,
 		(descwid > 2 && a->description) ? a->description : "");
+
+	    if(!(!hdrcolor || embed_color(hdrcolor, pc)))
+	      goto write_error;
 
 	    if(F_ON(F_VIEW_SEL_ATTACH, ps_global) && handlesp){
 		char      buf[16], color[64];
@@ -440,7 +485,7 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 		buf[sizeof(buf)-1] = '\0';
 
 		if(!(flgs & FM_NOCOLOR)
-		   && handle_start_color(color, sizeof(color), &l, 0)){
+		   && handle_start_color(color, sizeof(color), &l, 1)){
 		    lastc = get_cur_embedded_color();
 		    if(!gf_nputs(color, (long) l, pc))
 		       goto write_error;
@@ -466,13 +511,21 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 			  goto write_error;
 		    }
 
-		    embed_color(lastc, pc);
+		    if(!embed_color(lastc, pc))
+		      goto write_error;
+
 		    free_color_pair(&lastc);
 		}
 		else if(!((*pc)(TAG_EMBED) && (*pc)(TAG_BOLDOFF)))
 		  goto write_error;
 
 		if(!((*pc)(TAG_EMBED) && (*pc)(TAG_INVOFF)))
+		  goto write_error;
+	    }
+
+	    if(padwid > 0){
+		snprintf(tmp, sizeof(tmp), "%*.*s", padwid, padwid, "");
+		if(!gf_puts(tmp, pc))
 		  goto write_error;
 	    }
 
@@ -484,20 +537,40 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 	 * Dashed line after list
 	 */
 
-	avail = width - m1 -2;
+	if(hdrcolor){
+	    avail = width - m1 - m2;
+	    hwid = MAX(avail, 0);
 
-	dashwid = MAX(MIN(40, avail), 0);
-	avail -= dashwid;
+	    dashwid = MAX(MIN(40, hwid-2), 0);
+	    padwid = hwid - dashwid;
+	    if(m1 > 0){
+		snprintf(tmp, sizeof(tmp), "%*.*s", m1, m1, "");
+		if(!gf_puts(tmp, pc))
+		  goto write_error;
+	    }
 
-	s1 = MAX(avail, 0);
+	    snprintf(tmp, sizeof(tmp),
+		"%s%*.*s",
+		repeat_char(dashwid, '-'),
+		padwid, padwid, "");
+	}
+	else{
+	    avail = width - m1 -2;
 
-	snprintf(tmp, sizeof(tmp),
-	    "%*.*s%s",
-	    m1, m1, "",
-	    repeat_char(dashwid, '-'));
+	    dashwid = MAX(MIN(40, avail), 0);
+	    avail -= dashwid;
 
-	if(!(gf_puts(tmp, pc) && gf_puts(NEWLINE, pc)))
+	    snprintf(tmp, sizeof(tmp),
+		"%*.*s%s",
+		m1, m1, "",
+		repeat_char(dashwid, '-'));
+	}
+
+	if(!((!hdrcolor || embed_color(hdrcolor, pc)) && gf_puts(tmp, pc) && gf_puts(NEWLINE, pc)))
 	  goto write_error;
+
+	if(hdrcolor)
+	  free_color_pair(&hdrcolor);
     }
 
     if(!gf_puts(NEWLINE, pc))		/* write delimiter */
@@ -660,9 +733,9 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
             break;
 
           default:
-	    if(decode_err = part_desc(a->number, a->body,
+	    if((decode_err = part_desc(a->number, a->body,
 				      (flgs & FM_DISPLAY) ? 1 : 3,
-				      width, flgs, pc))
+				      width, flgs, pc)) != NULL)
 	      goto write_error;
         }
 
@@ -823,7 +896,7 @@ delineate_this_header(char *field, char *begin, char **start, char **end)
     else{
 	strncpy(tmpfield, field, sizeof(tmpfield)-2);
 	tmpfield[sizeof(tmpfield)-2] = '\0';
-	strncat(tmpfield, ":", sizeof(tmpfield)-strlen(tmpfield));
+	strncat(tmpfield, ":", sizeof(tmpfield)-strlen(tmpfield)-1);
 	tmpfield[sizeof(tmpfield)-1] = '\0';
 
 	/*
@@ -892,8 +965,8 @@ handle_start_color(char *colorstring, size_t buflen, int *len, int use_hdr_color
 	     * The blacks are just known good colors for
 	     * testing whether the other color is good.
 	     */
-	    if(tmp = new_color_pair(fg ? fg : colorx(COL_BLACK),
-				    bg ? bg : colorx(COL_BLACK))){
+	    if((tmp = new_color_pair(fg ? fg : colorx(COL_BLACK),
+				     bg ? bg : colorx(COL_BLACK))) != NULL){
 		if(pico_is_good_colorpair(tmp))
 		  for(s = color_embed(fg, bg);
 		      (*len) < buflen && (colorstring[*len] = *s);
@@ -1449,7 +1522,7 @@ url_hilite_hdr(long int linenum, char *line, LT_INS_S **ins, void *local)
       lp = line;
     else{
 	check_for_urls = 0;
-	if(lp = strchr(line, ':')){	/* there ought to always be a colon */
+	if((lp = strchr(line, ':')) != NULL){	/* there ought to always be a colon */
 	    FieldType ft;
 
 	    *lp = '\0';
@@ -1531,7 +1604,7 @@ pad_to_right_edge(long int linenum, char *line, LT_INS_S **ins, void *local)
 	    break;
 
 	  default:
-	    wid += width_at_this_position(p, strlen(p));
+	    wid += width_at_this_position((unsigned char *) p, strlen(p));
 	    p++;
 	    break;
 	}
@@ -1582,7 +1655,7 @@ url_external_specific_handler(char *url, int len)
 		*p2 = '\0';
 
 		for(p += 8; *p && i < UES_MAX; p += n)
-		  if(p2 = strchr(p, ',')){
+		  if((p2 = strchr(p, ',')) != NULL){
 		      if((n = p2 - p) < UES_LEN){
 			strncpy(&list[i * UES_LEN], p, MIN(n, sizeof(list)-(i * UES_LEN)));
 			i++;
@@ -1633,7 +1706,7 @@ url_imap_folder(char *true_url, char **folder, imapuid_t *uid_val,
     url = cpystr(true_url + 7);
 
     /* Try to pick apart the "iserver" portion */
-    if(cmd = strchr(url, '/')){			/* iserver "/" [mailbox] ? */
+    if((cmd = strchr(url, '/')) != NULL){		/* iserver "/" [mailbox] ? */
 	*cmd++ = '\0';
     }
     else{
@@ -1642,12 +1715,12 @@ url_imap_folder(char *true_url, char **folder, imapuid_t *uid_val,
 	cmd = &url[strlen(url)-1];	/* assume only iserver */
     }
 
-    if(p = strchr(url, '@')){		/* user | auth | pass? */
+    if((p = strchr(url, '@')) != NULL){		/* user | auth | pass? */
 	*p++ = '\0';
 	server = rfc1738_str(p);
 	
 	/* only ";auth=*" supported (and also ";auth=anonymous") */
-	if(p = srchstr(url, ";auth=")){
+	if((p = srchstr(url, ";auth=")) != NULL){
 	    *p = '\0';
 	    auth = rfc1738_str(p + 6);
 	}
@@ -1697,9 +1770,9 @@ url_imap_folder(char *true_url, char **folder, imapuid_t *uid_val,
 	rv |= URL_IMAP_IMAILBOXLIST;
     }
     else{
-	if(p = srchstr(cmd, "/;uid=")){ /* "imessagepart" */
+	if((p = srchstr(cmd, "/;uid=")) != NULL){ /* "imessagepart" */
 	    *p = '\0';		/* tie off mailbox [uidvalidity] */
-	    if(section = srchstr(p += 6, "/;section=")){
+	    if((section = srchstr(p += 6, "/;section=")) != NULL){
 		*section = '\0';	/* tie off UID */
 		section  = rfc1738_str(section + 10);
 /* BUG: verify valid section spec ala rfc 2060 */
@@ -1712,7 +1785,7 @@ url_imap_folder(char *true_url, char **folder, imapuid_t *uid_val,
 	      return(url_bogus_imap(&url, scheme, "Invalid data in UID"));
 
 	    /* optional "uidvalidity"? */
-	    if(p = srchstr(cmd, ";uidvalidity=")){
+	    if((p = srchstr(cmd, ";uidvalidity=")) != NULL){
 		*p  = '\0';
 		p  += 13;
 		if(!(*uid_val = rfc1738_num(&p)) || *p)
@@ -1725,7 +1798,7 @@ url_imap_folder(char *true_url, char **folder, imapuid_t *uid_val,
 	}
 	else{			/* "imessagelist" */
 	    /* optional "uidvalidity"? */
-	    if(p = srchstr(cmd, ";uidvalidity=")){
+	    if((p = srchstr(cmd, ";uidvalidity=")) != NULL){
 		*p  = '\0';
 		p  += 13;
 		if(!(*uid_val = rfc1738_num(&p)) || *p)
@@ -1734,7 +1807,7 @@ url_imap_folder(char *true_url, char **folder, imapuid_t *uid_val,
 	    }
 
 	    /* optional "enc_search"? */
-	    if(p = strchr(cmd, '?')){
+	    if((p = strchr(cmd, '?')) != NULL){
 		*p = '\0';
 		if(search)
 		  *search = cpystr(rfc1738_str(p + 1));
@@ -1770,6 +1843,7 @@ url_imap_folder(char *true_url, char **folder, imapuid_t *uid_val,
 }
 
 
+int
 url_bogus_imap(char **freeme, char *url, char *problem)
 {
     fs_give((void **) freeme);
@@ -1832,7 +1906,7 @@ format_header(MAILSTREAM *stream, long int msgno, char *section, ENVELOPE *env,
     gf_io_t  tmp_pc, tmp_gc;
     struct variable *vars = ps_global->vars;
 
-    if(tmp_store = so_get(CharStar, NULL, EDIT_ACCESS))
+    if((tmp_store = so_get(CharStar, NULL, EDIT_ACCESS)) != NULL)
       gf_set_so_writec(&tmp_pc, tmp_store);
     else
       return(FHT_WRTERR);
@@ -1944,8 +2018,8 @@ format_header(MAILSTREAM *stream, long int msgno, char *section, ENVELOPE *env,
 				     env, tmp_pc, tmp, hdrs->charset, flags);
 		}
 		else{
-		    if(rv = format_raw_hdr_string(start, finish, tmp_pc,
-						  hdrs->charset, flags))
+		    if((rv = format_raw_hdr_string(start, finish, tmp_pc,
+						   hdrs->charset, flags)) != 0)
 		      goto write_error;
 		    else
 		      start = finish;
@@ -1964,7 +2038,7 @@ format_header(MAILSTREAM *stream, long int msgno, char *section, ENVELOPE *env,
 			      tmp_pc, hdrs->h.b, hdrs->charset, flags);
 
 	    /* go through each header in list, v initialized above */
-	    for(; q = *v; v++){
+	    for(; (q = *v) != NULL; v++){
 		if(is_an_env_hdr(q)){
 		    /* pretty format for env hdrs */
 		    format_env_hdr(stream, msgno, section,
@@ -1979,8 +2053,8 @@ format_header(MAILSTREAM *stream, long int msgno, char *section, ENVELOPE *env,
 		    for(current = h;
 			h && delineate_this_header(q,current,&start,&finish);
 			current = finish){
-			if(rv = format_raw_hdr_string(start, finish, tmp_pc,
-						      hdrs->charset, flags))
+			if((rv = format_raw_hdr_string(start, finish, tmp_pc,
+						       hdrs->charset, flags)) != 0)
 			  goto write_error;
 			else
 			  start = finish;
@@ -2018,11 +2092,11 @@ format_header(MAILSTREAM *stream, long int msgno, char *section, ENVELOPE *env,
 	if(ps_global->tools.display_filter
 	   && ps_global->tools.display_filter_trigger
 	   && (display_filter = (*ps_global->tools.display_filter_trigger)(NULL, trigger, sizeof(trigger)))){
-	    if(df_store = so_get(CharStar, NULL, EDIT_ACCESS)){
+	    if((df_store = so_get(CharStar, NULL, EDIT_ACCESS)) != NULL){
 
 		gf_set_so_writec(&tmp_pc, df_store);
 		gf_set_so_readc(&tmp_gc, df_store);
-		if(errstr = (*ps_global->tools.display_filter)(display_filter, tmp_store, tmp_pc, NULL)){
+		if((errstr = (*ps_global->tools.display_filter)(display_filter, tmp_store, tmp_pc, NULL)) != NULL){
 		    q_status_message1(SM_ORDER | SM_DING, 3, 3,
 				      _("Formatting error: %s"), errstr);
 		    rv = FHT_WRTERR;
@@ -2117,7 +2191,7 @@ format_header(MAILSTREAM *stream, long int msgno, char *section, ENVELOPE *env,
 
 	    gf_link_filter(gf_nvtnl_local, NULL);
 
-	    if(errstr = gf_pipe(tmp_gc, final_pc)){
+	    if((errstr = gf_pipe(tmp_gc, final_pc)) != NULL){
 		rv = FHT_WRTERR;
 		q_status_message1(SM_ORDER | SM_DING, 3, 3,
 				  "Can't build header : %.200s", errstr);
@@ -2222,7 +2296,9 @@ format_envelope(MAILSTREAM *s, long int n, char *sect, ENVELOPE *e, gf_io_t pc,
 
     if((which & FE_DATE) && e->date) {
 	q = "Date: ";
-	snprintf(buftmp, sizeof(buftmp), "%s", e->date);
+	snprintf(buftmp, sizeof(buftmp), "%s",
+		 F_ON(F_DATES_TO_LOCAL,ps_global)
+		    ? convert_date_to_local((char *) e->date) : (char *) e->date);
 	buftmp[sizeof(buftmp)-1] = '\0';
 	p2 = (char *)rfc1522_decode_to_utf8((unsigned char *) tmp_20k_buf,
 					    SIZEOF_20KBUF, buftmp);
@@ -2427,10 +2503,10 @@ format_addr_string(MAILSTREAM *stream, long int msgno, char *section, char *fiel
 
 	  fields[1] = NULL;
 	  fields[0] = cpystr(field_name);
-	  if(ptmp = strchr(fields[0], ':'))
+	  if((ptmp = strchr(fields[0], ':')) != NULL)
 	    *ptmp = '\0';
 
-	  if(field = pine_fetchheader_lines(stream, msgno, section, fields)){
+	  if((field = pine_fetchheader_lines(stream, msgno, section, fields)) != NULL){
 	      char *h, *t;
 
 	      for(t = h = field; *h ; t++)
@@ -2600,7 +2676,7 @@ pine_rfc822_cat(char *src, const char *specials, gf_io_t pc)
   if (strpbrk (src,specials)) {	/* any specials present? */
     gf_puts ("\"", pc);		/* opening quote */
 				/* truly bizarre characters in there? */
-    while (s = strpbrk (src,"\\\"")) {
+    while ((s = strpbrk (src,"\\\"")) != NULL) {
       char save[2];
 
       /* turn it into a null-terminated piece */
@@ -2807,7 +2883,7 @@ display_parameters(struct mail_body_parameter *params)
 
     d = tmp_20k_buf;
     tmp_20k_buf[0] = '\0';
-    if(parmlist = rfc2231_newparmlist(params)){
+    if((parmlist = rfc2231_newparmlist(params)) != NULL){
 	n = 0;			/* n overloaded */
 	while(rfc2231_list_params(parmlist) && d < tmp_20k_buf + 10000){
 	    if(n++){
@@ -2857,7 +2933,6 @@ pine_fetch_header(MAILSTREAM *stream, long int msgno, char *section, char **fiel
     STRINGLIST *sl;
     char       *p, *m, *h = NULL, *match = NULL, *free_this, tmp[MAILTMPLEN];
     char      **pflds = NULL, **pp = NULL, **qq;
-    int         cnt = 0;
 
     /*
      * If the user misconfigures it is possible to have one of the fields
@@ -2907,7 +2982,7 @@ pine_fetch_header(MAILSTREAM *stream, long int msgno, char *section, char **fiel
 	  ;
 
 	/* interesting field? */
-	if(p = (flags & FT_NOT) ? ((*pp) ? NULL : tmp) : *pp){
+	if((p = (flags & FT_NOT) ? ((*pp) ? NULL : tmp) : *pp) != NULL){
 	    /*
 	     * Hold off allocating space for matching fields until
 	     * we at least find one to copy...
@@ -2957,7 +3032,7 @@ find_field(char **h, char *tmp, size_t ntmp)
 static char *_last_embedded_fg_color, *_last_embedded_bg_color;
 
 
-void
+int
 embed_color(COLOR_PAIR *cp, gf_io_t pc)
 {
     if(cp && cp->fg){
@@ -2968,7 +3043,7 @@ embed_color(COLOR_PAIR *cp, gf_io_t pc)
 
 	if(!(pc && (*pc)(TAG_EMBED) && (*pc)(TAG_FGCOLOR) &&
 	     gf_puts(color_to_asciirgb(cp->fg), pc)))
-	  return;
+	  return 0;
     }
     
     if(cp && cp->bg){
@@ -2979,8 +3054,10 @@ embed_color(COLOR_PAIR *cp, gf_io_t pc)
 
 	if(!(pc && (*pc)(TAG_EMBED) && (*pc)(TAG_BGCOLOR) &&
 	     gf_puts(color_to_asciirgb(cp->bg), pc)))
-	  return;
+	  return 0;
     }
+
+    return 1;
 }
 
 
@@ -3034,8 +3111,8 @@ scroll_handle_start_color(char *colorstring, size_t buflen, int *len)
 	     * The blacks are just known good colors for
 	     * testing whether the other color is good.
 	     */
-	    if(tmp = new_color_pair(fg ? fg : colorx(COL_BLACK),
-				    bg ? bg : colorx(COL_BLACK))){
+	    if((tmp = new_color_pair(fg ? fg : colorx(COL_BLACK),
+				     bg ? bg : colorx(COL_BLACK))) != NULL){
 		if(pico_is_good_colorpair(tmp))
 		  for(s = color_embed(fg, bg);
 		      (*len) < buflen && (colorstring[*len] = *s);
@@ -3115,7 +3192,7 @@ scroll_handle_end_color(char *colorstring, size_t buflen, int *len, int use_hdr_
  * character we just want to return width zero.
  */
 int
-width_at_this_position(unsigned char *str, long unsigned int n)
+width_at_this_position(unsigned char *str, unsigned long n)
 {
     unsigned char *inputp = str;
     unsigned long  remaining_octets = n;

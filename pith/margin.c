@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: margin.c 203 2006-10-26 17:23:46Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: margin.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -70,7 +70,7 @@ format_view_margin(void)
 	    if(lastchar == 'c')
 	      tmp[l-1] = '\0';
 	    
-	    if(err = strtoval(tmp, &left, 0, 0, 0, e, sizeof(e), "Viewer-margin-left")){
+	    if((err = strtoval(tmp, &left, 0, 0, 0, e, sizeof(e), "Viewer-margin-left")) != NULL){
 		leftm = 0;
 		dprint((2, "%s\n", err));
 	    }
@@ -97,7 +97,7 @@ format_view_margin(void)
 	    if(lastchar == 'c')
 	      tmp[l-1] = '\0';
 	    
-	    if(err = strtoval(tmp, &right, 0, 0, 0, e, sizeof(e), "Viewer-margin-right")){
+	    if((err = strtoval(tmp, &right, 0, 0, 0, e, sizeof(e), "Viewer-margin-right")) != NULL){
 		rightm = 0;
 		dprint((2, "%s\n", err));
 	    }

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: status.c 603 2007-06-18 23:01:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: status.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -28,6 +28,8 @@ static char rcsid[] = "$Id: status.c 603 2007-06-18 23:01:32Z hubert@u.washingto
 #include "status.h"
 #include "keymenu.h"
 #include "mailview.h"
+#include "mailcmd.h"
+#include "busy.h"
 
 #include "../pith/charconv/utf8.h"
 
@@ -43,17 +45,19 @@ typedef struct message {
     char	   *text;
     unsigned	    flags:8;
     unsigned	    shown:1;
+    unsigned	    pending_removal:1;
     int		    min_display_time, max_display_time;
     struct message *next, *prev;
 } SMQ_T;
-
-#define	LAST_MESSAGE(X)	((X) == (X)->next)
 
 
 /*
  * Internal prototypes
  */
-void      pause_for_current_message(void);
+void      pause_for_and_dq_cur_msg(void);
+SMQ_T    *top_of_queue(void);
+int       new_info_msg_need_not_be_queued(void);
+int       is_last_message(SMQ_T *);
 void      d_q_status_message(void);
 int       output_message(SMQ_T *);
 void      delay_cmd_cue(int);
@@ -100,6 +104,13 @@ q_status_message(int flags, int min_time, int max_time, char *message)
     size_t mlen;
 
     /*
+     * If there is already a message queued and
+     * new message is just informational, discard it.
+     */
+    if(flags & SM_INFO && new_info_msg_need_not_be_queued())
+      return;
+
+    /*
      * By convention, we have min_time equal to zero in messages which we
      * think are not as important, so-called comfort messages. We have
      * min_time >= 3 for messages which we think the user should see for
@@ -120,25 +131,15 @@ q_status_message(int flags, int min_time, int max_time, char *message)
 
     clean_msg[mlen] = '\0';
 
-    if(q = message_queue){		/* there is something already queued */
-
-	/*
-	 * If new message is just informational, discard it.
-	 */
-	if(flags & SM_INFO){
-	    if(clean_msg)
-	      fs_give((void **)&clean_msg);
-
-	    return;
-	}
-
+    if((q = message_queue) != NULL){	/* the queue exists */
 
 	/*
 	 * Scan through all of the messages currently in the queue.
 	 * If the new message is already queued, don't add it again.
 	 */
 	do {
-	    if(q->text && !strcmp(q->text, clean_msg)){
+	    if(!q->pending_removal && q->text && !strcmp(q->text, clean_msg)){
+		q->shown = 0;
 		if(q->min_display_time < min_time)
 		  q->min_display_time = min_time;
 
@@ -202,17 +203,16 @@ mark_status_unknown(void)
 }
 
 
-
 /*----------------------------------------------------------------------
      Wait a suitable amount of time for the currently displayed message
  ----*/
 void
-pause_for_current_message(void)
+pause_for_and_dq_cur_msg(void)
 {
-    if(message_queue){
+    if(top_of_queue()){
 	int w;
 
-	if(w = status_message_remaining()){
+	if((w = status_message_remaining()) != 0){
 	    delay_cmd_cue(1);
 	    sleep(w);
 	    delay_cmd_cue(0);
@@ -223,19 +223,80 @@ pause_for_current_message(void)
 }
 
 
+/*
+ * This relies on the global displayed_time being properly set
+ * for this message.
+ */
+void
+pause_for_and_mark_specific_msg(SMQ_T *msg)
+{
+    if(msg){
+	int w;
+
+	w = (int) (displayed_time - time(0)) + msg->min_display_time;
+	w = (w > 0) ? w : 0;
+	if(w){
+	    delay_cmd_cue(1);
+	    sleep(w);
+	    delay_cmd_cue(0);
+	}
+
+	msg->pending_removal = 1;
+    }
+}
+
+
 /*----------------------------------------------------------------------
     Time remaining for current message's minimum display
  ----*/
 int
 status_message_remaining(void)
 {
-    if(message_queue){
-	int d = (int)(displayed_time - time(0))
-					  + message_queue->min_display_time;
-	return((d > 0) ? d : 0);
+    SMQ_T *q;
+    int d = 0;
+
+    if((q = top_of_queue()) != NULL)
+      d = (int) (displayed_time - time(0)) + q->min_display_time;
+
+    return((d > 0) ? d : 0);
+}
+
+
+/*
+ * Return first message in queue that isn't pending_removal.
+ */
+SMQ_T *
+top_of_queue(void)
+{
+    SMQ_T *p;
+
+    if((p = message_queue) != NULL){
+	do
+	  if(!p->pending_removal)
+	    return(p);
+	while((p = p->next) != message_queue);
     }
 
-    return(0);
+    return(NULL);
+}
+
+
+int
+new_info_msg_need_not_be_queued(void)
+{
+    SMQ_T *q;
+
+    if(status_message_remaining() > 0)
+      return 1;
+
+    if((q = top_of_queue()) != NULL && (q = q->next) != message_queue){
+	do
+	  if(!q->pending_removal && !(q->flags & SM_INFO))
+	    return 1;
+	while((q = q->next) != message_queue);
+    }
+
+    return 0;
 }
 
 
@@ -250,12 +311,13 @@ status_message_remaining(void)
 int
 messages_queued(long int *dtime)
 {
-    if(message_queue && dtime)
-      *dtime = (long)MAX(message_queue->min_display_time, 1L);
+    SMQ_T *q;
+
+    if(dtime && (q = top_of_queue()) != NULL)
+      *dtime = (long) MAX(q->min_display_time, 1L);
 
     return((ps_global->in_init_seq) ? 0 : messages_in_queue());
 }
-
 
 
 /*----------------------------------------------------------------------
@@ -264,15 +326,18 @@ messages_queued(long int *dtime)
 int
 messages_in_queue(void)
 {
-    int	   n = message_queue ? 1 : 0;
-    SMQ_T *p = message_queue;
+    int	   n = 0;
+    SMQ_T *p;
 
-    while(n && (p = p->next) != message_queue)
-      n++;
+    if((p = message_queue) != NULL){
+	do
+	  if(!p->pending_removal)
+	    n++;
+	while((p = p->next) != message_queue);
+    }
 
     return(n);
 }
-
 
 
 /*----------------------------------------------------------------------
@@ -283,9 +348,9 @@ last_message_queued(void)
 {
     SMQ_T *p, *r = NULL;
 
-    if(p = message_queue){
+    if((p = message_queue) != NULL){
 	do
-	  if(p->flags & SM_ORDER)
+	  if(p->flags & SM_ORDER && !p->pending_removal)
 	    r = p;
 	while((p = p->next) != message_queue);
     }
@@ -293,6 +358,23 @@ last_message_queued(void)
     return(r ? r->text : NULL);
 }
 
+
+int
+is_last_message(SMQ_T *msg)
+{
+    SMQ_T *p, *r = NULL;
+
+    if(msg && !msg->pending_removal){
+	if((p = message_queue) != NULL){
+	    do
+	      if(!p->pending_removal)
+		r = p;
+	    while((p = p->next) != message_queue);
+	}
+    }
+
+    return(r && msg && (r == msg));
+}
 
 
 /*----------------------------------------------------------------------
@@ -321,61 +403,58 @@ user might be typing commands very quickly and miss a message, so
 there is a time stamp and time check that each message has been on the
 screen for a few seconds.  If it hasn't we just return and let it be
 taken care of next time.
-
-At slow terminal output speeds all of this can be for naught, the amount
-of time it takes to paint the screen when the whole screen is being painted
-is greater than the second or two delay so the time stamps set here have
-nothing to do with when the user actually sees the message.
 ----------------------------------------------------------------------*/
 int
 display_message(UCS command)
 {
+    SMQ_T *q;
+
     if(ps_global == NULL || ps_global->ttyo == NULL
        || ps_global->ttyo->screen_rows < 1 || ps_global->in_init_seq)
       return(0);
 
-    /*---- Deal with any previously displayed messages ----*/
-    if(message_queue && message_queue->shown) {
+    /*---- Deal with any previously displayed message ----*/
+    if((q = top_of_queue()) != NULL && q->shown){
 	int rv = -1;
 
-	if(command == ctrl('L')) {	/* just repaint it, and go on */
+	if(command == ctrl('L')){	/* just repaint it, and go on */
 	    mark_status_unknown();
 	    mark_keymenu_dirty();
 	    mark_titlebar_dirty();
 	    rv = 0;
 	}
-	else {				/* ensure sufficient time's passed */
+	else{				/* ensure sufficient time's passed */
 	    time_t now;
 	    int    diff;
 
 	    now  = time(0);
 	    diff = (int)(displayed_time - now)
 			+ ((command == NO_OP_COMMAND || command == NO_OP_IDLE)
-			    ? message_queue->max_display_time
-			    : message_queue->min_display_time);
+			    ? q->max_display_time
+			    : q->min_display_time);
             dprint((9,
 		       "STATUS: diff:%d, displayed: %ld, now: %ld\n",
 		       diff, (long) displayed_time, (long) now));
             if(diff > 0)
 	      rv = diff;			/* check again next time  */
-	    else if(LAST_MESSAGE(message_queue)
+	    else if(is_last_message(q)
 		    && (command == NO_OP_COMMAND || command == NO_OP_IDLE)
-		    && message_queue->max_display_time)
+		    && q->max_display_time)
 	      rv = 0;				/* last msg, no cmd, has max */
 	}
 
 	if(rv >= 0){				/* leave message displayed? */
 	    if(prevstartcol < 0)		/* need to redisplay it? */
-	      output_message(message_queue);
+	      output_message(q);
 
 	    return(rv);
 	}
 	  
-	d_q_status_message();			/* remove it from queue and */
-	needs_clearing++;			/* clear the line if needed */
+	d_q_status_message();		/* remove it from queue and */
+	needs_clearing++;		/* clear the line if needed */
     }
 
-    if(!message_queue && (command == ctrl('L') || needs_clearing)) {
+    if(!top_of_queue() && (command == ctrl('L') || needs_clearing)){
 	int inverse;
 	struct variable *vars = ps_global->vars;
 	char *last_bg = NULL;
@@ -402,42 +481,40 @@ display_message(UCS command)
 	}
     }
 
-    /*---- Display any queued messages, weeding 0 disp times ----*/
-    while(message_queue && !message_queue->shown)
-      if(message_queue->min_display_time || LAST_MESSAGE(message_queue)){
-	  displayed_time = time(0);
-	  output_message(message_queue);
-      }
-      else{
-	  if(message_queue->text){
-	      char   buf[1000];
-	      char  *append = " [not actually shown]";
-	      char  *ptr;
-	      size_t len;
+    /* display next message, weeding out 0 display times */
+    for(q = top_of_queue(); q && !q->shown; q = top_of_queue()){
+	if(q->min_display_time || is_last_message(q)){
+	    displayed_time = time(0);
+	    output_message(q);
+	}
+	/* zero display time message, log it, delete it */
+	else{
+	    if(q->text){
+		char   buf[1000];
+		char  *append = " [not actually shown]";
+		char  *ptr;
+		size_t len;
 
-	      len = strlen(message_queue->text) + strlen(append);
-	      if(len < sizeof(buf))
-		ptr = buf;
-	      else
-		ptr = (char *) fs_get((len+1) * sizeof(char));
+		len = strlen(q->text) + strlen(append);
+		if(len < sizeof(buf))
+		  ptr = buf;
+		else
+		  ptr = (char *) fs_get((len+1) * sizeof(char));
 
-	      strncpy(ptr, message_queue->text, len);
-	      ptr[len] = '\0';
-	      strncat(ptr, append, len-strlen(ptr));
-	      ptr[len] = '\0';
-	      add_review_message(ptr, -1);
-	      if(ptr != buf)
-		fs_give((void **) &ptr);
-	  }
+		strncpy(ptr, q->text, len);
+		ptr[len] = '\0';
+		strncat(ptr, append, len+1-1-strlen(ptr));
+		ptr[len] = '\0';
+		add_review_message(ptr, -1);
+		if(ptr != buf)
+		  fs_give((void **) &ptr);
+	    }
 
-	  d_q_status_message();
-      }
+	    d_q_status_message();
+	}
+    }
 
     needs_clearing = 0;				/* always cleared or written */
-    dprint((9,
-               "STATUS cmd:%d, max:%d, min%d\n", command, 
-	       (message_queue) ? message_queue->max_display_time : -1,
-	       (message_queue) ? message_queue->min_display_time : -1));
     fflush(stdout);
     return(0);
 }
@@ -450,26 +527,28 @@ display_message(UCS command)
 void
 flush_status_messages(int skip_last_pause)
 {
-    while(message_queue){
-	if(LAST_MESSAGE(message_queue)
-	   && skip_last_pause
-	   && message_queue->shown)
+    SMQ_T *q;
+
+    for(q = top_of_queue(); q; q = top_of_queue()){
+	/* don't have to wait for this one */
+	if(is_last_message(q) && skip_last_pause && q->shown)
 	  break;
 
-	if(message_queue->shown)
-	  pause_for_current_message();
+	if(q->shown)
+	  pause_for_and_dq_cur_msg();
 
-	while(message_queue && !message_queue->shown)
-	  if(message_queue->min_display_time
-	     || LAST_MESSAGE(message_queue)){
-	      displayed_time = time(0);
-	      output_message(message_queue);
-	  }
-	  else
-	    d_q_status_message();
+	/* find next one we need to show and show it */
+	for(q = top_of_queue(); q && !q->shown; q = top_of_queue()){
+	    if((q->min_display_time || is_last_message(q))){
+		displayed_time = time(0);
+		output_message(q);
+	    }
+	    else{
+		d_q_status_message();
+	    }
+	}
     }
 }
-
 
 
 /*----------------------------------------------------------------------
@@ -483,55 +562,90 @@ flush_status_messages(int skip_last_pause)
 void
 flush_ordered_messages(void)
 {
-    SMQ_T *start = NULL;
+    SMQ_T *q;
+    int dothepause = 0;
 
-    while(message_queue && message_queue != start){
-	if(message_queue->shown)
-	  pause_for_current_message(); /* changes "message_queue" */
+    for(q = top_of_queue(); q;){
+	if(q->shown){
+	    pause_for_and_mark_specific_msg(q);
+	    q = (q->next != message_queue) ? q->next : NULL;
+	}
 
-	while(message_queue && !message_queue->shown
-	      && message_queue != start)
-	  if(message_queue->flags & SM_ORDER){
-	      if(message_queue->min_display_time){
-		  displayed_time = time(0);
-		  output_message(message_queue);
-	      }
-	      else
-		d_q_status_message();
-	  }
-	  else if(!start)
-	    start = message_queue;
+	/* find next one we need to show and show it */
+	dothepause = 0;
+	for(; q && !q->shown && !dothepause; ){
+	    if(!q->pending_removal
+	       && (q->flags & (SM_ORDER | SM_MODAL))
+	       && q->min_display_time){
+		displayed_time = time(0);
+		output_message(q);
+		dothepause++;
+	    }
+	    else{
+		if(!(q->flags & SM_ASYNC))
+		  q->pending_removal = 1;
+
+		q = (q->next != message_queue) ? q->next : NULL;
+	    }
+	}
     }
 }
 
 
-     
 /*----------------------------------------------------------------------
-      Remove a message from the message queue.
+      Removes the first message from the message queue.
+      Returns 0 if all was well, -1 if had to skip the removal and
+      message_queue is unchanged.
   ----*/
 void
 d_q_status_message(void)
 {
-    if(message_queue){
-	dprint((9, "d_q_status_message(%s)\n",
-	       message_queue->text ? message_queue->text : "?"));
-	if(!LAST_MESSAGE(message_queue)){
-	    SMQ_T *p = message_queue;
-	    p->next->prev = p->prev;
-	    message_queue = p->prev->next = p->next;
-	    if(p->text)
-	      fs_give((void **)&p->text);
+    int bcue_state;
+    int the_last_one = 0;
+    SMQ_T *q, *p, *last_one;
 
-	    fs_give((void **)&p);
-	}
-	else{
-	    if(message_queue->text)
-	      fs_give((void **)&message_queue->text);
-	    fs_give((void **)&message_queue);
+    /* mark the top one for removal */
+    if((p = top_of_queue()) != NULL)
+      p->pending_removal = 1;
+
+    bcue_state = get_busy_cue_state();
+    if(bcue_state == BUSY_CUE_DYING)
+      bcue_state = short_wait_for_busy_thread();
+
+    if((bcue_state == BUSY_CUE_OFF) && message_queue){
+
+	/* flush out pending removals */
+	the_last_one = 0;	/* loop control */
+	q = message_queue;
+	last_one = message_queue->prev;
+	while(!the_last_one){
+	    if(q == last_one)
+	      the_last_one++;
+
+	    if(q->pending_removal){
+		p = q;
+		if(q == q->next){	/* last item in queue */
+		    q = message_queue = NULL;
+		}
+		else{
+		    p->next->prev = p->prev;
+		    q = p->prev->next = p->next;	/* here's the increment */
+		    if(message_queue == p)
+		      message_queue = q;
+		}
+
+		if(p){
+		    if(p->text)
+		      fs_give((void **) &p->text);
+
+		    fs_give((void **) &p);
+		}
+	    }
+	    else
+	      q = q->next;
 	}
     }
 }
-
 
 
 /*----------------------------------------------------------------------
@@ -732,9 +846,12 @@ output_message(SMQ_T *mq_entry)
     dprint((9, "output_message(%s)\n",
 	   (mq_entry && mq_entry->text) ? mq_entry->text : "?"));
 
-    if((mq_entry->flags & SM_DING) && F_OFF(F_QUELL_BEEPS, ps_global))
-      Writechar(BELL, 0);			/* ring bell */
-      /* flush() handled below */
+    if((mq_entry->flags & SM_DING) && F_OFF(F_QUELL_BEEPS, ps_global)){
+	Writechar(BELL, 0);			/* ring bell */
+	/* make sure we only ring bell once */
+	mq_entry->flags &= ~SM_DING;
+	fflush(stdout);
+    }
 
     if(!(mq_entry->flags & SM_MODAL)){
 	rv = status_message_write(mq_entry->text, 0);
@@ -801,7 +918,7 @@ output_message(SMQ_T *mq_entry)
 		
 		add_review_message(m->text, -1);
 		
-		if (p = strstr(m->text, "[ALERT]")){
+		if((p = strstr(m->text, "[ALERT]")) != NULL){
 		    snprintf(t, SIZEOF_20KBUF-(t-tmp_20k_buf), "%*.*s\n", indent + p - m->text, p - m->text, m->text);
 		    tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
 		    t += strlen(t);
@@ -857,6 +974,7 @@ output_message(SMQ_T *mq_entry)
 	fs_give((void **)&s);
 	ps_global->mangled_screen = 1;
     }
+
     return(rv);
 }
 

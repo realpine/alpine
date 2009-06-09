@@ -1,10 +1,10 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pico.c 537 2007-04-24 23:27:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pico.c 672 2007-08-15 23:07:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -509,7 +509,6 @@ execute(UCS c, int f, int n)
 {
     KEYTAB *ktp;
     int     status, ww;
-    EML     eml;
 
     ktp = (Pmaster) ? &keytab[0] : &pkeytab[0];
 
@@ -822,7 +821,7 @@ isquotedspace(LINE *line)
 int
 cleanwhitespace(void)
 {
-    LINE *cur_line = NULL, *cursor_dotp = NULL, **lp = NULL;
+    LINE *cursor_dotp = NULL, **lp = NULL;
     int i = 0, cursor_doto = 0, is_cursor_line = 0;
     int do_space_stuffing = 0;
 
@@ -1076,7 +1075,7 @@ clear_mfunc(mousehandler_t f)
 {
     MENUITEM *mp, *tp;
 
-    if(mp = mfunc){
+    if((mp = mfunc) != NULL){
 	if(mp->action == f)
 	  mfunc = mp->next;
 	else
@@ -1435,7 +1434,7 @@ register_key(int i, unsigned rval, char *label, void (*label_printer)(),
       size_t len;
 
       len = strlen(label);
-      if(menuitems[i].label = (char *)malloc((len+1)*sizeof(char))){
+      if((menuitems[i].label = (char *)malloc((len+1)*sizeof(char))) != NULL){
 	strncpy(menuitems[i].label, label, len);
 	menuitems[i].label[len] = '\0';
       }
@@ -1486,7 +1485,7 @@ pico_get(void)
    PICOTEXT *wp = NULL;
    LINE     *lp = NULL;
 
-   if(wp = (PICOTEXT *)malloc(sizeof(PICOTEXT))){
+   if((wp = (PICOTEXT *)malloc(sizeof(PICOTEXT))) != NULL){
        wp->crinread = 0;
        if((lp = lalloc(0)) == NULL){
 	   free(wp);

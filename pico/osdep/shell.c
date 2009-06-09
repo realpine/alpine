@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: shell.c 421 2007-02-05 22:53:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: shell.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,13 @@ static char rcsid[] = "$Id: shell.c 421 2007-02-05 22:53:41Z hubert@u.washington
 #include "../edef.h"
 #include "../efunc.h"
 #include "../keydefs.h"
+
+#include "tty.h"
+#include "signals.h"
+
+#ifdef	_WINDOWS
+#include "mswin.h"
+#endif
 
 #include "shell.h"
 

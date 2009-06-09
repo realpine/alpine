@@ -1,10 +1,10 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: attach.c 417 2007-02-03 01:33:25Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: attach.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -132,7 +132,7 @@ AskAttach(char *cmnt, size_t cmntlen, LMLIST **lm)
 	  case (CTRL|'I') :
 	    if(i == 2){
 		char *fname, *p;
-		int   dirlen, l;
+		int   dirlen;
 	       
 		bfn[0] = '\0';
 		if(*fn && (p = strrchr(fn, C_FILESEP))){
@@ -230,9 +230,9 @@ AskAttach(char *cmnt, size_t cmntlen, LMLIST **lm)
 		new->next = NULL;
 		*lm = new;
 
-		strncat(fn, S_FILESEP, sizeof(fn)-strlen(fn));
+		strncat(fn, S_FILESEP, sizeof(fn)-strlen(fn)-1);
 		fn[sizeof(fn)-1] = '\0';
-		strncat(fn, bfn, sizeof(fn)-strlen(fn));
+		strncat(fn, bfn, sizeof(fn)-strlen(fn)-1);
 		fn[sizeof(fn)-1] = '\0';
 		if(!AttachUpload(fn, sizeof(fn), sz, sizeof(sz))){              
 		  i = 2;                  /* keep prompting for file */
@@ -307,7 +307,7 @@ AskAttach(char *cmnt, size_t cmntlen, LMLIST **lm)
 		    if(*fn == '\"' && fn[strlen(fn)-1] == '\"'){
 			int j;
 
-			for(j = 0; fn[j] = fn[j+1]; j++)
+			for(j = 0; (fn[j] = fn[j+1]); j++)
 			  ;
 
 			fn[j-1] = '\0';
@@ -426,7 +426,8 @@ SyncAttach(void)
         bi = 0,					/* build array index         */
         nbld = 0,		                /* size of build array       */
         na,					/* old number of attachmnt   */
-        status, i, j, n = 0;
+        status, i, n = 0;
+    size_t j;
     char file[NLINE],				/* buffers to hold it all    */
          size[32],
          comment[1024];
@@ -491,8 +492,8 @@ SyncAttach(void)
 	    }
 	}
 	
-	if(status = ParseAttach(&lp, &offset, file, sizeof(file), size, sizeof(size),
-				comment, sizeof(comment), &na))
+	if((status = ParseAttach(&lp, &offset, file, sizeof(file), size, sizeof(size),
+				comment, sizeof(comment), &na)) != 0)
 	    rv = (rv < 0) ? rv : status ;       /* remember worst case */
 
 	if(*file == '\0'){
@@ -946,7 +947,7 @@ process_tag:					/* enclosed in []         */
 			    break;
 			}
 
-			strncat(fn, "]", fnlen-strlen(fn));
+			strncat(fn, "]", fnlen-strlen(fn)-1);
 			fn[fnlen-1] = '\0';
 
 			/*
@@ -1434,7 +1435,7 @@ sinserts(UCS *ds,				/* dest string */
 	 int sl)				/* length of ss */
 {
     UCS *dp, *edp;				/* pointers into dest. */
-    int  j;					/* jump difference */
+    size_t j;					/* jump difference */
 
     if(sl >= dl){				/* source bigger than dest. */
 	dp = ds + dl;				/* shift dest. to make room */

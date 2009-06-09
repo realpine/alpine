@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: lstcmpnt.c 140 2006-09-26 19:30:49Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: lstcmpnt.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +14,9 @@ static char rcsid[] = "$Id: lstcmpnt.c 140 2006-09-26 19:30:49Z hubert@u.washing
  *
  * ========================================================================
  */
+
+#include <system.h>
+#include <general.h>
 
 #include <string.h>
 #include "lstcmpnt.h"
@@ -46,7 +49,7 @@ last_cmpnt(char *filename)
     if(!q)
       return(q);
 
-    while(q = strchr(q, FILE_SEP))
+    while((q = strchr(q, FILE_SEP)) != NULL)
       if(*++q)
 	p = q;
 

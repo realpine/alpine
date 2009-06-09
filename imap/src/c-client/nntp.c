@@ -23,7 +23,7 @@
  *		Internet: MRC@CAC.Washington.EDU
  *
  * Date:	10 February 1992
- * Last Edited:	28 June 2007
+ * Last Edited:	15 August 2007
  */
 
 
@@ -2036,7 +2036,7 @@ long nntp_send_auth_work (SENDSTREAM *stream,NETMBX *mb,char *pwd,long flags)
 	fs_give ((void **) &lsterr);
       }
       stream->saslcancel = NIL;
-      if (nntp_send (stream,"AUTHINFO SASL",at->name)) {
+      if (nntp_send (stream,"AUTHINFO SASL",at->name) == NNTPCHALLENGE) {
 				/* hide client authentication responses */
 	if (!(at->flags & AU_SECURE)) stream->sensitive = T;
 	if ((*at->client) (nntp_challenge,nntp_response,"nntp",mb,stream,

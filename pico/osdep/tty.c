@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: tty.c 217 2006-11-04 02:52:05Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: tty.c 672 2007-08-15 23:07:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,9 +31,15 @@ static char rcsid[] = "$Id: tty.c 217 2006-11-04 02:52:05Z jpf@u.washington.edu 
 #ifndef _WINDOWS
 #include "terminal.h"
 #include "raw.h"
+#include "read.h"
 #else
 #include "mswin.h"
 #endif /* _WINDOWS */
+
+#ifdef MOUSE
+#include "mouse.h"
+#endif /* MOUSE */
+
 #include "tty.h"
 
 

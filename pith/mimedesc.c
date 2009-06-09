@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mimedesc.c 579 2007-05-23 18:06:55Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: mimedesc.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ static char rcsid[] = "$Id: mimedesc.c 579 2007-05-23 18:06:55Z mikes@u.washingt
 #include "../pith/rfc2231.h"
 #include "../pith/editorial.h"
 #include "../pith/mailpart.h"
+#include "../pith/mailcap.h"
 
 
 /* internal prototypes */
@@ -216,7 +217,7 @@ describe_mime(struct mail_bodystruct *body, char *prefix, int num,
 	    /*
 	     * This test remains for backward compatibility
 	     */
-	    if(value = body_parameter(body, "name")){
+	    if((value = body_parameter(body, "name")) != NULL){
 		named = strucmp(value, "Message Body");
 		fs_give((void **) &value);
 	    }
@@ -471,7 +472,7 @@ type_desc(int type, char *subtype, struct mail_body_parameter *params,
 
       case TYPEMESSAGE:
 	if(full && subtype && strucmp(subtype, "external-body") == 0)
-	  if(parmval = rfc2231_get_param(params, "access-type", NULL, NULL)){
+	  if((parmval = rfc2231_get_param(params, "access-type", NULL, NULL)) != NULL){
 	      snprintf(p, sizeof(type_d)-(p-type_d), " (%s%s)", full ? "Access: " : "", parmval);
 	      fs_give((void **) &parmval);
 	  }
@@ -518,11 +519,12 @@ format_mime_size(char *string, size_t stringlen, struct mail_bodystruct *b, int 
 
     switch(b->encoding){
       case ENCBASE64 :
-	if(b->type == TYPETEXT)
+	if(b->type == TYPETEXT){
 	  if(flags & FMS_SPACE)
 	    *(string-1) = '~';
 	  else
 	    *string++ = '~';
+	}
 
 	strncpy(p = string, byte_string((3 * b->size.bytes) / 4), stringlen-(string-origstring));
 	break;

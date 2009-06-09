@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: altedit.c 602 2007-06-18 18:25:20Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: altedit.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -29,6 +29,9 @@ static char rcsid[] = "$Id: altedit.c 602 2007-06-18 18:25:20Z hubert@u.washingt
 #include "../edef.h"
 #include "../efunc.h"
 #include "../keydefs.h"
+#include "../utf8stub.h"
+#include "tty.h"
+#include "filesys.h"
 
 #ifdef _WINDOWS
 #include "mswin.h"
@@ -48,7 +51,6 @@ static short   pico_child_jmp_ok, pico_child_done;
 
 /* internal prototypes */
 #ifndef _WINDOWS
-int	   pathcat(char *, char **, char *);
 #ifdef	SIGCHLD
 RETSIGTYPE child_handler(int);
 #endif /* SIGCHLD */
@@ -109,7 +111,7 @@ alt_editor(int f, int n)
 	    int	   c;
 
 	    for(lp = Pmaster->alt_ed; *lp && **lp; lp++){
-		if(wsp = strpbrk(*lp, " \t")){
+		if((wsp = strpbrk(*lp, " \t")) != NULL){
 		    c = *wsp;
 		    *wsp = '\0';
 		}
@@ -189,9 +191,9 @@ alt_editor(int f, int n)
 	return(-1);
     }
 
-    strncat(eb, " ", sizeof(eb)-strlen(eb));
+    strncat(eb, " ", sizeof(eb)-strlen(eb)-1);
     eb[sizeof(eb)-1] = '\0';
-    strncat(eb, fn, sizeof(eb)-strlen(eb));
+    strncat(eb, fn, sizeof(eb)-strlen(eb)-1);
     eb[sizeof(eb)-1] = '\0';
 
 
@@ -282,7 +284,7 @@ alt_editor(int f, int n)
 #ifdef	SIGCHLD
 	(void) signal(SIGCHLD,  SIG_DFL);
 #endif
-	if(execl("/bin/sh", "sh", "-c", fname_to_locale(eb), 0) < 0)
+	if(execl("/bin/sh", "sh", "-c", fname_to_locale(eb), (char *) NULL) < 0)
 	  exit(-1);
     }
     else {				/* error! */
@@ -364,7 +366,7 @@ alt_editor(int f, int n)
 		  rc = alt_editor_valid((*lp) + 1, eb, sizeof(eb));
 		  *p = '\"';
 		  if(rc){
-		      strncat(eb, p + 1, sizeof(eb)-strlen(eb));
+		      strncat(eb, p + 1, sizeof(eb)-strlen(eb)-1);
 		      eb[sizeof(eb)-1] = '\0';
 		      break;
 		  }
@@ -382,7 +384,7 @@ alt_editor(int f, int n)
 
 		  if(rc){
 		      if(p){
-			  strncat(eb, p, sizeof(eb)-strlen(eb));
+			  strncat(eb, p, sizeof(eb)-strlen(eb)-1);
 			  eb[sizeof(eb)-1] = '\0';
 		      }
 
@@ -465,9 +467,9 @@ alt_editor(int f, int n)
     else
 #endif /* ALTED_DOT */
     {				/* just here in case ALTED_DOT is defined */
-    strncat(eb, " ", sizeof(eb)-strlen(eb));
+    strncat(eb, " ", sizeof(eb)-strlen(eb)-1);
     eb[sizeof(eb)-1] = '\0';
-    strncat(eb, fn, sizeof(eb)-strlen(eb));
+    strncat(eb, fn, sizeof(eb)-strlen(eb)-1);
     eb[sizeof(eb)-1] = '\0';
     
     status = mswin_exec_and_wait ("alternate editor", eb, NULL, NULL,
@@ -533,7 +535,7 @@ pathcat(char *buf, char **path, char *file)
 	*buf++ = '/';
     }
 
-    while(*buf = *file++){
+    while((*buf = *file++) != '\0'){
 	if(n++ > MAXPATH)
 	  return(FALSE);
 

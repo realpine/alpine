@@ -114,6 +114,9 @@
 /* Default configuration value */
 #undef DF_USE_ONLY_DOMAIN_NAME
 
+/* Interactive, filewise spell checker */
+#undef DF_VAR_SPELLER
+
 /* Define enable dmalloc debugging */
 #undef ENABLE_DMALLOC
 
@@ -126,6 +129,9 @@
 
 /* Enable From address encoding in sent messages */
 #undef ENCODE_FROMS
+
+/* Default configuration value */
+#undef FORWARDED_FLAG
 
 /* Define to 1 if `TIOCGWINSZ' requires <sys/ioctl.h>. */
 #undef GWINSZ_IN_SYS_IOCTL
@@ -420,6 +426,9 @@
 /* Default configuration value */
 #undef INTERRUPTED_MAIL
 
+/* Define if you use OpenLDAP 2.3.x deprecated functions */
+#undef LDAP_DEPRECATED
+
 /* Path to local inboxes for pico newmail check */
 #undef MAILDIR
 
@@ -520,7 +529,7 @@
 /* The size of a `unsigned short', as computed by sizeof. */
 #undef SIZEOF_UNSIGNED_SHORT
 
-/* Program pico uses to check spelling */
+/* Simple spell checker: reads stdin, emits misspellings on stdout */
 #undef SPELLER
 
 /* Define to 1 if the `S_IS*' macros in <sys/stat.h> do not work properly. */

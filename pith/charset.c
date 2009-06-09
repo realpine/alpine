@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: charset.c 469 2007-03-05 17:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: charset.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -211,7 +211,7 @@ rfc1522_decode_to_utf8(unsigned char *d, size_t len, char *s)
 
 	    enc[-1] = txt[-1] = ew[0] = '\0';	/* tie off token strings */
 
-	    if(lang = strchr(cset, '*'))
+	    if((lang = strchr(cset, '*')) != NULL)
 	      *lang++ = '\0';
 
 	    /* based on encoding, write the encoded text to output buffer */
@@ -236,7 +236,7 @@ rfc1522_decode_to_utf8(unsigned char *d, size_t len, char *s)
 		else
 		  q = NULL;
 
-		if(p = rfc822_qprint((unsigned char *)txt, strlen(txt), &l)){
+		if((p = rfc822_qprint((unsigned char *)txt, strlen(txt), &l)) != NULL){
 		    rfc1522_copy_and_transliterate(rv, &d, len, p, l, cset);
 		    fs_give((void **)&p);	/* free encoded buf */
 		}
@@ -258,7 +258,7 @@ rfc1522_decode_to_utf8(unsigned char *d, size_t len, char *s)
 
 	      case 'B' :			/* 'B' encoding */
 	      case 'b' :
-		if(p = rfc822_base64((unsigned char *) txt, strlen(txt), &l)){
+		if((p = rfc822_base64((unsigned char *) txt, strlen(txt), &l)) != NULL){
 		    rfc1522_copy_and_transliterate(rv, &d, len, p, l, cset);
 		    fs_give((void **)&p);	/* free encoded buf */
 		}
@@ -783,7 +783,7 @@ conversion_table(char *from_cs, char *to_cs)
 	default:		/* do mapping */
 	    switch (from->type) {
 	    case CT_UTF8:	/* UTF-8 to legacy character set */
-	      if(ct->table = utf8_rmap (to_cs))
+	      if((ct->table = utf8_rmap (to_cs)) != NULL)
 		ct->convert = gf_convert_utf8_charset;
 	      break;
 
@@ -890,7 +890,7 @@ void
 convert_possibly_encoded_str_to_utf8(char **strp)
 {
     size_t     len, lensrc, lenresult;
-    char      *bufp, *decoded, *new;
+    char      *bufp, *decoded;
 
     if(!strp || !*strp || **strp == '\0')
       return;

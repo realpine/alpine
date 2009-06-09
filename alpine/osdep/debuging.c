@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: debuging.c 453 2007-02-27 00:10:47Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: debuging.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -27,7 +27,11 @@ static char rcsid[] = "$Id: debuging.c 453 2007-02-27 00:10:47Z hubert@u.washing
 #include "../../pith/osdep/canaccess.h"
 
 #include "../../pith/debug.h"
+#include "../../pith/osdep/debugtime.h"
 #include "../../pith/osdep/color.h"
+#include "../../pith/osdep/bldpath.h"
+#include "../../pith/osdep/rename.h"
+#include "../../pith/osdep/filesize.h"
 #include "../../pith/init.h"
 #include "../../pith/status.h"
 #include "../../pith/sort.h"
@@ -84,7 +88,7 @@ init_debug(void)
     }
 
     build_path(filename, ps_global->home_dir, DEBUGFILE, sizeof(filename)-1);
-    strncat(filename, "1", sizeof(filename)-strlen(filename));
+    strncat(filename, "1", sizeof(filename)-1-strlen(filename));
     filename[sizeof(filename)-1] = '\0';
 
     debugfile = NULL;
@@ -171,7 +175,7 @@ save_debug_on_crash(FILE *dfile, int (*keystrokes) (int *, char *, size_t))
 	fputs("========== Latest Keystrokes =========================\n", dfile);
 
 	while((*keystrokes)(&cval, cstr, sizeof(cstr)) != -1){
-	    fprintf(dfile, "\t%s\t(0x%04.4x)\n", cstr, cval);
+	    fprintf(dfile, "\t%s\t(0x%4.4x)\n", cstr, cval);
 	}
     }
 
@@ -212,7 +216,7 @@ save_debug_on_crash(FILE *dfile, int (*keystrokes) (int *, char *, size_t))
 	/*
 	 * Copy the debug temp file into the 
 	 */
-	if(cfp = our_fopen(crashfile, "wb")){
+	if((cfp = our_fopen(crashfile, "wb")) != NULL){
 	    buf[sizeof(buf)-1] = '\0';
 	    fseek(dfile, 0L, 0);
 	    while(fgets(buf, sizeof(buf)-1, dfile) && fputs(buf, cfp) != EOF)
@@ -420,7 +424,7 @@ dump_config(struct pine *ps, gf_io_t pc, int brief)
 
     if(!brief){
 	gf_puts("========== Feature settings ==========\n", pc);
-	for(i = 0; feat = feature_list(i) ; i++)
+	for(i = 0; (feat = feature_list(i)); i++)
 	  if(feat->id != F_OLD_GROWTH){
 	      snprintf(tmp, sizeof(tmp),
 		      "  %.50s%.100s\n", F_ON(feat->id, ps) ? "   " : "no-",

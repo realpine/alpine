@@ -1,8 +1,8 @@
 /*
- * $Id: addrbook.h 473 2007-03-07 23:16:56Z hubert@u.washington.edu $
+ * $Id: addrbook.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,6 +44,14 @@ char          *addr_book_nick_for_edit(char **);
 char          *addr_book_selnick(void);
 char          *abook_select_screen(struct pine *);
 int            abook_nickname_complete(char *, char **, int, unsigned);
+int            is_addr(long);
+long           first_line(long);
+void           ab_resize(void);
+int            cur_addr_book(void);
+int            resync_screen(PerAddrBook *, AddrBookArg, int);
+int            nickname_check(char *, char **);
+int            calculate_field_widths(void);
+void           erase_selections(void);
 
 
 #endif /* PINE_ADDRBOOK_INCLUDED */

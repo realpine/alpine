@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: rpload.c 433 2007-02-08 23:59:30Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: rpload.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -69,6 +69,7 @@ app_main (argc, argv)
  *
  *   Note: We're not worrying about memory leaks.
  */
+int
 main(argc, argv)
     int   argc;
     char *argv[];
@@ -324,6 +325,8 @@ ptype(rtype)
       case Sig:
         ret = cpystr("sig");
 	break;
+      default:
+	break;
     }
 
     return(ret);
@@ -345,6 +348,8 @@ spechdr(rtype)
 	break;
       case Sig:
         ret = cpystr(REMOTE_SIG_SUBTYPE);
+	break;
+      default:
 	break;
     }
 
@@ -655,7 +660,7 @@ write_fake_headers(where, subject, subtype, special_hdr)
     fake_body->type = REMOTE_DATA_TYPE;
     fake_body->subtype = cpystr(subtype);
 
-    snprintf(vers, sizeof(vers), "%ld", REMOTE_DATA_VERS_NUM);
+    snprintf(vers, sizeof(vers), "%d", REMOTE_DATA_VERS_NUM);
 
     /* re-use subtype for special header name, too */
     rfc822_output_header_line(where, special_hdr, 0L, vers);

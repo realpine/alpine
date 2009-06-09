@@ -14,7 +14,7 @@ dnl  */
 
 AC_PREREQ([2.57])
 
-AC_REVISION([$Id: configure.ac 614 2007-06-28 00:48:15Z mikes@u.washington.edu $])
+AC_REVISION([$Id: configure.ac 680 2007-08-21 22:13:29Z mikes@u.washington.edu $])
 
 dnl Alpine Version Number is in $srcdir/VERSION
 AC_INIT(alpine, m4_normalize(m4_include([VERSION])), [alpine-contact@cac.washington.edu])
@@ -32,6 +32,23 @@ AC_MSG_NOTICE([Configuring for $PACKAGE_STRING ($host))])
 
 # start out with intent to build Web Alpine
 WEB_BUILD=web/src/alpined.d
+
+dnl CHECK PROGRAMS
+
+AC_PROG_CC
+AC_PROG_CC_STDC
+AC_PROG_INSTALL
+AC_PROG_MAKE_SET
+AC_PROG_LN_S
+AC_PROG_AWK
+AC_PROG_RANLIB
+AC_PROG_LIBTOOL
+
+AC_PATH_PROG(AR, ar, ar)
+AC_PATH_PROG(RM, rm, rm)
+AC_PATH_PROG(CP, cp, cp)
+AC_PATH_PROG(SED, sed, sed)
+AC_PATH_PROG(MAKE, make)
 
 dnl COMPILE-TIME OPTIONS
 
@@ -53,7 +70,7 @@ AC_ARG_WITH(dmalloc-dir,
     if test "x$withval" != "xno" ; then
       enable_dmalloc = "yes"
       CPPFLAGS="$CPPFLAGS -I${withval}"
-      AM_LDFLAGS="$AM_LDFLAGS -L${withval}"
+      LDFLAGS="$LDFLAGS -L${withval}"
     fi
   ])
 
@@ -88,7 +105,7 @@ AC_ARG_WITH(include-path,
       *)
 	new_cppflags="-I`echo ${withval} | ${SED} 's/:/ -I/g'`"
 	CPPFLAGS="$CPPFLAGS ${new_cppflags}"
-	alpine_c_client_cflags="${new_cppflags}"
+	alpine_c_client_cflags="$alpine_c_client_cflags ${new_cppflags}"
 	;;
     esac
   ])
@@ -131,11 +148,12 @@ fi
 
 dnl disable optimization, on by default
 AC_MSG_CHECKING([option: optimization is enabled])
-AC_ARG_ENABLE(optimization, AC_HELP_STRING([--disable-optimization],[Exclude optimizig compiler flags]))
+AC_ARG_ENABLE(optimization, AC_HELP_STRING([--disable-optimization],[Exclude optimizing compiler flags]))
 if test x$enable_optimization != "xno" ; then
   AC_MSG_RESULT([yes])
 else
-  CFLAGS="`echo $AM_CFLAGS | ${SED} -e 's/-O2//'`"
+  CFLAGS="`echo $AM_CFLAGS | ${SED} 's/-O2//'`"
+  alpine_c_client_gccoptlevel="-O0"
   AC_MSG_RESULT([no])
 fi
 
@@ -286,26 +304,74 @@ if test -n "$PWPROG" ; then
     AC_DEFINE_UNQUOTED([PASSWD_PROG], "$PWPROG", [Program users use to change their password])
 fi
 
-dnl OPTION: spell checking program
-AC_ARG_WITH(spellcheck-prog,
-  AC_HELP_STRING([--with-spellcheck-prog=PATH],[Spell checking program (spell)]),
+dnl OPTION: basic spell checking program
+AC_ARG_WITH(simple-spellcheck,
+  AC_HELP_STRING([--with-simple-spellcheck=PATH],[Spellcheck program reads stdin, emits misspellings on stdout]),
     [
-      case "$withval" in
-	no)
-	  ;;
-	yes)
-	  AC_PATH_PROG(SPELLPROG, spell, "", $PATH:/usr/sbin:/usr/lib)
-	  ;;
-	*)
-	  AC_PATH_PROG(SPELLPROG, $withval, $withval, $PATH:/usr/sbin:/usr/lib)
-	  ;;
-      esac
+      if test "x$withval" != "xno" ; then
+        SPELLPROG=$withval
+      fi
     ],
     [
-	  AC_PATH_PROG(SPELLPROG, spell, "", $PATH:/usr/sbin:/usr/lib)
+      SPELLPROG=yes
     ])
-if test -n "$SPELLPROG" ; then
-    AC_DEFINE_UNQUOTED([SPELLER], "$SPELLPROG", [Program pico uses to check spelling])
+
+case "$SPELLPROG" in
+  no)
+    ;;
+  yes)
+    AC_PATH_PROG(alpine_simple_spellcheck, [aspell])
+    if test -n "$alpine_simple_spellcheck" ; then
+      alpine_simple_spellcheck="$alpine_simple_spellcheck --mode=email list"
+    else
+      AC_PATH_PROG(alpine_simple_spellcheck, [ispell])
+      if test -n "$alpine_simple_spellcheck" ; then
+        alpine_simple_spellcheck="$alpine_simple_spellcheck -l"
+      else
+        AC_PATH_PROG(alpine_simple_spellcheck, [spell])
+      fi
+    fi
+    ;;
+  *)
+    AC_PATH_PROG(alpine_simple_spellcheck, $SPELLPROG)
+    ;;
+esac
+
+dnl OPTION: interactive spell checking program
+AC_ARG_WITH(interactive-spellcheck,
+  AC_HELP_STRING([--with-interactive-spellcheck=PATH],[Interactive, filewise spell checker]),
+    [
+      if test "x$withval" != "xno" ; then
+        ISPELLPROG=$withval
+      fi
+    ],
+    [
+      ISPELLPROG=yes
+    ])
+
+case "$ISPELLPROG" in
+  no)
+    ;;
+  yes)
+    AC_PATH_PROG(alpine_interactive_spellcheck, [aspell])
+    if test -n "$alpine_interactive_spellcheck" ; then
+      alpine_interactive_spellcheck="$alpine_interactive_spellcheck --mode=email check"
+    else
+      AC_PATH_PROG(alpine_interactive_spellcheck, [ispell])
+    fi
+    ;;
+  *)
+    AC_PATH_PROG(alpine_interactive_spellcheck, $withval)
+    ;;
+esac
+
+if test -z "$alpine_simple_spellcheck" -a -n "$alpine_interactive_spellcheck" ; then
+  alpine_simple_spellcheck=test
+fi
+AC_DEFINE_UNQUOTED([SPELLER], "$alpine_simple_spellcheck", [Simple spell checker: reads stdin, emits misspellings on stdout])
+
+if test -n "$alpine_interactive_spellcheck" ; then
+    AC_DEFINE_UNQUOTED([DF_VAR_SPELLER], "$alpine_interactive_spellcheck", [Interactive, filewise spell checker])
 fi
 
 dnl OPTION: system-pinerc
@@ -398,6 +464,7 @@ PINEVAR_UNQUOTED(max_fill-column, MAX_FILLCOL, 80, [Maximum fill column])
 PINEVAR_UNQUOTED(debug-level, DEFAULT_DEBUG, 2, [Specify default debug verbosity level])
 PINEVAR_UNQUOTED(debug-files, NUMDEBUGFILES, 4, [Specify number of debug files])
 PINEVAR(debug-file, DEBUGFILE, [.pine-debug], [Specify debug file name])
+PINEVAR(forwarded-keyword, FORWARDED_FLAG, ["\$Forwarded"], [IMAP (c-client) keyword to store forwarded status])
 PINEVAR(display-overlap, DF_OVERLAP, [2], [Lines preserved while paging])
 PINEVAR(display-margin, DF_MARGIN, [0], [Lines visible while scrolling])
 PINEVAR(default-fcc, DF_DEFAULT_FCC, [sent-mail], [Default sent mail folder])
@@ -699,23 +766,6 @@ else
 fi
 
 
-dnl CHECK PROGRAMS
-
-AC_PROG_CC
-AC_PROG_CC_STDC
-AC_PROG_INSTALL
-AC_PROG_MAKE_SET
-AC_PROG_LN_S
-AC_PROG_AWK
-AC_PROG_RANLIB
-AC_PROG_LIBTOOL
-
-AC_PATH_PROG(AR, ar, ar)
-AC_PATH_PROG(RM, rm, rm)
-AC_PATH_PROG(CP, cp, cp)
-AC_PATH_PROG(SED, sed, sed)
-AC_PATH_PROG(MAKE, make)
-
 dnl CHECK LIBRARIES
 
 if test x$enable_dmalloc = "xyes" ; then
@@ -788,6 +838,37 @@ if test "$alpine_with_ldap" = "yes" ; then
   if test "$alpine_has_ldap" = "yes" ; then
     AC_MSG_NOTICE([Including LDAP Support])
     AC_DEFINE([ENABLE_LDAP], [], [Enable LDAP query support])
+
+    dnl we use deprecated functions (ldap_get_values)
+    dnl OpenLDAP 2.3.x doesn't define LDAP_DEPRECATED by default like 2.2.x
+    AC_MSG_CHECKING([if we should define LDAP_DEPRECATED])
+    AC_RUN_IFELSE(
+	[AC_LANG_SOURCE([[
+#include <stdio.h>
+#include <string.h>
+#include <ldap.h>
+int main(void) {
+
+	if (LDAP_VENDOR_VERSION >= 20300)
+		exit(0);
+
+	exit(2);
+}
+	]])],
+	[
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(LDAP_DEPRECATED, 1,
+		[Define if you use OpenLDAP 2.3.x deprecated functions])
+
+	],
+	[
+		AC_MSG_RESULT(no)
+	],
+	[
+		AC_MSG_WARN([cross compiling: not checking])
+	]
+    )
+
   else
     AC_MSG_NOTICE([Cannot find LDAP functions!  Excluding LDAP support.])
   fi
@@ -1240,10 +1321,6 @@ AC_DEFINE_UNQUOTED([S_FILESEP],"$alpine_path_delim",[File name separator as stri
 AC_DEFINE_UNQUOTED([MAILDIR],"$alpine_local_maildir",[Path to local inboxes for pico newmail check])
 AC_DEFINE_UNQUOTED([MODE_READONLY], $alpine_mode_readonly, [File mode used to set readonly access])
 
-if test -n "$alpine_c_client_cflags" ; then
-  c_client_specials="${c_client_specials}EXTRACFLAGS=$EXTRACFLAGS $alpine_c_client_cflags "
-fi
-
 dnl c-client make particulars
 AC_SUBST([C_CLIENT_TARGET], $alpine_c_client_target)
 AC_SUBST([C_CLIENT_WITH_IPV6], $c_client_ip6)
@@ -1299,6 +1376,14 @@ fi
 if test "x$alpine_GSSTYPE" != "xnone" ; then
   c_client_specials="${c_client_specials}EXTRAAUTHENTICATORS=gss "
   AC_MSG_NOTICE([* * * Including Kerberos5 functionality])
+fi
+
+if test -n "$alpine_c_client_cflags" ; then
+  AC_SUBST(C_CLIENT_CFLAGS, EXTRACFLAGS=\"$alpine_c_client_cflags\")
+fi
+
+if test -n "$alpine_c_client_gccoptlevel" ; then
+  AC_SUBST(C_CLIENT_GCCOPTLEVEL, GCCOPTLEVEL=\"$alpine_c_client_gccoptlevel\")
 fi
 
 AC_SUBST([C_CLIENT_SPECIALS], $c_client_specials)

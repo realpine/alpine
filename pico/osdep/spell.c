@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: spell.c 418 2007-02-03 01:51:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: spell.c 672 2007-08-15 23:07:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,16 +21,20 @@ static char rcsid[] = "$Id: spell.c 418 2007-02-03 01:51:18Z hubert@u.washington
 #include <system.h>
 #include <general.h>
 
+#include "../headers.h"
+/*
 #include "../estruct.h"
 #include "../mode.h"
 #include "../pico.h"
 #include "../edef.h"
 #include "../efunc.h"
 #include "../keydefs.h"
+*/
 
 #include "../../pith/charconv/filesys.h"
 
 #include "popen.h"
+#include "altedit.h"
 #include "spell.h"
 
 
@@ -85,8 +89,7 @@ int
 spell(int f, int n)
 {
     int    status, next, ret;
-    FILE  *p;
-    char   ccb[NLINE], *sp, *fn;
+    char   ccb[NLINE], *sp, *fn, *lp, *wsp, c, spc[NLINE];
     UCS   *b;
     UCS    wb[NLINE], cb[NLINE];
     EML    eml;
@@ -105,7 +108,38 @@ spell(int f, int n)
     if((sp = (char *)getenv("SPELL")) == NULL)
       sp = SPELLER;
 
-    if(fexist(sp, "x", (off_t *)NULL) != FIOSUC){
+    /* exists? */
+    ret = (strlen(sp) + 1);
+    snprintf(spc, sizeof(spc), "%s", sp);
+
+    for(lp = spc, ret = FIOERR; *lp; lp++){
+	if((wsp = strpbrk(lp, " \t")) != NULL){
+	    c = *wsp;
+	    *wsp = '\0';
+	}
+
+	if(strchr(lp, '/')){
+	    ret = fexist(lp, "x", (off_t *)NULL);
+	}
+	else{
+	    char *path, fname[MAXPATH+1];
+
+	    if(!(path = getenv("PATH")))
+	      path = ":/bin:/usr/bin";
+
+	    ret = ~FIOSUC;
+	    while(ret != FIOSUC && *path && pathcat(fname, &path, lp))
+	      ret = fexist(fname, "x", (off_t *)NULL);
+	}
+
+	if(wsp)
+	  *wsp = c;
+
+	if(ret == FIOSUC)
+	  break;
+    }
+
+    if(ret != FIOSUC){
 	eml.s = sp;
         emlwrite(_("\007Spell-checking file \"%s\" not found"), &eml);
 	return(-1);
@@ -161,7 +195,7 @@ spell(int f, int n)
 		p = utf8_to_ucs4_cpystr(_("Edit a replacement: "));
 		status=mlreplyd(p, cb, NLINE, QDEFLT, NULL);
 		if(p)
-		  fs_give((void **) p);
+		  fs_give((void **) &p);
 	    }
 
 

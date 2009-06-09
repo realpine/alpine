@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: main.c 537 2007-04-24 23:27:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: main.c 672 2007-08-15 23:07:18Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -28,7 +28,11 @@ static char rcsid[] = "$Id: main.c 537 2007-04-24 23:27:18Z hubert@u.washington.
  */
 
 #include	"headers.h"
+#include	"../c-client/mail.h"
+#include	"../c-client/rfc822.h"
+#include	"../pith/osdep/collate.h"
 #include	"../pith/charconv/filesys.h"
+#include	"../pith/conf.h"
 
 
 /*
@@ -313,7 +317,7 @@ main(int argc, char *argv[])
 	else{
 	    strncpy(bp->b_fname, file_to_edit, sizeof(bp->b_fname));
 	    bp->b_fname[sizeof(bp->b_fname)-1] = '\0';
-	    if ((gmode&MDTREE) && !in_oper_tree(file_to_edit) ||
+	    if (((gmode&MDTREE) && !in_oper_tree(file_to_edit)) ||
 		readin(file_to_edit, (viewflag==FALSE), TRUE) == ABORT) {
 		if ((gmode&MDTREE) && !in_oper_tree(file_to_edit)){
 		    EML eml;
@@ -818,7 +822,6 @@ pico_display_args_err(char *s, char **a, int err)
     char  errstr[256], *errp;
     FILE *fp = err ? stderr : stdout;
 #ifdef _WINDOWS
-#define SIZEOF_20KBUF 20480
     char         tmp_20k_buf[SIZEOF_20KBUF];
 #endif
 
@@ -836,9 +839,9 @@ pico_display_args_err(char *s, char **a, int err)
         strncpy(tmp_20k_buf, *a++, SIZEOF_20KBUF);
 	tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
         while(a && *a){
-            strncat(tmp_20k_buf, "\n", SIZEOF_20KBUF);
+            strncat(tmp_20k_buf, "\n", SIZEOF_20KBUF-strlen(tmp_20k_buf)-1);
 	    tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
-            strncat(tmp_20k_buf, *a++, SIZEOF_20KBUF);
+            strncat(tmp_20k_buf, *a++, SIZEOF_20KBUF-strlen(tmp_20k_buf)-1);
 	    tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
         }
 

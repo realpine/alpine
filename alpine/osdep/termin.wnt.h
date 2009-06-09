@@ -23,15 +23,7 @@
 
 
 /* exported prototypes */
-int		init_tty_driver(struct pine *);
-void		end_tty_driver(struct pine *);
-int		PineRaw(int);
-UCS             read_char(int);
 void            flush_input(void);
-void		init_keyboard(int);
-void		end_keyboard(int);
-int		pre_screen_config_opt_enter(char *, int, char *,
-					    ESCKEY_S *, HelpType, int *);
 int             win_dialog_opt_enter(char *, int, char *, ESCKEY_S *, HelpType, int *);
 void            intr_proc(int);
 

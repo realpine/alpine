@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: news.c 155 2006-09-29 23:28:46Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: news.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -78,7 +78,7 @@ news_in_folders(struct variable *var)
       return(found_news);
 
     for(i=0; !found_news && var->current_val.l[i]; i++){
-	if(tc = new_context(var->current_val.l[i], NULL)){
+	if((tc = new_context(var->current_val.l[i], NULL)) != NULL){
 	    if(tc->use & CNTXT_NEWS)
 	      found_news++;
 	    
@@ -223,9 +223,9 @@ news_grouper(char *given_group, char **expanded_group, char **error,
 		server++){
 		snprintf(ng_ref, sizeof(ng_ref), "{%.*s/nntp}#news.",
 			sizeof(ng_ref)-30, *server);
-		if(stream = pine_mail_open(stream, ng_ref,
+		if((stream = pine_mail_open(stream, ng_ref,
 					   OP_HALFOPEN|SP_USEPOOL|SP_TEMPUSE,
-					   NULL))
+					   NULL)) != NULL)
 		  break;
 	    }
 	    if(!server || !stream){
@@ -339,7 +339,7 @@ news_grouper(char *given_group, char **expanded_group, char **error,
       *error = cpystr(ng_error);
 
 done:
-    while(ntmp = nglist){
+    while((ntmp = nglist) != NULL){
 	nglist = nglist->next;
 	fs_give((void **)&ntmp->groupname);
 	fs_give((void **)&ntmp);

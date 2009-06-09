@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: alpineldap.c 391 2007-01-25 03:53:59Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: alpineldap.c 701 2007-08-31 18:52:30Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -90,6 +90,7 @@ peDestroyUserContext(pps)
 {
 }
 
+int
 main(argc, argv)
      int   argc;
      char *argv[];
@@ -149,7 +150,7 @@ main(argc, argv)
       usage = 1;
       goto done;
     }
-    if(pname = peLdapPname(userid, domain ? domain : ps_global->VAR_USER_DOMAIN)){
+    if((pname = peLdapPname(userid, domain ? domain : ps_global->VAR_USER_DOMAIN)) != NULL){
       fprintf(stdout, "%s\n", pname);
       fs_give((void **)&pname);
     }

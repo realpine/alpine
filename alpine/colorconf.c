@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: colorconf.c 611 2007-06-26 22:55:13Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: colorconf.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -26,27 +26,23 @@ static char rcsid[] = "$Id: colorconf.c 611 2007-06-26 22:55:13Z hubert@u.washin
 #include "../pith/state.h"
 #include "../pith/util.h"
 #include "../pith/color.h"
+#include "../pith/icache.h"
+#include "../pith/mailcmd.h"
+#include "../pith/list.h"
 
 
 /*
  * Internal prototypes
  */
-char	       *sample_text(struct pine *, struct variable *);
 char	       *color_setting_text_line(struct pine *, struct variable *);
 void	        revert_to_saved_color_config(struct pine *, SAVED_CONFIG_S *);
 SAVED_CONFIG_S *save_color_config_vars(struct pine *);
 void	        free_saved_color_config(struct pine *, SAVED_CONFIG_S **);
 void	        color_config_init_display(struct pine *, CONF_S **, CONF_S **);
-char	       *color_parenthetical(struct variable *);
 void	        add_header_color_line(struct pine *, CONF_S **, char *, int);
-void	        add_color_setting_disp(struct pine *, CONF_S **, struct variable *, CONF_S *,
-				       struct key_menu *, struct key_menu *, HelpType,
-				       int, int, char *, char *, int);
 int     	is_rgb_color(char *);
 char	       *new_color_line(char *, int, int, int);
 int	        color_text_tool(struct pine *, int, CONF_S **, unsigned);
-int	        color_holding_var(struct pine *, struct variable *);
-int	        color_related_var(struct pine *, struct variable *);
 int             offer_normal_color_for_var(struct pine *, struct variable *);
 int             offer_none_color_for_var(struct pine *, struct variable *);
 void		color_update_selected(struct pine *, CONF_S *, char *, char *, int);
@@ -84,6 +80,8 @@ color_config_screen(struct pine *ps, int edit_exceptions)
 	    break;
 	  case Post:
 	    prc = ps->post_prc;
+	    break;
+	  default:
 	    break;
 	}
 
@@ -140,9 +138,9 @@ sample_text(struct pine *ps, struct variable *v)
     pvalfg = PVAL(v, ew);
     pvalbg = PVAL(v+1, ew);
 
-    if(v && v->name &&
-       (srchstr(v->name, "-foreground-color") &&
-	(pvalfg && pvalfg[0] && pvalbg && pvalbg[0])) ||
+    if((v && v->name &&
+        srchstr(v->name, "-foreground-color") &&
+	pvalfg && pvalfg[0] && pvalbg && pvalbg[0]) ||
        (v == &ps->vars[V_VIEW_HDR_COLORS] || v == &ps->vars[V_KW_COLORS]))
       ret = SAMP1;
 
@@ -799,9 +797,12 @@ add_color_setting_disp(struct pine *ps, CONF_S **ctmp, struct variable *var,
     int             i, lv, count, trans_is_on, transparent;
     char	    tmp[100+1];
     char           *title   = _("HELP FOR SETTING UP COLOR");
-    char           *pvalfg, *pvalbg;
     int             fg_is_custom = 1, bg_is_custom = 1;
+#ifdef	_WINDOWS
     CONF_S         *cl_custom = NULL;
+#else
+    char           *pvalfg, *pvalbg;
+#endif
 
 
     /* find longest value's name */
@@ -1273,7 +1274,7 @@ color_setting_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 	}
 	
 	if(setv){
-	    if(apval = APVAL(setv, ew)){
+	    if((apval = APVAL(setv, ew)) != NULL){
 		if(setv->current_val.p)
 		  *apval = cpystr(setv->current_val.p);
 		else if (setv == fgv && ps_global->VAR_NORM_FORE_COLOR)
@@ -2453,7 +2454,9 @@ void
 color_update_selected(struct pine *ps, CONF_S *cl, char *fg, char *bg, int cleardef)
 {
     int i, fg_is_custom = 1, bg_is_custom = 1;
+#ifdef	_WINDOWS
     CONF_S *cl_custom = NULL;
+#endif
 
     /* back up to header line */
     for(; cl && (cl->flags & CF_DOUBLEVAR); cl = prev_confline(cl))

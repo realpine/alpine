@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: remote.c 442 2007-02-16 23:01:28Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: remote.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -472,7 +472,6 @@ rd_read_metadata(REMDATA_S *rd)
 {
     REMDATA_META_S *rab = NULL;
     int             try_cache = 0;
-    struct variable *vars = ps_global->vars;
 
     dprint((7, "rd_read_metadata \"%s\"\n",
 	   (rd && rd->rn) ? rd->rn : "?"));
@@ -616,11 +615,10 @@ rd_write_metadata(REMDATA_S *rd, int delete_it)
 {
     char *tempfile;
     FILE *fp_old = NULL, *fp_new = NULL;
-    char *p, *pinerc_dir = NULL, *metafile = NULL;
+    char *p = NULL, *pinerc_dir = NULL, *metafile = NULL;
     char *rel_filename, *key;
     char  line[MAILTMPLEN];
     int   fd;
-    struct variable *vars = ps_global->vars;
 
     dprint((7, "rd_write_metadata \"%s\"\n",
 	   (rd && rd->rn) ? rd->rn : "?"));
@@ -846,8 +844,6 @@ rd_find_our_metadata(char *key, long unsigned int *flags)
 
     if(!(key && *key))
       return rab;
-
-try_once_more:
 
     if(!(pith_opt_rd_metadata_name && (metafile = (*pith_opt_rd_metadata_name)()) != NULL))
       return rab;
@@ -1352,7 +1348,7 @@ rd_init_remote(REMDATA_S *rd, int add_only_first_msg)
      */
     if(!err && !add_only_first_msg){
 	char *tempfile = NULL;
-	int   fd;
+	int   fd = -1;
 
 	if(rd->flags & NO_FILE){
 	    if(so_truncate(rd->sonofile, 0L) == 0)
@@ -2586,8 +2582,8 @@ try_looking_in_stream:
 		 */
 		we_cancel = busy_cue(NULL, NULL, 1);
 		ps_global->noshow_error = 1;
-		if(rd->t.i.stream = context_open(NULL, NULL, rd->rn, openmode,
-						 NULL)){
+		if((rd->t.i.stream = context_open(NULL, NULL, rd->rn, openmode,
+						 NULL)) != NULL){
 		    imapuid_t last_msg_uid;
 
 		    if(rd->t.i.stream->rdonly)
@@ -2791,8 +2787,8 @@ rd_check_for_suspect_data(REMDATA_S *rd)
     fields[1] = "received";
     fields[2] = NULL;
     cookie = 0L;
-    if(h=pine_fetchheader_lines(rd->t.i.stream, rd->t.i.stream->nmsgs,
-				NULL, fields)){
+    if((h=pine_fetchheader_lines(rd->t.i.stream, rd->t.i.stream->nmsgs,
+				NULL, fields)) != NULL){
 	simple_header_parse(h, fields, values);
 	if(values[1])				/* Received lines present! */
 	  ans = rd_prompt_about_forged_remote_data(-1, rd, NULL);

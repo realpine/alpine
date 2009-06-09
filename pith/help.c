@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: help.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: help.c 664 2007-08-10 20:25:26Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -20,7 +20,6 @@ static char rcsid[] = "$Id: help.c 380 2007-01-23 00:09:18Z hubert@u.washington.
 #include "../pith/flag.h"
 #include "../pith/conf.h"
 #include "../pith/sort.h"
-#include "../pith/status.h"
 
 
 REV_MSG_S rmjoarray[RMJLEN];	/* For regular journal */

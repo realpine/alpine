@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: dispfilt.c 442 2007-02-16 23:01:28Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: dispfilt.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -29,9 +29,12 @@ static char rcsid[] = "$Id: dispfilt.c 442 2007-02-16 23:01:28Z hubert@u.washing
 #include "../pith/store.h"
 #include "../pith/addrstring.h"
 #include "../pith/rfc2231.h"
+#include "../pith/list.h"
+#include "../pith/detach.h"
 
 #include "mailview.h"
 #include "signal.h"
+#include "busy.h"
 #include "dispfilt.h"
 
 
@@ -55,7 +58,7 @@ dfilter(char *rawcmd, STORE_S *input_so, gf_io_t output_pc, FILTLIST_S *aux_filt
     char *status = NULL, *cmd, *resultf = NULL, *tmpfile = NULL;
     int   key = 0;
 
-    if(cmd = expand_filter_tokens(rawcmd,NULL,&tmpfile,&resultf,NULL,&key,NULL)){
+    if((cmd = expand_filter_tokens(rawcmd,NULL,&tmpfile,&resultf,NULL,&key,NULL)) != NULL){
 	suspend_busy_cue();
 #ifndef	_WINDOWS
 	ps_global->mangled_screen = 1;
@@ -78,7 +81,7 @@ dfilter(char *rawcmd, STORE_S *input_so, gf_io_t output_pc, FILTLIST_S *aux_filt
 
 	    /* write the tmp file */
 	    so_seek(input_so, 0L, 0);
-	    if(tmpf_so = so_get(FileStar, tmpfile, WRITE_ACCESS|OWNER_ONLY|WRITE_TO_LOCALE)){
+	    if((tmpf_so = so_get(FileStar, tmpfile, WRITE_ACCESS|OWNER_ONLY|WRITE_TO_LOCALE)) != NULL){
 	        if(key){
 		    so_puts(tmpf_so, filter_session_key());
                     so_puts(tmpf_so, NEWLINE);
@@ -95,12 +98,12 @@ dfilter(char *rawcmd, STORE_S *input_so, gf_io_t output_pc, FILTLIST_S *aux_filt
 
 		/* prepare the terminal in case the filter uses it */
 		if(status == NULL){
-		    if(filter_pipe = open_system_pipe(cmd, NULL, NULL,
+		    if((filter_pipe = open_system_pipe(cmd, NULL, NULL,
 						      PIPE_USER | PIPE_RESET,
-						      0, pipe_callback, NULL)){
-			if (close_system_pipe(&filter_pipe, NULL, pipe_callback) == 0){
+						      0, pipe_callback, NULL)) != NULL){
+			if(close_system_pipe(&filter_pipe, NULL, pipe_callback) == 0){
 			    /* pull result out of tmp file */
-			    if(fp = our_fopen(tmpfile, "rb")){
+			    if((fp = our_fopen(tmpfile, "rb")) != NULL){
 				gf_set_readc(&gc, fp, 0L, FileStar, READ_FROM_LOCALE);
 				gf_filter_init();
 				if(aux_filters)
@@ -126,9 +129,10 @@ dfilter(char *rawcmd, STORE_S *input_so, gf_io_t output_pc, FILTLIST_S *aux_filt
 	    else
 	      status = "Can't open display filter tmp file";
 	}
-	else if(status = gf_filter(cmd, key ? filter_session_key() : NULL,
+	else if((status = gf_filter(cmd, key ? filter_session_key() : NULL,
 				   input_so, output_pc, aux_filters,
-				   F_ON(F_DISABLE_TERM_RESET_DISP, ps_global))){
+				   F_ON(F_DISABLE_TERM_RESET_DISP, ps_global),
+				   pipe_callback)) != NULL){
 	    unsigned long ch;
 
 	    fprintf(stdout,"\r\n%s  Hit return to continue.", status);
@@ -403,7 +407,7 @@ dfilter_trigger(struct mail_bodystruct *body, char *cmdbuf, size_t cmdbuflen)
 		   (l && *l) ? *l : "?",
 		   test ? test : "<NULL>", cmd ? cmd : "<NULL>"));
 
-	if(passed = (df_valid_test(body, test) && valid_filter_command(&cmd))){
+	if((passed = (df_valid_test(body, test) && valid_filter_command(&cmd))) != 0){
 	  strncpy(cmdbuf, cmd, cmdbuflen);
 	  cmdbuf[cmdbuflen-1] = '\0';
 	}
@@ -431,7 +435,7 @@ df_valid_test(struct mail_bodystruct *body, char *test)
 
 	    if(p){
 		*p = '\0';			/* tie off user charset */
-		if(p = rfc2231_get_param(body->parameter,"charset",NULL,NULL)){
+		if((p = rfc2231_get_param(body->parameter,"charset",NULL,NULL)) != NULL){
 		    passed = !strucmp(test + 9, p);
 		    fs_give((void **) &p);
 		}

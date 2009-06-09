@@ -3,7 +3,7 @@ static char rcsid[] = "$Id: pattern.c 169 2006-10-04 23:26:48Z hubert@u.washingt
 #endif
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,13 +24,16 @@ static char rcsid[] = "$Id: pattern.c 169 2006-10-04 23:26:48Z hubert@u.washingt
 #include "../pith/osdep/pipe.h"
 
 #include "../pith/charconv/utf8.h"
+#include "../pith/charconv/filesys.h"
 
 #include "../pith/status.h"
 #include "../pith/pipe.h"
 #include "../pith/debug.h"
+#include "../pith/detach.h"
 
 #include "pipe.h"
 #include "pattern.h"
+#include "signal.h"
 
 
 /* Internal prototypes */
@@ -45,7 +48,7 @@ pattern_filter_command(char **cat_cmds, SEARCHSET *srchset, MAILSTREAM *stream, 
 {
     char **l;
     int exitval, i;
-    SEARCHSET *s, *ss = NULL;
+    SEARCHSET *s;
     MESSAGECACHE *mc;
     char *cmd = NULL;
     char *just_arg0 = NULL;
@@ -178,7 +181,7 @@ test_message_with_cmd(MAILSTREAM *stream, long int msgno, char *cmd,
 
     if(cmd && cmd[0]){
 	
-	flags = PIPE_WRITE | PIPE_NOSHELL | PIPE_STDERR;
+	flags = PIPE_WRITE | PIPE_NOSHELL | PIPE_STDERR | PIPE_NONEWMAIL;
 
 	dprint((7, "test_message_with_cmd(msgno=%ld cmd=%s)\n",
 		msgno, cmd));
@@ -188,7 +191,7 @@ test_message_with_cmd(MAILSTREAM *stream, long int msgno, char *cmd,
 	    prime_raw_pipe_getc(stream, msgno, char_limit, FT_PEEK);
 	    gf_filter_init();
 	    gf_link_filter(gf_nvtnl_local, NULL);
-	    if(pipe_err = gf_pipe(raw_pipe_getc, pc)){
+	    if((pipe_err = gf_pipe(raw_pipe_getc, pc)) != NULL){
 		q_status_message1(SM_ORDER|SM_DING, 3, 3,
 				  "Internal Error: %.200s", pipe_err);
 		err++;
@@ -198,7 +201,7 @@ test_message_with_cmd(MAILSTREAM *stream, long int msgno, char *cmd,
 	     * Don't call new_mail in close_system_pipe because we're probably
 	     * already here from new_mail and we don't want to get loopy.
 	     */
-	    status = close_system_pipe(&tpipe, exitval, NULL);
+	    status = close_system_pipe(&tpipe, exitval, pipe_callback);
 
 	    /*
 	     * This is a place where the command can put its output, which we

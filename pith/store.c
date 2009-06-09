@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: store.c 435 2007-02-09 23:35:33Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: store.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -382,7 +382,7 @@ so_cs_writec_locale(int c, STORE_S *so)
     int i, outchars;
     unsigned char obuf[MAX(MB_LEN_MAX,32)];
 
-    if(outchars = utf8_to_locale(c, &so->cb, obuf, sizeof(obuf))){
+    if((outchars = utf8_to_locale(c, &so->cb, obuf, sizeof(obuf))) != 0){
 	for(i = 0; i < outchars; i++)
 	  if(so_cs_writec(obuf[i], so) != 1){
 	      rv = 0;
@@ -420,7 +420,7 @@ so_file_writec_locale(int c, STORE_S *so)
     int i, outchars;
     unsigned char obuf[MAX(MB_LEN_MAX,32)];
 
-    if(outchars = utf8_to_locale(c, &so->cb, obuf, sizeof(obuf))){
+    if((outchars = utf8_to_locale(c, &so->cb, obuf, sizeof(obuf))) != 0){
 	for(i = 0; i < outchars; i++)
 	  if(so_file_writec(obuf[i], so) != 1){
 	      rv = 0;
@@ -860,6 +860,7 @@ so_release(STORE_S *so)
  *             references to them.
  *
  */
+int
 so_reaquire(STORE_S *so)
 {
     int   rv = 1;

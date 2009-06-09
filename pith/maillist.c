@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: maillist.c 409 2007-02-01 22:44:01Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: maillist.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -82,7 +82,7 @@ rfc2369_parse_fields(char *h, RFC2369_S *data)
     for(nhp = h; h; h = nhp){
 	/* coerce h to start of field */
 	for(ep = h;;)
-	  if(tp = strpbrk(ep, "\015\012")){
+	  if((tp = strpbrk(ep, "\015\012")) != NULL){
 	      if(strindex(" \t", *((ep = tp) + 2))){
 		  *ep++ = ' ';		/* flatten continuation */
 		  *ep++ = ' ';
@@ -138,11 +138,11 @@ rfc2369_parse(char *h, RFC2369_S *data)
 
 	      switch(*h){
 		case '<' :		/* URL */
-		  if(p = strindex(h, '>')){
+		  if((p = strindex(h, '>')) != NULL){
 		      url = ++h;	/* remember where it starts */
 		      *p = '\0';	/* tie it off */
 		      h  = p + 1;	/* advance h */
-		      for(p = p1 = url; *p1 = *p; p++)
+		      for(p = p1 = url; (*p1 = *p) != '\0'; p++)
 			if(*p1 != ' ')
 			  p1++;		/* remove whitespace ala RFC */
 		  }

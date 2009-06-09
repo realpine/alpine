@@ -1,5 +1,5 @@
 /*
- * $Id: indxtype.h 605 2007-06-20 21:15:13Z hubert@u.washington.edu $
+ * $Id: indxtype.h 649 2007-07-18 23:45:23Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -82,6 +82,7 @@ typedef enum {iNothing, iStatus, iFStatus, iIStatus, iSIStatus,
 	      iSTime, iKSize,
 	      iRoleNick,
 	      iHeader, iText,
+	      iPrio, iPrioAlpha, iPrioBang,
 	      iScore, iDayOfWeekAbb, iDayOfWeek,
 	      iDay, iDayOrdinal, iMonAbb, iMonLong, iMon, iYear} IndexColType;
 

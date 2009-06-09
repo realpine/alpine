@@ -2,7 +2,7 @@
  * $Id: addrbook.h 82 2006-07-12 23:36:59Z mikes@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,9 @@
 
 #ifndef PITH_ADDRBOOK_INCLUDED
 #define PITH_ADDRBOOK_INCLUDED
+
+
+#include "adrbklib.h"
 
 
 /* exported protoypes */

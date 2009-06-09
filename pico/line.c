@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: line.c 486 2007-03-22 18:38:38Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: line.c 672 2007-08-15 23:07:18Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -684,7 +684,7 @@ int
 pkbufinsert(UCS c, struct pkbuf **buf)
 {
     if(!*buf){
-	if(*buf = (struct pkbuf *) malloc(sizeof(struct pkbuf)))
+	if((*buf = (struct pkbuf *) malloc(sizeof(struct pkbuf))) != NULL)
 	  memset(*buf, 0, sizeof(struct pkbuf));
 	else
 	  return(FALSE);
@@ -692,7 +692,7 @@ pkbufinsert(UCS c, struct pkbuf **buf)
 
     if((*buf)->total % KBLOCK == 0){
 	struct pkchunk *p = (*buf)->last;
-	if((*buf)->last = (struct pkchunk *) malloc(sizeof(struct pkchunk))){
+	if(((*buf)->last = (struct pkchunk *) malloc(sizeof(struct pkchunk))) != NULL){
 	    memset((*buf)->last, 0, sizeof(struct pkchunk));
 	    if(p)
 	      p->next = (*buf)->last;

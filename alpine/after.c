@@ -3,7 +3,7 @@ static char rcsid[] = "$Id: after.c 138 2006-09-22 22:12:03Z mikes@u.washington.
 #endif
 
 /* ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,9 @@ static char rcsid[] = "$Id: after.c 138 2006-09-22 22:12:03Z mikes@u.washington.
 #include <general.h> 
 
 #include "../pith/debug.h"
+#include "../pith/osdep/err_desc.h"
+
+#include "../pico/utf8stub.h"
 
 #include "after.h"
 
@@ -37,8 +40,11 @@ static pthread_t after_thread;
 /* internal prototypes */
 #if	defined(HAVE_PTHREAD) && defined(HAVE_NANOSLEEP)
 void	*do_after(void *);
-void	 cleanup_after(void *);
+#else
+void	*cleanup_data;
 #endif
+
+void	 cleanup_after(void *);
 
 
 /*
@@ -64,7 +70,7 @@ start_after(AFTER_S *a)
 	stack = PTHREAD_STACK_MIN + 0x10000;
 	pthread_attr_setstacksize(&attr, stack);
 
-	if(rc = pthread_create(&after_thread, &attr, do_after, (void *) a)){
+	if((rc = pthread_create(&after_thread, &attr, do_after, (void *) a)) != 0){
 	    after_active = 0;
 	    dprint((1, "start_after: pthread_create failed %d (%d)", rc, errno));
 	}
@@ -79,6 +85,7 @@ start_after(AFTER_S *a)
 	if(!a->delay)
 	  (void) (*a->f)(a->data);		/* do the thing */
 
+	cleanup_data = (void *) a;
 #endif
     }
 }
@@ -96,22 +103,28 @@ stop_after(int join)
     dprint((9, "stop_after"));
 
     if(after_active){
-	if(rv = pthread_cancel(after_thread)){	/* tell thread to end */
+	if((rv = pthread_cancel(after_thread)) != 0){	/* tell thread to end */
 	    dprint((1, "pthread_cancel: %d (%s)\n", rv, error_description(errno)));
 	}
 
 	if(join){
-	    if(rv = pthread_join(after_thread, NULL)){ /* wait for it to end */
+	    if((rv = pthread_join(after_thread, NULL)) != 0){ /* wait for it to end */
 		dprint((1, "pthread_join: %d (%s)\n", rv, error_description(errno)));
 	    }
 	}
-	else if(rv = pthread_detach(after_thread)){ /* mark thread for deletion */
+	else if((rv = pthread_detach(after_thread)) != 0){ /* mark thread for deletion */
 	    dprint((1, "pthread_detach: %d (%s)\n", rv, error_description(errno)));
 	}
     }
 
     /* not literally true uless "join" set */
     after_active = 0;
+
+#else	/* !(defined(HAVE_PTHREAD) && defined(HAVE_NANOSLEEP)) */
+
+    cleanup_after((void *) cleanup_data);
+    cleanup_data = NULL;
+
 #endif
 }
 
@@ -172,6 +185,7 @@ do_after(void *data)
     pthread_exit(NULL);
 }
 
+#endif	/* defined(HAVE_PTHREAD) && defined(HAVE_NANOSLEEP) */
 
 
 /*
@@ -198,8 +212,6 @@ cleanup_after(void *data)
 	a = an;
     }
 }
-
-#endif	/* defined(HAVE_PTHREAD) && defined(HAVE_NANOSLEEP) */
 
 
 AFTER_S *

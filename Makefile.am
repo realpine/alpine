@@ -27,11 +27,11 @@ c-client.d:
 
 c-client:
 	$(C_CLIENT_WITH_IPV6)
-	cd imap && $(MAKE) @C_CLIENT_TARGET@ EXTRASPECIALS="@C_CLIENT_SPECIALS@"
+	cd imap && $(MAKE) @C_CLIENT_TARGET@ @C_CLIENT_CFLAGS@ @C_CLIENT_GCCOPTLEVEL@ EXTRASPECIALS="@C_CLIENT_SPECIALS@"
 
 clean-local:
 	cd imap && $(MAKE) clean
 
-man_MANS = doc/alpine.1 doc/pico.1 doc/pilot.1
+man_MANS = doc/alpine.1 doc/pico.1 doc/pilot.1 doc/rpdump.1 doc/rpload.1
 
 ACLOCAL_AMFLAGS = -I m4

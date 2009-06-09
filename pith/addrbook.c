@@ -4,7 +4,7 @@ static char rcsid[] = "$Id: addrbook.c 90 2006-07-19 22:30:36Z hubert@u.washingt
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ static char rcsid[] = "$Id: addrbook.c 90 2006-07-19 22:30:36Z hubert@u.washingt
 #include <system.h>
 #include <general.h>
 
+#include "addrbook.h"
 #include "state.h"
 #include "adrbklib.h"
 #include "abdlc.h"
@@ -32,6 +33,7 @@ static char rcsid[] = "$Id: addrbook.c 90 2006-07-19 22:30:36Z hubert@u.washingt
 #include "conftype.h"
 #include "status.h"
 #include "debug.h"
+#include "osdep/collate.h"
 
 
 /* internal prototypes */
@@ -260,6 +262,9 @@ assign_default:
 	  case Filecopy:
 	  case Comment:
 	    not_allauto++;
+	    break;
+
+	  default:
 	    break;
 	}
     }

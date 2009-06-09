@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: ldap.c 391 2007-01-25 03:53:59Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: ldap.c 701 2007-08-31 18:52:30Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -115,7 +115,7 @@ peLdapPname(mailbox, host)
      char *host;
 {
     char *retstr = NULL;
-    char              adrstr[1024], *a, **cn, *pname;
+    char              adrstr[1024], **cn;
     int               ecnt;
     CUSTOM_FILT_S    *filter;
     WP_ERR_S          wp_err;

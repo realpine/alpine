@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: print.c 435 2007-02-09 23:35:33Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: print.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ static char rcsid[] = "$Id: print.c 435 2007-02-09 23:35:33Z hubert@u.washington
 #include "../../pith/osdep/color.h"
 #include "../../pith/osdep/temp_nam.h"
 #include "../../pith/osdep/err_desc.h"
+#include "../../pith/osdep/collate.h"
 
 #include "../../pith/debug.h"
 #include "../../pith/conf.h"
@@ -42,10 +43,17 @@ static char rcsid[] = "$Id: print.c 435 2007-02-09 23:35:33Z hubert@u.washington
 #include "../status.h"
 #include "../signal.h"
 #include "../radio.h"
+#include "../../pico/estruct.h"
+#include "../../pico/pico.h"
+#include "../mailview.h"
 
 #ifdef _WINDOWS
 #include "../../pico/osdep/mswin.h"
 #endif
+
+#include "../../pico/osdep/raw.h"
+
+#include "termin.gen.h"
 
 #include "print.h"
 
@@ -280,8 +288,12 @@ open_printer(char *desc)
     ps_global->print = (PRINT_S *)fs_get(sizeof(PRINT_S));
     memset(ps_global->print, 0, sizeof(PRINT_S));
 
-    strncat(strncpy(aname, ANSI_PRINTER, 50), "-no-formfeed", 30);
-    strncat(strncpy(wname, WYSE_PRINTER, 50), "-no-formfeed", 30);
+    strncpy(aname, ANSI_PRINTER, sizeof(aname)-1);
+    aname[sizeof(aname)-1] = '\0';
+    strncat(aname, "-no-formfeed", sizeof(aname)-strlen(aname)-1);
+    strncpy(wname, WYSE_PRINTER, sizeof(wname)-1);
+    wname[sizeof(wname)-1] = '\0';
+    strncat(wname, "-no-formfeed", sizeof(wname)-strlen(wname)-1);
     if(strucmp(command, ANSI_PRINTER) == 0
        || strucmp(command, aname) == 0
        || strucmp(command, WYSE_PRINTER) == 0
@@ -427,7 +439,7 @@ close_printer(void)
 
 	crlf_proc(0);				/* turn off CF->LF xlantion */
     } else {
-	(void) close_system_pipe(&ps_global->print->pipe, NULL, 0);
+	(void) close_system_pipe(&ps_global->print->pipe, NULL, pipe_callback);
 	display_output_file(ps_global->print->result, "PRINT", NULL, 1);
 	fs_give((void **)&ps_global->print->result);
     }
@@ -452,7 +464,6 @@ int
 print_char(int c)
 {
 #ifndef _WINDOWS
-    int rv = 1;
     int i, outchars;
     unsigned char obuf[MAX(MB_LEN_MAX,32)];
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: send.c 589 2007-06-04 22:35:52Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: send.c 700 2007-08-30 22:33:35Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -34,6 +34,10 @@ static char rcsid[] = "$Id: send.c 589 2007-06-04 22:35:52Z hubert@u.washington.
 #include "reply.h"
 #include "titlebar.h"
 #include "signal.h"
+#include "mailcmd.h"
+#include "roleconf.h"
+#include "adrbkcmd.h"
+#include "busy.h"
 #include "../pith/debug.h"
 #include "../pith/state.h"
 #include "../pith/conf.h"
@@ -53,6 +57,11 @@ static char rcsid[] = "$Id: send.c 589 2007-06-04 22:35:52Z hubert@u.washington.
 #include "../pith/ablookup.h"
 #include "../pith/reply.h"
 #include "../pith/hist.h"
+#include "../pith/list.h"
+#include "../pith/icache.h"
+#include "../pith/busy.h"
+#include "../pith/mimetype.h"
+#include "../pith/send.h"
 
 
 typedef struct body_particulars {
@@ -88,20 +97,19 @@ void       reset_body_particulars(BODY_PARTICULARS_S *, BODY *);
 void       free_body_particulars(BODY_PARTICULARS_S *);
 long	   message_format_for_pico(long, int (*)(int));
 char	  *send_exit_for_pico(struct headerentry *, void (*)(void), int);
+char      *choose_a_priority(char *);
 int        dont_flow_this_time(void);
 int	   mime_type_for_pico(char *);
 char      *cancel_for_pico(void (*)(void));
 int	   filter_message_text(char *, ENVELOPE *, BODY *, STORE_S **, METAENV *);
 void	   pine_send_newsgroup_name(char *, char*, size_t);
-void       outgoing2strings(METAENV *, BODY *, void **, PATMT **);
+void       outgoing2strings(METAENV *, BODY *, void **, PATMT **, int);
 void       strings2outgoing(METAENV *, BODY **, PATMT *, int);
 void	   create_message_body_text(BODY *, int);
-void	   free_attachment_list(PATMT **);
 void	   set_body_size(BODY *);
 int        view_as_rich(char *, int);
 int	   background_posting(int);
 int	   valid_subject(char *, char **, char **,BUILDER_ARG *,int *);
-int	   build_address(char *, char **,char **, BUILDER_ARG *, int *);
 int	   build_addr_lcc(char *, char **, char **, BUILDER_ARG *, int *);
 int	   news_build(char *, char **, char **, BUILDER_ARG *, int *);
 void	   news_build_busy(void);
@@ -122,6 +130,7 @@ static char	  *g_rolenick = NULL;
 static char	  *sending_filter_requested;
 static char	   background_requested, flowing_requested;
 static unsigned	   call_mailer_flags;
+static char	  *priority_requested;
 
 /* local global to save busy_cue state */
 static int	   news_busy_cue = 0;
@@ -265,6 +274,7 @@ compose_mail(char *given_to, char *fcc_arg, ACTION_S *role_arg,
 		  *lcc      = NULL,
 		  *sig      = NULL;
     int		   fcc_is_sticky = 0,
+		   to_is_sticky = 0,
                    intrptd = 0,
                    postponed = 0,
 		   form = 0;
@@ -365,7 +375,7 @@ compose_mail(char *given_to, char *fcc_arg, ACTION_S *role_arg,
  	    *p = '\0';
  	    for(ekey_num = 0; compose_style[ekey_num].ch != -1; ekey_num++){
 		if(p - letters < sizeof(letters))
- 		  *p++ = compose_style[ekey_num].ch;
+ 		  *p++ = (char) compose_style[ekey_num].ch;
 		  
  		if(compose_style[ekey_num + 1].ch != -1 && p - letters < sizeof(letters))
  		  *p++ = ',';
@@ -479,6 +489,8 @@ compose_mail(char *given_to, char *fcc_arg, ACTION_S *role_arg,
 			return;
 		    }
 
+		    to_is_sticky++;
+
 		    /* redraft() may or may not have closed stream */
 		    if(stream)
 		      pine_mail_close(stream);
@@ -520,6 +532,7 @@ compose_mail(char *given_to, char *fcc_arg, ACTION_S *role_arg,
 		if(stream && (stream != ps_global->mail_stream))
 		  pine_mail_close(stream);
 
+		to_is_sticky++;
 		intrptd = form = 0;
 	    }
 	    else{
@@ -607,6 +620,7 @@ compose_mail(char *given_to, char *fcc_arg, ACTION_S *role_arg,
 			if(stream && (stream != ps_global->mail_stream))
 			  pine_mail_close(stream);
 
+			to_is_sticky++;
 			intrptd = postponed = 0;
 		    }
 		    else{
@@ -695,8 +709,8 @@ compose_mail(char *given_to, char *fcc_arg, ACTION_S *role_arg,
 	 * The type of storage object allocated below is vitally
 	 * important.  See SIMPLIFYING ASSUMPTION #37
 	 */
-	if(body->contents.text.data = (void *) so_get(PicoText,
-						      NULL, EDIT_ACCESS)){
+	if((body->contents.text.data = (void *) so_get(PicoText,
+						      NULL, EDIT_ACCESS)) != NULL){
 	    char ch;
 
 	    if(inc_text_getc){
@@ -730,7 +744,7 @@ compose_mail(char *given_to, char *fcc_arg, ACTION_S *role_arg,
 	else
 	  impl = 1;
 
-	if(sig = detoken(role, NULL, 2, 0, 1, &redraft_pos, &impl)){
+	if((sig = detoken(role, NULL, 2, 0, 1, &redraft_pos, &impl)) != NULL){
 	    if(impl == 2)
 	      redraft_pos->offset += template_len;
 
@@ -775,7 +789,8 @@ compose_mail(char *given_to, char *fcc_arg, ACTION_S *role_arg,
     }
 
     pine_send(outgoing, &body, COMPOSE_MAIL_TITLE, role, fcc,
-	      reply, redraft_pos, lcc, custom, fcc_is_sticky);
+	      reply, redraft_pos, lcc, custom,
+	      (fcc_is_sticky ? PS_STICKY_FCC : 0) | (to_is_sticky ? PS_STICKY_TO : 0));
 
     if(reply){
 	if(reply->mailbox)
@@ -907,7 +922,7 @@ redraft(MAILSTREAM **streamp, ENVELOPE **outgoing, struct mail_bodystruct **body
 	}
     }
 
-    if(so = (void *) so_get(PicoText, NULL, EDIT_ACCESS))
+    if((so = (void *) so_get(PicoText, NULL, EDIT_ACCESS)) != NULL)
       return(redraft_work(streamp, cont_msg, outgoing, body,
 			  fcc, lcc, reply, redraft_pos, custom,
 			  role, flags, so));
@@ -935,85 +950,88 @@ redraft_prompt(char *type, char *prompt, int failure)
 prompt::name::help::prwid::maxlen::realaddr::
 builder::affected_entry::next_affected::selector::key_label::fileedit::
 display_it::break_on_comma::is_attach::rich_header::only_file_chars::
-single_space::sticky::dirty::start_here::blank::KS_ODATAVAR
+single_space::sticky::dirty::start_here::blank::sticky_special::KS_ODATAVAR
 */
 static struct headerentry he_template[]={
   {"",            "X-Auth-Received",  NO_HELP,          10, 0, NULL,
    NULL,          NULL, NULL, NULL,                 NULL, NULL, NULL,
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"From    : ",  "From",        h_composer_from,       10, 0, NULL,
    build_address, NULL, NULL, addr_book_compose,    "To AddrBk", NULL, abook_nickname_complete,
-   0, 1, 0, 1, 0, 1, 0, 0, 0, 0, KS_TOADDRBOOK},
+   0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, KS_TOADDRBOOK},
   {"Reply-To: ",  "Reply To",    h_composer_reply_to,   10, 0, NULL,
    build_address, NULL, NULL, addr_book_compose,    "To AddrBk", NULL, abook_nickname_complete,
-   0, 1, 0, 1, 0, 1, 0, 0, 0, 0, KS_TOADDRBOOK},
+   0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, KS_TOADDRBOOK},
   {"To      : ",  "To",          h_composer_to,         10, 0, NULL,
    build_address, NULL, NULL, addr_book_compose,    "To AddrBk", NULL, abook_nickname_complete,
-   0, 1, 0, 0, 0, 1, 0, 0, 0, 0, KS_TOADDRBOOK},
+   0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, KS_TOADDRBOOK},
   {"Cc      : ",  "Cc",          h_composer_cc,         10, 0, NULL,
    build_address, NULL, NULL, addr_book_compose,    "To AddrBk", NULL, abook_nickname_complete,
-   0, 1, 0, 0, 0, 1, 0, 0, 0, 0, KS_TOADDRBOOK},
+   0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, KS_TOADDRBOOK},
   {"Bcc     : ",  "Bcc",         h_composer_bcc,        10, 0, NULL,
    build_address, NULL, NULL, addr_book_compose,    "To AddrBk", NULL, abook_nickname_complete,
-   0, 1, 0, 1, 0, 1, 0, 0, 0, 0, KS_TOADDRBOOK},
+   0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, KS_TOADDRBOOK},
   {"Newsgrps: ",  "Newsgroups",  h_composer_news,        10, 0, NULL,
    news_build,    NULL, NULL, news_group_selector,  "To NwsGrps", NULL, NULL,
-   0, 1, 0, 1, 0, 1, 0, 0, 0, 0, KS_NONE},
+   0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, KS_NONE},
   {"Fcc     : ",  "Fcc",         h_composer_fcc,        10, 0, NULL,
    NULL,          NULL, NULL, folders_for_fcc,      "To Fldrs", NULL, NULL,
-   0, 0, 0, 1, 1, 1, 0, 0, 0, 0, KS_NONE},
+   0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, KS_NONE},
   {"Lcc     : ",  "Lcc",         h_composer_lcc,        10, 0, NULL,
    build_addr_lcc, NULL, NULL, addr_book_compose_lcc,"To AddrBk", NULL, abook_nickname_complete,
-   0, 1, 0, 1, 0, 1, 0, 0, 0, 0, KS_NONE},
+   0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, KS_NONE},
   {"Attchmnt: ",  "Attchmnt",    h_composer_attachment, 10, 0, NULL,
    NULL,          NULL, NULL, NULL,                 "To Files", NULL, NULL,
-   0, 1, 1, 0, 0, 1, 0, 0, 0, 0, KS_NONE},
+   0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, KS_NONE},
   {"Subject : ",  "Subject",     h_composer_subject,    10, 0, NULL,
    valid_subject, NULL, NULL, NULL,                 NULL, NULL, NULL,
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"",            "References",  NO_HELP,               10, 0, NULL,
    NULL,          NULL, NULL, NULL,                 NULL, NULL, NULL,
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"",            "Date",        NO_HELP,               10, 0, NULL,
    NULL,          NULL, NULL, NULL,                 NULL, NULL, NULL,
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"",            "In-Reply-To", NO_HELP,               10, 0, NULL,
    NULL,          NULL, NULL, NULL,                 NULL, NULL, NULL,
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"",            "Message-ID",  NO_HELP,               10, 0, NULL,
    NULL,          NULL, NULL, NULL,                 NULL, NULL, NULL,
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
+  {"",            "X-Priority",  NO_HELP,               10, 0, NULL,
+   NULL,          NULL, NULL, NULL,                 NULL, NULL, NULL,
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"",            "To",          NO_HELP,               10, 0, NULL,
    NULL,          NULL, NULL, NULL,                 NULL, NULL, NULL,
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"",            "X-Post-Error",NO_HELP,               10, 0, NULL,
    NULL,          NULL, NULL, NULL,                 NULL, NULL, NULL,
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"",            "X-Reply-UID", NO_HELP,               10, 0, NULL,
    NULL,          NULL, NULL, NULL,                 NULL, NULL, NULL,
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"",            "X-Reply-Mbox", NO_HELP,              10, 0, NULL,
    NULL,          NULL, NULL, NULL,                 NULL, NULL, NULL,
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"",            "X-SMTP-Server", NO_HELP,             10, 0, NULL,
    NULL,          NULL, NULL, NULL,                 NULL, NULL, NULL,
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"",            "X-Cursor-Pos", NO_HELP,              10, 0, NULL,
    NULL,          NULL, NULL, NULL,                 NULL, NULL, NULL,
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"",            "X-Our-ReplyTo", NO_HELP,             10, 0, NULL,
    NULL,          NULL, NULL, NULL,                 NULL, NULL, NULL,
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"",            OUR_HDRS_LIST, NO_HELP,               10, 0, NULL,
    NULL,          NULL, NULL, NULL,                 NULL, NULL, NULL,
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"",            "X-Auth-Received", NO_HELP,           10, 0, NULL,
    NULL,          NULL, NULL, NULL,                 NULL, NULL, NULL,
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
 #if	!(defined(DOS) || defined(OS2)) || defined(NOAUTH)
   {"",            "Sender",      NO_HELP,               10, 0, NULL,
    NULL,          NULL, NULL, NULL,                 NULL, NULL, NULL,
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE}
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE}
 #endif
 };
 
@@ -1021,12 +1039,12 @@ static struct headerentry he_template[]={
 static struct headerentry he_custom_addr_templ={
    NULL,          NULL,          h_composer_custom_addr,10, 0, NULL,
    build_address, NULL, NULL, addr_book_compose,    "To AddrBk", NULL, abook_nickname_complete,
-   0, 1, 0, 1, 0, 1, 0, 0, 0, 0, KS_TOADDRBOOK};
+   0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, KS_TOADDRBOOK};
 
 static struct headerentry he_custom_free_templ={
    NULL,          NULL,          h_composer_custom_free,10, 0, NULL,
    NULL,          NULL, NULL, NULL,                 NULL, NULL, NULL,
-   0, 0, 0, 1, 0, 0, 0, 0, 0, 0, KS_NONE};
+   0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, KS_NONE};
 
 
 /*----------------------------------------------------------------------
@@ -1153,7 +1171,7 @@ pine_simple_send(ENVELOPE *outgoing,	/* envelope for outgoing message */
 
 	if(!og2s_done){
 	    og2s_done++;
-	    outgoing2strings(header, *body, &messagebuf, NULL);
+	    outgoing2strings(header, *body, &messagebuf, NULL, 1);
 	}
 
 	lastrc = rc;
@@ -1249,7 +1267,7 @@ pine_simple_send(ENVELOPE *outgoing,	/* envelope for outgoing message */
 		ClearScreen();
 		pop_titlebar_state();
 		redraw_titlebar();
-		if(ps_global->redrawer = redraw) /* reset old value, and test */
+		if((ps_global->redrawer = redraw) != NULL) /* reset old value, and test */
 		  (*ps_global->redrawer)();
 
 		if(!got_something)
@@ -1543,7 +1561,9 @@ pine_simple_send(ENVELOPE *outgoing,	/* envelope for outgoing message */
 			    }
 
 			    result = call_mailer(header, *body, alt_smtp,
-						 call_mailer_flags, call_mailer_file_result);
+						 call_mailer_flags,
+						 call_mailer_file_result,
+						 pipe_callback);
 			    mark_address_failure_for_pico(header);
 			}
 			else
@@ -1776,7 +1796,7 @@ void
 pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 	  char *editor_title, ACTION_S *role, char *fcc_arg,
 	  REPLY_S *reply, REDRAFT_POS_S *redraft_pos, char *lcc_arg,
-	  PINEFIELD *custom, int sticky_fcc)
+	  PINEFIELD *custom, int flags)
 {
     int			i, fixed_cnt, total_cnt, index,
 			editor_result = 0, body_start = 0, use_news_order = 0;
@@ -1786,7 +1806,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
     char	       *title = NULL;
     struct headerentry *he, *headents, *he_to, *he_fcc, *he_news = NULL, *he_lcc = NULL,
 		       *he_from = NULL;
-    PINEFIELD          *pfields, *pf, *pf_nobody = NULL,
+    PINEFIELD          *pfields, *pf, *pf_nobody = NULL, *pf_to = NULL,
                        *pf_smtp_server, *pf_nntp_server,
 		       *pf_fcc = NULL, *pf_err, *pf_uid, *pf_mbox, *pf_curpos,
 		       *pf_ourrep, *pf_ourhdrs, **sending_order;
@@ -1798,9 +1818,6 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
     PICO	        pbuf1, *save_previous_pbuf;
     CustomType          ct;
     REDRAFT_POS_S      *local_redraft_pos = NULL;
-#ifdef	DOS
-    char               *reserve;
-#endif
 
     dprint((1,"\n=== send called ===\n"));
 
@@ -1974,7 +1991,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 
 		  suggested_nntp_server =
 		    cpystr(ps_global->mail_stream->original_mailbox + 1);
-		  if(p = strindex(suggested_nntp_server, '}'))
+		  if((p = strindex(suggested_nntp_server, '}')) != NULL)
 		    *p = '\0';
 		  for(p = strindex(suggested_nntp_server, '/'); p && *p;
 		      p = strindex(p, '/')){
@@ -2051,7 +2068,8 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
     g_rolenick = role ? role->nick : NULL;
 
     /* how many fixed fields are there? */
-    fixed_cnt = (sizeof(pf_template)/sizeof(pf_template[0])) - 1;
+    for(fixed_cnt = 0; pf_template && pf_template[fixed_cnt].name; fixed_cnt++)
+      ;
 
     total_cnt = fixed_cnt + count_custom_hdrs_pf(custom,1);
 
@@ -2173,9 +2191,9 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 			    combined_hdr = (char *) fs_get((l+1) * sizeof(char));
 			    strncpy(combined_hdr, *he->realaddr, l);
 			    combined_hdr[l] = '\0';
-			    strncat(combined_hdr, ",", l-strlen(combined_hdr));
+			    strncat(combined_hdr, ",", l+1-1-strlen(combined_hdr));
 			    combined_hdr[l] = '\0';
-			    strncat(combined_hdr, pf->textbuf, l-strlen(combined_hdr));
+			    strncat(combined_hdr, pf->textbuf, l+1-1-strlen(combined_hdr));
 			    combined_hdr[l] = '\0';
 
 			    fs_give((void **)he->realaddr);
@@ -2234,50 +2252,55 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 		pf->text		= &outgoing->references;
 		pf->extdata			= NULL;
 	    }
-	    else if(index == N_POSTERR){
+	    else if(index == N_PRIORITY){
 		sending_order[NN+12]	= pf;
+		pf->text		= &pf->textbuf;
+		pf->extdata			= NULL;
+	    }
+	    else if(index == N_POSTERR){
+		sending_order[NN+13]	= pf;
 		pf_err			= pf;
 		pf->text		= &pf->textbuf;
 		pf->extdata			= NULL;
 	    }
 	    else if(index == N_RPLUID){
-		sending_order[NN+13]	= pf;
+		sending_order[NN+14]	= pf;
 		pf_uid			= pf;
 		pf->text		= &pf->textbuf;
 		pf->extdata			= NULL;
 	    }
 	    else if(index == N_RPLMBOX){
-  		sending_order[NN+14]	= pf;
+  		sending_order[NN+15]	= pf;
 		pf_mbox			= pf;
 		pf->text		= &pf->textbuf;
 		pf->extdata			= NULL;
 	    }
 	    else if(index == N_SMTP){
-		sending_order[NN+15]	= pf;
+		sending_order[NN+16]	= pf;
 		pf_smtp_server		= pf;
 		pf->text		= &pf->textbuf;
 		pf->extdata			= NULL;
 	    }
 	    else if(index == N_NNTP){
-		sending_order[NN+16]	= pf;
+		sending_order[NN+17]	= pf;
 		pf_nntp_server		= pf;
 		pf->text		= &pf->textbuf;
 		pf->extdata			= NULL;
 	    }
 	    else if(index == N_CURPOS){
-		sending_order[NN+17]	= pf;
+		sending_order[NN+18]	= pf;
 		pf_curpos		= pf;
 		pf->text		= &pf->textbuf;
 		pf->extdata			= NULL;
 	    }
 	    else if(index == N_OURREPLYTO){
-		sending_order[NN+18]	= pf;
+		sending_order[NN+19]	= pf;
 		pf_ourrep		= pf;
 		pf->text		= &pf->textbuf;
 		pf->extdata			= NULL;
 	    }
 	    else if(index == N_OURHDRS){
-		sending_order[NN+19]	= pf;
+		sending_order[NN+20]	= pf;
 		pf_ourhdrs		= pf;
 		pf->text		= &pf->textbuf;
 		pf->extdata			= NULL;
@@ -2327,10 +2350,12 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 		/* If already set, make it act like we typed it in */
 		if(outgoing->to
 		   && outgoing->to->mailbox
-		   && outgoing->to->mailbox[0])
+		   && outgoing->to->mailbox[0]
+		   && flags & PS_STICKY_TO)
 		  he->sticky = 1;
 
 		he_to			= he;
+		pf_to			= pf;
 		break;
 
 	      case N_NOBODY:
@@ -2444,14 +2469,73 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 		    (!ps_global->never_allow_changing_from &&
 		     F_ON(F_ALLOW_CHANGING_FROM, ps_global))) &&
 		   pf->textbuf && *pf->textbuf){
+
 		    removing_trailing_white_space(pf->textbuf);
 		    (void)removing_double_quotes(pf->textbuf);
-		    build_address(pf->textbuf, &addr, NULL, NULL, NULL);
-		    rfc822_parse_adrlist(pf->addr, addr,
-					 ps_global->maildomain);
-		    fs_give((void **)&addr);
-		    if(ct > UseAsDef)
-		      he->sticky = 1;
+
+		    /*
+		     * Try to set To based on Lcc. Don't attempt Fcc.
+		     */
+		    if(index == N_LCC && !he_to->sticky && pf_to && pf_to->addr){
+			BUILDER_ARG *barg = NULL;
+			char *ppp = NULL;
+
+			if(*pf_to->addr)
+			  ppp = addr_list_string(*pf_to->addr, NULL, 1);
+
+			if(!ppp)
+			  ppp = cpystr("");
+
+			barg = (BUILDER_ARG *) fs_get(sizeof(*barg));
+			memset(barg, 0, sizeof(*barg));
+			barg->me = &(he->bldr_private);
+			barg->aff = &(he_to->bldr_private);
+			barg->tptr = cpystr(ppp);
+
+			build_addr_lcc(pf->textbuf, &addr, NULL, barg, NULL);
+			he->display_it = 1;
+
+			rfc822_parse_adrlist(pf->addr, addr,
+					     ps_global->maildomain);
+			if(addr)
+			  fs_give((void **) &addr);
+
+			if(ct > UseAsDef)
+			  he->sticky = 1;
+
+			if(barg && barg->tptr && strcmp(ppp, barg->tptr)){
+			    ADDRESS *a = NULL;
+
+			    rfc822_parse_adrlist(&a, barg->tptr,
+						 ps_global->maildomain);
+			    if(a){
+				if(pf_to->addr)
+				  mail_free_address(pf_to->addr);
+
+				*pf_to->addr = a;
+			    }
+			}
+
+			if(barg){
+			    if(barg->tptr)
+			      fs_give((void **) &barg->tptr);
+
+			    fs_give((void **) &barg);
+			}
+
+			if(ppp)
+			  fs_give((void **) &ppp);
+		    }
+		    else{
+			build_address(pf->textbuf, &addr, NULL, NULL, NULL);
+			rfc822_parse_adrlist(pf->addr, addr,
+					     ps_global->maildomain);
+			if(addr)
+			  fs_give((void **) &addr);
+
+			if(ct > UseAsDef)
+			  he->sticky = 1;
+		    }
 		}
 
 		/* if we still don't have a from */
@@ -2591,7 +2675,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 		fcc_arg = NULL;
 	    }
 
-	    if((sticky_fcc && fcc[0]) || (role && role->fcc))
+	    if(((flags & PS_STICKY_FCC) && fcc[0]) || (role && role->fcc))
 	      he->sticky = 1;
 
 	    if(role)
@@ -2830,7 +2914,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 	 * set initial cursor position based on how many times we've been
 	 * thru the loop...
 	 */
-	if(reply && reply->flags == REPLY_PSEUDO){
+	if(reply && reply->pseudo){
 	    pbf->pine_flags |= reply->data.pico_flags;
 	}
 	else if(body_start){
@@ -2851,7 +2935,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 	    if(!pf || !pf->name)
 	      pbf->pine_flags |= P_BODY;
 	}
-	else if(reply && reply->flags != REPLY_FORW){
+	else if(reply && (!reply->forw && !reply->forwarded)){
 	    pbf->pine_flags |= P_BODY;
 	}
 
@@ -2882,7 +2966,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
          * Convert the envelope and body to the string format that
          * pico can edit
          */
-        outgoing2strings(&header, *body, &pbf->msgtext, &pbf->attachments);
+        outgoing2strings(&header, *body, &pbf->msgtext, &pbf->attachments, 0);
 
 	for(pf = header.local; pf && pf->name; pf = pf->next){
 	    /*
@@ -2903,7 +2987,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 	 * on the first line which isn't filled in. If it isn't, then we
 	 * don't move the cursor, mostly for back-compat.
 	 */
-	if((!reply || reply->flags == REPLY_FORW) &&
+	if((!reply || reply->forw || reply->forwarded) &&
 	   !local_redraft_pos && !(pbf->pine_flags & P_BODY) && he_from &&
 	   (he_from->display_it || !he_from->rich_header)){
 	    for(pf = header.local; pf && pf->name; pf = pf->next)
@@ -3127,14 +3211,14 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 			    snprintf(nbuf, sizeof(nbuf), "%d", i);
 			    nbuf[sizeof(nbuf)-1] = '\0';
 			    strncat(filename, nbuf,
-				    sizeof(filename)-strlen(filename));
+				    sizeof(filename)-strlen(filename)-1);
 			    filename[sizeof(filename)-1] = '\0';
 			}
 
 			snprintf(nbuf,  sizeof(nbuf), "%d", i+1);
 			nbuf[sizeof(nbuf)-1] = '\0';
 			strncat(newfname, nbuf,
-				sizeof(newfname)-strlen(newfname));
+				sizeof(newfname)-strlen(newfname)-1);
 			newfname[sizeof(newfname)-1] = '\0';
 			(void) rename_file(filename, newfname);
 		    }
@@ -3144,7 +3228,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 		else
 		  newfile = can_access(folder, ACCESS_EXISTS);
 
-		if(lmc.so = so_get(FCC_SOURCE, NULL, WRITE_ACCESS)){
+		if((lmc.so = so_get(FCC_SOURCE, NULL, WRITE_ACCESS)) != NULL){
 		  if (outgoing->from){
 		    snprintf(tmp_20k_buf, SIZEOF_20KBUF, "%sFrom %s@%s %.24s\015\012",
 			      newfile ? "" : "\015\012",
@@ -3229,7 +3313,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 		 * later flag the replied-to message \\ANSWERED
 		 * DON'T save MSGNO's.
 		 */
-		if(reply && reply->flags == REPLY_UID){
+		if(reply && reply->uid){
 		    char uidbuf[MAILTMPLEN], *p;
 		    long i;
 
@@ -3244,10 +3328,13 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 
 		    pf_uid->writehdr  = 1;
 		    pf_uid->localcopy = 1;
-		    snprintf(uidbuf, sizeof(uidbuf), "(%d %s)(%d %lu %s)%s",
-			    strlen(reply->prefix), reply->prefix,
-			    i, reply->data.uid.validity,
-			    tmp_20k_buf, reply->mailbox);
+		    snprintf(uidbuf, sizeof(uidbuf), "(%s%s%s)(%ld %lu %s)%s",
+			     reply->prefix ? int2string(strlen(reply->prefix))
+					   : (reply->forwarded) ? "": "0 ",
+			     reply->prefix ? " " : "",
+			     reply->prefix ? reply->prefix : "",
+			     i, reply->data.uid.validity,
+			     tmp_20k_buf, reply->mailbox);
 		    uidbuf[sizeof(uidbuf)-1] = '\0';
 		    pf_uid->textbuf   = cpystr(uidbuf);
 
@@ -3308,9 +3395,9 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 			smtp[0] = '\0';
 			for(lp = role->smtp; (q = *lp) != NULL; lp++){
 			    if(lp != role->smtp)
-			      strncat(smtp, " ", len-strlen(smtp));
+			      strncat(smtp, " ", len-strlen(smtp)-1);
 
-			    strncat(smtp, q, len-strlen(smtp));
+			    strncat(smtp, q, len-strlen(smtp)-1);
 			}
 			
 			smtp[len-1] = '\0';
@@ -3344,9 +3431,9 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 			    nntp[0] = '\0';
 			    for(lp = role->nntp; (q = *lp) != NULL; lp++){
 				if(lp != role->nntp)
-				  strncat(nntp, " ", len-strlen(nntp));
+				  strncat(nntp, " ", len-strlen(nntp)-1);
 
-				strncat(nntp, q, len-strlen(nntp));
+				strncat(nntp, q, len-strlen(nntp)-1);
 			    }
 			
 			    nntp[len-1] = '\0';
@@ -3452,8 +3539,8 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 			    we_cancel = busy_cue((char *)tmp_20k_buf, NULL, 1);
 			}
 
-			if(hup_so =
-			    so_get(FileStar, folder, WRITE_ACCESS|OWNER_ONLY)){
+			if((hup_so =
+			    so_get(FileStar, folder, WRITE_ACCESS|OWNER_ONLY)) != NULL){
 			    gf_set_so_readc(&gc, lmc.so);
 			    gf_set_so_writec(&pc, hup_so);
 			    so_seek(lmc.so, 0L, 0); 	/* read msg copy and */
@@ -3671,7 +3758,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 			alt_nntp = alt_nntp_p;
 		    }
 		}
-		if(news_poster(&header, *body, alt_nntp) < 0){
+		if(news_poster(&header, *body, alt_nntp, pipe_callback) < 0){
 		    dprint((1, "Post failed, continuing\n"));
 		    if(outgoing->message_id)
 		      fs_give((void **) &outgoing->message_id);
@@ -3698,6 +3785,11 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 	      && (outgoing->bcc || lcc_addr) && pf_nobody && pf_nobody->addr){
 		pf_nobody->writehdr  = 1;
 		pf_nobody->localcopy = 1;
+	    }
+
+	    if(priority_requested){
+		set_priority_header(&header, priority_requested);
+		fs_give((void **) &priority_requested);
 	    }
 
 #if	defined(BACKGROUND_POST) && defined(SIGCHLD)
@@ -3751,7 +3843,9 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 			}
 
 		        result |= (call_mailer(&header, *body, alt_smtp,
-					       call_mailer_flags, call_mailer_file_result) > 0)
+					       call_mailer_flags,
+					       call_mailer_file_result,
+					       pipe_callback) > 0)
 				    ? P_MAIL_WIN : P_MAIL_LOSE;
 
 			if(result & P_MAIL_LOSE)
@@ -3835,7 +3929,6 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
             if(valid_addr == CA_OK
 	       && (outgoing->to || outgoing->cc || outgoing->bcc || lcc_addr)){
 		char **alt_smtp = NULL;
-		int oldval;
 
 		if(role && role->smtp){
 		    if(ps_global->FIX_SMTP_SERVER
@@ -3846,7 +3939,9 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 		}
 
 		result |= (call_mailer(&header, *body, alt_smtp,
-				       call_mailer_flags, call_mailer_file_result) > 0)
+				       call_mailer_flags,
+				       call_mailer_file_result,
+				       pipe_callback) > 0)
 			    ? P_MAIL_WIN : P_MAIL_LOSE;
 
 		if(result & P_MAIL_LOSE)
@@ -4326,12 +4421,12 @@ char *
 send_exit_for_pico(struct headerentry *he, void (*redraw_pico)(void), int allow_flowed)
 {
     int	       i, rv, c, verbose_label = 0, bg_label = 0, old_suspend;
-    int        dsn_label = 0, fcc_label = 0, dsn_show, lparen;
+    int        dsn_label = 0, fcc_label = 0, lparen;
     int        flowing_label = 0, double_rad;
     char      *rstr = NULL, *p, *lc, *optp;
     char       dsn_string[30];
     void     (*redraw)(void) = ps_global->redrawer;
-    ESCKEY_S   opts[15];
+    ESCKEY_S   opts[16];
     struct filters {
 	char  *filter;
 	int    index;
@@ -4343,6 +4438,8 @@ send_exit_for_pico(struct headerentry *he, void (*redraw_pico)(void), int allow_
     background_requested     = 0;
     flowing_requested        = allow_flowed ? 1 : 0;
     lmc.text_only            = F_ON(F_NO_FCC_ATTACH, ps_global) != 0;
+    if(priority_requested)
+      fs_give((void **) &priority_requested);
 
     if(background_posting(FALSE))
       return("Can't send while background posting. Use postpone.");
@@ -4352,8 +4449,8 @@ send_exit_for_pico(struct headerentry *he, void (*redraw_pico)(void), int allow_
 
     ps_global->redrawer = redraw_pico;
 
-    if(old_suspend = F_ON(F_CAN_SUSPEND, ps_global))
-      F_SET(F_CAN_SUSPEND, ps_global, 0);
+    if((old_suspend = F_ON(F_CAN_SUSPEND, ps_global)) != 0)
+      (void) F_SET(F_CAN_SUSPEND, ps_global, 0);
 
     /*
      * Build list of available filters...
@@ -4373,7 +4470,7 @@ send_exit_for_pico(struct headerentry *he, void (*redraw_pico)(void), int allow_
 
 	fp	   = (struct filters *)fs_get(sizeof(struct filters));
 	fp->index  = i;
-	if(lc = last_cmpnt(ps_global->VAR_SEND_FILTER[i])){
+	if((lc = last_cmpnt(ps_global->VAR_SEND_FILTER[i])) != NULL){
 	    fp->filter = cpystr(lc);
 	}
 	else if((p - ps_global->VAR_SEND_FILTER[i]) > 20){
@@ -4462,6 +4559,11 @@ send_exit_for_pico(struct headerentry *he, void (*redraw_pico)(void), int allow_
     }
 #endif
 
+    opts[i].ch      = 'p';
+    opts[i].rval    = 'p';
+    opts[i].name    = "P";
+    opts[i++].label = N_("Priority");
+
     double_rad = i;
 
     if(F_ON(F_DSN, ps_global)){
@@ -4508,7 +4610,6 @@ send_exit_for_pico(struct headerentry *he, void (*redraw_pico)(void), int allow_
 	  p = NULL;
 
 	lparen = 0;
-	dsn_show = (call_mailer_flags & CM_DSN_SHOW);
 	strncpy(tmp_20k_buf, "Send message", SIZEOF_20KBUF);
 	tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
 	optp = tmp_20k_buf + strlen(tmp_20k_buf);
@@ -4590,7 +4691,7 @@ send_exit_for_pico(struct headerentry *he, void (*redraw_pico)(void), int allow_
 	    sstrncpy(&optp, "\"", SIZEOF_20KBUF-(optp-tmp_20k_buf));
 	}
 
-	if(dsn_show){
+	if(call_mailer_flags & CM_DSN_SHOW){
 	    if((optp-tmp_20k_buf)+2 < SIZEOF_20KBUF){
 		if(!lparen){
 		  *optp++ = ' ';
@@ -4646,7 +4747,8 @@ send_exit_for_pico(struct headerentry *he, void (*redraw_pico)(void), int allow_
 	}
 
 	if(double_rad +
-	   (call_mailer_flags ? 4 : F_ON(F_DSN, ps_global) ? 1 : 0) > 11)
+	   ((call_mailer_flags & CM_DSN_SHOW)
+	       ? 4 : F_ON(F_DSN, ps_global) ? 1 : 0) > 11)
 	  rv = double_radio_buttons(tmp_20k_buf, -FOOTER_ROWS(ps_global), opts,
 			   'y', 'z',
 			   (F_ON(F_DSN, ps_global) && allow_flowed)
@@ -4659,8 +4761,8 @@ send_exit_for_pico(struct headerentry *he, void (*redraw_pico)(void), int allow_
 	  rv = radio_buttons(tmp_20k_buf, -FOOTER_ROWS(ps_global), opts,
 			   'y', 'z',
 			   (double_rad +
-			    (call_mailer_flags ? 4 : F_ON(F_DSN, ps_global)
-			     ? 1 : 0) == 11)
+			    ((call_mailer_flags & CM_DSN_SHOW)
+				? 4 : F_ON(F_DSN, ps_global) ? 1 : 0) == 11)
 				   ? NO_HELP : 
 			   (F_ON(F_DSN, ps_global) && allow_flowed)
 					          ? h_send_prompt_dsn_flowed :
@@ -4737,6 +4839,25 @@ send_exit_for_pico(struct headerentry *he, void (*redraw_pico)(void), int allow_
 	     */
 	    call_mailer_flags |= (CM_DSN_SHOW | CM_DSN_SUCCESS | CM_DSN_DELAY | CM_DSN_FULL);
 	}
+	else if(rv == 'p'){			/* choose X-Priority */
+	    char *prio;
+
+	    prio = choose_a_priority(priority_requested);
+	    if((ps_global->redrawer = redraw_pico) != NULL){
+		(*ps_global->redrawer)();
+		fix_windsize(ps_global);
+	    }
+
+	    if(prio){
+		if(priority_requested)
+		  fs_give((void **) &priority_requested);
+
+		if(prio[0])
+		  priority_requested = prio;
+		else
+		  fs_give((void **) &prio);
+	    }
+	}
 
 	snprintf(dsn_string, sizeof(dsn_string), "DSN requested[%s%s%s%s]",
 		(call_mailer_flags & CM_DSN_NEVER)
@@ -4769,10 +4890,64 @@ send_exit_for_pico(struct headerentry *he, void (*redraw_pico)(void), int allow_
     }
 
     if(old_suspend)
-      F_SET(F_CAN_SUSPEND, ps_global, 1);
+      (void) F_SET(F_CAN_SUSPEND, ps_global, 1);
 
     ps_global->redrawer = redraw;
     return(rstr);
+}
+
+
+/*
+ * Allow user to choose a priority for sending.
+ *
+ * Returns an allocated priority on success, NULL otherwise.
+ */
+char *
+choose_a_priority(char *default_val)
+{
+    char      *choice = NULL;
+    char     **priority_list, **lp;
+    char      *starting_val = NULL;
+    char      *none;
+    int        i, cnt;
+    PRIORITY_S *p;
+
+    for(cnt = 0, p = priorities; p && p->desc; p++)
+      cnt++;
+
+    cnt++;	/* for NONE entry */
+    lp = priority_list = (char **) fs_get((cnt + 1) * sizeof(*priority_list));
+    memset(priority_list, 0, (cnt+1) * sizeof(*priority_list));
+
+    for(i = 0, p = priorities; p && p->desc; p++){
+	*lp = cpystr(p->desc);
+	if(default_val && !strcmp(default_val, p->desc))
+	  starting_val = (*lp);
+
+	lp++;
+    }
+
+    none = _("NONE - No X-Priority header included");
+    *lp = cpystr(none);
+    if(!starting_val)
+      starting_val = (*lp);
+
+    /* TRANSLATORS: SELECT A PRIORITY is a screen title
+       TRANSLATORS: Print something1 using something2.
+       "priorities" is something1 */
+    choice = choose_item_from_list(priority_list, _("SELECT A PRIORITY"),
+				   _("priorities"), h_select_priority_screen,
+				   _("HELP FOR SELECTING A PRIORITY"),
+				   starting_val);
+
+    if(!choice)
+      q_status_message(SM_ORDER, 1, 4, _("No change"));
+    else if(!strcmp(choice, none))
+      choice[0] = '\0';
+
+    free_list_array(&priority_list);
+
+    return(choice);
 }
 
 
@@ -4863,8 +5038,8 @@ upload_msg_to_pico(char *fname, size_t fnlen, long int *size)
 
     build_updown_cmd(cmd, sizeof(cmd), ps_global->VAR_UPLOAD_CMD_PREFIX,
 		     ps_global->VAR_UPLOAD_CMD, locale_name ? locale_name : fname);
-    if(syspipe = open_system_pipe(cmd, NULL, NULL, PIPE_USER | PIPE_RESET,
-				  0, pipe_callback, pipe_report_error)){
+    if((syspipe = open_system_pipe(cmd, NULL, NULL, PIPE_USER | PIPE_RESET,
+				  0, pipe_callback, pipe_report_error)) != NULL){
 	(void) close_system_pipe(&syspipe, NULL, pipe_callback);
 	if((l = name_file_size(locale_name ? locale_name : fname)) < 0L){
 	    q_status_message2(SM_ORDER | SM_DING, 3, 4,
@@ -4962,7 +5137,7 @@ filter_message_text(char *fcmd, ENVELOPE *outgoing, struct mail_bodystruct *body
 	     * be operating on tmpf. We need to change it back after they
 	     * are done.
 	     */
-	    if(tmpf_so = so_get(FileStar, tmpf, EDIT_ACCESS|OWNER_ONLY|WRITE_TO_LOCALE)){
+	    if((tmpf_so = so_get(FileStar, tmpf, EDIT_ACCESS|OWNER_ONLY|WRITE_TO_LOCALE)) != NULL){
 		if(key){
 		    so_puts(tmpf_so, filter_session_key());
 		    so_puts(tmpf_so, NEWLINE);
@@ -5002,7 +5177,7 @@ filter_message_text(char *fcmd, ENVELOPE *outgoing, struct mail_bodystruct *body
 	     * We don't use WRITE_TO_LOCALE in this case because gf_filter
 	     * takes care of that.
 	     */
-	    if(our_tmpf_so = so_get(TmpFileStar, NULL, EDIT_ACCESS|OWNER_ONLY)){
+	    if((our_tmpf_so = so_get(TmpFileStar, NULL, EDIT_ACCESS|OWNER_ONLY)) != NULL){
 		/* put headers in our_tmpf_so */
 		save_local_so = lmc.so;
 		lmc.so = our_tmpf_so;		/* write it to our_tmpf_so */
@@ -5029,7 +5204,7 @@ filter_message_text(char *fcmd, ENVELOPE *outgoing, struct mail_bodystruct *body
 	  readthis_so = *so;
 
 	if(!errstr){
-	    if(tmp_so = so_get(PicoText, NULL, EDIT_ACCESS)){
+	    if((tmp_so = so_get(PicoText, NULL, EDIT_ACCESS)) != NULL){
 		gf_set_so_writec(&pc, tmp_so);
 		ps_global->mangled_screen = 1;
 		suspend_busy_cue();
@@ -5038,13 +5213,13 @@ filter_message_text(char *fcmd, ENVELOPE *outgoing, struct mail_bodystruct *body
 		if(tmpf){
 		    PIPE_S *fpipe;
 
-		    if(fpipe = open_system_pipe(cmd, NULL, NULL,
+		    if((fpipe = open_system_pipe(cmd, NULL, NULL,
 						PIPE_NOSHELL | PIPE_RESET,
-						0, pipe_callback, pipe_report_error)){
+						0, pipe_callback, pipe_report_error)) != NULL){
 			if(close_system_pipe(&fpipe, NULL, pipe_callback) == 0){
 
 			    /* now we undo the WRITE_FROM_LOCALE change in tmpf */
-			    if(tmpf_so = so_get(FileStar, tmpf, READ_ACCESS|READ_FROM_LOCALE)){
+			    if((tmpf_so = so_get(FileStar, tmpf, READ_ACCESS|READ_FROM_LOCALE)) != NULL){
 				gf_set_so_readc(&gc, tmpf_so);
 				gf_filter_init();
 				errstr = gf_pipe(gc, pc);
@@ -5062,7 +5237,8 @@ filter_message_text(char *fcmd, ENVELOPE *outgoing, struct mail_bodystruct *body
 		}
 		else
 		  errstr = gf_filter(cmd, key ? filter_session_key() : NULL,
-				     readthis_so, pc, NULL, 0);
+				     readthis_so, pc, NULL, 0,
+				     pipe_callback);
 
 		if(our_tmpf_so)
 		  so_give(&our_tmpf_so);
@@ -5104,7 +5280,7 @@ filter_message_text(char *fcmd, ENVELOPE *outgoing, struct mail_bodystruct *body
 			char  buf[MAILTMPLEN], *s;
 			FILE *fp;
 
-			if(fp = our_fopen(mtf, "rb")){
+			if((fp = our_fopen(mtf, "rb")) != NULL){
 			    if(fgets(buf, sizeof(buf), fp)
 			       && !struncmp(buf, "content-", 8)
 			       && (s = strchr(buf+8, ':'))){
@@ -5240,7 +5416,7 @@ phone_home(char *addr)
     body       = mail_newbody();
     body->type = TYPETEXT;
 
-    if(body->contents.text.data = (void *)so_get(PicoText,NULL,EDIT_ACCESS)){
+    if((body->contents.text.data = (void *)so_get(PicoText,NULL,EDIT_ACCESS)) != NULL){
 	so_puts((STORE_S *)body->contents.text.data, "Document request: ");
 	so_puts((STORE_S *)body->contents.text.data, "Alpine-");
 	so_puts((STORE_S *)body->contents.text.data, ALPINE_VERSION);
@@ -5274,7 +5450,8 @@ phone_home(char *addr)
     of a storage object brought into existence sometime before pico_send().
  -----*/
 void
-outgoing2strings(METAENV *header, struct mail_bodystruct *bod, void **text, PATMT **pico_a)
+outgoing2strings(METAENV *header, struct mail_bodystruct *bod, void **text,
+		 PATMT **pico_a, int from_bounce)
 {
     PINEFIELD  *pf;
 
@@ -5286,7 +5463,8 @@ outgoing2strings(METAENV *header, struct mail_bodystruct *bod, void **text, PATM
 	*text = so_text((STORE_S *) bod->contents.text.data);
 
 	/* mark storage object as user edited */
-	(void) so_attr((STORE_S *) bod->contents.text.data, "edited", "1");
+	if(!from_bounce)
+	  (void) so_attr((STORE_S *) bod->contents.text.data, "edited", "1");
     }
     else if(bod->type == TYPEMULTIPART){
 	PART       *part;
@@ -5312,7 +5490,8 @@ outgoing2strings(METAENV *header, struct mail_bodystruct *bod, void **text, PATM
 	*text = so_text((STORE_S *) bod->nested.part->body.contents.text.data);
 
 	/* mark storage object as user edited */
-	(void) so_attr((STORE_S *) bod->nested.part->body.contents.text.data, "edited", "1");
+	if(!from_bounce)
+	  (void) so_attr((STORE_S *) bod->nested.part->body.contents.text.data, "edited", "1");
 
 	/*
 	 * If we already had a list, blast it now, so we can build a new
@@ -5363,8 +5542,8 @@ outgoing2strings(METAENV *header, struct mail_bodystruct *bod, void **text, PATM
 		    /*
 		     * If we can find a "name" parm, display that too...
 		     */
-		    if(name = rfc2231_get_param(part->body.parameter,
-						"name", NULL, NULL)){
+		    if((name = rfc2231_get_param(part->body.parameter,
+						"name", NULL, NULL)) != NULL){
 			/* Convert any [ or ]'s the name contained */
 			for(p = name; *p ; p++)
 			  if(*p == '[')
@@ -5431,7 +5610,7 @@ outgoing2strings(METAENV *header, struct mail_bodystruct *bod, void **text, PATM
 		 * reply.c:reply_cp_addr to package up the bogus stuff
 		 * is required.
 		 */
-		for(p = pf->scratch; p = strstr(p, "@" RAWFIELD); )
+		for(p = pf->scratch; (p = strstr(p, "@" RAWFIELD)); )
 		  for(t = p; ; t--)
 		    if(*t == '&'){		/* find "leading" token */
 			int replacelen;
@@ -5536,6 +5715,9 @@ outgoing2strings(METAENV *header, struct mail_bodystruct *bod, void **text, PATM
 	    }
 
 	    break;
+
+	  default :
+	    break;
 	}
 }
 
@@ -5589,6 +5771,9 @@ strings2outgoing(METAENV *header, struct mail_bodystruct **bod, PATMT *attach, i
 		        *pf->text = cpystr(pf->scratch);
 		  }
 
+		  break;
+
+		default :
 		  break;
 	      }
 
@@ -6018,16 +6203,6 @@ build_address(char *to, char **full_to, char **error, BUILDER_ARG *barg, int *ma
 	if(full_to)
 	  *full_to = cpystr(to ? to : "");  /* because pico does a strcmp() */
 
-	/*
-	 * no reason to save anything anymore,
-	 * since no decoding happened
-	 */
-	if(barg && barg->me){
-	    pt = (PrivateTop *)(*barg->me);
-	    if(pt)
-	      free_privateencoded(&pt->encoded);
-	}
-
 	return 0;
     }
 
@@ -6095,185 +6270,20 @@ build_address(char *to, char **full_to, char **error, BUILDER_ARG *barg, int *ma
      * Have to rfc1522_decode the full_to string before sending it back.
      */
     if(full_to && *full_to ){
-	unsigned long csum_start, csum_end, csum_mid;
 	char   *q;
 	size_t  len;
-
-	/* Pt will point to headents[To].bldr_private */
-	pt = NULL;
-	if(barg && barg->me)
-	  pt = (PrivateTop *)(*barg->me);
 
 	len = 4*strlen(*full_to)+1;
 	q = (char *)fs_get(len * sizeof(char));
 	p = (char *)rfc1522_decode_to_utf8((unsigned char *)q, len, *full_to);
+
 	/* p == q means that decoding happened, p is decoded *full_to */
-	if(p == q || (pt && pt->encoded && pt->encoded->etext)){
-	    char  save;
-
-	    /*
-	     * We save a copy of the encoded string to preserve the charset
-	     * information in it if possible.
-	     */
-	    if(pt && pt->encoded){
-		int len;
-
-		/* set to something not equal to cksumval */
-		csum_start = csum_end = csum_mid = pt->encoded->cksumval + 1;
-
-		/*
-		 * Compare hash value computed from prefix and suffix of
-		 * new string to see if it matches the hash value of the
-		 * old string. If it does, that means we've just appended
-		 * or prepended something new, so we can preserve the old
-		 * charset info. Also check if it is just the old string
-		 * with quotes around it.
-		 */
-		len = strlen(p);
-		if(len >= pt->encoded->cksumlen){
-		    char *begin;
-
-		    save = p[pt->encoded->cksumlen];
-		    p[pt->encoded->cksumlen] = '\0';
-		    csum_start = line_hash(p);
-		    p[pt->encoded->cksumlen] = save;
-
-		    if(len > pt->encoded->cksumlen){
-			begin = p + (len - pt->encoded->cksumlen);
-			csum_end = line_hash(begin);
-		    }
-		    else
-		      csum_end = csum_start;
-		    
-		    /*
-		     * Maybe just added quotes?
-		     * This is tough because the quotes are around the phrase
-		     * not around the whole thing. So we're just taking a
-		     * guess about that second quote. But if we guess right,
-		     * we are right, and we can just leave the pt->encoded
-		     * stuff as it is now.
-		     */
-		    if(len == pt->encoded->cksumlen+2 && p[0] == '"' && strchr(p+1, '"')){
-			char *tmp, *quote, *r;
-
-			quote = strchr(p+1, '"');
-			*quote = '\0';
-			tmp = (char *)fs_get((len-1) * sizeof(char));
-			r = tmp;
-			sstrncpy(&r, p+1, len-1);
-			sstrncpy(&r, quote+1, len-1-(r-tmp));
-			tmp[len-1-1] = '\0';
-			*quote = '"';
-
-			csum_mid = line_hash(tmp);
-			fs_give((void **)&tmp);
-		    }
-		}
-	    }
-
-	    /* If the caller wanted us to do this at all */
-	    if(barg && barg->me){
-		if(!pt || !pt->encoded ||
-	           (csum_start != pt->encoded->cksumval &&
-		      csum_mid != pt->encoded->cksumval &&
-		      csum_end != pt->encoded->cksumval)){
-
-		    /* no match, save whole string */
-
-		    if(pt && pt->encoded && pt->encoded->etext)
-		      fs_give((void **)&pt->encoded->etext);
-
-		    if(p == q){		/* decoded != encoded version */
-			if(!pt){
-			    *barg->me = (void *)fs_get(sizeof(PrivateTop));
-			    pt = (PrivateTop *)(*barg->me);
-			    memset((void *)pt, 0, sizeof(PrivateTop));
-			}
-
-			if(!pt->encoded)
-			  pt->encoded =
-			       (PrivateEncoded *)fs_get(sizeof(PrivateEncoded));
-		    
-			pt->encoded->etext    = *full_to;
-			pt->encoded->cksumlen = strlen(p);
-			pt->encoded->cksumval = line_hash(p);
-		    }
-		    else{
-			/*
-			 * no reason to save anything anymore,
-			 * since no decoding happened
-			 */
-			if(pt)
-			  free_privateencoded(&pt->encoded);
-		    }
-		}
-		else{	/* got a match */
-		  char *etext1, *etext2, *etext3, *r;
-		  int   end_of_new;
-
-		  if(csum_mid != pt->encoded->cksumval){ /* else, leave alone */
-		    size_t l;
-
-		    /* matched prefix */
-		    if(csum_start == pt->encoded->cksumval){
-			etext1 = "";
-			etext2 = pt->encoded->etext;
-			/*
-			 * *full_to is now the unchanged decoded prefix
-			 * of length cksumlen, plus the new good part
-			 * that we want. We paste the old good etext
-			 * together with the new tail end of *full_to.
-			 */
-			etext3 = *full_to + pt->encoded->cksumlen;
-		    }
-		    else{				    /* matched suffix */
-			etext1 = *full_to;
-			end_of_new = strlen(etext1) - pt->encoded->cksumlen;
-			save   = etext1[end_of_new];
-			etext1[end_of_new] = '\0';
-			etext2 = pt->encoded->etext;
-			etext3 = "";
-		    }
-
-		    l = strlen(etext1) + strlen(etext2) + strlen(etext3);
-		    pt->encoded->etext = (char *) fs_get((l+1) * sizeof(char));
-
-		    r = pt->encoded->etext;
-		    sstrncpy(&r, etext1, l+1);
-		    sstrncpy(&r, etext2, l+1-(r-pt->encoded->etext));
-		    sstrncpy(&r, etext3, l+1-(r-pt->encoded->etext));
-		    pt->encoded->etext[l] = '\0';
-
-		    if(etext2)
-		      fs_give((void **)&etext2);
-
-		    if(csum_start != pt->encoded->cksumval)
-		      etext1[end_of_new] = save;
-
-		    pt->encoded->cksumlen = strlen(p);
-		    pt->encoded->cksumval = line_hash(p);
-		  }
-		}
-	    }
-	    else
-	      fs_give((void **)full_to);
-	    
+	if(p == q){
+	    fs_give((void **)full_to);
 	    *full_to = p;
 	}
-
-	if(p != q)
+	else
 	  fs_give((void **)&q);
-    }
-    else{
-	/*
-	 * no reason to save anything anymore,
-	 * since no decoding happened
-	 */
-	if(barg && barg->me){
-	    pt = (PrivateTop *)(*barg->me);
-	    if(pt)
-	      free_privateencoded(&pt->encoded);
-	}
     }
 
     if(fcc_local){
@@ -6509,26 +6519,14 @@ build_addr_lcc(char *lcc, char **full_lcc, char **error, BUILDER_ARG *barg, int 
 	    if(barg && barg->aff){
 		pt = (PrivateTop *)(*barg->aff);
 
-		if(pt && pt->encoded && pt->encoded->etext)
-		  fs_give((void **)&pt->encoded->etext);
-
 		if(!pt){
 		    *barg->aff = (void *)fs_get(sizeof(PrivateTop));
 		    pt = (PrivateTop *)(*barg->aff);
 		    memset((void *)pt, 0, sizeof(PrivateTop));
 		}
-
-		if(!pt->encoded)
-		  pt->encoded =
-		       (PrivateEncoded *)fs_get(sizeof(PrivateEncoded));
-		    
-		pt->encoded->etext    = to;
-		pt->encoded->cksumlen = strlen(p);
-		pt->encoded->cksumval = line_hash(p);
 	    }
-	    else
-	      fs_give((void **)&to);
-	    
+
+	    fs_give((void **)&to);
 	    to = p;
 	}
 	else
@@ -6575,10 +6573,28 @@ build_addr_lcc(char *lcc, char **full_lcc, char **error, BUILDER_ARG *barg, int 
 	   (pt->affector->who == BP_Lcc && csum != pt->affector->cksumval)){
 
 	    /* replace to value */
-	    if(barg->tptr)
-	      fs_give((void **)&barg->tptr);
-	    
-	    barg->tptr = to;
+	    if(barg->tptr && barg->tptr[0]){
+		size_t l;
+		char *t;
+
+		l = strlen(barg->tptr) + strlen(to ? to : "") + 2;
+		t = (char *)fs_get((l+1) * sizeof(char));
+		snprintf(t, l+1, "%s%s%s",
+			 barg->tptr,
+			 (to && *to) ? ", " : "",
+			 (to && *to) ? to : "");
+		fs_give((void **)&barg->tptr);
+		if(to)
+		  fs_give((void **)&to);
+
+		barg->tptr = t;
+	    }
+	    else{
+		if(barg->tptr)
+		  fs_give((void **)&barg->tptr);
+
+		barg->tptr = to;
+	    }
 
 	    if(barg->aff){
 		if(!pt){
@@ -6783,7 +6799,7 @@ queried here.
 int
 dos_valid_from()
 {
-    char        prompt[100], answer[80], *p;
+    char        prompt[100], answer[80];
     int         rc, i, flags;
     HelpType    help;
 

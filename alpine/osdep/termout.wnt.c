@@ -37,9 +37,14 @@ static char rcsid[] = "$Id: termout.unx.c 159 2006-10-02 22:00:13Z hubert@u.wash
 #include "../../pico/keydefs.h"
 
 #include "../../pico/osdep/mswin.h"
+#include "../../pico/osdep/color.h"
 
 #include "../flagmaint.h"
+#include "../status.h"
+#include "../keymenu.h"
+#include "../titlebar.h"
 
+#include "termout.gen.h"
 #include "termout.wnt.h"
 
 /*======================================================================
@@ -71,8 +76,6 @@ static char rcsid[] = "$Id: termout.unx.c 159 2006-10-02 22:00:13Z hubert@u.wash
 #define	PUTLINE_BUFLEN	256
 
 static int   _lines, _columns;
-
-int     config_screen(struct ttyo **);
 
 BOOL CALLBACK  __export 
 args_dialog_proc (HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
@@ -399,26 +402,31 @@ Writewchar(UCS ucs)
       default:
 	/* pass_ctrl_chars is always 1 for Windows */
 	width = wcellwidth(ucs);
-	if(width < 0)
-	  mswin_putc('?');
+	if(width < 0){
+	    mswin_putc('?');
+	    _col++;
+	}
+	else if(_col + width > ps_global->ttyo->screen_cols){
+	    int i;
+
+	    i = ps_global->ttyo->screen_cols - _col - 1;
+	    while(i-- > 0)
+	      mswin_putc(' ');
+
+	    _col = ps_global->ttyo->screen_cols - 1;
+	    mswin_move(_line, _col);
+	    mswin_putc('>');
+	    _col++;
+	}
 	else{
-	    if(_col + width > ps_global->ttyo->screen_cols){
-		_col = 0;
-		if(_line + 1 < ps_global->ttyo->screen_rows)
-		  _line++;
-		mswin_move(_line, _col);
-	    }
 	    mswin_putc(ucs);
 	    _col += width;
 	}
     }
 
-    if(_col == ps_global->ttyo->screen_cols) {
-	  _col  = 0;
-	  if(_line + 1 < ps_global->ttyo->screen_rows)
-	    _line++;
-
-	  mswin_move(_line, _col);
+    if(_col >= ps_global->ttyo->screen_cols){
+	_col = ps_global->ttyo->screen_cols;
+	mswin_move(_line, _col);
     }
 
     return;
@@ -732,7 +740,6 @@ os_login_dialog (NETMBX *mb, char *user_utf8, int userlen,
     DLGPROC	dlgprc;
     HINSTANCE	hInst;
     HWND	hWnd;
-    int		i;
     DLG_LOGINDATA  dlgpw;
     LPTSTR user_lptstr, pwd_lptstr;
     char *tuser_utf8, *tpwd_utf8;
@@ -797,7 +804,6 @@ os_flagmsgdialog (struct flag_table *ftbl)
     DLGPROC	dlgprc;
     HINSTANCE	hInst;
     HWND	hWnd;
-    int		i;
     DLG_FLAGDATA  dlgflag;
     int		rval;
 
@@ -1243,7 +1249,6 @@ os_config_vars_dialog (INSTALLVARS_S *ivars)
     DLGPROC	dlgprc;
     HINSTANCE	hInst;
     HWND	hWnd;
-    int		i;
     DLG_CONFIGVARSDATA  dlgcv;
 
     mswin_killsplash();
@@ -1470,12 +1475,12 @@ config_vars_dialog_proc (HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		    if(u){
 			removing_leading_and_trailing_white_space(u);
 			if(*u){
-			    strncat(tsrvr, "/user=", tsrvrlen);
-			    strncat(tsrvr, u, tsrvrlen);
+			    strncat(tsrvr, "/user=", sizeof(tsrvr)-strlen(tsrvr)-1);
+			    strncat(tsrvr, u, sizeof(tsrvr)-strlen(tsrvr)-1);
 			}
 
-			strncat(tsrvr, "}inbox", tsrvrlen);
-			tsrvr[tsrvrlen-1] = '\0';
+			strncat(tsrvr, "}inbox", sizeof(tsrvr)-strlen(tsrvr)-1);
+			tsrvr[sizeof(tsrvr)-1] = '\0';
 			dlgcv->ivars->inboxpath = cpystr(tsrvr);
 		    }
 		}
@@ -1538,7 +1543,6 @@ os_config_dialog (char *utf8_buf, int utf8_buflen,
     DLGPROC	dlgprc;
     HINSTANCE	hInst;
     HWND	hWnd;
-    int		i;
     DLG_CONFIGDATA  dlgcfg;
 
     mswin_killsplash();

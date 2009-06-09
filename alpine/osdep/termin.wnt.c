@@ -36,19 +36,25 @@ static char rcsid[] = "$Id: termin.unx.c 193 2006-10-20 17:09:26Z mikes@u.washin
 #include "../../pith/detach.h"
 
 #include "../pico/estruct.h"
+#include "../pico/pico.h"
 
 #include "../../pico/osdep/raw.h"
 #include "../../pico/osdep/signals.h"
+#include "../../pico/osdep/mouse.h"
 #include "../../pico/keydefs.h"
 
 #include "../talk.h"
 #include "../radio.h"
 #include "../dispfilt.h"
+#include "../signal.h"
+#include "../status.h"
+#include "../titlebar.h"
 
 #include "../../pico/osdep/mswin.h"
 
 #include "termin.gen.h"
 #include "termin.wnt.h"
+#include "termout.gen.h"
 
 #define	RETURN_CH(X)	return(key_rec ? ((*key_rec)(X)) : (int)(X))
 

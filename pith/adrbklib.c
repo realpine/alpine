@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: adrbklib.c 592 2007-06-07 17:46:58Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: adrbklib.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -16,6 +16,8 @@ static char rcsid[] = "$Id: adrbklib.c 592 2007-06-07 17:46:58Z hubert@u.washing
 
 #include "../pith/headers.h"
 #include "../pith/adrbklib.h"
+#include "../pith/abdlc.h"
+#include "../pith/addrbook.h"
 #include "../pith/addrstring.h"
 #include "../pith/state.h"
 #include "../pith/conf.h"
@@ -454,12 +456,10 @@ copy_abook_to_tempfile(AdrBk *ab, char *warning, size_t warninglen)
 {
     int    got_it, fd, c,
 	   ret = -1,
-	   tried_shortname = 0,
-	   tried_tmpfile = 0,
 	   we_cancel = 0;
     FILE  *fp_read = (FILE *)NULL,
 	  *fp_write = (FILE *)NULL;
-    char  *lc, *p;
+    char  *lc;
     time_t mtime;
 
 
@@ -535,8 +535,6 @@ copy_abook_to_tempfile(AdrBk *ab, char *warning, size_t warninglen)
 
 
     /* now there is an ab->filename and we have it open for reading */
-
-try_again:
 
     got_it = 0;
 
@@ -744,7 +742,6 @@ count_abook_entries_on_disk(AdrBk *ab, a_c_arg_t *deleted)
     char          *nickname;
     adrbk_cntr_t   count = 0;
     adrbk_cntr_t   deleted_count = 0;
-    long           offset;
     int		   rew = 1;
     char           nickbuf[50];
 
@@ -790,8 +787,8 @@ int
 build_abook_datastruct(AdrBk *ab, char *warning, size_t warninglen)
 {
     FILE          *fp_in;
-    char          *nickname, *address;
-    char          *lc, *p;
+    char          *nickname;
+    char          *lc;
     a_c_arg_t      count, deleted;
     adrbk_cntr_t   used = 0, delused = 0;
     int            max_nick = 0,
@@ -802,7 +799,7 @@ build_abook_datastruct(AdrBk *ab, char *warning, size_t warninglen)
 		   this_fcc_width;
     WIDTH_INFO_S  *widths;
     int		   rew = 1, is_deleted;
-    AdrBk_Entry   *ae, *ae_prev = NULL;
+    AdrBk_Entry   *ae;
 
     dprint((9, "- build_abook_datastruct -\n"));
 
@@ -1321,10 +1318,8 @@ STRLIST_S *
 adrbk_list_of_possible_nicks(AdrBk *ab, char *prefix)
 {
     AdrBk_Trie *t;
-    int          k;
     char        *p, *lookthisup;
     char         buf[1000];
-    char         ans[1000];
     STRLIST_S   *list = NULL;
 
     if(!ab || !prefix || !ab->nick_trie)
@@ -1508,7 +1503,8 @@ get_next_abook_entry(FILE *fp, int rew)
 
     /*
      * The rest is working on finding the start of the next entry so
-    /* skip continuation lines */
+     * skip continuation lines
+     */
     do{
 	next_nickname_offset = ftell(fp);
 	line[0] = '\0';
@@ -1646,11 +1642,10 @@ strip_addr_string(char *addrstr, char **start_addr, char **end_addr)
 AdrBk_Entry *
 init_ae(AdrBk *ab, AdrBk_Entry *a, char *str)
 {
-    char *p, *lc;
+    char *p;
     char *addrfield = (char *) NULL;
     char *addrfield_end;
     char *nickname, *fullname, *fcc, *extra;
-    char *conv;
 
     if(!ab){
 	dprint((2, "init_ae: found trouble: NULL ab\n"));
@@ -1951,10 +1946,8 @@ adrbk_lookup_by_addr(AdrBk *ab, char *address, adrbk_cntr_t *entry_num)
 char *
 adrbk_formatname(char *fullname, char **first, char **last)
 {
-    char       *comma, *p;
+    char       *comma;
     char       *new_name;
-    const CHARSET *cs;
-    SIZEDTEXT   test;
 
     if(first)
       *first = NULL;
@@ -1986,9 +1979,9 @@ adrbk_formatname(char *fullname, char **first, char **last)
 	new_name = (char *) fs_get((l+1) * sizeof(char));
         strncpy(new_name, comma, l);
 	new_name[l] = '\0';
-        strncat(new_name, " ", l-strlen(new_name));
+        strncat(new_name, " ", l+1-1-strlen(new_name));
 	new_name[l] = '\0';
-        strncat(new_name, fullname, MIN(last_name_len,l-strlen(new_name))); 
+        strncat(new_name, fullname, MIN(last_name_len,l+1-1-strlen(new_name))); 
 	new_name[l] = '\0';
     }
     else
@@ -3209,7 +3202,6 @@ adrbk_write(AdrBk *ab, a_c_arg_t current_entry_num, adrbk_cntr_t *new_entry_num,
      * If there are any old deleted entries, copy them to new file.
      */
     if(ab->del_count > 0){
-	FILE *fp_in;
 	char *nickname;
 	long  delindex;
 
@@ -3298,8 +3290,6 @@ adrbk_write(AdrBk *ab, a_c_arg_t current_entry_num, adrbk_cntr_t *new_entry_num,
 			     (long) ab->del_count));
 
     for(entry_num = 0; entry_num < ab->count; entry_num++){
-	int          free_the_ae;
-
 	entry_num_for_percent++;
 
 	ALARM_BLIP();
@@ -3651,8 +3641,8 @@ write_single_abook_entry(AdrBk_Entry *ae, FILE *fp, int *ret_nick_width,
 {
     int len = 0;
     int nick_width = 0, full_width = 0, addr_width = 0, fcc_width = 0;
-    int tmplen, this_width, this_len;
-    char *p, *write_this = NULL;
+    int tmplen, this_len;
+    char *write_this = NULL;
 
     if(fp == (FILE *) NULL){
 	dprint((1, "write_single_abook_entry: fp is NULL\n"));
@@ -4023,8 +4013,6 @@ percent_abook_saved(void)
 void
 free_ae(AdrBk_Entry **ae)
 {
-    char **p;
-
     if(!ae || !(*ae))
       return;
 
@@ -5404,7 +5392,7 @@ adrbk_access(PerAddrBook *pab)
 		char *dir, *p;
 
 		dir = ".";
-		if(p = last_cmpnt(fbuf)){
+		if((p = last_cmpnt(fbuf)) != NULL){
 		    *--p = '\0';
 		    dir  = *fbuf ? fbuf : "/";
 		}
@@ -5574,8 +5562,6 @@ init_abook(PerAddrBook *pab, OpenStatus want_status)
 
 	    pab->address_book = adrbk_open(pab,
 		   ps_global->home_dir, warning, sizeof(warning), sort_rule);
-
-late_failure:
 
 	    if(pab->address_book == NULL){
 		pab->access = NoAccess;

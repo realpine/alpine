@@ -1,8 +1,8 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: listsel.c 245 2006-11-18 02:46:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: listsel.c 649 2007-07-18 23:45:23Z hubert@u.washington.edu $";
 #endif
 /* ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,7 +52,8 @@ int      select_from_list_tool(struct pine *, int, CONF_S **, unsigned);
  */
 int
 select_from_list_screen(LIST_SEL_S *lsel, long unsigned int flags, char *title,
-			char *pdesc, HelpType help, char *htitle)
+			char *pdesc, HelpType help, char *htitle,
+			LIST_SEL_S *starting_val)
 {
     CONF_S      *ctmp = NULL, *first_line = NULL;
     OPT_SCREEN_S screen;
@@ -93,6 +94,9 @@ select_from_list_screen(LIST_SEL_S *lsel, long unsigned int flags, char *title,
 	    new_confline(&ctmp);
 	    if(!first_line && !(p->flags & SFL_NOSELECT))
 	      first_line = ctmp;
+	    if(!first_line && !(p->flags & SFL_NOSELECT))
+	      if(!starting_val || (starting_val == p))
+	        first_line = ctmp;
 
 	    /* generous allocation */
 	    l = lv + 4 + strlen(display);
@@ -125,7 +129,8 @@ select_from_list_screen(LIST_SEL_S *lsel, long unsigned int flags, char *title,
 			p->item ? p->item : "";
 	    new_confline(&ctmp);
 	    if(!first_line && !(p->flags & SFL_NOSELECT))
-	      first_line = ctmp;
+	      if(!starting_val || (starting_val == p))
+	        first_line = ctmp;
 
 	    l = lv + strlen(display);
 	    ctmp->value        = (char *) fs_get((l + 1) * sizeof(char));

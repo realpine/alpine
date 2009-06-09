@@ -1,5 +1,5 @@
 /*
- * $Id: flag.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: flag.h 660 2007-07-31 20:49:58Z mikes@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -32,13 +32,15 @@
 #define	F_UNFLAG	0x00000020
 #define	F_ANS		0x00000040
 #define	F_UNANS		0x00000080
-#define	F_RECENT	0x00000100
-#define	F_UNRECENT	0x00000200
-#define	F_DRAFT		0x00000400
-#define	F_UNDRAFT	0x00000800
+#define	F_FWD		0x00000100
+#define	F_UNFWD		0x00000200
+#define	F_RECENT	0x00000400
+#define	F_UNRECENT	0x00000800
+#define	F_DRAFT		0x00001000
+#define	F_UNDRAFT	0x00002000
 
-#define	F_SRCHBACK	0x00001000	/* search backwards instead of forw */
-#define	F_NOFILT	0x00002000	/* defer processing filters */
+#define	F_SRCHBACK	0x00004000	/* search backwards instead of forw */
+#define	F_NOFILT	0x00008000	/* defer processing filters */
 
 #define	F_OR_SEEN	0x00010000
 #define	F_OR_UNSEEN	0x00020000
@@ -48,32 +50,38 @@
 #define	F_OR_UNFLAG	0x00200000
 #define	F_OR_ANS	0x00400000
 #define	F_OR_UNANS	0x00800000
-#define	F_OR_RECENT	0x01000000
-#define	F_OR_UNRECENT	0x02000000
+#define	F_OR_FWD	0x01000000
+#define	F_OR_UNFWD	0x02000000
+#define	F_OR_RECENT	0x04000000
+#define	F_OR_UNRECENT	0x08000000
 
-#define	F_KEYWORD	0x04000000
-#define	F_UNKEYWORD	0x08000000
+#define	F_KEYWORD	0x10000000
+#define	F_UNKEYWORD	0x20000000
 
 
 /*
  * Useful flag checking macro
  */
-#define FLAG_MATCH(F, M)   (((((F)&F_SEEN)   ? (M)->seen		     \
+#define FLAG_MATCH(F,M,S) (((((F)&F_SEEN)   ? (M)->seen			     \
 				: ((F)&F_UNSEEN)     ? !(M)->seen : 1)	     \
 			  && (((F)&F_DEL)    ? (M)->deleted		     \
 				: ((F)&F_UNDEL)      ? !(M)->deleted : 1)    \
 			  && (((F)&F_ANS)    ? (M)->answered		     \
 				: ((F)&F_UNANS)	     ? !(M)->answered : 1)   \
+			  && (((F)&F_FWD) ? ((S) && user_flag_is_set((S),(M)->msgno,FORWARDED_FLAG)) \
+			      : ((F)&F_UNFWD) ? ((S) && !user_flag_is_set((S),(M)->msgno,FORWARDED_FLAG)) : 1) \
 			  && (((F)&F_FLAG) ? (M)->flagged		     \
 				: ((F)&F_UNFLAG)   ? !(M)->flagged : 1)	     \
 			  && (((F)&F_RECENT) ? (M)->recent		     \
-				: ((F)&F_UNRECENT)   ? !(M)->recent : 1))    \
+			      : ((F)&F_UNRECENT)   ? !(M)->recent : 1))	     \
 			  || ((((F)&F_OR_SEEN) ? (M)->seen		     \
 				: ((F)&F_OR_UNSEEN)   ? !(M)->seen : 0)      \
 			  || (((F)&F_OR_DEL)   ? (M)->deleted		     \
 				: ((F)&F_OR_UNDEL)    ? !(M)->deleted : 0)   \
 			  || (((F)&F_OR_ANS)   ? (M)->answered		     \
 				: ((F)&F_OR_UNANS)    ? !(M)->answered : 0)  \
+			  || (((F)&F_OR_FWD) ? ((S) && user_flag_is_set((S),(M)->msgno,FORWARDED_FLAG)) \
+				: ((F)&F_OR_UNFWD)    ? !((S) && user_flag_is_set((S),(M)->msgno,FORWARDED_FLAG)) : 0) \
 			  || (((F)&F_OR_FLAG)? (M)->flagged		     \
 				: ((F)&F_OR_UNFLAG) ? !(M)->flagged : 0)     \
 			  || (((F)&F_OR_RECENT)? (M)->recent		     \

@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: bldaddr.c 521 2007-04-11 23:55:43Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: bldaddr.c 701 2007-08-31 18:52:30Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ static char rcsid[] = "$Id: bldaddr.c 521 2007-04-11 23:55:43Z hubert@u.washingt
 #include "../pith/ablookup.h"
 #include "../pith/news.h"
 #include "../pith/stream.h"
+#include "../pith/mailcmd.h"
 #include "../pith/osdep/pw_stuff.h"
 
 
@@ -59,11 +60,6 @@ jmp_buf addrbook_changed_unexpectedly;
  */
 int         ab_nesting_level = 0;
 
-
-/*
- * Internal prototypes
- */
-void           strip_personal_quotes(ADDRESS *);
 
 
 /*
@@ -103,7 +99,7 @@ our_build_address(BuildTo to, char **full_to, char **error, char **fcc,
 			 : (to.arg.abe->nickname ? to.arg.abe->nickname
 						: "no nick")));
 
-    if(to.type == Str && !to.arg.str || to.type == Abe && !to.arg.abe){
+    if((to.type == Str && !to.arg.str) || (to.type == Abe && !to.arg.abe)){
 	if(full_to)
 	  *full_to = cpystr("");
 	ret = 0;
@@ -210,12 +206,12 @@ start:
 	strncpy(tmp, "<", MAX_ADDR_FIELD+3);
 	tmp[MAX_ADDR_FIELD+3-1] = '\0';
 	if(to.type == Str)
-	  strncat(tmp, to.arg.str, MAX_ADDR_FIELD+3-strlen(tmp));
+	  strncat(tmp, to.arg.str, MAX_ADDR_FIELD+3-strlen(tmp)-1);
 	else
-	  strncat(tmp, to.arg.abe->addr.addr, MAX_ADDR_FIELD+3-strlen(tmp));
+	  strncat(tmp, to.arg.abe->addr.addr, MAX_ADDR_FIELD+3-strlen(tmp)-1);
 
 	tmp[MAX_ADDR_FIELD+3-1] = '\0';
-	strncat(tmp, ">", MAX_ADDR_FIELD+3-strlen(tmp));
+	strncat(tmp, ">", MAX_ADDR_FIELD+3-strlen(tmp)-1);
 	tmp[MAX_ADDR_FIELD+3-1] = '\0';
 
 	loop = 0;
@@ -641,7 +637,6 @@ expand_address(BuildTo to, char *userdomain, char *localdomain, int *loop_detect
 		  
 		/* still haven't found it */
 		if(a->host[0] == '@' && !wp_nobail){
-		    extern const char *rspecials;
 		    int space_phrase;
 
 		    /*
@@ -807,9 +802,9 @@ expand_address(BuildTo to, char *userdomain, char *localdomain, int *loop_detect
 			*rbuf.cur = '\0';
 			l = strlen(tmp)+1;
 			*lcc = (char *) fs_get((l+1) * sizeof(char));
-			strncpy(*lcc, tmp, l+1);
+			strncpy(*lcc, tmp, l);
 			(*lcc)[l] = '\0';
-			strncat(*lcc, ";", l+1);
+			strncat(*lcc, ";", l+1-strlen(*lcc)-1);
 			(*lcc)[l] = '\0';
 			mail_free_address(&atmp);
 			fs_give((void **)&tmp);
@@ -1046,9 +1041,9 @@ expand_address(BuildTo to, char *userdomain, char *localdomain, int *loop_detect
 		*rbuf.cur = '\0';
 		l = strlen(tmp)+1;
 		*lcc = (char *) fs_get((l+1) * sizeof(char));
-		strncpy(*lcc, tmp, l+1);
+		strncpy(*lcc, tmp, l);
 		(*lcc)[l] = '\0';
-		strncat(*lcc, ";", l+1-strlen(*lcc));
+		strncat(*lcc, ";", l+1-strlen(*lcc)-1);
 		(*lcc)[l] = '\0';
 		mail_free_address(&atmp);
 		fs_give((void **)&tmp);
@@ -1135,7 +1130,7 @@ strip_personal_quotes(struct mail_address *adr)
 		adr->personal[len-1] = '\0';
 		p = adr->personal;
 		q = p + 1;
-		while(*p++ = *q++)
+		while((*p++ = *q++) != '\0')
 		  ;
 	    }
 	}
@@ -1262,19 +1257,6 @@ free_privatetop(PrivateTop **pt)
 	if((*pt)->affector)
 	  fs_give((void **)&(*pt)->affector);
 	
-	free_privateencoded(&(*pt)->encoded);
 	fs_give((void **)pt);
-    }
-}
-
-
-void
-free_privateencoded(PrivateEncoded **enc)
-{
-    if(enc && *enc){
-	if((*enc)->etext)
-	  fs_give((void **)&(*enc)->etext);
-	
-	fs_give((void **)enc);
     }
 }

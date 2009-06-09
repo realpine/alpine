@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: ablookup.c 473 2007-03-07 23:16:56Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: ablookup.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -421,11 +421,11 @@ addr_is_in_addrbook(PerAddrBook *pab, struct mail_address *addr)
       return(ret);
 
     if(addr){
-	strncpy(abuf, addr->mailbox, MAX_ADDR_FIELD);
-	abuf[MAX_ADDR_FIELD] = '\0';
+	strncpy(abuf, addr->mailbox, sizeof(abuf)-1);
+	abuf[sizeof(abuf)-1] = '\0';
 	if(addr->host && addr->host[0]){
-	    strncat(abuf, "@", MAX_ADDR_FIELD-strlen(abuf));
-	    strncat(abuf, addr->host, MAX_ADDR_FIELD-strlen(abuf));
+	    strncat(abuf, "@", sizeof(abuf)-strlen(abuf)-1);
+	    strncat(abuf, addr->host, sizeof(abuf)-strlen(abuf)-1);
 	}
 
 	if(pab->ostatus != Open && pab->ostatus != NoDisplay)
@@ -513,13 +513,13 @@ address_to_abe(struct mail_address *addr)
     if(!(addr && addr->mailbox))
       return (AdrBk_Entry *)NULL;
 
-    abuf = (char *)fs_get((size_t)(MAX_ADDR_FIELD + 1));
+    abuf = (char *)fs_get((MAX_ADDR_FIELD + 1) * sizeof(char));
 
     strncpy(abuf, addr->mailbox, MAX_ADDR_FIELD);
     abuf[MAX_ADDR_FIELD] = '\0';
     if(addr->host && addr->host[0]){
-	strncat(abuf, "@", MAX_ADDR_FIELD-strlen(abuf));
-	strncat(abuf, addr->host, MAX_ADDR_FIELD-strlen(abuf));
+	strncat(abuf, "@", MAX_ADDR_FIELD+1-1-strlen(abuf));
+	strncat(abuf, addr->host, MAX_ADDR_FIELD+1-1-strlen(abuf));
     }
 
     /* for each addressbook */
@@ -676,7 +676,7 @@ abe_to_nick_or_addr_string(AdrBk_Entry *abe, AddrScrn_Disp *dl, int abook_num)
 	 * will cause the wrong entry to get used. So check for that
 	 * and pass back the addr_string in that case.
 	 */
-	if(fname = addr_lookup(abe->nickname, &which_addrbook, abook_num)){
+	if((fname = addr_lookup(abe->nickname, &which_addrbook, abook_num)) != NULL){
 	    fs_give((void **)&fname);
 	    if(which_addrbook >= abook_num)
 	      return(cpystr(abe->nickname));
@@ -818,14 +818,14 @@ abes_are_equal(AdrBk_Entry *a, AdrBk_Entry *b)
 
     if(a && b &&
        a->tag == b->tag &&
-       (!a->nickname && !b->nickname ||
-	a->nickname && b->nickname && strcmp(a->nickname,b->nickname) == 0) &&
-       (!a->fullname && !b->fullname ||
-	a->fullname && b->fullname && strcmp(a->fullname,b->fullname) == 0) &&
-       (!a->fcc && !b->fcc ||
-	a->fcc && b->fcc && strcmp(a->fcc,b->fcc) == 0) &&
-       (!a->extra && !b->extra ||
-	a->extra && b->extra && strcmp(a->extra,b->extra) == 0)){
+       ((!a->nickname && !b->nickname) ||
+	(a->nickname && b->nickname && strcmp(a->nickname,b->nickname) == 0)) &&
+       ((!a->fullname && !b->fullname) ||
+	(a->fullname && b->fullname && strcmp(a->fullname,b->fullname) == 0)) &&
+       ((!a->fcc && !b->fcc) ||
+	(a->fcc && b->fcc && strcmp(a->fcc,b->fcc) == 0)) &&
+       ((!a->extra && !b->extra) ||
+	(a->extra && b->extra && strcmp(a->extra,b->extra) == 0))){
 
 	/* If we made it in here, they still might be equal. */
 	if(a->tag == Single)
@@ -918,8 +918,8 @@ addr_lookup(char *nickname, int *which_addrbook, int not_here)
 int
 adrbk_nick_complete(char *prefix, char **answer, unsigned flags)
 {
-    int i, j, k, longest_match, prefixlen, done;
-    int answerlen, candidate_kth_char, l;
+    int i, k, longest_match, prefixlen, done;
+    int candidate_kth_char, l;
     int ambiguity = 0;
     char *saved_beginning = NULL;
     char *ans = NULL;

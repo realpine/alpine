@@ -1,5 +1,5 @@
 /*
- * $Id: filter.h 577 2007-05-22 22:16:43Z hubert@u.washington.edu $
+ * $Id: filter.h 663 2007-08-04 00:05:21Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -20,6 +20,7 @@
 #include "../pith/filttype.h"
 #include "../pith/handle.h"
 #include "../pith/store.h"
+#include "../pith/osdep/pipe.h"
 
 
 /* gf_html2plain flags */
@@ -32,15 +33,16 @@
 
 
 /* gf_wrap flags */
-#define	GFW_NONE		0x00	/* no flags			*/
-#define	GFW_HANDLES		0x01	/* anticpate handle data	*/
-#define	GFW_ONCOMMA		0x02	/* prefer comma wrap to spaces  */
-#define	GFW_FLOWED		0x04
-#define	GFW_FLOW_RESULT		0x08
-#define	GFW_DELSP		0x10
-#define GFW_USECOLOR		0x20
-#define GFW_HDRCOLOR		0x40
-#define GFW_FORCOMPOSE          0x80
+#define	GFW_NONE		0x000	/* no flags			*/
+#define	GFW_HANDLES		0x001	/* anticpate handle data	*/
+#define	GFW_ONCOMMA		0x002	/* prefer comma wrap to spaces  */
+#define	GFW_FLOWED		0x004
+#define	GFW_FLOW_RESULT		0x008
+#define	GFW_DELSP		0x010
+#define GFW_USECOLOR		0x020
+#define GFW_HDRCOLOR		0x040
+#define GFW_FORCOMPOSE          0x080
+#define GFW_SOFTHYPHEN          0x100	/* do something special with soft-hyphens */
 
 
 /* gf_url_hilite flags */
@@ -152,7 +154,8 @@ void	    gf_link_filter(filter_t, void *);
 void	    gf_set_terminal(gf_io_t);
 char	   *gf_pipe(gf_io_t, gf_io_t);
 long	    gf_bytes_piped(void);
-char	   *gf_filter(char *, char *, STORE_S *, gf_io_t, FILTLIST_S *, int);
+char	   *gf_filter(char *, char *, STORE_S *, gf_io_t, FILTLIST_S *, int,
+		      void (*)(PIPE_S *, int, void *));
 void	    gf_binary_b64(FILTER_S *, int);
 void	    gf_b64_binary(FILTER_S *, int);
 void	    gf_qp_8bit(FILTER_S *, int);

@@ -113,6 +113,8 @@ CXXCPP = @CXXCPP@
 CXXDEPMODE = @CXXDEPMODE@
 CXXFLAGS = @CXXFLAGS@
 CYGPATH_W = @CYGPATH_W@
+C_CLIENT_CFLAGS = @C_CLIENT_CFLAGS@
+C_CLIENT_GCCOPTLEVEL = @C_CLIENT_GCCOPTLEVEL@
 C_CLIENT_SPECIALS = @C_CLIENT_SPECIALS@
 C_CLIENT_TARGET = @C_CLIENT_TARGET@
 C_CLIENT_WITH_IPV6 = @C_CLIENT_WITH_IPV6@
@@ -167,7 +169,6 @@ SED = @SED@
 SENDMAIL = @SENDMAIL@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
-SPELLPROG = @SPELLPROG@
 STRIP = @STRIP@
 USE_NLS = @USE_NLS@
 VERSION = @VERSION@
@@ -181,6 +182,8 @@ ac_ct_F77 = @ac_ct_F77@
 ac_ct_RANLIB = @ac_ct_RANLIB@
 ac_ct_STRIP = @ac_ct_STRIP@
 acx_pthread_config = @acx_pthread_config@
+alpine_interactive_spellcheck = @alpine_interactive_spellcheck@
+alpine_simple_spellcheck = @alpine_simple_spellcheck@
 am__fastdepCC_FALSE = @am__fastdepCC_FALSE@
 am__fastdepCC_TRUE = @am__fastdepCC_TRUE@
 am__fastdepCXX_FALSE = @am__fastdepCXX_FALSE@
@@ -223,7 +226,7 @@ EXTRA_DIST = config.rpath  VERSION README LICENSE
 SUBDIRS = m4 po pith pico alpine $(WEB_BUILD) $(WEB_PUBCOOKIE_BUILD)
 BUILT_SOURCES = c-client.d c-client
 CLEANFILES = c-client
-man_MANS = doc/alpine.1 doc/pico.1 doc/pilot.1
+man_MANS = doc/alpine.1 doc/pico.1 doc/pilot.1 doc/rpdump.1 doc/rpload.1
 ACLOCAL_AMFLAGS = -I m4
 all: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
@@ -724,7 +727,7 @@ c-client.d:
 
 c-client:
 	$(C_CLIENT_WITH_IPV6)
-	cd imap && $(MAKE) @C_CLIENT_TARGET@ EXTRASPECIALS="@C_CLIENT_SPECIALS@"
+	cd imap && $(MAKE) @C_CLIENT_TARGET@ @C_CLIENT_CFLAGS@ @C_CLIENT_GCCOPTLEVEL@ EXTRASPECIALS="@C_CLIENT_SPECIALS@"
 
 clean-local:
 	cd imap && $(MAKE) clean

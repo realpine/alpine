@@ -1,5 +1,5 @@
 /*
- * $Id: mailview.h 577 2007-05-22 22:16:43Z hubert@u.washington.edu $
+ * $Id: mailview.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -114,6 +114,8 @@ typedef struct header_s {
 int	 format_message(long, ENVELOPE *, BODY *, HANDLE_S **,
 				  int, gf_io_t);
 int	 url_hilite(long, char *, LT_INS_S **, void *);
+int	 handle_start_color(char *, size_t, int *, int);
+int	 handle_end_color(char *, size_t, int *);
 
 /*
  * BUG:  BELOW IS UNIX/PC ONLY since config'd browser means nothing to webpine

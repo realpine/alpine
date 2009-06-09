@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: word.c 537 2007-04-24 23:27:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: word.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -181,7 +181,7 @@ ucs4_isalpha(UCS c)
 int
 ucs4_isspace(UCS c)
 {
-    return(c < 0xff && isspace((unsigned char) c) || SPECIAL_SPACE(c));
+    return((c < 0xff && isspace((unsigned char) c)) || SPECIAL_SPACE(c));
 }
 
 int
@@ -435,7 +435,7 @@ is_user_separator(UCS c)
  * Return number of quotes if whatever starts the line matches the quote string
  */
 int
-quote_match(UCS *q, LINE *l, UCS *buf, int buflen)
+quote_match(UCS *q, LINE *l, UCS *buf, size_t buflen)
 {
     register int i, n, j, qb;
 
@@ -452,7 +452,7 @@ quote_match(UCS *q, LINE *l, UCS *buf, int buflen)
 	n++;
 	if((!qb && q[i] == '\0') || (qb && q[i+1] == '\0')){
 	    if(ucs4_strlen(buf) + ucs4_strlen(q) + 1 < buflen){
-		ucs4_strncat(buf, q, buflen-ucs4_strlen(q));
+		ucs4_strncat(buf, q, buflen-ucs4_strlen(q)-1);
 		buf[buflen-1] = '\0';
 		if(qb && (j > llength(l) || lgetc(l, j).c != ' '))
 		  buf[ucs4_strlen(buf)-1] = '\0';
@@ -471,7 +471,6 @@ quote_match(UCS *q, LINE *l, UCS *buf, int buflen)
 int
 fillbuf(int f, int n)
 {
-    int i, lastflagsave;
     LINE *eobline;
     REGION region;
 
@@ -831,7 +830,7 @@ fillregion(UCS *qstr, REGION *addedregion)
 {
     long    c, sz, last_char = 0;
     int	    i, j, qlen, same_word,
-	    spaces, word_len, word_ind, line_len, qn, ww;
+	    spaces, word_len, word_ind, line_len, ww;
     int     starts_midline = 0;
     int     ends_midline = 0;
     int     offset_into_start;

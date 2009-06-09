@@ -1,8 +1,8 @@
 /*
- * $Id: color.h 408 2007-02-01 00:14:18Z hubert@u.washington.edu $
+ * $Id: color.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
 
 /* exported prototypes */
 void	 StartInverse(void);
+void     flip_inv(int);
 void	 EndInverse(void);
 int	 InverseState(void);
 int	 StartBold(void);
@@ -27,6 +28,7 @@ void	 EndBold(void);
 void	 StartUnderline(void);
 void	 EndUnderline(void);
 int      pico_trans_color(void);
+void	 pico_endcolor(void);
 
 
 #endif /* PICO_OSDEP_COLOR_INCLUDED */

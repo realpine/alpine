@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: msgno.c 516 2007-04-09 21:07:44Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: msgno.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -20,6 +20,7 @@ static char rcsid[] = "$Id: msgno.c 516 2007-04-09 21:07:44Z hubert@u.washington
 #include "../pith/flag.h"
 #include "../pith/mailindx.h"
 #include "../pith/pineelt.h"
+#include "../pith/icache.h"
 
 
 /* internal prototypes */
@@ -301,7 +302,6 @@ void
 msgno_exclude(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, int reset_isort)
 {
     long i;
-    char b[100];
 
     /*--- clear all flags to keep our counts consistent  ---*/
     set_lflag(stream, msgmap, msgno, MN_HIDE | MN_CHID | MN_CHID2 | MN_SLCT, 0);

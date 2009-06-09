@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: signal.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: signal.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -32,6 +32,8 @@ static char rcsid[] = "$Id: signal.c 380 2007-01-23 00:09:18Z hubert@u.washingto
 #include "status.h"
 #include "dispfilt.h"
 #include "keymenu.h"
+#include "titlebar.h"
+#include "mailcmd.h"
 #include "../pith/state.h"
 #include "../pith/conf.h"
 #include "../pith/detach.h"
@@ -39,6 +41,9 @@ static char rcsid[] = "$Id: signal.c 380 2007-01-23 00:09:18Z hubert@u.washingto
 #include "../pith/util.h"
 #include "../pith/icache.h"
 #include "../pith/newmail.h"
+#include "../pith/imap.h"
+#include "../pith/adrbklib.h"
+#include "../pith/remote.h"
 #include "../pith/osdep/pipe.h"
 
 
@@ -317,8 +322,10 @@ Also delete any remnant _DATAFILE_ from sending-filters.
 void
 fast_clean_up(void)
 {
+#if !defined(DOS) && !defined(OS2)
     int         i;
     MAILSTREAM *m;
+#endif
 
     dprint((1, "fast_clean_up()\n"));
 
@@ -617,12 +624,13 @@ pipe_callback(PIPE_S *syspipe, int flags, void *data)
 	 * Don't pay any attention to that man behind the curtain.
 	 */
 	alarm_sig = signal(SIGALRM, SIG_IGN);
-	F_SET(F_SHOW_DELAY_CUE, ps_global, 0);
+	(void) F_SET(F_SHOW_DELAY_CUE, ps_global, 0);
 	ps_global->noshow_timeout = 1;
 	while(!child_signalled){
 	    /* wake up and prod server */
-	    new_mail(0, 2,
-		     (syspipe->mode & PIPE_RESET) ? NM_NONE : NM_DEFER_SORT);
+	    if(!(syspipe->mode & PIPE_NONEWMAIL))
+	      new_mail(0, 2,
+		       (syspipe->mode & PIPE_RESET) ? NM_NONE : NM_DEFER_SORT);
 
 	    if(!child_signalled){
 		if(setjmp(child_state) == 0){
@@ -774,9 +782,10 @@ do_suspend(void)
     struct pine *pine = ps_global;
     time_t now;
     UCS retval;
-    int   isremote;
 #if defined(DOS) || defined(OS2)
     int   result, orig_cols, orig_rows;
+#else
+    int   isremote;
 #endif
 #ifdef	DOS
     static char *shell = NULL;
@@ -823,7 +832,7 @@ do_suspend(void)
 	  shell = STD_SHELL;
 
 	shell = cpystr(shell);			/* copy in free storage */
-	for(p = shell; p = strchr(p, '/'); p++)
+	for(p = shell; (p = strchr(p, '/')); p++)
 	  *p = '\\';
     }
 
@@ -832,8 +841,8 @@ do_suspend(void)
     if(F_ON(F_SUSPEND_SPAWNS, ps_global)){
 	PIPE_S *syspipe;
 
-	if(syspipe = open_system_pipe(NULL, NULL, NULL, PIPE_USER|PIPE_RESET,
-				      0, pipe_callback, pipe_report_error)){
+	if((syspipe = open_system_pipe(NULL, NULL, NULL, PIPE_USER|PIPE_RESET,
+				      0, pipe_callback, pipe_report_error)) != NULL){
 	    suspend_notice("exit");
 #ifndef	SIGCHLD
 	    if(isremote)

@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: addrstring.c 409 2007-02-01 22:44:01Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: addrstring.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@ static char rcsid[] = "$Id: addrstring.c 409 2007-02-01 22:44:01Z mikes@u.washin
  */
 
 #include "../pith/headers.h"
+#include "../pith/addrstring.h"
 #include "../pith/state.h"
 #include "../pith/copyaddr.h"
 #include "../pith/charset.h"
@@ -419,8 +420,8 @@ a_little_addr_string(struct mail_address *addr, char *buf, size_t maxlen)
 	    strncpy(buf, addr->mailbox, maxlen);
 	    buf[maxlen] = '\0';
 	    if(addr->host && addr->host[0] && addr->host[0] != '.'){
-		strncat(buf, "@", maxlen-1-strlen(buf));
-		strncat(buf, addr->host, maxlen-1-strlen(buf));
+		strncat(buf, "@", maxlen+1-1-strlen(buf));
+		strncat(buf, addr->host, maxlen+1-1-strlen(buf));
 	    }
 	}
     }

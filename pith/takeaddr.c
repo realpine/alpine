@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: takeaddr.c 605 2007-06-20 21:15:13Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: takeaddr.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -36,6 +36,8 @@ static char rcsid[] = "$Id: takeaddr.c 605 2007-06-20 21:15:13Z hubert@u.washing
 #include "../pith/sequence.h"
 #include "../pith/stream.h"
 #include "../pith/busy.h"
+#include "../pith/ablookup.h"
+#include "../pith/list.h"
 
 
 static char        *fakedomain = "@";
@@ -534,7 +536,6 @@ set_up_takeaddr(int cmd, struct pine *ps, MSGNO_S *msgmap, TA_S **ta_ret,
 	      select_froms = 0;
     TA_S     *current = NULL,
 	     *prev_comment_line,
-	     *ctmp,
 	     *ta;
     BODY     **body_h,
 	      *special_body = NULL,
@@ -870,18 +871,18 @@ add_addresses_to_talist(struct pine *ps, long int msgno, char *field,
 
 	    fields[0] = field;
 	    fields[1] = NULL;
-	    if(h = pine_fetchheader_lines(ps->mail_stream, msgno,NULL,fields)){
+	    if((h = pine_fetchheader_lines(ps->mail_stream, msgno,NULL,fields)) != NULL){
 		char *p, fname[32];
 		int q;
 
 		q = strlen(h);
 
 		snprintf(fname, sizeof(fname), "%s:", field);
-		for(p = h; p = strstr(p, fname); )
+		for(p = h; (p = strstr(p, fname)) != NULL; )
 		  rplstr(p, q-(p-h), strlen(fname), "");   /* strip field strings */
 		
 		sqznewlines(h);                   /* blat out CR's & LF's */
-		for(p = h; p = strchr(p, TAB); )
+		for(p = h; (p = strchr(p, TAB)) != NULL; )
 		  *p++ = ' ';                     /* turn TABs to space */
 		
 		if(*h){
@@ -1094,11 +1095,11 @@ process_vcard_atts(MAILSTREAM *stream, long int msgno,
 			}
 
 			if(*addrs){
-			  strncat(addrs, ",", space-strlen(addrs));
+			  strncat(addrs, ",", space+1-1-strlen(addrs));
 			  addrs[space-1] = '\0';
 			}
 
-			strncat(addrs, encoded, space-strlen(addrs));
+			strncat(addrs, encoded, space+1-1-strlen(addrs));
 			addrs[space-1] = '\0';
 			used += (strlen(encoded) + 1);
 			fs_give((void **)&encoded);
@@ -1524,7 +1525,7 @@ getaltcharset(char *line, char **type, char **alt, int *encoded)
       left_semi = NULL;
     
     group_dot = strindex(line, '.');
-    if(group_dot && (group_dot > colon || left_semi && group_dot > left_semi))
+    if(group_dot && (group_dot > colon || (left_semi && group_dot > left_semi)))
       group_dot = NULL;
 
     /*
@@ -1603,6 +1604,9 @@ switch_to_last_comma_first(char *incoming_fullname, char *new_full, size_t nbuf)
     char  save_value;
     char *save_end, *nf, *inc, *p = NULL;
 
+    if(nbuf < 1)
+      return;
+
     if(incoming_fullname == NULL){
 	new_full[0] = '\0';
 	return;
@@ -1626,7 +1630,7 @@ switch_to_last_comma_first(char *incoming_fullname, char *new_full, size_t nbuf)
     save_value = *save_end;  /* so we don't alter incoming_fullname */
     *save_end = '\0';
     nf = new_full;
-    memset(new_full, 0, nbuf);
+    memset(new_full, 0, nbuf);		/* need this the way it is done below */
 
     if(strindex(inc, ',') != NULL){
 	int add_quotes = 0;
@@ -1639,14 +1643,14 @@ switch_to_last_comma_first(char *incoming_fullname, char *new_full, size_t nbuf)
 	 */
 	if(inc[0] != '"'){
 	    add_quotes++;
-	    if(nf-new_full < nbuf)
+	    if(nf-new_full < nbuf-1)
 	      *nf++ = '"';
 	}
 
-	strncpy(nf, inc, MIN(nbuf - (add_quotes ? 3 : 1), nbuf-(nf-new_full)));
+	strncpy(nf, inc, MIN(nbuf - (add_quotes ? 3 : 1), nbuf-(nf-new_full)-1));
 	new_full[nbuf-1] = '\0';
 	if(add_quotes){
-	  strncat(nf, "\"", nbuf-(nf-new_full));
+	  strncat(nf, "\"", nbuf-(nf-new_full)-1);
 	  new_full[nbuf-1] = '\0';
 	}
     }
@@ -1666,14 +1670,14 @@ switch_to_last_comma_first(char *incoming_fullname, char *new_full, size_t nbuf)
 	for(p = last; *p && nf < end-2 && nf-new_full < nbuf; *nf++ = *p++)
 	  ;/* do nothing */
 
-	if(nf-new_full < nbuf)
+	if(nf-new_full < nbuf-1)
 	  *nf++ = ',';
 
-	if(nf-new_full < nbuf)
+	if(nf-new_full < nbuf-1)
 	  *nf++ = SPACE;
 
 	/* copy First Middle */
-	for(p = inc; p < last && nf < end && nf-new_full < nbuf; *nf++ = *p++)
+	for(p = inc; p < last && nf < end && nf-new_full < nbuf-1; *nf++ = *p++)
 	  ;/* do nothing */
 
 	new_full[nbuf-1] = '\0';
@@ -1861,7 +1865,7 @@ grab_addrs_from_body(MAILSTREAM *stream, long int msgno,
 	int      n;
 
 	/* process each @ in the line */
-	for(p = (char *) line; start = mail_addr_scan(p, &n); p = start + n){
+	for(p = (char *) line; (start = mail_addr_scan(p, &n)); p = start + n){
 
 	    tmp_personal = NULL;
 

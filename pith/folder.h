@@ -1,5 +1,5 @@
 /*
- * $Id: folder.h 588 2007-06-01 22:42:27Z mikes@u.washington.edu $
+ * $Id: folder.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -122,6 +122,10 @@ SELECTED_S *new_selected(void);
 void	    free_selected(SELECTED_S **);
 void	    folder_select_preserve(CONTEXT_S *);
 int	    folder_select_restore(CONTEXT_S *);
+int	    update_bboard_spec(char *, char *, size_t);
+void	    refresh_folder_list(CONTEXT_S *, int, int, MAILSTREAM **);
+int	    folder_complete_internal(CONTEXT_S *, char *, size_t, int *, int);
+void        folder_delete(int, FLIST *);
 
 
 #endif /* PITH_FOLDER_INCLUDED */

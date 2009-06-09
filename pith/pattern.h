@@ -1,5 +1,5 @@
 /*
- * $Id: pattern.h 596 2007-06-09 00:20:47Z hubert@u.washington.edu $
+ * $Id: pattern.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -406,8 +406,12 @@ void        mail_expunge_prefilter(MAILSTREAM *, int);
 void	    process_filter_patterns(MAILSTREAM *, MSGNO_S *, long);
 void	    reprocess_filter_patterns(MAILSTREAM *, MSGNO_S *, int);
 int         trivial_patgrp(PATGRP_S *);
+void        free_patgrp(PATGRP_S **);
+void        free_patline(PAT_LINE_S **patline);
 int         some_filter_depends_on_active_state(void);
 void	    delete_filtered_msgs(MAILSTREAM *);
+void        free_intvl(INTVL_S **);
+void        free_arbhdr(ARBHDR_S **);
 
 
 #endif /* PITH_PATTERN_INCLUDED */

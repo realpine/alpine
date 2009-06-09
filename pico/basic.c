@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: basic.c 486 2007-03-22 18:38:38Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: basic.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -27,8 +27,6 @@ static char rcsid[] = "$Id: basic.c 486 2007-03-22 18:38:38Z hubert@u.washington
 #include        "headers.h"
 
 #include "osdep/terminal.h"
-
-int getgoal(struct LINE *);
 
 
 /*

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: help.c 543 2007-04-26 04:06:02Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: help.c 700 2007-08-30 22:33:35Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -21,9 +21,11 @@ static char rcsid[] = "$Id: help.c 543 2007-04-26 04:06:02Z mikes@u.washington.e
 #include "status.h"
 #include "mailview.h"
 #include "mailindx.h"
+#include "mailcmd.h"
 #include "reply.h"
 #include "signal.h"
 #include "radio.h"
+#include "send.h"
 #include "../pith/state.h"
 #include "../pith/conf.h"
 #include "../pith/filter.h"
@@ -31,6 +33,7 @@ static char rcsid[] = "$Id: help.c 543 2007-04-26 04:06:02Z mikes@u.washington.e
 #include "../pith/pipe.h"
 #include "../pith/util.h"
 #include "../pith/detoken.h"
+#include "../pith/list.h"
 
 
 typedef struct _help_scroll {
@@ -82,12 +85,10 @@ static char att_cur_msg[] = "\
 int	 helper_internal(HelpType, char *, char *, int);
 int	 help_processor(int, MSGNO_S *, SCROLL_S *);
 void	 help_keymenu_tweek(SCROLL_S *, int);
-void	 print_help(char **);
 void     print_all_help(void);
 void	 print_help_page_title(char *, size_t, HPRT_S *);
 int	 print_help_page_break(long, char *, LT_INS_S **, void *);
 int	 help_bogus_input(UCS);
-void	 review_messages(void);
 int	 gripe_newbody(struct pine *, BODY **, long, int);
 ADDRESS *gripe_token_addr(char *);
 char	*gripe_id(char *);
@@ -151,7 +152,7 @@ helper_internal(HelpType text, char *frag, char *title, int flags)
 
 	memset(&hscroll, 0, sizeof(HELP_SCROLL_S));
 	hscroll.help_source = shown_text;
-	if(store = so_get(CharStar, NULL, EDIT_ACCESS)){
+	if((store = so_get(CharStar, NULL, EDIT_ACCESS)) != NULL){
 	    gf_set_so_writec(&pc, store);
 	    gf_filter_init();
 
@@ -164,7 +165,7 @@ helper_internal(HelpType text, char *frag, char *title, int flags)
 	      gf_link_filter(gf_wrap, gf_wrap_filter_opt(
 						  ps_global->ttyo->screen_cols,
 						  ps_global->ttyo->screen_cols,
-						  NULL, 0, GFW_HANDLES));
+						  NULL, 0, GFW_HANDLES | GFW_SOFTHYPHEN));
 
 	    error = gf_pipe(helper_getc, pc);
 
@@ -194,7 +195,7 @@ helper_internal(HelpType text, char *frag, char *title, int flags)
 		sargs.text.text	   = so_text(store);
 		sargs.text.src	   = CharStar;
 		sargs.text.desc	   = _("help text");
-		if(sargs.text.handles = handles)
+		if((sargs.text.handles = handles) != NULL)
 		  while(sargs.text.handles->type == URL
 			&& !sargs.text.handles->h.url.path
 			&& sargs.text.handles->next)
@@ -214,7 +215,7 @@ helper_internal(HelpType text, char *frag, char *title, int flags)
 			  if(!struncmp(shown_text[i], "<title>", 7)){
 			      strncpy(tmp_20k_buf, &shown_text[i][7], SIZEOF_20KBUF);
 			      tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
-			      if(p = strchr(tmp_20k_buf, '<'))
+			      if((p = strchr(tmp_20k_buf, '<')) != NULL)
 				*p = '\0';
 
 			      snprintf(sargs.bar.title = tmp_title, sizeof(tmp_title),
@@ -483,7 +484,7 @@ print_help(char **text)
     print_text(NEWLINE);		/* and write two blank links */
     print_text(NEWLINE);
 
-    if(error = gf_pipe(helper_getc, print_char))
+    if((error = gf_pipe(helper_getc, print_char)) != NULL)
       q_status_message1(SM_ORDER | SM_DING, 3, 3, _("Printing Error: %s"), error);
 
     print_char(ctrl('L'));		/* new page. */
@@ -546,7 +547,7 @@ print_help_page_break(long int linenum, char *line, LT_INS_S **ins, void *local)
 	g_hprt->page++;			/* start on new page */
 	buf[0] = ctrl('L');
 	print_help_page_title(buf + 1, sizeof(buf)-1, g_hprt);
-	strncat(buf, "\015\012\015\012\015\012", sizeof(buf)-strlen(buf));
+	strncat(buf, "\015\012\015\012\015\012", sizeof(buf)-strlen(buf)-1);
 	buf[sizeof(buf)-1] = '\0';
 	ins = gf_line_test_new_ins(ins, line, buf, strlen(buf));
     }
@@ -575,10 +576,10 @@ url_local_helper(char *url)
 	HelpType	    newhelp;
 
 	/* internal fragment reference? */
-	if(frag = strchr(url, '#')){
+	if((frag = strchr(url, '#')) != NULL){
 	    size_t len;
 
-	    if(len = frag - url){
+	    if((len = frag - url) != 0){
 		newhelp = help_name2section(url, len);
 	    }
 	    else{
@@ -908,13 +909,13 @@ gripe_gripe_to(url)
 				mn_get_cur(ps_global->msgmap));
 
     url_copy = cpystr(url + strlen("x-alpine-gripe:"));
-    if(optstr = strchr(url_copy, '?'))
+    if((optstr = strchr(url_copy, '?')) != NULL)
       *optstr++ = '\0';
 
     outgoing		 = mail_newenvelope();
     outgoing->message_id = generate_message_id();
 
-    if(outgoing->to = gripe_token_addr(url_copy)){
+    if((outgoing->to = gripe_token_addr(url_copy)) != NULL){
 	composer_title = _("COMPOSE TO LOCAL SUPPORT");
 	dprint((1, 
 		   "\n\n   -- Send to local support(%s@%s) --\n",
@@ -930,7 +931,7 @@ gripe_gripe_to(url)
      * Sniff thru options
      */
     while(optstr){
-	if(p = strchr(optstr, '?'))	/* tie off list item */
+	if((p = strchr(optstr, '?')) != NULL)	/* tie off list item */
 	  *p++ = '\0';
 
 	if(!strucmp(optstr, "config"))
@@ -953,10 +954,10 @@ gripe_gripe_to(url)
 	pf->type		   = FreeText;
 	pf->textbuf		   = gripe_id("Alpine Bug Report screen");
 	memset((void *)&fake_reply, 0, sizeof(fake_reply));
-	fake_reply.flags	   = REPLY_PSEUDO;
+	fake_reply.pseudo	   = 1;
 	fake_reply.data.pico_flags = P_HEADEND;
 	pine_send(outgoing, &body, composer_title, NULL, NULL,
-		  &fake_reply, NULL, NULL, pf, 0);
+		  &fake_reply, NULL, NULL, pf, PS_STICKY_TO);
     }
     
     ps_global->mangled_screen = 1;
@@ -986,7 +987,7 @@ gripe_newbody(ps, body, msgno, flags)
     int          i;
     char         tmp[MAILTMPLEN], *p;
 
-    if(store = so_get(PicoText, NULL, EDIT_ACCESS)){
+    if((store = so_get(PicoText, NULL, EDIT_ACCESS)) != NULL){
 	*body = mail_newbody();
 
 	if((p = detoken(NULL, NULL, 2, 0, 1, NULL, NULL)) != NULL){
@@ -1023,7 +1024,7 @@ gripe_newbody(ps, body, msgno, flags)
 	    pb->parameter->attribute = cpystr("name");
 	    pb->parameter->value     = cpystr("config.txt");
 
-	    if(store = so_get(CharStar, NULL, EDIT_ACCESS)){
+	    if((store = so_get(CharStar, NULL, EDIT_ACCESS)) != NULL){
 		extern char datestamp[], hoststamp[];
 
 		pb->contents.text.data = (void *) store;
@@ -1059,7 +1060,7 @@ gripe_newbody(ps, body, msgno, flags)
 	    pb->parameter->attribute  = cpystr("name");
 	    pb->parameter->value      = cpystr("uinput.txt");
 
-	    if(store = so_get(CharStar, NULL, EDIT_ACCESS)){
+	    if((store = so_get(CharStar, NULL, EDIT_ACCESS)) != NULL){
 		pb->contents.text.data = (void *) store;
 
 		so_puts(store, "User's most recent input:\n");
@@ -1096,16 +1097,16 @@ gripe_newbody(ps, body, msgno, flags)
 	    pb->parameter->attribute  = cpystr("name");
 	    pb->parameter->value      = cpystr("lconfig.txt");
 
-	    if(store = so_get(CharStar, NULL, EDIT_ACCESS)){
+	    if((store = so_get(CharStar, NULL, EDIT_ACCESS)) != NULL){
 		PIPE_S  *syspipe;		
 		gf_io_t  gc;
 		
 		pb->contents.text.data = (void *) store;
 		gf_set_so_writec(&pc, store);
-		if(syspipe = open_system_pipe(ps_global->VAR_BUGS_EXTRAS,
+		if((syspipe = open_system_pipe(ps_global->VAR_BUGS_EXTRAS,
 					 NULL, NULL,
 					 PIPE_READ | PIPE_STDERR | PIPE_USER,
-					 0, pipe_callback, pipe_report_error)){
+					 0, pipe_callback, pipe_report_error)) != NULL){
 		    gf_set_readc(&gc, (void *)syspipe, 0, PipeStar, 0);
 		    gf_filter_init();
 		    error = gf_pipe(gc, pc);
@@ -1146,7 +1147,7 @@ gripe_newbody(ps, body, msgno, flags)
 		pb->description	      = cpystr(tmp);
 
 		/*---- Package each message in a storage object ----*/
-		if(store = so_get(PART_SO_TYPE, NULL, EDIT_ACCESS)){
+		if((store = so_get(PART_SO_TYPE, NULL, EDIT_ACCESS)) != NULL){
 		    pb->contents.text.data = (void *) store;
 		}
 		else{
@@ -1228,19 +1229,23 @@ char *
 gripe_id(key)
     char *key;
 {
-    int i;
+    int i,j,k,l;
     
     /*
      * Build our contribution to the subject; part constant string
      * and random 4 character alpha numeric string.
      */
+    i = (int)(random() % 36L);
+    j = (int)(random() % 36L);
+    k = (int)(random() % 36L);
+    l = (int)(random() % 36L);
     tmp_20k_buf[0] = '\0';
     snprintf(tmp_20k_buf, SIZEOF_20KBUF, "%s (ID %c%c%d%c%c)", key,
-	    ((i = (int)(random() % 36L)) < 10) ? '0' + i : 'A' + (i - 10),
-	    ((i = (int)(random() % 36L)) < 10) ? '0' + i : 'A' + (i - 10),
+	    (i < 10) ? '0' + i : 'A' + (i - 10),
+	    (j < 10) ? '0' + j : 'A' + (j - 10),
 	    (int)(random() % 10L),
-	    ((i = (int)(random() % 36L)) < 10) ? '0' + i : 'A' + (i - 10),
-	    ((i = (int)(random() % 36L)) < 10) ? '0' + i : 'A' + (i - 10));
+	    (k < 10) ? '0' + k : 'A' + (k - 10),
+	    (l < 10) ? '0' + l : 'A' + (l - 10));
     tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
     return(cpystr(tmp_20k_buf));
 }

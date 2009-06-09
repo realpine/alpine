@@ -1,5 +1,5 @@
 /*
- * $Id: efunc.h 486 2007-03-22 18:38:38Z hubert@u.washington.edu $
+ * $Id: efunc.h 676 2007-08-20 19:46:37Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -39,6 +39,7 @@ extern	int intag(UCS *, int);
 extern	char *prettysz(off_t);
 extern  int AttachError(void);
 extern	char *QuoteAttach(char *, size_t);
+extern  int	getccol(int);
 
 /* basic.c */
 extern	int gotobol(int, int);
@@ -63,6 +64,8 @@ extern	int setimark(int, int);
 extern	int swapimark(int, int);
 extern	int mousepress(int, int);
 extern	void swap_mark_and_dot_if_mark_comes_first(void);
+extern	int backchar_no_header_editor(int, int);
+extern  int getgoal(struct LINE *);
 
 /* bind.c */
 extern	UCS normalize_cmd(UCS c, UCS list[][2], int sc);
@@ -78,6 +81,7 @@ extern	int ResizeBrowser(void);
 extern	void set_browser_title(char *);
 extern  void zotlmlist(LMLIST *);
 extern	int time_to_check(void);
+extern  int LikelyASCII(char *);
 
 /* buffer.c */
 extern	int anycb(void);
@@ -107,6 +111,7 @@ extern	void restore_pico_state(VARS_TO_SAVE *);
 extern	void free_pico_state(VARS_TO_SAVE *);
 extern	void HeaderPaintCursor(void);
 extern	void PaintBody(int);
+extern	int AppendAttachment(char *, char *, char *);
 
 /* display.c */
 extern	int vtinit(void);
@@ -157,11 +162,12 @@ extern	int writeout(char *, int);
 extern	char *writetmp(int, char *);
 extern	int filename(int, int);
 extern	int in_oper_tree(char *);
+extern  int ifile(char *);
 
 /* fileio.c */
 extern	int ffropen(char *);
 extern	int ffputline(CELL *, int);
-extern	int ffgetline(UCS *, size_t, int *, int);
+extern	int ffgetline(UCS *, size_t, size_t *, int);
 
 /* line.c */
 extern	struct LINE *lalloc(int used);
@@ -216,6 +222,7 @@ extern	int yank(int, int);
 extern	int killregion(int, int);
 extern	int deleteregion(int, int);
 extern	int markregion(int);
+extern  int getregion(REGION *, LINE *, int);
 extern	void unmarkbuffer(void);
 
 /* search.c */
@@ -240,7 +247,7 @@ extern	int forwword(int, int);
 extern	int fillpara(int, int);
 extern	int fillbuf(int, int);
 extern	int inword(void);
-extern	int quote_match(UCS *, LINE *, UCS *, int);
+extern	int quote_match(UCS *, LINE *, UCS *, size_t);
 extern	int ucs4_isalnum(UCS);
 extern	int ucs4_isalpha(UCS);
 extern	int ucs4_isspace(UCS);

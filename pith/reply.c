@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: reply.c 605 2007-06-20 21:15:13Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: reply.c 683 2007-08-23 00:03:36Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -41,6 +41,9 @@ static char rcsid[] = "$Id: reply.c 605 2007-06-20 21:15:13Z hubert@u.washington
 #include "../pith/busy.h"
 #include "../pith/readfile.h"
 #include "../pith/text.h"
+#include "../pith/list.h"
+#include "../pith/ablookup.h"
+#include "../pith/mailcmd.h"
 
 
 /*
@@ -118,12 +121,12 @@ reply_harvest(struct pine *ps, long int msgno, char *section, ENVELOPE *env,
     /*--------- check for other recipients ---------*/
     if(((*flags) & (RSF_FORCE_REPLY_ALL | RSF_QUERY_REPLY_ALL))){
 
-	if(ap = reply_cp_addr(ps, msgno, section, "To", *saved_to,
-			      *saved_from, env->to, 0))
+	if((ap = reply_cp_addr(ps, msgno, section, "To", *saved_to,
+			      *saved_from, env->to, 0)) != NULL)
 	  reply_append_addr(saved_to, ap);
 
-	if(ap = reply_cp_addr(ps, msgno, section, "Cc", *saved_cc,
-			      *saved_from, env->cc, 0))
+	if((ap = reply_cp_addr(ps, msgno, section, "Cc", *saved_cc,
+			      *saved_from, env->cc, 0)) != NULL)
 	  reply_append_addr(saved_cc, ap);
 
 	/*
@@ -137,12 +140,12 @@ reply_harvest(struct pine *ps, long int msgno, char *section, ENVELOPE *env,
 		   || (*saved_from && !(*saved_to) && !(*saved_cc))))){
 
 	    sniff_resent++;
-	    if(ap2 = reply_resent(ps, msgno, section)){
+	    if((ap2 = reply_resent(ps, msgno, section)) != NULL){
 		/*
 		 * look for bogus addr entries and replace
 		 */
-		if(ap = reply_cp_addr(ps, 0, NULL, NULL, *saved_resent,
-				      *saved_from, ap2, 0))
+		if((ap = reply_cp_addr(ps, 0, NULL, NULL, *saved_resent,
+				      *saved_from, ap2, 0)) != NULL)
 
 		  reply_append_addr(saved_resent, ap);
 
@@ -173,8 +176,8 @@ reply_harvest(struct pine *ps, long int msgno, char *section, ENVELOPE *env,
 	    /*
 	     * look for bogus addr entries and replace
 	     */
-	    if(ap = reply_cp_addr(ps, 0, NULL, NULL, *saved_resent,
-				  *saved_from, ap2, 0))
+	    if((ap = reply_cp_addr(ps, 0, NULL, NULL, *saved_resent,
+				  *saved_from, ap2, 0)) != NULL)
 	      reply_append_addr(saved_resent, ap);
 
 	    mail_free_address(&ap2);
@@ -208,8 +211,8 @@ reply_cp_addr(struct pine *ps, long int msgno, char *section, char *field,
 
 	  fields[0] = field;
 	  fields[1] = NULL;
-	  if(h = pine_fetchheader_lines(ps ? ps->mail_stream : NULL,
-				        msgno, section, fields)){
+	  if((h = pine_fetchheader_lines(ps ? ps->mail_stream : NULL,
+				        msgno, section, fields)) != NULL){
 	      char *p, fname[32];
 	      int q;
 
@@ -217,14 +220,14 @@ reply_cp_addr(struct pine *ps, long int msgno, char *section, char *field,
 
 	      strncpy(fname, field, sizeof(fname)-2);
 	      fname[sizeof(fname)-2] = '\0';
-	      strncat(fname, ":", sizeof(fname)-strlen(fname));
+	      strncat(fname, ":", sizeof(fname)-strlen(fname)-1);
 	      fname[sizeof(fname)-1] = '\0';
 
-	      for(p = h; p = strstr(p, fname); )
+	      for(p = h; (p = strstr(p, fname)) != NULL; )
 		rplstr(p, q-(p-h), strlen(fname), "");	/* strip field strings */
 
 	      sqznewlines(h);			/* blat out CR's & LF's */
-	      for(p = h; p = strchr(p, TAB); )
+	      for(p = h; (p = strchr(p, TAB)) != NULL; )
 		*p++ = ' ';			/* turn TABs to whitespace */
 
 	      if(*h){
@@ -634,8 +637,8 @@ reply_resent(struct pine *pine_state, long int msgno, char *section)
     static char *fields[] = {"Resent-From", "Resent-To", "Resent-Cc", NULL};
     static char *fakedomain = "@";
 
-    if(hdrs = pine_fetchheader_lines(pine_state->mail_stream,
-				     msgno, section, fields)){
+    if((hdrs = pine_fetchheader_lines(pine_state->mail_stream,
+				     msgno, section, fields)) != NULL){
 	memset(values, 0, (RESENTCC+1) * sizeof(char *));
 	simple_header_parse(hdrs, fields, values);
 	for(i = RESENTFROM; i <= RESENTCC; i++)
@@ -783,7 +786,7 @@ reply_quote_str(ENVELOPE *env)
     buf[sizeof(buf)-1] = '\0';
 
     /* set up the prefix to quote included text */
-    if(p = strstr(buf, from_token)){
+    if((p = strstr(buf, from_token)) != NULL){
 	repl = (env && env->from && env->from->mailbox) ? env->from->mailbox
 							: "";
 	strncpy(pbf, repl, sizeof(pbf)-1);
@@ -791,7 +794,7 @@ reply_quote_str(ENVELOPE *env)
 	rplstr(p, sizeof(buf)-(p-buf), strlen(from_token), pbf);
     }
     
-    if(p = strstr(buf, nick_token)){
+    if((p = strstr(buf, nick_token)) != NULL){
 	repl = (env &&
 		env->from &&
 		env->from &&
@@ -802,7 +805,7 @@ reply_quote_str(ENVELOPE *env)
 	rplstr(p, sizeof(buf)-(p-buf), strlen(nick_token), pbf);
     }
 
-    if(p = strstr(buf, init_token)){
+    if((p = strstr(buf, init_token)) != NULL){
 	char *q = NULL;
 	char  buftmp[MAILTMPLEN];
 
@@ -937,10 +940,19 @@ reply_body(MAILSTREAM *stream, ENVELOPE *env, struct mail_bodystruct *orig_body,
 	   || orig_body->type == TYPETEXT
 	   || reply_raw_body
 	   || F_OFF(F_ATTACHMENTS_IN_REPLY, ps_global)){
+	    char *charset = NULL;
+
 	    /*------ Simple text-only message ----*/
 	    body		     = mail_newbody();
 	    body->type		     = TYPETEXT;
 	    body->contents.text.data = msgtext;
+	    if(orig_body
+	       && (charset = rfc2231_get_param(orig_body->parameter, "charset", NULL, NULL)))
+	      set_parameter(&body->parameter, "charset", charset);
+
+	    if(charset)
+	      fs_give((void **) &charset);
+
 	    reply_delimiter(env, role, pc);
 	    if(F_ON(F_INCLUDE_HEADER, ps_global))
 	      reply_forward_header(stream, msgno, sect_prefix,
@@ -1112,10 +1124,10 @@ reply_body(MAILSTREAM *stream, ENVELOPE *env, struct mail_bodystruct *orig_body,
 	    /*
 	     * the idea here is to fetch part into storage object
 	     */
-	    if(part->body.contents.text.data = (void *) so_get(PART_SO_TYPE,
-							    NULL,EDIT_ACCESS)){
-		if(p = pine_mail_fetch_body(stream, msgno, section,
-					    &part->body.size.bytes, NIL)){
+	    if((part->body.contents.text.data = (void *) so_get(PART_SO_TYPE,
+							    NULL,EDIT_ACCESS)) != NULL){
+		if((p = pine_mail_fetch_body(stream, msgno, section,
+					    &part->body.size.bytes, NIL)) != NULL){
 		    so_nputs((STORE_S *)part->body.contents.text.data,
 			     p, part->body.size.bytes);
 		}
@@ -1227,7 +1239,7 @@ reply_signature(ACTION_S *role, ENVELOPE *env, REDRAFT_POS_S **redraft_pos, int 
 	sig = (char *)fs_get((l+1) * sizeof(char));
 	strncpy(sig, NEWLINE, l);
 	sig[l] = '\0';
-	strncat(sig, NEWLINE, l-strlen(sig));
+	strncat(sig, NEWLINE, l+1-1-strlen(sig));
 	sig[l] = '\0';
 	return(sig);
     }
@@ -1308,6 +1320,9 @@ get_addr_data(ENVELOPE *env, IndexColType type, char *buf, size_t maxlen)
 	}
 
 	return;
+
+      default:
+	break;
     }
 
     orig_maxlen = maxlen;
@@ -1475,6 +1490,9 @@ get_news_data(ENVELOPE *env, IndexColType type, char *buf, size_t maxlen)
 	if(ps_global->mail_stream && IS_NEWS(ps_global->mail_stream))
 	  news = ps_global->cur_folder;
 
+	break;
+
+      default:
 	break;
     }
 
@@ -1655,9 +1673,9 @@ get_reply_data(ENVELOPE *env, ACTION_S *role, IndexColType type, char *buf, size
 	       env->from->host[0] &&
 	       env->from->host[0] != '.' &&
 	       strlen(buf) + strlen(env->from->host) + 1 <= maxlen){
-		strncat(buf, "@", maxlen-strlen(buf));
+		strncat(buf, "@", maxlen+1-1-strlen(buf));
 		buf[maxlen] = '\0';
-		strncat(buf, env->from->host, maxlen-strlen(buf));
+		strncat(buf, env->from->host, maxlen+1-1-strlen(buf));
 		buf[maxlen] = '\0';
 	    }
 	}
@@ -1912,7 +1930,7 @@ forward_mime_msg(MAILSTREAM *stream, long int msgno, char *section, ENVELOPE *en
 
 	b->size.bytes = strlen(tmp_text);
 	so_puts((STORE_S *) b->contents.text.data, "\015\012");
-	if(tmp_text = pine_mail_fetch_text (stream,msgno,section,&len,NIL)){
+	if((tmp_text = pine_mail_fetch_text (stream,msgno,section,&len,NIL)) != NULL){
 	    so_nputs((STORE_S *)b->contents.text.data,tmp_text,(long) len);
 	    b->size.bytes += len;
 	    return(1);
@@ -1984,8 +2002,8 @@ reply_forward_header(MAILSTREAM *stream, long int msgno, char *part, ENVELOPE *e
     }
 
     HD_INIT(&h, list, ps_global->view_all_except, FE_DEFAULT & ~FE_BCC);
-    if(rv = format_header(stream, msgno, part, env, &h, prefix, NULL,
-			  FM_NOINDENT, pc)){
+    if((rv = format_header(stream, msgno, part, env, &h, prefix, NULL,
+			  FM_NOINDENT, pc)) != 0){
 	if(rv == 1)
 	  gf_puts("  [Error fetching message header data]", pc);
     }
@@ -2042,7 +2060,7 @@ forward_subject(ENVELOPE *env, int flags)
 	 * comments so we substitute two single quotes.
 	 */
 	if(flags & FS_CONVERT_QUOTES)
-	  while(p = strchr(tmp_20k_buf, QUOTE))
+	  while((p = strchr(tmp_20k_buf, QUOTE)) != NULL)
 	    (void)rplstr(p, SIZEOF_20KBUF-(p-tmp_20k_buf), 1, "''");
 
 	return(cpystr(tmp_20k_buf));
@@ -2096,10 +2114,19 @@ forward_body(MAILSTREAM *stream, ENVELOPE *env, struct mail_bodystruct *orig_bod
 
     gf_set_so_writec(&pc, (STORE_S *) msgtext);
     if(!orig_body || orig_body->type == TYPETEXT || forward_raw_body) {
+	char *charset = NULL;
+
 	/*---- Message has a single text part -----*/
 	body			 = mail_newbody();
 	body->type		 = TYPETEXT;
 	body->contents.text.data = msgtext;
+	if(orig_body
+	   && (charset = rfc2231_get_param(orig_body->parameter, "charset", NULL, NULL)))
+	  set_parameter(&body->parameter, "charset", charset);
+
+	if(charset)
+	  fs_give((void **) &charset);
+
 	if(!(flags & FWD_ANON)){
 	    forward_delimiter(pc);
 	    reply_forward_header(stream, msgno, sect_prefix, env, pc, "");
@@ -2235,10 +2262,10 @@ forward_body(MAILSTREAM *stream, ENVELOPE *env, struct mail_bodystruct *orig_bod
 	/*
 	 * the idea here is to fetch part into storage object
 	 */
-	if(part->body.contents.text.data = (void *) so_get(PART_SO_TYPE, NULL,
-							   EDIT_ACCESS)){
-	    if(tmp_text = pine_mail_fetch_body(stream, msgno, section,
-					 &part->body.size.bytes, NIL))
+	if((part->body.contents.text.data = (void *) so_get(PART_SO_TYPE, NULL,
+							   EDIT_ACCESS)) != NULL){
+	    if((tmp_text = pine_mail_fetch_body(stream, msgno, section,
+					 &part->body.size.bytes, NIL)) != NULL)
 	      so_nputs((STORE_S *)part->body.contents.text.data, tmp_text,
 		       part->body.size.bytes);
 	    else
@@ -2295,8 +2322,8 @@ bounce_msg_body(MAILSTREAM *stream,
     }
 
     /* build remail'd header */
-    if(h = mail_fetch_header(stream, rawno, part, NULL, 0, FT_PEEK)){
-	for(p = h, i = 0; p = strchr(p, ':'); p++)
+    if((h = mail_fetch_header(stream, rawno, part, NULL, 0, FT_PEEK)) != NULL){
+	for(p = h, i = 0; (p = strchr(p, ':')) != NULL; p++)
 	  i++;
 
 	/* allocate it */
@@ -2314,7 +2341,7 @@ bounce_msg_body(MAILSTREAM *stream,
 	      *p++ = *h++;
 	      bounce_mask_header(&p, h);
 	  }
-	while(*p++ = *h++);
+	while((*p++ = *h++) != '\0');
     }
     /* BUG: else complain? */
 
@@ -2349,7 +2376,7 @@ bounce_msg_body(MAILSTREAM *stream,
     if(seenp && rawno > 0L && stream && rawno <= stream->nmsgs){
 	MESSAGECACHE *mc;
 
-	if(mc = mail_elt(stream,  rawno))
+	if((mc = mail_elt(stream,  rawno)) != NULL)
 	  *seenp = mc->seen;
     }
 
@@ -2416,7 +2443,7 @@ get_body_part_text(MAILSTREAM *stream, struct mail_bodystruct *body,
 		   long int msg_no, char *part_no, long partial, gf_io_t pc,
 		   char *prefix, char **ret_charset, unsigned flags)
 {
-    int		i, we_cancel = 0, dashdata, wrapflags = GFW_FORCOMPOSE, flow_res = 0;
+    int		we_cancel = 0, dashdata, wrapflags = GFW_FORCOMPOSE, flow_res = 0;
     FILTLIST_S  filters[12];
     long	len;
     char       *err, *charset, *prefix_p = NULL;
@@ -2442,13 +2469,13 @@ get_body_part_text(MAILSTREAM *stream, struct mail_bodystruct *body,
 
 	(void) pine_mail_fetchstructure(stream, msg_no, NULL);
 
-	if(text = pine_mail_fetch_text(stream, msg_no, part_no, NULL, 0)){
+	if((text = pine_mail_fetch_text(stream, msg_no, part_no, NULL, 0)) != NULL){
 	    gf_set_readc(&gc, text, (unsigned long)strlen(text), src, 0);
 
 	    gf_filter_init();		/* no filters needed */
 	    if(prefix)
 	      gf_link_filter(gf_prefix, gf_prefix_opt(prefix));
-	    if(decode_error = gf_pipe(gc, pc)){
+	    if((decode_error = gf_pipe(gc, pc)) != NULL){
 		snprintf(tmp_20k_buf, SIZEOF_20KBUF, "%s%s    [Formatting error: %s]%s",
 			NEWLINE, NEWLINE,
 			decode_error, NEWLINE);
@@ -2491,13 +2518,13 @@ get_body_part_text(MAILSTREAM *stream, struct mail_bodystruct *body,
 		     && F_OFF(F_STRIP_WS_BEFORE_SEND, ps_global)
 		     && (!prefix || (strucmp(prefix,"> ") == 0)
 			 || strucmp(prefix, ">") == 0));
-	if(parmval = rfc2231_get_param(body->parameter,
-				       "format", NULL, NULL)){
+	if((parmval = rfc2231_get_param(body->parameter,
+				       "format", NULL, NULL)) != NULL){
 	    if(!strucmp(parmval, "flowed")){
 		wrapflags |= GFW_FLOWED;
 
 		fs_give((void **) &parmval);
-		if(parmval = rfc2231_get_param(body->parameter, "delsp", NULL, NULL)){
+		if((parmval = rfc2231_get_param(body->parameter, "delsp", NULL, NULL)) != NULL){
 		    if(!strucmp(parmval, "yes")){
 			filters[filtcnt++].filter = gf_preflow;
 			wrapflags |= GFW_DELSP;
@@ -2741,7 +2768,7 @@ partno(struct mail_bodystruct *body, struct mail_bodystruct *end_body)
 
 		return(cpystr(tmp));
 	    }
-	} while (part = part->next);	/* until done */
+	} while ((part = part->next) != NULL);	/* until done */
 
 	return(NULL);
     }
@@ -2803,7 +2830,7 @@ fetch_contents(MAILSTREAM *stream, long int msgno, char *section, struct mail_bo
 	    got_one  = fetch_contents(stream, msgno, subsection, &part->body);
 	    last_one = MIN(last_one, got_one);
 	}
-	while(part = part->next);
+	while((part = part->next) != NULL);
 
 	return(last_one);
     }
@@ -3062,7 +3089,7 @@ rot13(char *src)
     if(src && *src){
 	ret = (char *) fs_get((strlen(src)+1) * sizeof(char));
 	p = ret;
-	while(byte = *src++){
+	while((byte = *src++) != '\0'){
 	    cap   = byte & 32;
 	    byte &= ~cap;
 	    *p++ = ((byte >= 'A') && (byte <= 'Z')
@@ -3228,6 +3255,7 @@ signature_path(char *sname, char *sbuf, size_t len)
 	    }
 
 	    strncat(sbuf, sname, MAX(len-1-strlen(sbuf), 0));
+	    sbuf[len-1] = '\0';
 	}
     }
 

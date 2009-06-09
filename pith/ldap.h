@@ -1,8 +1,8 @@
 /*
- * $Id: ldap.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: ldap.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -156,6 +156,8 @@ void           our_ldap_memfree(void *);
 void           our_ldap_dn_memfree(void *);
 int            our_ldap_set_option(LDAP *, int, void *);
 int            ldap_v3_is_supported(LDAP *);
+int            ask_user_which_entry(LDAP_SERV_RES_S *, char *,
+				    LDAP_SERV_RES_S **, WP_ERR_S *, LDAPLookupStyle);
 #endif	/* ENABLE_LDAP */
 
 

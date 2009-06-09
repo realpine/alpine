@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mouse.c 589 2007-06-04 22:35:52Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mouse.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,11 +18,9 @@ static char rcsid[] = "$Id: mouse.c 589 2007-06-04 22:35:52Z hubert@u.washington
 #include <system.h>
 #include <general.h>
 
-#include "../estruct.h"
-#include "../mode.h"
-#include "../pico.h"
-#include "../keydefs.h"
-#include "../edef.h"
+#include "../headers.h"
+
+#include "getkey.h"
 
 #ifdef _WINDOWS
 #include "mswin.h"
@@ -273,10 +271,8 @@ int
 checkmouse (unsigned long *ch, int ddd, int xxx, int yyy)
 {
     static int	oindex;		/* Index of previous mouse down. */
-    int		k;		/* current bit/button of mouse */
     int		mcol;		/* current mouse column */
     int		mrow;		/* current mouse row */
-    int		down;		/* TRUE when mouse down event. */
     unsigned long r;
     int		rv = 0;		/* TRUE when we have something to return. */
     MEvent      mouse;
@@ -393,7 +389,8 @@ checkmouse (unsigned long *ch, int ddd, int xxx, int yyy)
 void
 invert_label(int state, MENUITEM *m)
 {
-    int			i, j, r, c, p;
+    int			r, c;
+    unsigned            i, j;
     char		*lp;
     int			old_state;
     int			wasShown;

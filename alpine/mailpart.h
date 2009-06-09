@@ -1,8 +1,8 @@
 /*
- * $Id: mailpart.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: mailpart.h 676 2007-08-20 19:46:37Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,9 +30,13 @@
 
 /* exported protoypes */
 void	    attachment_screen(struct pine *);
+void	    write_attachment(int, long, ATTACH_S *, char *);
 int         write_attachment_to_file(MAILSTREAM *, long, ATTACH_S *, int, char *);
 int	    display_attachment(long, ATTACH_S *, int);
 int         dispatch_attachment(ATTACH_S *);
+#ifdef	_WINDOWS
+void	    display_att_window(ATTACH_S *);
+#endif
 
 
 #endif /* PINE_MAILPART_INCLUDED */

@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: filesys.c 341 2006-12-21 23:44:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: filesys.c 700 2007-08-30 22:33:35Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,7 +52,7 @@ char *
 fname_to_locale(char *fname)
 {
     static char *fname_locale_buf = NULL;
-    static int fname_locale_len = 0;
+    static size_t fname_locale_len = 0;
     char *converted_fname, *p;
 
     p = convert_to_locale(fname);
@@ -99,7 +99,7 @@ char *
 fname_to_utf8(char *fname)
 {
     static char *fname_utf8_buf = NULL;
-    static int fname_utf8_len = 0;
+    static size_t fname_utf8_len = 0;
     char *converted_fname, *p;
 
     p = convert_to_utf8(fname, NULL, 0);
@@ -537,8 +537,10 @@ our_link(char *oldpath, char *newpath)
 int
 our_truncate(char *path, off_t size)
 {
-    int fdes;
     int ret = -1;
+#if defined(_WINDOWS) || !defined(HAVE_TRUNCATE)
+    int fdes;
+#endif
 
 #ifdef _WINDOWS
     if((fdes = our_open(path, O_RDWR | O_CREAT | S_IREAD | S_IWRITE | _O_U8TEXT, 0600)) != -1){
@@ -643,7 +645,7 @@ our_getenv(char *env_variable)
 #else /* !_WINDOWS */
     char *p, *utf8_p, *env_cpy;
     size_t len;
-    if(p = getenv(env_variable)){
+    if((p = getenv(env_variable)) != NULL){
 	/* all this when what we want is a cpystr */
 	utf8_p = fname_to_utf8(p);
 	len = strlen(utf8_p);

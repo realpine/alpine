@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: sequence.c 203 2006-10-26 17:23:46Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: sequence.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ static char rcsid[] = "$Id: sequence.c 203 2006-10-26 17:23:46Z hubert@u.washing
 #include "../pith/msgno.h"
 #include "../pith/flag.h"
 #include "../pith/thread.h"
+#include "../pith/icache.h"
 
 
 /*
@@ -116,16 +117,16 @@ char *
 currentf_sequence(MAILSTREAM *stream, MSGNO_S *msgmap, long int flag,
 		  long int *count, int mark, char **kw_on, char **kw_off)
 {
-    char	 *seq, *q, **t;
+    char	 *seq, **t;
     long	  i, rawno;
-    int           exbits, j, is_set;
+    int           exbits;
     MESSAGECACHE *mc;
 
     if(!stream)
       return(NULL);
 
     /* First, make sure elts are valid for all the interesting messages */
-    if(seq = invalid_elt_sequence(stream, msgmap)){
+    if((seq = invalid_elt_sequence(stream, msgmap)) != NULL){
 	pine_mail_fetch_flags(stream, seq, NIL);
 	fs_give((void **) &seq);
     }
@@ -152,6 +153,19 @@ currentf_sequence(MAILSTREAM *stream, MSGNO_S *msgmap, long int flag,
 	   || ((flag & F_FLAG) && mc->flagged)
 	   || ((flag & F_UNFLAG) && !mc->flagged)){
 	    mc->sequence = 1;			/* set "sequence" flag */
+	}
+
+	/* check for forwarded status */
+	if(!mc->sequence
+	   && (flag & F_FWD)
+	   && user_flag_is_set(stream, rawno, FORWARDED_FLAG)){
+	    mc->sequence = 1;
+	}
+
+	if(!mc->sequence
+	   && (flag & F_UNFWD)
+	   && !user_flag_is_set(stream, rawno, FORWARDED_FLAG)){
+	    mc->sequence = 1;
 	}
 
 	/* check for user keywords or not */
@@ -410,7 +424,7 @@ limiting_searchset(MAILSTREAM *stream, int narrow)
 {
     long       n, run;
     int        cnt = 0;
-    SEARCHSET *full_set = NULL, **set, *s;
+    SEARCHSET *full_set = NULL, **set;
 
     /*
      * If we're talking to anything other than a server older than

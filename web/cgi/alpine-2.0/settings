@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: settings 1150 2008-08-20 00:27:11Z mikes@u.washington.edu $
+# $Id: settings 1160 2008-08-22 01:12:33Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2008 University of Washington
 #
@@ -25,7 +25,7 @@ source ./alpine.tcl
 source ./foldercache.tcl
 source ./common.tcl
 
-set script_base "$_wp(serverpath)/$_wp(appdir_alt)/"
+set script_base "$_wp(serverpath)/$_wp(appdir2)/"
 
 # TEST
 proc cgi_suffix {args} {
@@ -97,15 +97,15 @@ WPEval $settings_args {
       cgi_base "href=$script_base"
       cgi_stylesheet css/cbn/screen.css
       # Yahoo Styles
-      cgi_stylesheet lib/yui/build/container/assets/container-core.css
-      cgi_stylesheet lib/yui/build/menu/assets/skins/sam/menu.css
-      cgi_stylesheet lib/yui/build/button/assets/skins/sam/button.css
+      cgi_stylesheet $_wp(yui)/build/container/assets/container-core.css
+      cgi_stylesheet $_wp(yui)/build/menu/assets/skins/sam/menu.css
+      cgi_stylesheet $_wp(yui)/build/button/assets/skins/sam/button.css
       # YahooUI libraries
-      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/utilities/utilities.js" {}
-      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/container/container-min.js" {}
-      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/datasource/datasource-beta-min.js" {}
-      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/menu/menu-min.js" {}
-      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/button/button-min.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="$_wp(yui)/build/utilities/utilities.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="$_wp(yui)/build/container/container-min.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="$_wp(yui)/build/datasource/datasource-beta-min.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="$_wp(yui)/build/menu/menu-min.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="$_wp(yui)/build/button/button-min.js" {}
       # local libraries
       cgi_script language="JavaScript" src="lib/common.js" {}
       cgi_script language="JavaScript" src="lib/settings.js" {}
@@ -181,7 +181,7 @@ WPEval $settings_args {
 	  }
 	}
       }} "$c" "$f" 0 Settings \
-	  [list [cgi_cgi "$_wp(appdir_alt)/browse/${c}/${f}"] Settings 0 searchContent('settings','alpineContent')] "" {
+	  [list [cgi_cgi "$_wp(appdir2)/browse/${c}/${f}"] Settings 0 searchContent('settings','alpineContent')] "" {
 	# CONTEXT COMMANDS
 	cgi_division class=hdrBtns {
 	  cgi_put [cgi_url "[cgi_span "class=sp hdrBtnImg hbi1" ""][cgi_span "class=hdrBtnText" Print]" "print" "onClick=if(window.print){window.print();return false;}else return true;"]
@@ -218,7 +218,7 @@ WPEval $settings_args {
 	  cgi_puts "</tbody>"
 	}
       } {
-	cgi_form $_wp(appdir_alt)/conduit/settings.tcl "enctype=multipart/form-data" id=settingsForm target=formResponse {
+	cgi_form $_wp(appdir2)/conduit/settings.tcl "enctype=multipart/form-data" id=settingsForm target=formResponse {
 	  cgi_text "restore=false" id=restore type=hidden notab
 	  cgi_table id=settingsPage1 "class=\"fields settings\"" cellpadding="0" cellspacing="0" {
 	    cgi_puts "<tbody>"

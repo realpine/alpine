@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: filter.c 1152 2008-08-20 23:40:25Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: filter.c 1157 2008-08-21 23:50:47Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -6841,8 +6841,9 @@ html_style(HANDLER_S *hd, int ch, int cmd)
 	    css_stuff = so_get(CharStar, NULL, EDIT_ACCESS);
 	}
 	else if(cmd == GF_EOD){
-	    /* deal with collected CSS stuff */
-
+	    /*
+	     * SOMEDAY: strip anything mischievous and pass on
+	     */
 
 	    so_give(&css_stuff);
 	}
@@ -7103,7 +7104,7 @@ rss_ttl(HANDLER_S *hd, int ch, int cmd)
 
     if(cmd == GF_DATA){
 	if(isdigit((unsigned char) ch))
-	  feed->ttl += ((feed->ttl * 10) + (ch - '0'));
+	  feed->ttl = ((feed->ttl * 10) + (ch - '0'));
     }
     else if(cmd == GF_RESET){
 	/* prepare to collect data */
@@ -8891,7 +8892,7 @@ gf_html2plain_rss_opt(RSS_FEED_S **feedp, int flags)
 void
 gf_html2plain_rss_free(RSS_FEED_S **feedp)
 {
-    if(feedp){
+    if(feedp && *feedp){
 	if((*feedp)->title)
 	  fs_give((void **) &(*feedp)->title);
 
@@ -8904,6 +8905,9 @@ gf_html2plain_rss_free(RSS_FEED_S **feedp)
 	if((*feedp)->source)
 	  fs_give((void **) &(*feedp)->source);
 
+	if((*feedp)->image)
+	  fs_give((void **) &(*feedp)->image);
+
 	gf_html2plain_rss_free_items(&((*feedp)->items));
 	fs_give((void **) feedp);
     }
@@ -8912,7 +8916,7 @@ gf_html2plain_rss_free(RSS_FEED_S **feedp)
 void
 gf_html2plain_rss_free_items(RSS_ITEM_S **itemp)
 {
-    if(itemp){
+    if(itemp && *itemp){
 	if((*itemp)->title)
 	  fs_give((void **) &(*itemp)->title);
 

@@ -1,5 +1,5 @@
 /*
- * $Id: screen.css 1152 2008-08-20 23:40:25Z mikes@u.washington.edu $
+ * $Id: screen.css 1157 2008-08-21 23:50:47Z mikes@u.washington.edu $
  * ========================================================================
  * Copyright 2006-2008 University of Washington
  *
@@ -239,16 +239,13 @@ table.content
 div.contentBody
 {
 	width: 100%;
-/*	font-size: 0.9em;*/
-/*	height: 100%;*/
-/*	vertical-align: top;*/
 }
 table.page img.logo
 {
 	position: absolute;
 	top: 0;
 	left: 0;
-	width: 190px;
+	width: 182px;
 	height: 72px;
 	margin-bottom: 5px;
 }
@@ -256,7 +253,7 @@ table.page span.logo
 {
 	position: absolute;
 	top: 50px;
-	left: 18px;
+	left: 14px;
 	color: white;
 	font-size: .8em;
 }
@@ -277,8 +274,6 @@ table.page span.logo
 div.hdrBtns
 {
 	float: right;
-/*	height: 2em;*/
-/*	margin: 3mm 2mm 0 0;*/
 }
 span.hdrBtnText
 {
@@ -306,7 +301,7 @@ span.newsImg
 	float: left;
 	height: 16px;
 	width: 16px;
-	margin-top: 2px;
+	margin-top: 3px;
 	margin-right: 6px;
 	cursor: pointer;
 	background-position: 0 -1800px;
@@ -488,23 +483,7 @@ table.toolbarTbl a
 }
 table.toolbarTbl a img
 {
-/*	width: 24px;
-	height: 24px;
-	margin: 2px 0 2px 4px;
-*/
 	vertical-align: middle;
-}
-table.toolbarTbl td.dv1
-{
-/***	padding: 0 4px;
-	border: 1px solid yellow;
-****/
-}
-table.toolbarTbl td.dv1 img
-{
-/***	width: 1px;
-	height: 18px;
-***/
 }
 table.toolbarTbl td.pageText
 {

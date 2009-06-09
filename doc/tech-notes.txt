@@ -1,7 +1,7 @@
 
                             Alpine Technical Notes
 
-   Version 1.999, August 2008
+   Version 2.00, August 2008
 
 Table of Contents
 

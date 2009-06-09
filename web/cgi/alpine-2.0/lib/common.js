@@ -1,4 +1,4 @@
-/* $Id: common.js 1152 2008-08-20 23:40:25Z mikes@u.washington.edu $
+/* $Id: common.js 1160 2008-08-22 01:12:33Z mikes@u.washington.edu $
  * ========================================================================
  * Copyright 2008 University of Washington
  *
@@ -1311,7 +1311,7 @@ function advanceSearch(){
 			    criteria += '{status ' + ['ton new','not new','ton imp','not imp'][elWhichStatus.selectedIndex] + '} ';
 			}
 
-			newMessageList({parms:{op:'search',type:'compound',scope:scope,criteria:criteria}});
+			newMessageList({parms:{op:'search',type:'compound',scope:scope,criteria:criteria,page:'new'}});
 		    }
 		});
 

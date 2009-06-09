@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: greeting.tcl 1106 2008-07-03 00:52:24Z mikes@u.washington.edu $
+# $Id: greeting.tcl 1160 2008-08-22 01:12:33Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -303,12 +303,6 @@ cgi_eval {
 		    } else {
 		      cgi_text Server= type=text maxlength=256
 		    }
-		  }
-		}
-
-		if {[info exists _wp(appdir_alt)] && [file isdirectory [file join .. $_wp(appdir_alt)]]} {
-		  cgi_javascript {
-		    cgi_puts "document.write('<tr><td align=right><input type=checkbox name=altui value=1 id=altui checked></td><td style=\"font-family: helvetica, sans-serif;\"><label for=altui>Try 2.0 User Interface</label></td></tr>');"
 		  }
 		}
 	      }

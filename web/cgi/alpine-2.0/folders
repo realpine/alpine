@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: folders 1150 2008-08-20 00:27:11Z mikes@u.washington.edu $
+# $Id: folders 1160 2008-08-22 01:12:33Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2008 University of Washington
 #
@@ -115,22 +115,21 @@ WPEval $folders_args {
   cgi_html {
     cgi_head {
       cgi_content_type "text/html; charset=$charset"
-      #      WPStdHttpHdrs "text/html; charset=$charset"
       cgi_title [wpPageTitle "Folder Management"]
-      cgi_base "href=$_wp(serverpath)/$_wp(appdir_alt)/"
+      cgi_base "href=$_wp(serverpath)/$_wp(appdir2)/"
       cgi_stylesheet css/menu.css
       cgi_stylesheet css/cbn/screen.css
       cgi_stylesheet css/cbn/folders.css
       # Yahoo Styles
-      cgi_stylesheet lib/yui/build/container/assets/container-core.css
-      cgi_stylesheet lib/yui/build/menu/assets/skins/sam/menu.css
-      cgi_stylesheet lib/yui/build/button/assets/skins/sam/button.css
+      cgi_stylesheet $_wp(yui)/build/container/assets/container-core.css
+      cgi_stylesheet $_wp(yui)/build/menu/assets/skins/sam/menu.css
+      cgi_stylesheet $_wp(yui)/build/button/assets/skins/sam/button.css
       # YahooUI libraries
-      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/utilities/utilities.js" {}
-      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/container/container-min.js" {}
-      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/datasource/datasource-beta-min.js" {}
-      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/menu/menu-min.js" {}
-      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/button/button-min.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="$_wp(yui)/build/utilities/utilities.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="$_wp(yui)/build/container/container-min.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="$_wp(yui)/build/datasource/datasource-beta-min.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="$_wp(yui)/build/menu/menu-min.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="$_wp(yui)/build/button/button-min.js" {}
       # local libraries
       cgi_script language="JavaScript" src="lib/common.js" {}
       cgi_script language="JavaScript" src="lib/folders.js" {}
@@ -161,7 +160,7 @@ WPEval $folders_args {
 
     cgi_body class=wap "onLoad=bodyOnLoad()" {
       cgi_puts {<iframe name="formResponse" id="formResponse" src="img/cbn/spritelib.gif"></iframe>}
-      wpCommonPageLayout folders "$c" "$f" "$u" "View and Manage Folders" [list [cgi_cgi "$_wp(appdir_alt)/browse/${c}/${f}"] "Folder List" 0 searchContent('folders','flistFolders')] "" {
+      wpCommonPageLayout folders "$c" "$f" "$u" "View and Manage Folders" [list [cgi_cgi "$_wp(appdir2)/browse/${c}/${f}"] "Folder List" 0 searchContent('folders','flistFolders')] "" {
 	# CONTEXT COMMANDS
 	cgi_division class=hdrBtns {
 	  cgi_put [cgi_url "[cgi_span "class=sp hdrBtnImg hbi1" ""][cgi_span "class=hdrBtnText" Print]" "print" "onClick=if(window.print){window.print();return false;}else return true;"]

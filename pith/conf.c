@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: conf.c 1150 2008-08-20 00:27:11Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: conf.c 1167 2008-08-23 00:07:05Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -878,19 +878,19 @@ static struct variable variables[] = {
 	"LDAP Servers",		cf_text_ldap_server},
 #endif	/* ENABLE_LDAP */
 {"rss-news",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-	NULL,			cf_text_rss_news},
+	"WEB ALPINE - RSS News",	cf_text_rss_news},
 {"rss-weather",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-	NULL,			cf_text_rss_weather},
+	"WEB ALPINE - RSS Weather",	cf_text_rss_weather},
 {"wp-indexheight", 			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-	NULL,			cf_text_wp_indexheight},
+	"WEB ALPINE - Index Height",	cf_text_wp_indexheight},
 {"wp-indexlines",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-	NULL,			cf_text_wp_indexlines},
+	"WEB ALPINE - Index Lines",	cf_text_wp_indexlines},
 {"wp-aggstate",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-	NULL,			cf_text_wp_aggstate},
+	"WEB ALPINE - Aggregate State",	cf_text_wp_aggstate},
 {"wp-state",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-	NULL,			cf_text_wp_state},
+	"WEB ALPINE - Cross Session State",	cf_text_wp_state},
 {"wp-columns",				0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
-	NULL,			cf_text_wp_columns},
+	"WEB ALPINE - Columns",	cf_text_wp_columns},
 {NULL,					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NULL,NULL}
 };
 
@@ -7829,6 +7829,18 @@ config_help(int var, int feature)
       case V_CACERT_CONTAINER :
 	return(h_config_smime_cacertcon);
 #endif
+      case V_RSS_NEWS :
+	return(h_config_rss_news);
+      case V_RSS_WEATHER :
+	return(h_config_rss_weather);
+      case V_WP_INDEXHEIGHT :
+	return(h_config_wp_indexheight);
+      case V_WP_INDEXLINES :
+	return(h_config_wp_indexlines);
+      case V_WP_AGGSTATE :
+	return(h_config_wp_aggstate);
+      case V_WP_STATE :
+	return(h_config_wp_state);
       case V_WP_COLUMNS :
 	return(h_config_wp_columns);
       default :

@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: compose 1150 2008-08-20 00:27:11Z mikes@u.washington.edu $
+# $Id: compose 1160 2008-08-22 01:12:33Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2008 University of Washington
 #
@@ -28,7 +28,7 @@ source ./alpine.tcl
 source ./foldercache.tcl
 source ./common.tcl
 
-set script_base "$_wp(serverpath)/$_wp(appdir_alt)/"
+set script_base "$_wp(serverpath)/$_wp(appdir2)/"
 
 # TEST
 proc cgi_suffix {args} {
@@ -57,7 +57,7 @@ proc browse_redirect {} {
 proc url {d} {
   global _wp
 
-  return [file join / $_wp(urlprefix) $_wp(appdir_alt) $d]
+  return [file join / $_wp(urlprefix) $_wp(appdir2) $d]
 }
 
 proc leave_test {d} {
@@ -180,15 +180,7 @@ set title Compose
 
 WPEval $compose_args {
 
-  if {0} {
-  if {![info exists compose_mode]
-      && !(0 == [catch {WPSessionState compose_mode} compose_mode]
-	   && [regexp {^(plain|rich)$} $compose_mode])} {
-    set compose_mode rich
-  }
-  } else {
-    set compose_mode plain
-  }
+  set compose_mode plain
 
   # figure out compose mode and collect necessary stuff
   if {[regexp {/(reply|replyall|forward|resume|mailto)$} $env(SCRIPT_NAME) dummy mode]} {
@@ -395,28 +387,37 @@ WPEval $compose_args {
       cgi_title [wpPageTitle "$title"]
       cgi_base "href=$script_base"
       # yui css
-      cgi_stylesheet "lib/yui/build/autocomplete/assets/skins/sam/autocomplete.css"
-      cgi_stylesheet "lib/yui/build/tabview/assets/tabview-core.css"
-      cgi_stylesheet "lib/yui/build/button/assets/skins/sam/button.css"
-      cgi_stylesheet "lib/yui/build/container/assets/skins/sam/container.css"
-      cgi_stylesheet "lib/yui/build/editor/assets/skins/sam/simpleeditor.css"
+      cgi_stylesheet "$_wp(yui)/build/autocomplete/assets/skins/sam/autocomplete.css"
+      cgi_stylesheet "$_wp(yui)/build/tabview/assets/tabview-core.css"
+      cgi_stylesheet "$_wp(yui)/build/button/assets/skins/sam/button.css"
+      cgi_stylesheet "$_wp(yui)/build/container/assets/skins/sam/container.css"
+      cgi_stylesheet "$_wp(yui)/build/editor/assets/skins/sam/simpleeditor.css"
       # local css
       cgi_stylesheet css/cbn/screen.css
       cgi_stylesheet css/menu.css
       cgi_stylesheet css/cbn/folderdialog.css
       cgi_stylesheet css/cbn/contactdialog.css
-      cgi_stylesheet css/cbn/tabs.css
-      cgi_puts  "<style type='text/css'>"
-      cgi_puts  ".yui-skin-sam .yui-ac-content{width:70%;}"
+      cgi_puts "<style type='text/css'>"
+      cgi_puts ".yui-skin-sam .yui-ac-content{ width:70%; }"
+      cgi_puts ".yui-navset .yui-nav li { margin-right:0.16em; padding-top:1px; zoom:1; }"
+      cgi_puts ".yui-navset .yui-nav .selected { margin-bottom:-1px; }"
+      cgi_puts ".yui-navset .yui-nav a { background:#dadbdb url($_wp(yui)/build/assets/skins/sam/sprite.png) repeat-x; border:solid #a3a3a3; border-width:0 1px; color:#000; text-decoration:none; }"
+      cgi_puts ".yui-navset .yui-nav li a em { border-top:solid 1px #a3a3a3;  border-bottom:0;  cursor:hand;  padding:0.2em 0.5em; top:-1px; position:relative; }"
+      cgi_puts ".yui-navset .yui-nav .selected a, .yui-navset .yui-nav a:focus, .yui-navset .yui-nav a:hover { background:#214197 url($_wp(yui)/build/assets/skins/sam/sprite.png) repeat-x left -1400px; color:#fff; }"
+      cgi_puts ".yui-navset .yui-nav .selected a em { padding:0.3em 0.5em; }"
+      cgi_puts ".yui-navset .yui-nav .selected a, .yui-navset .yui-nav a:hover, .yui-navset .yui-nav a:focus { border-color:#243356; }"
+      cgi_puts ".yui-navset .yui-nav a:hover em, .yui-navset .yui-nav a:focus em, .yui-navset .yui-nav .selected a em { border-color:#233356 #406ed9; }"
+      cgi_puts ".yui-navset .yui-nav { border-bottom:1px solid #243356; position:relative; zoom:1; }"
+      cgi_puts ".yui-navset .yui-content { border-top:5px solid #214095; }"
       cgi_puts "</style>"
       # Yahoo UI Libraries
-      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/utilities/utilities.js" {}
-      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/container/container-min.js" {}
-      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/datasource/datasource-beta-min.js" {}
-      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/autocomplete/autocomplete-min.js" {}
-      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/button/button-min.js" {}
-      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/tabview/tabview-min.js" {}
-      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/editor/simpleeditor-beta-min.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="$_wp(yui)/build/utilities/utilities.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="$_wp(yui)/build/container/container-min.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="$_wp(yui)/build/datasource/datasource-beta-min.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="$_wp(yui)/build/autocomplete/autocomplete-min.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="$_wp(yui)/build/button/button-min.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="$_wp(yui)/build/tabview/tabview-min.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="$_wp(yui)/build/editor/simpleeditor-beta-min.js" {}
       # local libraries
       cgi_script language="JavaScript" src="lib/common.js" {}
       cgi_script language="JavaScript" src="lib/compose.js" {}
@@ -456,7 +457,7 @@ WPEval $compose_args {
 		  }
 		  cgi_division id="directoryQuery" class=contactContent {
 		    cgi_division class="clistContext" "style=\"text-align: center;\"" {
-		      cgi_form $_wp(appdir_alt)/conduit/query.tcl method=get target=formResponse {
+		      cgi_form $_wp(appdir2)/conduit/query.tcl method=get target=formResponse {
 			if {[llength $directories] > 1} {
 			  cgi_select dir class=wap {
 			    for {set i 0} {$i < [llength $directories]} {incr i} {
@@ -529,10 +530,11 @@ WPEval $compose_args {
 
       wpCommonPageLayout compose "$c" "$f" "$u" \
 	  $title \
-	  [list [cgi_cgi "$_wp(appdir_alt)/browse/${c}/${f}"] Composition 0] \
+	  [list [cgi_cgi "$_wp(appdir2)/browse/${c}/${f}"] Composition 0] \
 	  leave_test\
 	  {
 	    cgi_division class=hdrBtns {
+	      cgi_put [cgi_url "[cgi_span "class=sp hdrBtnImg hbi1" ""][cgi_span "class=hdrBtnText" Print]" "print" "onClick=if(window.print){window.print();return false;}else return true;"]
 	      cgi_put [cgi_url "[cgi_span "class=sp hdrBtnImg hbi3" ""][cgi_span "class=hdrBtnText" Help]" "javascript:openHelpWindow('compose.html');" class=wap]
 	      cgi_put [cgi_url "[cgi_span "class=sp hdrBtnImg hbi4" ""][cgi_span "class=hdrBtnText" "Sign out"]" "" "onClick=[leave_test "../../session/logout.tcl?cid=[WPCmd PEInfo key]&sessid=${sessid}"]"]
 	    }
@@ -585,7 +587,7 @@ WPEval $compose_args {
 	      cgi_puts "</tbody>"
 	    }
 	  } {
-	    cgi_form $_wp(appdir_alt)/conduit/post.tcl "enctype=multipart/form-data" id=composeForm target=formResponse {
+	    cgi_form $_wp(appdir2)/conduit/post.tcl "enctype=multipart/form-data" id=composeForm target=formResponse {
 	      cgi_table width="100%" height="100%" cellpadding="0" cellspacing="0" id=compositionBody {
 		cgi_puts "<tbody>"
 		cgi_table_row {
@@ -788,7 +790,7 @@ WPEval $compose_args {
 
       # autosize and autocompletion
       cgi_javascript {
-	cgi_puts "var gACDataServer = '$_wp(serverpath)/$_wp(appdir_alt)/conduit/complete.tcl';"
+	cgi_puts "var gACDataServer = '$_wp(serverpath)/$_wp(appdir2)/conduit/complete.tcl';"
 	cgi_puts {
 	  gACDataSource = new YAHOO.widget.DS_XHR(gACDataServer,['Result','Email','Nickname']);
 	  gACDataSource.responseType = YAHOO.widget.DS_XHR.TYPE_XML;

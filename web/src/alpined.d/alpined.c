@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: alpined.c 1153 2008-08-21 00:43:42Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: alpined.c 1166 2008-08-22 20:41:37Z mikes@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -256,6 +256,20 @@ static struct _embedded_data {
 } peED;
 
 
+/*
+ * RSS stream cache
+ */
+typedef struct _rss_cache_s {
+	char	   *link;
+	time_t	    stale;
+	int	    referenced;
+	RSS_FEED_S *feed;
+} RSS_CACHE_S;
+
+#define	RSS_NEWS_CACHE_SIZE	1
+#define	RSS_WEATHER_CACHE_SIZE	1
+
+
 #ifdef ENABLE_LDAP
 WPLDAP_S *wpldap_global;
 #endif
@@ -449,9 +463,12 @@ long	     peAppendMsg(MAILSTREAM *, void *, char **, char **, STRING **);
 int	     remote_pinerc_failure(void);
 char	    *peWebAlpinePrefix(void);
 int	     peMessageNeedPassphrase(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
-RSS_FEED_S  *peRssCache(RSS_FEED_S **);
+int	     peRssReturnFeed(Tcl_Interp *, char *, char *);
+int	     peRssPackageFeed(Tcl_Interp *, RSS_FEED_S *);
+RSS_FEED_S  *peRssFeed(Tcl_Interp *, char *, char *);
 RSS_FEED_S  *peRssFetch(Tcl_Interp *, char *);
 void	     peRssComponentFree(char **,char **,char **,char **,char **,char **);
+void	     peRssClearCacheEntry(RSS_CACHE_S *);
 
 
 /* Prototypes for Tcl-exported methods */
@@ -15847,9 +15864,6 @@ int
 PERssCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     char *s1;
-    RSS_ITEM_S *item;
-    RSS_FEED_S *feed;
-    static RSS_FEED_S *newsfeed, *weatherfeed;
 
     dprint((2, "PERssCmd"));
 
@@ -15861,76 +15875,137 @@ PERssCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 
     if(s1){
 	if(!strcmp(s1, "news")){
-	    if(ps_global->VAR_RSS_NEWS){
-		if((feed = peRssCache(&newsfeed)) != NULL
-		   || (feed = newsfeed = peRssFetch(interp, ps_global->VAR_RSS_NEWS)) != NULL){
-		    for(item = feed->items; item; item = item->next){
-			peAppListF(interp, Tcl_GetObjResult(interp), "%s %s", item->title, item->link);
-		    }
-
-		    return(TCL_OK);
-		}
-		else
-		  Tcl_SetResult(interp, "News feed request failed", TCL_STATIC);
-	    }
-	    else
-	      Tcl_SetResult(interp, "Undefined news RSS feed", TCL_STATIC);
+	    return(peRssReturnFeed(interp, "news", ps_global->VAR_RSS_NEWS));
 	}
 	else if(!strcmp(s1, "weather")){
-	    if(ps_global->VAR_RSS_WEATHER){
-		if((feed = peRssCache(&weatherfeed)) != NULL
-		   || (feed = weatherfeed = peRssFetch(interp, ps_global->VAR_RSS_WEATHER)) != NULL){
-		    for(item = feed->items; item; item = item->next){
-			peAppListF(interp, Tcl_GetObjResult(interp), "%s %s %s %s",
-				   item->title ? item->title : "",
-				   item->link ? item->link : "",
-				   item->description ? item->description : "",
-				   feed->image ? feed->image : "");
-		    }
-
-		    return(TCL_OK);
-		}
-		else
-		  Tcl_SetResult(interp, "Weather feed request failed", TCL_STATIC);
-	    }
-	    else
-	      Tcl_SetResult(interp, "Undefined weather RSS feed", TCL_STATIC);
+	    return(peRssReturnFeed(interp, "weather", ps_global->VAR_RSS_WEATHER));
 	}
     }
 
+    Tcl_SetResult(interp, "Unknown PERss command", TCL_STATIC);
     return(TCL_ERROR);
 }
 
-RSS_FEED_S *
-peRssCache(RSS_FEED_S **cached_feed)
+/*
+ * peRssReturnFeed - fetch feed contents and package Tcl response
+ */
+int
+peRssReturnFeed(Tcl_Interp *interp, char *type, char *link)
 {
-    /* dumb caching rules for now */
-    if(*cached_feed){
-	time_t now = time(0);
+    RSS_FEED_S *feed;
+    char       *errstr = "UNKNOWN";
 
-	/* cache for channel's ttl or one hour */
-	if((now - (*cached_feed)->fetched) < ((((*cached_feed)->ttl) ? (*cached_feed)->ttl : 60) * 60)){
-	    return(*cached_feed);
-	}
-	else{
-	    gf_html2plain_rss_free(cached_feed);
-	}
+    if(link){
+	ps_global->c_client_error[0] = '\0';
+
+	if((feed = peRssFeed(interp, type, link)) != NULL)
+	  return(peRssPackageFeed(interp, feed));
+
+	if(ps_global->mm_log_error)
+	  errstr = ps_global->c_client_error;
     }
+    else
+      errstr = "missing setting";
 
-    return(NULL);
+    snprintf(tmp_20k_buf, SIZEOF_20KBUF, "%s feed fail: %s", type, errstr);
+    Tcl_SetResult(interp, tmp_20k_buf, TCL_VOLATILE);
+    return(TCL_ERROR);
 }
 
+/*
+ * peRssPackageFeed - build a list of feed item elements
+ *
+ *	LIST ORDER: {title} {link} {description} {image}
+ */
+int
+peRssPackageFeed(Tcl_Interp *interp, RSS_FEED_S *feed)
+{
+    RSS_ITEM_S *item;
+
+    for(item = feed->items; item; item = item->next)
+      if(peAppListF(interp, Tcl_GetObjResult(interp), "%s %s %s %s",
+		    (item->title && *item->title)? item->title : "Feed Provided No Title",
+		    item->link ? item->link : "",
+		    item->description ? item->description : "",
+		    feed->image ? feed->image : "") != TCL_OK)
+	return(TCL_ERROR);
+
+    return(TCL_OK);
+}
+
+
+/*
+ * peRssFeed - return cached feed struct or fetch a new one
+ */
 RSS_FEED_S *
-peRssFetch(Tcl_Interp *interp, char *rssUrl)
+peRssFeed(Tcl_Interp *interp, char *type, char *link)
+{
+    int		 i, cache_l, cp_ref;
+    time_t	 now = time(0);
+    RSS_FEED_S	*feed = NULL;
+    RSS_CACHE_S	*cache, *cp;
+    static RSS_CACHE_S news_cache[RSS_NEWS_CACHE_SIZE], weather_cache[RSS_WEATHER_CACHE_SIZE];
+
+    if(!strucmp(type,"news")){
+	cache   =  &news_cache[0];
+	cache_l = RSS_NEWS_CACHE_SIZE;
+    }
+    else{
+	cache   = &weather_cache[0];
+	cache_l = RSS_WEATHER_CACHE_SIZE;
+    }
+
+    /* search/purge cache */
+    for(i = 0; i < cache_l; i++)
+      if(cache[i].link){
+	  if(now > cache[i].stale){
+	      peRssClearCacheEntry(&cache[i]);
+	  }
+	  else if(!strcmp(link, cache[i].link)){
+	      cache[i].referenced++;
+	      return(cache[i].feed); /* HIT! */
+	  }
+      }
+
+    if((feed = peRssFetch(interp, link)) != NULL){
+	/* find cache slot, and insert feed into cache */
+	for(i = 0, cp_ref = 0; i < cache_l; i++)
+	  if(!cache[i].feed){
+	      cp = &cache[i];
+	      break;
+	  }
+	  else if(cache[i].referenced >= cp_ref)
+	    cp = &cache[i];
+
+	if(!cp)
+	  cp = &cache[0];		/* failsafe */
+
+	peRssClearCacheEntry(cp);	/* make sure */
+
+	cp->link       = cpystr(link);
+	cp->feed       = feed;
+	cp->referenced = 0;
+	cp->stale      = now + (((feed->ttl > 0) ? feed->ttl : 60) * 60);
+    }
+
+    return(feed);
+}
+
+/*
+ * peRssFetch - follow the provided link an return the resulting struct
+ */
+RSS_FEED_S *
+peRssFetch(Tcl_Interp *interp, char *link)
 {
     char	  *scheme = NULL, *loc = NULL, *path = NULL, *parms = NULL, *query = NULL, *frag = NULL;
-    char	  *buffer = NULL, *p, *q;
+    char	  *buffer = NULL, *bp, *p, *q;
     unsigned long  port = 0L, buffer_len = 0L;
+    STORE_S	  *feed_so = NULL;
     TCPSTREAM	  *tcp_stream;
 
-    if(rssUrl){
+    if(link){
 	/* grok url */
-	rfc1808_tokens(rssUrl, &scheme, &loc, &path, &parms, &query, &frag);
+	rfc1808_tokens(link, &scheme, &loc, &path, &parms, &query, &frag);
 	if(scheme && loc && path){
 	    if((p = strchr(loc,':')) != NULL){
 		*p++  = '\0';
@@ -15949,9 +16024,12 @@ peRssFetch(Tcl_Interp *interp, char *rssUrl)
 	    mail_parameters(NULL, SET_OPENTIMEOUT, (void *)(long) 30);
 
 	    if(tcp_stream != NULL){
-		snprintf(tmp_20k_buf, SIZEOF_20KBUF, "GET /%s%s%s%s%s HTTP/1.1\r\nHost: %s\r\n\r\n",
+		char rev[128];
+
+		snprintf(tmp_20k_buf, SIZEOF_20KBUF, "GET /%s%s%s%s%s HTTP/1.1\r\nHost: %s\r\nAccept: application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\nAccept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7\r\nUser-Agent: Web-Alpine/%s (%s %s)\r\n\r\n",
 			 path, parms ? ":" : "", parms ? parms : "",
-			 query ? "?" : "", query ? query : "", loc);
+			 query ? "?" : "", query ? query : "", loc,
+			 ALPINE_VERSION, SYSTYPE, get_alpine_revision_string(rev, sizeof(rev)));
 
 		mail_parameters(NULL, SET_READTIMEOUT, (void *)(long) 5);
 
@@ -15971,10 +16049,19 @@ peRssFetch(Tcl_Interp *interp, char *rssUrl)
 				buffer = fs_get(buffer_len + 16);
 				if(!tcp_getbuffer(tcp_stream, buffer_len, buffer))
 				  fs_give((void **) &buffer);
-			    }
 
-			    fs_give((void **) &p);
-			    break;
+				fs_give((void **) &p);
+				break;
+			    }
+			    else{			/* no content-length: */
+				if((feed_so = so_get(CharStar, NULL, EDIT_ACCESS)) == NULL){
+				    fs_give((void **) &p);
+				    break;
+				}
+			    }
+			}
+			else if(feed_so){
+			    so_puts(feed_so, p);
 			}
 			else{
 			    if(q = strchr(p,':')){
@@ -15992,11 +16079,17 @@ peRssFetch(Tcl_Interp *interp, char *rssUrl)
 				    if(*q)
 				      break;
 				}
-				else if(l == 12 && !strucmp(p, "content-type") && strucmp(q,"text/xml")){
+				else if(l == 12 && !strucmp(p, "content-type")
+					&& strucmp(q,"text/xml")
+					&& strucmp(q,"application/xhtml+xml")
+					&& strucmp(q,"application/xml")){
 				    break;
 				}
+				/* SHOULD: if(l == 7 && !strucmp(p, "expires")) */
 			    }
 			}
+
+			fs_give((void **) &p);
 		    }
 		}
 		else{
@@ -16007,6 +16100,11 @@ peRssFetch(Tcl_Interp *interp, char *rssUrl)
 		tcp_close(tcp_stream);
 		mail_parameters(NULL, SET_READTIMEOUT, (void *)(long) 60);
 		peRssComponentFree(&scheme,&loc,&path,&parms,&query,&frag);
+
+		if(feed_so){
+		    buffer = (char *) so_text(feed_so);
+		    buffer_len = (int) so_tell(feed_so);
+		}
 
 		if(buffer){
 		    RSS_FEED_S *feed;
@@ -16020,18 +16118,20 @@ peRssFetch(Tcl_Interp *interp, char *rssUrl)
 		    gf_set_so_writec(&pc, bucket);
 		    gf_filter_init();
 		    gf_link_filter(gf_html2plain, gf_html2plain_rss_opt(&feed,0));
-		    if((err = gf_pipe(gc, pc)) == NULL){
-			feed->fetched = time(0);
-		    }
-		    else{
+		    if((err = gf_pipe(gc, pc)) != NULL){
 			gf_html2plain_rss_free(&feed);
 			Tcl_SetResult(interp, "RSS connection failure", TCL_STATIC);
 		    }
+
+		    if(feed_so)
+		      so_give(&feed_so);
 
 		    so_give(&bucket);
 		    fs_give((void **) &buffer);
 		    return(feed);
 		}
+		else
+		  Tcl_SetResult(interp, "RSS response error", TCL_STATIC);
 	    }
 	    else
 	      Tcl_SetResult(interp, "RSS connection failure", TCL_STATIC);
@@ -16055,4 +16155,16 @@ peRssComponentFree(char **scheme,char **loc,char **path,char **parms,char **quer
     if(parms) fs_give((void **) parms);
     if(query) fs_give((void **) query);
     if(frag) fs_give((void **) frag);
+}
+
+void
+peRssClearCacheEntry(RSS_CACHE_S *entry)
+{
+    if(entry){
+	if(entry->link)
+	  fs_give((void **) &entry->link);
+
+	gf_html2plain_rss_free(&entry->feed);
+	memset(entry, 0, sizeof(RSS_CACHE_S));
+    }
 }

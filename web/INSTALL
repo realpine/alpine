@@ -128,8 +128,14 @@ ACQUIRING EXTERNAL LIBRARIES
 ----------------------------
 
 Web Alpine 2.0 makes heavy use of the functionality provided by the
-The Yahoo! User Interface Library (YUI).  Thus, to fully install Web
-Alpine, you will need to download the YUI libararies from:
+The Yahoo! User Interface Library (YUI).  By default, Web Alpine is
+configured to generate pages that cause user's browser to request the
+necessary library files directly from Yahoo servers.
+
+Web Alpine can be easily configured to generate pages with references
+to a local copy of the YUI libraries.  
+
+First, you will need to download the YUI libararies from:
 
         http://developer.yahoo.com/yui/download/
 
@@ -141,6 +147,13 @@ link:
 Simply install the downloaded library in the directory specified by
 the symbolic link, or change the link to refer to the intalled
 location.
+
+Second, you will need to change the _wp(yui) configuration setting
+in
+
+        web/config/alpine.tcl
+
+to reference the new location.
 
 
 INSTALLING WEB ALPINE COMPONENTS
@@ -175,14 +188,14 @@ elevated privileges using either sudo or after becoming root.
 
   4.  % cd ../..
 
-  5.  % sudo mv web /usr/local/libexec/alpine-1.00
+  5.  % sudo mv web /usr/local/libexec/alpine-2.00
 
 Next, for simplicity, create a generically named symbolic link as a
 synonym for the version-specific directory.
 
   6.  % cd /usr/local/libexec
 
-  7.  % sudo ln -s alpine-1.00 alpine
+  7.  % sudo ln -s alpine-2.00 alpine
 
 After that, make the scripts that actually generate the user visible
 portion of Web Alpine available to the web server.
@@ -345,4 +358,4 @@ what's going on and why.  If you have any questions or comments drop
 us a note <alpine-contact@cac.washington.edu>.
 
 -- 
-$Id: INSTALL 1097 2008-07-01 00:14:52Z mikes@u.washington.edu $
+$Id: INSTALL 1160 2008-08-22 01:12:33Z mikes@u.washington.edu $

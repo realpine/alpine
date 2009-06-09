@@ -1,5 +1,5 @@
 /*
- * $Id: filter.h 1152 2008-08-20 23:40:25Z mikes@u.washington.edu $
+ * $Id: filter.h 1164 2008-08-22 19:46:13Z mikes@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -93,7 +93,6 @@ typedef struct _rss_feed_s {
 	char   *description;
 	char   *source;
 	int     ttl;
-	time_t  fetched;
 	struct _rss_item_s *items;
 } RSS_FEED_S;
 

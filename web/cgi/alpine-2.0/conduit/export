@@ -145,7 +145,7 @@ WPEval $export_vars {
   if {[info exists redirect]} {
     set redirect "${redirect}${safegivenname}?h=${rhandle}"
   } else {
-    set redirect "[cgi_root]/$_wp(appdir_alt)/folders/"
+    set redirect "[cgi_root]/$_wp(appdir2)/folders/"
   }
 
   cgi_http_head {

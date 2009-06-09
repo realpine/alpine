@@ -1,5 +1,5 @@
 # Web Alpine Config options
-# $Id$
+# $Id: alpine.tcl 1160 2008-08-22 01:12:33Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006-2008 University of Washington
 #
@@ -38,7 +38,7 @@ set _wp(cgipath)	[file join $_wp(fileroot) cgi]
 set _wp(appdir)		alpine
 
 # place for CGI scripts supporting alternative UI
-set _wp(appdir_alt)     [file join alpine 2.0]
+set _wp(appdir2)     [file join alpine 2.0]
 
 # place for CGI scripts not requiring session-key
 set _wp(pubdir)		pub
@@ -126,6 +126,15 @@ set _wp(cmdtime)	0
 set _wp(evaltime)	0
 set _wp(menuargs)	{width="112" nowrap valign=top}
 set _wp(ispell)		/usr/local/bin/ispell
+
+# Yahoo! User Interface Library location
+#set _wp(yui)		$_wp(serverpath)/$_wp(appdir2)/lib/yui
+set _wp(yui)		"http://yui.yahooapis.com/2.5.2"
+
+# usage reporter - input: username as first command line argument
+#                  output: space separated integers usage and total
+#set _wp(usage)		$_wp(bin)/usage.tcl
+#set _wp(usage_link)	"https://uwnetid.washington.edu/disk/"
 
 # limit uploads to 1 file at a time, maximum 20MB.
 set _wp(uplim_files)	1

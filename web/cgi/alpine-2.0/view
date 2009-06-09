@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: view 1150 2008-08-20 00:27:11Z mikes@u.washington.edu $
+# $Id: view 1160 2008-08-22 01:12:33Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2008 University of Washington
 #
@@ -34,7 +34,7 @@ proc view_redirect {} {
   global _wp
 
   cgi_http_head {
-    cgi_redirect "[cgi_root]/$_wp(appdir_alt)/browse"
+    cgi_redirect "[cgi_root]/$_wp(appdir2)/browse"
   }
 }
 
@@ -47,10 +47,6 @@ source ./messageview.tcl
 # TEST
 proc cgi_suffix {args} {
   return ""
-}
-
-proc noimp {s} {
-  return "onClick=return noImp('${s}');"
 }
 
 # for inserting debug comments at end of page
@@ -66,11 +62,11 @@ WPEval $view_args {
   if {[info exists env(PATH_INFO)] && [string length $env(PATH_INFO)]} {
     if {0 == [regexp {^/([0-9]+)/(.*)/([0-9]+)$} $env(PATH_INFO) dummy c f u]} {
       WPCmd PEInfo statmsg "Cannot open invalid path: $env(PATH_INFO)"
-      error [list _redirect "[cgi_root]/$_wp(appdir_alt)/browse/0/INBOX"]
+      error [list _redirect "[cgi_root]/$_wp(appdir2)/browse/0/INBOX"]
     }
   } else {
     WPCmd PEInfo statmsg "Cannot view unspecified folder"
-    error [list _redirect "[cgi_root]/$_wp(appdir_alt)/browse/0/INBOX"]
+    error [list _redirect "[cgi_root]/$_wp(appdir2)/browse/0/INBOX"]
   }
 
   # verify or visit specified collection/folder
@@ -78,7 +74,7 @@ WPEval $view_args {
     set authlist [wpHandleAuthException $result [list $c "folders in collection"] $f]
     if {0 == [llength $authlist]} {
       WPCmd PEInfo statmsg "$result"
-      error [list _redirect "$_wp(serverpath)/$_wp(appdir_alt)/browse/$c/$f"]
+      error [list _redirect "$_wp(serverpath)/$_wp(appdir2)/browse/$c/$f"]
     }
   }
 
@@ -134,7 +130,7 @@ WPEval $view_args {
 
   if {[catch {WPCmd PEMessage $u number} n]} {
     WPCmd PEInfo statmsg "$n"
-    error [list _redirect "$_wp(serverpath)/$_wp(appdir_alt)/browse/$c/$f"]
+    error [list _redirect "$_wp(serverpath)/$_wp(appdir2)/browse/$c/$f"]
   }
 
   cgi_http_head {
@@ -151,28 +147,27 @@ WPEval $view_args {
   cgi_html {
     cgi_head {
       cgi_content_type "text/html; charset=$charset"
-      #      WPStdHttpHdrs "text/html; charset=$charset"
       cgi_title [wpPageTitle "Message $n of $mc in $f"]
-      cgi_base "href=$_wp(serverpath)/$_wp(appdir_alt)/"
+      cgi_base "href=$_wp(serverpath)/$_wp(appdir2)/"
       cgi_stylesheet css/menu.css
       cgi_stylesheet css/cbn/screen.css
       cgi_stylesheet css/cbn/folderdialog.css
-      cgi_stylesheet lib/yui/build/container/assets/container-core.css
-      cgi_stylesheet lib/yui/build/menu/assets/skins/sam/menu.css
-      cgi_stylesheet lib/yui/build/button/assets/skins/sam/button.css
+      cgi_stylesheet $_wp(yui)/build/container/assets/container-core.css
+      cgi_stylesheet $_wp(yui)/build/menu/assets/skins/sam/menu.css
+      cgi_stylesheet $_wp(yui)/build/button/assets/skins/sam/button.css
       # Yahoo UI libraries
-      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/utilities/utilities.js" {}
-      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/container/container-min.js" {}
-      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/datasource/datasource-beta-min.js" {}
-      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/menu/menu-min.js" {}
-      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/button/button-min.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="$_wp(yui)/build/utilities/utilities.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="$_wp(yui)/build/container/container-min.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="$_wp(yui)/build/datasource/datasource-beta-min.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="$_wp(yui)/build/menu/menu-min.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="$_wp(yui)/build/button/button-min.js" {}
       # local libraries
       cgi_script type=text/javascript language="JavaScript" src="lib/common.js" {}
       cgi_script type=text/javascript language="JavaScript" src="lib/mailbox.js" {}
       # page specfic JS
       cgi_javascript {
 	cgi_puts "YAHOO.alpine.cgi_root = '$_wp(serverpath)';"
-	cgi_puts "YAHOO.alpine.app_root = '$_wp(serverpath)/$_wp(appdir_alt)';"
+	cgi_puts "YAHOO.alpine.app_root = '$_wp(serverpath)/$_wp(appdir2)';"
 	cgi_puts "YAHOO.alpine.current.c = $c;"
 	cgi_puts "YAHOO.alpine.current.f = \"$f\";"
 	cgi_puts "YAHOO.alpine.current.u = $u;"
@@ -199,9 +194,6 @@ WPEval $view_args {
 	wpSaveMenuJavascript "view" $c $f [WPCmd PEFolder defaultcollection] morcInViewDone
         cgi_puts "}"
 
-	# WHILE TESTING/DEBUGGING
-	cgi_puts "var impi = new Array(); function noImp(m){ var sm; if(impi\[m\]) {impi\[m\]++; if(impi\[m\] > 4) sm = '<b>Seriously,</b> ' + m + ' will <b>never</b> get implemented if you keep bothering me!'; else sm = m + ' is <b>still</b> not implemented!'; } else { sm = m + ' is not implemented yet!' ; impi\[m\] = 1 ;} showStatusMessage(sm,3); return false; }"
-
 	cgi_puts "browserDetect();"
       }
     }
@@ -214,7 +206,7 @@ WPEval $view_args {
 	cgi_put [cgi_url "Skip to Compose" "compose#to"]
       }
 
-      wpCommonPageLayout view $c $f $u [cgi_url "[cgi_quote_html $f], Message $n of $mc" browse/$c/[WPPercentQuote $f $delim] id=gBigContext] [list [cgi_cgi "$_wp(appdir_alt)/browse/${c}/${f}?u=${u}"] "$f" 1 mailboxSearch()] {} {
+      wpCommonPageLayout view $c $f $u [cgi_url "[cgi_quote_html $f], Message $n of $mc" browse/$c/[WPPercentQuote $f $delim] id=gBigContext] [list [cgi_cgi "$_wp(appdir2)/browse/${c}/${f}?u=${u}"] "$f" 1 mailboxSearch()] {} {
 	# CONTEXT COMMANDS
 	cgi_division class=hdrBtns {
 	  cgi_put [cgi_url "[cgi_span "class=sp hdrBtnImg hbi1" ""][cgi_span "class=hdrBtnText" Print]" "print" "onClick=if(window.print){window.print();return false;}else return true;"]

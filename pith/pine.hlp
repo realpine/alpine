@@ -1,4 +1,4 @@
-# $Id: pine.hlp 1145 2008-08-19 06:10:14Z mikes@u.washington.edu $
+# $Id: pine.hlp 1167 2008-08-23 00:07:05Z hubert@u.washington.edu $
 #
 #        T H E   A L P I N E    M E S S A G E   S Y S T E M
 #
@@ -140,7 +140,7 @@ reasonable place to be called from.
 Dummy change to get revision in pine.hlp
 
 ============= h_revision =================
-$Id: pine.hlp 1145 2008-08-19 06:10:14Z mikes@u.washington.edu $
+$Id: pine.hlp 1167 2008-08-23 00:07:05Z hubert@u.washington.edu $
 ============= h_news =================
 <HTML>
 <HEAD>
@@ -34360,11 +34360,13 @@ settings and always display text with Alpine's internal viewer.
 ====== h_config_wp_columns =====
 <HTML>
 <HEAD>
-<TITLE>FEATURE: wp-columns</TITLE>
+<TITLE>WEB ALPINE OPTION: <!--#echo var="VAR_wp-columns"--></TITLE>
 </HEAD>
 <BODY>
-<H1>FEATURE: wp-columns</H1>
+<H1>WEB ALPINE OPTION: <!--#echo var="VAR_wp-columns"--></H1>
 
+Web Alpine only.
+<P>
 This configuration setting specifies the number of horizontal characters
 used to format various WebAlpine pages.  Smaller values will tend to reduce
 the amount of horizontal scrolling required to view pages within narrow
@@ -34382,6 +34384,120 @@ The Message View page uses this value to determine when to wrap lines
 in displayed message text.  Note, a smaller value may result in jagged
 right margins or confusing quoting.  A larger value may cause lines of text to
 run beyond the browser's right edge, requiring horizontal scrolling.
+
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_wp_state =====
+<HTML>
+<HEAD>
+<TITLE>WEB ALPINE OPTION: <!--#echo var="VAR_wp-state"--></TITLE>
+</HEAD>
+<BODY>
+<H1>WEB ALPINE OPTION: <!--#echo var="VAR_wp-state"--></H1>
+
+Web Alpine only.
+<P>
+Various aspects of cross-session state.
+
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_wp_aggstate =====
+<HTML>
+<HEAD>
+<TITLE>WEB ALPINE OPTION: <!--#echo var="VAR_wp-aggstate"--></TITLE>
+</HEAD>
+<BODY>
+<H1>WEB ALPINE OPTION: <!--#echo var="VAR_wp-aggstate"--></H1>
+
+Web Alpine only.
+<P>
+Aggregate operations tab state.
+
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_wp_indexlines =====
+<HTML>
+<HEAD>
+<TITLE>WEB ALPINE OPTION: <!--#echo var="VAR_wp-indexlines"--></TITLE>
+</HEAD>
+<BODY>
+<H1>WEB ALPINE OPTION: <!--#echo var="VAR_wp-indexlines"--></H1>
+
+Web Alpine only.
+<P>
+Number of index lines in table.
+
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_wp_indexheight =====
+<HTML>
+<HEAD>
+<TITLE>WEB ALPINE OPTION: <!--#echo var="VAR_wp-indexheight"--></TITLE>
+</HEAD>
+<BODY>
+<H1>WEB ALPINE OPTION: <!--#echo var="VAR_wp-indexheight"--></H1>
+
+Web Alpine only.
+<P>
+Index table row height.
+
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_rss_news =====
+<HTML>
+<HEAD>
+<TITLE>WEB ALPINE OPTION: <!--#echo var="VAR_rss_news"--></TITLE>
+</HEAD>
+<BODY>
+<H1>WEB ALPINE OPTION: <!--#echo var="VAR_rss-news"--></H1>
+
+Web Alpine only.
+<P>
+RSS News feed.
+
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_rss_weather =====
+<HTML>
+<HEAD>
+<TITLE>WEB ALPINE OPTION: <!--#echo var="VAR_rss-weather"--></TITLE>
+</HEAD>
+<BODY>
+<H1>WEB ALPINE OPTION: <!--#echo var="VAR_rss-weather"--></H1>
+
+Web Alpine only.
+<P>
+RSS Weather feed.
 
 <P>
 <UL>   

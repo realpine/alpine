@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: confscroll.c 1069 2008-06-03 15:54:15Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: confscroll.c 1156 2008-08-21 22:14:45Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -367,6 +367,13 @@ exclude_config_var(struct pine *ps, struct variable *var, int allow_hard_to_conf
       case V_PRINTER :
       case V_PERSONAL_PRINT_COMMAND :
       case V_PERSONAL_PRINT_CATEGORY :
+      case V_RSS_NEWS :
+      case V_RSS_WEATHER :
+      case V_WP_INDEXHEIGHT :
+      case V_WP_INDEXLINES :
+      case V_WP_AGGSTATE :
+      case V_WP_STATE :
+      case V_WP_COLUMNS :
 #ifndef	_WINDOWS
       case V_OLD_CHAR_SET :
 #endif	/* ! _WINDOWS */

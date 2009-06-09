@@ -1,4 +1,4 @@
-# $Id: index.tcl 1096 2008-06-30 22:03:35Z hubert@u.washington.edu $
+# $Id: index.tcl 1160 2008-08-22 01:12:33Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -1933,8 +1933,8 @@ if {![info exists nopage]} {
 	  }
 	  cgi_table_data align=right class=context {
 	    cgi_put "Powered by [cgi_url Alpine "http://www.washington.edu/alpine/" target="_blank"] - [cgi_copyright] 2007 University of Washington"
-	    if {[info exists _wp(appdir_alt)]} {
-	      cgi_puts " - [cgi_url "Standard Version " "$_wp(serverpath)/$_wp(appdir_alt)/browse" target=_top]"
+	    if {[info exists _wp(appdir2)]} {
+	      cgi_puts " - [cgi_url "Standard Version " "$_wp(serverpath)/$_wp(appdir2)/browse" target=_top]"
 	    }
 	  }
 	}

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcmd.c 1127 2008-08-07 00:27:42Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailcmd.c 1156 2008-08-21 22:14:45Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -3502,7 +3502,7 @@ cmd_export(struct pine *state, MSGNO_S *msgmap, int qline, int aopt)
 	PART *part;
 
 	part = b->nested.part;	/* 1st part */
-	if(part->next)
+	if(part && part->next)
 	  flags |= GE_ALLPARTS;
     }
 

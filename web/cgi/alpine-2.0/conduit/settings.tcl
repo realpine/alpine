@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: settings.tcl 1150 2008-08-20 00:27:11Z mikes@u.washington.edu $
+# $Id: settings.tcl 1164 2008-08-22 19:46:13Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2008 University of Washington
 #
@@ -89,6 +89,8 @@ if {0 == [string compare restore $restore]} {
     postponed-folder
     trash-folder
     inbox-path
+    rss-news
+    rss-weather
   } {
     set varvals [WPCmd PEConfig varget $variable]
     set varvalue [lindex $varvals 0]

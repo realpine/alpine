@@ -189,13 +189,18 @@ proc wpCommonPageLayout {curpage c f u context searchform leavetest cmds menubar
 	cgi_division class=hdrContent {
 	  # RSS INFO STREAM
 	  if {[catch {WPCmd PERss news} news]} {
+	    cgi_put [cgi_nbspace]
 	    cgi_html_comment "RSS FAILURE: $news"
 	  } else {
-	    set style ""
-	    set n 0
-	    foreach item $news {
-	      cgi_put [cgi_span class=RSS $style "[cgi_url [cgi_span "class=sp newsImg" ""] # "onClick=return rotateNews(this);"] [cgi_url [lindex $item 0] [lindex $item 1] "onClick=this.blur();" id=newsItem$n target=_blank]"]
-	      set style "style=display: none;"
+	    if {[llength $news] > 0} {
+	      set style ""
+	      set n 0
+	      foreach item $news {
+		cgi_put [cgi_span class=RSS $style "[cgi_span "class=sp newsImg" "onClick=\"return rotateNews(this);\"" ""][cgi_url [lindex $item 0] [lindex $item 1] "onClick=this.blur();" id=newsItem$n target=_blank]"]
+		set style "style=display: none;"
+	      }
+	    } else {
+	    cgi_put [cgi_nbspace]
 	    }
 	  }
 
@@ -219,34 +224,54 @@ proc wpCommonPageLayout {curpage c f u context searchform leavetest cmds menubar
 	    cgi_division class=weather id=rssWeather {
 	      if {[catch {WPCmd PERss weather} weather]} {
 		cgi_html_comment "RSS FAILURE: $weather"
+		cgi_put [cgi_nbspace]
 	      } else {
 		if {[llength $weather] > 0} {
 		  set item [lindex $weather 0]
 		  cgi_html_comment "index 2 is: [lindex $item 2]"
 		  cgi_put [cgi_url [lindex $item 0] [lindex $item 1] "onClick=this.blur();" target=_blank]
+		} else {
+		  cgi_put [cgi_nbspace]
 		}
 	      }
 	    }
-	    cgi_division class=usage {
-	      cgi_table  width="180px" cellpadding="0" cellspacing="0" {
-		cgi_table_row  {
-		  cgi_table_data class=wap width="1%" align=right {
-		    cgi_put [cgi_nbspace]
-		  }
-		  cgi_table_data class=wap width="98%" {
-		    cgi_table  border=0 width="100%" height="12px" cellspacing=0 cellpadding=0 align=right {
-		      cgi_table_row  {
-			cgi_table_data class=wap align=right "style=\"border: 1px solid black; border-right: 0; background-color: #408040;\"" width="20%" {
-			  cgi_put [cgi_span "class=sp trans" "style=height:1px;width:1px;" [cgi_span " "]]
-			}
-			cgi_table_data class=wap align=right "style=\"border: 1px solid black; background-color: #ffffff;\"" width="80%" {
-			  cgi_put [cgi_span "class=sp trans" "style=height:1px;width:1px;" [cgi_span " "]]
+	    if {[info exists _wp(usage)]
+		&& 0 == [catch {exec -- $_wp(usage) [WPCmd set env(WPUSER)]} usage]
+		&& [regexp {^([0-9]+)[ ]+([0-9]+)$} $usage dummy use_current use_total]
+		&& $use_total > 0
+		&& $use_current <= $use_total} {
+	      cgi_division class=usage {
+		cgi_table  width="180px" cellpadding="0" cellspacing="0" {
+		  cgi_table_row  {
+		    cgi_table_data class=wap width="1%" align=right {
+		      cgi_put [cgi_nbspace]
+		    }
+		    cgi_table_data class=wap width="98%" {
+
+		      set useperc [expr {($use_current * 100) / $use_total}]
+
+		      cgi_table  border=0 width="100%" height="12px" cellspacing=0 cellpadding=0 align=right {
+			set percentage [expr {($use_current * 100)/$use_total}]
+			cgi_table_row  {
+			  cgi_table_data class=wap align=right "style=\"border: 1px solid black; border-right: 0; background-color: #408040;\"" width="$useperc%" {
+			    cgi_put [cgi_span "class=sp trans" "style=height:1px;width:1px;" [cgi_span " "]]
+			  }
+			  cgi_table_data class=wap align=right "style=\"border: 1px solid black; background-color: #ffffff;\"" width="[expr {100 - $useperc}]%" {
+			    cgi_put [cgi_span "class=sp trans" "style=height:1px;width:1px;" [cgi_span " "]]
+			  }
 			}
 		      }
 		    }
-		  }
-		  cgi_table_data class=wap width="1%" align=right {
-		    cgi_put [cgi_span "style=margin-left: .25em" [cgi_url "1.0GB" "https://uwnetid.washington.edu/disk/" "onClick=this.blur();" title="Detailed usage report" target="_blank"]]
+		    cgi_table_data class=wap width="1%" align=right {
+		      set units MB
+		      if {[info exists _wp(usage_link)]} {
+			set txt [cgi_url $use_total $_wp(usage_link) "onClick=this.blur();" title="Detailed usage report" target="_blank"]
+		      } else {
+			set txt $use_total
+		      }
+
+		      cgi_put [cgi_span "style=margin-left: .25em" $txt]
+		    }
 		  }
 		}
 	      }

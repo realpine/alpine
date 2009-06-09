@@ -1,0 +1,16 @@
+NAME         PICO
+EXETYPE      WINDOWS
+DESCRIPTION  'Pico for Windows (Character)'
+STUB         'winstub.exe'
+
+CODE         PRELOAD DISCARDABLE SHARED
+DATA         PRELOAD MULTIPLE 
+
+HEAPSIZE     4096
+
+EXPORTS
+   PWNDPROC           @1
+   TWWNDPROC	      @2
+   ABOUTDLGPROC	      @3
+
+

@@ -1,0 +1,644 @@
+This is the HISTORY file for cgi.tcl.
+
+Date	Version	Description
+-------	-------	------------------------------------------------------
+5/1/05	1.10.0	Odd Arne Jensen <odd@bibsyst.xno> observed that <input>-related
+		tags were producing </input> which is forbidden by the HTML
+		spec.  We agreed to go with .../> for max compatibility with
+		both HTML and XHTML.
+		
+		Noticed hackers	submitting filenames with leading hyphens to
+		display to do interesting things.  It did fail gracefully
+		fortunately but it shouldn't fail at all.  Added -- to switch.
+
+		Evan Mezeske <emezeske@enflex.xnet> recommended settable limits
+		on file uploads to avoid denial-of-service attacks.  Added
+		cgi_file_limit.
+
+12/14/05 1.9.0	Tore Morkemo noted backward test in cgi_noscript used puts
+		instead of cgi_puts.
+
+		Aravindo Wingeier <wingeier@glue.ch> provided patches to choose
+		an encoding  or use UTF-8 encoding by default.
+
+		Rolf Ade <pointsmen@gmx.xnet> noted an initialization proc
+		would be useful for things like tclhttpd.
+
+		Modified display.cgi to deal more gracefully with people
+		experimenting with tildes.
+
+		De Clarke noted cgi_input failed if whitespace appeared in a
+		client filename.  Due to assumption that Content-Disposition
+		line would be a proper list.
+
+		De also noted that lynx simply wasn't providing quotes in
+		multipart input variable names.  Relaxed code to accept that.
+
+		De also noted that the binary file upload wasn't working in
+		pre-Tcl 8.1 but neither of us were interested in spending the
+		time to find out why.  Unless someone bothers to figure it, for
+		now, I'm just dropping support for such old versions.
+
+		Due to DoC policy, changed cookie example from persistent to
+		non-persistent.
+
+		Added utf.cgi example to demonstrate UTF works for
+		mel@redolive.com.
+
+10/16/02 1.8.0	To accomodate open-ended forms in echo, modified cgi_input so
+		that it accepts multiple values even in variables that don't
+		end with "List".  This opens a possible ambiguity (see
+		documentation) but only one that would've existed before had
+		the diagnostic not prevented it.
+
+		Added example: echo.cgi
+
+		Added cgierror anchor to cgi_eval.
+
+		Tian-Hsiang Huang <xiang@phys.ncku.edu.tw> noted bug in testing
+		for error of passwd.cgi example.
+
+4/27/02 1.7.0	David Kuehling <dvdkhlng@gmx.de> noted that cgi_content_type
+		needed to protect args in call to cgi_http_head.
+
+4/15/02 1.6.1	Darren New fixed my attempt at 1.6.0!
+
+4/15/02 1.6.0	Darren New <dnew@san.rr.com> noted that quote_url needed to
+		translate +.
+
+3/16/02	1.6.0	Added test for checked=bool to radio/checkbox to avoid having
+		user have to do "eval ... [expr ...?"checked":""]" nonsense.
+
+		Added version.cgi script to make it easier for people to figure
+		out whether examples on NIST server are using the same version
+		of cgi.tcl that they're using.
+
+		Tore Morkemo noted backward test in cgi_refresh.
+
+9/19/01 1.5.0	De Clarke noted that file upload broke with Opera.  Problem
+		was lack of a \r at the end of the input file.  At the same
+		time protected regexp-specials in the boundary string.
+		Both of were due to unusual but legal interpretations.
+
+		Added HELO interaction to smtp dialogue.
+
+		Jonathan Lennox <lennox@cs.columbia.edu> provided fix for
+		finding sendmail on BSD 4.4 systems.
+
+		Modified cgi_html and _start to support optional attributes.
+
+		Extended auto-attr quoting for XHTML support.
+		Added end tags for XHTML support.
+
+		Added cgi_link_url/label per John Koontz and rewrote cgi_link
+		to accomodate them.  Also added his cgi_button_link
+		temporarily.  Will experiment with this to test merit.
+
+11/3/00 1.4.3   Removed HTML formatted manual.  It lags the text version and
+		just caused more confusion than it's worth.
+
+11/2/00 1.4.2	John Koontz observed that the versions between home page and
+		package didn't match.  Added version.in to fix this once and
+		for all.
+
+10/19/00 1.4.1	Carlos Vidal <carlos@tarkus.se> fixed cgi_cookie_get -all.
+
+		Anton Osennikov <ant@ccl.ru> provided patch to propagate
+		errorCode back through cgi_body.
+
+		Fixed display_in_frame to allow app_body_end to execute.
+
+6/14/00 1.4.0	Tomas Soucek requested a mechanism for saving content-type
+		from file uploads.  Seemed appropriate to do this by renaming
+		cgi_import_filename to ..._file and adding -type flag.
+
+		Petrus Vloet noted vote.cnt missing from distrib.  He also
+		noted getting warnings regarding missing newlines.
+
+5/19/00 1.3.0	Changed many cgi_puts to cgi_put in hopes of addressing more
+		of Zygo's 5/9/00 complaint (i.e., same problem in tables).
+
+5/9/00	1.2.2	Zygo Blaxell <zblaxell@feedme.hungrycats.org> provided signif.
+		cgi_input regexp speedup for long x=y-style values.  He also
+		noted that some browsers are sensitive to leading/following
+		\n's in textarea and provided a patch to avoid adding them in
+		the first place.
+
+		James Ward <jew@rincon.com> noted absence of pkgIndex.tcl
+		(presumably due to really old Tcl) broke installation.  Fixed
+		pkgcreate to create stub file to allow Make to complete.
+
+		Robin Lauren <robin.lauren@novostore.com> contributed the doc
+		in HTML form.  Really need to automate this now, sigh.
+
+		Jan.Vlcek@sasprg.cz observed that converting %XX to \u00XX
+		and then using subst is only good for us-ascii and corrupts
+		iso8859-1, iso8859-2, etc.  He provided a patch for
+		cgi_unquote_input.
+
+		Ross Mohn <rpmohn@waxandwane.com> corrected syntax error in
+		cgi_span and made <hr> handle width= better.
+
+		Tore Morkemo provided a patch to his prior patch for cgi_eval.
+
+		Asari Hirotsugu <asari@math.uiuc.edu> provided additional
+		installation advice for Mac.
+
+12/27/99 1.2.1	Tore Morkemo noted expires=never value of 9999 inappropriate
+		as Netscape ignores anything beyond mid-January 2038.
+
+		Tore also provided patch for cgi_eval when running inside of
+		a proc.
+
+12/20/99 1.2.0	Keith Lea <keith@cs.oswego.edu> noted 2-digit years as per
+		RFC2109.  Despite RFC, Netscape now accepts 4-digit years.
+		Some browsers won't like this but it hardly matters anyway
+		since they'll do the wrong thing on old 2-digit years come
+		Y2K anyway.
+
+		Petrus Vloet noted example/nistguest missing from distrib.
+
+12/18/99 1.1.0	Tomas Soucek" <tomas.soucek@sasprg.cz> noted cgi_input was
+		adding eol characters to uploaded files if they didn't
+		contain them.  Fixed this and also enhanced file upload
+		example so that it could do both cat/od and also warn when
+		Tcl couldn't do binary upload.
+
+		Added braces around unprotected expressions.
+
+		Added check to unimail example for HTTP_REFERER.
+
+		Petrus Vloet requested Makefile install example data files.
+
+		Added img.cgi example and modified frame example so it accepts
+		"example=whatever" so that I can post URLs that go right to a
+		particular example and have it framed.
+
+9/12/99 1.0.0	Bumped version to 1 to pacify management.
+
+		Jeffrey Hobbs rewrote cgi_unquote_input to take advantage of
+		8.2 features.  300% speed improvement!
+
+7/16/99 0.8.1	Douglas Ridgway provided mod to make cgi_image_button handle
+		optional args.
+
+		Made code use straight cgi_input_multipart if on Tcl 8.1.
+
+		Jeffrey Hobbs provided cgi_unquote_input that works better for
+		8.1.
+
+		Petrus Vloet <petrus.vloet@siemens.at> requested sample data
+		files for examples that need them; ability to change example
+		install destination.
+
+2/22/98 0.8.0	Tore Morkemo noted that cookied_encode needed to convert \n's.
+
+		Added example of how to produce a raw image.
+
+		Upon suggestion of Jean-Yves Terrien
+		<jeanyves.terrien@cnet.francetelecom.fr> experimented with
+		version of cgi_puts that would indent HTML for readability.
+		Code looked something like this:
+
+		proc NEW_cgi_puts {args} {
+		    global _cgi
+
+		    if {$_cgi(preformatted)} {
+			eval puts $args
+		    } else {
+			set indent_full [format "%-$_cgi(indent)s" ""]
+
+			# if we're at the beginning of the line, use a full indent
+			if {$_cgi(bol)} {
+			    set indent $indent_full
+			} else {
+			    set indent ""
+			}
+
+			set tail [lindex $args end]
+			set output ""
+		
+			# loop through output, breaking into \n-delimited lines
+			while {[string length $tail]} {
+			    # this regexp will always match
+			    regexp "^(\[^\n]*)(\n?)(.*)" $tail dummy line nl tail
+			    append output $indent$line
+			    if {$nl == ""} {
+				set _cgi(bol) 0
+				break
+			    }
+			    append output \n
+			    set $_cgi(bol) 1
+			    set indent $indent_full
+			}
+
+			# handle optional -nonewline
+			if {[llength $args] == 1} {
+			    append output \n
+			    set _cgi(bol) 1
+			}
+			puts -nonewline $output
+		    }
+		}
+
+		Unfortunately, some tags are whitespace-sensitive such as
+		textarea.  If you do cgi_buffer {p;textarea ...} how can cgi_
+		puts possibly know that part of the buffer shouldn't be
+		modified?  A user-level flag could be added to avoid corrupting
+		the HTML but the source display could never be made perfect.
+		Considering that programmers would have to be aware of these
+		issues (via flags or options) and the payoff is so minute, it's
+		just not worth it.  I think.  As an aside, does regexp on every
+		line of output cost too much?  I doubt anyone would notice but
+		it's something to ponder.
+
+		Renamed internal cgi routines with _ prefix.
+
+		Matthew Levine <mlevine@cisco.com> observed that cgi_eval
+		did a #0 eval but a plain eval is more appropriate.
+
+		Anthony Martin <anthony.n.martin@marconicomms.com> noted that
+		cgi_cgi_set needs to rewrite #.
+
+		Removed cgi_http_get.
+
+		Added registry support to uid_check.
+
+		Eddy Kim <ehkim@ibm.net> noted bug in doc regarding cgi_puts.
+
+		cgi_file_button now verifies that form has correct encoding.
+
+		Fixed doc to reflect more precise use of selected_if_equal.
+
+		Ralph Billes <echo@iinet.net.au> fixed bug in cgi_uid_check.
+
+		Began adding stylesheet support.  Made cgi_stylesheet and
+		cgi_span.  Not yet documented.
+
+		Douglas Ridgway <ridgway@gmcl.com> noted that lynx doesn't
+		respond correctly to multipart form requests.  Added check and
+		diagnostic.  Doug also found a bug in the multipart_binary
+		because I forgot to turn off the timeout.
+
+		Stefan Hornburg <racke@gundel.han.de> writes:
+		"I've made a RPM package for cgi.tcl. Available at:
+		http://www.han.de/~racke/linuxia/noarch/cgi.tcl-0.7.5-1.noarch.rpm
+		http://www.han.de/~racke/linuxia/srpms/cgi.tcl-0.7.5-1.src.rpm 
+		http://www.han.de/~racke/linuxia/specs/cgitcl.spec
+		and hopefully soon at Redhat/Contrib."
+		He also noted a missing example: download.cgi.
+
+6/25/98	0.7.5	Henk-Jan Kooiman <hjk@cable.a2000.nl> fixed bugs in
+		cgi_relationship and also provided MacOS instructions.
+
+		Martin Schwenke <Martin.Schwenke@cs.anu.edu.au> and Ryan
+		McCormack <ryanm@cam.nist.gov> both reported textarea lost
+		newlines when using multipart.
+
+		At urging of Robert Baptista <Robert.Baptista@vanmail.amd.com>,
+		began adding HTML 4.0 support.  Changed cgi_center to avoid
+		<center>.
+
+		Added download.cgi example.
+
+		John Koontz noted example in file upload documentation still
+		used deprecated flags.
+
+	0.7.4	Fixed bug in cgi_refresh.
+
+		Added alt attr to cgi_area.
+
+		Added vote.cgi example.
+
+		Localized some init-time vars to avoid stomping on user's.
+
+		Made cgi_quote_url also quote {"} so URLs.  This isn't strictly
+		necessary, but since URLs will usually be embedded inside HTML,
+		this simplifies embedding and doesn't hurt anything else.
+
+		Tom Poindexter <tpoindex@nyx.net> added cgi_suffix.
+
+		Removed reference to sendmail from documentation since sendmail
+		is no longer required.
+
+12/16/97 0.7.3	Provided SMTP dialogue to replace call to sendmail and removed
+		all other UNIXisms (exec and direct refs to file system).
+
+		Rewrote LUHN proc in credit card example to work correctly!
+
+		Added type tag support to cgi_relationship.
+
+11/10/97 0.7.2	Massaged documentation to describe installation on W95/NT....
+		Made example.tcl and date.cgi portable.
+
+		Added rm.cgi example.
+
+		Beat Jucker <bj@glue.ch> fixed syntax error in oratcl.cgi
+		example.
+
+10/20/97 0.7.1	Fixed cgi_option so that value strings are quoted.  Also made
+		selected_if_equal check value rather than visible string.
+
+		Tore Morkemo <tore@bibsyst.no> provided patch so that cgi_set
+		translated "=".
+
+		Fixed buffering bug in push example.
+
+		Added credit card example.
+
+	 	Paul Saxe <saxe@connectnet.com> noted cgi_embed broke due to
+		unprotected regexp pattern beginning with -.
+
+
+8/22/97	0.7.0	INCOMPATIBILITY: cgi_anchor_name now returns the anchor tag
+		instead of printing it.  Only after some experience do I see
+		now that anchors always need to be embedded in something else
+		for accuracy in the jump.
+
+		Josh Lubell noted that file upload failed if there was
+		whitespace in filename.  Problem was that filename-encoding
+		doesn't encode whitespace or otherwise protect it.  There is
+		no perfect fix since the spec doesn't explain how to know when
+		fields end.  The implication is that they are delimited by
+		" however an embedded " is not encoded either!  For now, assume
+		filename field is at end of line.  This isn't the greatest idea
+		for it allows future encoding changes to break the code, but
+		for now it will pick up all filenames including really weird
+		ones like 'a b"; foo="bar' that would otherwise appear to be
+		additional fields!
+
+		Jon Leech <leech@cs.unc.edu> provided code to allow user to
+		temporarily use existing links but displaying differently.
+
+		Alvaro Santamaria <alvaro.santamaria@stest.ch> noted that I
+		forgot to include kill.cgi and oratcl.cgi in example directory.
+
+		John Koontz noted cgi_buffer's defn of cgi_puts assumed "usual"
+		newline generation - interacted badly inside of <pre> tags.
+		Added cgi_buffer_nl to control this.
+
+		James Ward requested option to change ".cgi" suffix.  Added
+		-suffix to cgi_cgi.
+
+		Someone's browser (Mozilla/4.01 [en] (WinNT; I) via proxy
+		gateway CERN-HTTPD/3.0 libwww/2.17) supplied a boundary defn
+		but no actual boundary.  Added test to
+		cgi_input_multipart_binary.
+
+		James Ward found cgi_import_list didn't return List vars.
+
+		Diagnostics about broken multipart responses are now returned
+		to users (who are using old browsers).
+
+		Changed nbsp to numeric equiv to support NS2.
+
+		Made cgi_debug always return old value.
+
+6/4/97	0.6.6	Added cgi_buffer - force commands that normally generate output
+		to return strings.
+
+		Deprecated -local & -remote flags to import_filename.  Added
+		support for -server & -client which are less confusing.
+
+		Improved examples in numerous ways.
+
+		James Ward <jew@mcmuse.mc.maricopa.edu> noted I forgot to
+		document cgi_img.
+
+		Upgraded cgi_quote as per HTML 3.2
+
+		Mark Diekhans <markd@Grizzly.COM> provided bug fix to cgi_tr
+		and optional level arg to all uplevel/upvar calls to avoid
+		misinterpretation.  Also added cgi_th.
+
+		Appears that NS3.0 has a bug wrt multipart.  It won't display
+		last fragment on page unless followed by a <br> (even if it
+		sees </body>).  Added cgi_br to multipart support code.
+
+5/26/97	0.6.5	Added server-push example which required mods to cgi_title
+		(bug fix actually), cgi_head, and related code to detect and
+		handle multipart mime type.
+
+		Added HTTP_HOST to list of things reported_HOST during errors.
+
+		Looks like MS IE can generate cookies without an "=val" part.
+
+		Added Oratcl example.
+
+		Documented cgi_url.
+
+		Fixed search for Tcl executable when look in Tcl's srcdir.
+
+		Added support for detection/reporting of client errors.  For
+		now this means missing CONTENT_LENGTH.
+
+		Created cgi_redirect and deprecated cgi_location.  cgi_redirect
+		is better named and more functional.  Added cgi_status.
+
+		Modified unimail example so that it shows diagnostics about
+		form problems to client - doesn't make sense to send them to
+		unimail admin.
+
+		Improved form-tour in various ways including making a backend
+		that actually reports value.
+
+		Fixed bug in textvar that caused args to be generated twice.
+
+4/8/97  0.6.4	John LoVerso fixed regsub quote bug in cgi_quote_url.  Fixed
+		similar bug cgi_cgi_set.
+
+		Most general path cookies were being returned.  Changed to most
+		specific and added -all to cookie_get so that all values could
+		be retrieved.  Added cookie support to passwd example since
+		that's a very reasonable use of it.
+
+4/7/97  0.6.3	John LoVerso fixed bugs in cgi_meta and cgi_map.
+
+		INCOMPATIBILITY: cgi_quote_url was inappropriate for non-cgi
+		urls.  cgi_cgi and cgi_cgi_set should now be used for building
+		GET-style cgi urls.
+
+		Forgot to switch to cgi.tcl.in in distribution.
+
+3/28/97	0.6.2	Made cgi.tcl.in autohandle embedded version number (see 0.6.1).
+
+		Fixed display.cgi to prevent display of "." or ".." or "".
+
+		Added cgi.tcl version to diagnostics.
+		Fixed diagnostics to correctly print input.  (Totally missing!)
+
+		John Koontz noted extra \r\n at end of uploaded text files.
+
+3/24/97	0.6.1	Updated package provide version.  (Gotta automate this!)
+
+3/20/97	0.6.0	Added kill.cgi example to kill/suspend runaway CGI processes.
+
+		Modified passwd.cgi example to quote shell arg.
+
+		Kevin.Christian requested hook for defining doctypes.
+
+		John Robert LoVerso <john@loverso.southborough.ma.us> provided
+		fixes to allow array-style variables names to be rewritten by
+		cgi_input.  Parens had been left with embedded %s substituted.
+		My research indicates cookies have similar problems but file-
+		style encoding does not.
+
+		Josh Lubell found bug in binary upload that would drop \r\n
+		and \r*.
+
+2/28/97	0.5.5	Combined many regexps that had parameterizably-common actions.
+		The old regexps had some bugs in them, so it's a good thing.
+
+		M. Katherine Pagoaga <pagoaga@boulder.nist.gov> and John
+		Koontz <koontz@boulder.nist.gov> noted cgi_uid_check used
+		whoami which isn't very portable.  Switched to "who am i".
+		Its output isn't very portable but at least its existence is!
+
+		Removed default call to cgi_uid_check.  It's my impression that
+		most people turn this off anyway.  If you want it back, just
+		call it yourself.
+
+		Added cgi_import_filename to guarantee that a filename really
+		did come from an upload.  This removes the security check that
+		the user was responsible for - and which I forgot in the
+		upload examples!
+
+		Rolf Ade <rolf@storz.de> noted that configure could look for
+		tcl executable in a few more locations.
+
+2/26/97 0.5.4	Backed out type=text from 0.4.4.  This ruined type=password.
+		If people demand, I'll make the code put in type=text but I now
+		regret the detour.
+
+		Made cgi_import_list return variables in order originally
+		appearing in form.
+
+2/24/97 0.5.3	Added tr/td as shortcut for simple table rows.
+
+		Made cookie code look in COOKIE (O'Reilly's web server uses
+		that instead of HTTP_COOKIE).
+
+		Kevin.Christian@symbio.com requested warning when form
+		incorrectly uses select without "List" suffix.  Also provided
+		more obvious diagnostics when applying cgi_import* to non-
+		existent variable.  At same time, I also noticed bug in
+		cgi_import_cookie* preventing it from seeing user variables.
+
+		Forgot to have cgi_root return root with no args.
+
+2/11/97	0.5.2	Josh Lubell found binary upload broke, due to one send missing
+		"--" protection.
+
+		Massaged home page so that it works more intelligently with
+		frames.  Massaged examples for both function and appearance.
+
+2/10/97	0.5.1	Fixed display of validate example.
+
+		Added cgi_unbreakable_string so that it returns a string.
+		Compare with cgi_unbreakable.
+
+		Added cgi_javascript and noscript.  javascript is like script
+		but does the javascript-compatible hiding of <script> tags for
+		older browsers.  Added some javascript examples.  Added support
+		for java event types.  Netscape documentation is very unclear
+		as to which tags support which attributions - so I guessed a
+		lot!
+
+2/4/97	0.5.0	Added cgi_body_args to make it easier to share and change body
+		attributes.		
+
+		Fixed bug in cookie encoder that caused double %-expansion.
+
+		INCOMPATIBILITY: Modified cgi_preformatted to evaluate last
+		argument.  More flexible this way.  Since <pre> forces line
+		breaks, it's not like inline formatting commands.
+		Removed cgi_code since it used the xmp tag which is gone.
+		See documentation for workaround.
+
+		INCOMPATIBILITY: Changed cgi_division to take a command list
+		rather than a string.
+
+		Added cgi_nl for inline breaks.  (Compare with cgi_br.)
+
+2/3/97  0.4.9	Added support for package loading, now you just say:
+		"package require cgi"
+
+		Added/modified examples so that they could be put up on
+		web servers.
+
+		Added support to suppress binary upload when using Expect.
+
+1/31/97 0.4.8	Andreas Kupries <a.kupries@westend.com> needed dynamic control
+		of ouput.  Added user-defineable cgi_puts.
+
+		Josh Lubell <lubell@cme.nist.gov> reported binary file upload
+		was losing chars on large files.  Fixed.
+
+		Fixed cgi_input to understand REQUEST_METHOD == HEAD should
+		set input to "".
+
+1/13/97 0.4.7	Braces in password script was wrong.
+
+		Simplified command aliasing mechanism.
+
+		Add some more bulletproofing to catch broken boundary defns...
+
+		Evidentally QUERY_STRING doesn't have to be set even with GET.
+		CGI spec is vague enough to permit this.
+
+12/16/96 0.4.6	Giorgetti Federico <gio@egeo.unipg.it> noted text file upload
+		wasn't working - forgot "_binary" on new upload proc name.
+
+12/10/96 0.4.5	Added support for binary file upload if using Expect extension.
+
+		Removed check for missing filenames in file upload.  This
+		can evidentally happen.  It is now the programmer's
+		reptysponsibility to check for the length if null filenames are
+		unwanted.
+
+		Created HTML home page for cgi.tcl.
+
+11/26/96 0.4.4	Added type=text for pedantic html checkers.
+		Bob Lipman noted new if_equal handlers used name instead of
+		value.
+
+10/24/96 0.4.3	Forgot global _cgi decls in cgi_refresh and some other procs.
+
+		Bob Lipman noted cgi_radio_button needs checked_if_equal.
+		Added that and same to cgi_checkbox.
+
+10/15/96 0.4.2	Remove line-delimiters in non-file elements in multipart enc.
+
+		Added support for additional args to cgi_file_button.
+
+9/19/96 0.4.1	Bob Lipman noted cookie containing = could not be imported.
+
+		Fixed examples to reference .4 source.
+
+9/9/96	0.4.0	Added cgi_error_occurred.
+		In multipart handler, added test for "--" because some
+		servers(?) don't provide explicit eof, but just hang.
+		Bugs in close_procs support.
+		Added auto-htmlquoting to cgi_option.
+		Removed auto-quoting in cgi_cgi.
+		Made cgi_root also return root if no arg.
+		Messed up quoting in cgi_anchor_name and cgi_applet.
+		cgi_parray was missing <xmp> tag.  How odd.
+
+8/12/96 0.3.5	Mark Pahlavan <mark@vestek.com> provided new cgi_caption defn
+		after noting that it must allow executable code.
+
+		File upload broke in Tcl 7.5 due to auto-eol translation
+
+6/19/96 0.3.4	Mark Harrison <mharriso@spdmail.spd.dsccc.com> noted ref to
+		obsolete cgi_uid_ignore.
+
+6/19/96 0.3.3	Was wrongly cookie-encoding cookie expiration.  cgi_imglink
+		was confused.  Thanks again, Bob.
+
+6/17/96 0.3.2	Reports from Bob Lipman <lipman@cam.nist.gov> about bad
+		tables and missing </head>.  Fixed.
+
+6/13/96	0.3.1	Added ";" to &-escapes.  Fixed bugs in cgi_unquote_input.
+		Added cgi_embed.  Added doc directory with ref manual.
+

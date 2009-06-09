@@ -1,0 +1,127 @@
+#line 2 "osdep/termout.win"
+
+
+
+
+
+/*----------------------------------------------------------------------
+      End use of the screen. 
+  ----------------------------------------------------------------------*/
+
+
+
+    
+/*----------------------------------------------------------------------
+         Newline, move the cursor to the start of next line
+
+ Input:  none
+
+ Result: Cursor moves
+  ----------------------------------------------------------------------*/
+void
+NewLine()
+{
+    /** move the cursor to the beginning of the next line **/
+
+    MoveCursor(_line+1, 0);
+}
+
+
+
+/*----------------------------------------------------------------------
+       Insert character on screen pushing others right
+
+ Input:  character to output
+         termcap escape sequences
+
+ Result: charcter is inserted if possible
+         return -1 if it can't be done
+  ----------------------------------------------------------------------*/
+InsertChar(c)
+     int c;
+{
+    mswin_inschar (c);
+    return (0);
+}
+
+
+/*----------------------------------------------------------------------
+         Delete n characters from line, sliding rest of line left
+
+ Input:  number of characters to delete
+         termcap escape sequences
+
+ Result: characters deleted on screen
+         returns -1 if it wasn't done
+  ----------------------------------------------------------------------*/
+DeleteChar(n)
+     int n;
+{
+    char c;
+    int oc;				/* original column */
+
+    mswin_delchar ();
+    return(0);
+}
+
+
+
+/*----------------------------------------------------------------------
+  Go into scrolling mode, that is set scrolling region if applicable
+
+ Input: top line of region to scroll
+        bottom line of region to scroll
+
+ Result: either set scrolling region or
+         save values for later scrolling
+         returns -1 if we can't scroll
+
+ Unfortunately this seems to leave the cursor in an unpredictable place
+ at least the manuals don't say were, so we force it here.
+----------------------------------------------------------------------*/
+
+/*----------------------------------------------------------------------
+   End scrolling -- clear scrolling regions if necessary
+
+ Input:  none
+
+ Result: Clear scrolling region on terminal
+  ----------------------------------------------------------------------*/
+
+
+/* ----------------------------------------------------------------------
+    Scroll the screen using insert/delete or scrolling regions
+
+ Input:  number of lines to scroll, positive forward
+
+ Result: Screen scrolls
+         returns 0 if scroll succesful, -1 if not
+
+ positive lines goes foward (new lines come in at bottom
+ Leaves cursor at the place to insert put new text
+
+ 0,0 is the upper left
+ ----------------------------------------------------------------------*/
+
+
+
+
+
+
+
+
+
+/*----------------------------------------------------------------------
+          Clear screen to end of screen from current point
+
+ Input: none
+
+ Result: screen is cleared
+  ----------------------------------------------------------------------*/
+void
+CleartoEOS()					/* DOS */
+{
+    mswin_eeop();
+}
+
+

@@ -1,0 +1,82 @@
+#line 2 "osdep/print.win"
+/*======================================================================
+    print routines
+   
+    Functions having to do with printing on paper and forking of spoolers
+
+    In general one calls open_printer() to start printing. One of
+    the little print functions to send a line or string, and then
+    call print_end() when complete. This takes care of forking off a spooler
+    and piping the stuff down it. No handles or anything here because there's
+    only one printer open at a time.
+
+ ====*/
+
+
+
+/*----------------------------------------------------------------------
+     Send a line of text to the printer
+
+  Args:  line -- Text to print
+
+  ----*/
+void
+print_text(line)
+    char *line;
+{
+    if(!ps_global->print->err
+       && (ps_global->print->err = mswin_print_text(line)))
+      q_status_message1(SM_ORDER, 0, 9, "Print cancelled: %s",
+		     mswin_print_error((unsigned short)ps_global->print->err));
+}
+
+
+
+/*----------------------------------------------------------------------
+      printf style formatting with one arg for printer
+
+ Args: line -- The printf control string
+       a1   -- The 1st argument for printf
+ ----*/
+void
+print_text1(line, a1)
+    char *line, *a1;
+{
+    snprintf(tmp_20k_buf, SIZEOF_20KBUF, line, a1);
+    print_text(tmp_20k_buf);
+}
+
+
+
+/*----------------------------------------------------------------------
+      printf style formatting with one arg for printer
+
+ Args: line -- The printf control string
+       a1   -- The 1st argument for printf
+       a2   -- The 2nd argument for printf
+ ----*/
+void
+print_text2(line, a1, a2)
+    char *line, *a1, *a2;
+{
+    snprintf(tmp_20k_buf, SIZEOF_20KBUF, line, a1, a2);
+    print_text(tmp_20k_buf);
+}
+
+
+
+/*----------------------------------------------------------------------
+      printf style formatting with one arg for printer
+
+ Args: line -- The printf control string
+       a1   -- The 1st argument for printf
+       a2   -- The 2nd argument for printf
+       a3   -- The 3rd argument for printf
+ ----*/
+void
+print_text3(line, a1, a2, a3)
+    char *line, *a1, *a2, *a3;
+{
+    snprintf(tmp_20k_buf, SIZEOF_20KBUF, line, a1, a2, a3);
+    print_text(tmp_20k_buf);
+}

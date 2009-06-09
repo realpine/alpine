@@ -1,0 +1,17 @@
+LIBRARY   pmapi32
+VERSION   4.60
+
+EXPORTS
+	MAPILogon         @1
+	MAPILogoff        @2
+	MAPIFindNext      @3
+	MAPIReadMail      @4
+	MAPISendMail      @5
+	MAPIAddress       @6
+	MAPIDeleteMail    @7
+	MAPIDetails       @8
+	MAPIFreeBuffer    @9
+	MAPIResolveName   @10
+	MAPISaveMail      @11
+	MAPISendDocuments @12
+	GetPCPineVersion  @13

@@ -1,0 +1,67 @@
+# $Id: makefile.wnt 14098 2005-10-03 18:54:13Z jpf@u.washington.edu $
+#
+# ========================================================================
+# Copyright 2006 University of Washington
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# ========================================================================
+
+#
+#
+# Makefile for WIN NT version of libpicoosd.lib
+#
+#
+CC=cl
+RM=del
+CP=copy 
+RC=rc
+
+#includes symbol info for debugging 
+CDEBUG= #-Zi -Od
+LDEBUG= /DEBUG /DEBUGTYPE:CV
+
+STDCFLAGS= -I..\..\include -nologo -MT -DWIN32 -DDOS -D_WINDOWS -DJOB_CONTROL -DMSC_MALLOC
+
+CFLAGS=	$(CDEBUG) $(STDCFLAGS) $(NET) $(EXTRACFLAGS)
+
+LFLAGS= $(LDEBUG) $(EXTRALDFLAGS)
+
+RCFLAGS= #-D_UNICODE -DUNICODE
+
+LIBER=lib
+LIBARGS=/nologo /verbose
+
+HFILES=	../../include/system.h ../../include/general.h \
+	altedit.h chkpoint.h color.h filesys.h fsync.h \
+	getkey.h mswin.h mouse.h newmail.h popen.h read.h \
+	shell.h signals.h spell.h terminal.h truncate.h \
+	tty.h
+
+OFILES=	altedit.obj chkpoint.obj color.obj filesys.obj fsync.obj \
+	getkey.obj msdlg.obj mswin.obj mouse.obj newmail.obj popen.obj \
+	read.obj shell.obj signals.obj spell.obj terminal.obj truncate.obj \
+	tty.obj
+
+all:	libpicoosd.lib mswin.res
+
+.c.obj:
+	$(CC) -c $(CFLAGS) $(MAKEDIR)\$*.c
+
+$(OFILES):	$(HFILES)
+
+libpicoosd.lib:	$(OFILES)
+		$(RM) libpicoosd.lib || rem
+		$(LIBER) /out:libpicoosd.lib $(OFILES)
+
+mswin.res:  mswin.rc pico.ico mswinhnd.cur resource.h
+	$(RC) $(RCFLAGS) /fo mswin.res mswin.rc
+
+clean:
+	$(RM) *.lib
+	$(RM) *.obj
+	$(RM) mswin.res

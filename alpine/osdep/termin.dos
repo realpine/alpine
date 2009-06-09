@@ -1,0 +1,74 @@
+#line 2 "osdep/termin.dos"
+
+/*======================================================================
+
+       Things having to do with reading from the tty driver and keyboard
+          - initialize tty driver and reset tty driver
+          - read a character from terminal with keyboard escape seqence mapping
+          - initialize keyboard (keypad or such) and reset keyboard
+          - prompt user for a line of input
+          - read a command from keyboard with timeouts.
+
+ ====*/
+
+
+/*
+ * Helpful definitions
+ */
+
+
+/*
+ * Internal prototypes
+ */
+void line_paint PROTO((int, int *));
+int  process_config_input PROTO((int *));
+
+
+
+
+/* global to tell us if we have an enhanced keyboard! */
+static int enhanced = 0;
+/* global function to execute while waiting for character input */
+void   (*while_waiting)() = NULL;
+
+
+
+/*----------------------------------------------------------------------
+    Set up the tty driver to use XON/XOFF flow control		(DOS)
+
+   Args: state -- True to make sure XON/XOFF turned on, FALSE default state
+
+  Result: none.
+  ----*/
+void
+xonxoff_proc(state)
+    int state;
+{
+    return;					/* no op */
+}
+
+
+/*----------------------------------------------------------------------
+    Set up the tty driver to do LF->CR translation		(DOS)
+
+   Args: state -- True to turn on translation, false to write raw LF's
+
+  Result: none.
+
+  ----*/
+void
+crlf_proc(state)
+    int state;
+{
+    return;					/* no op */
+}
+
+
+/*----------------------------------------------------------------------
+    Set up the tty driver to hanle interrupt char		(DOS)
+
+   Args: state -- True to turn on interrupt char, false to not
+
+  Result: tty driver that'll send us SIGINT or not
+
+  ----*/

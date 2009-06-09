@@ -1,0 +1,227 @@
+This is the INSTALL file that is part of the Web Alpine Application
+distributed with the Alpine Mail System.
+
+
+BUILDING AND INSTALLING WEB ALPINE
+----------------------------------
+
+This file provides brief instructions for building, installing and
+configuring the Web Alpine application
+
+Web Alpine's binary components are built along with the other Alpine
+Mail System components.  If the build process completed, that is the
+commands ./configure and make completed without error, then you are
+nearly good to go.
+
+Unlike the other Alpine components, however, Web Alpine does not use
+the "make install" method of installation.  Between the various Web
+Alpine pieces, web site layout and web server configuration,
+variability and administrative preference is too great to be reliably
+automated at this time.
+
+For more information on the how's and why's of Web Alpine consult the
+somewhat more technically complete treatment in
+web/cgi/alpine/help/tech-notes.html.
+
+At some point online FAQs and such may be available.  If you
+find anything missing, incomplete, or otherwise unclear please send a
+note to <alpine-contact@cac.washington.edu>.
+
+
+WEB ALPINE LAYOUT
+-----------------
+
+The Web Alpine package is distributed as part of the Alpine Mail System.
+The source for the various components can be found in the "web/"
+directory arranged, for the most part, by function.
+
+  src/
+      alpined.d
+       source for Web Alpine's binary components: the
+       per-user/per-session serverette and the small library used for
+       inter-tcl script communication.
+
+      pubcookie/
+        sources for various components required to provide
+        pubcookie web-login support
+
+      cgi.tcl-1.10/
+        Tcl library used to help coordinate web page generation
+
+  cgi/
+    CGI scripts used to generate Web Alpine pages, typically synonymous
+    with the web server's document root.  It, in turn, contains:
+
+      alpine/
+	Meat and potatoes of the Web Alpine Application.
+
+      session/
+	Alpine session management scripts used to login, establish
+	an alpine session, logout and aquire IMAP server credentials
+	as needed.  These scripts are distinct from the alpine/
+	scripts in order to properly scope the session key.
+
+      images/
+	Various images and icons
+
+      pub/
+	Scripts that are accessed outside the scope of the Web Alpine
+	session key.
+
+      sounds/
+	Sounds files that might be referenced by Web Alpine
+
+  config/
+    general Web Alpine and default host configurations
+
+  bin/
+    binary executables providing services to the CGI scripts
+
+  lib/
+    binary and script routines used by both CGI scripts
+    and binary utilities
+
+For a more thorough discussion of the distribution's layout and
+Web Alpine components see cgi/alpine/help/tech-notes.html.
+  
+
+BUILDING WEB ALPINE'S BINARY COMPONENTS
+---------------------------------------
+
+For the most part, Web Alpine's binary components were built
+automatically along with the rest of the Alpine Mail System.
+
+However, if the configure script could not locate a suitable TCL
+library, then it is likely that the components necessary for Web
+Alpine were not built.  If this is the case, the configure script
+should have reported the condition. Locate and install a reasonable
+
+If you plan to use UW pubcookie for browser-based network login,
+please first visit src/pubcookie/README.  Be sure the Web Alpine Mail
+System was configured with the "--with-pubcookie" option set.
+
+
+INSTALLING WEB ALPINE COMPONENTS
+--------------------------------
+
+Installation follows several phases.  First, install the freshly
+built binary components:
+
+  1.  % cd web/src/alpined.d
+
+  2.  % make install
+
+Second, install the cgi.tcl library in the "web/lib" directory.
+
+  3.  % cd web/src/cgi.tcl-1.10
+
+  4.  % ./configure --prefix=<path to alpine/web directory>
+
+  5.  % make install
+
+Of course, you can install this package in a more broadly visible
+directory, however, since it contains some alpine-specific
+adjustments, it's easiest to just put it with the other
+alpine-speicific libraries.
+
+The third phase of installation is to make the Web Alpine CGI scripts
+available to the your web server.  Depending on your web server's
+requirements, you'll either want to configure it to point it's
+document root at the alpine/cgi/ directory of the distribution's
+location, or move the contents of that directory to your web server's
+document root.  If for some reason you want to place the CGI scripts
+in a subdirectory of the server's document root, you can do that, but
+be sure to record that directory in the web/config/alpine.tcl file as
+described below.
+
+You will also likely need to configure the web server's configuration
+to allow for CGI execution in the directory where Web Alpine's CGI
+scripts and such ended up.
+
+Also, be sure to fix the "tclsh" and "alpine.tcl" symbolic links
+if you relocate this directory tree. They should point to the 
+correspoinding files in bin/ and config/ directories of of the
+distribution's root.
+
+Once the files are copied and/or web server configuration suitably
+changed, you're ready for the third phase: Web Alpine configuration.
+
+  6.  Using the editor of your choice open the config/alpine.tcl
+      file.  The config file is itself a Tcl script file, and the
+      settings are simply Tcl variable settings.  Most are settings
+      of elements within the "_wp" array.
+
+      Starting from the top, skim the various configuration
+      settings.  The primary one's to be aware of include:
+
+          admin      email address offered in error pages
+                     associated with problems that likely
+                     require system administrator attention
+
+          helpdesk   email address offered in help pages and
+                     some error pages as a place to report
+                     problems or get more information
+
+          comments   email address offered in help pages
+                     as place to send general comments on
+                     web alpine
+
+          fileroot   file system path to root of web alpine
+                     distribution. This directory should 
+                     contain config/, bin/, etc.
+
+          cgiroot    file system path to root of web alpine
+                     cgi scripts.  This directory should
+                     contain session/, alpine/, greeting/
+                     etc. subdirectories
+
+          cgidir     file system path component of any
+                     subdirectory or subdirectories that
+                     were necessary to add between
+                     the web server's document root and
+                     the directory containing web alpine's 
+                     cgi scripts
+
+       Continue scanning the list, and adjust as needed.  Most
+       defaults should be fine.  Until you come to:
+
+          ispell     full path to ispell application if
+                     installed
+
+          ssl_safe_domains
+                     a performance setting that allows for realatively 
+                     safe disabling of SSL for connections that we know
+                     are reasonably safe from sniffing.  For our campus
+                     web alpine installation, browsers associated with the
+                     campus dial-in pools connecting to our servers
+                     offer this kind of connection.  Be careful.
+
+          flexserver 
+                     determines whether or not web alpine offers the option
+                     of connecting to a user-defined IMAP server on
+                     the greeting page.
+
+          hosts      an array of default configurations that 
+                     correspond to default web alpine config files
+                     in the config/ directory. these are what
+                     is offered on the greeting page as the option
+                     list of servers to connect to.
+
+       And, probably lastly:
+
+          cgi_mail_relay
+                     the server used to send out script errors that are
+                     so heinous that no web page error could be generated
+
+
+  7.   Try it!
+
+
+FURTHER INFORMATION ON WEB ALPINE
+---------------------------------
+
+See the Web Alpine technical notes for more detailed descriptions of
+what's going on and why.  If you have any questions or comments drop
+us a note <alpine-contact@cac.washington.edu>.
+
+-- 

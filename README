@@ -1,0 +1,124 @@
+alpine.tar.z README
+Last changed: 22 August 2006
+
+-----------------------------------------------------------------------
+                Alpine/Pico/Pilot/Web Alpine/Imapd Distribution
+-----------------------------------------------------------------------
+
+/* ========================================================================
+ * Copyright 2006 University of Washington
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * ========================================================================
+*/
+
+For the latest info about Alpine, see http://www.washington.edu/alpine
+
+-----------------------------------------------------------------------
+DISTRIBUTION CONTENTS
+-----------------------------------------------------------------------
+
+This Alpine distribution includes:
+
+alpine     - The Alpine source directory
+configure  - Script to set system-specific configuration, defaults
+contrib    - Contributed ports and additions
+doc        - Documentation directory. The main documentation is tech-notes.txt
+imap	   - Source tree containing C-Client IMAP implementation
+m4         - macros used in the configure process
+packages   - Scripts for building packages for various Linux distributions
+pico       - The Pico and Pilot source directory
+pith       - Core functions common to Alpine/Web Alpine
+po         - localization data
+web        - Source and scripts for web-based version of Alpine
+
+Most of the documentation is in doc/tech-notes.txt. It is not user
+level documentation, but there are things in it some users might find
+useful.  The directory doc/tech-notes contains source for
+doc/tech-notes.txt in HTML format which can be viewed via a Web
+browser by opening doc/tech-notes/index.html.
+
+
+-----------------------------------------------------------------------
+PRELIMINARIES
+-----------------------------------------------------------------------
+
+If you are reading this, you have presumably succeeded in extracting
+the distribution from the compressed tar archive file, via the following 
+command, or equivalent:
+
+        tar zxf alpine.tar.z
+
+Some of the instructions that follow assume that your current workding
+directory is the alpine-X.XX directory created by the un-tar process
+above.
+
+
+-----------------------------------------------------------------------
+BUILD PROCESS
+-----------------------------------------------------------------------
+
+Alpine build process uses GNU autoconf.  It should be sufficient to build
+alpine by typing the commands:
+
+        ./configure
+        make
+
+For a list of configuration options and default settings type:
+
+       ./configure --help   
+
+
+-----------------------------------------------------------------------
+RESULTING EXECUTABLES
+-----------------------------------------------------------------------
+
+The executables produced are:
+
+ alpine The Alpine mailer. Once compiled this should work just fine on
+        your system with no other files than this binary, and no
+        modifications to your system. Optionally you may create two
+        configuration files, /usr/local/lib/pine.conf and 
+        /usr/local/lib/pine.info. See the documentation for details.
+ 
+ pico   The standalone editor similar to the Alpine message composer.
+        This is a very simple straight forward text editor.
+ 
+ pilot  The standalone file system navigator.
+
+ alpined
+        The Web Alpine serveret which manages the 
+ 
+ imapd  The IMAP daemon. If you want to run alpine in client/server mode,
+        this is the daemon to run on the server. Installing this
+        requires system privileges and modifications to /etc/services.
+        See doc/tech-notes for more details.
+ 
+ mtest  The test IMAP client, an absolutely minimal mail client, useful
+        for debugging.
+
+ rpload Utility for uploading a local pinerc or address book to an IMAP
+	server.
+
+ rpdump Utility for downloading a pinerc or address book to the
+	local machine.
+
+ mailutil 
+	Utility for performing various operations on mailboxes,
+	be they local or remote.
+
+In general "make install" should place alpine, pico and pilot, and
+their corresponding man pages, in the proper directory for your
+system.  As the remaining binaries are intended for specific uses or
+are a component of a larger package, their installation is typically
+done by hand.
+
+  
+-----------------------------------------------------------------------
+END OF alpine.tar.z README
+-----------------------------------------------------------------------

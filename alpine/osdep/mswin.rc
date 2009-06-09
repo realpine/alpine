@@ -1,0 +1,599 @@
+//Microsoft Developer Studio generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#define APSTUDIO_HIDDEN_SYMBOLS
+#include "windows.h"
+#undef APSTUDIO_HIDDEN_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (U.S.) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+#endif //_WIN32
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+ALPINEICON              ICON    DISCARDABLE     "ALPINE.ICO"
+NEWMAILICON             ICON    DISCARDABLE     "NEWMAIL.ICO"
+MCLOSEDICON             ICON    DISCARDABLE     "MCLOSED.ICO"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+ALPINESPLASH              BITMAP  MOVEABLE PURE   "ALPINE-SPLASH.BMP"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Cursor
+//
+
+PICOHAND                CURSOR  "..\..\PICO\OSDEP\MSWINHND.CUR"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+ALPINEMENU MENU DISCARDABLE 
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "&Print",                      IDM_MI_PRINT
+        MENUITEM SEPARATOR
+        MENUITEM "&Read File",                  IDM_MI_READFILE
+        MENUITEM SEPARATOR
+        MENUITEM "E&xit",                       IDM_MI_EXIT
+    END
+    POPUP "&Edit"
+    BEGIN
+        MENUITEM "Cu&t\tCtrl-Shift-X",          IDM_EDIT_CUT
+        MENUITEM "&Copy\tCtrl-Shift-C",         IDM_EDIT_COPY
+        MENUITEM "Copy Append\tCtrl-Alt-C",     IDM_EDIT_COPY_APPEND
+        MENUITEM "&Paste\tCtrl-Shift-V",        IDM_EDIT_PASTE
+        MENUITEM "Cance&l Paste!\tCtrl-Alt-V",  IDM_EDIT_CANCEL_PASTE
+        MENUITEM SEPARATOR
+        MENUITEM "&Find\tCtrl-Shift-F",         IDM_MI_WHEREIS
+    END
+    POPUP "&Go"
+    BEGIN
+        MENUITEM "&Main Menu",                  IDM_MI_MAINMENU
+        MENUITEM "&List Folders",               IDM_MI_FLDRLIST
+        MENUITEM "&Index",                      IDM_MI_FLDRINDEX
+        MENUITEM "&Goto Folder",                IDM_MI_GOTOFLDR
+        MENUITEM "E&xit Current Mode",          IDM_MI_EXITMODE
+        MENUITEM SEPARATOR
+        MENUITEM "&Previous Message",           IDM_MI_PREVMSG
+        MENUITEM "&Next Message",               IDM_MI_NEXTMSG
+        MENUITEM "&Jump To Message",            IDM_MI_JUMPTOMSG
+        MENUITEM "&Where Is",                   IDM_MI_WHEREIS
+    END
+    POPUP "&Message"
+    BEGIN
+        MENUITEM "&View",                       IDM_MI_VIEW
+        MENUITEM "Pr&int",                      IDM_MI_PRINT
+        MENUITEM "&Save",                       IDM_MI_SAVE
+        MENUITEM "&Export",                     IDM_MI_EXPORT
+        MENUITEM SEPARATOR
+        MENUITEM "&Delete",                     IDM_MI_DELETE
+        POPUP "&Flag"
+        BEGIN
+            MENUITEM "&Important",                  IDM_MI_FLAGIMPORTANT
+            MENUITEM "&New",                        IDM_MI_FLAGNEW
+            MENUITEM "&Answered",                   IDM_MI_FLAGANSWERED
+            MENUITEM "&Deleted",                    IDM_MI_FLAGDELETED
+        END
+        MENUITEM "E&xpunge",                    IDM_MI_EXPUNGE
+        MENUITEM SEPARATOR
+        MENUITEM "&Take Address",               IDM_MI_TAKEADDR
+        MENUITEM "&Header Mode",                IDM_MI_HDRMODE
+        POPUP "S&ort"
+        BEGIN
+            MENUITEM "Arrival",                     IDM_MI_SORTARRIVAL
+            MENUITEM "Date",                        IDM_MI_SORTDATE
+            MENUITEM "From",                        IDM_MI_SORTFROM
+            MENUITEM "To",                          IDM_MI_SORTTO
+            MENUITEM "Cc",                          IDM_MI_SORTCC
+            MENUITEM "Subject",                     IDM_MI_SORTSUBJECT
+            MENUITEM "OrderedSubject",              IDM_MI_SORTORDERSUB
+            MENUITEM "Size",                        IDM_MI_SORTSIZE
+            MENUITEM "Score",                       IDM_MI_SORTSCORE
+            MENUITEM "Thread",                      IDM_MI_SORTTHREAD
+            MENUITEM SEPARATOR
+            MENUITEM "Reverse",                     IDM_MI_SORTREVERSE
+        END
+        MENUITEM "Se&lect",                     IDM_MI_SELECT
+        MENUITEM "&Apply",                      IDM_MI_APPLY
+        MENUITEM "&Zoom",                       IDM_MI_ZOOM
+    END
+    POPUP "&Send"
+    BEGIN
+        MENUITEM "&Compose Message",            IDM_MI_COMPOSER
+        MENUITEM "&Reply",                      IDM_MI_REPLY
+        MENUITEM "&Forward",                    IDM_MI_FORWARD
+        MENUITEM "&Bounce",                     IDM_MI_BOUNCE
+    END
+    POPUP "&Config"
+    BEGIN
+        MENUITEM "Set &Window Font",            IDM_OPT_SETFONT
+        MENUITEM "Print Font &Same As Window",  IDM_OPT_FONTSAMEAS
+        MENUITEM "Set &Printer Font",           IDM_OPT_SETPRINTFONT
+        MENUITEM SEPARATOR
+        MENUITEM "&Toolbar",                    IDM_OPT_TOOLBAR
+        MENUITEM "Tool&bar on Top",             IDM_OPT_TOOLBARPOS
+        POPUP "&Cursor"
+        BEGIN
+            MENUITEM "Block",                   IDM_OPT_CARETBLOCK
+            MENUITEM "Small Block",             IDM_OPT_CARETSMALLBLOCK
+            MENUITEM "Underline",               IDM_OPT_CARETHBAR
+            MENUITEM "Vertical Bar",            IDM_OPT_CARETVBAR
+        END
+        MENUITEM SEPARATOR
+        MENUITEM "Use &Dialog Boxes",           IDM_OPT_USEDIALOGS
+        MENUITEM SEPARATOR
+        MENUITEM "&IMAP Telemetry",             IDM_OPT_IMAPTELEM
+        MENUITEM SEPARATOR
+        MENUITEM "&New Mail Window",            IDM_OPT_NEWMAILWIN
+    END
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "&Screen Help",                IDM_MI_SCREENHELP
+        MENUITEM "&About",                      IDM_ABOUT
+    END
+END
+
+TEXTWINMENU MENU DISCARDABLE 
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "&Print",                      IDM_FILE_PRINT
+        MENUITEM SEPARATOR
+        MENUITEM "&Close",                      IDM_FILE_CLOSE
+    END
+    POPUP "&Edit"
+    BEGIN
+        MENUITEM "&Copy\tCtrl-Shift-C",         IDM_EDIT_COPY
+        MENUITEM "Select All",                  IDM_EDIT_SEL_ALL
+    END
+END
+
+COMPOSERMENU MENU DISCARDABLE 
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "&Print",                      IDM_MI_PRINT
+        MENUITEM SEPARATOR
+        MENUITEM "&Read File",                  181
+        MENUITEM SEPARATOR
+        MENUITEM "E&xit",                       IDM_MI_EXIT
+    END
+    POPUP "&Edit"
+    BEGIN
+        MENUITEM "Cu&t\tCtrl-Shift-X",          IDM_EDIT_CUT
+        MENUITEM "&Copy\tCtrl-Shift-C",         IDM_EDIT_COPY
+        MENUITEM "Copy Append\tCtrl-Alt-C",     IDM_EDIT_COPY_APPEND
+        MENUITEM "&Paste\tCtrl-Shift-V",        IDM_EDIT_PASTE
+        MENUITEM "Cance&l Paste!\tCtrl-Alt-V",  IDM_EDIT_CANCEL_PASTE
+        MENUITEM SEPARATOR
+        MENUITEM "Select &All",                 IDM_EDIT_SEL_ALL
+        MENUITEM SEPARATOR
+        MENUITEM "&Find\tCtrl-Shift-F",         IDM_MI_WHEREIS
+        MENUITEM SEPARATOR
+        MENUITEM "&Spell",                      IDM_MI_SPELLCHK
+    END
+    POPUP "&Compose"
+    BEGIN
+        MENUITEM "P&ostpone",                   IDM_MI_POSTPONE
+        MENUITEM "&Send",                       IDM_MI_SEND
+        MENUITEM "&Cancel",                     IDM_MI_CANCEL
+        MENUITEM SEPARATOR
+        MENUITEM "&Attach",                     IDM_MI_ATTACH
+        MENUITEM "Rich &Headers",               IDM_MI_RICHHDR
+        MENUITEM "&To Address Book",            IDM_MI_TOADDRBOOK
+        MENUITEM SEPARATOR
+        MENUITEM "&Justify Paragraph",          IDM_MI_JUSTIFY
+        MENUITEM "Run Alternate &Editor",       IDM_MI_ALTEDITOR
+    END
+    POPUP "C&onfig"
+    BEGIN
+        MENUITEM "Set &Window Font",            IDM_OPT_SETFONT
+        MENUITEM "Print Font &Same As Window",  IDM_OPT_FONTSAMEAS
+        MENUITEM "Set &Printer Font",           IDM_OPT_SETPRINTFONT
+        MENUITEM SEPARATOR
+        MENUITEM "&Toolbar",                    IDM_OPT_TOOLBAR
+        MENUITEM "Tool&bar on Top",             IDM_OPT_TOOLBARPOS
+        POPUP "&Cursor"
+        BEGIN
+            MENUITEM "Block",                   IDM_OPT_CARETBLOCK
+            MENUITEM "Small Block",             IDM_OPT_CARETSMALLBLOCK
+            MENUITEM "Underline",               IDM_OPT_CARETHBAR
+            MENUITEM "Vertical Bar",            IDM_OPT_CARETVBAR
+        END
+        MENUITEM SEPARATOR
+        MENUITEM "Use &Dialog Boxes",           IDM_OPT_USEDIALOGS
+    END
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "&Screen Help",                IDM_MI_SCREENHELP
+        MENUITEM "&About",                      IDM_ABOUT
+    END
+END
+
+#ifndef _MAC
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 0,8,0,0
+ PRODUCTVERSION 0,8,0,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x40004L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "Comments", "see http://www.washington.edu/alpine\0"
+            VALUE "CompanyName", "University of Washington\0"
+#ifdef _PCP_W2K
+            VALUE "FileDescription", "Alpine with krb5 for Windows 2000\0"
+#else
+#ifdef _PCP_WNK
+            VALUE "FileDescription", "Alpine with krb5\0"
+#else
+            VALUE "FileDescription", "Alpine\0"
+#endif
+#endif
+            VALUE "FileVersion", "0.8\0"
+            VALUE "InternalName", "alpine\0"
+            VALUE "LegalCopyright", "Copyright 2006\0"
+            VALUE "OriginalFilename", "alpine.exe\0"
+            VALUE "ProductName", "alpine\0"
+            VALUE "ProductVersion", "0.8\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
+
+#endif    // !_MAC
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+ABOUTDLGBOX DIALOGEX 10, 25, 217, 80
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Alpine"
+FONT 8, "Helv", 0, 0, 0x1
+BEGIN
+    CTEXT           "Alpine for Windows%S\nVersion %d.%02d%S\nBuild (%S)",
+                    IDD_VERSION,47,12,110,26,SS_NOPREFIX | NOT WS_GROUP,
+                    WS_EX_TRANSPARENT
+    LTEXT           "",IDD_BYLINE,21,46,172,56,SS_NOPREFIX | NOT WS_GROUP
+    DEFPUSHBUTTON   "OK",IDD_OK,159,15,40,14
+    ICON            ALPINEICON,IDC_STATIC,25,15,20,20
+END
+
+SPLASHDLGBOX DIALOGEX 0, 0, 520, 316
+STYLE WS_POPUP | DS_SETFOREGROUND | DS_LOCALEDIT
+BEGIN
+END
+
+IDD_TOOLBAR DIALOG DISCARDABLE  0, 0, 311, 12
+STYLE WS_CHILD
+FONT 8, "MS Sans Serif"
+BEGIN
+    PUSHBUTTON      "Quit",IDM_MI_EXIT,1,1,25,11,NOT WS_TABSTOP
+    PUSHBUTTON      "Main Menu",IDM_MI_MAINMENU,26,1,40,11,NOT WS_TABSTOP
+    PUSHBUTTON      "Folders",IDM_MI_FLDRLIST,66,1,29,11,NOT WS_TABSTOP
+    PUSHBUTTON      "Index",IDM_MI_FLDRINDEX,95,1,25,11,NOT WS_TABSTOP
+    PUSHBUTTON      "View",IDM_MI_VIEW,120,1,24,11,NOT WS_TABSTOP
+    PUSHBUTTON      "Compose",IDM_MI_COMPOSER,144,1,37,11,NOT WS_TABSTOP
+    PUSHBUTTON      "Reply",IDM_MI_REPLY,181,1,27,11,NOT WS_TABSTOP
+    PUSHBUTTON      "Forward",IDM_MI_FORWARD,208,1,34,11,NOT WS_TABSTOP
+END
+
+IDD_COMPOSER_TB DIALOG DISCARDABLE  0, 0, 311, 12
+STYLE WS_CHILD
+FONT 8, "MS Sans Serif"
+BEGIN
+    PUSHBUTTON      "Send",IDM_MI_SEND,1,1,25,11
+    PUSHBUTTON      "Cancel",IDM_MI_CANCEL,26,1,29,11
+    PUSHBUTTON      "Postpone",IDM_MI_POSTPONE,55,1,37,11
+    PUSHBUTTON      "Attach",IDM_MI_ATTACH,92,1,29,11
+    PUSHBUTTON      "Find",IDM_MI_WHEREIS,121,1,22,11
+    PUSHBUTTON      "Spell",IDM_MI_SPELLCHK,143,1,23,11
+END
+
+IDD_OPTIONALYENTER DIALOG DISCARDABLE  30, 30, 255, 86
+STYLE DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "Alpine"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,7,52,79,14
+    PUSHBUTTON      "Cancel",IDCANCEL,7,68,78,14
+    LTEXT           "",IDC_PROMPT,6,9,231,18
+    EDITTEXT        IDC_RESPONCE,3,33,237,12,ES_AUTOHSCROLL | ES_NOHIDESEL
+    DEFPUSHBUTTON   "Help '^G'",IDC_GETHELP,87,52,79,14
+END
+
+IDD_LOGINDLG DIALOG DISCARDABLE  0, 0, 213, 106
+STYLE DS_MODALFRAME | DS_SETFOREGROUND | DS_CENTER | WS_MINIMIZEBOX |
+    WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "Alpine Login"
+FONT 8, "MS Sans Serif"
+BEGIN
+    ICON            ALPINEICON,IDC_STATIC,7,10,21,20
+    LTEXT           "Authentication required.",IDC_STATIC,44,12,152,8
+    LTEXT           "Host :",IDC_PROMPT,44,23,165,8
+    LTEXT           "Login: ",IDC_STATIC,20,44,20,8
+    EDITTEXT        IDC_RLOGINE,45,42,133,12,ES_AUTOHSCROLL
+    LTEXT           "Password: ",IDC_RPWTEXT,7,57,36,8
+    EDITTEXT        IDC_RPASSWORD,45,55,133,12,ES_PASSWORD | ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,47,85,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,106,85,50,14
+END
+
+IDD_LOGINDLG2 DIALOG DISCARDABLE  0, 0, 281, 222
+STYLE DS_MODALFRAME | DS_SETFOREGROUND | DS_CENTER | WS_MINIMIZEBOX |
+    WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "Alpine Login"
+FONT 8, "MS Sans Serif"
+BEGIN
+    ICON            ALPINEICON,IDC_STATIC,7,10,21,20
+    LTEXT           "Authentication required.\n\nIn order to set up Alpine, please authenticate to the IMAP server where your configuration will be stored.",IDC_STATIC,44,24,180,50
+    LTEXT           "Host:",IDC_PROMPT,59,80,165,8
+    LTEXT           "Login: ",IDC_STATIC,57,98,20,8
+    EDITTEXT        IDC_RLOGINE,82,96,133,12,ES_AUTOHSCROLL
+    LTEXT           "Password: ",IDC_RPWTEXT,44,120,36,8
+    EDITTEXT        IDC_RPASSWORD,82,118,133,12,ES_PASSWORD | ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,65,196,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,131,196,50,14
+END
+
+
+IDD_CONFIGDLG DIALOG DISCARDABLE  0, 0, 281, 222
+STYLE DS_MODALFRAME | DS_SETFOREGROUND | DS_CENTER | WS_MINIMIZEBOX | 
+    WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "Alpine Configuration Setup"
+FONT 8, "MS Sans Serif"
+BEGIN
+    ICON            ALPINEICON,IDC_STATIC,7,10,21,20
+    LTEXT           "Alpine was not able to locate your personal configuration file. Please specify where PC-Pine should look for (or create) it.",
+                    IDC_CONFTEXT,45,14,211,17
+    GROUPBOX        "",IDC_STATIC,10,34,259,88
+    CONTROL         "Use configuration file stored on IMAP server",
+                    IDC_CONFRRADIO,"Button",BS_AUTORADIOBUTTON,17,42,154,10
+    LTEXT           "IMAP Server :",IDC_CONFSRVRTXT,31,54,45,8
+    EDITTEXT        IDC_CONFESERVER,77,52,138,14,ES_AUTOHSCROLL
+    LTEXT           "Username :",IDC_CONFUNTXT,115,70,37,8
+    EDITTEXT        IDC_CONFEUSERNAME,154,68,62,14,ES_AUTOHSCROLL
+    CONTROL         "Use default configuration folder name",IDC_CONFDFLTFLDR,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,31,89,133,10
+    LTEXT           "Configuration folder name :",IDC_CONFFLDRTXT,31,104,85,8
+    EDITTEXT        IDC_CONFEFLDRNAME,117,102,86,14,ES_AUTOHSCROLL
+    GROUPBOX        "",IDC_STATIC,11,126,259,43
+    CONTROL         "Use local configuration file",IDC_CONFLRADIO,"Button",
+                    BS_AUTORADIOBUTTON,17,135,99,10
+    LTEXT           "Configuration file name :",IDC_CONFFNTXT,34,148,76,8
+    EDITTEXT        IDC_CONFEFN,113,146,89,14,ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse",IDC_CONFBROWSE,207,145,50,14
+    CONTROL         "Use this as the default PC-Pine Configuration",
+                    IDC_CONFDFLTSET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,178,
+                    157,10
+    DEFPUSHBUTTON   "OK",IDOK,65,196,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,131,196,50,14
+END
+
+IDD_CFVARSDLG DIALOG DISCARDABLE  0, 0, 281, 222
+STYLE DS_MODALFRAME | DS_SETFOREGROUND | DS_CENTER | WS_MINIMIZEBOX | 
+    WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "Alpine Configuration Setup"
+FONT 8, "MS Sans Serif"
+BEGIN
+    ICON            ALPINEICON,IDC_STATIC,7,10,21,20
+    LTEXT           "In order to properly set up Alpine, please fill out the following information, which can also be provided later.",
+                    IDC_STATIC,45,14,211,17
+    LTEXT           "Personal Name :",IDC_STATIC,33,46,53,8
+    EDITTEXT        IDC_CFV_PNAME,90,43,157,14,ES_AUTOHSCROLL
+    LTEXT           "Email Address :",IDC_STATIC,37,66,49,8
+    EDITTEXT        IDC_CFV_EMAILADR,90,63,157,14,ES_AUTOHSCROLL
+    LTEXT           "Mail Server :",IDC_STATIC,45,86,41,8
+    EDITTEXT        IDC_CFV_MSERVER,90,83,157,14,ES_AUTOHSCROLL
+    CONTROL         "This server is an IMAP server",IDC_CFV_IMAP,"Button",
+                    BS_AUTORADIOBUTTON,141,100,108,10
+    CONTROL         "This server is a POP3 server",IDC_CFV_POP3,"Button",
+                    BS_AUTORADIOBUTTON,141,113,105,10
+    LTEXT           "Login name (optional) :",IDC_STATIC,120,129,72,8
+    EDITTEXT        IDC_CFV_LOGIN,195,126,51,14,ES_AUTOHSCROLL
+    LTEXT           "SMTP Server :",IDC_STATIC,39,149,48,8
+    EDITTEXT        IDC_CFV_SMTPSERVER,90,146,157,14,ES_AUTOHSCROLL
+    CONTROL         "Make Alpine the default E-mail reader",
+                    IDC_CFV_DEFMAILER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
+	            90,165,157,10
+    CONTROL         "Make Alpine the default Newsgroup reader",
+                    IDC_CFV_DEFNEWSRDR,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
+	            90,177,157,10
+    DEFPUSHBUTTON   "OK",IDOK,65,196,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,131,196,50,14
+END
+
+IDD_SELECT DIALOG DISCARDABLE  30, 30, 255, 66
+STYLE DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "Alpine"
+FONT 8, "MS Sans Serif"
+BEGIN
+    PUSHBUTTON      "Help",IDC_GETHELP,7,50,78,14
+    PUSHBUTTON      "Cancel",IDCANCEL,7,33,78,14
+    LTEXT           "",IDC_PROMPT,7,7,231,22
+    CONTROL         "User1",IDC_RESPONCE,"KeyboardCapture",NOT WS_VISIBLE,
+                    208,49,35,12
+END
+
+IDD_SELECTSORT DIALOG DISCARDABLE  30, 30, 170, 102
+STYLE DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "Select Sort"
+FONT 8, "MS Sans Serif"
+BEGIN
+    CONTROL         "Arrival",IDC_SORTARRIVAL,"Button",BS_AUTORADIOBUTTON | 
+                    WS_GROUP | WS_TABSTOP,11,6,74,9
+    CONTROL         "From",IDC_SORTFROM,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,96,6,74,9
+    CONTROL         "Subject",IDC_SORTSUBJECT,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,11,18,74,9
+    CONTROL         "To",IDC_SORTTO,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
+                    96,18,74,9
+    CONTROL         "Ordered Subject",IDC_SORTORDERSUB,"Button",
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,11,30,74,9
+    CONTROL         "Cc",IDC_SORTCC,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
+                    96,30,74,9
+    CONTROL         "Size",IDC_SORTSIZE,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,11,42,74,9
+    CONTROL         "Date",IDC_SORTDATE,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,96,42,74,9
+    CONTROL         "Thread",IDC_SORTTHREAD,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,11,54,74,9
+    CONTROL         "Score",IDC_SORTSCORE,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,96,54,74,9
+    CONTROL         "Reverse Sort",IDC_SORTREVERSE,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,55,67,58,12
+    DEFPUSHBUTTON   "OK",IDOK,5,82,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,60,82,50,14
+    PUSHBUTTON      "Help",IDC_GETHELP,115,82,50,14
+END
+
+IDD_SELECTFLAG DIALOG DISCARDABLE  30, 30, 134, 42
+STYLE DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "Select Flags"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,11,22,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,72,22,50,14
+    CONTROL         "Flag 1",IDC_FLAGCOL1,"Button",BS_AUTOCHECKBOX | NOT 
+                    WS_VISIBLE | WS_TABSTOP,4,4,59,10
+    CONTROL         "Flag 2",IDC_FLAGCOL2,"Button",BS_AUTOCHECKBOX | NOT 
+                    WS_VISIBLE | WS_TABSTOP,70,4,59,10
+END
+
+IDD_ARGLIST DIALOG DISCARDABLE  0, 0, 302, 223
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Alpine - Command Line Arguments"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,124,196,50,14,BS_CENTER
+    EDITTEXT        IDC_ARGTEXT,7,7,287,182,ES_MULTILINE | ES_AUTOHSCROLL | 
+                    ES_READONLY | WS_VSCROLL | WS_HSCROLL
+END
+
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+2 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "#define APSTUDIO_HIDDEN_SYMBOLS\r\n"
+    "#include ""windows.h""\r\n"
+    "#undef APSTUDIO_HIDDEN_SYMBOLS\r\n"
+    "\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+1 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "resource.h\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO DISCARDABLE 
+BEGIN
+    IDD_ARGLIST, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 295
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 414
+        HORZGUIDE, 160
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    IDS_BYLINE              "ALPINE Copyright 2006 University of Washington"
+    IDS_APPNAME             "Alpine"
+    IDS_APPIDENT            "alpine"
+END
+
+#endif    // English (U.S.) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

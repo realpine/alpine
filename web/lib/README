@@ -1,0 +1,8 @@
+
+
+   after building alpined, make sure the shared library
+   libwpcomm1.0.0 is in this directory.  once it is
+   run the pkgcreate.tcl script by hand which will create
+   the tcl index file pkgIndex.tcl.  This only has to be
+   done once.
+

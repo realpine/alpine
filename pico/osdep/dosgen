@@ -1,0 +1,181 @@
+#line 2 "osdep/dosgen"		/* So compiler knows orig name of this file.*/
+/*
+ * $Id: dosgen 165 2006-10-04 01:09:47Z jpf@u.washington.edu $
+ *
+ * Program:	Operating system dependent routines - MS DOS Generic
+ *
+ *
+ * Michael Seibel
+ * Networks and Distributed Computing
+ * Computing and Communications
+ * University of Washington
+ * Administration Builiding, AG-44
+ * Seattle, Washington, 98195, USA
+ * Internet: mikes@cac.washington.edu
+ *
+ * Please address all bugs and comments to "pine-bugs@cac.washington.edu"
+ *
+ *
+ * Pine and Pico are registered trademarks of the University of Washington.
+ * No commercial use of these trademarks may be made without prior written
+ * permission of the University of Washington.
+ * 
+ * Pine, Pico, and Pilot software and its included text are Copyright
+ * 1989-2001 by the University of Washington.
+ * 
+ * The full text of our legal notices is contained in the file called
+ * CPYRIGHT, included with this distribution.
+ *
+ *
+ * Notes:
+ *     - This file should contain the cross section of functions useful
+ *       in both DOS and Windows ports of pico.
+ *
+ */
+
+
+/*
+ * Useful definitions...
+ */
+static unsigned char okinfname[32] = {
+      0,    0, 			/* ^@ - ^G, ^H - ^O  */
+      0,    0,			/* ^P - ^W, ^X - ^_  */
+      0x80, 0x17,		/* SP - ' ,  ( - /   */
+      0xff, 0xe4,		/*  0 - 7 ,  8 - ?   */
+      0x7f, 0xff,		/*  @ - G ,  H - O   */
+      0xff, 0xe9,		/*  P - W ,  X - _   */
+      0x7f, 0xff,		/*  ` - g ,  h - o   */
+      0xff, 0xf6,		/*  p - w ,  x - DEL */
+      0,    0, 			/*  > DEL   */
+      0,    0,			/*  > DEL   */
+      0,    0, 			/*  > DEL   */
+      0,    0, 			/*  > DEL   */
+      0,    0 			/*  > DEL   */
+};
+
+
+/*
+ * fallowc - returns TRUE if c is allowable in filenames, FALSE otw
+ */
+fallowc(c)
+int c;
+{
+    return(okinfname[c>>3] & 0x80>>(c&7));
+}
+
+/*
+ * errstr - return system error string corresponding to given errno
+ *          Note: strerror() is not provided on all systems, so it's 
+ *          done here once and for all.
+ */
+char *errstr(err)
+int err;
+{
+    return((err >= 0 && err < sys_nerr) ? sys_errlist[err] : NULL);
+}
+
+/*
+ * worthit - generic sort of test to roughly gage usefulness of using 
+ *           optimized scrolling.
+ *
+ * note:
+ *	returns the line on the screen, l, that the dot is currently on
+ */
+worthit(l)
+int *l;
+{
+    int i;			/* l is current line */
+    unsigned below;		/* below is avg # of ch/line under . */
+
+    *l = doton(&i, &below);
+    below = (i > 0) ? below/(unsigned)i : 0;
+
+    return(below > 3);
+}
+
+
+/*
+ * time_to_check - checks the current time against the last time called 
+ *                 and returns true if the elapsed time is > below.
+ *                 Newmail won't necessarily check, but we want to give it
+ *                 a chance to check or do a keepalive.
+ */
+time_to_check()
+{
+    static time_t lasttime = 0L;
+
+    if(!timeo)
+      return(FALSE);
+
+    if(time((time_t *) 0) - lasttime > (Pmaster ? (time_t)(FUDGE-10) : timeo)){
+	lasttime = time((time_t *) 0);
+	return(TRUE);
+    }
+    else
+      return(FALSE);
+}
+
+
+/*
+ * sstrcasecmp - compare two pointers to strings case independently
+ */
+sstrcasecmp(s1, s2)
+QcompType *s1, *s2;
+{
+    return((*pcollator)(*(char **)s1, *(char **)s2));
+}
+
+void
+set_collation(collation, ctype)
+    int collation;
+    int ctype;
+{
+    extern int collator();  /* strcoll isn't declared on all systems */
+#ifdef LC_COLLATE
+    char *status = NULL;
+#endif
+
+    pcollator = strucmp;
+
+#ifdef LC_COLLATE
+  if(collation){
+    /*
+     * This may not have the desired effect, if collator is not
+     * defined to be strcoll in os.h and strcmp and friends
+     * don't know about locales. If your system does have strcoll
+     * but we haven't defined collator to be strcoll in os.h, let us know.
+     */
+    status = setlocale(LC_COLLATE, "");
+
+    /*
+     * If there is an error or if the locale is the "C" locale, then we
+     * don't want to use strcoll because in the default "C" locale strcoll
+     * uses strcmp ordering and we want strucmp ordering.
+     *
+     * The test for "C" isn't really correct, since status does not have to
+     * be "C" even if we're in the "C" locale. But this works on some systems.
+     */
+    if(status && !(status[0] == 'C' && status[1] == '\0'))
+      pcollator = collator;
+  }
+#endif
+#ifdef LC_CTYPE
+  if(ctype){
+    (void)setlocale(LC_CTYPE, "");
+  }
+#endif
+}
+
+
+/*
+ * sleep the given number of microseconds
+ */
+ssleep(s)
+    clock_t s;
+{
+    s += clock();
+    while(s > clock())
+      ;
+}
+
+

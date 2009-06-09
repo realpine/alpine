@@ -1,0 +1,96 @@
+This file is INSTALL.  It contains installation instructions for cgi.tcl.
+
+If you do not have Tcl, get it (the README explains how) and install
+it.  The rest of these instructions assume that you have Tcl
+installed.
+
+--------------------
+Installation
+--------------------
+
+By default, the Tcl source directory is assumed to be in the same
+directory as the cgi.tcl source directory.  For example, in this
+listing, cgi.tcl and Tcl are both stored in /usr/local/src:
+
+	/usr/local/src/tcl7.5		(actual version may be different)
+	/usr/local/src/cgi.tcl-1.0	(actual version may be different)
+
+If Tcl is stored elsewhere, the easiest way to deal with this is to
+create a symbolic link to its real directory.  For example, from the
+cgi.tcl directory, type:
+
+	ln -s /some/where/else/src/tcl7.5 ..
+
+Run "./configure".  This will generate a Makefile (from a prototype
+called "Makefile.in") appropriate to your system.  Make sure you run
+configure with the same arguments as when you ran Tcl's configure
+script.  (If you don't, package loading won't work.)
+
+Most people will not need to make any changes to the generated
+Makefile and can go on to the next step.  If you want though, you can
+edit the Makefile and change any definitions as appropriate for your
+site.  All the definitions you are likely to want to change are
+clearly identified and described at the beginning of the file.
+
+Run "make".
+
+It is useful (although not necessary) for cgi.tcl to understand how to
+send mail.  By default, cgi.tcl tries to use /usr/lib/sendmail,
+otherwise it falls back to carrying out the raw SMTP dialogue itself.
+Any mailer can be substituted by modifying cgi.tcl appropriately.  It
+is easy to do.  Edit cgi.tcl and look at the cgi_mail_end procedure.
+It should be obvious what to do at that point.  The ability to send
+mail isn't required for basic use of cgi.tcl, but it is especially
+useful for in-the-field debugging so I encourage you to enable it.
+
+You can now "source cgi.tcl" if you want to try things out by hand
+before installing (or if you want to use the package without
+installing it).  Example:
+
+  	$ tclsh7.6 (or whatever your Tcl interpreter is called)
+	% source cgi.tcl
+	% h4 "Don Libes"
+	<h4>Don Libes</h4>
+	%
+
+Once you're done playing, go ahead and install it.  To install everything:
+
+	make install
+
+You're done!  Now you can use cgi.tcl.
+
+--------------------
+Examples
+--------------------
+
+The example directory has some examples.  See the README in there.
+
+--------------------
+Test Suite
+--------------------
+
+There is no test suite.
+
+--------------------
+Uninstalling
+--------------------
+
+"make uninstall" removes all the files that "make install" creates
+(excluding those in the current directory).
+
+--------------------
+Cleaning Up
+--------------------
+
+Several "clean" targets are available to reduce space consumption of
+the cgi.tcl source.  The two most useful are as follows:
+
+"make clean" deletes all files from the current directory that were
+created by "make"
+
+"make distclean" is like "make clean", but it also deletes files
+created by "configure"
+
+Other targets can be found in the Makefile.  They follow the GNU
+Makefile conventions.
+

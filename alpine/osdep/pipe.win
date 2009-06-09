@@ -1,0 +1,168 @@
+#line 2 "osdep/pipe.win"
+
+
+
+/*======================================================================
+    pipe
+    
+    Initiate I/O to and from a process.  These functions are similar to 
+    popen and pclose, but both an incoming stream and an output file are 
+    provided.
+   
+ ====*/
+
+
+
+/*----------------------------------------------------------------------
+     Pipe a single character
+
+  Args: command -- string to hand the shell
+	outfile -- address of pointer containing file to receive output
+	errfile -- file to write stderr to
+	mode -- mode for type of shell, signal protection etc...
+  Returns: NULL on DOS
+
+ ----*/
+PIPE_S *
+open_system_pipe(command, outfile, errfile, mode)
+     char  *command;
+     char **outfile;
+     char **errfile;
+     int    mode;
+{
+    char cmdbuf[1024], *p;
+    PIPE_S *syspipe = NULL;
+
+    if((mode & (PIPE_READ | PIPE_WRITE)) == (PIPE_READ | PIPE_WRITE)
+       || errfile){
+	q_status_message1(SM_ORDER, 3, 3, "Unsupported Pipe arg: %s",
+			  errfile ? "Error File" : "Read and Write");
+	return(NULL);				/* UNSUPPORTED */
+    }
+
+    if(mode & (PIPE_RESET | PIPE_READ | PIPE_WRITE)){
+	snprintf(cmdbuf, sizeof(cmdbuf), "dosprmpt.pif /c %s", command);
+    }
+    else{
+      strncpy(cmdbuf, command, sizeof(cmdbuf));
+      cmdbuf[sizeof(cmdbuf)-1] = '\0';
+    }
+
+    syspipe = (PIPE_S *) fs_get(sizeof(PIPE_S));
+    memset(syspipe, 0, sizeof(PIPE_S));
+    syspipe->mode = mode;
+
+    if(mode & PIPE_WRITE){
+	/*
+	 * Create tmp file to write, spawn child in close_pipe
+	 * after tmp file's written...
+	 */
+	syspipe->tmp   = temp_nam(NULL, "pw");
+	syspipe->out.f = fopen(syspipe->tmp, "wb");
+	strncat(cmdbuf, " < ", sizeof(cmdbuf)-strlen(cmdbuf));
+        cmdbuf[sizeof(cmdbuf)-1] = '\0';
+	strncat(cmdbuf, syspipe->tmp, sizeof(cmdbuf)-strlen(cmdbuf));
+        cmdbuf[sizeof(cmdbuf)-1] = '\0';
+	if(outfile){
+	    if(!*outfile)
+	      *outfile = temp_nam(NULL, "po");	/* asked for, but not named? */
+
+	    strncat(cmdbuf, " > ", sizeof(cmdbuf)-strlen(cmdbuf));
+	    cmdbuf[sizeof(cmdbuf)-1] = '\0';
+	    strncat(cmdbuf, *outfile, sizeof(cmdbuf)-strlen(cmdbuf));
+	    cmdbuf[sizeof(cmdbuf)-1] = '\0';
+	}
+
+	syspipe->command = cpystr(cmdbuf);
+	dprint(1, (debugfile, "pipe write: %s", cmdbuf));
+    }
+    else if(mode & PIPE_READ){
+	/* 
+	 * Create a tmp file for command result, exec the command
+	 * here into temp file, and return file pointer to it...
+	 */
+	strncat(cmdbuf, " > ", sizeof(cmdbuf)-strlen(cmdbuf));
+	cmdbuf[sizeof(cmdbuf)-1] = '\0';
+	if(outfile){
+	    if(!*outfile)
+	      *outfile = temp_nam(NULL, "po");	/* asked for, but not named? */
+
+	    strncat(cmdbuf, *outfile, sizeof(cmdbuf)-strlen(cmdbuf));
+	    cmdbuf[sizeof(cmdbuf)-1] = '\0';
+	}
+	else{
+	    syspipe->tmp = temp_nam(NULL, "pr");
+	    strncat(cmdbuf, syspipe->tmp, sizeof(cmdbuf)-strlen(cmdbuf));
+	    cmdbuf[sizeof(cmdbuf)-1] = '\0';
+	}
+
+	dprint(1, (debugfile, "pipe read: %s", cmdbuf));
+	if(mswin_exec_and_wait("pipe command", cmdbuf)){
+	    if(syspipe->tmp)
+	      fs_give((void **)&syspipe->tmp);
+
+	    fs_give ((void **)&syspipe);
+	}
+	else
+	  syspipe->in.f = fopen(syspipe->tmp, "rb");
+    }
+    else{
+	/* we just run the command taking outfile into account */
+	if(outfile){
+	    if(!*outfile)
+	      *outfile = temp_nam(NULL, "po");	/* asked for, but not named? */
+
+	    strncat(cmdbuf, " > ", sizeof(cmdbuf)-strlen(cmdbuf));
+	    cmdbuf[sizeof(cmdbuf)-1] = '\0';
+	    strncat(cmdbuf, *outfile, sizeof(cmdbuf)-strlen(cmdbuf));
+	    cmdbuf[sizeof(cmdbuf)-1] = '\0';
+	}
+
+	if(mswin_exec_and_wait("pipe command", cmdbuf)){
+	    fs_give ((void **)&syspipe);
+	}
+    }
+
+    return(syspipe);
+}
+
+
+
+/*----------------------------------------------------------------------
+    Close pipe previously allocated and wait for child's death
+
+  Args: syspipe -- address of pointer to struct returned by open_system_pipe
+  Returns: 0 on DOS
+ ----*/
+int
+close_system_pipe(syspipe)
+    PIPE_S **syspipe;
+{
+    if(!(syspipe && *syspipe))
+      return(-1);
+
+    if((*syspipe)->mode & PIPE_WRITE){
+	int rv;
+
+	fclose((*syspipe)->out.f);
+	if(rv = mswin_exec_and_wait("pipe command", (*syspipe)->command))
+	  q_status_message1(SM_ORDER, 3, 3,
+			    "Error executing external command: %s",
+			    (rv < 0)
+			      ? "Windows specific error"
+			      : error_description(errno));
+
+	fs_give((void **)&(*syspipe)->command);
+    }
+    else if((*syspipe)->mode & PIPE_READ){
+	fclose((*syspipe)->in.f);
+    }
+
+    if((*syspipe)->tmp){
+	unlink((*syspipe)->tmp);
+	fs_give((void **)&(*syspipe)->tmp);
+    }
+
+    fs_give((void **)syspipe);
+    return(0);
+}

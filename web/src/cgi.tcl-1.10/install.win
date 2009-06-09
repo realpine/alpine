@@ -1,0 +1,105 @@
+This file is install.win.  It contains installation instructions for
+cgi.tcl on Win95/NT.
+
+If you do not have Tcl, get it (the README explains how) and install
+it.  The rest of these instructions assume that you have Tcl
+installed.
+
+--------------------
+Installation
+--------------------
+
+These instructions are based on contributions courtesy of Maan
+M. Hamze <mmhamze@pleiades.net> and Martin Meuer
+<martin.meuer@frz.de>.  Send fixes to me (libes@nist.gov).
+
+If you just want to experiment with cgi.tcl, you can simply source it
+into your Tcl files by saying "source cgi.tcl".
+
+Once you're done playing, go ahead and install it.  To install it:
+
+1) Open wish8.0 and run the following:
+
+	pkg_mkIndex c:\\tcl\\lib\\tcl8.0 cgi.tcl
+
+(assuming that you have Tcl libraries in the above directory).  This
+This will create pkgIndex.tcl which will make it possible to use
+"package require cgi" in scripts.
+
+2) The only files actually necessary for production use are
+pkgIndex.tcl and cgi.tcl.  Make sure those files and their directory
+have execute permission for the web server scripts.
+
+3) You may want to edit some things in cgi.tcl at this time.
+
+3a) The default extension of the files that work with cgi.tcl is .cgi.
+In case that extension is already being used by another program for
+your cgi programs, you may want to change that extension into
+something else, say, .cgt.  To do that, search cgi.tcl for the string
+.cgi and replace with .cgt or whatever you prefer.
+
+3b) Upon errors in production code, cgi.tcl sends mail to an
+administrator.  This can be set on a per-script basis but it defaults
+to "root".  You'll probably want to change this for your site.  To do
+that, search cgi.tcl for cgi_admin_mail_addr "root" and change the
+argument to whatever you prefer.
+
+3c) The cgi_mail_end procedure attempts to do mail delivery using SMTP
+(the de facto Internet mail protocol).  However, this mechanism is not
+robust.  For example, if the mail gateway is down, the mail will not
+be requeued for later delivery.  If you have a robust mailer program
+or some other interface, you should switch to using it.  The ability
+to send mail isn't required for basic use of cgi.tcl, but this ability
+is especially useful for in-the-field debugging so I encourage you to
+use it.
+
+4) Tcl/Tk 8.0 should have automatically created a file type to run
+files with the .tcl extension.  Make sure by running:
+Explorer...Options....File Types.  .tcl files should be associated
+with Wish8.0.
+
+5) The web server must now be told about Tcl.  The exact details
+depend on your particular server.  Here are instructions that people
+have sent to me for different servers.  (Feel free to send more.)
+
+5a) If you are using Personal Web Server for Win 95 or MS IIS ver 3
+for Win NT:
+
+    Instructions according to Maan M. Hamze <mmhamze@pleiades.net>
+
+Run the Registry Editor.
+Go to:
+HKEY_LOCAL_MACHINE
+  System
+    CurrentControlSet
+      Services
+        W3SVC
+          Parameters
+            Script Map
+Create a new String Value through Edit:
+First enter the name of the extension (.cgi or the extension you want to use as 
+in .cgt).  Associate the extension with:
+FullPathToTclExecutable\tclsh80.exe %s
+
+5b) If you are using Netscape Enterprise Server:
+
+    Instructions according to Martin Meuer <martin.meuer@frz.de>.
+
+5b1) Create an association from NT-Explorer (View-Options-Filetypes) for
+the extension .cgt to tell NT to open .cgt with "/fullpath/tclsh80.exe
+%1"
+5b2) From the Server Manager of the Enterprise Server create o new MIME
+type for .cnt with type "magnus-internal/shellcgi"
+(Alternatively one can create a special shellCGI-Directory instead,
+but I rather like to place my scripts anywhere.)
+
+6) Kill and restart your web server.
+
+You're done!  Now you can use cgi.tcl.
+
+--------------------
+Examples
+--------------------
+
+The example directory has some examples.  See the README in there.
+

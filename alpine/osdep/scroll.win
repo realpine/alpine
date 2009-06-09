@@ -1,0 +1,28 @@
+#line 2 "osdep/scroll.win"
+/*----------------------------------------------------------------------
+    
+    Map generic scroll routines to mswin_* scroll routines.
+*/
+
+/*
+ * Get the current position of the scroll bar.
+ */
+long
+scroll_getpos ()
+{
+    return (mswin_getscrollpos ());
+}
+
+
+
+
+/*
+ * Get the position we were told to scroll to.
+ */
+long
+scroll_getscrollto ()
+{
+    return (mswin_getscrollto());
+}
+
+

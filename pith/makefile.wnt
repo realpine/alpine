@@ -1,0 +1,81 @@
+# $Id: makefile.wnt 14098 2005-10-03 18:54:13Z jpf@u.washington.edu $
+#
+# ========================================================================
+# Copyright 2006 University of Washington
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# ========================================================================
+
+#
+#
+# Makefile for WIN NT version of the libpith.lib
+#
+#
+CC=cl
+RM=del
+CP=copy 
+RC=rc
+
+#includes symbol info for debugging 
+CDEBUG= #-Zi -Od
+LDEBUG= /DEBUG /DEBUGTYPE:CV
+
+STDCFLAGS= -I..\include -nologo -MT -DWIN32 -DDOS -D_WINDOWS -DJOB_CONTROL -DMSC_MALLOC
+
+CFLAGS=	$(CDEBUG) $(STDCFLAGS) $(NET) $(EXTRACFLAGS)
+
+LFLAGS= $(LDEBUG) $(EXTRALDFLAGS)
+
+RCFLAGS =
+
+LIBER=lib
+LIBARGS=/nologo /verbose
+
+HFILES=	../include/system.h ../include/general.h \
+	abdlc.h ablookup.h addrbook.h addrstring.h adjtime.h adrbklib.h atttype.h \
+	bitmap.h bldaddr.h busy.h charset.h color.h conf.h conftype.h context.h \
+	copyaddr.h debug.h detach.h detoken.h editorial.h escapes.h filter.h filttype.h \
+	flag.h folder.h foldertype.h handle.h headers.h help.h helptext.h icache.h imap.h indxtype.h \
+	init.h keyword.h ldap.h list.h mailcap.h mailcmd.h mailindx.h maillist.h \
+	mailpart.h mailview.h margin.h mimedesc.h mimetype.h msgno.h newmail.h news.h \
+	options.h pattern.h pineelt.h pipe.h readfile.h remote.h remtype.h repltype.h reply.h \
+	rfc2231.h save.h savetype.h search.h send.h sequence.h signal.h sort.h sorttype.h \
+	state.h status.h store.h stream.h string.h strlst.h takeaddr.h tempfile.h text.h \
+	thread.h url.h user.h util.h
+
+OFILES=	ablookup.obj abdlc.obj addrbook.obj addrstring.obj adrbklib.obj bldaddr.obj charset.obj \
+	color.obj conf.obj context.obj copyaddr.obj detoken.obj detach.obj editorial.obj escapes.obj \
+	filter.obj flag.obj folder.obj handle.obj help.obj helpindx.obj icache.obj imap.obj init.obj \
+	keyword.obj ldap.obj list.obj mailcap.obj mailcmd.obj mailindx.obj maillist.obj mailview.obj \
+	margin.obj mimedesc.obj mimetype.obj msgno.obj newmail.obj news.obj pattern.obj pipe.obj \
+	readfile.obj remote.obj reply.obj rfc2231.obj save.obj search.obj sequence.obj send.obj sort.obj state.obj \
+	status.obj store.obj stream.obj string.obj strlst.obj takeaddr.obj tempfile.obj text.obj \
+	thread.obj adjtime.obj url.obj util.obj
+
+all:		libpith.lib
+
+helpindx.exe:	helpindx.c charconv/utf8.obj ../c-client/utf8.obj
+		$(CC) $(CFLAGS) helpindx.c
+
+alpine.ndx:	helpindx.exe pine.hlp
+		helpindx pine.hlp alpine.ndx helptext.h
+
+helptext.h:	alpine.ndx
+
+.c.obj:
+	$(CC) -c $(CFLAGS) $(MAKEDIR)\$*.c
+
+$(OFILES):	$(HFILES)
+
+libpith.lib:	$(OFILES)
+		$(RM) libpith.lib || rem
+		$(LIBER) /out:libpith.lib $(OFILES)
+
+clean:
+	$(RM) *.lib
+	$(RM) *.obj

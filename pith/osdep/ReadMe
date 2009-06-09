@@ -1,0 +1,13 @@
+
+README FOR DIRECTORY: pith/osdep/
+
+  Modules in this directory should provide OS-independent interfaces
+for various OS-dependent methods of getting at resources or whatever.
+They should compile on their own without pine, c-client or pico 
+dependencies.
+
+NOTES:
+
+  "_WINDOWS" currently differentiates windows from unix code.
+
+  "BUG:" comments mean there's something that needs to get worked on

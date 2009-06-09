@@ -1,0 +1,32 @@
+#
+# Tweek server to encourage caching and set appropriate type for icons
+#
+DirectoryIndex greeting.tcl
+
+AddType image/x-icon .ico
+
+AddHandler cgi-script tcl
+
+<IfModule mod_headers.c>
+
+<Files *.gif>
+Header append Cache-Control "public"
+</Files>
+
+<Files *.jpg>
+Header append Cache-Control "public"
+</Files>
+
+<Files *.jpeg>
+Header append Cache-Control "public"
+</Files>
+
+<Files *.js>
+Header append Cache-Control "public"
+</Files>
+
+<Files *.css>
+Header append Cache-Control "public"
+</Files>
+
+</IfModule>

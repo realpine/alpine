@@ -1,0 +1,82 @@
+# $Id: makefile.wnt 14098 2005-10-03 18:54:13Z jpf@u.washington.edu $
+#
+# ========================================================================
+# Copyright 2006 University of Washington
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# ========================================================================
+
+#
+#
+# Makefile for WIN NT version of the libalpine.lib and pine.exe
+#
+#
+CC=cl
+RM=del
+CP=copy 
+RC=rc
+
+#includes symbol info for debugging 
+CDEBUG= #-Zi -Od
+LDEBUG= /DEBUG /DEBUGTYPE:CV
+
+STDCFLAGS= -I..\include -nologo -MT -DWIN32 -DDOS -D_WINDOWS -DJOB_CONTROL -DMSC_MALLOC
+
+CFLAGS=	$(CDEBUG) $(STDCFLAGS) $(NET) $(EXTRACFLAGS)
+
+LFLAGS= $(LDEBUG) $(EXTRALDFLAGS)
+
+RCFLAGS =
+
+STDLIBS=oldnames.lib kernel32.lib advapi32.lib ws2_32.lib user32.lib gdi32.lib \
+	shell32.lib comdlg32.lib winmm.lib crypt32.lib
+LDAPLIBS=	../ldap/lib/ldap32.lib
+SPELLLIBS=
+
+LIBER=lib
+LIBARGS=/nologo /verbose
+
+HFILES=	../include/system.h ../include/general.h \
+	addrbook.h adrbkcmd.h after.h alpine.h arg.h busy.h colorconf.h confscroll.h \
+	conftype.h context.h dispfilt.h flagmaint.h folder.h headers.h help.h imap.h \
+	init.h kblock.h keymenu.h ldapconf.h listsel.h mailcmd.h mailindx.h mailpart.h \
+	mailview.h pattern.h pipe.h print.h radio.h remote.h reply.h roleconf.h send.h \
+	setup.h signal.h status.h takeaddr.h talk.h titlebar.h
+
+OFILES=	addrbook.obj adrbkcmd.obj after.obj alpine.obj arg.obj busy.obj colorconf.obj \
+	confscroll.obj context.obj dispfilt.obj flagmaint.obj folder.obj help.obj \
+	imap.obj init.obj kblock.obj keymenu.obj ldapconf.obj listsel.obj mailcmd.obj \
+	mailindx.obj mailpart.obj mailview.obj pattern.obj pipe.obj \
+	print.obj radio.obj remote.obj reply.obj roleconf.obj \
+	send.obj setup.obj signal.obj status.obj takeaddr.obj titlebar.obj
+
+OURLIBS= ../c-client/cclient.lib osdep/libalpineosd.lib osdep/mswin.res \
+	../pith/osdep/libpithosd.lib ../pith/charconv/libpithcc.lib ../pith/libpith.lib \
+	../pico/osdep/libpicoosd.lib ../pico/libpico.lib
+
+LIBS= $(STDLIBS) $(LDAPLIBS) $(SPELLLIBS) $(OURLIBS) $(EXTRALIBES)
+
+all:	alpine.exe
+
+.c.obj:
+	$(CC) -c $(CFLAGS) $(MAKEDIR)\$*.c
+
+$(OFILES):	$(HFILES)
+
+libalpine.lib:	$(OFILES)
+		$(RM) libalpine.lib || rem
+		$(LIBER) /out:libalpine.lib $(OFILES)
+
+alpine.exe: $(OFILES) $(OURLIBS)
+	..\pico\blddate > bdate.c
+	$(CC) /c $(CFLAGS) bdate.c
+	link /subsystem:windows /entry:wWinMainCRTStartup /out:alpine.exe $(LFLAGS) bdate.obj $(OFILES) $(LIBS)
+
+clean:
+	$(RM) *.lib
+	$(RM) *.obj

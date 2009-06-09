@@ -1,0 +1,230 @@
+*** ./cgi.tcl.in.orig	2006-05-01 11:15:52.000000000 -0700
+--- ./cgi.tcl.in	2006-11-14 16:01:51.000000000 -0800
+***************
+*** 52,58 ****
+  
+      if {[info exists _cgi(http_status_done)]} return
+      set _cgi(http_status_done) 1
+!     puts "Status: $num $str"
+  }
+  
+  # If these are called manually, they automatically generate the extra newline
+--- 52,58 ----
+  
+      if {[info exists _cgi(http_status_done)]} return
+      set _cgi(http_status_done) 1
+!     cgi_puts "Status: $num $str"
+  }
+  
+  # If these are called manually, they automatically generate the extra newline
+***************
+*** 1342,1348 ****
+  	set dbg_filename [file join $_cgi(tmpdir) CGIdbg.[pid]]
+  	# explicitly flush all writes to fout, because sometimes the writer
+  	# can hang and we won't get to the termination code
+! 	set dbg_fout [open $dbg_filename w]
+  	set _cgi(input) $dbg_filename
+  	catch {fconfigure $dbg_fout -translation binary}
+      }
+--- 1342,1348 ----
+  	set dbg_filename [file join $_cgi(tmpdir) CGIdbg.[pid]]
+  	# explicitly flush all writes to fout, because sometimes the writer
+  	# can hang and we won't get to the termination code
+! 	set dbg_fout [open $dbg_filename w $_cgi(tmpperms)]
+  	set _cgi(input) $dbg_filename
+  	catch {fconfigure $dbg_fout -translation binary}
+      }
+***************
+*** 1409,1415 ****
+  
+  	    # read the part into a file
+  	    set foutname [file join $_cgi(tmpdir) CGI[pid].[incr _cgi(file,filecount)]]
+! 	    set fout [open $foutname w]
+  	    # "catch" permits this to work with Tcl 7.4
+  	    catch {fconfigure $fout -translation binary}
+  	    _cgi_set_uservar $varname [list $foutname $filename $conttype]
+--- 1409,1415 ----
+  
+  	    # read the part into a file
+  	    set foutname [file join $_cgi(tmpdir) CGI[pid].[incr _cgi(file,filecount)]]
+! 	    set fout [open $foutname w $_cgi(tmpperms)]
+  	    # "catch" permits this to work with Tcl 7.4
+  	    catch {fconfigure $fout -translation binary}
+  	    _cgi_set_uservar $varname [list $foutname $filename $conttype]
+***************
+*** 1452,1457 ****
+--- 1452,1458 ----
+  	} else {
+  	    # read the part into a variable
+  	    set val ""
++ 	    set blanks 0
+  	    while {1} {
+  		if {-1 == [gets $fin buf]} break
+  		if {[info exists dbg_fout]} {puts $dbg_fout $buf; flush $dbg_fout}
+***************
+*** 1463,1468 ****
+--- 1464,1479 ----
+  		    append val \n
+  		}
+  		regexp (.*)\r$ $buf dummy buf
++ 		if {[info exists blanks]} {
++ 		    if {0!=[string compare $buf ""]} {
++ 			if {$blanks} {
++ 			    append val [string repeat \n [incr blanks]]
++ 			}
++ 			unset blanks
++ 		    } else {
++ 			incr blanks
++ 		    }
++ 		}
+  		append val $buf
+  	    }
+  	    _cgi_set_uservar $varname $val
+***************
+*** 1482,1488 ****
+  	# save file for debugging purposes
+  	set dbg_filename [file join $_cgi(tmpdir) CGIdbg.[pid]]
+  	set _cgi(input) $dbg_filename
+! 	spawn -open [open $dbg_filename w]
+  	set dbg_sid $spawn_id
+      }
+      spawn -open $fin
+--- 1493,1499 ----
+  	# save file for debugging purposes
+  	set dbg_filename [file join $_cgi(tmpdir) CGIdbg.[pid]]
+  	set _cgi(input) $dbg_filename
+! 	spawn -open [open $dbg_filename w $_cgi(tmpperms)]
+  	set dbg_sid $spawn_id
+      }
+      spawn -open $fin
+***************
+*** 1579,1585 ****
+  
+  	    # read the part into a file
+  	    set foutname [file join $_cgi(tmpdir) CGI[pid].[incr _cgi(file,filecount)]]
+! 	    spawn -open [open $foutname w]
+  	    set fout_sid $spawn_id
+  
+  	    _cgi_set_uservar $varname [list $foutname $filename $conttype]
+--- 1590,1596 ----
+  
+  	    # read the part into a file
+  	    set foutname [file join $_cgi(tmpdir) CGI[pid].[incr _cgi(file,filecount)]]
+! 	    spawn -open [open $foutname w $_cgi(tmpperms)]
+  	    set fout_sid $spawn_id
+  
+  	    _cgi_set_uservar $varname [list $foutname $filename $conttype]
+***************
+*** 2187,2202 ****
+  
+      flush $_cgi(mailfid)
+  
+!     if {[file executable /usr/lib/sendmail]} {
+! 	exec /usr/lib/sendmail -t -odb < $_cgi(mailfile)
+! 	# Explanation:
+! 	# -t   means: pick up recipient from body
+! 	# -odb means: deliver in background
+! 	# note: bogus local address cause sendmail to fail immediately
+!     } elseif {[file executable /usr/sbin/sendmail]} {
+! 	exec /usr/sbin/sendmail -t -odb < $_cgi(mailfile)
+! 	# sendmail is in /usr/sbin on some BSD4.4-derived systems.
+!     } else {
+  	# fallback for sites without sendmail
+  
+  	if {0==[info exists _cgi(mail_relay)]} {
+--- 2198,2215 ----
+  
+      flush $_cgi(mailfid)
+  
+!     foreach sendmail in $_cgi(sendmail) {
+! 	if {[file executable $sendmail]} {
+! 	    exec $sendmail -t -odb < $_cgi(mailfile)
+! 	    # Explanation:
+! 	    # -t   means: pick up recipient from body
+! 	    # -odb means: deliver in background
+! 	    # note: bogus local address cause sendmail to fail immediately
+! 	    set sent 1
+! 	}
+!     }
+! 
+!     if {0==[info exists sent]} {
+  	# fallback for sites without sendmail
+  
+  	if {0==[info exists _cgi(mail_relay)]} {
+***************
+*** 2241,2246 ****
+--- 2254,2265 ----
+      set _cgi(mail_relay) $host
+  }
+  
++ proc cgi_sendmail {path} {
++     global _cgi
++ 
++     set _cgi(sendmail) $path
++ }
++ 
+  ##################################################
+  # cookie support
+  ##################################################
+***************
+*** 2416,2422 ****
+  ##################################################
+  
+  proc cgi_stylesheet {href} {
+!     puts "<link rel=stylesheet href=\"$href\" type=\"text/css\"/>"
+  }
+  
+  proc cgi_span {args} {
+--- 2435,2441 ----
+  ##################################################
+  
+  proc cgi_stylesheet {href} {
+!     cgi_puts "<link rel=stylesheet href=\"$href\" type=\"text/css\"/>"
+  }
+  
+  proc cgi_span {args} {
+***************
+*** 2545,2550 ****
+--- 2564,2584 ----
+  }
+  
+  ##################################################
++ # temporary file procedures
++ ##################################################
++ 
++ # set appropriate temporary file modes
++ proc cgi_tmpfile_permissions {{mode ""}} {
++     global _cgi
++ 
++     if {[string length $mode]} {
++ 	set _cgi(tmpperms) $mode
++     }
++ 
++     return $_cgi(tmpperms)
++ }
++ 
++ ##################################################
+  # user-defined procedures
+  ##################################################
+  
+***************
+*** 2604,2615 ****
+--- 2638,2655 ----
+  switch $tcl_platform(platform) {
+      unix {
+  	set _cgi(tmpdir) /tmp
++ 	set _cgi(tmpperms)	0644
++ 	set _cgi(sendmail) [list /usr/lib/sendmail /usr/sbin/sendmail]
+      } macintosh {
+  	set _cgi(tmpdir) [pwd]
++ 	set _cgi(tmpperms)	{}
++ 	set _cgi(sendmail) {}
+      } default {
+  	set _cgi(tmpdir) [pwd]
+  	catch {set _cgi(tmpdir) $env(TMP)}
+  	catch {set _cgi(tmpdir) $env(TEMP)}
++ 	set _cgi(tmpperms)	{}
++ 	set _cgi(sendmail) {}
+      }
+  }
+  

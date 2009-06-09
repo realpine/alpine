@@ -1,0 +1,9 @@
+#!/depot/path/tclsh
+# allow for earlier versions of Tcl that don't define pkg_mkIndex
+if {[catch {pkg_mkIndex . cgi.tcl}]} {
+    set f [open pkgIndex.tcl w]
+    puts $f "error \"please rebuild cgi.tcl with a modern version of Tcl (for package support)\""
+    close $f
+}
+
+    

@@ -1,0 +1,23 @@
+This is the README.UW of the cgi.tcl library as included with the Web
+Alpine distribution.
+
+Web Alpine page generation is based heavily on the routines provided
+by the cgi.tcl library.  It's shown to be a robust and flexible
+platform for generating dynamic web-based content.
+
+This cgi.tcl library as included with the Web Alpine application has
+been slightly modified.  The small changes, which can be found in
+PATCH.UW, amount to a few things:
+
+   1) A hook to allow for temporary file permission setting
+
+   2) A hook to allow for resetting (and specifically, unsetting)
+      the path to sendmail used for error reporting
+
+   3) A few fixes for misdirected output ("puts" --> "cgi_puts")
+
+   4) Change to _cgi_input_multipart to preserve leading 
+      newlines
+
+For comments or questions regarding the Web Alpine application
+send comments to <alpine-contact@cac.washington.edu>

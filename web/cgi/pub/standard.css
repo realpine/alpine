@@ -1,0 +1,45 @@
+TD.nosize       { font-size: 16px }
+DIV.fname	{ font-family: arial, sans-serif; font-size: 10pt }
+.prog		{ font-family: arial, sans-serif ; font-weight: bold ; font-size: 16px ; color: #50056E }
+.title		{ font-family: arial, sans-serif ; color: white }
+.flymenu	{ visibility: hidden; position: absolute; left: 0; top: 0 }
+.flydata	{ font-family: arial, sans-serif ; font-size: 10pt }
+.flydata:hover	{ color: #ff0066 }
+TABLE.flydata	{ xbackground-color: #ffffcc ; background-color: #fefac9 ; border: #006400 2px solid }
+TH.flydata	{ text-align: center ; color: white ; background-color: #006400 }
+HR.flydata	{ color: #006400 }
+A.flydata	{ font-size: 10pt ; text-decoration: none ; color: black }
+.menubar	{ color: white; font-family: arial, sans-serif; font-size: 8pt }
+.menubar:hover	{ color:yellow }
+DIV.menubar	{ position: absolute; visibility: visible; top: 62px; left: 2px; }
+A.menubar	{ color:black; text-decoration:none; font-weight:bold ; height: 16px ; width: 100px ; vertical-align: middle }
+HR.menubar	{ border-top: solid; color: black }
+.body		{ background-color: white }
+input.body	{ color: white; }
+.indexhdr	{ font-family: geneva, arial, sans-serif ; background-color: #bfbfbf ; font-size: 8pt ; color: black }
+.indexsort	{ font-family: geneva, arial, sans-serif ; background-color: #999999 ; font-size: 8pt ; color: white }
+.auth		{ font-family: Arial, Sans-Serif ; font-size: 10pt ; font-weight: bold }
+.extrahdrs	{ background-color: white; display: none }
+.navtext	{ font-family: geneva, arial, sans-serif ; font-size: 9pt }
+.navbar		{ color: white ; font-family: geneva, arial, sans-serif ; font-size: 9pt ; letter-spacing: 0pt }
+FORM		{ margin-bottom: 0px ; margin-top: 0px }
+.statustext	{ color: black ; font-family: geneva, arial, sans-serif ; font-size: 8pt }
+.morestatus	{ color: #ff3333 ; font-size: 10pt ; font-weight : bold }
+.ifakebar	{ visibility: hidden; position: absolute; left: 0; top: 0 }
+.ithumb		{ position: relative }
+.iflags		{ font-family: sans-serif ; color: red }
+.isize		{ font-size: 9pt }
+.notice		{ color: red ; font-weight: bold }
+A.notice	{ color: red }
+.attach		{ visibility: hidden; position: absolute; left: 0; top: 0 }
+.mispell	{ background: #ffcccc ; color: #000000; text-decoration: none }
+.spelltext	{ position: relative }
+.dialog		{ xbackground-color: #ffffcc; background-color: #fefac9 ; font-family: arial, sans-serif ; font-size: 12pt }
+.context	{ background-color: #999999 ; color: black ; font-family: Helvetica, sans-serif ; font-size: 9pt }
+.ops		{ background-color: #666666 ; color: white ; font-family: Helvetica, sans-serif }
+.i0		{ background-color: #eeeeee }
+.i1		{ background-color: #ffffff }
+.cfntc          { color: red; font-size: 8pt }
+.cfval          { font-size: 9pt }
+.cfvn           { font-weight: bold; font-size: 10pt }
+.foldpic	{ background-color: #eeeeee }

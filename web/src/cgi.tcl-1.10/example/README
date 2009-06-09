@@ -1,0 +1,77 @@
+This file is cgi.tcl/README.  It contains brief descriptions of the
+examples in this directory.  You are welcome to send me additional
+scripts.
+
+--------------------
+Instructions on running scripts
+--------------------
+
+The "examples.cgi" script provides a page of clickable links to all
+the other example scripts.  "frame.cgi" is a framed version - it's not
+particularly good looking but it does work and - anyway - I needed a
+frame example!
+
+There are three ways of running these scripts:
+
+1) Point your browser at http://expect.nist.gov/cgi.tcl
+
+2) Run them by hand, such as by typing "tclsh scriptname" at the
+command line.  This is appropriate if you just want to study the raw
+HTML output or see how fast they run.
+
+3) Install them in your own web and run them through your browser.
+(If you're on a UNIX host, the "make examples" target in the Makefile
+fixes up the #! line of each examples and installs them in a public
+demo directory.)  You'll want to edit the example.tcl file to redefine
+cgi_root appropriately.
+
+If you run the examples locally (options 2 and 3):
+
+	- In order to get the submit buttons to take you back to your
+	  site (instead of on to my site!), check the cgi_root call in
+	  example.tcl to point back to your site.
+
+	- Some of these examples may do things that are not portable
+	  and therefore may not run on all systems.  For example, some
+	  of them call "exec".  The "unimail" script assumes the
+	  existence of sendmail through cgi.tcl's built-in mail
+	  support.  See the ../install.win file for more info.
+
+--------------------
+Source files in this directory
+--------------------
+
+	cookie.cgi - demonstrates cookies
+
+	display.cgi - display a CGI script
+
+	error.cgi - demonstrates error handing
+
+	examples.cgi - Provides a page with clickable links to all
+		these examples.
+
+	form-tour.cgi - demonstrates most form elements (Note that these
+		don't do anything - they're just for looks.)
+
+	format-tour.cgi - demonstrates many formats, unrelated to forms
+
+	frame.cgi - a friend's home page that demonstrates frames
+
+	kill.cgi - kill runaway CGI processes
+
+	parray.cgi - displays an array (or the environment by default)
+
+	passwd-form.cgi - creates a form for changing a password
+	passwd.cgi - backend to passwd-form where password is actually changed
+		Note that this script is an Expect script.
+	passwd.tcl - common definitions for passwd*.cgi scripts
+
+	upload.cgi - file upload
+
+	vclock.pl  - Lincoln Stein's virtual clock from CGI.pm paper
+	vclock.cgi - Lincoln Stein's virtual clock (but in Tcl)
+
+	visitor.cgi - implements a visitor counter
+	visitor.cnt - file containing the count
+
+	example.tcl - common definitions for most of the examples

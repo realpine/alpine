@@ -1,0 +1,17 @@
+NAME         PINE
+EXETYPE      WINDOWS
+DESCRIPTION  'PC-Pine for Windows (Character)'
+STUB         'winstub.exe'
+
+CODE         PRELOAD DISCARDABLE SHARED
+DATA         PRELOAD MULTIPLE 
+
+HEAPSIZE     100
+
+EXPORTS
+   PWNDPROC           @1
+   TWWNDPROC	      @2
+   ABOUTDLGPROC	      @3
+
+
+

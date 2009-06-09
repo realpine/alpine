@@ -1,0 +1,101 @@
+# $Id: makefile.lnx 82 2006-07-12 23:36:59Z mikes@u.washington.edu $
+#
+#            T H E    P I N E    M A I L   S Y S T E M
+#
+#   Laurence Lundblade and Mike Seibel
+#   Networks and Distributed Computing
+#   Computing and Communications
+#   University of Washington
+#   Administration Building, AG-44
+#   Seattle, Washington, 98195, USA
+#   Internet: lgl@CAC.Washington.EDU
+#             mikes@CAC.Washington.EDU
+#
+#   Please address all bugs and comments to "pine-bugs@cac.washington.edu"
+#
+#
+#   Pine and Pico are registered trademarks of the University of Washington.
+#   No commercial use of these trademarks may be made without prior written
+#   permission of the University of Washington.
+#
+#   Pine, Pico, and Pilot software and its included text are Copyright
+#   1989-2001 by the University of Washington.
+#
+#   The full text of our legal notices is contained in the file called
+#   CPYRIGHT, included with this distribution.
+#
+#
+#   Pine is in part based on The Elm Mail System:
+#    ***********************************************************************
+#    *  The Elm Mail System  -  Revision: 2.13                             *
+#    *                                                                     *
+#    * 			Copyright (c) 1986, 1987 Dave Taylor               *
+#    * 			Copyright (c) 1988, 1989 USENET Community Trust    *
+#    ***********************************************************************
+#
+#
+
+
+#
+#     Make file for the Pine mail system for Linux.
+#
+#   Most commonly fiddled flags for compiler.
+#   Uncomment the setttings desired here
+#
+RM=          rm -f
+LN=          ln -s
+MAKE=        make
+OPTIMIZE=    # -O2
+PROFILE=     # -pg
+DEBUG=       -g -DDEBUG -DDEBUGJOURNAL
+
+CCLIENTDIR=  ../../c-client
+PICODIR=     ../../pico
+PITHDIR=     ../../pith
+
+# Only need to uncomment next two lines if you run make from this directory
+# and you don't want to supply them as arguments to the make.
+#LDAPLIBS=    ../ldap/libraries/libldap.a ../ldap/libraries/liblber.a
+#LDAPCFLAGS=  -DENABLE_LDAP -I../ldap/include
+# Object files that need to be rebuilt if ENABLE_LDAP gets defined.
+LDAPOFILES=   addrbook.o adrbkcmd.o args.o bldaddr.o init.o \
+	      mailview.o other.o pine.o strings.o takeaddr.o
+
+STDLIBS=     -lncurses
+LOCLIBS=     $(PICODIR)/libpico.a $(CCLIENTDIR)/c-client.a
+LIBS=        $(LOCLIBS) $(LDAPLIBS) $(STDLIBS) \
+             `cat $(CCLIENTDIR)/LDFLAGS`
+
+STDCFLAGS=   -I../../include
+CFLAGS=      $(OPTIMIZE) $(PROFILE) $(DEBUG) $(EXTRACFLAGS) $(LDAPCFLAGS) \
+	     $(LOCALPINECFLAGS) $(STDCFLAGS)
+
+LIBCMD=		ar
+LIBARGS=	ru
+RANLIB=		ranlib
+
+OFILES=	chnge_pw.o debuging.o diskquot.non.o execview.o fltrname.o jobcntrl.o \
+	print.o pw_stuff.o termin.gen.o termin.unx.o termout.gen.o termout.unx.o
+
+HFILES= fltrname.h	\
+	$(PICODIR)/headers.h $(PICODIR)/estruct.h \
+	$(PICODIR)/edef.h $(PICODIR)/efunc.h \
+	$(PICODIR)/pico.h $(PICODIR)/os.h \
+	$(CCLIENTDIR)/mail.h $(CCLIENTDIR)/osdep.h \
+	$(CCLIENTDIR)/rfc822.h $(CCLIENTDIR)/misc.h \
+	$(CCLIENTDIR)/utf8.h $(CCLIENTDIR)/smtp.h \
+	$(CCLIENTDIR)/imap4r1.h $(CCLIENTDIR)/nntp.h \
+	$(PITHDIR)/headers.h \
+	../headers.h ../osdep.h \
+	./debuging.h ./pw_stuff.h
+
+all:	libpineosd.a
+
+libpineosd.a:	$(OFILES)
+		$(LIBCMD) $(LIBARGS) libpineosd.a $(OFILES)
+		$(RANLIB) libpineosd.a
+
+clean:
+	$(RM) libpineosd.a *.o
+
+$(OFILES):						$(HFILES)

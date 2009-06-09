@@ -1,0 +1,8 @@
+#
+# mod_rewrite rules to coerce secure (https) access to underlying pages
+#
+
+AddHandler cgi-script tcl
+
+PubcookieAppId "Webpine"
+PubcookieEndSession redirect

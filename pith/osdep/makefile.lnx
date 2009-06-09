@@ -1,0 +1,95 @@
+# $Id: makefile.lnx 82 2006-07-12 23:36:59Z mikes@u.washington.edu $
+#
+#            T H E    P I N E    M A I L   S Y S T E M
+#
+#   Laurence Lundblade and Mike Seibel
+#   Networks and Distributed Computing
+#   Computing and Communications
+#   University of Washington
+#   Administration Building, AG-44
+#   Seattle, Washington, 98195, USA
+#   Internet: lgl@CAC.Washington.EDU
+#             mikes@CAC.Washington.EDU
+#
+#   Please address all bugs and comments to "pine-bugs@cac.washington.edu"
+#
+#
+#   Pine and Pico are registered trademarks of the University of Washington.
+#   No commercial use of these trademarks may be made without prior written
+#   permission of the University of Washington.
+#
+#   Pine, Pico, and Pilot software and its included text are Copyright
+#   1989-2001 by the University of Washington.
+#
+#   The full text of our legal notices is contained in the file called
+#   CPYRIGHT, included with this distribution.
+#
+#
+#   Pine is in part based on The Elm Mail System:
+#    ***********************************************************************
+#    *  The Elm Mail System  -  Revision: 2.13                             *
+#    *                                                                     *
+#    * 			Copyright (c) 1986, 1987 Dave Taylor               *
+#    * 			Copyright (c) 1988, 1989 USENET Community Trust    *
+#    ***********************************************************************
+#
+#
+
+
+#
+#     Make file for the Pine mail system for Linux.
+#
+#   Most commonly fiddled flags for compiler.
+#   Uncomment the setttings desired here
+#
+RM=          rm -f
+LN=          ln -s
+MAKE=        make
+OPTIMIZE=    # -O2
+PROFILE=     # -pg
+DEBUG=       -g
+
+CCLIENTDIR=  ../../c-client
+PICODIR=     ../../pico
+
+STDLIBS=     -lncurses
+LOCLIBS=     $(PICODIR)/libpico.a $(CCLIENTDIR)/c-client.a
+LIBS=        $(LOCLIBS) $(STDLIBS) \
+             `cat $(CCLIENTDIR)/LDFLAGS`
+
+STDCFLAGS=   -I../../include
+CFLAGS=      $(OPTIMIZE) $(PROFILE) $(DEBUG) $(EXTRACFLAGS) \
+	     $(LOCALPINECFLAGS) $(STDCFLAGS)
+
+LIBCMD=		ar
+LIBARGS=	ru
+RANLIB=		ranlib
+
+OFILES=	bldpath.o canaccess.o canonicl.o collate.o color.o coredump.o \
+	creatdir.o debugtime.o domnames.o err_desc.o fgetpos.o filesize.o \
+	fnexpand.o hostname.o lstcmpnt.o mimedisp.o pipe.o pw_stuff.o \
+	readfile.o rename.o tempfile.o temp_nam.o utf8.o writ_dir.o
+
+HFILES=	../../include/system.h ../../include/config.h ../../include/general.h \
+	bldpath.h canaccess.h canonicl.h collate.h coredump.h creatdir.h debugtime.h \
+	domnames.h err_desc.h fnexpand.h fgetpos.h lstcmpnt.h mimedisp.h pipe.h \
+	tempfile.h temp_nam.h rename.h\
+	$(PICODIR)/headers.h $(PICODIR)/estruct.h \
+	$(PICODIR)/edef.h $(PICODIR)/efunc.h \
+	$(PICODIR)/pico.h $(PICODIR)/os.h \
+	$(CCLIENTDIR)/mail.h $(CCLIENTDIR)/osdep.h \
+	$(CCLIENTDIR)/rfc822.h $(CCLIENTDIR)/misc.h \
+	$(CCLIENTDIR)/utf8.h $(CCLIENTDIR)/smtp.h \
+	$(CCLIENTDIR)/imap4r1.h $(CCLIENTDIR)/nntp.h \
+	../headers.h ../osdep.h
+
+all:	libpithosd.a
+
+libpithosd.a:	$(OFILES)
+		$(LIBCMD) $(LIBARGS) libpithosd.a $(OFILES)
+		$(RANLIB) libpithosd.a
+
+clean:
+	$(RM) libpithosd.a *.o
+
+$(OFILES):						$(HFILES)

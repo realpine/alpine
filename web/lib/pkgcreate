@@ -1,0 +1,3 @@
+#!/usr/bin/tclsh
+# allow for earlier versions of Tcl that don't define pkg_mkIndex
+catch {pkg_mkIndex . cgi.tcl *.so}

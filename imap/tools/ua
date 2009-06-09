@@ -1,0 +1,45 @@
+#!/bin/sh
+
+# ========================================================================
+# Copyright 1988-2006 University of Washington
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# 
+# ========================================================================
+
+BASE=`pwd`
+
+if [ ! -f tools/uahelper ]; then
+  (cd tools;make)
+fi
+
+if [ ! -d $3 ]; then
+ mkdir $3
+fi
+
+for i in $2/Makefile* ; do
+  if [ -f $i ] ; then
+    $1 "$BASE/$i" "$BASE/$3"
+  fi
+done
+
+if [ -f $2/drivers ]; then
+  $1 "$BASE/$2/drivers" "$BASE/$3"
+fi
+
+if [ -f $2/mkauths ]; then
+  $1 "$BASE/$2/mkauths" "$BASE/$3"
+fi
+
+cd $2
+
+for j in *.[ch]; do
+  "$BASE/tools/uahelper" < $j > "$BASE/$3/$j"
+done
+
+exit 0

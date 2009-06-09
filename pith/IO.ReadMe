@@ -1,0 +1,121 @@
+Here's an attempt at a high-level description of the I/O flow and the
+character set conversions for Pine from the UNIX point of view. Pico and
+Pine were developed separately so there is a big difference in the way
+that pine handles stuff and the way the pico composer handles stuff.
+
+INPUT
+
+There's a low-level function called input_ready() that does a select
+or a poll to see if an octet is ready to be read.  Pine's read_char
+and pico's GetKey call this:
+
+   read_char                     Pine
+     check_for_timeout
+       input_ready
+or
+   GetKey                        Pico
+     ReadyForKey
+       input_ready
+
+Once they've decided an octet is ready to be read they use various versions
+of ttgetc (ttgetc, simple_ttgetc, pine_simple_ttgetc) which all boil down
+to a read of one octet from the keyboard. That incoming stream of
+characters is a stream of multi-byte characters. For example, it might
+be ASCII, UTF-8, ISO-8859-1, or EUC-JP. This would usually be configured
+using the LANG or LC_CTYPE environment variables, or possibly using
+the pine Character-Set option. The pith routine mbtow is used to
+convert this stream of bytes into UCS-4 characters in the routine kbseq.
+
+   read_char
+     kbseq          (uses ttgetc to accumulate bytes)
+       mbtow
+or
+   GetKey
+     kbseq          ( " )
+       mbtow
+
+So read_char and GetKey both return UCS-4 characters from the keyboard.
+They actually return a superset of a UCS-4 character (typedef UCS) that
+is 32 bits wide. The superset comes about from the handling of
+escape sequences and error conditions. Besides the 21 bits of UCS-4
+characters other values that might be returned are values like KEY_UP,
+KEY_RESIZE, F1-F12, PF1-PF12, NO_OP_COMMAND, NO_OP_IDLE, BADESC, KEY_JUNK,
+and NODATA. The way that read_char and GetKey work are slightly differnt
+from each other. GetKey has some special bits (CTRL, FUNC, MENU) that
+it might OR together with a character and some of the return values
+are possible in only one or the other function.
+
+Pico is internally UCS-4. A CELL contains one character.
+Pine, on the other hand, uses UTF-8 internally. The input from read_char
+is read by read_command, radio_buttons, and optionally_enter and is
+then converted to UTF-8 before it is used internally in pine.
+
+OUTPUT
+
+All pine output to the display funnels through Writechar. The input to
+Writechar is a stream of UTF-8 characters which are then converted to
+the display's multi-byte character stream using c-client's utf8_get
+to convert it to UCS-4 and then wtomb to convert to the multi-byte
+representation.
+The similar function in pico is ttputc (also known as t_putchar) which
+takes an incoming stream of UCS-4 characters and converts it to multi-byte
+characters for the display.
+
+
+
+
+CHARACTER SET CONVERSIONS
+
+Here is a simplified version of the complicated character set conversions
+going on.
+
+    ----------                          |--read_char
+   | Keyboard |-ttgetc->-mbtow->-kbseq->|              (UCS-4)
+    ----------         (to UCS-4)       |--GetKey
+
+
+              |--optionally_enter               -------------- 
+   read_char->|--read_command    ------------> | Pine internal|
+              |--radio_buttons    (to UTF-8)   |    UTF-8     |
+                                                -------------- 
+or
+              |--pico
+              |--LineEdit                       ---------- 
+      GetKey->|--mlyesno         ------------> | Composer |
+              |--mlreplyd                      |  UCS-4   |
+              |--FileBrowse                     ---------- 
+
+
+    --------------                               ---------- 
+   | Pine internal| <-------pico_readc--------- | Composer |
+   |    UTF-8     | --------pico_writec-------> |  UCS-4   |
+    --------------                               ---------- 
+
+
+    --------------                                   --------- 
+   | Pine internal| -Writechar->-utf8_get->-wtomb-> | Display |
+   |    UTF-8     |                                 |  (LANG) |
+    --------------                                   --------- 
+
+    ----------                                   ---------
+   | Composer | ---pputc-->ttputc->-----wtomb-> | Display |
+   |  UCS-4   |                                 |  (LANG) |
+    ----------                                   ---------
+
+
+   ----------------                                   -----------
+   | Pine internal| <-decode_text--------<-c-client- | MailStore |
+   |    UTF-8     |   get_body_part_text             |           |
+   ----------------                                   -----------
+
+
+   ----------------                              ------------
+   | Pine internal| <-------------------------- | FileSystem |
+   |    UTF-8     | --------------------------> |            |
+   ----------------  see flags READ_FROM_LOCALE  ------------
+                        and WRITE_TO_LOCALE
+
+    ----------                                   ------------
+   | Composer | <--------ffgetline------------- | FileSystem |
+   |  UCS-4   | ---------ffputline------------> |            |
+    ----------                                   ------------

@@ -1,0 +1,71 @@
+This is the README file that is part of the Web Alpine Application
+distributed with the Alpine Mail System.
+
+
+WEB ALPINE 1.0
+--------------
+
+Web Alpine is the web-based component of the Alpine Mail System.
+It's based on the same distributed email technology behind 
+Alpine, but is accessible from almost any browser on the 
+World Wide Web.
+
+Web Alpine uses TCL to provide the programmatic interface between
+the Alpine-provided message store and the cgi-served web pages.
+
+
+REQUIRED SOFTWARE
+-----------------
+
+  Base system:
+	C compiler
+	Tcl scripting package and development tools
+	OpenSSL
+	Apache web server (though, presumably any CGI supporting
+	                   web server should work)
+
+  Optional:
+	ispell application
+	  Used to support composer spell check functinoality.
+	  Featured not offered if ispell not present.
+
+	openLDAP
+	  Provides LDAP query services to support login
+	  personalization and user-session LDAP query support.
+
+	UW Pubcookie
+	  Provides central web-login management.  Note, additional
+	  configuration and installation steps are required.  See
+	  src/pubcookie/INSTALL for specific instructions.
+
+	Kerberos 5
+	  Required by UW-Pubcookie to provide authentication and
+	  proxy authorization for IMAP server access.  Proxy
+	  authentication only tested under UW imapd.
+
+ 
+
+BUILING AND INSTALLING WEB ALPINE
+---------------------------------
+
+See the INSTALL file for basic instructions.
+
+
+DOCUMENTATION
+-------------
+
+User documentation is contained within the application and is
+reasonably complete.  Technical documentation is extremely rough and
+likely unsatisfying.  It's probably worth reading, but ultimately
+configuration or other questions are best answered by reviewing the
+source (which itself, while working reasonably, is pretty spotilly
+documented as well).
+
+
+SUPPORT AND FEEDBACK
+--------------------
+
+Send comments and questions to <alpine-contact@cac.washington.edu>.
+
+
+--

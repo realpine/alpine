@@ -1,0 +1,86 @@
+#line 2 "osdep/execview.win"
+/*----------------------------------------------------------------------
+    Routine to execute command mailcap says is used to display MIME segment
+    under MS-Windows
+
+ The exported routine is:
+
+    exec_mailcap_cmd -- 
+
+ ----*/
+
+
+/* ----------------------------------------------------------------------
+   Execute the given 
+
+  Args: cmd -- 
+	image_file --
+  
+     
+  ----*/
+
+struct LOADPARMS {
+    WORD	segEnv;
+    LPSTR	lpszCmdLine;
+    LPWORD	lpwShow;
+    LPWORD	lpwReserved;
+};
+
+void
+exec_mailcap_cmd(cmd, image_file, needsterminal)
+    char *cmd;
+    char *image_file;
+    int   needsterminal; /* not used in Windows */
+{
+    UINT	rc;
+    WINHAND	hTask;
+    int		delFail;
+
+    dprint(9, (debugfile, "run_viewer: command=%s\n", cmd ? cmd : "?")) ;
+
+    cancel_busy_alarm(1);
+
+    if((rc = WinExec (cmd, SW_SHOW)) < 32){
+	unlink(image_file);
+	q_status_message2(SM_ORDER, 3, 4, "\007Can't start viewer. %s%s.",
+		(rc == 2 || rc == 3) ? "Viewer not found:  " :
+		  (rc == 8) ? "Not enough memory" : "Windows error ",
+		(rc == 2 || rc == 3) ? cmd :
+		  (rc == 8) ? "" : int2string(rc));
+    }
+    else {
+	q_status_message(SM_ORDER, 0, 4, "VIEWER command completed");
+
+    	/* Arrange to have the file deleted when the viewer exits.  But
+	 * if that fails, tell the user. */
+    	delFail = TRUE;
+	dprint (3, (debugfile, "WinExec returns x%x\n", rc));
+	hTask = mswin_inst2task (rc);
+	if (hTask != 0) {
+	    rc = mswin_ontask_del (hTask, image_file);
+	    if (rc == 0)
+	        delFail = FALSE;
+	}
+	if (delFail)
+	   q_status_message1(SM_ORDER, 0, 4,
+	       "Temp file %s created, but not deleted", image_file);
+
+    }
+}
+
+
+/* ----------------------------------------------------------------------
+   Execute the given test= cmd
+
+  Args: cmd -- command to execute
+  Returns exit status
+  
+  ----*/
+int
+exec_mailcap_test_cmd(cmd)
+    char *cmd;
+{
+    return((WinExec(cmd, SW_SHOWMINNOACTIVE) < 32) ? 1 : 0);
+}
+
+

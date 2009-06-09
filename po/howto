@@ -1,0 +1,27 @@
+xgettext -d alpine -c --keyword=_ --keyword=N_ -o po/alpine.pot	\
+   alpine/*.[ch] pith/*.[ch] pico/*.[ch]			\
+   alpine/osdep/*.[ch] pith/osdep/*.[ch] pith/charconv/*.[ch]	\
+   pico/osdep/*.[ch]
+
+Usually a translator would do msginit or msgmerge, I think...
+
+Either,
+  msginit -l ja_JP -i po/alpine.pot -o po/ja.po
+
+(or maybe msgmerge if trying to preserve old translations)
+  msgmerge -o po/ja.po po/ja.po po/alpine.pot
+
+Edit po/ja.po to add translations, then
+
+Probably this would get saved in po/ja/LC_MESSAGES/ja.po, I suppose.
+I was putting it here while testing. See the bindtextdomain call
+in pine/pine.c
+
+msgfmt -c -v -o locale/ja/LC_MESSAGES/alpine.mo po/ja.po
+
+NOTE: I had trouble getting ngettext to work correctly. Maybe I
+didn't understand exactly how it was supposed to get set up.
+It is also a GNU-only extension as far as I can tell. Another
+problem with ngettext is that when ENABLE_NLS is not defined
+the English text will not be correct. So let's not use ngettext
+for now.

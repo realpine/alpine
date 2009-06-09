@@ -1,0 +1,134 @@
+#!/usr/local/bin/perl
+#################################################
+#pnuts version 0.4  part of the WN server package
+#################################################
+# for more info, see http://hopf.math.nwu.edu/docs/utility.html#pnuts
+# Modified by Stefan Kramer for use with Pine Technical Notes
+# Last modified on 1995 Nov. 02
+
+
+require "getopts.pl";
+
+# Edit to specify what should appear as text of navigation bar.  Note:
+# If the HTML files processed by PNUTS will be converted to plain-text files,
+# the PNUTS-generated link text will probably be stripped out, so this 
+# text should be unique (i.e., not expected to occur elsewhere in text).
+
+# This is the original link appearance, without graphic buttons
+# $prevw="<b>Previous</b>";
+# $nextw="<b>Next</b>";
+# $upw="<b>Up one level</b>";
+# $topw="<b>Table of Contents</b>";
+# $searchw="<b>Search</b>";
+# $indexw="<b>Index</b>";
+
+$prevw='<IMG SRC="../graphics/BPprev.gif" ALT="[Previous]">';
+$nextw='<IMG SRC="../graphics/BPnext.gif" ALT="[Next]">';
+$upw=''; # not needed and don't have a graphic for UP
+$topw='<IMG SRC="../graphics/BPtoc.gif" ALT="[Table of Contents]">';
+$searchw='<IMG SRC="../graphics/BPsearch.gif" ALT="[Search]">';
+$indexw=''; # no index here and no graphic for it
+
+
+
+$VERSION = "0.4";
+
+	&Getopts('s:i:');
+	$search = $opt_s if $opt_s ne "";
+	$index = $opt_i if $opt_i ne "";
+
+	$file = shift;
+	$marker = "<!-- pnuts -->";
+
+
+	open( LIST, "<$file") || die "Can't open file: $!";
+
+
+	$nextfile = <LIST>;
+	print $nextfile;
+	chop( $nextfile);
+	$top = $nextfile;
+
+	while ( &getnextfile() ) {
+		$curcopy = $currentfile."~";
+
+		rename( $currentfile, $curcopy)
+			|| die "Can't rename file: $currentfile";
+		open( OLDCURR, "<$curcopy" ) || die "Can't open file: $!";
+		open( NEWCURR, ">$currentfile" ) || die "Can't open file: $!";
+		while ( $line = <OLDCURR>) {
+			if ( $line =~ "^$marker") {
+				&pnutline();
+			}
+			else {
+				print NEWCURR $line;
+			}
+		}
+		close( OLDCURR);
+		close( NEWCURR);
+	}
+
+
+close( LIST);
+exit(0);
+
+sub pnutline {
+	printf( NEWCURR  "$marker");
+	printf( NEWCURR "<P><HR>");
+	if ( $previous ) {
+		printf( NEWCURR " <a href=\"%s\">$prevw</a>", $previous);
+	}
+	if ( $nextfile ) {
+		printf( NEWCURR  " <a href=\"%s\">$nextw</a>", $nextfile);
+	}
+	if ( $up[$curlevel - 1] ) {
+		printf( NEWCURR  " <a href=\"%s\">$upw</a>",
+				$up[$curlevel-1]);
+	}
+	if ( $top && ( $top ne $currentfile) ) {
+		printf( NEWCURR  " <a href=\"%s\">$topw</a>", $top);
+	}
+	if ( $search ) {
+		printf( NEWCURR  " <a href=\"%s\">$searchw</a>", $search);
+	}
+	if ( $index ) {
+		printf( NEWCURR  " <a href=\"%s\">$indexw</a>", $index);
+	}
+	printf( NEWCURR "\n");
+}
+
+sub getnextfile {
+	if ( $nextfile eq "") {
+		return 0;
+	}
+	$previous = $currentfile;
+	$up[$curlevel] = $currentfile;
+
+	$currentfile = $nextfile;
+	while ( 1 ) {
+		($nextfile = <LIST>) || ($nextfile = "");
+		$nextfile =~ s/(\t*)//;
+		last if $nextfile eq "";
+		print $nextfile;
+		chop( $nextfile);
+		if ( -d $nextfile ) {
+			print "$nextfile is directory, ignoring it\n";
+			next;
+		}
+		last;
+	}
+	$curlevel = $nextlevel;
+	$nextlevel = length( $1);
+	return 1;
+}
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,28 @@
+
+DirectoryIndex greeting.tcl
+
+#
+# mod_rewrite rules to coerce secure (https) access to underlying pages
+#
+
+RewriteEngine on
+
+#
+# If the server's connecting port isn't secure (https), then
+# redirect request to same location but such that the communication
+# is secure.  NOTE: this isn't as secure as turning off the unsecure
+# port because any confidential information in the request is exposed
+# in the unsuspecting request on the unsecure port.  Shouldn't really
+# be a problem since the secure content should only contain secure
+# references and the likelihood that a client mucks with the url into
+# a reference to secure content is pretty darn small.
+#
+
+RewriteCond %{SERVER_PORT} !=5131
+
+#
+# Include SCRIPT_URL incase webpine package isn't in the
+# root of the server's data
+#
+RewriteRule .* https://%{SERVER_NAME}:5131%{REQUEST_URI} [R=permanent,L]
+

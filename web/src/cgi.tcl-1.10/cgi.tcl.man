@@ -1,0 +1,36 @@
+.TH CGI.TCL 3 "12 December 1995"
+.SH NAME
+cgi.tcl \- procedures for CGI scripting in Tcl
+.SH DESCRIPTION
+
+These routines implement the code described in the paper "Writing CGI
+scripts in Tcl" which appeared in the Tcl '96 conference.
+
+This man page is really just a placeholder.  See the README for more
+info.
+
+.SH SYNOPSIS
+.nf
+
+source cgi.tcl
+
+more to come...
+
+.fi
+No attempt is made to explain all aspects of the code.  The paper is
+the right way to get started.  After that, read the code \- the code
+really is quite straightforward.  Feel free to make changes to it.
+Experiment.  No claims of completeness are made.  (In fact, I can
+assure you that there are missing pieces - there are things in CGI
+that I find utterly useless so I didn't bother to support them.)
+
+More to come...
+
+.SH SEE ALSO
+.SH AUTHOR
+Don Libes, libes@nist.gov, National Institute of Standards and Technology
+.SH ACKNOWLEDGEMENTS
+Design and implementation of the this software was paid for by the
+U.S. government and is therefore in the public domain.  However the
+author and NIST would like credit if this program and documentation or
+portions of them are used.

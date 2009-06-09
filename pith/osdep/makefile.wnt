@@ -1,0 +1,65 @@
+# $Id: makefile.wnt 14098 2005-10-03 18:54:13Z jpf@u.washington.edu $
+#
+# ========================================================================
+# Copyright 2006 University of Washington
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# ========================================================================
+
+#
+#
+# Makefile for WIN NT version of the libpith.lib
+#
+#
+CC=cl
+RM=del
+CP=copy 
+RC=rc
+
+#includes symbol info for debugging 
+CDEBUG= #-Zi -Od
+LDEBUG= /DEBUG /DEBUGTYPE:CV
+
+STDCFLAGS= -I..\..\include -nologo -MT -DWIN32 -DDOS -D_WINDOWS -DJOB_CONTROL -DMSC_MALLOC
+
+CFLAGS=	$(CDEBUG) $(STDCFLAGS) $(NET) $(EXTRACFLAGS)
+
+LFLAGS= $(LDEBUG) $(EXTRALDFLAGS)
+
+RCFLAGS =
+
+LIBER=lib
+LIBARGS=/nologo /verbose
+
+HFILES=	../../include/system.h ../../include/general.h \
+	bldpath.h canaccess.h canonicl.h collate.h color.h coredump.h \
+	creatdir.h debugtime.h domnames.h err_desc.h fgetpos.h filesize.h \
+	fnexpand.h forkwait.h hostname.h lstcmpnt.h mimedisp.h pipe.h \
+	pithosd.h pw_stuff.h rename.h tempfile.h temp_nam.h \
+	writ_dir.h
+
+OFILES=	bldpath.obj canaccess.obj canonicl.obj collate.obj color.obj coredump.obj \
+	creatdir.obj debugtime.obj domnames.obj err_desc.obj fgetpos.obj filesize.obj \
+	fnexpand.obj hostname.obj lstcmpnt.obj mimedisp.obj pipe.obj \
+	pw_stuff.obj rename.obj tempfile.obj temp_nam.obj \
+	writ_dir.obj
+
+all:		libpithosd.lib
+
+.c.obj:
+	$(CC) -c $(CFLAGS) $(MAKEDIR)\$*.c
+
+$(OFILES):	$(HFILES)
+
+libpithosd.lib:	$(OFILES)
+		$(RM) libpithosd.lib || rem
+		$(LIBER) /out:libpithosd.lib $(OFILES)
+
+clean:
+	$(RM) *.lib
+	$(RM) *.obj

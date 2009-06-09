@@ -1,0 +1,1097 @@
+dnl Process this file with autoconf to produce a configure script.
+
+dnl /* ========================================================================
+dnl  * Copyright 2006 University of Washington
+dnl  *
+dnl  * Licensed under the Apache License, Version 2.0 (the "License");
+dnl  * you may not use this file except in compliance with the License.
+dnl  * You may obtain a copy of the License at
+dnl  *
+dnl  *     http://www.apache.org/licenses/LICENSE-2.0
+dnl  *
+dnl  * ========================================================================
+dnl  */
+
+AC_PREREQ([2.57])
+
+AC_REVISION([$Id: configure.ac 190 2006-10-18 21:33:25Z mikes@u.washington.edu $])
+
+dnl Alpine Version Number is in $srcdir/VERSION
+AC_INIT(alpine, m4_normalize(m4_include([VERSION])), [alpine-contact@cac.washington.edu])
+
+AC_CONFIG_SRCDIR([include/system.h])
+AC_CONFIG_HEADERS([include/config.h])
+
+AM_INIT_AUTOMAKE([foreign nostdinc])
+
+AC_CANONICAL_HOST
+
+AC_LANG(C)
+
+AC_MSG_NOTICE([Configuring for $PACKAGE_STRING ($host))])
+
+# start out with intent to build Web Alpine
+WEB_BUILD=web/src/alpined.d
+
+dnl COMPILE-TIME OPTIONS
+
+AM_GNU_GETTEXT([external])
+
+dnl enable dmalloc per http://dmalloc.com
+dnl NOTE: does not check c-client
+AC_MSG_CHECKING([option: dmalloc enabled])
+AC_ARG_ENABLE(dmalloc, AC_HELP_STRING([--enable-dmalloc],[Enable dmalloc debugging]))
+if test x$enable_dmalloc = "xyes" ; then
+  AC_MSG_RESULT([yes])
+else
+  AC_MSG_RESULT([no])
+fi
+
+AC_ARG_WITH(dmalloc-dir,
+  AC_HELP_STRING([--with-dmalloc-dir=DIR], [Root of dmalloc lib/include path]),
+  [
+    if test "x$withval" != "xno" ; then
+      enable_dmalloc = "yes"
+      CPPFLAGS="$CPPFLAGS -I${withval}"
+      LDFLAGS="$LDFLAGS -L${withval}"
+    fi
+  ])
+
+if test x$enable_dmalloc = "xyes" ; then
+  AC_DEFINE(ENABLE_DMALLOC, 1, [Define enable dmalloc debugging])
+fi
+
+localedir="\${datadir}/locale"
+AC_ARG_WITH(localedir,
+  AC_HELP_STRING([--with-localedir=DIR], [Name of gettext locale directory]),
+  [
+    if test "x$withval" != "xno" ; then
+      localedir=$withval
+    fi
+  ])
+AC_SUBST(localedir, "[$localedir]")
+
+AC_ARG_WITH(pubcookie,
+  AC_HELP_STRING([--with-pubcookie], [Include support for UW-Pubcookie Web Authentication]),
+  [
+    if test "x$withval" != "xno" ; then
+      WEB_PUBCOOKIE_BUILD=web/src/pubcookie
+    fi
+  ])
+
+dnl disable debug, turned on by default
+AC_MSG_CHECKING([option: debugging is enabled])
+AC_ARG_ENABLE(debug, AC_HELP_STRING([--disable-debug],[Exclude debug messages from source]))
+if test x$enable_debug != "xno" ; then
+  AM_CFLAGS="$AM_CFLAGS -g"
+  AC_DEFINE([DEBUG], [1], [Compile in debugging])
+  AC_DEFINE([DEBUGJOURNAL], [1], [Display debug messages in journal])
+  AC_MSG_RESULT([yes])
+else
+dnl ??? set AM_CFLAGS to optimize ???
+  AC_MSG_RESULT([no])
+fi
+
+dnl disable optimization, on by default
+AC_MSG_CHECKING([option: optimization is enabled])
+AC_ARG_ENABLE(optimization, AC_HELP_STRING([--disable-optimization],[Exclude optimizig compiler flags]))
+if test x$enable_optimization != "xno" ; then
+  AC_MSG_RESULT([yes])
+else
+  CFLAGS="`echo $CFLAGS | sed -e 's/-O2//'`"
+  AC_MSG_RESULT([no])
+fi
+
+dnl disable mouse support
+AC_MSG_CHECKING([option: mouse support enabled])
+AC_ARG_ENABLE(mouse, AC_HELP_STRING([--disable-mouse], [Disable mouse support]))
+if test x$enable_mouse != "xno" ; then
+  AC_DEFINE([MOUSE], [], [Compile in mouse support])
+  AC_MSG_RESULT([yes])
+else
+   AC_MSG_RESULT([no])
+fi
+
+dnl enable quotas
+AC_MSG_CHECKING([option: quotas enabled])
+AC_ARG_ENABLE(quotas, AC_HELP_STRING([--enable-quotas],[Enable disk quota checking on startup]))
+if test x$enable_quotas = "xyes" ; then
+  AC_DEFINE([USE_QUOTAS], [], [Compile in quota check on startup])
+  AC_MSG_RESULT([yes])
+else
+   AC_MSG_RESULT([no])
+fi
+
+AC_MSG_CHECKING([option: From changing enabled])
+AC_ARG_ENABLE(from_changing, AC_HELP_STRING([--disable-from-changing],[Disallow users changing From addresss]))
+if test x$enable_from_changing != "xno" ; then
+  AC_MSG_RESULT([yes])
+else
+  AC_DEFINE([NEVER_ALLOW_CHANGING_FROM], [], [Disallow users changing their From address])
+  AC_MSG_RESULT([no])
+fi
+
+dnl enable background posting support
+AC_MSG_CHECKING([option: background post enabled])
+AC_ARG_ENABLE(background_post, AC_HELP_STRING([--disable-background-post],[Disable background posting]))
+if test x$background_post != "xno" ; then
+  AC_DEFINE([BACKGROUND_POST], [], [Enable background posting support])
+  AC_MSG_RESULT([yes])
+else
+    AC_MSG_RESULT([no])
+fi
+
+dnl enable keyboard locking support
+AC_MSG_CHECKING([option: keyboard lock enabled])
+AC_ARG_ENABLE(keyboard_lock, AC_HELP_STRING([--disable-keyboard-lock],[Disable keyboard locking]))
+if test x$keyboard_lock != "xno" ; then
+  AC_MSG_RESULT([yes])
+else
+  AC_DEFINE([NO_KEYBOARD_LOCK], [], [Disable keyboard lock support])
+  AC_MSG_RESULT([no])
+fi
+
+dnl enable from encoding support
+AC_MSG_CHECKING([option: from encoding enabled])
+AC_ARG_ENABLE(from_encoding, AC_HELP_STRING([--enable-from-encoding],[Enable From encoding in sent messages]))
+if test x$from_encoding = "xyes" ; then
+  AC_DEFINE([ENCODE_FROMS], [], [Enable From address encoding in sent messages])
+  AC_MSG_RESULT([yes])
+else
+  AC_MSG_RESULT([no])
+fi
+
+dnl OPTION: name of local submission agent
+dnl         Might not be sendmail, but it MUST speak SMTP on stdin/stdout
+AC_ARG_WITH(smtp-msa,
+  AC_HELP_STRING([--with-smtp-msa=PATH],[Local Mail Submission Agent (sendmail)]),
+    [
+      case "$withval" in
+	no)
+	  ;;
+	yes)
+	  AC_PATH_PROG(SENDMAIL, sendmail, "", $PATH:/usr/sbin:/usr/lib)
+	  ;;
+	*)
+	  SENDMAIL=$withval
+	  ;;
+      esac
+    ],
+    [
+	  AC_PATH_PROG(SENDMAIL, sendmail, "", $PATH:/usr/sbin:/usr/lib)
+    ])
+if test -n "$SENDMAIL" ; then
+    AC_DEFINE_UNQUOTED([SENDMAIL], "$SENDMAIL", [Local mail submission agent])
+fi
+
+dnl OPTION: local msa arguments
+smtp_msa_flags="-bs -odb -oem"
+AC_ARG_WITH(smtp-msa-flags,
+  AC_HELP_STRING([--with-smtp-msa-flags=FLAGS],[MSA flags for SMTP on stdin/stdout (-bs -odb -oem)]),
+  [
+    if test "x$withval" != "xno" ; then
+      smtp_msa_flags=$withval
+    fi
+  ])
+AC_DEFINE_UNQUOTED([SENDMAILFLAGS], "$smtp_msa_flags", [Local MSA flags for SMTP on stdin/stdout])
+
+dnl OPTION: name of local news posting agent and flags
+npa="inews"
+AC_ARG_WITH(npa,
+  AC_HELP_STRING([--with-npa=PATH],[Posting agent when no nntp-servers defined (inews)]),
+    [
+      case "$withval" in
+	no)
+	  ;;
+	yes)
+	  AC_PATH_PROG(NPA_PROG, inews, "", $PATH:/usr/sbin:/usr/lib)
+	  ;;
+	*)
+	  NPA_PROG=$withval
+	  ;;
+      esac
+    ],
+    [
+	  AC_PATH_PROG(NPA_PROG, inews, "", $PATH:/usr/sbin:/usr/lib)
+    ])
+
+npa_flags="-h"
+AC_ARG_WITH(npa-flags,
+  AC_HELP_STRING([--with-npa-flags=FLAGS],[Flags to allow posting via local agent (-h)]),
+  [
+    if test "x$withval" != "xno" ; then
+      npa_flags=$withval
+    fi
+  ])
+if test -n "$NPA_PROG" ; then
+  AC_DEFINE_UNQUOTED([SENDNEWS], "$NPA_PROG $npa_flags", [Posting agent to use when no nntp-servers defined])
+fi
+
+dnl OPTION: password changing program
+AC_ARG_WITH(password-prog,
+  AC_HELP_STRING([--with-password-prog=PATH],[Password change program (/bin/passwd)]),
+    [
+      case "$withval" in
+	no)
+	  ;;
+	yes)
+	  AC_PATH_PROG(PWPROG, passwd, "", $PATH:/usr/sbin:/usr/lib)
+	  ;;
+	*)
+	  AC_PATH_PROG(PWPROG, $withval, "", $PATH:/usr/sbin:/usr/lib)
+	  ;;
+      esac
+    ],
+    [
+	  AC_PATH_PROG(PWPROG, passwd, "", $PATH:/usr/sbin:/usr/lib)
+    ])
+if test -n "$PWPROG" ; then
+    AC_DEFINE_UNQUOTED([PASSWD_PROG], "$PWPROG", [Program users use to change their password])
+fi
+
+dnl OPTION: spell checking program
+AC_ARG_WITH(spellcheck-prog,
+  AC_HELP_STRING([--with-spellcheck-prog=PATH],[Spell checking program (spell)]),
+    [
+      case "$withval" in
+	no)
+	  ;;
+	yes)
+	  AC_PATH_PROG(SPELLPROG, spell, "", $PATH:/usr/sbin:/usr/lib)
+	  ;;
+	*)
+	  AC_PATH_PROG(SPELLPROG, $withval, "", $PATH:/usr/sbin:/usr/lib)
+	  ;;
+      esac
+    ],
+    [
+	  AC_PATH_PROG(SPELLPROG, spell, "", $PATH:/usr/sbin:/usr/lib)
+    ])
+if test -n "$SPELLPROG" ; then
+    AC_DEFINE_UNQUOTED([SPELLER], "$SPELLPROG", [Program pico uses to check spelling])
+fi
+
+dnl Function to simplify setting alpine/pico defaults
+dnl usage: PINEVAR(configure-name, definition-name, definition-value, help)
+AC_DEFUN([PINEVAR],
+  [
+    dpv=$3
+    AC_ARG_WITH($1,
+      AC_HELP_STRING(--with-$1=VALUE, [$4 ($3)]),
+      [
+	if test "x$withval" != "xno" ; then
+	  dpv=$withval
+	fi
+      ])
+    AC_DEFINE_UNQUOTED($2, "$dpv", [Default configuration value])
+  ])
+
+dnl Function to simplify setting pine/pico defaults
+dnl usage: PINEVAR_UNQUOTED(configure-name, definition-name, definition-value, help)
+AC_DEFUN([PINEVAR_UNQUOTED],
+  [
+    dpv=$3
+    AC_ARG_WITH($1,
+      AC_HELP_STRING(--with-$1=VALUE, [$4 ($3)]),
+      [
+	if test "x$withval" != "xno" ; then
+	  dpv=$withval
+	fi
+      ])
+    AC_DEFINE_UNQUOTED($2, $dpv, [Default configuration value])
+  ])
+
+PINEVAR(mailcheck-interval, DF_MAILCHECK, 150, [Specify default mail-check-interval])
+PINEVAR_UNQUOTED(checkpoint-interval, CHECK_POINT_TIME, 420, [Specify default checkpoint-interval])
+PINEVAR_UNQUOTED(checkpoint-frequency, CHECK_POINT_FREQ, 12, [State change count before checkpoint])
+PINEVAR_UNQUOTED(display-rows, DEFAULT_LINES_ON_TERMINAL, 24, [Initial rows on display])
+PINEVAR_UNQUOTED(display-columns, DEFAULT_COLUMNS_ON_TERMINAL, 80, [Initial columns on display])
+PINEVAR_UNQUOTED(max-display-rows, MAX_SCREEN_ROWS, 200, [Maximum display rows])
+PINEVAR_UNQUOTED(max-display-columns, MAX_SCREEN_COLS, 170, [Maximum display columns])
+PINEVAR(fill-column, DF_FILLCOL, 74, [Default fill column])
+PINEVAR_UNQUOTED(max_fill-column, MAX_FILLCOL, 80, [Maximum fill column])
+PINEVAR_UNQUOTED(debug-level, DEFAULT_DEBUG, 2, [Specify default debug verbosity level])
+PINEVAR_UNQUOTED(debug-files, NUMDEBUGFILES, 4, [Specify number of debug files])
+PINEVAR(debug-file, DEBUGFILE, [.pine-debug], [Specify debug file name])
+PINEVAR(system-pinerc,SYSTEM_PINERC, [/usr/local/lib/pine.conf], [System pinerc])
+PINEVAR(system-fixed-pinerc, SYSTEM_PINERC_FIXED, [/usr/local/lib/pine.conf.fixed], [System fixed pinerc])
+PINEVAR(display-overlap, DF_OVERLAP, [2], [Lines preserved while paging])
+PINEVAR(display-margin, DF_MARGIN, [0], [Lines visible while scrolling])
+PINEVAR(default-fcc, DF_DEFAULT_FCC, [sent-mail], [Default sent mail folder])
+PINEVAR(default-save-folder, DEFAULT_SAVE, [saved-messages], [Default save folder])
+PINEVAR(default-legacy-postponed-folder, POSTPONED_MAIL, [postponed-mail], [Pre Pine 3.90 postponed folder])
+PINEVAR(default-postponed-folder, POSTPONED_MSGS, [postponed-msgs], [Default postponed folder])
+PINEVAR(default-interrupted-mail, INTERRUPTED_MAIL, [.pine-interrupted-mail], [Default folder for interrupted mail])
+PINEVAR(default-dead-letter-folder, DEADLETTER, [dead.letter], [Default dead letter folder])
+PINEVAR(default-mail-directory, DF_MAIL_DIRECTORY, [mail], [Default mail directory])
+PINEVAR(default-inbox-name, INBOX_NAME, [INBOX], [Default inbox name])
+PINEVAR(default-signature-file, DF_SIGNATURE_FILE, [.signature], [Default signature file])
+PINEVAR(default-elm-style-save, DF_ELM_STYLE_SAVE, [no], [Default to Elm style save])
+PINEVAR(default-header-in-reply, DF_HEADER_IN_REPLY, [no], [Include header in reply])
+PINEVAR(default-old-style-reply, DF_OLD_STYLE_REPLY, [no], [Default to old style reply])
+PINEVAR(default-use-only-domain-name, DF_USE_ONLY_DOMAIN_NAME, [no], [Default to using only the domain name])
+PINEVAR(default-save-by-sender, DF_SAVE_BY_SENDER, [no], [Default to save by sender])
+PINEVAR(default-sort-key, DF_SORT_KEY, [arrival], [Default sort key])
+PINEVAR(default-addressbook-sort-rule, DF_AB_SORT_RULE, [fullname-with-lists-last], [Default addressbook sort rule])
+PINEVAR(default-folder-sort-rule, DF_FLD_SORT_RULE, [alphabetical], [Default folder sort rule])
+PINEVAR(default-saved-message-name-rule, DF_SAVED_MSG_NAME_RULE, [default-folder], [Default saved message name rule])
+PINEVAR(default-fcc-rule, DF_FCC_RULE, [default-fcc], [Default fcc rule])
+PINEVAR(default-standard-printer, DF_STANDARD_PRINTER, [lpr], [Default standard printern])
+PINEVAR(default-ansi-printer, ANSI_PRINTER, [attached-to-ansi], [ANSI printer definition])
+PINEVAR(default-addressbook, DF_ADDRESSBOOK, [.addressbook], [Default addressbook name])
+PINEVAR(default-local-fullname, DF_LOCAL_FULLNAME, ["Local Support"], [Default local support fullname])
+PINEVAR(default-local-address, DF_LOCAL_ADDRESS, [postmaster], [Default local support address])
+PINEVAR(default-keyboard-lock-count, DF_KBLOCK_PASSWD_COUNT, [1], [Default keyboard lock count])
+PINEVAR(default-remote-addressbook-history, DF_REMOTE_ABOOK_HISTORY, [3], [Default address book history count])
+PINEVAR_UNQUOTED(default-printer, DF_DEFAULT_PRINTER, [ANSI_PRINTER], [Default printer])
+
+dnl Include SSL?
+dnl Set SSLDIR for c-client make
+AC_ARG_WITH(ssl,
+  AC_HELP_STRING([--without-ssl],[Disable SSL support (OpenSSL)]),
+  [ with_ssl=$withval ])
+
+if test "x$with_ssl" = "xno" ; then
+  alpine_SSLTYPE="none"
+else
+  dnl preload c-client default locations/options
+  case $host in
+    i*86-redhat-linux-*)
+      alpine_SSLTYPE="nopwd"
+      alpine_SSLDIR="/usr/share/ssl"
+      ;;
+    i*86-suse-linux-*)
+      alpine_SSLTYPE="nopwd"
+      alpine_SSLDIR="/usr/share/ssl"
+      ;;
+    *-pc-linux-gnu)
+      alpine_SSLTYPE="nopwd"
+      alpine_SSLDIR="/usr"
+      alpine_SSLCERTS="/etc/ssl/certs"
+      ;;
+    *-apple-darwin*)
+      alpine_SSLTYPE="nopwd"
+      alpine_SSLDIR="/System/Library/OpenSSL"
+      ;;
+    *-openbsd*)
+      alpine_SSLTYPE="nopwd"
+      alpine_SSLDIR="/usr"
+      alpine_SSLCERTS="/etc/ssl/certs"
+      ;;
+    *-sco-sysv*|*-sysv*UnixWare|*-sysv*OpenUNIX)
+      alpine_SSLTYPE="sco.nopwd"
+      alpine_SSLDIR=/usr/local/ssl
+      ;;
+    *)
+      alpine_SSLTYPE="nopwd"
+      alpine_SSLDIR=/usr/local/ssl
+      ;;
+  esac
+
+  AC_ARG_WITH(ssl-dir,
+    AC_HELP_STRING([--with-ssl-dir=DIR], [Root of SSL lib/include path]),
+    [
+      if test "x$withval" != "xno" ; then
+	alpine_SSLDIR=$withval
+      fi
+    ])
+
+  AC_ARG_WITH(ssl-certs-dir,
+    AC_HELP_STRING([--with-ssl-certs-dir=DIR], [Path to SSL certificate directory]),
+    [
+      if test "x$withval" != "xno" ; then
+	alpine_SSLCERTS=$withval
+      fi
+    ])
+
+  AC_ARG_WITH(ssl-include-dir,
+    AC_HELP_STRING([--with-ssl-include-dir=DIR], [SSL include file path]),
+    [
+      if test "x$withval" != "xno" ; then
+	alpine_SSLINCLUDE=$withval
+      fi
+    ])
+
+  AC_ARG_WITH(ssl-lib-dir,
+    AC_HELP_STRING([--with-ssl-lib-dir=DIR], [SSL library path]),
+    [
+      if test "x$withval" != "xno" ; then
+	alpine_SSLLIB=$withval
+      fi
+    ])
+fi
+
+dnl Include Kerberos?
+dnl Set GSSDIR for c-client make
+AC_ARG_WITH(krb5,
+  AC_HELP_STRING([--without-krb5],[Disable Kerberos support]),
+  [ with_krb5=$withval ])
+
+if test "x$with_krb5" = "xno" ; then
+  alpine_GSSTYPE="none"
+else
+  alpine_GSSTYPE=
+
+  AC_ARG_WITH(gss-dir,
+    AC_HELP_STRING([--with-krb5-dir=DIR], [Root of Kerberos lib/include path]),
+    [
+      if test "x$withval" != "xno" ; then
+	alpine_GSSDIR=$withval
+      fi
+    ])
+
+  AC_ARG_WITH(gss-include-dir,
+    AC_HELP_STRING([--with-krb5-include-dir=DIR], [Kerberos include file path]),
+    [
+      if test "x$withval" != "xno" ; then
+	alpine_GSSINCLUDE=$withval
+      fi
+    ])
+
+  AC_ARG_WITH(gss-lib-dir,
+    AC_HELP_STRING([--with-krb5-lib-dir=DIR], [Kerberos library path]),
+    [
+      if test "x$withval" != "xno" ; then
+	alpine_GSSLIB=$withval
+      fi
+    ])
+fi
+
+dnl Include LDAP?
+AC_ARG_WITH(ldap,
+  AC_HELP_STRING([--without-ldap],[Disable LDAP query support]),
+  [ with_ldap=$withval ])
+
+if test "x$with_ldap" = "xno" ; then
+  alpine_with_ldap=
+  AC_MSG_NOTICE([Excluding LDAP Support])
+else
+  dnl Do stuff to figure out where OpenLDAP is
+
+  alpine_with_ldap=yes
+  AC_ARG_WITH(ldap-dir,
+    AC_HELP_STRING([--with-ldap-dir=DIR], [Root of LDAP lib/include path]),
+    [
+      if test "x$withval" != "xno" ; then 
+	CPPFLAGS="$CPPFLAGS -I${withval}/include"
+	LDFLAGS="$LDFLAGS -L${withval}/lib"
+      fi
+    ])
+
+  AC_ARG_WITH(ldap-include-dir,
+    AC_HELP_STRING([--with-ldap-include-dir=DIR], [LDAP include file path]),
+    [
+      if test "x$withval" != "xno" ; then
+	CPPFLAGS="$CPPFLAGS -I$withval"
+      fi
+    ])
+
+  AC_ARG_WITH(ldap-lib-dir,
+    AC_HELP_STRING([--with-ldap-lib-dir=DIR], [LDAP library path]),
+    [
+      if test "x$withval" != "xno" ; then
+	LDFLAGS="$LDFLAGS -L$withval"
+      fi
+    ])
+fi
+
+AC_ARG_WITH(pthread,
+  AC_HELP_STRING([--without-pthread],[Do NOT test for nor build with POSIX thread support]),
+  [ with_pthread=$withval ])
+
+
+
+dnl CHECK PROGRAMS
+
+AC_PROG_CC
+AC_PROG_CC_STDC
+AC_PROG_INSTALL
+AC_PROG_MAKE_SET
+AC_PROG_LN_S
+AC_PROG_RANLIB
+AC_PROG_LIBTOOL
+
+AC_PATH_PROG(AR, ar, ar)
+AC_PATH_PROG(RM, rm, rm)
+AC_PATH_PROG(CP, cp, cp)
+AC_PATH_PROG(MAKE, make)
+
+
+
+dnl CHECK LIBRARIES
+
+if test x$enable_dmalloc = "xyes" ; then
+  if test "x$with_pthread" != "xno" ; then
+    dmalloc_lib=dmalloc
+  else
+    dmalloc_lib=dmallocth
+  fi
+
+  AC_CHECK_LIB($dmalloc_lib,dmalloc_shutdown,,
+    [
+      AC_ERROR([$dmalloc_lib requested, but -ldmalloc not found])
+    ])
+fi
+
+dnl which terminal cabability database
+AC_CHECK_LIB(tinfo, setupterm,
+  [
+    alpine_termdata=info
+    LIBS="$LIBS -ltinfo"
+  ],
+  [
+    AC_CHECK_LIB(ncurses, setupterm,
+      [
+        alpine_termdata=info
+        LIBS="$LIBS -lncurses"
+      ],
+      [
+	AC_CHECK_LIB(termlib, tgetent,
+	  [
+	    alpine_termdata=cap
+	    LIBS="$LIBS -ltermlib"
+	  ],
+	  [
+	    AC_CHECK_LIB(termcap, tgetent,
+	      [
+		alpine_termdata=cap
+		LIBS="$LIBS -ltermcap"
+	      ],
+	      [
+		AC_ERROR([Terminfo/termcap not found])
+	      ])
+	  ])
+      ])
+  ])
+case $alpine_termdata in
+  info)
+    AC_DEFINE(HAS_TERMINFO, [1], [Define if systems uses terminfo terminal database])
+    ;;
+  cap)
+    AC_DEFINE(HAS_TERMCAP, [1], [Define if systems uses termcap terminal database])
+    ;;
+esac
+
+dnl provide LDAP support?
+if test "$alpine_with_ldap" = "yes" ; then
+  alpine_has_ldap=
+  AC_SEARCH_LIBS(ldap_init,,
+    [
+      alpine_has_ldap=yes
+    ],
+    [
+      AC_CHECK_LIB(ldap,ldap_init,
+	[
+	  LIBS="$LIBS -lldap -llber"
+	  alpine_has_ldap=yes
+	],
+	[
+	  AC_SEARCH_LIBS(ldap_open,,
+	    [
+	      alpine_has_ldap=yes
+	    ],
+	    [
+	      AC_CHECK_LIB(ldap,ldap_open,
+		[
+		  LIBS="$LIBS -lldap -llber"
+		  alpine_has_ldap=yes
+		])
+	    ])
+	])
+    ])
+
+  if test "$alpine_has_ldap" = "yes" ; then
+    AC_MSG_NOTICE([Including LDAP Support])
+    AC_DEFINE([ENABLE_LDAP], [], [Enable LDAP query support])
+    LIBS="$LIBS -lldap -llber"
+  else
+    AC_MSG_NOTICE([Cannot find LDAP functions!  Excluding LDAP support.])
+  fi
+fi
+
+dnl provide SSL support?
+if test "x$alpine_SSLTYPE" != "xnone" ; then
+  AC_SEARCH_LIBS(SSL_library_init,ssl,
+    [
+      LIBS="$LIBS -lssl"
+    ],
+    [
+      AC_CHECK_LIB($alpine_SSLLIB,SSL_library_init,,
+	[
+	  alpine_SSLTYPE="none"
+	])
+    ])
+  if test "x$alpine_SSLTYPE" = "xnone" ; then
+    AC_MSG_NOTICE([OpenSSL libraries NOT found])
+  else
+    AC_MSG_NOTICE([OpenSSL libraries FOUND])
+  fi
+fi
+
+dnl provide KRB5 support?
+if test "x$alpine_GSSTYPE" != "xnone" ; then
+  AC_SEARCH_LIBS(gss_init_sec_context,,,
+    [
+      AC_CHECK_LIB($alpine_GSSLIB,gss_init_sec_context,,
+	[
+	  alpine_GSSTYPE="none"
+	])
+    ])
+fi
+
+dnl check for tcl libraries for Web Alpine
+AC_CHECK_LIB(tcl, Tcl_Eval,,
+  [
+    WEB_BUILD=
+  ])
+
+if test "x$with_pthread" != "xno" ; then
+  AC_MSG_CHECKING([for pthread support])
+  ACX_PTHREAD(
+    [
+      AC_MSG_RESULT([yes])
+      case "$target" in
+	  *openbsd*)
+	    AC_MSG_NOTICE([WARNING: pthread support on OpenBSD is unstable!])
+	    CFLAGS="$CFLAGS -pthread"
+	    ;;
+      esac
+      LIBS="$PTHREAD_LIBS $LIBS"
+      CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
+      CC="$PTHREAD_CC"
+      AC_DEFINE([HAVE_PTHREAD], [1], [System has pthread support])
+    ],
+    [
+      AC_MSG_RESULT([no])
+    ])
+
+  AC_SEARCH_LIBS([nanosleep], [rt posix4],
+    [
+      AC_DEFINE([HAVE_NANOSLEEP], [1], [Define if system supports subsecond, non-alarm sleep])
+    ])
+fi
+
+
+
+dnl CHECK HEADERS
+
+AC_HEADER_STDC
+AC_HEADER_DIRENT
+AC_HEADER_STAT
+AC_HEADER_SYS_WAIT
+AC_HEADER_TIME
+AC_HEADER_TIOCGWINSZ
+
+AC_UNISTD_H
+
+AC_CHECK_HEADERS([errno.h \
+		  fcntl.h \
+		  signal.h \
+		  setjmp.h \
+		  memory.h \
+		  sys/param.h \
+		  sys/socket.h \
+		  sys/uio.h \
+		  sys/un.h \
+		  limits.h \
+		  wchar.h \
+		  sys/poll.h \
+		  stropts.h \
+		  term.h \
+		  netdb.h \
+		  syslog.h \
+		  sys/syslog.h \
+		  locale.h \
+		  langinfo.h \
+		  utime.h \
+		  sys/utime.h \
+		  pthread.h \
+		  pwd.h \
+		  assert.h])
+
+dnl terminal line discipline?
+AC_CHECK_HEADER([termios.h],
+  AC_DEFINE(HAS_TERMIOS, [1], [Define if systems uses termios terminal control]),
+  [
+    AC_CHECK_HEADER([termio.h],
+      AC_DEFINE(HAS_TERMIO, [1], [Define if systems uses termio terminal control]),
+      [
+        AC_CHECK_HEADER([sgtty.h],
+	  AC_DEFINE(HAS_SGTTY, [1], [Define if systems uses old BSD-style terminal control]),
+	[
+	  AC_ERROR([Unable to figure out terminal control method])
+	])
+      ])
+  ])
+
+
+dnl CHECK TYPEDEFS
+
+AC_TYPE_SIGNAL
+AC_TYPE_SIZE_T
+AC_TYPE_MODE_T
+AC_TYPE_PID_T
+AC_TYPE_UID_T
+AC_STRUCT_TM
+
+AC_CHECK_TYPES([union wait])
+
+AC_CHECK_HEADERS([stdint.h], [uint16=uint16_t], [
+  AC_CHECK_HEADERS([inttypes.h], [uint16=uint16_t], [
+    AC_CHECK_HEADERS([sys/types.h], [uint16=u_int16_t], [
+      AC_CHECK_SIZEOF(unsigned short)
+      if test $ac_cv_sizeof_unsigned_short -eq 2 ; then
+	uint16="unsigned short"
+      else
+	AC_CHECK_SIZEOF(unsigned int)
+	if $ac_cv_sizeof_unsigned_int -eq 2 ; then
+	  uint16="unsigned int"
+	else
+	  AC_ERROR([Unable to determine 16 bit integer type])
+        fi
+      fi
+    ])
+  ])
+])
+AC_DEFINE_UNQUOTED([UINT16], $uint16, [System defined unsigned 16 bit integer])
+
+AC_CHECK_HEADERS([stdint.h], [uint32=uint32_t], [
+  AC_CHECK_HEADERS([inttypes.h], [uint32=uint32_t], [
+    AC_CHECK_HEADERS([sys/types.h], [uint32=u_int32_t], [
+      AC_CHECK_SIZEOF(unsigned int)
+      if test $ac_cv_sizeof_unsigned_int -eq 4 ; then
+	uint32="unsigned int"
+      else
+	AC_CHECK_SIZEOF(unsigned long)
+	if $ac_cv_sizeof_unsigned_long -eq 4 ; then
+	  uint32="unsigned long"
+	else
+	  AC_ERROR([Unable to determine 32 bit integer type])
+        fi
+      fi
+    ])
+  ])
+])
+AC_DEFINE_UNQUOTED([UINT32], $uint32, [System defined unsigned 32 bit integer])
+
+AC_CACHE_CHECK(argument pointer type of qsort compare function and base,
+ac_cv_func_qsort_argtype,
+[AC_TRY_COMPILE([
+#if	HAVE_STDLIB_H
+#include "stdlib.h"
+#endif
+
+extern void *base;
+extern sortf(const void *, const void *);
+int sortf(a, b)
+  const void *a;
+  const void *b; { return 0; }
+],[
+qsort(base, 2, sizeof(char *), sortf);
+],
+	ac_cv_func_qsort_argtype=void, ac_cv_func_qsort_argtype=char)
+])
+AC_DEFINE_UNQUOTED([qsort_t], $ac_cv_func_qsort_argtype, [qsort compare function argument type])
+
+dnl check for "struct passwd" ?
+
+AC_FUNC_SELECT_ARGTYPES
+
+AC_FUNC_STRCOLL
+
+dnl CHECK FOR LIBRARY FUNCTIONS
+
+AC_FUNC_FORK
+AC_CHECK_FUNCS([strchr \
+		memcpy \
+		strtol \
+		strtoul \
+		select \
+		poll \
+		qsort \
+	 	getuid \
+		getpwuid \
+		getpwnam \
+	        gettimeofday \
+		tmpfile \
+		uname \
+		rename \
+		read \
+		signal \
+		setjmp \
+		chown \
+		wait4 \
+		waitpid \
+		wait \
+		srandom \
+		popen \
+		pclose \
+		fsync \
+		truncate \
+		listen \
+		wcwidth \
+		mbstowcs \
+		wcrtomb])
+
+AC_SEARCH_LIBS([gethostname],[nsl])
+
+AC_SEARCH_LIBS([socket],[socket],,
+  [
+    WEB_BUILD=
+  ])
+
+AC_SEARCH_LIBS([bind],[bind],,
+  [
+    WEB_BUILD=
+  ])
+
+dnl check for POSIX signal interface
+AC_CHECK_FUNCS([sigaction sigemptyset sigaddset sigprocmask],
+  [
+    AC_DEFINE([POSIX_SIGNALS], [], [Define if system supports POSIX signal interface])
+  ],
+  [
+    AC_CHECK_FUNCS([sigset sigrelse],
+      [
+	AC_DEFINE([SYSV_SIGNALS], [], [Define if system supports SYSV signal interface])
+      ])
+  ])
+
+AC_SEARCH_LIBS([syslog], [bsd socket inet],
+  [
+    AC_DEFINE([HAVE_SYSLOG], [1], [Define if system supplies syslog() logging])
+  ])
+
+
+dnl HOST-OS SPECIFIC DEFINITIONS
+
+case "$host" in
+  windows* | *-*-pw32*)
+    systype="WNT"
+    alpine_path_delim="\\"
+    alpine_local_maildir="/var/mail"
+    alpine_mode_readonly="(S_IREAD | S_IWRITE)"
+    alpine_c_client_target="wnt"
+    AC_DEFINE([_WINDOWS], [1], [Windows is just too different])
+    ;;
+  *-*-cygwin)
+    systype="CYG"
+    alpine_path_delim="\\"
+    alpine_local_maildir="/var/mail"
+    alpine_mode_readonly="(S_IREAD | S_IWRITE)"
+    alpine_c_client_target="cyg"
+    ;;
+  *-apple-darwin*)
+    systype="OSX"
+    alpine_path_delim="/"
+    alpine_local_maildir="/usr/spool/mail"
+    alpine_mode_readonly="(0600)"
+    LIBS="$LIBS -framework Carbon -framework ApplicationServices"
+    CFLAGS="$CFLAGS -Dbsd"
+    dnl SEE include/system.h
+    AC_DEFINE([OSX_TARGET],[1],[OSX TARGET])
+    AC_CHECK_LIB(pam, pam_start,
+      [
+        alpine_c_client_target="oxp"
+      ],
+      [
+        alpine_c_client_target="osx"
+      ])
+    ;;
+  i*86-redhat-linux-*)
+    systype="LRH"
+    alpine_path_delim="/"
+    alpine_local_maildir="/var/spool/mail"
+    alpine_mode_readonly="(0600)"
+    alpine_c_client_target="lrh"
+    ;;
+  i*86-suse-linux-*)
+    systype="LSU"
+    alpine_path_delim="/"
+    alpine_local_maildir="/var/spool/mail"
+    alpine_mode_readonly="(0600)"
+    alpine_c_client_target="lsu"
+    ;;
+  *-pc-linux-gnu)
+    systype="DEB"
+    alpine_path_delim="/"
+    alpine_local_maildir="/var/spool/mail"
+    alpine_mode_readonly="(0600)"
+    alpine_c_client_target="ldb"
+    ;;
+  i*86-*-linux*)
+    systype="LNX"
+    alpine_path_delim="/"
+    alpine_local_maildir="/var/mail"
+    alpine_mode_readonly="(0600)"
+    AC_CHECK_LIB(pam, pam_start,
+      [
+        alpine_c_client_target="lnp"
+      ],
+      [
+        alpine_c_client_target="lnx"
+      ])
+    ;;
+  *-*-solaris2.[56789]*)
+    systype="SOL"
+    alpine_path_delim="/"
+    alpine_local_maildir="/usr/spool/mail"
+    alpine_mode_readonly="(0600)"
+    alpine_c_client_target="sol"
+    ;;
+  *-*-solaris*)
+    systype="SOL"
+    alpine_path_delim="/"
+    alpine_local_maildir="/usr/spool/mail"
+    alpine_mode_readonly="(0600)"
+    alpine_c_client_target="sol"
+    ;;
+  *-*-sunos4*)
+    systype="SUN"
+    alpine_path_delim="/"
+    alpine_local_maildir="/usr/spool/mail"
+    alpine_mode_readonly="(0600)"
+    alpine_c_client_target="s40"
+    ;;
+  *-next-*)
+    systype="NXT"
+    alpine_path_delim="/"
+    alpine_local_maildir="/usr/spool/mail"
+    alpine_mode_readonly="(0600)"
+    alpine_c_client_target="nx3"
+    ;;
+  *-*-netbsd*)
+    systype="NEB"
+    alpine_path_delim="/"
+    alpine_local_maildir="/usr/spool/mail"
+    alpine_mode_readonly="(0600)"
+    alpine_c_client_target="neb"
+    ;;
+  *-*-bsdi*)
+    systype="BSI"
+    alpine_path_delim="/"
+    alpine_local_maildir="/var/mail"
+    alpine_mode_readonly="(0600)"
+    alpine_c_client_target="bsi"
+    ;;
+  *-*-freebsd*)
+    systype="BSF"
+    alpine_path_delim="/"
+    alpine_local_maildir="/usr/spool/mail"
+    alpine_mode_readonly="(0600)"
+    alpine_c_client_target="bsf"
+    ;;
+  *-*-openbsd*)
+    systype="BSO"
+    alpine_path_delim="/"
+    alpine_local_maildir="/usr/spool/mail"
+    alpine_mode_readonly="(0600)"
+    alpine_c_client_target="bso"
+    ;;
+  *-*-aix4*)
+    systype="A41"
+    alpine_path_delim="/"
+    alpine_local_maildir="/usr/spool/mail"
+    alpine_mode_readonly="(0600)"
+    alpine_c_client_target="a41"
+    ;;
+  *-*-aix3*)
+    systype="A32"
+    alpine_path_delim="/"
+    alpine_local_maildir="/usr/spool/mail"
+    alpine_mode_readonly="(0600)"
+    alpine_c_client_target="a32"
+    ;;
+esac
+AC_DEFINE_UNQUOTED([SYSTYPE], "$systype", [Pine-Centric Host Specifier])
+AC_DEFINE_UNQUOTED([C_FILESEP],'$alpine_path_delim',[File name separator as character constant])
+AC_DEFINE_UNQUOTED([S_FILESEP],"$alpine_path_delim",[File name separator as string constant])
+AC_DEFINE_UNQUOTED([MAILDIR],"$alpine_local_maildir",[Path to local inboxes for pico newmail check])
+AC_DEFINE_UNQUOTED([MODE_READONLY], $alpine_mode_readonly, [File mode used to set readonly access])
+
+specials=
+dnl c-client make particulars
+AC_SUBST([C_CLIENT_TARGET], $alpine_c_client_target)
+if test "x$alpine_SSLTYPE" = "xnone" ; then 
+  AC_MSG_NOTICE([* * *  NOT Including SSL Support])
+  AC_SUBST([C_CLIENT_SPECIALS], "SSLTYPE=none")
+else
+  dnl issue any warnings for common OpenSSL issues
+
+  if test -d $alpine_SSLCERTS ; then
+    certdir="$alpine_SSLCERTS"
+  else
+    if test -d "${alpine_SSLDIR}/certs" ; then
+      certdir="${alpine_SSLDIR}/certs"
+    else
+      AC_MSG_NOTICE([SSL Problem: certificate directory not found])
+    fi
+  fi
+
+  if test -f ${certdir}/factory.pem ; then
+    AC_MSG_NOTICE([* * * SSL file "factory.pem is missing])
+    AC_MSG_NOTICE([* * * This might indicate that CA certs did not get properly])
+    AC_MSG_NOTICE([* * * installed.  If you get certificate validation failures])
+    AC_MSG_NOTICE([* * * in Alpine, this might be the reason for them.])
+  fi
+
+  if test -f "${certdir}/[0-9A-Za-z]\{8\}.0" ; then
+    AC_MSG_NOTICE([* * * No 8-hexdigit symlinks in certificate directory])
+    AC_MSG_NOTICE([* * * This might indicate that CA certs did not get properly])
+    AC_MSG_NOTICE([* * * installed.  If you get certificate validation failures])
+    AC_MSG_NOTICE([* * * in Alpine, this might be the reason for them.])
+  fi
+
+
+  if test -n "$alpine_SSLDIR" ; then
+    specials="${specials}SSLDIR=$alpine_SSLDIR "
+  fi
+
+  if test -n "$alpine_SSLCERTS" ; then
+    specials="${specials}SSLCERTS=$alpine_SSLCERTS "
+  fi
+
+  if test -n "$alpine_SSLINCLUDE" ; then
+    specials="${specials}SSLINCLUDE=$alpine_SSLINCLUDE "
+  fi
+
+  if test -n "$alpine_SSLLIB" ; then
+    specials="${specials}SSLLIB=$alpine_SSLLIB "
+  fi
+
+fi
+
+if test "x$alpine_GSSTYPE" != "xnone" ; then
+  specials="${specials}EXTRAAUTHENTICATORS=gss "
+  AC_MSG_NOTICE([* * * Including Kerberos5 functionality])
+fi
+
+AC_SUBST([C_CLIENT_SPECIALS], "$specials")
+
+dnl Deal with Web Alpine
+if test -z "$WEB_BUILD" ; then
+  WEB_PUBCOOKIE_BUILD=
+  AC_MSG_NOTICE([* * * TCL libraries could not be found.])
+  AC_MSG_NOTICE([* * * WEB ALPINE COMPONENT WILL NOT BE BUILT.])
+else
+  if test -n "$WEB_PUBCOOKIE_BUILD" ; then
+    if test "x$alpine_GSSTYPE" = "xnone" ; then
+      WEB_PUBCOOKIE_BUILD=
+      AC_MSG_NOTICE([* * * Kerberos5 support not found.])
+      AC_MSG_NOTICE([* * * WEB ALPINE PUBCOOKIE COMPONENT WILL NOT BE BUILT.])
+    else
+      AC_DEFINE([PUBCOOKIE],[1],[Include support for UW Pubcookie Web Authentication])
+      WEB_PUBCOOKIE_LIB=${srcdir}/pubcookie/libauthgssproxy.a
+    fi
+  fi
+fi
+
+AC_SUBST([WEB_BUILD])
+AC_SUBST([WEB_PUBCOOKIE_LIB])
+
+AC_OUTPUT(m4/Makefile po/Makefile.in \
+	  pith/osdep/Makefile pith/charconv/Makefile pith/Makefile \
+	  pico/osdep/Makefile pico/Makefile \
+	  alpine/osdep/Makefile alpine/Makefile \
+	  web/src/pubcookie/Makefile web/src/alpined.d/Makefile \
+	  Makefile)

@@ -1,0 +1,52 @@
+# Process this file with autoconf to produce a configure script.
+
+AC_INIT(Makefile.in)
+CGI_MAJOR_VERSION=1
+CGI_MINOR_VERSION=10
+CGI_MICRO_VERSION=0
+CGI_VERSION=$CGI_MAJOR_VERSION.$CGI_MINOR_VERSION
+CGI_VERSION_FULL=$CGI_VERSION.$CGI_MICRO_VERSION
+
+# If `configure' is invoked (in)directly via `make', ensure that it
+# encounters no `make' conflicts.
+#
+unset MFLAGS MAKEFLAGS
+
+# this'll use a BSD compatible install or our included install-sh
+AC_PROG_INSTALL
+
+# Find a usable Tcl executable so that we can run Tcl utilities
+# For simplicity, assume Tcl is completely installed.
+AC_MSG_CHECKING([for usable Tcl executable])
+for i in \
+	${exec_prefix}/bin/tclsh \
+	`ls -r ${exec_prefix}/bin/tclsh[[8-9]]* 2>/dev/null` \
+	${prefix}/bin/tclsh \
+	`ls -r ${prefix}/bin/tclsh[[8-9]]* 2>/dev/null` \
+	${srcdir}/../tcl/unix/tclsh \
+	`ls -dr ${srcdir}/../tcl[[8-9]]*/unix/tclsh 2>/dev/null` \
+        /usr/local/bin/tclsh \
+        /usr/bin/tclsh ; do
+      if test -x "$i" ; then
+        CGI_TCL_EXECUTABLE=$i
+	break
+      fi
+done
+if test "x$CGI_TCL_EXECUTABLE" = "x" ; then
+  AC_MSG_ERROR([no tcl executable found, cannot install])
+else
+  AC_MSG_RESULT($CGI_TCL_EXECUTABLE)
+fi
+
+#
+# Set up makefile substitutions
+#
+AC_SUBST(CGI_MAJOR_VERSION)
+AC_SUBST(CGI_MINOR_VERSION)
+AC_SUBST(CGI_MICRO_VERSION)
+AC_SUBST(CGI_VERSION_FULL)
+AC_SUBST(CGI_VERSION)
+AC_SUBST(CGI_LIB_FILE)
+AC_SUBST(CGI_LIB_FILES)
+AC_SUBST(CGI_TCL_EXECUTABLE)
+AC_OUTPUT(Makefile cgi.tcl version)

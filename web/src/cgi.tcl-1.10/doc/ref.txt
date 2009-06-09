@@ -1,0 +1,1651 @@
+cgi.tcl - A Reference Manual (Draft)
+by Don Libes
+
+This document contains technical notes on using cgi.tcl.  This
+document is a draft and has not been officially reviewed.
+
+This document assumes that you have read the Tcl '96 paper "CGI
+Scripting in Tcl".  That document will give you the feel for what this
+code is all about.  In contrast, this document provides the details.
+
+This document assumes you know HTML.  I'm not going to explain what
+particular tags do or how to use them effectively, except as necessary
+to understand the document.
+
+Some of the commands may not work with all browsers.  For example, the
+cgi_center command is generally understood only by some Netscape
+browsers because it produces <center></center> tags which are not
+commonly supported.  You'll have to use your judgement.  Remember:
+Just because a command exists to produce the HTML doesn't mean your
+browser will do anything meaningful with it.  In that sense, using
+this code is no different than handcoding HTML.
+
+**************************************************
+A NOTE ABOUT PROCEDURE NAMES
+**************************************************
+
+All procedures are named cgi_XXX.  You can also call them without the
+cgi_ prefix.  Using the cgi_XXX form is no big deal for rarely used
+procedures, but the aliases are particularly convenient for things
+like hr and br.  Aliases are suppressed if procedures exist by those
+names already.  (Thus, cgi_eval cannot be invoked as "eval"!)
+Similarly, you can overwrite the aliases with impunity.  Internally,
+references are only made to the cgi_ names.
+
+I'm still thinking about this.  If you have strong feelings about it,
+let me know.
+
+**************************************************
+SECURITY
+**************************************************
+
+I frequently see statements saying that Tcl (and other interpretive
+languages, for that matter) are insecure and should not be used for
+writing CGI.
+
+I disagree.  It is possible to use Tcl securely and it really isn't
+very hard.  The key, of course, is to not blindly evaluate user input.
+There really isn't much reason to.  For instance, this library itself
+is pretty big and does lots of things, but nothing in it evaluates
+user input.  (It does do a lot of evaluation of *programmer* input,
+but that's quite acceptable.)
+
+The two classes of commands you should pay close attention to are
+commands that do eval operations and commands that invoke external
+programs.  
+
+**************************************************
+GENERAL NOTES ABOUT PARAMETERS
+**************************************************
+
+** There are several basic styles of parameter passing.
+
+-- Container commands (e.g., <body></body>, <div></div>, etc.)
+
+The last argument is typically a block of code.  Other arguments
+become attributes.  For example:
+
+  cgi_body bgcolor=red background=white {
+	h4 "hello"
+  }
+
+produces:
+
+  <body bgcolor="red" background="white">
+        <h4>hello</h4>
+  </body>
+
+-- Commands with required arguments
+
+Some commands have required arguments.  Required arguments which are
+relatively long, are passed *after* all others.  For example:
+
+  cgi_h4 align=left "Foo's Bar & Grill"
+
+Another example:
+
+  cgi_body bgcolor=red background=white {
+    cgi_h4 "Foo's Bar & Grill"
+  }
+
+Commands with relatively short arguments have the short arguments
+passed *before* all others.  This avoids many redundant keywords.  In
+the following example, the "img=" is omitted because it is already
+implied by the command.  The "alt=" is not optional (although the
+entire argument is).
+
+  cgi_img foo.gif "alt=Foo's Bar & Grill"
+
+Note the quotes around the alt argument.  This is only necessary if
+the argument has whitespace in it - a consequence of Tcl's normal
+scanning rules.  The resulting HTML automatically includes quotes
+around the value attribute.  (See Case-sensitivity.)
+
+** Case-sensitivity and Quotes and Whitespace
+
+Attribute names are case sensitive.  Use lowercase names for "normal"
+handling.  For example, values for attributes such as "url" and
+"value" are quoted and encoded.  Use uppercase names to suppress the
+usual processing.  (For example, you might want to test how a browser
+responds to incorrect HTML.)
+
+Consider:
+
+  cgi_body bgcolor=#123456 {
+    p [cgi_img foo.gif "alt=Foo's Bar & Grill"]
+  }
+
+This is translated to
+
+  <body bgcolor="#123456">
+    <p><img src="foo.gif" alt="Foo's Bar &amp; Grill"></p>
+  </body>
+
+Notice how the ampersand in the alt value has been encoded.  Also
+notice how quotes have been added to the values of bgcolor, url, and
+alt.  Thus you no longer have to add quotes all over the place (or
+remember when you need to).
+
+Embedded whitespace is protected by quoting in the usual Tcl fashion
+rather than typical HTML fashion.
+
+So instead of:
+   img foo.gif alt="foo bar"
+do this:
+   img foo.gif "alt=foo bar"
+which will return HTML that is properly quoted:
+   <img src="foo.gif" alt="foo bar">
+
+-- Name-value commands
+
+Many commands produce tags that use "name" and "value" attributes.
+Because these attributes are almost always used in such commands, the
+first argument is always of the form name=value so the literal "name"
+and "value" can be omitted.  For example:
+
+  cgi_text color=Red size=5
+
+produces:
+
+  <input name="color" value="Red" size=5>
+
+Reasonable defaults exist.  For example, if you don't need the value
+of a submit button (but the user still needs to see it appear as the
+label), omit the name:
+
+  cgi_submit_button =Execute
+
+If no "=" is present, the string is assumed to be the "name"
+attribute.  For example:
+
+  cgi_checkbox Vegies
+
+produces a checkbox associated with the variable named "Vegies".
+(With no specified value, it will be set to "on" if checked.)
+
+Most of the commands have reasonable defaults.  For example, to
+quickly script a submit button, the following suffices:
+
+  cgi_submit_button
+
+Certain constructions make no sense and are therefore disallowed.  For
+example, a submit button with a name but no value makes no sense, so
+cgi_submit_button doesn't allow it.  (In other words, if you provide
+an argument, it has to have "=" in it.)
+
+**************************************************
+JAVASCRIPT ARGUMENTS
+**************************************************
+
+JavaScript event attributes such as onClick are handled just like any
+other attributes in terms of quoting and case sensitivity.  Because
+there are so many attributes on so many tags, they are not documented
+explicitly in this manual.  However, they are all supported.  Here is
+an example:
+
+  cgi_text age=18 onChange=MinimumAge(this.form.age)
+
+**************************************************
+PROCEDURES TO ASSIST IN DEBUGGING
+**************************************************
+
+** User-id differences
+
+You can interactively run and debug CGI scripts by simply running them
+from the shell, or a Tcl or C debugger.  (For convenience, I use
+Expect instead of tclsh just so that I get the debugger.)  In fact,
+I've never had to resort to the C debugger.  However, simply watching
+the raw output from a shell is very handy.  This catches the really
+basic errors such as incorrect protections, incorrect #! line, etc.
+Once your script is actually executing, you can rely on cgi_eval (see
+below).
+
+cgi_uid_check user
+
+Typically, a CGI script is intended to run from a particular uid, such
+as "nobody".  If you run such scripts interactively, you can end up
+with conflicts.  For example, if the script creates files, files can
+accidentally end up being owned by you.
+
+cgi_uid_check is a convenient mechanism to warn against this problem.
+Simply call cgi_uid_check in your script.  The argument is the uid
+under which the script should be running.  If the given uid does
+not match the actual uid, cgi_uid_check will generate an error.
+
+** Trapping error messages
+
+cgi_eval
+
+cgi_eval is the primary error catching/reporting mechanism.  Execute
+commands from cgi_eval so that errors can be caught and reported in a
+nice way.  By default, errors are emailed back to the administrator.
+"cgi_debug -on" makes errors be immediately viewable in the browser.
+
+If an error is caught when debugging is enabled, the diagnostic is
+anchored with #cgierror.  This is useful in scripts that produce
+voluminous output.
+
+cgi_error_occurred
+
+cgi_error_occurred returns 1 if an error occurred and was caught by
+cgi_eval.  This separate function simplifies exit handling - for
+example, rather than always checking the return value of cgi_eval, an
+app can just test this from a redefined exit.
+
+cgi_admin_mail_addr addr
+
+cgi_admin_mail_addr sets the administrator's email address.
+Diagnostics are sent via email if a problem is encountered with the
+script and debugging is not enabled.
+
+cgi_name name
+
+cgi_name defines a name for the service.  If called with no arguments,
+the name is returned.  The name is currently used in the following
+places:
+
+  If email is sent, it comes from [cgi_name].
+  If errors are emailed, the subject is "[cgi_name]: CGI problem"
+
+** Generating debugging output and other commands
+
+cgi_debug args
+
+cgi_debug provides rudimentary support for generating debugging
+messages.  Here are some example calls:
+
+cgi_debug cmd
+	If debugging is on, the command is evaluated.  For example:
+
+	  cgi_debug {
+	    h2 "completed initialization"
+	  }
+	or
+	  cgi_debug {h2 "completed initialization"}
+
+	Note this is more than simply calling h2.  Context is rewound
+	or forwarded to get to a place where this is safe.  (And
+	conversely, this call can suppress things such as header
+	elements that haven't been processed yet.)  The flag
+	"-noprint" suppresses this manipulation - this is useful for
+	early code that causes no printing.
+
+	The -- flag causes the next argument to treated as a command
+	even if it looks like another flag.
+cgi_debug -on
+	Enables debugging messages.  This includes debugging messages
+	generated by explicit calls to cgi_debug as well as implicit
+	diagnostics, for example, that report on form input.
+cgi_debug -temp text
+	Enable debugging for this one line.
+cgi_debug -off
+	Disable debugging.
+
+cgi_debug always returns the old setting ("-on" or "-off").  The
+initial value is -off.
+
+
+** Printing arrays
+
+cgi_parray arrayname
+
+cgi_parray prints out the elements of a Tcl array.  cgi_parray is just
+like Tcl's parray except that its output is appropriately formatted
+for a browser.
+
+**************************************************
+BASIC STRUCTURE OF A CGI SCRIPT
+**************************************************
+
+Typically, the basic structure of most CGI scripts is:
+
+  package require cgi
+
+  cgi_eval {
+    cgi_http_head {cmds}
+    cgi_html {
+      cgi_head {cmds}
+      cgi_body {cmds}
+    }
+  }
+
+Much of this can be omitted, however.  In fact, a typical script looks
+more like this:
+
+  package require cgi
+
+  cgi_eval {
+    cgi_title "title"
+    cgi_body {
+      cmds
+    }
+  }
+
+(If you're not using the Tcl package support, replace the 'package
+require' command with a 'source' command of the specific file
+containing the cgi.tcl source.)
+
+(The "...." in the examples above should be replaced by the true path
+to the cgi.tcl file.)
+
+I'll now go through each of these in more detail as well as some other
+possibilities for the overall structure.
+
+**************************************************
+HTTP HEADERS
+**************************************************
+
+cgi_http_head cmds
+
+CGI scripts must produce various headers to explain how the remainder
+of the output is to be interpreted.  No other output may preceed this!
+
+With no argument, an HTML content type is produced if the script is
+running in the CGI environment.  This means that most people need not
+bother calling cgi_http_head.  However, if you want to see the HTTP
+headers and you are not running in the CGI environment, you should
+call cgi_http_head explicitly.  (Alternatively, you can make it appear
+that you are in the CGI environment by defining the environment
+variable REQUEST_METHOD.)
+
+The remaining commands in this section may be used in cgi_http_head.
+Most should be intuitively obvious and thus need no explanation.
+
+cgi_content_type type
+	Generates a "Content-type:" header.
+
+With no argument, cgi_content_type generates a declaration for HTML.
+If specified, the 'type' argument should be the full MIME-style
+type/subtype declaration.  Any MIME-style parameters should be
+included in the type argument.
+
+cgi_redirect location
+	Generates a redirect header (Status:/Location:/URI:)
+cgi_target
+	Generates a "Window-target:" header.
+cgi_refresh seconds url
+	Generates a "Refresh:" header.  The url argument is optional.
+cgi_pragma pragma
+	Generates a "Pragma:" header.
+cgi_status number string
+	Generates a "Status:" header.
+
+** Cookies
+
+cgi_cookie_set name=val args
+	Define a cookie with given name, value, and other arguments.
+	Cookie values are automatically encoded to protect odd characters.
+	A couple expirations are predefined (with intuitive meaning):
+	  expires=never
+	  expires=now
+	  expires=...actual date...
+
+	Here are some examples:
+	  cgi_cookie_set user=don domain=nist.gov expires=never
+	  cgi_cookie_set user=don expires=now secure
+
+cgi_export_cookie name args
+	Export the named Tcl variable as a cookie.  Other arguments are
+	processed as with cgi_cookie_set.
+
+Cookies may be read only after calling cgi_input.  The following
+routines read cookie names or specific cookies.
+
+cgi_cookie_list
+	Returns the list of all cookies supplied by the server.
+
+cgi_cookie_get name
+	Returns the value of the named cookie.  If multiple values exists
+	the most specific path mapping is used.
+
+	If the "-all" flag is used (before the cookie name), a list is
+	returned containing all cookie values for the given name.  The
+	list is ordered most-specific (path mapping) to least.  I.e.,
+	the first value on the list is the same one returned by
+	calling cgi_cookie get without a flag.
+
+cgi_import_cookie name
+	Define a Tcl variable with the value of the cookie of the same
+	name.  For example, the following command retrieves the cookie
+	named "Password" and stores it in the Tcl variable "Password".
+
+	  cgi_import_cookie Password
+
+
+**************************************************
+GENERATING HTML
+**************************************************
+
+cgi_html
+
+<html></html> tags can be generated using cgi_html.  An argument to
+cgi_html is evaluated to produce the actual HTML code.
+
+In practice, it is not necessary to use cgi_html.  CGI.tcl will
+automatically generate the tags when appropriate.  (Oddly, modern HTML
+specs don't require it and most if not all browsers never cared
+anyway.)
+
+cgi_doctype
+
+cgi_doctype is a user-defined procedure that produces a SGML DOCTYPE
+declaration.  If it exists, cgi_doctype is automatically invoked at
+the beginning of cgi_html.  (This library does not automatically create
+DOCTYPE declarations since the library is not restricted to generating
+SGML for any single DTD.  Realistically, DOCTYPEs are pointless for
+HTML generation since web browsers don't require DOCTYPE declarations.
+However, if you are creating pages for some other purpose that
+requires such a declaration, use cgi_doctype.)
+
+cgi_head
+
+<head></head> tags can be generated using cgi_head.  An argument to
+cgi_head is evaluated to produce the actual headers.
+
+In practice, it is not necessary to use cgi_head.  CGI.tcl will
+automatically generate the tags when appropriate.  (Oddly, modern HTML
+specs don't require it and most if not all browsers never cared
+anyway.  So for example:
+
+  cgi_head {
+    cgi_title "my page"
+  }
+
+is equivalent to:
+
+  cgi_title "my page"
+
+Note that cgi_title will be called automatically if you omit
+cgi_title, cgi_head, or call cgi_head with no arguments.
+
+cgi_title title
+
+cgi_title defines the title of a page.  It is called from within a
+<head></head> pair.  If not called from within cgi_head, it implicitly
+forces it to occur.
+
+cgi_title always returns the title.  With no argument, cgi_title
+returns the old title without changing it.
+
+cgi_http_equiv
+
+cgi_http_equiv is equivalent to cgi_http_head but from within
+cgi_head.  This procedure is defined for completeness - there is no
+reason to use it.  In fact, it doesn't allow all cgi_http_head
+declarations, so it should be avoided.
+
+cgi_meta
+
+cgi_meta generates a <meta> tag.  You can do whatever you want with
+these.  (Read some an HTML document for more info.)  For example:
+
+  meta name=author {content="Don Libes"}
+
+cgi_script cmd
+
+cgi_script evaluates its arguments inside of <script></script> tags.
+This is appropriate for putting in client-side scripting.  Optional
+arguments are passed as attributes to the <script> tag.
+
+Note that the cmd argument is a Tcl command, not a command in the
+other scripting language.  So if all you want to do is print out some
+script, use cgi_puts:
+
+  cgi_script {
+    cgi_puts {
+      some scripting stuff
+        in whatever weird funky
+        language you want
+    }
+}
+
+cgi_javascript cmd
+
+cgi_javascript is a version of cgi_script specialized for javascript.
+At present, all it does is add the comment hacks so that the
+javascript can't be seen by old browsers.
+
+cgi_noscript cmd
+
+cgi_noscript evaluates its argument to generate code for browsers that
+do not understand cgi_script or its variants.
+
+cgi_body
+
+<body></body> tags are generated using cgi_body.  An argument to
+cgi_body is evaluated to produce the actual body.
+
+Executing "return" from within cgi_body causes cgi_body to return.
+This is useful if more code follows the cgi_body within the cgi_eval.
+Compare to cgi_exit (see elsewhere).
+
+cgi_body_args
+
+Arguments to cgi_body_args are made available to cgi_body as if they
+had been specified in the call to cgi_body.  This provides a
+convenient way for using the same colors, backgrounds, etc, in a set
+of pages.
+
+cgi_exit
+
+cgi_exit provides a fast way of cleanly exiting a CGI script without
+having to manually unwind procedures.  In particular, cgi_exit forces
+closure of all open tags.  It then calls exit.  This is useful if you
+want to exit from a CGI script at any point and still have the HTML be
+correct.
+
+** Frames
+
+cgi_frameset cmd
+
+Instead of cgi_body, you can call cgi_frameset to create framed
+documents.  This produces <frameset></frameset> tags with the content
+filled by evaluation of cmd.  Optional arguments are passed on as
+attributes.
+
+cgi_frame name=url
+
+cgi_frame defines a frame with the given name and url.  The argument
+handling is the same as for other name-value commands (even though the
+value here is a url).  The url is automatically double-quoted.  Other
+optional arguments are passed on as attributes.
+
+cgi_noframes cmd
+
+cgi_noframes produces <noframes></noframes> tags with the content
+filled evaluation of cmd.  Optional arguments are passed on as
+attributes.
+
+**************************************************
+CONTAINER SUPPORT
+**************************************************
+
+cgi_division
+
+cgi_division evaluates its last argument, grouping it together.  This
+is useful for acting on a group of paragraphs, such as for alignment
+purposes.
+
+cgi_center
+
+cgi_center is similar to "cgi_division align=center".
+
+**************************************************
+SINGLE PARAGRAPH SUPPORT
+**************************************************
+
+Everything in this section generates a single paragraph or line break.
+Most of these take a string as the last argument which is
+appropriately formatted.  Any other arguments are used as tag
+attributes.
+
+cgi_p
+cgi_address
+cgi_blockquote
+cgi_h1 through h7
+
+Most of these procedures should be intuitive.  They all take a string
+and display it in the appropriate way.  For example, a level 2
+heading:
+
+  h2 "Paragraph Support"
+
+Here's a paragraph with some formatting (see next section for more
+info):
+
+  p "I [bold love] Tcl but hate [blink "blinking text"]"
+
+Note that some of these generate tags that are not supported by all
+browsers.  See the format-tour.cgi script to see these in use.
+
+cgi_br
+
+cgi_br causes a paragraph break to be printed.  Additional arguments
+are passed on as attributes.
+
+To embed a paragraph break (rather than printing it), use cgi_nl.  In
+the following example, it is much more convenient to call cgi_br than
+cgi_nl:
+
+  radio_button "version=1"
+  br
+  radio_button "version=2"
+
+See cgi_nl for more info.
+
+**************************************************
+TEXT SUPPORT
+**************************************************
+
+The following procedures take a string and return an appropriately
+formatted version.  The string is always the last argument.  Any other
+arguments are used as tag attributes.
+
+cgi_bold
+cgi_italic
+cgi_underline
+cgi_strikeout
+cgi_subscript
+cgi_superscript
+cgi_typewriter
+cgi_blink
+cgi_emphasis
+cgi_strong
+cgi_cite
+cgi_sample
+cgi_keyboard
+cgi_variable
+cgi_definition
+cgi_big
+cgi_small
+cgi_font
+
+  p "I [bold love] Tcl but hate [blink "blinking text"]"
+
+Note that some of these generate tags that are not supported by all
+browsers.  See the format-tour.cgi script to see these in use.
+
+cgi_basefont
+
+cgi_basefont defines the base font.
+
+**************************************************
+SPECIAL CHARACTERS OR CHARACTER SEQUENCES
+**************************************************
+
+The following procedures produce characters such that when interpreted
+by a browser returns the indicated character.
+
+                      	Returns
+cgi_lt			<
+cgi_gt			>
+cgi_amp			&
+cgi_quote		"
+cgi_enspace		en space
+cgi_emspace		em space
+cgi_nbspace		nonbreaking space
+cgi_tm			registered trademark
+cgi_copyright		copyright
+cgi_isochar n		ISO character #n
+
+cgi_nl
+
+cgi_nl returns a paragraph break string suitable for embedding in a
+string just as you would embed a newline in a Tcl string via \n.
+
+To print a paragraph break rather than returning it, use cgi_br.  In
+the following example, it is much more convenient to call cgi_nl than
+than cgi_br:
+
+  h2 "This appears[nl]on two lines."
+
+See cgi_br for more info.
+
+cgi_breakable
+
+cgi_breakable indicates a place in a word at which the browser can
+break a string across two lines.
+
+cgi_unbreakable cmd
+
+cgi_unbreakable evaluates a cmd in such a way that the output will not
+be broken across lines by the browser just because the screen width is
+exceeded.  Instead a horizontal scrollbar will appear so that the
+browser can be manually scrolled to see the long line.
+n
+cgi_unbreakable_string string
+
+cgi_unbreakable_string returns its arguments so that it will not be
+broken across lines by the browser just because the screen width is
+exceeded.  Instead a horizontal scrollbar will appear so that the
+browser can be manually scrolled to see the long line.
+
+Notes:
+
+- It is my assumption that cgi_unbreakable will be much more commonly
+used than the _string version, hence the choice of names.  Feel free
+to let me know what I'm wrong.
+
+- I have seen browsers handle unbreakables incorrectly, particularly
+in interaction with other features.  If you can't get your
+unbreakables to behave correctly, consider alternative layouts or
+alternative HTML.  For example, unbreakable table data should be done
+using "table_data nowrap".  I have no idea why but it works whereas
+unbreakable causes the table rows to overlap.  Clearly, this is a
+browser bug.
+
+**************************************************
+FORMS
+**************************************************
+
+cgi_form action args cmd
+
+cgi_form defines a form.  The form is populated by executing the
+command (last argument of cgi_form).  action defines the url to
+process the form.  Any other arguments are passed as attributes.
+A typical call looks like this:
+
+  cgi_form response {
+    ....
+  }
+
+Here "response" names the URL to process the form.  If the URL does
+not begin with a protocol name (such as "http:"), a common root is
+prepended and ".cgi" is appended.  This can be changed by redefining
+the procedure cgi_cgi.
+
+cgi_root
+
+cgi_root defines the common root used by cgi_form (see above).
+For example:
+
+  cgi_root "http://www.nist.gov/cgi-bin/cgi.tcl-examples"
+
+With one argument, cgi_root returns the new root.  With no arguments,
+cgi_root returns the old root.
+
+cgi_suffix
+
+cgi_suffix defines the common suffix used by cgi_cgi and anything that
+uses it such as cgi_form.  The default suffix is ".cgi".
+
+cgi_cgi
+cgi_cgi_set
+
+cgi_cgi controls exactly how cgi_form creates URLs from its action
+argument.  By default, cgi_cgi takes an argument, prepends [cgi_root]
+and appends [cgi_suffix].  The suffix can be overridden by using the
+-suffix flag and an argument to be used instead of [cgi_suffix].
+
+Any additional arguments are joined together in the style required for
+a GET style request.  These arguments should be preformatted using
+cgi_cgi_set to guarantee proper encoding.  For example:
+
+  cgi_cgi myscript \
+     [cgi_cgi_set owner "Don"] \
+     [cgi_cgi_set color "black & white"]
+
+generates: ....?owner=Don&color=black+%26+white
+
+cgi_isindex
+
+cgi_isindex generates an <isindex> tag.  Optional arguments are passed
+on as attributes.  In the processing CGI script, the value of the
+isindex query is found in the "anonymous" variable.
+
+cgi_relationship rel url
+
+cgi_relationship expresses a relationship between this document and
+another.  For example, the following says that the url named by
+homepage is the home document of the current document.
+
+  cgi_relationship home $homepage
+
+Optional arguments are passed on as additional attributes.  Here's an
+example that references an external style sheet that is a CSS type
+(cascading style sheet).
+
+  cgi_relationship stylesheet basic.css type=text/css
+
+
+**************************************************
+INPUT
+**************************************************
+
+cgi_input
+
+CGI input means "cookies, files, and get/post data".  cgi_input reads
+in all input, decodes it, and makes it available to a variety of other
+routines.
+
+For debugging, cgi_input can be given arguments to fake input.  This
+allows you to run your cgi_script interactively or under a debugger
+(either Tcl or C debugger).  Provide GET/POST data as the first
+argument.  Provide cookie data as the second argument.  The arguments
+should be encoded (see cgi_cgi_set).  For example:
+
+  cgi_input "name=libes&old=foo&new1=bar&new2=hello"
+
+This is convenient because when you run into a misbehaving CGI script,
+the first thing it does is tell you the input in exactly this format.
+Simply cut and paste it into your program and you can then
+interactively debug it without using the real form or the CGI server.
+
+If cgi_input is invoked from the CGI environment, the fake inputs are
+ignored.  (If you want to force fake inputs in the CGI environment,
+unset env(REQUEST_METHOD).
+
+Forms encoded as multipart/form-data are usually used to handle file
+input.  Since file data usually implies a large amount of data, the
+data is saved to /tmp/CGIdbg.[pid] if debugging is enabled.  This file
+can be fed back to cgi_input by providing the filename as the first
+argument of cgi_input.  In addition, env(CONTENT_TYPE) must be set to
+the appropriate content type.  This can found in env(CONTENT_TYPE).
+Removal of the debugging file is the responsibility of the script or
+the script programmer.  (Typically, I examine the file after my CGI
+script is over and then delete them by hand.)
+
+Execs before cgi_input reads POST data should have standard input
+redirected ("< /dev/null" for instance) so that the exec'd process
+doesn't inherit the CGI script's standard input.
+
+** Form elements that generate lists
+
+Variable names should only end with "List" if they correspond to form
+elements which generate multiple values (some but not all uses of
+select, checkbox, etc).  List variables will be given Tcl-style list
+values.
+
+If cgi_input encounters multiple values for variables that do not end
+with List, it will provide the values in a Tcl-style list.  However,
+this leaves an ambiguity in the case of a single value that "looks"
+like a list, such as "a b".  Although a form author can usually "know"
+whether a string is a list or not, it is simpler to stick to the
+convention stated earlier.
+
+Here are examples:
+
+  # pull-down menu
+  cgi_select Foo {
+    cgi_option "a"
+    cgi_option "a b"
+  }
+
+  # scrolled list, allow multiple selections
+  cgi_select FooList multiple {
+    cgi_option "a"
+    cgi_option "a b"
+  }
+
+** Getting at the input
+
+Input is made available in two ways: variables, files, and cookies.
+
+-- Variables and Cookies
+
+cgi_import_list
+
+cgi_import_list returns a list of variable names supplied as input to
+the script.
+
+cgi_cookie_list
+
+cgi_cookie_list returns a list of cookie names supplied to the script.
+
+cgi_import name
+
+cgi_import retrieves the value of the named variable and places it in
+a Tcl variable of the same name.  The value is also returned as the
+return value.
+
+cgi_import_as name tclvar
+
+cgi_import_as is similar to cgi_import but the value is assigned to
+the Tcl variable named by the second argument.
+
+cgi_import_cookie name
+
+cgi_import is similar to cgi_import, however if the cgi variable does
+not exist, the value is fetched from the cookie by that name.  (This
+allows the user to override a cookie if the form allows it.)
+
+cgi_import_cookie_as name tclvar
+
+cgi_import_cookie_as is similar to cgi_import_cookie but the value is
+assigned to the Tcl variable named by the second argument.
+
+cgi_cookie_get name
+
+cgi_cookie_get returns the value of the named cookie.
+
+-- Files
+
+cgi_import_file -server name
+cgi_import_file -client name
+cgi_import_file -type name
+
+cgi_import_file returns information about an uploaded file.  "name" is
+the string from the original form.  The Content-type is returned via
+-type.  (This may be empty or even undefined in which case
+cgi_import_file should be caught.)
+
+Uploaded files are saved on the CGI server.  To avoid collisions with
+other file upload instances, files are not stored in their original
+names.  The name of the file as it is stored on the CGI server is
+retrieved using the "-server" flag.  The original name of the file as
+it was stored on the user's host is retrieved using the "-client"
+flag.
+
+Uploaded files are the responsibility of the CGI programmer.  In
+particular, if you do not delete them, they will remain until /tmp is
+cleaned up in some other way.
+
+If the user does not enter a filename, an empty file will be delivered
+with a null remote filename.
+
+cgi_file_limit files chars
+
+cgi_file_limit establishes limits on the number of files and their
+size.  This is provided to prevent denial of service attacks.  If the
+limit is exceeded, an error is raised from within cgi_input.
+
+Note that when the limit is exceeded, cgi_input fails immediately.  So
+if you just want to check file sizes that are not security related -
+for example, you just want to accept gifs under 10K - it's better to
+accept the gifs and then check the size manually (i.e., [file size
+...].  That way, cgi_input will completely read all the variables and
+you can give more appropriate diagnostics.
+
+The default limit is 10 100MB files.  If you were to set this
+yourself, it would look this way:
+
+cgi_file_limit 10 100000000
+
+
+-- File example
+
+The following code echos the contents of a file that was
+uploaded using the variable "file":
+
+  cgi_input
+  cgi_body {
+    set server [cgi_import_filename -server $v]
+    set client [cgi_import_filename -client $v]
+    if [string length $client] {
+      h4 "Uploaded: $client, contents:"
+      cgi_preformatted {puts [exec cat $server]}
+    }
+    file delete $server
+  }
+
+The present implementation supports binary upload if you are using Tcl
+8.1 (or later) or if you are using the Expect extension.  If you are
+using a version of Tcl earlier than 8.1 with Expect but want to
+suppress binary loading, create the global variable
+_cgi(no_binary_upload).  (The reason you might want to suppress binary
+loading is that it is noticably slower.)
+
+**************************************************
+EXPORT
+**************************************************
+
+Form elements automatically export their values.  See FORM ELEMENTS
+for more information.
+
+cgi_export name=value
+
+cgi_export makes the named variable available with the given value.
+The "=value" is optional.  If not present, the value of the Tcl
+variable by the same name is used.  
+
+cgi_export is implemented with variables of type=hidden.
+
+cgi_export is implemented as an all-or-nothing operation.  In
+particular, no HTML is emitted if the variable does not exist.  That
+means it is not necessary to test for existence in situations where
+you would like to export a variable IF it exists.  Rather, it is
+sufficient to embed cgi_export within a catch.  For example, the
+following generates nothing if xyz doesn't exist and it generates the
+appropriate HTML if xyz does exist.
+
+  catch {cgi_export xyz}
+
+** Cookies
+
+cgi_export_cookie name
+
+cgi_export_cookie is similar to cgi_export except that the value is
+made available as a cookie.  Additional arguments are handled as with
+cgi_cookie_set (see below).
+
+cgi_cookie_set name=val
+
+cgi_cookie_set sets the named cookie.  All optional arguments are
+handled specially.  All arguments are encoded appropriately.  The
+expires keyword is handled specially to simplify common cases.  In
+particular, the values "now" and "never" produce appropriate GMT
+values.
+
+Here are some example of cgi_cookie_set:
+
+  cgi_cookie_set user=don domain=nist.gov expires=never
+  cgi_cookie_set user=don domain=nist.gov expires=now
+  cgi_cookie_set user=don domain=nist.gov expires=...actual date...
+
+Note that cookie setting must be done during http head generation.
+
+**************************************************
+URL/IMG DICTIONARY SUPPORT
+**************************************************
+
+cgi_link tag
+cgi_link tag display url
+
+cgi_link provides a convenient mechanism for maintaining and
+referencing from a set of URLs.
+
+cgi_link returns the string <A>...</A> corresponding to the given tag.
+A tag is defined by calling cgi_link with the tag, the clickable text
+that the use should see, and the url.
+
+For example, suppose you want to produce the following (where _xyz_
+indicates xyz is a hyperlink):
+
+  I am married to _Don Libes_ who works in the _Manufacturing
+  Collaboration Technologies Group_ at _NIST_.
+
+Using cgi_link with appropriate link definitions, the scripting to
+produce this is:
+
+  p "I am married to [link Libes] who works in the [link MCTG]
+  at [link NIST]."
+
+This expands to:
+
+  I am married to <A HREF="http://elib.cme.nist.gov/msid/staff
+  /libes/ libes.don.html">Don Libes</A> who works in the <A
+  HREF="http:// elib.cme.nist.gov/msid/groups/mctg.htm">
+  Manufacturing Collaboration Technologies Group</A> at <A
+  HREF="http:// www.nist.gov">NIST</A>.
+
+The links themselves are defined thusly:
+
+  link Libes "Don Libes"    http://www.cme.nist.gov/msid/staff/libes
+  link MCTG  "$MCT Group"   http://www.cme.nist.gov/msid/mctg
+  link NIST  "NIST"         http://www.nist.gov
+
+Now if my home page ever changes, rather than updating every
+occurrence, I just have to edit the one definition.
+
+Tcl variables can further simplify updates.  For instance, URLs for
+Libes and MCTG are in a common directory.  It makes sense to store
+that in a single variable.  Rewritten this appears:
+
+set MSID http://www.cme.nist.gov/msid
+
+  link Libes "Don Libes"    $MSID/staff/libes
+  link MCTG  "$MCT Group"   $MSID/mctg
+  link NIST  "NIST"         http://www.nist.gov
+
+Then if the MSID directory ever moves, only one line need be updated.
+This may seem like no big deal here, but if you have many links and
+many uses of them, this pays off handsomely.
+
+Optional attributes can be provided as additional arguments (see IMG
+example below).
+
+An existing link can be given a different "display" temporarily by
+calling cgi_link with the different display and omitting the url.
+
+cgi_imglink 
+
+imglink works similar to cgi_link (see that documentation for more
+info) except that no display argument is used and the second argument
+is assumed to be the image source.  Example:
+
+  imglink taj tajmahal.gif
+
+Other attributes can be provided as additional arguments.
+
+  imglink taj tajmahal.gif "alt=The Taj Mahal"
+
+cgi_url display href args
+
+By using cgi_url, URLs can be generated immediately (without using
+cgi_link first).  This is convenient when you need a URL that will
+only appear once - so that there is no point in storing it in a
+dictionary.  For example:
+
+  cgi_li "[cgi_url "Plume" http://pastime.anu.edu.au/Plume]
+      is a Tcl-based WWW browser written by Steve Ball,
+      Australian National University.  Among its interesting
+      features is the ability to execute Tcl applets and the
+      ability to dynamically extend the browser at runtime."
+
+cgi_img href args
+
+cgi_img returns a formatted <img> tag.  It is useful for one-time tags.
+Tags that are used multiple times should use cgi_imglink.  Example:
+
+  cgi_img foo.gif "alt=Foo's Bar & Grill"
+
+cgi_anchor_name name
+
+cgi_anchor_name returns an anchor that can be used in an HTML body
+that it can be linked to using the #name syntax.  For example, to make
+a heading that you want to be able to link to:
+
+  h2 "[cgi_anchor_name future]Future Improvements"
+
+Then to reference the "future" tag:
+
+  p "Look for [cgi_url "improvements" #future] in the future."
+
+cgi_base args
+
+cgi_base defines a base or window target for urls.
+
+**************************************************
+QUOTING
+**************************************************
+
+cgi_unquote_input string
+
+cgi_unquote_input undoes "url-encoding" and returns the result.  This
+is normally applied automatically to input sources including URLs and
+cookies.  So you shouldn't have to call this manually.
+
+cgi_quote_html string
+
+cgi_quote_html returns the string but with any html-special characters
+escaped.  For example, "<" is replaced by "\&lt".  This is useful for
+displaying a literal "<" in the browser.
+
+cgi_dquote_html string
+
+cgi_dquote_html does the same thing as cgi_quote_html but also adds on
+double quotes.  cgi_quote_html is called automatically for implicit
+value attributes.
+
+cgi_quote_url string
+
+cgi_quote_url quotes strings appropriately to appear in a url, cookie,
+etc.  This is useful if you want to publish a url by hand (and must do
+the conversion manually that the client normally does for you).
+
+If you are generating cgi-style URLs for forms, use cgi_cgi_set.
+
+cgi_preformatted cmd
+
+cgi_preformatted evaluates its last argument to produce fixed-width
+preformatted output.  Optional arguments are passed as attributes to
+the tags.
+
+cgi_preformatted allows a subset of tags to be interpreted by the
+browser.  For example, the <a> tag is interpreted but font change tags
+are not.  To prevent all interpretation, use cgi_quote_html.  For
+example, the following prints a file that might contain HTML but
+without any risk to throwing off formatting.
+
+  cgi_preformatted {
+    puts [cgi_quote_html [read $fid]]
+  }
+
+**************************************************
+LIST SUPPORT
+**************************************************
+
+** List elements
+
+cgi_li string
+
+cgi_li prints its string as a list element.  Optional arguments are
+passed through as attributes.  cgi_li does not have to appear in a
+list container, but it can.
+
+cgi_term text
+cgi_term_definition text
+
+cgi_term and cgi_term_definition are usually paired up (although they
+need not be) to creates terms and defintions.  They do not have to
+appear in a list container, but usually appear in a cgi_definition_list.
+
+** List containers
+
+cgi_number_list cmd
+cgi_bullet_list cmd
+
+cgi_number_list and cgi_bullet_list take their cmd argument and
+evaluate it in a list container context.  (I don't know about you but
+I could never remember <ol>, <ul>, and all the other ones.  This names
+seem much easier to remember.)
+
+cgi_li is a typical command to call inside of a list container, but
+you can use regular paragraphs (or anything else) as well.
+
+cgi_definition_list
+
+cgi_definition_list is the usual list container for cgi_term and
+cgi_term_definition.  It may contain other things as well.
+
+cgi_menu_list
+cgi_directory_list
+
+cgi_menu_list and cgi_directory are more list containers with the
+obvious semantics.  Previous remarks about other list containers
+apply.
+
+**************************************************
+TABLE
+**************************************************
+
+cgi_table cmd
+
+cgi_table produces <table></table> tags with the content filled by
+evaluation of cmd.  Optional arguments are passed on as attributes.
+
+cgi_caption cmd
+
+cgi_caption produces <caption></caption> tags with the content filled
+by evaluation of cmd.  Optional arguments are passed on as attributes.
+
+cgi_table_row cmd
+cgi_table_head cmd
+cgi_table_data cmd
+
+These functions all produce the appropriate tags with the content
+filled by evaluation of cmd.  Optional arguments are passed on as
+attributes.
+
+cgi_tr table_data
+cgi_td table_data
+cgi_th table_data
+
+cgi_tr, cgi_td, and cgi_th are shortcuts for relatively simple rows.
+
+cgi_td outputs a table element.  Unlike cgi_table_data, the argument
+is not evalled.  This allows more terse specification of simple rows.
+The following example produces a table with three elements, the last
+of which is prevented from wrapping:
+
+  table_row {td Don;td Steve;td nowrap "Really Long Name"}
+
+As the example suggests, optional arguments are passed on as
+data-specific attributes.
+
+cgi_th is identical to cgi_td except that it produces table heading
+elements.
+
+cgi_tr outputs a row of elements without having to call cgi_td or
+cgi_table_data.  As with td, eval is not called.  Data-specific
+attributes cannot be provided.  All the elements are passed as a
+single argument.  For example:
+
+  tr {Don Steve {Really Long Name}}
+or
+  tr [list Don Steve $reallylongname]
+
+Optional arguments are passed on as row-specific attributes.
+
+**************************************************
+BUTTON
+**************************************************
+
+cgi_submit_button name=value
+cgi_radio_button name=value
+cgi_image_button name=value
+
+These procedure create buttons.  The first argument indicates the
+variable name and value.  (See notes on "Name-value" commands earlier
+to understand behavior of omitted names/values.)  Unless otherwise
+mentioned below, additional arguments are passed on as attributes.
+
+  cgi_submit_button "=Submit Form"
+  cgi_submit_button "Action=Pay Raise"
+
+  cgi_radio_button "version=1"
+  cgi_radio_button "version=2" checked=1
+
+  cgi_image_button "=http://www.cme.nist.gov/images/title.gif"
+  cgi_image_button "Map=http://www.cme.nist.gov/images/msid3.gif"
+
+Groups of radio buttons must share the same variable name.  To address
+the obvious question: No, there is no single command to produce a
+group of radio buttons because you might very well want to do
+arbitrarily-complex calculations in between them.  And with a
+long-enough line of buttons, the obvious behavior (laying them all out
+in a line like CGI.pm does) makes it hard to tell at a glance if the
+buttons associate with the label to the left or the right of them.
+Anyway, you'll almost certainly want to write another procedure to
+call cgi_radio_button and that can control the variable name.
+
+The radio button argument "checked_if_equal=xxx" indicates that the
+button should be shown selected if its associated value is xxx.  This
+is handy if you are creating radio buttons by iterating over a list.
+
+The radio button "checked=value" indicates that the button should be
+shown selected if the value is a boolean of value true.
+
+All other arguments are passed on as attributes.
+
+cgi_file_button name
+
+cgi_file_button provides a filename entry box.  When the form is
+submitted, the file is "uploaded" (sent from the client to the
+server).  The argument enctype=multipart/form-data must be given to
+the cgi_form command when using cgi_file_button.
+
+After uploading, the file is the responsibility of the CGI programmer.
+In particular, if you do not delete it, it will remain until /tmp is
+cleaned up in some other way.
+
+For example, to upload a single file, the form might look like this:
+
+  cgi_form upload height=3 enctype=multipart/form-data {
+    cgi_file_button file
+    cgi_submit_button =Upload
+  }
+
+Uploaded files are automatically made available to the CGI script
+using cgi_import_filename.  (See elsewhere for more information.)
+
+cgi_reset_button value
+
+cgi_reset_button creates a a reset button.  An argument overrides the
+default label.  For example:
+
+  cgi_reset_button
+  cgi_reset_button "Not the Default Reset Button"
+
+cgi_map name cmd
+cgi_area args
+
+These procedures are used to specify client-side image maps.  The
+first argument of cgi_map is the map name.  The last argument is
+evaluated to fill the contents of <map></map> tags.  cgi_area's
+arguments are embedded as arguments in an <area> tag.
+
+Warning: These two commands will likely be redefined as I get more
+familiar with how they are typically used.
+
+**************************************************
+CHECKBOX
+**************************************************
+
+cgi_checkbox name=value
+
+cgi_checkbox is similar to cgi_radio_button (see above) except that
+multiple values can be checked at the same time.  As explained
+earlier, the variable name must end with "List" in order for it to
+group all the values as a list in the resulting CGI script.
+
+The argument "checked_if_equal=xxx" which indicates that the current
+name should be shown selected if its associated value is xxx.  This is
+handy if you are creating checkboxes by iterating over a list.
+
+The argument "checked=value" indicates that the checkbox should be
+shown selected if the value is a boolean of value true.
+
+Other arguments are passed on as attributes.
+
+
+**************************************************
+TEXTENTRY AND TEXTAREA
+**************************************************
+
+cgi_text name=value
+
+cgi_text provides a one-line text entry box.  It works similarly to
+other form elements.  (Read "Name-value commands" elsewhere.)
+Additional arguments are passed on as attributes.  Examples:
+
+  cgi_text Foo
+  cgi_text Foo=
+  cgi_text Foo=value2
+  cgi_text Foo=value2 size=5
+  cgi_text Foo=value2 size=5 maxlength=10
+  cgi_text Foo=value2 size=10 maxlength=5
+  cgi_text Foo=value2 maxlength=5
+
+cgi_textarea name=value
+
+cgi_textarea provides a multiline text entry box.  It works similarly
+to other form elements.  (Read "Name-value commands" elsewhere.)
+Additional arguments are passed on as attributes.
+
+  set value "A really long line so that we can compare the\
+		effect of wrap options."
+
+  cgi_textarea Foo
+  cgi_textarea Foo=
+  cgi_textarea Foo=$value
+  cgi_textarea Foo=$value rows=3
+  cgi_textarea Foo=$value rows=3 cols=7
+  cgi_textarea Foo=$value rows=3 cols=7 wrap=virtual
+
+**************************************************
+SELECT
+**************************************************
+
+cgi_select name cmd
+
+cgi_select can be used to produce pull-down menus and scrolled lists.
+(And depending upon the future of HTML, I may provide better-named
+commands to indicate this.)  Its behavior is controlled by additional
+arguments which are simply the appropriate attributes.
+
+cgi_select evaluates cmd which typically contains multiple calls to
+cgi_option.
+
+cgi_option string
+
+cgi_option adds options to cgi_select.  By default, the string is
+displayed and sent back as the value of the cgi_select variable.  The
+value can be overridden by an explicit "value=" argument.  Additional
+options are passed on as attributes, except for "selected_if_equal".
+
+"selected_if_equal=xxx" indicates that the current option should be
+shown selected if the value is equal to xxx.  This is useful if you
+are generating cgi_options in a loop rather than manually.
+
+Here are examples:
+
+  # pull-down menu
+  cgi_select Foo {
+    cgi_option one selected
+    cgi_option two
+    cgi_option many value=hello
+  }
+
+  # scrolled list, allow multiple selections, show all elements
+  cgi_select FooList multiple {
+    cgi_option one selected
+    cgi_option two selected
+    cgi_option many 
+  }
+
+  # scrolled list, allow multiple selections, show 2 elements max
+  cgi_select FooList multiple size=2 {
+    cgi_option one selected
+    cgi_option two selected
+    cgi_option many 
+  }
+
+  # choose "selected" dynamically
+  # example: list all Tcl command and select "exit" automatically
+  cgi_select FooList multiple size=5 {
+    foreach o [info comm] {
+      cgi_option $o selected_if_equal=exit
+    }
+  }
+
+Note: If both value= and selected_if_equal= appear, the test for
+selection is made against the last value string (implicit or explicit)
+that appears before the selected_if_equal argument.  In other words,
+if you want selected_if_equal= to be tested against the explicit
+value= argument, put the selected_if_equal= *after* the value=.
+
+**************************************************
+APPLET
+**************************************************
+
+cgi_applet parameters cmd
+
+cgi_applet produces <applet></applet> tags such as for Java.
+
+cgi_param name=value
+
+cgi_param produces <param> tags for passing parameters to applets.
+
+For example:
+
+  cgi_applet "codebase=../" "code=some.class" width=640 height=480 {
+     cgi_param parm=value
+  }
+
+**************************************************
+PLUG-IN
+**************************************************
+
+cgi_embed src widthxheight
+
+cgi_embed creates an <embed> tag.  The first argument is the source.
+The second argument is the width and height in the style "WxH".
+Optional arguments are passed on to the tag.  For example:
+
+  cgi_embed myavi.avi 320x200 autostart=true
+
+produces:
+
+  <embed src="myavi.avi" width="320" height="200" autostart=true>
+
+Notice the autostart value is unquoted because autostart is not
+specifically defined by the spec.  The argument "-quote" causes all
+remaining attributes to be url encoded and quoted.  For example:
+
+  cgi_embed myavi.avi 320x200 a=b -quote c=d e=f
+
+produces:
+
+  <embed src="myavi.avi" width="320" height="200" a=b c="d" e="f">
+
+**************************************************
+MISC
+**************************************************
+
+cgi_hr
+
+cgi_hr produces horizontal rules.  Optional arguments are passed on as
+attributes.
+
+**************************************************
+COMMENTS
+**************************************************
+
+cgi_comment stuff
+
+cgi_comment can comment out anything including blocks of code.
+
+cgi_html_comment stuff
+
+cgi_html_comment comments out things in such a way that the comment
+appears in the final html itself.
+
+**************************************************
+OUTPUT
+**************************************************
+
+cgi_put string
+
+cgi_put prints the string with no new terminating newline.  This is
+simply a shorthand for puts -nonewline.
+
+cgi_puts
+
+Many routines in this library send output to the standard output by
+default.  This is convenient for CGI scripts.  However, if you want to
+generate multiple files, it is useful to be able to redirect output
+dynamically.  Output can be redirected by redefining cgi_puts.  The
+default definition of cgi_puts is:
+
+  proc cgi_puts {args} {
+    eval puts $args
+  }
+
+cgi_puts must allow for an optional -nonewline argument.  For example,
+here is a definition that writes to a file identified by the global
+"fd".
+
+  proc cgi_puts {args} {
+    global fd
+
+    puts -nonewline $fd [lindex $args end]
+    if {[llength $args] > 1} {
+      puts $fd ""
+    }
+  }
+
+cgi_buffer cmd
+
+cgi_buffer evaluates its argument in such a way that output (through
+explicit or implicit calls to cgi_puts) is not produced.  Instead, the
+output is returned.
+
+For example, the following cmd generates a link with the hyperlinked
+portion being a header and two paragraphs.
+
+  link tag [cgi_buffer {
+    h3 "Level 3 header"
+    p "New paragraph"
+    p "Another paragraph"
+  }] $URL
+
+cgi_buffer can be called recursively.
+
+cgi_buffer_nl string
+
+By default, cgi_buffer generates newlines at the end of every line in
+the style of puts.  It is occasionally useful to be able to disable
+this - for example, when calling it inside cgi_preformatted.  The
+newline definition can be changed via cgi_buffer_nl.  (There is no
+point to redefining cgi_puts since cgi_buffer doesn't use it.)  A null
+argument suppresses any newline.  For example:
+
+  cgi_buffer_nl ""
+
+cgi_buffer_nl returns the previous definition.
+
+**************************************************
+MAIL
+**************************************************
+
+Rudimentary email support is provided, in part, because it is useful
+for trapping errors - if debugging is disabled (i.e., during actual
+use) and an error is encountered, errors are emailed to the service
+admin.
+
+The current implementation only permits one email transaction at a
+time.
+
+cgi_mail_addr addr
+
+cgi_mail_addr defines the email address that mail comes from.  Your
+email system must allow this, of course.  (If your system doesn't
+allow it, the request is usually ignored.)
+
+cgi_mail_start addr
+
+cgi_mail_start creates a mail message to be delivered the given addr.
+cgi_mail_add should be used to provide a subject and body.
+
+cgi_mail_add string
+
+cgi_mail_add adds strings to the current mail message.  No argument
+causes a blank line to be added.
+
+cgi_mail_end
+
+cgi_mail_end queues the the current mail message for delivery.
+
+  cgi_mail_start libes@nist.gov
+  cgi_mail_add "Subject: [cgi_name] request succeeded
+  cgi_mail_add
+  cgi_mail_add "Your request has been processed."
+  cgi_mail_add "Thanks for using [cgi_name].
+  cgi_mail_end
+
+cgi_mail_relay host
+
+cgi_mail_relay identifies a host to be used for mail relay services.
+(This is currently only used when sendmail support is not available.)
+If a relay is not defined, email is sent directly to the recipient.
+
+**************************************************
+INITIALIZATION
+**************************************************
+
+cgi_init
+
+The package initializes itself upon initial loading, however it can be
+explicitly initialized by calling cgi_init.  This is useful in
+environments such as tclhttpd.

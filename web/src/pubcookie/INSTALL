@@ -1,0 +1,76 @@
+
+STEPS TO ADD PUBCOOKIE SUPPORT TO WEBPINE
+
+Based on webpine using pine 4.43 source built under RedHat Enterprise
+Server.  This document assumes the WebPine package has been unpacked
+in "/usr/local/webpine/", Kerberos 5 is installed and the development
+tools are available in "/usr/kerberos".
+
+0. verify settings in src/pubcookie/auth_gss_proxy.c, check that
+   #define AUTH_GSS_PROXY_PATH line is correct or make sure
+   AUTH_GSS_PROXY_PATH passed on build command line is correct.
+
+1. Build pinetcld:
+
+  cd src/pubcookie
+
+  cp auth_gss_proxy.c ../pine4.43/imap/src/c-client/
+
+  cd ../pine4.43/pine/
+
+  patch < ../../pubcookie/pinetcld.pubcookie.patch
+
+  cd ..
+
+  ./build clean
+  ./build lrh EXTRACFLAGS=-DWEBPINE 'EXTRAAUTHENTICATORS=gss_proxy gss' GSSDIR=/usr/kerberos
+
+  cd pine
+
+  make -f makefile.wp
+
+
+2. Build other binaries:
+
+  cd ../pubcookie
+
+  a) Edit Makefile, checking first 3 lines
+
+  b)  make clean
+      make
+  
+3. Install binaries:
+
+  cp pinetcld ../../../bin/
+  su2
+  cp wp_uidmapper wp_tclsh wp_gssapi_proxy ../../../bin
+  cd ../../../bin
+  chmod 4755 wp_gssapi_proxy wp_tclsh
+  exit
+
+4. Add pubcookie directives to various htaccess files, document assumes
+   httpd server's document root is /usr/local/webpine/webpine (or the
+   files have been relocated to it and a suitable symbolic link exists).
+
+  cd src/pubcookie
+  
+  Edit /usr/local/webpine/webpine/session/.htaccess, adding 
+      lines from _htaccess_session
+
+  Edit /usr/local/webpine/webpine/session/logout/.htaccess, adding
+      lines from _htaccess_session_logout
+
+  Edit debug.cgi, make sure first few lines point to right locations
+
+  cp debug.cgi /usr/local/webpine/webpine/
+
+  cd ../../config/
+
+  Edit config/alpine.tcl, making sure pc_servlet
+      setting is pointing to the pinetcld binary just made,
+      and that other admin and servlet settings are right
+
+  Make sure cron job is set up to run kinit for
+      alpine-contact@u.washington.edu every 8 hours or so
+
+5. Try it.

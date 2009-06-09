@@ -1,0 +1,7 @@
+#!/bin/ksh
+echo This script will add the PNUTS generated navigation bar to the bottom
+echo of the PIC Technical Notes HTML files.
+echo '----------------------------------------------------------------------'
+# Written by Stefan Kramer, last modified by skramer on 1995/11/02.
+pnuts.4tech-notes for.pnuts
+# for.pnuts is the file that specifies the sequence of HTML files

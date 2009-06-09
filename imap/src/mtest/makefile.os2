@@ -1,0 +1,53 @@
+# ========================================================================
+# Copyright 1988-2006 University of Washington
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# 
+# ========================================================================
+
+
+# Program:	MTEST Makefile
+#
+# Author:	Mark Crispin
+#		Networks and Distributed Computing
+#		Computing & Communications
+#		University of Washington
+#		Administration Building, AG-44
+#		Seattle, WA  98195
+#		Internet: MRC@CAC.Washington.EDU
+#
+# Date:		25 February 1996
+# Last Edited:	30 August 2006
+
+# Thanks to Nicholas Paul Sheppard who contributed the original version
+
+CC = gcc
+CFLAGS = -O2 -Zomf
+LD = gcc
+LDFLAGS = -s -Zomf -Zcrtdll
+
+C = ..\c-client
+CCLIENTLIB = $C\\c-client.lib
+LIBS = $(CCLIENTLIB) -l socket
+
+mtest.exe: $(CCLIENTLIB) mtest.obj
+	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+$(CCLIENTLIB):
+	@echo Make c-client first
+	false
+
+mtest.obj: mtest.c $C\mail.h $C\smtp.h $C\misc.h $C\osdep.h
+	$(CC) $(CFLAGS) -I$C -o $@ -c $<
+
+clean:
+	if exist *.obj del *.obj
+
+# A monument to a hack of long ago and far away...
+love:
+	@echo not war?

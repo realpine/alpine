@@ -1,0 +1,70 @@
+This file is install.mac.  It contains installation instructions for
+cgi.tcl on MacOS.
+
+If you do not have Tcl, get it (the README explains how) and install
+it.  The rest of these instructions assume that you have Tcl
+installed.
+
+--------------------
+Installation
+--------------------
+
+These instructions are based on contributions courtesy of Henk-Jan
+Kooiman <hjk@cable.a2000.nl>.  Send fixes to me (libes@nist.gov).
+
+If you just want to experiment with cgi.tcl, you can simply source it
+into your Tcl files by saying "source cgi.tcl".
+
+Once you're done playing, go ahead and install it.  To install it:
+
+1) Make a package index.  (This will create pkgIndex.tcl which will
+make it possible to use "package require cgi" in scripts.)  Asari
+Hirotsugu <asari@math.uiuc.edu> has supplied the following
+elaboration of this step:
+
+  1a) Put the cgi.tcl folder in the "Tool Command Language" folder
+  inside the Extensions folder.  (Don't make an alias for the Tool
+  Command Language folder since Tcl Shell doesn't resolve aliases as
+  of 8.2.1.)
+
+  1b) Launch the Tcl Shell (or Wish) and move to the Tool Command
+  Language folder by entering:
+	
+      cd "Macintosh HD:System Folder:Extensions:Tool Command Language"
+
+    (You may have to modify this command depending upon the names
+    and structure of your file system.)
+
+    Issue the pkg_mkIndex command:
+
+      pkg_mkIndex cgi.tcl*
+
+  1c) Test if the package comand works by trying:
+
+      package require cgi
+
+2) You may want to edit some things in cgi.tcl at this time.
+
+  2a) Upon errors in production code, cgi.tcl sends mail to an
+  administrator.  This can be set on a per-script basis but it
+  defaults to "root".  You'll probably want to change this for your
+  site.  To do that, search cgi.tcl for cgi_admin_mail_addr "root" and
+  change the argument to whatever you prefer.
+
+  2b) The cgi_mail_end procedure attempts to do mail delivery using
+  SMTP (the de facto Internet mail protocol).  However, this mechanism
+  is not robust.  For example, if the mail gateway is down, the mail
+  will not be requeued for later delivery.  If you have a robust
+  mailer program or some other interface, you should switch to using
+  it.  The ability to send mail isn't required for basic use of
+  cgi.tcl, but this ability is especially useful for in-the-field
+  debugging so I encourage you to use it.
+
+You're done!  Now you can use cgi.tcl.
+
+--------------------
+Examples
+--------------------
+
+The example directory has some examples.  See the README in there.
+

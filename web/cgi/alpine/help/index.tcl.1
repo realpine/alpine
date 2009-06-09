@@ -1,0 +1,300 @@
+# ========================================================================
+# Copyright 2006 University of Washington
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# ========================================================================
+cgi_put [cgi_font size=+2 [cgi_bold "Message List"]]
+
+cgi_p
+cgi_puts [cgi_font size=-1 color=red "Note: This text may be out-of-date; changes to the Message List page are in process."]
+
+cgi_p {
+  Your Message List contains summary information about each of the
+  messages in your current WebPine-lite folder and provides ways for you to
+  take actions on those messages.
+}
+
+cgi_p {
+  To compose a new message, resume a postponed one, or go to another
+  folder, select the appropriate option in the column on the left-hand side
+  of your page.  You will also see options to change your WebPine-lite
+  configuration and to manage your address book.
+}
+
+cgi_bullet_list type=square {
+  cgi_li [cgi_url [cgi_bold "Reading your mail"] "#read"]
+  cgi_li [cgi_url [cgi_bold "Navigating your list"] "#navigate"]
+  cgi_li [cgi_url [cgi_bold "Sorting your mail"] "#sort"]
+  cgi_li [cgi_url [cgi_bold "Operating on a set of messages"] "#aggregate"]
+  cgi_li [cgi_url [cgi_bold "Deleting messages"] "#delete"]
+  cgi_li [cgi_url [cgi_bold "Saving messages to another folder"] "#save"]
+  cgi_li [cgi_url [cgi_bold "Setting status flags"] "#flags"]
+  cgi_li [cgi_url [cgi_bold "Searching"] "#search"]
+}
+
+cgi_anchor_name "read"
+cgi_puts [cgi_bold "Reading your mail"][cgi_nl]"
+cgi_puts {
+  Once you log into WebPine-lite, you will see your Message List INBOX. To
+  read a message within any folder, select its subject line.
+}
+
+cgi_p {
+  Go to [cgi_bold "Folder List"] if you want to read mail within another
+  folder.
+}
+
+cgi_p {
+  Your INBOX is where your new mail is delivered unless you filter some
+  mail to another folder.
+}
+
+if {0} {
+<!-- <p>{<i><a href="">Click here</a> to configure mail filters.[not 
+implemented yet]}</i></p> -->
+}
+
+cgi_anchor_name "navigate"
+cgi_puts [cgi_bold "Navigating your list"][cgi_nl]
+cgi_puts {
+  In the column on the left-hand side of your Message List page, you will
+  see four navigation options: [cgi_bold Previous], [cgi_bold First], [cgi_bold Next],
+  [cgi_bold Last].
+}
+
+cgi_puts "Select:[cgi_nl]"
+cgi_bullet_list {
+  cgi_li {
+    [cgi_bold Previous] to download your Message List page that contains
+    your previous set of messages. For example, if you see messages 101-150
+    out of 280, select [cgi_bold Previous] to go to messages 50-100.[cgi_nl]
+  }
+  cgi_li {
+    [cgi_bold First] to view your Message List beginning with message number 1.
+  }
+  cgi_li {
+    [cgi_bold Next] to download your Message List page that contains
+    your next set of messages.  For example, if you see messages 101-150 out
+    of 280, select [cgi_bold Next] to go to messages 151-200.
+  }
+  cgi_li {
+    [cgi_bold Last to view your Message List page that ends with your last
+    message in that folder.
+  }
+}
+
+cgi_p {
+  Use your browser scrollbar to see messages that are downloaded, but are
+  out of eyesight due to screen size.
+}
+
+if {0} {
+<!-- <p>{<i>Do you want to change the number of messages WebPine-lite
+downloads to your Message List? <a href="">Click here</a> to make that
+configuration change.[not implemented yet]}</i></p> -->
+}
+
+cgi_p {
+  [cgi_anchor_name "sort"][cgi_bold "Sorting your mail"][cgi_nl]
+  Using the Sort options you can arrange your mail by [cgi_bold "Date"],
+  [cgi_bold "From"], [cgi_bold "To"], [cgi_bold "Size"], [cgi_bold "Subject"], [cgi_bold "Ordered Subject"],
+  and [cgi_bold "Thread"].  By default, your Message List is set to
+  sort your mail by arrival time. Most of the time, arrival time and date
+  (effectively departure time)  are nearly the same. They may differ,
+  however, because of messages may take a long time in delivery or because
+  of time zone differences.
+}
+
+
+cgi_puts "Select:[cgi_nl]"
+cgi_button_list {
+  cgi_li "[cgi_bold "Date"] to sort by the date your messages were sent.<br>
+  cgi_li "[cgi_bold "From"] to sort by the name of the sender of the 
+message.<br>
+  cgi_li "[cgi_bold "To"] to sort your messages alphabetically according to the "To:" 
+line.<br>
+  cgi_li "[cgi_bold "Size"] to sort by the number of characters in the message.<br>
+  cgi_li "[cgi_bold "Subject"] to sort your messages alphabetically according to the 
+subject line.<br>
+  cgi_li "[cgi_bold "Ordered Subject"] to group messages with the same subject name and 
+put them into date order.<br>
+  cgi_li "[cgi_bold "Thread"] to present messages as a continuous chain grouped by 
+Subject.  This sort is particularly helpful when viewing newsgroups.</ul>
+
+cgi_p
+Once you have sorted your mail, the name of that sort (i.e. the column
+heading) will be highlighted and an arrow will appear next to the name. To
+reverse the sort order, click the arrow.</p>
+
+<!-- <p><i>{Do you want to change your default sort order? <a href="">Click 
+here</a> for that configuration option.[not implemented yet]}</i></p> -->
+
+cgi_p
+cgi_anchor_name "aggregate">[cgi_bold "Operating on a set of messages"]</a><br>
+
+cgi_p
+Operating on a set of messages is referred to as [cgi_italic "aggregate operations"].
+The way you perform aggregate operations is by placing a mark in the checkbox on
+the line associated with the desired message, 
+and then choosing the operation to perform such as deleting or setting 
+other message flags, or saving them to a folder.
+
+cgi_p
+The set of aggregate operations are either hidden or exposed.  When
+hidden you will see a <img src=/images/slideout.gif style="vertical-align:middle"> tab on the left edge of the line
+containing the sort names. Click the tab to expose the aggregate
+commands and the checkboxes next to each message.  Similarly, when aggregate operations are visible, you will see a 
+<img src=/images/slidein.gif style="vertical-align:middle"> tab on the line containg the sort names.  You can click this
+tab to hide aggregate operations.
+
+cgi_p
+When aggregate commands are exposed, the set of commands available is either
+simple or complete.  The simple set consists of only the ability to [cgi_bold "Delete"]
+messages.  When the simple mode is in effect, you will see a [cgi_bold "Delete"] button
+and next to it the <img src=/images/tabmore.gif style="vertical-align:middle"> tab
+above the column of checkboxes. Click the <img src=/images/tabmore.gif style="vertical-align:middle"> tab
+to expose the complete set of commands.
+
+cgi_p
+When the complete set of commands is visible, a <img src=/images/tabless.gif style="vertical-align:middle">
+tab will be on the sort name row.  Click it to return to the simple aggregate command set.
+
+cgi_p
+The complete set of aggregate operations adds an additional display line above the sort names row.
+It contains the [cgi_bold "Flag"] and [cgi_bold "Save"] commands.  The choices above the checkbox column will change
+as well into a dropdown list of alternative methods for setting or unsetting checkboxes.  
+
+cgi_p
+There are three ways to mark a message when the complete mode is in effect:</p>
+<ul>
+  cgi_li "Select the checkbox next to the message or messages
+  cgi_li "Perform a Search using the [cgi_bold "Search/Mark..."] menu
+  cgi_li "Select [cgi_italic "Mark All"] from the [cgi_bold "Search/Mark..."] menu. 
+</ul>
+
+cgi_p
+Lastly, the dropdown will offer a [cgi_bold "Zoom"] option.  Choosing it will change the Message List by
+hiding all of the unchecked messages from view.  This is useful, for example, to examine a Search result
+that may have marked only a few messages in a large folder.
+
+<!-- <p><i>{<a href="">Click here</a> to enable or disable aggregate
+commands from this page.  [not implemented yet]}</i></p> -->
+
+cgi_p
+cgi_anchor_name "delete">[cgi_bold "Deleting Messages"]</a><br>
+When you see the [cgi_bold "Delete"] option in the upper-right corner of
+your Message List page, to delete messages:
+<blockquote>
+<ul>
+  cgi_li "Select the checkboxes next to the appropriate messages
+  cgi_li "Select [cgi_bold "Delete"]
+  cgi_li "Select [cgi_bold "Expunge"] to remove the messages from your folder
+</ul>
+</blockquote>
+
+When you are showing all of your aggregate operations (i.e. you 
+will see the [cgi_bold "Search/Mark..."] menu and the "Set Message Status" and 
+"Save Messages" operations), to delete:
+cgi_division style=
+<ul>
+  cgi_li "Select the checkboxes next to the appropriate messages by either
+selecting them individually or use the [cgi_bold "Search/Mark..."]
+menu options
+  cgi_li "Select [cgi_bold "Flag"] messages as Deleted
+  cgi_li "Select [cgi_bold "Expunge"] to remove the messages from your folder.
+</ul>
+</blockquote>
+
+cgi_p
+If you do not see checkboxes to the left of your messages, all of your
+aggregate operations are hidden.  Click the tab to the left of your column
+sort names to show [cgi_bold "Delete"], then click the tab next to [cgi_bold "Delete"]
+if you want to see all the aggregate operations.</p>
+
+<!-- <p><i>{Do you want to Expunge without being prompted for a
+confirmation? <a href="">Click here</a> to change that configuration
+option. [not implemented yet]}</i>
+cgi_p
+{<i><a href="">Click here</a> to enable aggregate commands to have
+this option available on this page. [not implemented yet]</i>}</p> -->
+
+
+cgi_anchor_name "save">[cgi_bold "Saving messages to another folder"]</a><br>
+"Save Messages" is only available from your Message List page when all of
+your aggregate operations are showing.  If you do not see "Save Messages"  
+on the top right-hand side of your page, some of your aggregate operations
+are hidden. Click the tab to the left of your sort column headings to show
+all of them.
+
+Select the checkboxes next to the messages you want to save to
+another folder.  Alongside the [cgi_bold "Save"] button, type in the name of the
+folder to which you want the messages saved.  The folder name can be one
+that already exists, or you can create a new folder by typing in a new
+name. If you have folder collections, select the correct one using the
+dropdown menu.  Select [cgi_bold "Save"] to save the message(s) into the folder
+you have typed.
+
+cgi_p
+The messages in your current folder that you have saved to another
+will be flagged for deletion.</p>
+
+
+cgi_anchor_name "flags">[cgi_bold "Setting status flags"]</a><br>
+Immediately to the left of your message numbers is an underscore
+reserved for your status flags:
+cgi_button_list {
+  cgi_li "[cgi_bold "+"] message sent directly to your address (your address was in the To: line)"
+  cgi_li "[cgi_bold "*"] important message"
+  cgi_li "[cgi_bold "A"] answered message"
+  cgi_li "[cgi_bold "N"] new (unread) message"
+  cgi_li "[cgi_bold "D"] flagged for deletion (additionally the subject line will have a strike through it)"
+</ul>
+
+cgi_p {
+  Select the underscore to go to a page where you can set or unset any of 
+  your message status flags.
+}
+
+cgi_anchor_name "search"
+cgi_puts {
+  [cgi_bold "Searching"][cgi_nl]
+  You can search through your messages in your Message List using the
+  [cgi_bold "Search/Mark..."] dropdown menu.  If you do not see the menu
+  (to the left of your sort column headings), some of your aggregate
+  commands are hidden. Click the tab in that area to show more commands.
+}
+
+cgi_p {
+  Select one of the menu items under [cgi_bold "Search/Mark..."] to 
+  find messages:
+}
+cgi_bullet_list {
+  cgi_li [cgi_italic "...by text"]
+  cgi_li [cgi_italic "...by date"]
+  cgi_li [cgi_italic "...by status"] 
+}
+
+cgi_puts {
+  Specify your search criteria on the next page. After you make your
+  selection, you will return to your Message List and the checkbox will be
+  selected for those messages found in your search.
+}
+
+cgi_p {
+  If you want to display just those messages that were found in your
+  search, next select [cgi_bold "Zoom"] from the [cgi_bold "Search/Mark..."] menu list.  
+  (Be aware that if you had other messages checked for selection before your
+  search, they will also be included in your zoomed view).
+}
+
+if {0} {
+<!-- <p><i>Note: If your browser is not javascript-enabled, after you make
+your selection from the dropdown menu you will need to select the
+<b>Do</b> button.</i></p> -->
+}
+

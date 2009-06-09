@@ -1,0 +1,234 @@
+//Microsoft App Studio generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#define APSTUDIO_HIDDEN_SYMBOLS
+#include "windows.h"
+#undef APSTUDIO_HIDDEN_SYMBOLS
+
+
+/////////////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+ALPINEICON                ICON    DISCARDABLE     "PICO.ICO"
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Cursor
+//
+
+PICOHAND                CURSOR  "MSWINHND.CUR"
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+ALPINEMENU MENU DISCARDABLE 
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "&Save File",                  IDM_MI_SAVEFILE
+        MENUITEM "&Read File",                  IDM_MI_READFILE
+        MENUITEM SEPARATOR
+        MENUITEM "E&xit",                       IDM_MI_EXIT
+    END
+    POPUP "&Edit"
+    BEGIN
+        MENUITEM "Cu&t\tCtrl-Shift-X",          IDM_EDIT_CUT
+        MENUITEM "&Copy\tCtrl-Shift-C",         IDM_EDIT_COPY
+        MENUITEM "Copy &Append\tCtrl-Alt-C",    IDM_EDIT_COPY_APPEND
+        MENUITEM "&Paste\tCtrl-Shift-V",        IDM_EDIT_PASTE
+        MENUITEM "Cance&l Paste!\tCtrl-Alt-V",  IDM_EDIT_CANCEL_PASTE
+        MENUITEM SEPARATOR
+        MENUITEM "Select All",                  IDM_EDIT_SEL_ALL
+        MENUITEM SEPARATOR
+        MENUITEM "&Find\tCtrl-Shift-F",         IDM_MI_WHEREIS
+        MENUITEM SEPARATOR
+        MENUITEM "&Spell",                      IDM_MI_SPELLCHK
+    END
+    POPUP "&Compose"
+    BEGIN
+        MENUITEM "Show Current &Position",      IDM_MI_CURPOSITION
+        MENUITEM "&Where Is",                   IDM_MI_WHEREIS
+        MENUITEM "&Justify Paragraph",          IDM_MI_JUSTIFY
+    END
+    POPUP "C&onfig"
+    BEGIN
+        MENUITEM "Set &Font",                   IDM_OPT_SETFONT
+        MENUITEM SEPARATOR
+        MENUITEM "&ToolBar",                    IDM_OPT_TOOLBAR
+        MENUITEM "Tool&bar on Top",             IDM_OPT_TOOLBARPOS
+        POPUP "&Cursor"
+        BEGIN
+            MENUITEM "Block",                   IDM_OPT_CARETBLOCK
+            MENUITEM "Small Block",             IDM_OPT_CARETSMALLBLOCK
+            MENUITEM "Underline",               IDM_OPT_CARETHBAR
+            MENUITEM "Vertical Bar",            IDM_OPT_CARETVBAR
+        END
+        MENUITEM SEPARATOR
+        MENUITEM "Use &Dialog Boxes",           IDM_OPT_USEDIALOGS
+    END
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "Screen Help",                 IDM_MI_SCREENHELP
+        MENUITEM "About",                       IDM_ABOUT
+    END
+END
+
+TEXTWINMENU MENU DISCARDABLE 
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "&Close",                      IDM_FILE_CLOSE
+        MENUITEM SEPARATOR
+        MENUITEM "&Print",                      IDM_FILE_PRINT
+    END
+END
+
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+ABOUTDLGBOX DIALOG DISCARDABLE  10, 25, 220, 80
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Pico"
+FONT 8, "Helv"
+BEGIN
+    ICON            ALPINEICON,IDD_ABOUTICON,10,5,18,20
+    CTEXT           "Pico for Windows%S\nVersion %d.%02d%S\nBuild (%S)",
+                    IDD_VERSION,46,8,120,26,SS_NOPREFIX | NOT WS_GROUP
+    LTEXT           "",IDD_BYLINE,45,40,172,56,SS_NOPREFIX | NOT WS_GROUP
+    DEFPUSHBUTTON   "OK",IDD_OK,177,8,40,14
+    PUSHBUTTON      "",IDC_BUTTON2,10,5,30,30,BS_ICON | NOT 
+                    WS_VISIBLE | WS_DISABLED,WS_EX_TRANSPARENT
+END
+
+IDD_TOOLBAR DIALOG DISCARDABLE  0, 0, 302, 12
+STYLE WS_CHILD | WS_VISIBLE
+FONT 8, "MS Sans Serif"
+BEGIN
+    PUSHBUTTON      "Quit",IDM_MI_EXIT,1,0,25,11
+    PUSHBUTTON      "Save",IDM_MI_SAVEFILE,26,0,26,11
+    PUSHBUTTON      "Find",IDM_MI_WHEREIS,52,0,22,11
+    PUSHBUTTON      "Spell",IDM_MI_SPELLCHK,74,0,26,11
+END
+
+#ifdef APSTUDIO_INVOKED
+//////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+0X00020000L TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "#define APSTUDIO_HIDDEN_SYMBOLS\r\n"
+    "#include ""windows.h""\r\n"
+    "#undef APSTUDIO_HIDDEN_SYMBOLS\r\n"
+    "\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+1 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "resource.h\0"
+END
+
+/////////////////////////////////////////////////////////////////////////////////////
+#endif    // APSTUDIO_INVOKED
+
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    IDS_BYLINE              "PICO Copyright 2006 University of Washington"
+    IDS_APPNAME             "Pico"
+    IDS_APPIDENT            "pico"
+END
+
+#ifndef _MAC
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 4,90,0,0
+ PRODUCTVERSION 4,90,0,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x40004L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "Comments", "see http://www.washington.edu/pine\0"
+            VALUE "CompanyName", "University of Washington\0"
+            VALUE "FileDescription", "Pico\0"
+            VALUE "FileVersion", "4.90\0"
+            VALUE "InternalName", "pico\0"
+            VALUE "LegalCopyright", "Copyright 2006\0"
+            VALUE "OriginalFilename", "pico.exe\0"
+            VALUE "ProductName", "  pico\0"
+            VALUE "ProductVersion", "4.90\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
+
+#endif    // !_MAC
+
+#ifndef APSTUDIO_INVOKED
+////////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

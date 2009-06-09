@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: spell.c 672 2007-08-15 23:07:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: spell.c 848 2007-12-06 19:57:49Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -48,14 +48,14 @@ static char *spellhelp[] = {
    the characters they are in front of to be bold. */
   N_("Spell Check Help"),
   " ",
-  N_("\tThe spell checker examines all words in the text.  It then"),
-  N_("\toffers each misspelled word for correction while simultaneously"),
-  N_("\thighlighting it in the text.  To leave a word unchanged simply"),
-  N_("~\thit ~R~e~t~u~r~n at the edit prompt.  If a word has been corrected,"),
-  N_("\teach occurrence of the incorrect word is offered for replacement."),
+  N_("        The spell checker examines all words in the text.  It then"),
+  N_("        offers each misspelled word for correction while simultaneously"),
+  N_("        highlighting it in the text.  To leave a word unchanged simply"),
+  N_("~        hit ~R~e~t~u~r~n at the edit prompt.  If a word has been corrected,"),
+  N_("        each occurrence of the incorrect word is offered for replacement."),
   " ",
-  N_("~\tSpell checking can be cancelled at any time by typing ~^~C (~F~3)"),
-  N_("\tafter exiting help."),
+  N_("~        Spell checking can be cancelled at any time by typing ~^~C (~F~3)"),
+  N_("        after exiting help."),
   " ",
   N_("End of Spell Check Help"),
   " ",

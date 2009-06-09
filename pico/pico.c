@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pico.c 744 2007-10-10 17:10:59Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pico.c 848 2007-12-06 19:57:49Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -652,7 +652,7 @@ abort_composer(int f, int n)
 	    emlwrite(_("Cancel Cancelled"), NULL);
 	    curwp->w_flag |= WFMODE;		/* and modeline so we  */
 	    sgarbk = TRUE;			/* redraw the keymenu  */
-	    pclear(term.t_nrow - 1, term.t_nrow + 1);
+	    pclear(term.t_nrow-1, term.t_nrow);
 	    Pmaster->arm_winch_cleanup--;
 	    return(FALSE);
 	}
@@ -741,7 +741,7 @@ wquit(int f, int n)
 		lchange(WFHARD);			/* set update flags... */
 		curwp->w_flag |= WFMODE;		/* and modeline so we  */
 		sgarbk = TRUE;			/* redraw the keymenu  */
-		pclear(term.t_nrow - 2, term.t_nrow + 1);
+		pclear(term.t_nrow-2, term.t_nrow);
 	    }
 
 	    if(result && *result)
@@ -988,6 +988,8 @@ func_init(void)
 /*
  * pico_help - help function for standalone composer
  * Oops - looks like utf8title is unused!
+ *
+ * This should be fixed to handle TAB characters.
  */
 int
 pico_help(char *utf8text[], char *utf8title, int i)

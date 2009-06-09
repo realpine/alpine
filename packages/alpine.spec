@@ -1,6 +1,6 @@
 Summary: University of Washington Pine mail user agent
 Name: alpine
-Version: 0.99999
+Version: 0.999999
 Release: 1
 License: Apache License
 Group: Applications/Mail

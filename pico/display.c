@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: display.c 747 2007-10-11 18:20:34Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: display.c 847 2007-12-06 18:06:35Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -2755,7 +2755,11 @@ pscr(int l, int o)
 
 
 /*
- * pclear() - clear the physical screen from row x through row y
+ * pclear() - clear the physical screen from row x through row y (inclusive)
+ *            row is zero origin, min row = 0 max row = t_nrow
+ *            Clear whole screen      -- pclear(0, term.t_nrow)
+ *            Clear bottom two rows   -- pclear(term.t_nrow-1, term.t_nrow)
+ *            Clear bottom three rows -- pclear(term.t_nrow-2, term.t_nrow)
  */
 void
 pclear(int x, int y)
@@ -2765,7 +2769,7 @@ pclear(int x, int y)
     x = MIN(MAX(0, x), term.t_nrow);
     y = MIN(MAX(0, y), term.t_nrow);
 
-    for(i=x; i < y; i++){
+    for(i=x; i <= y; i++){
 	movecursor(i, 0);
 	peeol();
     }

@@ -1,5 +1,5 @@
 /*
- * $Id: mailcmd.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
+ * $Id: mailcmd.h 825 2007-11-21 06:29:53Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -62,7 +62,7 @@ void	    bogus_command(UCS, char *);
 void	    bogus_utf8_command(char *, char *);
 int	    save_prompt(struct pine *, CONTEXT_S **, char *, size_t, 
 			char *, ENVELOPE *, long, char *, SaveDel *,
-			SavePreserveOrder *, int *);
+			SavePreserveOrder *);
 int	    create_for_save_prompt(CONTEXT_S *, char *, int);
 int	    expunge_prompt(MAILSTREAM *, char *, long);
 void	    expunge_and_close_begins(int, char *);

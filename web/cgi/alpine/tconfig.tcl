@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: tconfig.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
+# $Id: tconfig.tcl 850 2007-12-06 23:58:57Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -552,14 +552,17 @@ cgi_html {
 			    cgi_puts "<legend>Message Line Format</legend>"
 
 			    set varval [WPCmd PEConfig varget $varname]
-			    set fmt ""
-
-			    foreach fms [lindex [lindex $varval 0] 0] {
-			      if {[regexp {^([a-zA-Z]+[0-9]*)\(([0-9]+[%]?)\)$} $fms dummy f w]} {
-				lappend fmt [list $f $w]
-			      } elseif {[regexp {^([a-zA-Z]+[0-9]*)$} $fms dummy f]} {
-				lappend fmt [list $f ""]
+			    if {[llength [lindex $varval 0]]} {
+			      set fmt ""
+			      foreach fms [lindex [lindex $varval 0] 0] {
+				if {[regexp {^([a-zA-Z]+[0-9]*)\(([0-9]+[%]?)\)$} $fms dummy f w]} {
+				  lappend fmt [list $f $w]
+				} elseif {[regexp {^([a-zA-Z]+[0-9]*)$} $fms dummy f]} {
+				  lappend fmt [list $f ""]
+				}
 			      }
+			    } else {
+			      set fmt [WPCmd PEMailbox indexformat]
 			    }
 
 			    cgi_text "index-format=$fmt" type=hidden notab
@@ -587,7 +590,7 @@ cgi_html {
 
 			      cgi_table_row {
 				if {[WPCmd PEInfo feature enable-aggregate-command-set]} {
-				  cgi_table_data background="/images/bg_index.gif" align=center valign=middle "style=\"padding-left: 4; padding-right: 4\"" {
+				  cgi_table_data background="[WPimg bg_index]" align=center valign=middle "style=\"padding-left: 4; padding-right: 4\"" {
 				    cgi_checkbox bogus
 				  }
 
@@ -615,7 +618,7 @@ cgi_html {
 
 				  set align ""
 				  set class ""
-				  switch [lindex $f 0] {
+				  switch [string toupper [lindex $f 0]] {
 				    TO {
 				      set varval [WPCmd PEConfig varget personal-name]
 				      if {[string length [lindex $varval 0]]} {
@@ -750,92 +753,10 @@ cgi_html {
 				      set ftext [lindex $f 0]
 				    }
 				  }
-				  cgi_td $align $class $width nowrap height=34 colspan=2 "style=\"padding-right: 4; padding-left: 4\"" background="/images/bg_index.gif" $ftext
+				  cgi_td $align $class $width nowrap height=34 colspan=2 "style=\"padding-right: 4; padding-left: 4\"" background="[WPimg bg_index]" $ftext
 				  cgi_td width=1 [cgi_img [WPimg dot2] width=1]
 				}
 			      }
-
-			      if {0} {
-			      cgi_table_row {
-
-				if {[WPCmd PEInfo feature enable-aggregate-command-set]} {
-				  cgi_table_data colspan=2 "bgcolor=#ffffff" {
-				    cgi_put [cgi_img [WPimg dot2]]
-				  }
-
-				  set cols 2
-				} else {
-				  set cols 0
-				}
-
-				set checked checked
-				foreach fme $fmt {
-				  cgi_table_data colspan=3 align=center "bgcolor=#ffffff" {
-				    cgi_radio_button ifield=[lindex $fme 0] $checked
-				    set checked ""
-				  }
-				}
-			      }
-
-			      cgi_table_row {
-				if {$cols} {
-				  cgi_td colspan=2 bgcolor=#ffffff [cgi_img [WPimg dot2] width=1]
-				}
-
-				foreach f $fmt {
-				  cgi_td colspan=3 align=center bgcolor=#ffffff [cgi_img [WPimg blackdot] width=1 height=12 ]
-				}
-			      }
-
-			      cgi_table_row {
-				if {$cols} {
-				  cgi_td colspan=2 bgcolor=#ffffff [cgi_img [WPimg dot2] width=1 height=1]
-				}
-
-				if {[set i [expr {[llength $fmt] - 2}]] > 0} {
-				  cgi_table_data colspan=3 "bgcolor=#ffffff" {
-				    cgi_table border=0 cellpadding=0 cellspacing=0 width=100% {
-				      cgi_table_row {
-					cgi_td width=50% align=center [cgi_img [WPimg dot2] width=1 height=1]
-					cgi_td width=50% align=center "bgcolor=#000000" [cgi_img [WPimg dot2] width=1 height=1]
-				      }
-				    }
-				  }
-
-				  cgi_td colspan=[expr {3 * $i}] "bgcolor=#000000" [cgi_img [WPimg blackdot] width=1]
-
-				  cgi_table_data colspan=3 "bgcolor=#ffffff" {
-				    cgi_table border=0 cellpadding=0 cellspacing=0 width=100% {
-				      cgi_table_row {
-					cgi_td width=50% align=center "bgcolor=#000000" [cgi_img [WPimg dot2] width=1 height=1]
-					cgi_td width=50% align=center [cgi_img [WPimg dot2] width=1 height=1]
-				      }
-				    }
-				  }
-				}
-			      }
-
-			      set cols [incr cols [expr {[llength $fmt] * 3}]]
-
-			      cgi_table_row {
-				cgi_td colspan=$cols align=center bgcolor=#ffffff [cgi_img [WPimg blackdot] width=1 height=12 ]
-			      }
-
-			      cgi_table_row {
-				cgi_table_data align=center colspan=$cols "bgcolor=#ffffff" "style=\"padding: 12\"" {
-				  cgi_select iop {
-
-				    cgi_option "Move Field Left" value=left
-				    cgi_option "Move Field Right" value=right
-				    cgi_option "Widen Field " value=widen
-				    cgi_option "Narrow Field" value=narrow
-				    cgi_option "Remove Field" value=remove
-				  }
-				  cgi_submit_button "adjust=Change"
-				}
-			      }
-			      } else {
-
 
 			      cgi_table_row {
 				if {[WPCmd PEInfo feature enable-aggregate-command-set]} {
@@ -864,8 +785,6 @@ cgi_html {
 				  cgi_td width=1 [cgi_img [WPimg dot2] width=1]
 				}
 			      }
-			      }
-
 			    }
 
 			    if {[catch {WPCmd PEConfig indextokens} tokens] == 0} {

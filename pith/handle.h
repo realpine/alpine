@@ -1,5 +1,5 @@
 /*
- * $Id: handle.h 643 2007-07-13 19:07:05Z hubert@u.washington.edu $
+ * $Id: handle.h 813 2007-11-14 00:47:15Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -39,6 +39,7 @@ typedef	struct handle_s {
     unsigned	     using_is_used:1;	/* bit below is being used     */
     unsigned	     is_used:1;		/* if not, remove it from list */
     unsigned	     color_unseen:1;	/* we're coloring folders with unseen */
+    unsigned	     is_dual_do_open:1;	/* choosing this handle means open */
     union {
 	struct {			/* URL corresponding to this handle */
 	    char *path,			/* Actual url string */

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: send.c 780 2007-10-26 21:28:17Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: send.c 844 2007-12-05 17:50:54Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -520,7 +520,9 @@ compose_mail(char *given_to, char *fcc_arg, ACTION_S *role_arg,
 	int ret = 'n', done = 0;
 	int exists;
 
-	if((exists=postponed_stream(&stream)) & FEX_ISFILE){
+	if((exists=postponed_stream(&stream,
+				    ps_global->VAR_POSTPONED_FOLDER,
+				    "Postponed", 0)) & FEX_ISFILE){
 	    if(F_ON(F_ALT_COMPOSE_MENU, ps_global) || 
 	       (ret = redraft_prompt("Postponed",PSTPND_PMT,'n')) == 'y'){
 		if(!redraft(&stream, &outgoing, &body, &fcc, &lcc, &reply,
@@ -554,94 +556,34 @@ compose_mail(char *given_to, char *fcc_arg, ACTION_S *role_arg,
     }
 
     if(form && !outgoing){
-	CONTEXT_S *p_cntxt = NULL;
-	char	  *mbox, *p, *q, tmp[MAILTMPLEN], *fullname = NULL;
-	int	   ret = 'n', exists, done = 0;
+	int ret = 'n', done = 0;
+	int exists;
 
-	/*
-	 * find default context to look for folder...
-	 *
-	 * The "mbox" is assumed to be local if we're given what looks
-	 * like an absolute path.  This is different from Goto/Save
-	 * where we do alot of work to interpret paths relative to the
-	 * server.  This reason is to support all the pre-4.00 pinerc'
-	 * that specified a path and because there's yet to be a way
-	 * in c-client to specify otherwise in the face of a remote
-	 * context.
-	 */
-	if(!is_absolute_path(mbox = ps_global->VAR_FORM_FOLDER)
-	   && !(p_cntxt = default_save_context(ps_global->context_list)))
-	  p_cntxt = ps_global->context_list;
+	if((exists=postponed_stream(&stream,
+				    ps_global->VAR_FORM_FOLDER,
+				    "Form letter", 1)) & FEX_ISFILE){
+	    if(F_ON(F_ALT_COMPOSE_MENU, ps_global) ||
+	       (ret = want_to(FORM_PMT,'y','x',NO_HELP,WT_NORM))=='y'){
+		if(!redraft(&stream, &outgoing, &body, &fcc, &lcc, &reply,
+			    &redraft_pos, &custom, NULL, REDRAFT_NONE))
+		    done++;
 
-	/* check to see if the folder exists, the user wants to continue
-	 * and that we can actually read something in...
-	 */
-	exists = folder_name_exists(p_cntxt, mbox, &fullname);
-	if(fullname)
-	  mbox = fullname;
-
-	if(exists & FEX_ISFILE){
-	    context_apply(tmp, p_cntxt, mbox, sizeof(tmp));
-	    if(!(IS_REMOTE(tmp) || is_absolute_path(tmp))){
-		/*
-		 * The mbox is relative to the home directory.
-		 * Make it absolute so we can compare it to
-		 * stream->mailbox.
-		 */
-		build_path(tmp_20k_buf, ps_global->ui.homedir, tmp,
-			   SIZEOF_20KBUF);
-		strncpy(tmp, tmp_20k_buf, sizeof(tmp));
-		tmp[sizeof(tmp)-1] = '\0';
-	    }
-
-	    if((stream = ps_global->mail_stream)
-	       && !(stream->mailbox
-		    && ((*tmp != '{' && !strcmp(tmp, stream->mailbox))
-			|| (*tmp == '{'
-			    && same_stream(tmp, stream)
-			    && (p = strchr(tmp, '}'))
-			    && (q = strchr(stream->mailbox,'}'))
-			    && !strcmp(p + 1, q + 1)))))
-	       stream = NULL;
-
-	    if(stream
-	       || ((stream = context_open(p_cntxt,NULL,mbox,
-					  SP_USEPOOL|SP_TEMPUSE, NULL))
-		   && !stream->halfopen)){
-		if(stream->nmsgs > 0L){
-		    if(F_ON(F_ALT_COMPOSE_MENU, ps_global) ||
-		       (ret = want_to(FORM_PMT,'y','x',NO_HELP,WT_NORM))=='y'){
-			if(!redraft(&stream, &outgoing, &body, &fcc, &lcc,
-				    &reply,&redraft_pos,&custom,NULL,
-				    REDRAFT_NONE))
-			    done++;
-
-			/* stream may or may not be closed in redraft() */
-			if(stream && (stream != ps_global->mail_stream))
-			  pine_mail_close(stream);
-
-			to_is_sticky++;
-			intrptd = postponed = 0;
-		    }
-		    else{
-			if(stream != ps_global->mail_stream)
-			  pine_mail_close(stream);
-
-			if(ret == 'x'){
-			    q_status_message(SM_ORDER, 0, 3,
-					     _("Composition cancelled"));
-			    done++;
-			}
-		    }
-		}
-		else if(stream != ps_global->mail_stream)
+		/* stream may or may not be closed in redraft() */
+		if(stream && (stream != ps_global->mail_stream))
 		  pine_mail_close(stream);
+
+		to_is_sticky++;
+		intrptd = postponed = 0;
 	    }
 	    else{
-		q_status_message1(SM_ORDER | SM_DING, 3, 3,
-			      _("Can't open form letter folder: %s"), mbox);
-		if(stream)
+		if(stream != ps_global->mail_stream)
 		  pine_mail_close(stream);
+
+		if(ret == 'x'){
+		    q_status_message(SM_ORDER, 0, 3,
+				     _("Composition cancelled"));
+		    done++;
+		}
 	    }
 	}
 	else{
@@ -651,8 +593,6 @@ compose_mail(char *given_to, char *fcc_arg, ACTION_S *role_arg,
 	    return;
 	  }
 	}
-	if(fullname)
-	  fs_give((void **) &fullname);
 
 	if(done)
 	  return;
@@ -874,8 +814,14 @@ redraft(MAILSTREAM **streamp, ENVELOPE **outgoing, struct mail_bodystruct **body
     else if(stream->nmsgs > 1L){		/* offer browser ? */
 	int rv;
 
-	mn_set_cur(sp_msgmap(stream),
-		   (REDRAFT_PPND&flags) ? stream->nmsgs : 1L);
+	if(REDRAFT_PPND&flags){			/* set to last message postponed */
+	    mn_set_cur(sp_msgmap(stream),
+		       mn_get_revsort(sp_msgmap(stream))
+			   ? 1L : mn_get_total(sp_msgmap(stream)));
+	}
+	else{					/* set to top form letter */
+	    mn_set_cur(sp_msgmap(stream), 1L);
+	}
 
 	clear_index_cache(stream, 0);
 	while(1){
@@ -886,7 +832,7 @@ redraft(MAILSTREAM **streamp, ENVELOPE **outgoing, struct mail_bodystruct **body
 			      stream, sp_msgmap(stream));
 	    restore_threading(&ti);
 
-	    cont_msg = mn_get_cur(sp_msgmap(stream));
+	    cont_msg = mn_m2raw(sp_msgmap(stream), mn_get_cur(sp_msgmap(stream)));
 	    if(count_flagged(stream, F_DEL)
 	       && want_to(INTR_DEL_PMT, 'n', 0, NO_HELP, WT_NORM) == 'n'){
 		if(REDRAFT_PPND&flags)
@@ -912,6 +858,11 @@ redraft(MAILSTREAM **streamp, ENVELOPE **outgoing, struct mail_bodystruct **body
 			     (REDRAFT_PPND&flags) ? "postponed messages"
 						  : "form letters",
 			     ps_global->inbox_name);
+		if(ps_global && ps_global->ttyo){
+		    blank_keymenu(ps_global->ttyo->screen_rows - 2, 0);
+		    ps_global->mangled_footer = 1;
+		}
+
 		do_broach_folder(ps_global->inbox_name,
 				 ps_global->context_list, NULL, DB_INBOXWOCNTXT);
 
@@ -5855,6 +5806,29 @@ create_message_body(struct mail_bodystruct **b, PATMT *attach, int flow_it)
         tmp_body->type			= TYPEMULTIPART;
         tmp_body->nested.part		= mail_newbody_part();
 	if(text_body){
+	    /*
+	     * Why do we do this?
+	     * The problem is that base64 or quoted-printable encoding is
+	     * sensitive to having random data appended to it's end. If
+	     * we use a single part TEXT message and something in between
+	     * us and the end appends advertising without adjusting for
+	     * the encoding, the message is screwed up. So we wrap the
+	     * text part inside a multipart and then the appended data
+	     * will come after the boundary.
+	     *
+	     * We wish we could do this on the way out the door in a
+	     * child of post_rfc822_output because at that point we know
+	     * the character set and the encoding being used. For example,
+	     * iso-2022-jp is an encoding that is not sensitive to data
+	     * appended to the end, so it wouldn't need to be wrapped.
+	     * We could conceivably have post_rfc822_body inspect the
+	     * body and change it before doing the output. It would work
+	     * but would be very fragile. We'd be passed a body from
+	     * c-client to output and instead of just doing the output
+	     * we'd change the body and then output it. Not worth it
+	     * since the multipart wrapping is completely correct for
+	     * MIME-aware mailers.
+	     */
 	    (void) copy_body(&(tmp_body->nested.part->body), *b);
 	    /* move contents which were NOT copied */
 	    tmp_body->nested.part->body.contents.text.data = (*b)->contents.text.data;

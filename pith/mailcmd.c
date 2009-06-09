@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcmd.c 801 2007-11-08 20:39:45Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailcmd.c 845 2007-12-05 22:34:30Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -59,7 +59,7 @@ void	(*pith_opt_begin_closing)(int, char *);
 void	  get_new_message_count(MAILSTREAM *, int, long *, long *);
 char	 *new_messages_string(MAILSTREAM *);
 void      search_for_our_regex_addresses(MAILSTREAM *stream, char type,
-					 int not, struct search_set *searchset);
+					 int not, SEARCHSET *searchset);
 
 
 
@@ -324,13 +324,6 @@ broach_get_folder(CONTEXT_S *context, int *inbox, char **folder)
 {
     CONTEXT_S *tc;
 
-    /*
-     * There are three possibilities for the prompt's offered default.
-     *  1) always the last folder visited
-     *  2) if non-inbox current, inbox else last folder visited
-     *  3) if non-inbox current, inbox else last folder visited in
-     *     the first collection
-     */
     if(ps_global->goto_default_rule == GOTO_LAST_FLDR){
 	tc = context ? context : ps_global->context_current;
 	*inbox = 1;		/* fill in last_folder below */
@@ -339,6 +332,7 @@ broach_get_folder(CONTEXT_S *context, int *inbox, char **folder)
 	tc = (ps_global->context_list->use & CNTXT_INCMNG)
 	  ? ps_global->context_list->next : ps_global->context_list;
 	ps_global->last_unambig_folder[0] = '\0';
+	*inbox = 1;		/* fill in last_folder below */
     }
     else if(ps_global->goto_default_rule == GOTO_FIRST_CLCTN_DEF_INBOX){
 	tc = (ps_global->context_list->use & CNTXT_INCMNG)
@@ -348,7 +342,13 @@ broach_get_folder(CONTEXT_S *context, int *inbox, char **folder)
 	ps_global->last_unambig_folder[0] = '\0';
     }
     else{
-	*inbox = strucmp(ps_global->cur_folder,ps_global->inbox_name) == 0;
+	*inbox = (ps_global->cur_folder
+	          && ps_global->inbox_name
+		  && strucmp(ps_global->cur_folder,ps_global->inbox_name) == 0
+		  && (!ps_global->context_current
+		      || ps_global->context_current->use & CNTXT_INCMNG
+		      || (!(ps_global->context_list->use & CNTXT_INCMNG)
+		          && ps_global->context_current == ps_global->context_list)));
 	if(!*inbox)
 	  tc = ps_global->context_list;		/* inbox's context */
 	else if(ps_global->goto_default_rule == GOTO_INBOX_FIRST_CLCTN){
@@ -357,7 +357,7 @@ broach_get_folder(CONTEXT_S *context, int *inbox, char **folder)
 	    ps_global->last_unambig_folder[0] = '\0';
 	}
 	else
-	  tc = context? context : ps_global->context_current;
+	  tc = context ? context : ps_global->context_current;
     }
 
     if(folder){
@@ -642,16 +642,9 @@ do_broach_folder(char *newfolder, CONTEXT_S *new_context, MAILSTREAM **streamp,
 	 */
 	if(context_isambig(ps_global->cur_folder)){
 	    ps_global->context_last = ps_global->context_current;
-	    if(ps_global->context_current != ps_global->context_list
-	       && !strucmp(ps_global->cur_folder, ps_global->inbox_name))
-	      snprintf(ps_global->context_current->last_folder,
-		       sizeof(ps_global->context_current->last_folder),
-		       "./%s", ps_global->cur_folder);
-	    else
-	      snprintf(ps_global->context_current->last_folder,
-		       sizeof(ps_global->context_current->last_folder),
-		       "%s", ps_global->cur_folder);
-
+	    snprintf(ps_global->context_current->last_folder,
+		     sizeof(ps_global->context_current->last_folder),
+		     "%s", ps_global->cur_folder);
 	    ps_global->last_unambig_folder[0] = '\0';
 	}
 	else{
@@ -914,7 +907,7 @@ do_broach_folder(char *newfolder, CONTEXT_S *new_context, MAILSTREAM **streamp,
         }
     }
 
-    update_folder_unseen_by_stream(m, UFU_FORCE);
+    update_folder_unseen_by_stream(m, UFU_NONE);
 
     /*----- success in opening the new folder ----*/
     dprint((2, "Opened folder \"%s\" with %ld messages\n",
@@ -947,16 +940,9 @@ do_broach_folder(char *newfolder, CONTEXT_S *new_context, MAILSTREAM **streamp,
      */
     if(context_isambig(ps_global->cur_folder)){
 	ps_global->context_last = ps_global->context_current;
-	if(ps_global->context_current != ps_global->context_list
-	   && !strucmp(ps_global->cur_folder, ps_global->inbox_name))
-	  snprintf(ps_global->context_current->last_folder,
-		   sizeof(ps_global->context_current->last_folder),
-		   "./%s", ps_global->cur_folder);
-	else
-	  snprintf(ps_global->context_current->last_folder,
-		   sizeof(ps_global->context_current->last_folder),
-		   "%s", ps_global->cur_folder);
-
+	snprintf(ps_global->context_current->last_folder,
+		 sizeof(ps_global->context_current->last_folder),
+		 "%s", ps_global->cur_folder);
 	ps_global->last_unambig_folder[0] = '\0';
     }
     else{
@@ -1388,6 +1374,9 @@ expunge_and_close(MAILSTREAM *stream, char **final_msg, long unsigned int flags)
 
         dprint((2, "expunge_and_close: \"%s\"%s\n",
                    folder, no_close ? " (NO_CLOSE bit set)" : ""));
+
+	update_folder_unseen_by_stream(stream, UFU_NONE);
+
 	if(final_msg)
 	  strncpy(ing, "ed", sizeof(ing));
 	else
@@ -2172,7 +2161,7 @@ unzoom_index(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap)
 int
 agg_text_select(MAILSTREAM *stream, MSGNO_S *msgmap, char type, int not,
 		int check_for_my_addresses,
-		char *sstring, char *charset, struct search_set **limitsrch)
+		char *sstring, char *charset, SEARCHSET **limitsrch)
 {
     int		 old_imap, we_cancel;
     int          me_with_regex = 0;
@@ -2486,16 +2475,13 @@ agg_text_select(MAILSTREAM *stream, MSGNO_S *msgmap, char type, int not,
 
 void
 search_for_our_regex_addresses(MAILSTREAM *stream, char type, int not,
-			       struct search_set *searchset)
+			       SEARCHSET *searchset)
 {
-    char **t, *alt;
-    long rawno;
-    int count = 0;
+    long rawno, count = 0L;
     MESSAGECACHE *mc;
-    char *seq;
     ADDRESS *addr1 = NULL, *addr2 = NULL, *addr3 = NULL;
     ENVELOPE *env;
-    SEARCHSET *s, *ss = NULL, **sset = NULL;
+    SEARCHSET *s, *ss = NULL;
     extern MAILSTREAM *mm_search_stream;
     extern long        mm_search_count;
 
@@ -2529,6 +2515,10 @@ search_for_our_regex_addresses(MAILSTREAM *stream, char type, int not,
     if(count){
 	ss = build_searchset(stream);
 	if(ss){
+	    SEARCHSET **sset = NULL;
+
+	    mail_parameters(NULL, SET_FETCHLOOKAHEADLIMIT, (void *) count);
+
 	    /* this resets automatically after the first fetch */
 	    sset = (SEARCHSET **) mail_parameters(stream,
 						  GET_FETCHLOOKAHEAD,
@@ -2597,7 +2587,7 @@ search_for_our_regex_addresses(MAILSTREAM *stream, char type, int not,
 
 
 int
-agg_flag_select(MAILSTREAM *stream, int not, int crit, struct search_set **limitsrch)
+agg_flag_select(MAILSTREAM *stream, int not, int crit, SEARCHSET **limitsrch)
 {
     SEARCHPGM *pgm;
 

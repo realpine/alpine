@@ -23,9 +23,9 @@ For more information on the how's and why's of Web Alpine consult the
 somewhat more technically complete treatment in
 web/cgi/alpine/help/tech-notes.html.
 
-At some point online FAQs and such may be available.  If you
-find anything missing, incomplete, or otherwise unclear please send a
-note to <alpine-contact@cac.washington.edu>.
+At some point online FAQs and such may be available.  If you find
+anything missing, incomplete, or otherwise unclear please send a note
+to <alpine-contact@cac.washington.edu>.
 
 
 WEB ALPINE LAYOUT
@@ -36,7 +36,7 @@ The source for the various components can be found in the "web/"
 directory arranged, for the most part, by function.
 
   src/
-      alpined.d
+      alpined.d/
        source for Web Alpine's binary components: the
        per-user/per-session serverette and the small library used for
        inter-tcl script communication.
@@ -91,68 +91,116 @@ BUILDING WEB ALPINE'S BINARY COMPONENTS
 For the most part, Web Alpine's binary components were built
 automatically along with the rest of the Alpine Mail System.
 
-However, if the configure script could not locate a suitable TCL
-library, then it is likely that the components necessary for Web
-Alpine were not built.  If this is the case, the configure script
-should have reported the condition. Locate and install a reasonable
+If configure reports that it could not locate suitable TCL libraries
+and header files, then it is likely that the components necessary for
+Web Alpine were not built.  Locating and installing a TCL development
+environment appropriate for your system should get the build back on
+track.  Note, even though a tclsh interpreter may be available on the
+command line, tools necessary to build TCL applications may need to be
+installed separately.
 
 If you plan to use UW pubcookie for browser-based network login,
-please first visit src/pubcookie/README.  Be sure the Web Alpine Mail
+please review src/pubcookie/README.  Be sure the Web Alpine Mail
 System was configured with the "--with-pubcookie" option set.
 
 
 INSTALLING WEB ALPINE COMPONENTS
 --------------------------------
 
-Installation follows several phases.  First, install the freshly
-built binary components:
+Unfortunately, due to the variety of web server requirements and
+configurations, Web Alpine installation must be done by hand and
+requires several steps.  To illustrate the procedure, a generic Fedora
+Core 8 system with standard httpd package installed is used as an
+example.  On other systems, the general ideas are the same but the
+specific file locations and server configuation settings will likely
+vary.  Note also that your system may have an additional security
+layer installed, such as selinux, that may require extra configuration
+that is beyond the scope of this explanation.
 
-  1.  % cd web/src/alpined.d
+The first step is to build and configure the tools Web Alpine needs to
+generate pages and access mail data.  The following commands will put
+those tools where they need to be within the web/ directory structure.
 
-  2.  % make install
+  1.  % cd web/src
 
-Second, install the cgi.tcl library in the "web/lib" directory.
+  2.  % make
 
-  3.  % cd web/src/cgi.tcl-1.10
+  3.  % make install
 
-  4.  % ./configure --prefix=<path to alpine/web directory>
+Second, the web/ directory tree needs to be made available to the web
+server.  On the example system, start by moving the web/ directory
+tree into a more system-visible location.  We'll also change the name
+to reflect the current version number (for this example, X.YY) to help
+keep future upgrades isolated.  This command will likely require
+elevated privileges using either sudo or after becoming root.
 
-  5.  % make install
+  4.  % cd ../..
 
-Of course, you can install this package in a more broadly visible
-directory, however, since it contains some alpine-specific
-adjustments, it's easiest to just put it with the other
-alpine-speicific libraries.
+  5.  % sudo mv web /usr/local/libexec/alpine-X.YY
 
-The third phase of installation is to make the Web Alpine CGI scripts
-available to the your web server.  Depending on your web server's
-requirements, you'll either want to configure it to point it's
-document root at the alpine/cgi/ directory of the distribution's
-location, or move the contents of that directory to your web server's
-document root.  If for some reason you want to place the CGI scripts
-in a subdirectory of the server's document root, you can do that, but
-be sure to record that directory in the web/config/alpine.tcl file as
-described below.
+Next, for simplicity, create a generically named symbolic link as a
+synonym for the version-specific directory.
 
-You will also likely need to configure the web server to allow for CGI
-execution in the directory where Web Alpine's CGI scripts and such
-ended up.
+  6.  % cd /usr/local/libexec
 
-Also, be sure to fix the "tclsh" and "alpine.tcl" symbolic links
-if you relocate this directory tree. They should point to the 
-correspoinding files in bin/ and config/ directories of of the
-distribution's root.
+  7.  % sudo ln -s alpine-X.YY alpine
 
-Once the files are copied and/or web server configuration suitably
-changed, you're ready for the third phase: Web Alpine configuration.
+After that, make the scripts that actually generate the user visible
+portion of Web Alpine available to the web server.
 
-  6.  Using the editor of your choice open the config/alpine.tcl
-      file.  The config file is itself a Tcl script file, and the
-      settings are simply Tcl variable settings.  Most are settings
-      of elements within the "_wp" array.
+  8.  % cd /var/www
 
-      Starting from the top, skim the various configuration
-      settings.  The primary one's to be aware of include:
+  9.  % sudo ln -s /usr/local/libexec/alpine .
+
+Now adjust the web server's configuration so that it can effectively
+provide Web Alpine pages to connecting browsers by editing httpd's
+configuration file.
+
+ 10.  % sudo vi /etc/httpd/conf/httpd.conf
+
+    After the section that starts with <Directory /var/www/html> and ends
+    with </Directory>, add the lines:
+
+      #
+      # This sets up Web Alpine
+      #
+      <Directory "/var/www/alpine">
+          Options FollowSymLinks ExecCGI -Indexes
+          AllowOverride All
+          Order allow,deny
+          Allow from all
+      </Directory>
+
+If you intend for your web server to provide Web Alpine pages
+exclusively, then simply edit the DocumentRoot to the directory
+defined above:
+
+      DocumentRoot /var/www/alpine
+
+If your web server offers pages other than Web Alpine, specify a
+prefix the web server should use for referencing Web Alpine pages by
+adding this line below the <Directory> entry specified above:
+
+      Alias /webmail/ "/var/www/alpine/"
+
+After saving httpd.conf with these small additions, it's time to
+adjust Web Alpine's configuration.
+
+First, be sure the symbolic link "/usr/local/libexec/alpine/bin/tclsh"
+points to the tclsh interpreter for your system.  The default should
+work for the example system.
+
+Then edit the Web Alpine configuration file to configure appropriate
+settings for your environment.
+
+ 11.  % sudo vi /usr/local/libexec/alpine/config/alpine.tcl
+
+    The config file is itself a Tcl script, and the settings are
+    simply Tcl variable settings.  Most are settings of elements
+    within the "_wp" array.
+
+    Starting from the top, skim the various configuration
+    settings.  The primary one's to be aware of include:
 
           admin      email address offered in error pages
                      associated with problems that likely
@@ -166,30 +214,22 @@ changed, you're ready for the third phase: Web Alpine configuration.
                      as place to send general comments on
                      web alpine
 
-          fileroot   file system path to root of web alpine
-                     distribution. This directory should 
-                     contain config/, bin/, etc.
+          urlprefix  directory or path defined in the httpd.conf's
+                     "Alias" setting.  In example above, set this to
+                     "webmail".  If DocumentRoot set as above, set this
+		     to {}.
 
-          cgiroot    file system path to root of web alpine
-                     cgi scripts.  This directory should
-                     contain session/, alpine/, greeting/
-                     etc. subdirectories
+          fileroot   file system path to directory that contains cgi/,
+                     config/, bin/, and lib/ directories.  In example
+                     above, set this to /usr/local/libexec/alpine.
 
-          cgidir     file system path component of any
-                     subdirectory or subdirectories that
-                     were necessary to add between
-                     the web server's document root and
-                     the directory containing web alpine's 
-                     cgi scripts
+    Continue scanning the list, and adjust as needed.  Most defaults
+    should be fine.  Until you come to:
 
-       Continue scanning the list, and adjust as needed.  Most
-       defaults should be fine.  Until you come to:
-
-          ispell     full path to ispell application if
-                     installed
+          ispell     full path to ispell application if installed
 
           ssl_safe_domains
-                     a performance setting that allows for realatively 
+                     a performance setting that allows for relatively 
                      safe disabling of SSL for connections that we know
                      are reasonably safe from sniffing.  For our campus
                      web alpine installation, browsers associated with the
@@ -214,33 +254,56 @@ changed, you're ready for the third phase: Web Alpine configuration.
                      so heinous that no web page error could be generated
 
 
-  7.   Try it!
+The final step is to restart httpd and give it a try!  Using a browser
+pointed to your server's https port, try connecting to the alpine/
+directory.
+
+If you run into problems, rest assured you have our sympathies.
+Because of the various components that must be coordinated, errors can
+be difficult to resolve.  The good news is, once initially configured
+and working the system is reasonably stable.  As for debugging, with
+luck, the error response reported in the browser will point in a
+useful direction. If not, check httpd access and error logs to verify
+paths and check for exceptional conditions.  Next, check syslog's
+maillog for any exceptional reports issued by the alpined serverette.
+Depending on the type of error, you may also have to consult the IMAP
+server's logs for clues.
 
 
-APPENDIX I - An Example
------------------------
+COLLECTED GOTCHAS AND SO FORTH
+------------------------------
 
-The above installation explanation is intentionally vague in some
-areas, particulary about how the Web Alpine and web server
-configurations might dovetail.  Certainly, web server configurations
-can vary widely based on the server, the services it offers, and even
-the particular preferences of the system administrator.
+First, it is strongly encourage that Web Alpine be run on a web server
+that does not have general user accounts.  The primary reason is to
+maintain the privacy of the Web Alpine session key.  Steps are taken
+to minimize the risk and consequences of session key exposure, but
+there are risks nonetheless.
 
-On the other hand, often a concrete example assuming simple conditions
-will go a long way toward clarifying configuration.  So, we offer here
-an example of how one might install Web Alpine on a relatively
-prestine Fedora Core 7 system.
+For the most part, the default Web Alpine application settings should
+require little adjustment for your particular environment.  These
+settings are in the web/config/pine.conf file which uses the same
+format as alpine's pinerc file.  The most likely setting to adjust is
+"smtp-server."
+
+By default, Web Alpine sends via SMTP to the localhost's SMTP port.
+This setting can easily be adjusted by setting the smtp-server in
+web/config/pine.conf to one or more external servers.  Web Alpine can
+also be directed to post to a local process by setting the
+sendmail-path variable.  Be aware, however, posting to a local process
+(e.g., sendmail, postfix, etc), will likely require you to grant
+trusted mail user privilege to the userid associated with the web
+server process.  Without such privilege, the SMTP envelope From will
+be set to the web server's userid which causes all externally bounced
+mail to be returned to the mailbox associated with the web server
+userid.
 
 
-  [ FILL IN PRIOR TO 1.0 RELEASE ]
-
-
-
-FURTHER INFORMATION ON WEB ALPINE
----------------------------------
+FURTHER INFORMATION
+-------------------
 
 See the Web Alpine technical notes for more detailed descriptions of
 what's going on and why.  If you have any questions or comments drop
 us a note <alpine-contact@cac.washington.edu>.
 
 -- 
+$id$

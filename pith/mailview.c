@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailview.c 786 2007-11-02 23:23:04Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailview.c 841 2007-12-03 19:51:03Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -2297,9 +2297,7 @@ format_envelope(MAILSTREAM *s, long int n, char *sect, ENVELOPE *e, gf_io_t pc,
 
     if((which & FE_DATE) && e->date) {
 	q = "Date: ";
-	snprintf(buftmp, sizeof(buftmp), "%s",
-		 F_ON(F_DATES_TO_LOCAL,ps_global)
-		    ? convert_date_to_local((char *) e->date) : (char *) e->date);
+	snprintf(buftmp, sizeof(buftmp), "%s", (char *) e->date);
 	buftmp[sizeof(buftmp)-1] = '\0';
 	p2 = (char *)rfc1522_decode_to_utf8((unsigned char *) tmp_20k_buf,
 					    SIZEOF_20KBUF, buftmp);

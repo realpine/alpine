@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: setup.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: setup.c 809 2007-11-09 21:13:47Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -186,7 +186,7 @@ option_screen(struct pine *ps, int edit_exceptions)
 	    ctmpa->keymenu		  = &config_checkbox_keymenu;
 	    ctmpa->help			  = NO_HELP;
 	    ctmpa->tool			  = checkbox_tool;
-	    ctmpa->valoffset		  = 12;
+	    ctmpa->valoffset		  = feature_indent();
 	    ctmpa->flags		 |= CF_NOSELECT;
 	    ctmpa->value = cpystr("Set    Feature Name");
 
@@ -195,7 +195,7 @@ option_screen(struct pine *ps, int edit_exceptions)
 	    ctmpa->keymenu		  = &config_checkbox_keymenu;
 	    ctmpa->help			  = NO_HELP;
 	    ctmpa->tool			  = checkbox_tool;
-	    ctmpa->valoffset		  = 12;
+	    ctmpa->valoffset		  = feature_indent();
 	    ctmpa->flags		 |= CF_NOSELECT;
 	    ctmpa->value = cpystr("---  ----------------------");
 
@@ -221,7 +221,7 @@ option_screen(struct pine *ps, int edit_exceptions)
 		  ctmpa->help		    = config_help(vtmp-ps->vars,
 							  feature->id);
 		  ctmpa->tool		    = checkbox_tool;
-		  ctmpa->valoffset	    = 12;
+		  ctmpa->valoffset	    = feature_indent();
 		  ctmpa->varmem		    = i;
 		  ctmpa->value		    = pretty_value(ps, ctmpa);
 	      }
@@ -383,7 +383,7 @@ option_screen(struct pine *ps, int edit_exceptions)
 	ctmpa->keymenu		  = &config_checkbox_keymenu;
 	ctmpa->help			  = NO_HELP;
 	ctmpa->tool			  = checkbox_tool;
-	ctmpa->valoffset		  = 12;
+	ctmpa->valoffset		  = feature_indent();
 	ctmpa->flags		 |= CF_NOSELECT;
 	ctmpa->value = cpystr("Set    Feature Name");
 
@@ -392,7 +392,7 @@ option_screen(struct pine *ps, int edit_exceptions)
 	ctmpa->keymenu		  = &config_checkbox_keymenu;
 	ctmpa->help			  = NO_HELP;
 	ctmpa->tool			  = checkbox_tool;
-	ctmpa->valoffset		  = 12;
+	ctmpa->valoffset		  = feature_indent();
 	ctmpa->flags		 |= CF_NOSELECT;
 	ctmpa->value = cpystr("---  ----------------------");
 
@@ -406,7 +406,7 @@ option_screen(struct pine *ps, int edit_exceptions)
 	      ctmpa->help		= config_help(vtmp-ps->vars,
 						      feature->id);
 	      ctmpa->tool		= checkbox_tool;
-	      ctmpa->valoffset		= 12;
+	      ctmpa->valoffset		= feature_indent();
 	      ctmpa->varmem		= i;
 	      ctmpa->value		= pretty_value(ps, ctmpa);
 	  }
@@ -674,7 +674,7 @@ incoming_monitoring_list_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned in
       case MC_EDIT:
 	cntxt = ps->context_list;
 	if(!(cntxt && cntxt->use & CNTXT_INCMNG)){
-	    q_status_message1(SM_ORDER, 3, 3, _("Turn on incoming folders with Config feature \"%s\""), pretty_feature_name(feature_list_name(F_ENABLE_INCOMING)));
+	    q_status_message1(SM_ORDER, 3, 3, _("Turn on incoming folders with Config feature \"%s\""), pretty_feature_name(feature_list_name(F_ENABLE_INCOMING), -1));
 	    return(rv);
 	}
 
@@ -809,7 +809,7 @@ adjust_list_of_monitored_incoming(CONTEXT_S *cntxt, EditWhich which, int varnum)
     }
 
     if(!listhead){
-	q_status_message1(SM_ORDER, 3, 3, _("Turn on incoming folders with Config feature \"%s\""), pretty_feature_name(feature_list_name(F_ENABLE_INCOMING)));
+	q_status_message1(SM_ORDER, 3, 3, _("Turn on incoming folders with Config feature \"%s\""), pretty_feature_name(feature_list_name(F_ENABLE_INCOMING), -1));
 	return(the_list);
     }
 
@@ -971,7 +971,7 @@ pretty_var_name(char *varname)
  *                       of feature name variable
  */
 char *
-pretty_feature_name(char *feat)
+pretty_feature_name(char *feat, int width)
 {
     FEATURE_S  *f;
     int		i, upper = 1;
@@ -997,5 +997,18 @@ pretty_feature_name(char *feat)
 	fbuf[i] = feat[i];
 
     fbuf[i] = '\0';
+
+    /* cut off right hand edge if necessary */
+    if(width > 0){
+	char *p, gbuf[100];
+
+	p = short_str(fbuf, gbuf, sizeof(gbuf), width, EndDots);
+
+	if(p != fbuf){
+	    strncpy(fbuf, p, sizeof(fbuf)-1);
+	    fbuf[sizeof(fbuf)-1] = '\0';
+	}
+    }
+
     return(fbuf);
 }

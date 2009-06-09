@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: reply.c 796 2007-11-08 01:14:02Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: reply.c 839 2007-12-01 01:10:52Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1624,6 +1624,7 @@ get_reply_data(ENVELOPE *env, ACTION_S *role, IndexColType type, char *buf, size
       case iYear: case iYear2Digit:
       case iDate: case iLDate:
       case iTimezone: case iDayOfWeekAbb: case iDayOfWeek:
+      case iPrefDate: case iPrefTime: case iPrefDateTime:
 	if(env && env->date && env->date[0] && maxlen >= 20)
 	  date_str((char *) env->date, type, 1, buf, maxlen+1, 0);
 
@@ -1644,6 +1645,9 @@ get_reply_data(ENVELOPE *env, ACTION_S *role, IndexColType type, char *buf, size
       case iCurMonAbb:
       case iCurYear:
       case iCurYear2Digit:
+      case iCurPrefDate:
+      case iCurPrefDateTime:
+      case iCurPrefTime:
       case iLstMon:
       case iLstMon2Digit:
       case iLstMonLong:
@@ -1669,6 +1673,13 @@ get_reply_data(ENVELOPE *env, ACTION_S *role, IndexColType type, char *buf, size
       case iRoleNick:
 	if(role && role->nick){
 	    strncpy(buf, role->nick, maxlen);
+	    buf[maxlen] = '\0';
+	}
+	break;
+
+      case iNewLine:
+	if(maxlen >= strlen(NEWLINE)){
+	    strncpy(buf, NEWLINE, maxlen);
 	    buf[maxlen] = '\0';
 	}
 	break;
@@ -1794,7 +1805,7 @@ reply_delimiter(ENVELOPE *env, ACTION_S *role, gf_io_t pc)
     char           buf[MAX_DELIM+1];
     char          *p;
     char          *filtered = NULL;
-    int            len;
+    int            contains_newline_token = 0;
 
 
     if(!env)
@@ -1844,22 +1855,38 @@ reply_delimiter(ENVELOPE *env, ACTION_S *role, gf_io_t pc)
 
     }
     else{
+	/*
+	 * This is here for backwards compatibility. There didn't used
+	 * to be a _NEWLINE_ token. The user would enter text that should
+	 * all fit on one line and then that was followed by two newlines.
+	 * Also, truncation occurs if it is long.
+	 * Now, if _NEWLINE_ is not in the text, same thing still works
+	 * the same. However, if _NEWLINE_ is in there, then all bets are
+	 * off and the user is on his or her own. No automatic newlines
+	 * are added, only those that come from the tokens. No truncation
+	 * is done, the user is trusted to get it right. Newlines may be
+	 * embedded so that the leadin is multi-line.
+	 */
+	contains_newline_token = (strstr(buf, "_NEWLINE_") != NULL);
 	filtered = detoken_src(buf, FOR_REPLY_INTRO, env, role,
 			       NULL, NULL);
 
 	/* try to truncate if too long */
-	if(filtered && (len = strlen(filtered)) > 80){
+	if(!contains_newline_token && filtered && utf8_width(filtered) > 80){
 	    int ended_with_colon = 0;
 	    int ended_with_quote = 0;
 	    int ended_with_quote_colon = 0;
+	    int l;
 
-	    if(filtered[len-1] == ':'){
+	    l = strlen(filtered);
+
+	    if(filtered[l-1] == ':'){
 		ended_with_colon = ':';
-		if(filtered[len-2] == QUOTE || filtered[len-2] == '\'')
-		  ended_with_quote_colon = filtered[len-2];
+		if(filtered[l-2] == QUOTE || filtered[l-2] == '\'')
+		  ended_with_quote_colon = filtered[l-2];
 	    }
-	    else if(filtered[len-1] == QUOTE || filtered[len-1] == '\'')
-	      ended_with_quote = filtered[len-1];
+	    else if(filtered[l-1] == QUOTE || filtered[l-1] == '\'')
+	      ended_with_quote = filtered[l-1];
 
 	    /* try to find space to break at */
 	    for(p = &filtered[75]; p > &filtered[60] && 
@@ -1889,9 +1916,11 @@ reply_delimiter(ENVELOPE *env, ACTION_S *role, gf_io_t pc)
     }
 
     /* and end with two newlines unless no leadin at all */
-    if(!strcmp(buf, DEFAULT_REPLY_INTRO) || (filtered && *filtered)){
-	gf_puts(NEWLINE, pc);
-	gf_puts(NEWLINE, pc);
+    if(!contains_newline_token){
+	if(!strcmp(buf, DEFAULT_REPLY_INTRO) || (filtered && *filtered)){
+	    gf_puts(NEWLINE, pc);
+	    gf_puts(NEWLINE, pc);
+	}
     }
 
     if(filtered)

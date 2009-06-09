@@ -1,5 +1,5 @@
 /*
- * $Id: folder.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
+ * $Id: folder.h 845 2007-12-05 22:34:30Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -113,9 +113,10 @@ int	    compare_folders_alpha_dir(FOLDER_S *, FOLDER_S *);
 void	    mail_list_response(MAILSTREAM *, char *, int, long, void *, unsigned);
 void	    folder_seen_count_updater(void *);
 void	    folder_unseen_count_updater(unsigned long);
-void	    update_folder_unseen(FOLDER_S *, CONTEXT_S *, unsigned long);
+void	    update_folder_unseen(FOLDER_S *, CONTEXT_S *, unsigned long, MAILSTREAM *);
 void        update_folder_unseen_by_stream(MAILSTREAM *, unsigned long);
-int	    get_recent_in_folder(char *, unsigned long *, unsigned long *, unsigned long *);
+int	    get_recent_in_folder(char *, unsigned long *, unsigned long *,
+				 unsigned long *, MAILSTREAM *);
 void        clear_incoming_valid_bits(void);
 int	    selected_folders(CONTEXT_S *);
 SELECTED_S *new_selected(void);

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: msgno.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: msgno.c 842 2007-12-04 00:13:55Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -813,7 +813,7 @@ clear_folder_scores(MAILSTREAM *stream)
  *           0 -- error, because of no_fetch
  */
 int
-calculate_some_scores(MAILSTREAM *stream, struct search_set *searchset, int no_fetch)
+calculate_some_scores(MAILSTREAM *stream, SEARCHSET *searchset, int no_fetch)
 {
     PAT_S         *pat = NULL;
     PAT_STATE      pstate;

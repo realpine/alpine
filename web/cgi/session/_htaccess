@@ -18,11 +18,11 @@ RewriteEngine on
 # a reference to secure content is pretty darn small.
 #
 
-RewriteCond %{SERVER_PORT} !=5131
+RewriteCond %{SERVER_PORT} !=443
 
 #
 # Include SCRIPT_URL incase webpine package isn't in the
 # root of the server's data
 #
-RewriteRule .* https://%{SERVER_NAME}:5131%{REQUEST_URI} [R=permanent,L]
+RewriteRule .* https://%{SERVER_NAME}%{REQUEST_URI} [R=permanent,L]
 

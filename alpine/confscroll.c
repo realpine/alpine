@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: confscroll.c 750 2007-10-17 18:40:51Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: confscroll.c 830 2007-11-26 23:45:22Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1853,6 +1853,7 @@ replace_text:
 			  fs_give((void **)apval);
 
 			if(!(olddefval && !strcmp(sval, olddefval))
+			   || ((*cl)->var == &ps->vars[V_POST_CHAR_SET])
 			   || want_to(_("Leave unset and use default "),
 				      'y', 'y', NO_HELP, WT_FLUSH_IN) == 'n')
 			  *apval = cpystr(sval);
@@ -3998,19 +3999,48 @@ checkbox_pretty_value(struct pine *ps, CONF_S *cl)
 {
     char             tmp[6*MAXPATH];
     char            *comment = NULL;
-    int              lv, x;
+    int              indent, x, screen_width, need;
+    int              longest_featname, longest_comment;
+    int              nwidcomm;		/* name width with comment */
+    int              nwidnocomm;	/* and without comment */
     FEATURE_S	    *feature;
 
+    screen_width = (ps && ps->ttyo) ? ps->ttyo->screen_cols : 80;
     tmp[0] = '\0';
 
-    lv = longest_feature_name();
+    longest_featname = longest_feature_name();
+    longest_comment = longest_feature_comment(ps, ew);
+    indent = feature_indent();
+
+    nwidcomm = longest_featname;
+    nwidnocomm = longest_featname + 2 + longest_comment;
+
+    if((need = (indent + 5 + longest_featname + 2 + longest_comment) - screen_width) > 0){
+	if(need < 10){
+	    nwidcomm   -= need;
+	    nwidnocomm -= need;
+	}
+	else{
+	    longest_comment = 0;
+	    nwidnocomm = longest_featname;
+	}
+    }
 
     feature = feature_list(cl->varmem);
 
     x = feature_gets_an_x(ps, cl->var, feature, &comment, ew);
 
-    utf8_snprintf(tmp, sizeof(tmp), "[%c]  %-*.*w%s", x ? 'X' : ' ',
-		  lv, lv, pretty_feature_name(feature->name), comment ? comment : "");
+    if(longest_comment && comment && *comment){
+	utf8_snprintf(tmp, sizeof(tmp), "[%c]  %-*.*w  %-*.*w", x ? 'X' : ' ',
+		      nwidcomm, nwidcomm,
+		      pretty_feature_name(feature->name, nwidcomm),
+		      longest_comment, longest_comment, comment ? comment : "");
+    }
+    else{
+	utf8_snprintf(tmp, sizeof(tmp), "[%c]  %-*.*w", x ? 'X' : ' ',
+		      nwidnocomm, nwidnocomm,
+		      pretty_feature_name(feature->name, nwidnocomm));
+    }
 
     return(cpystr(tmp));
 }
@@ -4026,13 +4056,20 @@ longest_feature_name(void)
     if(lv < 0){
 	for(lv = 0, i = 0; (feature = feature_list(i)); i++)
 	  if(feature_list_section(feature)
-	     && lv < (j = utf8_width(pretty_feature_name(feature->name))))
+	     && lv < (j = utf8_width(pretty_feature_name(feature->name, -1))))
 	    lv = j;
 
 	lv = MIN(lv, 100);
     }
 
     return(lv);
+}
+
+
+int
+feature_indent(void)
+{
+    return(6);
 }
 
 
@@ -4559,8 +4596,12 @@ toggle_feature_bit(struct pine *ps, int index, struct variable *var, CONF_S *cl,
 
 #ifdef	MOUSE
 	case F_ENABLE_MOUSE :
-	  if(F_ON(f->id, ps))
+	  if(F_ON(f->id, ps)){
 	    init_mouse();
+	    if(!mouseexist())
+	      q_status_message(SM_ORDER | SM_DING, 3, 4,
+			  "Mouse tracking still off ($DISPLAY variable set?)");
+	  }
 	  else
 	    end_mouse();
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: newmail.c 796 2007-11-08 01:14:02Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: newmail.c 845 2007-12-05 22:34:30Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -505,7 +505,7 @@ new_mail(int force_arg, CheckPointTime time_for_check_point, int flags)
 	    }
         }
 
-	update_folder_unseen_by_stream(m, new_mail_was_announced ? 0 : UFU_ANNOUNCE);
+	update_folder_unseen_by_stream(m, new_mail_was_announced ? UFU_NONE : UFU_ANNOUNCE);
 
 	if(flags & NM_STATUS_MSG)
 	  sp_set_mail_box_changed(m, 0);
@@ -561,7 +561,7 @@ new_mail(int force_arg, CheckPointTime time_for_check_point, int flags)
 		}
 	    }
 
-	    update_folder_unseen_by_stream(m, new_mail_was_announced ? 0 : UFU_ANNOUNCE);
+	    update_folder_unseen_by_stream(m, new_mail_was_announced ? UFU_NONE : UFU_ANNOUNCE);
 
 	    if(flags & NM_STATUS_MSG)
 	      sp_set_mail_box_changed(m, 0);

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: folder.c 744 2007-10-10 17:10:59Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: folder.c 845 2007-12-05 22:34:30Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -171,6 +171,7 @@ STRLIST_S  *folder_lister(struct pine *, FSTATE_S *);
 int	    folder_list_text(struct pine *, FPROC_S *, gf_io_t, HANDLE_S **, int);
 int         folder_list_write(gf_io_t, HANDLE_S **, CONTEXT_S *, int, char *, int);
 int	    folder_list_write_prefix(FOLDER_S *, int, gf_io_t);
+int         folder_list_write_middle(FOLDER_S *fp, CONTEXT_S *ctxt, gf_io_t pc, HANDLE_S *);
 int	    folder_list_write_suffix(FOLDER_S *, int, gf_io_t);
 int         color_monitored_unseen(FOLDER_S *, int);
 int	    folder_list_ith(int, CONTEXT_S *);
@@ -185,7 +186,7 @@ void	    folder_lister_km_manager(SCROLL_S *, int);
 void	    folder_lister_km_sel_manager(SCROLL_S *, int);
 void	    folder_lister_km_sub_manager(SCROLL_S *, int);
 int	    folder_select(struct pine *, CONTEXT_S *, int);
-int	    folder_lister_select(FSTATE_S *, CONTEXT_S *, int);
+int	    folder_lister_select(FSTATE_S *, CONTEXT_S *, int, int);
 int	    folder_lister_parent(FSTATE_S *, CONTEXT_S *, int, int);
 char	   *folder_lister_fullname(FSTATE_S *, char *);
 void        folder_export(SCROLL_S *);
@@ -307,6 +308,11 @@ folder_screen(struct pine *ps)
 	if((folders = folder_lister(ps, &fs)) != NULL){
 
 	    ps->in_folder_screen = 0;
+
+	    if(ps && ps->ttyo){
+		blank_keymenu(ps->ttyo->screen_rows - 2, 0);
+		ps->mangled_footer = 1;
+	    }
 
 	    if(do_broach_folder((char *) folders->name, 
 				fs.context, fs.cache_streamp 
@@ -1704,7 +1710,7 @@ folder_list_text(struct pine *ps, FPROC_S *fp, gf_io_t pc, HANDLE_S **handlesp, 
 		       && c_list->use & CNTXT_INCMNG
 		       && F_ON(F_ENABLE_INCOMING_CHECKING, ps_global)){
 
-			update_folder_unseen(f, c_list, UFU_ANNOUNCE);
+			update_folder_unseen(f, c_list, UFU_ANNOUNCE, NULL);
 			if(F_ON(F_INCOMING_CHECKING_RECENT, ps_global)
 			   && f->unseen_valid
 			   && (f->new > 0L
@@ -1853,60 +1859,64 @@ int
 folder_list_write(gf_io_t pc, HANDLE_S **handlesp, CONTEXT_S *ctxt, int fnum, char *alt_name, int flags)
 {
     char      buf[256];
-    int	      l = 0, ll = 0;
+    int	      width = 0, lprefix = 0, lmiddle = 0, lsuffix = 0;
     FOLDER_S *fp;
-    HANDLE_S *h;
-    int       cu = 0;
+    HANDLE_S *h1 = NULL, *h2 = NULL;
 
     if(flags & FLW_LUNK){
-	h		 = new_handle(handlesp);
-	h->type		 = Folder;
-	h->h.f.index	 = fnum;
-	h->h.f.context	 = ctxt;
-	h->force_display = 1;
+	h1		 = new_handle(handlesp);
+	h1->type	 = Folder;
+	h1->h.f.index	 = fnum;
+	h1->h.f.context	 = ctxt;
+	h1->force_display = 1;
 
-	snprintf(buf, sizeof(buf), "%d", h->key);
+	snprintf(buf, sizeof(buf), "%d", h1->key);
 	buf[sizeof(buf)-1] = '\0';
     }
-    else
-      h = NULL;
 
     fp = (fnum < 0) ? NULL : folder_entry(fnum, FOLDERS(ctxt));
 
-    if(h){
+    if(flags & FLW_LUNK && h1 && fp && fp->isdir && fp->isfolder){
+	h2		 = new_handle(handlesp);
+	h2->type	 = Folder;
+	h2->h.f.index	 = fnum;
+	h2->h.f.context	 = ctxt;
+	h2->force_display = 1;
+
+	h1->is_dual_do_open = 1;
+    }
+
+    if(h1){
 	/* color unseen? */
-	cu = color_monitored_unseen(fp, flags);
-	if(cu)
-	  h->color_unseen = 1;
+	if(color_monitored_unseen(fp, flags)){
+	    h1->color_unseen = 1;
+	    if(h2)
+	      h2->color_unseen = 1;
+	}
     }
 
     /* embed handle pointer */
-    if((cu ? gf_puts(color_embed(ps_global->VAR_INCUNSEEN_FORE_COLOR,
-				 ps_global->VAR_INCUNSEEN_BACK_COLOR), pc) : 1)
-       && (h ? ((*pc)(TAG_EMBED) && (*pc)(TAG_HANDLE)
+    if(((h1 && h1->color_unseen) ?
+		gf_puts(color_embed(ps_global->VAR_INCUNSEEN_FORE_COLOR,
+				    ps_global->VAR_INCUNSEEN_BACK_COLOR), pc) : 1)
+       && (h1 ? ((*pc)(TAG_EMBED) && (*pc)(TAG_HANDLE)
 	     && (*pc)(strlen(buf)) && gf_puts(buf, pc)) : 1)
-       && (fp ? ((l = folder_list_write_prefix(fp, flags, pc)) >= 0
-		 && gf_puts(FLDR_NAME(fp), pc)
-		 && ((fp->isdir && fp->isfolder) ? (*pc)('[') : 1)
-		 && ((fp->isdir) ? (*pc)(ctxt->dir->delim) : 1)
-		 && ((fp->isdir && fp->isfolder) ? (*pc)(']') : 1)
-		 && ((ll = folder_list_write_suffix(fp, flags, pc)) >= 0))
+       && (fp ? ((lprefix = folder_list_write_prefix(fp, flags, pc)) >= 0
+		 && (lmiddle = folder_list_write_middle(fp, ctxt, pc, h2)) >= 0
+		 && ((lsuffix = folder_list_write_suffix(fp, flags, pc)) >= 0))
 	      : (alt_name ? gf_puts(alt_name, pc) : 0))
-       && (h ? ((*pc)(TAG_EMBED) && (*pc)(TAG_BOLDOFF)
+       && (h1 ? ((*pc)(TAG_EMBED) && (*pc)(TAG_BOLDOFF)
 		&& (*pc)(TAG_EMBED) && (*pc)(TAG_INVOFF)) : 1)
-       && (cu ? gf_puts(color_embed(ps_global->VAR_NORM_FORE_COLOR,
-				    ps_global->VAR_NORM_BACK_COLOR), pc) : 1)){
-	if(fp){
-	    l += ll;
-	    l += utf8_width(FLDR_NAME(fp));
-	    if(fp->isdir)
-	      l += (fp->isfolder) ? 3 : 1;
-	}
+       && ((h1 && h1->color_unseen) ?
+	       gf_puts(color_embed(ps_global->VAR_NORM_FORE_COLOR,
+				   ps_global->VAR_NORM_BACK_COLOR), pc) : 1)){
+	if(fp)
+	  width = lprefix + lmiddle + lsuffix;
 	else if(alt_name)
-	  l = utf8_width(alt_name);
+	  width = utf8_width(alt_name);
     }
 
-    return(l);
+    return(width);
 }
 
 
@@ -1935,6 +1945,37 @@ folder_list_write_prefix(FOLDER_S *f, int flags, gf_io_t pc)
 	gf_puts(f->subscribed ? "SUB " : (f->selected ? "[X] " : "[ ] "), pc);
     }
 
+    return(rv);
+}
+
+
+int
+folder_list_write_middle(FOLDER_S *fp, CONTEXT_S *ctxt, gf_io_t pc, HANDLE_S *h2)
+{
+    int rv = -1;
+    char buf[256];
+
+    if(h2){
+	snprintf(buf, sizeof(buf), "%d", h2->key);
+	buf[sizeof(buf)-1] = '\0';
+    }
+
+    if(!fp)
+      return(rv);
+
+    if(gf_puts(FLDR_NAME(fp), pc)
+       && (h2 ? ((*pc)(TAG_EMBED) && (*pc)(TAG_BOLDOFF)		/* tie off handle 1 */
+		&& (*pc)(TAG_EMBED) && (*pc)(TAG_INVOFF)) : 1)
+       && (h2 ? ((*pc)(TAG_EMBED) && (*pc)(TAG_HANDLE)		/* start handle 2 */
+	     && (*pc)(strlen(buf)) && gf_puts(buf, pc)) : 1)
+       && ((fp->isdir && fp->isfolder) ? (*pc)('[') : 1)
+       && ((fp->isdir) ? (*pc)(ctxt->dir->delim) : 1)
+       && ((fp->isdir && fp->isfolder) ? (*pc)(']') : 1)){
+	rv = utf8_width(FLDR_NAME(fp));
+	if(fp->isdir)
+	  rv += (fp->isfolder) ? 3 : 1;
+    }
+	
     return(rv);
 }
 
@@ -2368,6 +2409,11 @@ folder_processor(int cmd, MSGNO_S *msgmap, SCROLL_S *sparms)
 			   : FPROC(sparms)->fs->context;
 	  char *new_fold = broach_folder(-FOOTER_ROWS(ps_global), 0, &notrealinbox, &c);
 
+	  if(ps_global && ps_global->ttyo){
+	      blank_keymenu(ps_global->ttyo->screen_rows - 2, 0);
+	      ps_global->mangled_footer = 1;
+	  }
+
 	  if(new_fold && do_broach_folder(new_fold, c, NULL, notrealinbox ? 0L : DB_INBOXWOCNTXT) > 0){
 	      ps_global->next_screen = mail_index_screen;
 	      FPROC(sparms)->done = rv = 1;
@@ -2544,7 +2590,7 @@ folder_processor(int cmd, MSGNO_S *msgmap, SCROLL_S *sparms)
 
 		we_cancel = busy_cue(NULL, NULL, 1);
 
-		if(get_recent_in_folder(mailbox_name, &rec, NULL, &tot))
+		if(get_recent_in_folder(mailbox_name, &rec, NULL, &tot, NULL))
 		  snprintf(tmp_output, sizeof(tmp_output),
 			   _("%lu total message%s, %lu of them recent"),
 			   tot, plural(tot), rec);
@@ -2604,7 +2650,9 @@ folder_lister_choice(SCROLL_S *sparms)
 	    FPROC(sparms)->fs->first_folder[0] = '\0';
 	}
 	else if(folder_total(FOLDERS(cntxt))){
-	    if(folder_lister_select(FPROC(sparms)->fs, cntxt, index)){
+	    if(folder_lister_select(FPROC(sparms)->fs, cntxt, index,
+				    sparms->text.handles ?
+				      sparms->text.handles->is_dual_do_open : 0)){
 		rv = 1;		/* leave scrolltool to rebuild screen */
 	    }
 	    else if(FPROC(sparms)->fs->list_cntxt == cntxt){
@@ -2715,7 +2763,7 @@ folder_lister_addmanually(SCROLL_S *sparms)
 		else
 		  q_status_message1(SM_ORDER,3,3,
 		   _("Config feature \"%s\" enables names beginning with dot"),
-		   pretty_feature_name(feature_list_name(F_ENABLE_DOT_FOLDERS)));
+		   pretty_feature_name(feature_list_name(F_ENABLE_DOT_FOLDERS), -1));
 
                 display_message(NO_OP_COMMAND);
                 continue;
@@ -2782,30 +2830,15 @@ folder_lister_km_manager(SCROLL_S *sparms, int handle_hidden)
     if(sparms->text.handles
        && (fp = folder_entry(sparms->text.handles->h.f.index,
 			     FOLDERS(sparms->text.handles->h.f.context)))){
-	if(fp->isdir){
-	    if(fp->isfolder){
-		sparms->keys.menu->keys[KM_SEL_KEY].label = N_("View Dir");
-		menu_clear_binding(sparms->keys.menu, 'v');
-		menu_clear_binding(sparms->keys.menu, ctrl('M'));
-		menu_clear_binding(sparms->keys.menu, ctrl('J'));
-		menu_add_binding(sparms->keys.menu, 'v', MC_OPENFLDR);
-		menu_add_binding(sparms->keys.menu, ctrl('M'), MC_OPENFLDR);
-		menu_add_binding(sparms->keys.menu, ctrl('J'), MC_OPENFLDR);
-		setbitn(KM_SEL_KEY, sparms->keys.bitmap);
-		setbitn(KM_ALTVIEW_KEY, sparms->keys.bitmap);
-		setbitn(KM_EXPORT_KEY, sparms->keys.bitmap);
-		setbitn(KM_IMPORT_KEY, sparms->keys.bitmap);
-	    }
-	    else{
-		sparms->keys.menu->keys[KM_SEL_KEY].label = "[" N_("View Dir") "]";
-		menu_add_binding(sparms->keys.menu, 'v', MC_CHOICE);
-		menu_add_binding(sparms->keys.menu, ctrl('M'), MC_CHOICE);
-		menu_add_binding(sparms->keys.menu, ctrl('J'), MC_CHOICE);
-		setbitn(KM_SEL_KEY, sparms->keys.bitmap);
-		clrbitn(KM_ALTVIEW_KEY, sparms->keys.bitmap);
-		clrbitn(KM_EXPORT_KEY, sparms->keys.bitmap);
-		clrbitn(KM_IMPORT_KEY, sparms->keys.bitmap);
-	    }
+	if(fp->isdir && !sparms->text.handles->is_dual_do_open){
+	    sparms->keys.menu->keys[KM_SEL_KEY].label = "[" N_("View Dir") "]";
+	    menu_add_binding(sparms->keys.menu, 'v', MC_CHOICE);
+	    menu_add_binding(sparms->keys.menu, ctrl('M'), MC_CHOICE);
+	    menu_add_binding(sparms->keys.menu, ctrl('J'), MC_CHOICE);
+	    setbitn(KM_SEL_KEY, sparms->keys.bitmap);
+	    clrbitn(KM_ALTVIEW_KEY, sparms->keys.bitmap);
+	    clrbitn(KM_EXPORT_KEY, sparms->keys.bitmap);
+	    clrbitn(KM_IMPORT_KEY, sparms->keys.bitmap);
 	}
 	else{
 	    sparms->keys.menu->keys[KM_SEL_KEY].label = "[" N_("View Fldr") "]";
@@ -3275,14 +3308,14 @@ folder_select(struct pine *ps, CONTEXT_S *context, int cur_index)
 
 
 int
-folder_lister_select(FSTATE_S *fs, CONTEXT_S *context, int index)
+folder_lister_select(FSTATE_S *fs, CONTEXT_S *context, int index, int is_dual_do_open)
 {
     int       rv = 0;
     FDIR_S   *fp;
     FOLDER_S  *f = folder_entry(index, FOLDERS(context));
 
     /*--- Entering a directory?  ---*/
-    if(f->isdir){
+    if(f->isdir && !is_dual_do_open){
 	fp = next_folder_dir(context, f->name, TRUE, fs->cache_streamp);
 
 	/* Provide context in new collection header */
@@ -3651,7 +3684,6 @@ folder_import(SCROLL_S *sparms, char *add_folder, size_t len)
 {
     MAILSTREAM *istream = NULL;
     int         r = 1, rv = 0;
-    int         notrealinbox = 0;
     char        filename[MAXPATH+1], full_filename[MAXPATH+1];
     static HISTORY_S *history = NULL;
     static ESCKEY_S eopts[] = {
@@ -3714,7 +3746,7 @@ folder_import(SCROLL_S *sparms, char *add_folder, size_t len)
 	     * Select a folder to save the messages to.
 	     */
 	    if(save_prompt(ps_global, &cntxt, newfolder, sizeof(newfolder),
-			   nmsgs, NULL, 0L, NULL, NULL, NULL, &notrealinbox)){
+			   nmsgs, NULL, 0L, NULL, NULL, NULL)){
 
 		if((cntxt == ourcntxt) && newfolder[0]){
 		    rv = 1;
@@ -3733,7 +3765,7 @@ folder_import(SCROLL_S *sparms, char *add_folder, size_t len)
 		blank_keymenu(ps_global->ttyo->screen_rows-2, 0);
 		we_cancel = busy_cue("Importing messages", NULL, 0);
 		l = save(ps_global, istream, cntxt, newfolder, tmpmap,
-			 notrealinbox ? 0 : SV_INBOXWOCNTXT);
+			 SV_INBOXWOCNTXT);
 		if(we_cancel)
 		  cancel_busy_cue(0);
 
@@ -4299,7 +4331,7 @@ get_folder_name:
 		else
 		  q_status_message1(SM_ORDER,3,3,
 		   _("Config feature \"%s\" enables names beginning with dot"),
-		      pretty_feature_name(feature_list_name(F_ENABLE_DOT_FOLDERS)));
+		      pretty_feature_name(feature_list_name(F_ENABLE_DOT_FOLDERS), -1));
 
                 display_message(NO_OP_COMMAND);
                 continue;
@@ -5165,7 +5197,7 @@ rename_folder(CONTEXT_S *context, int index, char *new_name, size_t len, MAILSTR
 		else
 		  q_status_message1(SM_ORDER,3,3,
 		      _("Config feature \"s\" enables names beginning with dot"),
-		      pretty_feature_name(feature_list_name(F_ENABLE_DOT_FOLDERS)));
+		      pretty_feature_name(feature_list_name(F_ENABLE_DOT_FOLDERS), -1));
 
                 display_message(NO_OP_COMMAND);
                 continue;
@@ -5316,7 +5348,12 @@ rename_folder(CONTEXT_S *context, int index, char *new_name, size_t len, MAILSTR
     }
 
     if(ren_cur) {
-        /* No reopen the folder we just had open */
+	if(ps_global && ps_global->ttyo){
+	    blank_keymenu(ps_global->ttyo->screen_rows - 2, 0);
+	    ps_global->mangled_footer = 1;
+	}
+
+	/* No reopen the folder we just had open */
         do_broach_folder(new_name, context, NULL, 0L);
     }
 
@@ -5526,6 +5563,11 @@ delete_folder(CONTEXT_S *context, int index, char *next_folder, size_t len, MAIL
 	     */
 	    pine_mail_actually_close(strm);
 	    if(close_opened){
+		if(ps_global && ps_global->ttyo){
+		    blank_keymenu(ps_global->ttyo->screen_rows - 2, 0);
+		    ps_global->mangled_footer = 1;
+		}
+
 		ps_global->mangled_header = 1;
 		do_broach_folder(ps_global->inbox_name,
 				 ps_global->context_list, NULL, DB_INBOXWOCNTXT);

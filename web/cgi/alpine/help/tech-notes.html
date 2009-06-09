@@ -1,7 +1,7 @@
 <html>
 <head>
 <!--
-# $Id: tech-notes.html 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
+# $Id: tech-notes.html 850 2007-12-06 23:58:57Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -226,12 +226,14 @@ what they set.  The most important settings, though, are probably:
 that defines where the Web Alpine application was unpacked on your system, and 
 </dd>
 <dt>
-<tt>_wp(cgiroot)</tt>
+<tt>_wp(urlprefix)</tt>
 </dt>
 <dd>
-which defines where Web Alpine's CGI scripts are located.  Typically, it's easier to move the
-packages <tt>web/</tt> directory into the web server's document root than to configure
-the web server to consider the packages directory as its root.
+which defines where browsers can find Web Alpine's CGI scripts.  This is set to
+the null string if the server's DocumentRoot is synonymous with the root of
+Web Alpine's CGI directory.  Othewise, it's typically set to the Alias accessed
+subdirectory in the web server's configuration.
+
 </dd>
 </dl>
 </td></tr>

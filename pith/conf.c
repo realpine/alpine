@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: conf.c 796 2007-11-08 01:14:02Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: conf.c 809 2007-11-09 21:13:47Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -6703,12 +6703,16 @@ update_posting_charset(struct pine *ps, int revert)
 }
 
 
+#define FIXED_COMMENT		"(fixed)"
+#define DEFAULT_COMMENT		"(default)"
+#define OVERRIDE_COMMENT	"(overriddent)"
+
 int
 feature_gets_an_x(struct pine *ps, struct variable *var, FEATURE_S *feature,
 		  char **comment, EditWhich ew)
 {
     char           **lval, **lvalexc, **lvalnorm;
-    char            *def = "  (default)";
+    char            *def = DEFAULT_COMMENT;
     int              j, done = 0;
     int              feature_fixed_on = 0, feature_fixed_off = 0;
 
@@ -6716,7 +6720,7 @@ feature_gets_an_x(struct pine *ps, struct variable *var, FEATURE_S *feature,
       *comment = NULL;
 
     lval  = LVAL(var, ew);
-    lvalexc  = LVAL(var, ps_global->ew_for_except_vars);
+    lvalexc  = LVAL(var, ps->ew_for_except_vars);
     lvalnorm = LVAL(var, Main);
   
     /* feature value is administratively fixed */
@@ -6728,7 +6732,7 @@ feature_gets_an_x(struct pine *ps, struct variable *var, FEATURE_S *feature,
 
 	done++;
 	if(comment)
-	  *comment = "  (fixed)";
+	  *comment = FIXED_COMMENT;
     }
 
     /*
@@ -6736,11 +6740,11 @@ feature_gets_an_x(struct pine *ps, struct variable *var, FEATURE_S *feature,
      * we do here, in the normal config.
      */
     if(!done &&
-       ps_global->ew_for_except_vars != Main && ew == Main &&
+       ps->ew_for_except_vars != Main && ew == Main &&
        feature_in_list(lvalexc, feature->name)){
 	done++;
 	if(comment)
-	  *comment = "  (overridden)";
+	  *comment = OVERRIDE_COMMENT;
     }
 
     /*
@@ -6749,8 +6753,8 @@ feature_gets_an_x(struct pine *ps, struct variable *var, FEATURE_S *feature,
     if(!done &&
        !feature_in_list(lval, feature->name) &&
        ((feature_in_list(var->global_val.l, feature->name) == 1) ||
-        ((ps_global->ew_for_except_vars != Main &&
-          ew == ps_global->ew_for_except_vars &&
+        ((ps->ew_for_except_vars != Main &&
+          ew == ps->ew_for_except_vars &&
           feature_in_list(lvalnorm, feature->name) == 1)))){
 	done = 17;
 	if(comment)
@@ -6761,8 +6765,8 @@ feature_gets_an_x(struct pine *ps, struct variable *var, FEATURE_S *feature,
        feature->defval &&
        !feature_in_list(lval, feature->name) &&
        !feature_in_list(var->global_val.l, feature->name) &&
-       (ps_global->ew_for_except_vars == Main ||
-        ew != ps_global->ew_for_except_vars ||
+       (ps->ew_for_except_vars == Main ||
+        ew != ps->ew_for_except_vars ||
         !feature_in_list(lvalnorm, feature->name))){
 	done = 17;
 	if(comment)
@@ -6774,6 +6778,20 @@ feature_gets_an_x(struct pine *ps, struct variable *var, FEATURE_S *feature,
 	    (done == 17 ||
 	     test_feature(lval, feature->name,
 			  test_old_growth_bits(ps, feature->id)))));
+}
+
+
+int
+longest_feature_comment(struct pine *ps, EditWhich ew)
+{
+    int lc = 0;
+
+    lc = MAX(lc, utf8_width(FIXED_COMMENT));
+    lc = MAX(lc, utf8_width(DEFAULT_COMMENT));
+    if(ps->ew_for_except_vars != Main && ew == Main)
+      lc = MAX(lc, utf8_width(OVERRIDE_COMMENT));
+
+    return(lc);
 }
 
 

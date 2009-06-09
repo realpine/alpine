@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: alpine.c 737 2007-10-03 19:40:34Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: alpine.c 844 2007-12-05 17:50:54Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1135,6 +1135,12 @@ main(int argc, char **argv)
 		  rv--, cntxt = cntxt->next)
 		;
 
+	    if(pine_state && pine_state->ttyo){
+		blank_keymenu(pine_state->ttyo->screen_rows - 2, 0);
+		pine_state->painted_footer_on_startup = 0;
+		pine_state->mangled_footer = 1;
+	    }
+
             if(do_broach_folder(args.data.folder, cntxt, NULL, notrealinbox ? 0L : DB_INBOXWOCNTXT) <= 0){
 		q_status_message1(SM_ORDER, 3, 4,
 		    _("Unable to open folder \"%s\""), args.data.folder);
@@ -1198,6 +1204,12 @@ main(int argc, char **argv)
 			pine_state->VAR_INBOX_PATH = cpystr(int_mail);
 		    }
 
+		    if(pine_state && pine_state->ttyo){
+			blank_keymenu(pine_state->ttyo->screen_rows - 2, 0);
+			pine_state->painted_footer_on_startup = 0;
+			pine_state->mangled_footer = 1;
+		    }
+
 		    do_broach_folder(pine_state->inbox_name, 
 				     pine_state->context_list, NULL, DB_INBOXWOCNTXT);
     		}
@@ -1210,6 +1222,12 @@ main(int argc, char **argv)
 #endif /* _WINDOWS */
 	    if(F_ON(F_PREOPEN_STAYOPENS, ps_global))
 	      preopen_stayopen_folders();
+
+	    if(pine_state && pine_state->ttyo){
+		blank_keymenu(pine_state->ttyo->screen_rows - 2, 0);
+		pine_state->painted_footer_on_startup = 0;
+		pine_state->mangled_footer = 1;
+	    }
 
 	    /* open inbox */
             do_broach_folder(pine_state->inbox_name,
@@ -3192,6 +3210,7 @@ goodnight_gracey(struct pine *pine_state, int exit_val)
     close_every_pattern();
     free_extra_hdrs();
     free_contexts(&ps_global->context_list);
+    free_charsetchecker();
     dprint((7, "goodnight_gracey: free more memory\n"));    
 #ifdef	ENABLE_LDAP
     free_saved_query_parameters();

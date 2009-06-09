@@ -2918,25 +2918,80 @@ it is the default or one automatically generated using the above tokens.
 
 <DT> <A NAME="reply-leadin"><EM>reply-leadin</EM></A>
 
-<DD> This variable specifies an aspect of <EM>Alpine</EM>'s <EM>Reply</EM>
-command.
-When a message is replied to and the text of the message is included,
-that text has an introductory line preceding it.
-The normal default if you don't set this variable looks something like:
+<DD> This option is used to customize the content of the introduction line
+that is included when replying to a message and including the original
+message in the reply.
+The normal default (what you will get if you delete this variable) looks
+something like:
 <P>
 <CENTER><SAMP>On Sat, 24 Oct 1998, Fred Flintstone wrote:</SAMP></CENTER>
 <P>
 where the day of the week is only included if it is available in the
 original message.
-You may replace this default with text of your own.
-The text may contain tokens which are replaced with text
-which depends on the message you are replying to.
+You can replace this default with text of your own.
+The text may contain tokens that are replaced with text
+that depends on the message you are replying to.
 For example, the default is equivalent to:
 <P>
 <CENTER><SAMP>On _DAYDATE_, _FROM_ wrote:</SAMP></CENTER>
 <P>
+
+Since this variable includes regular text mixed with special tokens
+the tokens have to be surrounded by underscore characters.
+For example, to use the token &quot;<SAMP>PREFDATE</SAMP>&quot;
+you would need to use &quot;<SAMP>_PREFDATE_</SAMP>&quot;,
+not &quot;<SAMP>PREFDATE</SAMP>&quot;.
+<P>
 The list of available tokens is
 <A HREF="#index-tokens"><EM>here</EM></A>.
+
+<P>
+By default, the text is all on a single line and is followed by a blank line.
+If your <EM>Reply-Leadin</EM> turns out to be longer
+than 80 characters when replying to a particular message, it is shortened.
+However, if you use the token
+<P>
+<CENTER><SAMP>_NEWLINE_</SAMP></CENTER>
+<P>
+
+anywhere in the value, no end of line or blank line is appended, and no
+shortening is done.
+The _NEWLINE_ token may be used to get rid of the blank line following
+the text, to add more blank lines, or to form a multi-line
+<EM>Reply-Leadin</EM>.
+To clarify how _NEWLINE_ works recall that the default value is:
+<P>
+<CENTER><SAMP>On _DAYDATE_, _FROM_ wrote:</SAMP></CENTER>
+<P>
+
+That is equivalent to
+<P>
+<CENTER><SAMP>On _DAYDATE_, _FROM_ wrote:_NEWLINE__NEWLINE_</SAMP></CENTER>
+<P>
+
+In the former case, two newlines are added automatically because
+no _NEWLINE_ token appears in the value of the option (for backwards
+compatibility). In the latter case, the newlines are explicit.
+If you want to remove the blank line that follows the
+<EM>Reply-Leadin</EM> text use a single
+_NEWLINE_ token like
+<P>
+<CENTER><SAMP>On _DAYDATE_, _FROM_ wrote:_NEWLINE_</SAMP></CENTER>
+<P>
+
+Because of the backwards compatibility problem, it is not possible to
+remove all of the ends of lines, because then there will be no _NEWLINE_ tokens
+and that will cause the automatic adding of two newlines!
+If you want, you may embed newlines in the middle of the text, as well,
+producing a multi-line <EM>Reply-Leadin</EM>.
+
+<P>
+By default, no attempt is made to localize the date.
+If you prefer a localized form you may find that one of the tokens
+_PREFDATE_ or _PREFDATETIME_ is a satisfactory substitute.
+If you want more control one of the many other date tokens, such as _DATEISO_,
+might be better.
+
 <P>
 For the adventurous, there is a way to conditionally include text based
 on whether or not a token would result in specific replacement text.
@@ -2945,10 +3000,6 @@ the _NEWS_ token would result in any newsgroups if it was used.
 It's explained in detail
 <A HREF="#reply-token-conditionals"><EM>here</EM></A>.
 
-<P>
-
-If your <EM>Reply-Leadin</EM> turns out to be longer
-than 80 characters when replying to a particular message, it is shortened.
 <P>
 In the very unlikely event that you want to include a literal token
 in the introduction line you must precede it with a backslash character.
@@ -3401,7 +3452,13 @@ the session will have that as the default sort order.  <P>
 
 <DT> <A NAME="speller"><EM>speller</EM></A>
 
-<DD> This option affects the behavior of the <EM>^T</EM> (spell check)
+<DD> UNIX <EM>Alpine</EM> only.
+<P>
+For <EM>PC-Alpine</EM>, you must install the aspell library code that you
+may get from
+<A HREF="http://aspell.net/win32/">http://aspell.net/win32/</A>.
+<P>
+This option affects the behavior of the <EM>^T</EM> (spell check)
 command in the Composer.
 It specifies the program invoked by <EM>^T</EM> in the Composer.
 By default, <EM>Alpine</EM> uses the system's "spell" command.
@@ -3874,7 +3931,7 @@ no more replies directly to the parent of the current message.
 It can be used to &quot;round-off&quot; the bottom of the vertical line
 by setting it to a character such as a backslash (&#92;) or
 a backquote (&#96;).
-By default, the value of this option is the vertical bar character (|).
+The default value of this option is the backslash character (&#92;).
 This option may not be set to the Empty Value.
 In that case, the default will be used instead.
 <P>
@@ -4222,7 +4279,9 @@ This feature is displayed as &quot;Alternate Role (#) Menu&quot;.
 
 <DT> <A NAME="assume-slow-link"><EM>assume-slow-link</EM></A>
 
-<DD> This feature affects <EM>Alpine</EM>'s display routines.  If set, the normal
+<DD> UNIX <EM>Alpine</EM> only.
+<P>
+This feature affects <EM>Alpine</EM>'s display routines.  If set, the normal
 inverse-video cursor (used to highlight the current item in a list) will be
 replaced by an <EM>arrow</EM> cursor and other screen update optimizations for
 low-speed links (e.g. 2400 bps dialup connections) will be activated.
@@ -4496,12 +4555,18 @@ This feature is displayed as &quot;Continue NextNew Without Confirming&quot;.
 
 <DT> <A NAME="convert-dates-to-localtime"><EM>convert-dates-to-localtime</EM></A>
 
-<DD> Normally, the date that you see in the Date header of a message you
-are viewing or in the MESSAGE INDEX is displayed as is.
-If this feature is set those dates will be converted to your local timezone
-to be displayed.
+<DD> Normally, the message dates that you see in the
+MESSAGE INDEX are displayed in the timezone they were sent from.
+For example, if a message was sent to you from a few timezones to the east
+it might appear that it was sent from the future;
+or if it was sent from somewhere to the west it might appear
+as if it is from yesterday even though it was sent only a few minutes ago.
+If this feature is set an attempt will be made to convert the dates
+to your local timezone to be displayed.
+<P>
 Note that this does not affect the results of Select by Date or of
 anything else other than these displayed dates.
+When viewing the message the Date header will still be shown unconverted.
 <P>
 
 <DT> <A NAME="copy-to-to-from"><EM>copy-to-address-to-from-if-it-is-us</EM></A>
@@ -8007,6 +8072,9 @@ The feature
 which adjusts for the timezone the message was sent from,
 may have an affect on the value of this token as well as the values of
 all of the other DATE or TIME tokens.
+Some of the DATE and TIME tokens are displayed in a locale-specific
+way unless the option
+<A HREF="h_config_disable_index_locale_dates"><!--#echo var="FEAT_disable-index-locale-dates"--></A> is set.
 </DD>
 
 <DT>SMARTDATE</DT>
@@ -8175,6 +8243,31 @@ to SMARTDATETIMES1.</DD>
 This token represents the date on which the message was sent, according
 to the &quot;Date&quot; header field.
 It looks like &quot;Sat, 23 Oct 1998&quot;.
+This token is never converted in any locale-specific way.
+</DD>
+
+<DT>PREFDATE</DT>
+<DD>
+This token represents the date on which the message was sent, according
+to the &quot;Date&quot; header field.
+It is your operating system's idea of the preferred date representation for the current locale.
+Internally it uses the %x version of the date from the strftime routine.
+</DD>
+
+<DT>PREFTIME</DT>
+<DD>
+This token represents the time at which the message was sent, according
+to the &quot;Date&quot; header field.
+It is the preferred time representation for the current locale.
+Internally it uses the %X version of the time from the strftime routine.
+</DD>
+
+<DT>PREFDATETIME</DT>
+<DD>
+This token represents the date and time at which the message was sent, according
+to the &quot;Date&quot; header field.
+It is the preferred date and time representation for the current locale.
+Internally it uses the %c version of the time from the strftime routine.
 </DD>
 
 <DT>DAY</DT>
@@ -8873,6 +8966,27 @@ This token represents the current date.
 It has the format YY-MM-DD. For example, &quot;98-10-23&quot;.
 </DD>
 
+<DT>CURPREFDATE</DT>
+<DD>
+This token represents the current date.
+It is your operating system's idea of the preferred date representation for the current locale.
+Internally it uses the %x version of the date from the strftime routine.
+</DD>
+
+<DT>CURPREFTIME</DT>
+<DD>
+This token represents the current time.
+It is the preferred time representation for the current locale.
+Internally it uses the %X version of the time from the strftime routine.
+</DD>
+
+<DT>CURPREFDATETIME</DT>
+<DD>
+This token represents the current date and time.
+It is the preferred date and time representation for the current locale.
+Internally it uses the %c version of the time from the strftime routine.
+</DD>
+
 <DT>CURTIME24</DT>
 <DD>
 This token represents the current time.
@@ -9021,6 +9135,20 @@ This token does not work with Filter Rule folder names.
 </DD>
 </DL>
 
+<P>
+<H3><EM>Token Available Only for Reply-Leadin</EM></H3>
+See the help for the
+<A HREF="#reply-leadin"><EM>Reply-Leadin</EM></A> option,
+to see why you might want to use this.
+Since the <EM>Reply-Leadin</EM> contains free text this token
+must be surrounded by underscores when used.
+
+<DL>
+<DT>NEWLINE</DT>
+<DD>
+This is an end of line marker.
+</DD>
+</DL>
 <P>
 <H3><EM>Token Available Only for Templates and Signatures</EM></H3>
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: search.c 140 2006-09-26 19:30:49Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: search.c 842 2007-12-04 00:13:55Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -54,7 +54,7 @@ build_searchset(MAILSTREAM *stream)
 
 
 int
-in_searchset(struct search_set *srch, long unsigned int num)
+in_searchset(SEARCHSET *srch, long unsigned int num)
 {
     SEARCHSET *s;
     unsigned long i;

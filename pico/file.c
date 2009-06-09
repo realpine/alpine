@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: file.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: file.c 848 2007-12-06 19:57:49Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -75,10 +75,10 @@ static char *inshelptext[] = {
   /* TRANSLATORS: several lines of help text */
   N_("Insert File Help Text"),
   " ",
-  N_("\tType in a file name to have it inserted into your editing"),
-  N_("\tbuffer between the line that the cursor is currently on"),
-  N_("\tand the line directly below it.  You may abort this by "),
-  N_("~\ttyping the ~F~2 (~^~C) key after exiting help."),
+  N_("        Type in a file name to have it inserted into your editing"),
+  N_("        buffer between the line that the cursor is currently on"),
+  N_("        and the line directly below it.  You may abort this by "),
+  N_("~        typing the ~F~2 (~^~C) key after exiting help."),
   " ",
   N_("End of Insert File Help"),
   " ",
@@ -89,9 +89,9 @@ static char *writehelp[] = {
   /* TRANSLATORS: several lines of help text */
   N_("Write File Help Text"),
   " ",
-  N_("\tType in a file name to have it written out, thus saving"),
-  N_("\tyour buffer, to a file.  You can abort this by typing "),
-  N_("~\tthe ~F~2 (~^~C) key after exiting help."),
+  N_("        Type in a file name to have it written out, thus saving"),
+  N_("        your buffer, to a file.  You can abort this by typing "),
+  N_("~        the ~F~2 (~^~C) key after exiting help."),
   " ",
   N_("End of Write File Help"),
   " ",

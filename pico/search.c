@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: search.c 692 2007-08-28 21:32:05Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: search.c 848 2007-12-06 19:57:49Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -63,22 +63,22 @@ static char *SearchHelpText[] = {
 /* TRANSLATORS: Some help text that goes together in a group. */
 N_("Help for Search Command"),
 " ",
-N_("\tEnter the words or characters you would like to search"),
-N_("~\tfor, then press ~R~e~t~u~r~n.  The search then takes place."),
-N_("\tWhen the characters or words that you entered "),
-N_("\tare found, the buffer will be redisplayed with the cursor "),
-N_("\tat the beginning of the selected text."),
+N_("        Enter the words or characters you would like to search"),
+N_("~        for, then press ~R~e~t~u~r~n.  The search then takes place."),
+N_("        When the characters or words that you entered "),
+N_("        are found, the buffer will be redisplayed with the cursor "),
+N_("        at the beginning of the selected text."),
 " ",
-N_("\tThe most recent string for which a search was made is"),
-N_("\tdisplayed in the \"Search\" prompt between the square"),
-N_("\tbrackets.  This string is the default search prompt."),
+N_("        The most recent string for which a search was made is"),
+N_("        displayed in the \"Search\" prompt between the square"),
+N_("        brackets.  This string is the default search prompt."),
 N_("~        Hitting only ~R~e~t~u~r~n or at the prompt will cause the"),
-N_("\tsearch to be made with the default value."),
+N_("        search to be made with the default value."),
 "  ",
-N_("\tThe text search is not case sensitive, and will examine the"),
-N_("\tentire message."),
+N_("        The text search is not case sensitive, and will examine the"),
+N_("        entire message."),
 "  ",
-N_("\tShould the search fail, a message will be displayed."),
+N_("        Should the search fail, a message will be displayed."),
 "  ",
 N_("End of Search Help."),
 "  ",

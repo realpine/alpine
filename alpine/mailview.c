@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailview.c 777 2007-10-25 19:02:22Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailview.c 844 2007-12-05 17:50:54Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1911,6 +1911,11 @@ url_local_imap(char *url)
 
       case URL_IMAP_IMESSAGEPART :
       case URL_IMAP_IMESSAGELIST :
+	if(ps_global && ps_global->ttyo){
+	    blank_keymenu(ps_global->ttyo->screen_rows - 2, 0);
+	    ps_global->mangled_footer = 1;
+	}
+
 	rv = do_broach_folder(folder, NULL, NULL, 0L);
 	fs_give((void **) &folder);
 	switch(rv){
@@ -2020,6 +2025,11 @@ url_local_nntp(char *url)
 	else
 	  return(url_bogus(url, _("No server specified")));
 
+	if(ps_global && ps_global->ttyo){
+	    blank_keymenu(ps_global->ttyo->screen_rows - 2, 0);
+	    ps_global->mangled_footer = 1;
+	}
+
 	switch(do_broach_folder(rfc1738_str(folder), NULL, NULL, 0L)){
 	  case -1 :				/* utter failure */
 	    ps_global->next_screen = main_menu_screen;
@@ -2123,6 +2133,11 @@ url_local_news(char *url)
 			     "No default newsgroup");
 	    return(0);
 	}
+    }
+
+    if(ps_global && ps_global->ttyo){
+	blank_keymenu(ps_global->ttyo->screen_rows - 2, 0);
+	ps_global->mangled_footer = 1;
     }
 
     if(do_broach_folder(rfc1738_str(folder), cntxt, NULL, 0L) < 0)
@@ -2827,10 +2842,13 @@ scrolltool(SCROLL_S *sparms)
 		    HANDLE_S *h, *h2;
 		    int	      i, j, k;
 
-		    for(h = NULL,
-			  i = (h2 = sparms->text.handles)->loc->where.row + 1,
-			  j = h2->loc->where.col,
-			  k = h2->key;
+		    h2 = sparms->text.handles;
+		    if(h2->type == Folder && h2->prev && h2->prev->is_dual_do_open)
+		      h2 = h2->prev;
+
+		    i = h2->loc->where.row + 1;
+		    j = h2->loc->where.col;
+		    for(h = NULL, k = h2->key;
 			h2 && (!h
 			       || (h->loc->where.row == h2->loc->where.row));
 			h2 = h2->next)
@@ -2894,10 +2912,14 @@ scrolltool(SCROLL_S *sparms)
 		    HANDLE_S *h, *h2;
 		    int	  i, j, k;
 
-		    for(h = NULL,
-			  i = (h2 = sparms->text.handles)->loc->where.row - 1,
-			  j = h2->loc->where.col,
-			  k = h2->key;
+		    h2 = sparms->text.handles;
+		    if(h2->type == Folder && h2->prev && h2->prev->is_dual_do_open)
+		      h2 = h2->prev;
+
+		    i = h2->loc->where.row - 1;
+		    j = h2->loc->where.col;
+
+		    for(h = NULL, k = h2->key;
 			h2 && (!h
 			       || (h->loc->where.row == h2->loc->where.row));
 			h2 = h2->prev)

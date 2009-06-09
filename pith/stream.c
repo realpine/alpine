@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: stream.c 735 2007-10-01 20:46:19Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: stream.c 847 2007-12-06 18:06:35Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -629,6 +629,15 @@ pine_mail_open(MAILSTREAM *stream, char *mailbox, long int openflags, long int *
 
 	/* make sure the message map has been instantiated */
 	(void) sp_msgmap(retstream);
+
+	/*
+	 * If a referral during the mail_open above causes a stream
+	 * re-use which involves a BYE on an IMAP stream, then that
+	 * BYE will have caused an mm_notify which will have
+	 * instantiated the sp_data and set dead_stream! Trust that
+	 * it is alive up to here and reset it to zero.
+	 */
+	sp_set_dead_stream(retstream, 0);
 
 	flags = SP_LOCKED
 		| (usepool    ? SP_USEPOOL    : 0)

@@ -6,8 +6,6 @@ inbox-path={${WPUSER}.deskmail.washington.edu/tls}inbox
 
 user-domain=u.washington.edu
 
-character-set=ISO-8859-1
-
 folder-collections="Deskmail Folders" {${WPUSER}.deskmail.washington.edu/tls}mail/[]
 
 literal-signature=""

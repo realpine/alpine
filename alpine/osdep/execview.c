@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: execview.c 745 2007-10-11 18:03:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: execview.c 813 2007-11-14 00:47:15Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -42,6 +42,7 @@ static char rcsid[] = "$Id: execview.c 745 2007-10-11 18:03:32Z hubert@u.washing
 #include "../../pico/estruct.h"
 #include "../../pico/pico.h"
 #include "../mailview.h"
+#include "termin.gen.h"
 
 #ifdef _WINDOWS
 #include "../../pico/osdep/mswin.h"
@@ -62,7 +63,7 @@ typedef struct _execview_event_data_s {
 pascal OSStatus osx_launch_app_callback(EventHandlerCallRef,
 					EventRef, void *);
 int		install_app_launch_cb(void *);
-int		osx_launch_special_handling(MCAP_CMD_S *, char *);
+void		osx_launch_special_handling(MCAP_CMD_S *, char *);
 #endif
 
 
@@ -410,7 +411,7 @@ execview_pretty_command(MCAP_CMD_S *mc_cmd, int *free_ret)
 
 
 #if	OSX_TARGET
-int
+void
 osx_launch_special_handling(MCAP_CMD_S *mc_cmd, char *image_file)
 {
     CFStringRef str_ref = NULL;

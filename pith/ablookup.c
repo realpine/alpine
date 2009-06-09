@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: ablookup.c 801 2007-11-08 20:39:45Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: ablookup.c 842 2007-12-04 00:13:55Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -189,13 +189,13 @@ get_fcc_from_addr(struct mail_address *adr, char *buffer, size_t buflen)
  * part of Pattern matching.
  */
 void
-address_in_abook(MAILSTREAM *stream, struct search_set *searchset,
+address_in_abook(MAILSTREAM *stream, SEARCHSET *searchset,
 			 int inabook, PATTERN_S *abooks)
 {
     char         *savebits;
     MESSAGECACHE *mc;
-    long          i;
-    SEARCHSET    *s, *ss, **sset;
+    long          i, count = 0L;
+    SEARCHSET    *s, *ss;
     ADDRESS      *from, *reply_to, *sender, *to, *cc;
     int           is_there, adrbknum, *abooklist = NULL, positive_match;
     PATTERN_S    *pat;
@@ -240,8 +240,10 @@ address_in_abook(MAILSTREAM *stream, struct search_set *searchset,
     for(s = searchset; s; s = s->next)
       for(i = s->first; i <= s->last; i++)
 	if(i > 0L && i <= stream->nmsgs
-	   && (mc=mail_elt(stream, i)) && mc->searched)
-	  mc->sequence = 1;
+	   && (mc=mail_elt(stream, i)) && mc->searched){
+	    mc->sequence = 1;
+	    count++;
+	}
 
     ss = build_searchset(stream);
 
@@ -324,24 +326,31 @@ address_in_abook(MAILSTREAM *stream, struct search_set *searchset,
 	}
     }
 
+    if(count){
+	SEARCHSET    **sset;
+
+	mail_parameters(NULL, SET_FETCHLOOKAHEADLIMIT, (void *) count);
+
+	/*
+	 * This causes the lookahead to fetch precisely
+	 * the messages we want (in the searchset) instead
+	 * of just fetching the next 20 sequential
+	 * messages. If the searching so far has caused
+	 * a sparse searchset in a large mailbox, the
+	 * difference can be substantial.
+	 * This resets automatically after the first fetch.
+	 */
+	sset = (SEARCHSET **) mail_parameters(stream,
+					      GET_FETCHLOOKAHEAD,
+					      (void *) stream);
+	if(sset)
+	  *sset = ss;
+    }
+
     for(s = ss; s; s = s->next){
 	for(i = s->first; i <= s->last; i++){
 	    if(i <= 0L || i > stream->nmsgs)
 	      continue;
-
-	    /*
-	     * This causes the lookahead to fetch precisely
-	     * the messages we want (in the searchset) instead
-	     * of just fetching the next 20 sequential
-	     * messages. If the searching so far has caused
-	     * a sparse searchset in a large mailbox, the
-	     * difference can be substantial.
-	     */
-	    sset = (SEARCHSET **) mail_parameters(stream,
-						  GET_FETCHLOOKAHEAD,
-						  (void *) stream);
-	    if(sset)
-	      *sset = s;
 
 	    e = pine_mail_fetchenvelope(stream, i);
 

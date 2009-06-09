@@ -2,7 +2,7 @@
 <HEAD>
 
 <!--
-# $Id: release.html 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: release.html 850 2007-12-06 23:58:57Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -18,7 +18,7 @@
 <TITLE>Alpine Release Information</TITLE>
 
 <STYLE TYPE='TEXT/CSS'>
-BODY { background-color: #F3F3F3 ; font-family: Arial, sans-serif }
+BODY { background-color: #FEFAC9 ; font-family: Arial, sans-serif }
 DL   { padding: 0 18 }
 DT   { font-weight: bold }
 DD   { padding-bottom: 12 }
@@ -29,87 +29,53 @@ DD   { padding-bottom: 12 }
 <BODY>
 
 <DIV STYLE="font-weight: bold; font-size: 16pt ; padding: 12" ALIGN="CENTER">
-<IMG SRC="/images/logo/alpine-w-logo-small.gif" STYLE="float: left; padding-left: 20">
+<IMG SRC="/images/logo/alpine/small.gif" STYLE="float: left; padding-left: 20">
 Alpine Release Highlights
 </DIV>
 
 <DIV STYLE="background-color: white; padding: 24; margin: 20; border: 1px solid black">
-Based on user feedback, the latest Alpine has many changes.
-Improvements include an Export/Import command to save folders to your
-desktop or forward them to other Alpine users, easier ways to number
-messages, a jump command to access a specific message, a more convenient way to save messages,
-color controls
-for various parts of a message, and control over the width of text in
-messages.
+This page is used to publish the highlights of periodic updates.  Bug fixes, explanations
+for new features and so forth can typically be found here.
 <P>
-<H2>April 2006 Update:</H2>
+<H2>December 2007:</H2>
 
 <DL>
-<DT>Minor Bug Fixes</DT>
+<DT>Web Alpine General Release</DT>
+<DD>
+<P>
+This is the first release to the general public of the Web Alpine IMAP
+client.  It's built on the Alpine Mail System which itself is derived
+from the Pine Mail System.  Externally, besides numerous new features,
+the most significant change is likely the new licensing.  The Alpine Mail System 
+has been release under the Apache 2.0 license.
 
-<DD>Most notable: View, Reply and Forward of non-ASCII text 
-improved, support for secondary IMAP server access restored.
+<P>
+Internally, there are significant changes.  The code has been
+restructured to partition mail data access routines from those
+functions that provide the user interface.  This allows development on
+the mail engine proper to be easily reflected across the supported
+interfaces.  Similarly, each interface, Unix, Windows, and Web, can be
+developed reasponably independently.
+<P>
+Similarly, significant work has been done to make Alpine more
+international. Internally, message text and so forth is represented in
+Unicode, and the groundwork has been laid to support status and
+command translations.
+
+<P>
+As for the Web Alpine IMAP client, it is an updated, evolutionary
+improvement upon the Pine-based version that has been serving tens of
+thousands of users daily on the University of Washington campus for
+several years.  It is not quite as fully featured as the other Alpine
+mail tools, but is a resonably solid and complete IMAP client.  We
+also agree with many of its critics that it is a somewhat homely
+interface, and we are taking significant steps toward addressing that
+criticism. Stay tuned!
+
 </DD>
 </DL>
 
 <P>
-
-<H2>December 2005 Update:</H2>
-
-<DL>
-<DT>Accidental Folder Expunge</DT>
-<DD>In addition to bug fixes, this new version of Alpine adds extra
-safeguards in the form of a renamed button [Mark All in Folder] and an
-icon above the message list that marks only those messages on the
-current page. Plus it includes an extra error handler if you try to
-delete all the messages in a folder without first checking a
-permission box
-</DD>
-</DL>
-
-<P>
-
-<H2>August 2005 Update:</H2>
-
-<DL>
-<DT>Export/Import Controls</DT>
-<DD>    You can now export entire folders to your desktop and later recall
-    (import) them.  Among other things, it lets you reduce your usage of
-    C&C central storage space and allows you to forward entire folders to
-    another Alpine user.
-</DD>
-
-<DT>Index Display</DT>
-<DD>    You can much more easily control the way messages in a folder are
-    listed (the index display).
-</DD>
-
-<DT>Jump Command</DT>
-<DD>    You can turn on an option that lets you jump to a specific message in
-    a folder.  To turn on the option, see "Enable Jump Command" in
-    [Configure] > [General] You'll have to quit and then restart
-    Alpine, and, of course, Jump only makes sense if message numbering
-    is enabled.
-</DD>
-
-<DT>Save Command</DT>
-<DD>    You can more conveniently save messages to a folder by selecting a
-    folder name from a drop-down list of up to six frequently used folders.
-</DD>
-
-<DT>Color Controls</DT>
-<DD>    Color controls let you control the colors of various elements and
-    their backgrounds in a message. See "Color Settings" in
-    [Configure] > [Message View].
-</DD>
-
-<DT>Text Width Controls</DT>
-<DD>    You can now specifically control the width of lines of text in Alpine
-    to insure that text is well formatted when it is displayed by the
-    receiving email program.  See "Display Width (in Characters)"
-    in [Configure] > [General].
-</DD>
-</DL>
 
 </DIV>
 

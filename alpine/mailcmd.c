@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcmd.c 801 2007-11-08 20:39:45Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailcmd.c 846 2007-12-05 23:43:19Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -98,7 +98,7 @@ int       cmd_print(struct pine *, MSGNO_S *, int, CmdWhere);
 int       cmd_pipe(struct pine *, MSGNO_S *, int);
 STORE_S	 *list_mgmt_text(RFC2369_S *, long);
 void	  list_mgmt_screen(STORE_S *);
-int	  aggregate_select(struct pine *, MSGNO_S *, int, CmdWhere,int);
+int	  aggregate_select(struct pine *, MSGNO_S *, int, CmdWhere);
 int	  select_by_number(MAILSTREAM *, MSGNO_S *, SEARCHSET **);
 int	  select_by_thrd_number(MAILSTREAM *, MSGNO_S *, SEARCHSET **);
 int	  select_by_date(MAILSTREAM *, MSGNO_S *, long, SEARCHSET **);
@@ -107,6 +107,7 @@ int	  select_by_size(MAILSTREAM *, SEARCHSET **);
 SEARCHSET *visible_searchset(MAILSTREAM *, MSGNO_S *);
 int	  select_by_status(MAILSTREAM *, SEARCHSET **);
 int	  select_by_rule(MAILSTREAM *, SEARCHSET **);
+int	  select_by_thread(MAILSTREAM *, MSGNO_S *, SEARCHSET **);
 char     *choose_a_rule(int);
 int	  select_by_keyword(MAILSTREAM *, SEARCHSET **);
 char     *choose_a_keyword(void);
@@ -134,6 +135,9 @@ ESCKEY_S sel_opts1[] = {
 };
 
 
+#define SEL_OPTS_THREAD 9	/* index number of "tHread" */
+#define SEL_OPTS_THREAD_CH 'h'
+
 char *sel_pmt2 = "SELECT criteria : ";
 static ESCKEY_S sel_opts2[] = {
     /* TRANSLATORS: very short descriptions of message selection criteria. Select Cur
@@ -151,6 +155,7 @@ static ESCKEY_S sel_opts2[] = {
     {'z', 'z', "Z", N_("siZe")},
     {'k', 'k', "K", N_("Keyword")},
     {'r', 'r', "R", N_("Rule")},
+    {SEL_OPTS_THREAD_CH, 'h', "H", N_("tHread")},
     {-1, 0, NULL, NULL}
 };
 
@@ -190,6 +195,7 @@ static ESCKEY_S sel_opts4[] = {
     {'z', 'z', "Z", N_("siZe")},
     {'k', 'k', "K", N_("Keyword")},
     {'r', 'r', "R", N_("Rule")},
+    {SEL_OPTS_THREAD_CH, 'h', "H", N_("tHread")},
     {-1, 0, NULL, NULL}
 };
 
@@ -1287,7 +1293,7 @@ get_out:
           /*------- Make Selection -----------*/
       case MC_SELECT :
 	if(any_messages(msgmap, NULL, "to Select")){
-	    if(aggregate_select(state, msgmap, question_line, in_index, THRD_INDX()) == 0
+	    if(aggregate_select(state, msgmap, question_line, in_index) == 0
 	       && (in_index == MsgIndx || in_index == ThrdIndx)
 	       && F_ON(F_AUTO_ZOOM, state)
 	       && any_lflagged(msgmap, MN_SLCT) > 0L
@@ -1361,6 +1367,11 @@ get_out:
 		/* $ command reinitializes threading collapsed/expanded info */
 		if(SORT_IS_THREADED(msgmap) && !SEP_THRDINDX())
 		  erase_threading_info(stream, msgmap);
+
+		if(ps_global && ps_global->ttyo){
+		    blank_keymenu(ps_global->ttyo->screen_rows - 2, 0);
+		    ps_global->mangled_footer = 1;
+		}
 
 		sort_folder(stream, msgmap, sort, rev, SRT_VRB|SRT_MAN);
 	    }
@@ -2342,7 +2353,6 @@ cmd_save(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap, int aopt, CmdW
     ENVELOPE	     *e = NULL;
     SaveDel           del = DontAsk;
     SavePreserveOrder pre = DontAskPreserve;
-    int               notrealinbox = 0;
 
     dprint((4, "\n - saving message -\n"));
 
@@ -2389,12 +2399,17 @@ cmd_save(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap, int aopt, CmdW
       pre = DontAskPreserve;
 
     if(save_prompt(state, &cntxt, newfolder, sizeof(newfolder), nmsgs, e,
-		   raw, NULL, &del, &pre, &notrealinbox)){
-	we_cancel = busy_cue(NULL, NULL, 1);
+		   raw, NULL, &del, &pre)){
+
+	if(ps_global && ps_global->ttyo){
+	    blank_keymenu(ps_global->ttyo->screen_rows - 2, 0);
+	    ps_global->mangled_footer = 1;
+	}
+
+	we_cancel = busy_cue(_("Saving"), NULL, 1);
 	i = save(state, stream, cntxt, newfolder, msgmap,
 		 ((del == RetDel) ? SV_DELETE : 0)
 		 | ((pre == RetPreserve) ? SV_PRESERVE : 0)
-		 | (notrealinbox ? 0 : SV_INBOXWOCNTXT)
 		 | SV_FIX_DELS);
 	if(we_cancel)
 	  cancel_busy_cue(0);
@@ -2600,7 +2615,7 @@ role_compose(struct pine *state)
 int
 save_prompt(struct pine *state, CONTEXT_S **cntxt, char *nfldr, size_t len_nfldr,
 	    char *nmsgs, ENVELOPE *env, long int rawmsgno, char *section,
-	    SaveDel *dela, SavePreserveOrder *prea, int *notrealinbox)
+	    SaveDel *dela, SavePreserveOrder *prea)
 {
     int		      rc, ku = -1, n, flags, last_rc = 0, saveable_count = 0, done = 0;
     int		      delindex, preindex, r;
@@ -2618,9 +2633,6 @@ save_prompt(struct pine *state, CONTEXT_S **cntxt, char *nfldr, size_t len_nfldr
 
     if(!cntxt)
       panic("no context ptr in save_prompt");
-
-    if(notrealinbox)
-      *notrealinbox = 0;
 
     init_hist(&history, HISTSIZE);
 
@@ -2907,14 +2919,6 @@ save_prompt(struct pine *state, CONTEXT_S **cntxt, char *nfldr, size_t len_nfldr
 	  case 2 :
 	    r = display_folder_list(cntxt, nfldr, 0, folders_for_save);
 
-	    /*
-	     * Save to some inbox that isn't the one-true inbox.
-	     * Show the user that this is different from them having typed
-	     * "inbox" by using "./inbox".
-	     */
-	    if(!strucmp(ps_global->inbox_name, nfldr) && (*cntxt) != ps_global->context_list)
-	      rplstr(nfldr, len_nfldr, 0, "./");
-
 	    if(r)
 	      done++;
 
@@ -2957,9 +2961,6 @@ save_prompt(struct pine *state, CONTEXT_S **cntxt, char *nfldr, size_t len_nfldr
 	    if(!folder_complete(*cntxt, nfldr, len_nfldr, &n)){
 		if(n && last_rc == 12 && !(flags & OE_USER_MODIFIED)){
 		    r = display_folder_list(cntxt, nfldr, 1, folders_for_save);
-		    if(!strucmp(ps_global->inbox_name, nfldr) && (*cntxt) != ps_global->context_list)
-		      rplstr(nfldr, len_nfldr, 0, "./");
-
 		    if(r)
 		      done++;			/* bingo! */
 		    else
@@ -2968,18 +2969,11 @@ save_prompt(struct pine *state, CONTEXT_S **cntxt, char *nfldr, size_t len_nfldr
 		else
 		  Writechar(BELL, 0);
 	    }
-	    else{
-		if(!strucmp(ps_global->inbox_name, nfldr) && (*cntxt) != ps_global->context_list)
-		  rplstr(nfldr, len_nfldr, 0, "./");
-	    }
 
 	    break;
 
 	  case 14 :				/* file name completion */
 	    r = display_folder_list(cntxt, nfldr, 2, folders_for_save);
-	    if(!strucmp(ps_global->inbox_name, nfldr) && (*cntxt) != ps_global->context_list)
-	      rplstr(nfldr, len_nfldr, 0, "./");
-
 	    if(r)
 	      done++;			/* bingo! */
 	    else
@@ -3057,14 +3051,6 @@ save_prompt(struct pine *state, CONTEXT_S **cntxt, char *nfldr, size_t len_nfldr
 
     if(prea && (*prea == NoPreserve || *prea == Preserve))
       *prea = (pre == NoPreserve) ? RetNoPreserve : RetPreserve;
-
-    /* checking for special ./inbox case */
-    snprintf(prompt, sizeof(prompt), "./%s", ps_global->inbox_name);
-    if(!strucmp(prompt, nfldr) && *cntxt != ps_global->context_list){
-	rplstr(nfldr, len_nfldr, 2, "");
-	if(notrealinbox)
-	  *notrealinbox = 1;
-    }
 
     return(1);
 }
@@ -3223,7 +3209,7 @@ cmd_expunge(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap)
     MoveCursor(state->ttyo->screen_rows -FOOTER_ROWS(state), 0);
     fflush(stdout);
 
-    we_cancel = busy_cue("Expunging", NULL, 1);
+    we_cancel = busy_cue(_("Expunging"), NULL, 1);
 
     if(cmd_expunge_work(stream, msgmap))
       state->mangled_body = 1;
@@ -3988,7 +3974,8 @@ get_export_filename(struct pine *ps, char *filename, char *deefault,
 	if(history)
 	  i += 2;
 	
-	i++;
+	if(flags & GE_ALLPARTS)
+	  i++;
 
 	opts = (ESCKEY_S *) fs_get((i+1) * sizeof(*opts));
 	memset(opts, 0, (i+1) * sizeof(*opts));
@@ -4000,12 +3987,14 @@ get_export_filename(struct pine *ps, char *filename, char *deefault,
 	    opts[i].label = optsarg[i].label;	/* " */
 	}
 
-	allparts = i;
-	opts[i].ch      = ctrl('P');
-	opts[i].rval    = 13;
-	opts[i].name    = "^P";
-	/* TRANSLATORS: Export all attachment parts */
-	opts[i++].label = N_("AllParts");
+	if(flags & GE_ALLPARTS){
+	    allparts = i;
+	    opts[i].ch      = ctrl('P');
+	    opts[i].rval    = 13;
+	    opts[i].name    = "^P";
+	    /* TRANSLATORS: Export all attachment parts */
+	    opts[i++].label = N_("AllParts");
+	}
 
 	if(history){
 	    opts[i].ch      = KEY_UP;
@@ -5221,7 +5210,7 @@ broach_folder(int qline, int allow_list, int *notrealinbox, CONTEXT_S **context)
                *last_folder, *p;
     static HISTORY_S *history = NULL;
     CONTEXT_S  *tc, *tc2;
-    ESCKEY_S    ekey[8];
+    ESCKEY_S    ekey[9];
     int		rc, r, ku = -1, n, flags, last_rc = 0, inbox, done = 0;
 
     /*
@@ -5234,7 +5223,7 @@ broach_folder(int qline, int allow_list, int *notrealinbox, CONTEXT_S **context)
     *newfolder	   = '\0';
     last_folder	   = NULL;
     if(notrealinbox)
-      (*notrealinbox) = 0;
+      (*notrealinbox) = 1;
 
     init_hist(&history, HISTSIZE);
 
@@ -5258,6 +5247,11 @@ broach_folder(int qline, int allow_list, int *notrealinbox, CONTEXT_S **context)
 	ekey[rc].name    = "^N";
 	ekey[rc++].label = N_("Next Collection");
     }
+
+    ekey[rc].ch      = ctrl('W');
+    ekey[rc].rval    = 17;
+    ekey[rc].name    = "^W";
+    ekey[rc++].label = N_("INBOX");
 
     if(F_ON(F_ENABLE_TAB_COMPLETE,ps_global)){
 	ekey[rc].ch      = TAB;
@@ -5487,6 +5481,16 @@ broach_folder(int qline, int allow_list, int *notrealinbox, CONTEXT_S **context)
 		return(NULL);
 	    }
 	    else if(last_folder){
+		if(ps_global->goto_default_rule == GOTO_FIRST_CLCTN_DEF_INBOX
+		   && !strucmp(last_folder, ps_global->inbox_name)
+		   && tc == ((ps_global->context_list->use & CNTXT_INCMNG)
+		              ? ps_global->context_list->next : ps_global->context_list)){
+		    if(notrealinbox)
+		      (*notrealinbox) = 0;
+
+		    tc = ps_global->context_list;
+		}
+
 		strncpy(newfolder, last_folder, sizeof(newfolder));
 		newfolder[sizeof(newfolder)-1] = '\0';
 		save_hist(history, newfolder, 0, tc);
@@ -5501,15 +5505,6 @@ broach_folder(int qline, int allow_list, int *notrealinbox, CONTEXT_S **context)
 
 	  case 2 :				/* o_e says user wants list */
 	    r = display_folder_list(&tc, newfolder, 0, folders_for_goto);
-
-	    /*
-	     * GoTo some inbox that isn't the one-true inbox.
-	     * Show the user that this is different from them having typed
-	     * "inbox" by using "./inbox".
-	     */
-	    if(!strucmp(ps_global->inbox_name, newfolder) && tc != ps_global->context_list)
-	      rplstr(newfolder, sizeof(newfolder), 0, "./");
-
 	    if(r)
 	      done++;
 
@@ -5538,9 +5533,6 @@ broach_folder(int qline, int allow_list, int *notrealinbox, CONTEXT_S **context)
 	    if(!folder_complete(tc, newfolder, sizeof(newfolder), &n)){
 		if(n && last_rc == 12 && !(flags & OE_USER_MODIFIED)){
 		    r = display_folder_list(&tc, newfolder, 1,folders_for_goto);
-		    if(!strucmp(ps_global->inbox_name, newfolder) && tc != ps_global->context_list)
-		      rplstr(newfolder, sizeof(newfolder), 0, "./");
-
 		    if(r)
 		      done++;			/* bingo! */
 		    else
@@ -5549,22 +5541,27 @@ broach_folder(int qline, int allow_list, int *notrealinbox, CONTEXT_S **context)
 		else
 		  Writechar(BELL, 0);
 	    }
-	    else{
-		if(!strucmp(ps_global->inbox_name, newfolder) && tc != ps_global->context_list)
-		  rplstr(newfolder, sizeof(newfolder), 0, "./");
-	    }
 
 	    break;
 
 	  case 14 :				/* file name completion */
 	    r = display_folder_list(&tc, newfolder, 2, folders_for_goto);
-	    if(!strucmp(ps_global->inbox_name, newfolder) && tc != ps_global->context_list)
-	      rplstr(newfolder, sizeof(newfolder), 0, "./");
-
 	    if(r)
 	      done++;			/* bingo! */
 	    else
 	      rc = 0;			/* burn last_rc */
+
+	    break;
+
+	  case 17 :				/* GoTo INBOX */
+	    done++;
+	    strncpy(newfolder, ps_global->inbox_name, sizeof(newfolder)-1);
+	    newfolder[sizeof(newfolder)-1] = '\0';
+	    if(notrealinbox)
+	      (*notrealinbox) = 0;
+
+	    tc = ps_global->context_list;
+	    save_hist(history, newfolder, 0, tc);
 
 	    break;
 
@@ -5604,15 +5601,6 @@ broach_folder(int qline, int allow_list, int *notrealinbox, CONTEXT_S **context)
 	   newfolder ? newfolder : "?"));
 
     /*-- Just check that we can expand this. It gets done for real later --*/
-
-    /* checking for special ./inbox case */
-    snprintf(prompt, sizeof(prompt), "./%s", ps_global->inbox_name);
-    if(!strucmp(prompt, newfolder) && tc != ps_global->context_list){
-	rplstr(newfolder, sizeof(newfolder), 2, "");
-	if(notrealinbox)
-	  (*notrealinbox) = 1;
-    }
-
     strncpy(expanded, newfolder, sizeof(expanded));
     expanded[sizeof(expanded)-1] = '\0';
 
@@ -5763,6 +5751,11 @@ visit_folder(struct pine *state, char *newfolder, CONTEXT_S *new_context,
 	       newfolder ? newfolder : "?",
 	       (new_context && new_context->context)
 	         ? new_context->context : "(NULL)"));
+
+    if(ps_global && ps_global->ttyo){
+	blank_keymenu(ps_global->ttyo->screen_rows - 2, 0);
+	ps_global->mangled_footer = 1;
+    }
 
     if(do_broach_folder(newfolder, new_context, stream ? &stream : NULL,
 			flags) >= 0
@@ -6502,7 +6495,7 @@ list_mgmt_screen(STORE_S *html)
 	     0 if selection may have changed
   ----*/
 int
-aggregate_select(struct pine *state, MSGNO_S *msgmap, int q_line, CmdWhere in_index, int thrdindx)
+aggregate_select(struct pine *state, MSGNO_S *msgmap, int q_line, CmdWhere in_index)
 {
     long          i, diff, old_tot, msgno, raw;
     int           q = 0, rv = 0, narrow = 0, hidden, ret = -1;
@@ -6517,9 +6510,16 @@ aggregate_select(struct pine *state, MSGNO_S *msgmap, int q_line, CmdWhere in_in
     mm_search_stream = state->mail_stream;
     mm_search_count  = 0L;
 
-    sel_opts = thrdindx ? sel_opts4 : sel_opts2;
+    sel_opts = THRD_INDX() ? sel_opts4 : sel_opts2;
+    if(THREADING()){
+	sel_opts[SEL_OPTS_THREAD].ch = SEL_OPTS_THREAD_CH;
+    }
+    else{
+	sel_opts[SEL_OPTS_THREAD].ch = -1;
+    }
+
     if((old_tot = any_lflagged(msgmap, MN_SLCT)) != 0){
-	if(thrdindx){
+	if(THRD_INDX()){
 	    i = 0;
 	    thrd = fetch_thread(state->mail_stream,
 				mn_m2raw(msgmap, mn_get_cur(msgmap)));
@@ -6632,7 +6632,7 @@ aggregate_select(struct pine *state, MSGNO_S *msgmap, int q_line, CmdWhere in_in
 
       case 'n' :			/* Select by Number */
 	ret = 0;
-	if(thrdindx)
+	if(THRD_INDX())
 	  rv = select_by_thrd_number(state->mail_stream, msgmap, &limitsrch);
 	else
 	  rv = select_by_number(state->mail_stream, msgmap, &limitsrch);
@@ -6669,6 +6669,11 @@ aggregate_select(struct pine *state, MSGNO_S *msgmap, int q_line, CmdWhere in_in
       case 'r' :			/* Rule */
 	ret = 0;
 	rv = select_by_rule(state->mail_stream, &limitsrch);
+	break;
+
+      case 'h' :			/* Thread */
+	ret = 0;
+	rv = select_by_thread(state->mail_stream, msgmap, &limitsrch);
 	break;
 
       default :
@@ -6715,7 +6720,7 @@ aggregate_select(struct pine *state, MSGNO_S *msgmap, int q_line, CmdWhere in_in
 		  }
 		  /* adjust current message in case we unselect and hide it */
 		  else if(msgno < mn_get_cur(msgmap)
-			  && (!thrdindx
+			  && (!THRD_INDX()
 			      || !get_lflag(state->mail_stream, msgmap,
 					    i, MN_CHID)))
 		    msgno = i;
@@ -7095,7 +7100,7 @@ apply_command(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
  * Returns 0 on success.
  */
 int
-select_by_number(MAILSTREAM *stream, MSGNO_S *msgmap, struct search_set **limitsrch)
+select_by_number(MAILSTREAM *stream, MSGNO_S *msgmap, SEARCHSET **limitsrch)
 {
     int r, end;
     long n1, n2, raw;
@@ -7246,7 +7251,7 @@ select_by_number(MAILSTREAM *stream, MSGNO_S *msgmap, struct search_set **limits
  * Returns 0 on success.
  */
 int
-select_by_thrd_number(MAILSTREAM *stream, MSGNO_S *msgmap, struct search_set **msgset)
+select_by_thrd_number(MAILSTREAM *stream, MSGNO_S *msgmap, SEARCHSET **msgset)
 {
     int r, end;
     long n1, n2;
@@ -7397,7 +7402,7 @@ select_by_thrd_number(MAILSTREAM *stream, MSGNO_S *msgmap, struct search_set **m
  * Returns 0 on success.
  */
 int
-select_by_date(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct search_set **limitsrch)
+select_by_date(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, SEARCHSET **limitsrch)
 {
     int	       r, we_cancel = 0, when = 0;
     char       date[100], defdate[100], prompt[128];
@@ -7547,7 +7552,12 @@ select_by_date(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct searc
 
 	    pgm->msgno = (limitsrch ? *limitsrch : NULL);
 
-	    we_cancel = busy_cue("Busy Selecting", NULL, 1);
+	    if(ps_global && ps_global->ttyo){
+		blank_keymenu(ps_global->ttyo->screen_rows - 2, 0);
+		ps_global->mangled_footer = 1;
+	    }
+
+	    we_cancel = busy_cue(_("Selecting"), NULL, 1);
 
 	    pine_mail_search_full(stream, NULL, pgm, SE_NOPREFETCH | SE_FREE);
 
@@ -7579,7 +7589,7 @@ select_by_date(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct searc
  * Returns 0 on success.
  */
 int
-select_by_text(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct search_set **limitsrch)
+select_by_text(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, SEARCHSET **limitsrch)
 {
     int          r, ku, type, we_cancel = 0, flags, rv, ekeyi = 0;
     int          not = 0, me = 0;
@@ -7846,7 +7856,7 @@ select_by_text(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct searc
 		break;
 	    }
 
-	    if((r == 1 || sstring[0] == '\0') && !me)
+	    if(r == 1 || sstring[0] == '\0')
 	      r = 'x';
 
 	    break;
@@ -7858,7 +7868,12 @@ select_by_text(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct searc
 	return(1);
     }
 
-    we_cancel = busy_cue("Busy Selecting", NULL, 1);
+    if(ps_global && ps_global->ttyo){
+	blank_keymenu(ps_global->ttyo->screen_rows - 2, 0);
+	ps_global->mangled_footer = 1;
+    }
+
+    we_cancel = busy_cue(_("Selecting"), NULL, 1);
 
     flagsforhist = (not ? 0x1 : 0) + (me ? 0x2 : 0);
     save_hist(history, sstring, flagsforhist, NULL);
@@ -7880,9 +7895,9 @@ select_by_text(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct searc
  * Returns 0 on success.
  */
 int
-select_by_size(MAILSTREAM *stream, struct search_set **limitsrch)
+select_by_size(MAILSTREAM *stream, SEARCHSET **limitsrch)
 {
-    int        r, large = 1;
+    int        r, large = 1, we_cancel = 0;
     unsigned long n, mult = 1L, numerator = 0L, divisor = 1L;
     char       size[16], numbers[80], *p, *t;
     HelpType   help;
@@ -8006,11 +8021,21 @@ select_by_size(MAILSTREAM *stream, struct search_set **limitsrch)
     if(is_imap_stream(stream) && !modern_imap_stream(stream))
       flags |= SE_NOSERVER;
 
+    if(ps_global && ps_global->ttyo){
+	blank_keymenu(ps_global->ttyo->screen_rows - 2, 0);
+	ps_global->mangled_footer = 1;
+    }
+
+    we_cancel = busy_cue(_("Selecting"), NULL, 1);
+
     pgm->msgno = (limitsrch ? *limitsrch : NULL);
     pine_mail_search_full(stream, NULL, pgm, SE_NOPREFETCH | SE_FREE);
     /* we know this was freed in mail_search, let caller know */
     if(limitsrch)
       *limitsrch = NULL;
+
+    if(we_cancel)
+      cancel_busy_cue(0);
 
     return(0);
 }
@@ -8070,7 +8095,7 @@ visible_searchset(MAILSTREAM *stream, MSGNO_S *msgmap)
  * Returns 0 on success.
  */
 int
-select_by_status(MAILSTREAM *stream, struct search_set **limitsrch)
+select_by_status(MAILSTREAM *stream, SEARCHSET **limitsrch)
 {
     int s, not = 0, we_cancel = 0, rv;
 
@@ -8094,11 +8119,15 @@ select_by_status(MAILSTREAM *stream, struct search_set **limitsrch)
 	  break;
     }
 
-    we_cancel = busy_cue("Busy Selecting", NULL, 1);
+    if(ps_global && ps_global->ttyo){
+	blank_keymenu(ps_global->ttyo->screen_rows - 2, 0);
+	ps_global->mangled_footer = 1;
+    }
+
+    we_cancel = busy_cue(_("Selecting"), NULL, 1);
     rv = agg_flag_select(stream, not, s, limitsrch);
     if(we_cancel)
       cancel_busy_cue(0);
-
 
     return(rv);
 }
@@ -8113,11 +8142,11 @@ select_by_status(MAILSTREAM *stream, struct search_set **limitsrch)
  * Returns 0 on success.
  */
 int
-select_by_rule(MAILSTREAM *stream, struct search_set **limitsrch)
+select_by_rule(MAILSTREAM *stream, SEARCHSET **limitsrch)
 {
     char       rulenick[1000], *nick;
     PATGRP_S  *patgrp;
-    int        r, not = 0, rflags = ROLE_DO_SRCH
+    int        r, not = 0, we_cancel = 0, rflags = ROLE_DO_SRCH
 				    | ROLE_DO_INCOLS
 				    | ROLE_DO_ROLES
 				    | ROLE_DO_SCORES
@@ -8177,10 +8206,18 @@ select_by_rule(MAILSTREAM *stream, struct search_set **limitsrch)
     patgrp = nick_to_patgrp(rulenick, rflags);
 
     if(patgrp){
+	if(ps_global && ps_global->ttyo){
+	    blank_keymenu(ps_global->ttyo->screen_rows - 2, 0);
+	    ps_global->mangled_footer = 1;
+	}
+
+	we_cancel = busy_cue(_("Selecting"), NULL, 1);
 	match_pattern(patgrp, stream, limitsrch ? *limitsrch : 0, NULL,
 		      get_msg_score,
 		      (not ? MP_NOT : 0) | SE_NOPREFETCH);
 	free_patgrp(&patgrp);
+	if(we_cancel)
+	  cancel_busy_cue(0);
     }
 
     if(limitsrch && *limitsrch){
@@ -8248,6 +8285,47 @@ choose_a_rule(int rflags)
 
 
 /*
+ * Select by current thread.
+ * Sets searched bits in mail_elts for this entire thread
+ * 
+ * Args    limitsrch -- limit search to this searchset
+ *
+ * Returns 0 on success.
+ */
+int
+select_by_thread(MAILSTREAM *stream, MSGNO_S *msgmap, SEARCHSET **limitsrch)
+{
+    long n;
+    PINETHRD_S *thrd = NULL;
+    int ret = 1;
+    MESSAGECACHE *mc;
+
+    if(!stream)
+      return(ret);
+
+    for(n = 1L; n <= stream->nmsgs; n++)
+      if((mc = mail_elt(stream, n)) != NULL)
+        mc->searched = 0;			/* clear searched bits */
+
+    thrd = fetch_thread(stream, mn_m2raw(msgmap, mn_get_cur(msgmap)));
+    if(thrd && thrd->top && thrd->top != thrd->rawno)
+      thrd = fetch_thread(stream, thrd->top);
+
+    /*
+     * This doesn't unselect if the thread is already selected
+     * (like select current does), it always selects.
+     * There is no way to select ! this thread.
+     */
+    if(thrd){
+	set_search_bit_for_thread(stream, thrd, limitsrch);
+	ret = 0;
+    }
+
+    return(ret);
+}
+
+
+/*
  * Select by message keywords.
  * Sets searched bits in mail_elts
  * 
@@ -8256,9 +8334,9 @@ choose_a_rule(int rflags)
  * Returns 0 on success.
  */
 int
-select_by_keyword(MAILSTREAM *stream, struct search_set **limitsrch)
+select_by_keyword(MAILSTREAM *stream, SEARCHSET **limitsrch)
 {
-    int        r, not = 0;
+    int        r, not = 0, we_cancel = 0;
     char       keyword[MAXUSERFLAG+1], *kword;
     char      *error = NULL, *p, *prompt;
     HelpType   help;
@@ -8349,11 +8427,21 @@ select_by_keyword(MAILSTREAM *stream, struct search_set **limitsrch)
 	pgm->keyword->text.size = strlen(keyword);
     }
 
+    if(ps_global && ps_global->ttyo){
+	blank_keymenu(ps_global->ttyo->screen_rows - 2, 0);
+	ps_global->mangled_footer = 1;
+    }
+
+    we_cancel = busy_cue(_("Selecting"), NULL, 1);
+
     pgm->msgno = (limitsrch ? *limitsrch : NULL);
     pine_mail_search_full(stream, "UTF-8", pgm, SE_NOPREFETCH | SE_FREE);
     /* we know this was freed in mail_search, let caller know */
     if(limitsrch)
       *limitsrch = NULL;
+
+    if(we_cancel)
+      cancel_busy_cue(0);
 
     return(0);
 }

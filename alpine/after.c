@@ -144,12 +144,18 @@ do_after(void *data)
     AFTER_S	    *a;
     struct timespec  ts;
     int		     loop;
-#ifdef	SIGCHLD
     sigset_t	     sigs;
 
-    /* make sure we don't end up with SIGCHLD */
+#if defined(SIGCHLD) || defined(SIGWINCH)
     sigemptyset(&sigs);
+#if defined(SIGCHLD)
+    /* make sure we don't end up with SIGCHLD */
     sigaddset(&sigs, SIGCHLD);
+#endif	/* SIGCHLD */
+#if defined(SIGCHLD)
+    /* or with SIGWINCH */
+    sigaddset(&sigs, SIGWINCH);
+#endif	/* SIGWINCH */
     pthread_sigmask(SIG_BLOCK, &sigs, NULL);
 #endif
 

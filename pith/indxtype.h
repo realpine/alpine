@@ -1,5 +1,5 @@
 /*
- * $Id: indxtype.h 649 2007-07-18 23:45:23Z hubert@u.washington.edu $
+ * $Id: indxtype.h 835 2007-11-28 23:02:46Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -73,6 +73,8 @@ typedef enum {iNothing, iStatus, iFStatus, iIStatus, iSIStatus,
 	      iSubjectText, iSubjKeyText, iSubjKeyInitText,
 	      iOpeningText, iOpeningTextNQ,
 	      iKey, iKeyInit,
+	      iPrefDate, iPrefTime, iPrefDateTime,
+	      iCurPrefDate, iCurPrefTime, iCurPrefDateTime,
 	      iSize, iSizeComma, iSizeNarrow, iDescripSize,
 	      iNewsAndTo, iToAndNews, iNewsAndRecips, iRecipsAndNews,
 	      iFromTo, iFromToNotNews, iFrom, iTo, iSender, iCc, iNews, iRecips,
@@ -80,7 +82,7 @@ typedef enum {iNothing, iStatus, iFStatus, iIStatus, iSIStatus,
 	      iMailbox, iAddress, iInit, iCursorPos,
 	      iDay2Digit, iMon2Digit, iYear2Digit,
 	      iSTime, iKSize,
-	      iRoleNick,
+	      iRoleNick, iNewLine,
 	      iHeader, iText,
 	      iPrio, iPrioAlpha, iPrioBang,
 	      iScore, iDayOfWeekAbb, iDayOfWeek,

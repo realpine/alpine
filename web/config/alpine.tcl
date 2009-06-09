@@ -12,31 +12,28 @@
 # ========================================================================
 
 set _wp(appname)	Alpine
-set _wp(version)	0.999
+set _wp(version)	0.999999
 set _wp(admin)		admin@sample-domain.edu
 set _wp(helpdesk)	admin@sample-domain.edu
 set _wp(comments)	help@sample-domain.edu
 
+# List of userid's allowed to request the monitor script output
 set _wp(monitors)	{}
 
-set _wp(fileroot)	/var/www/alpine
+# directory prefix web server uses for web alpine page requests
+# Note: set to {} if DocumentRoot set to the root of web alpine cgi scripts
+set _wp(urlprefix)	webmail
+
+# file system path to CGI application files
+# directory containing web alpine application scripts and supporting tools
+set _wp(fileroot)	/usr/local/libexec/alpine
 
 set _wp(tmpdir)		/tmp
 
-# file system path to CGI application files on this server
-set _wp(cgiroot)	[file join $_wp(fileroot) cgi]
-
-# any subdirectories you add between $_wp(cgiroot) (typically
-# the same as httpd's DocumentRoot) and web alpine's CGI script
-# directory tree
-set _wp(cgidir)		{}
-
-# filesystem root of CGI application scripts.
 # NOTE: Make SURE tclsh and alpine.tcl symlinks in this directory
-#       point to their $_wp(fileroot) targets
-set _wp(cgipath)	[file join $_wp(cgiroot) $_wp(cgidir)]
+set _wp(cgipath)	[file join $_wp(fileroot) cgi]
 
-# place for web alpine application scripts
+# place for CGI scripts that execute the interface
 set _wp(appdir)		alpine
 
 # place for CGI scripts not requiring session-key
@@ -59,7 +56,7 @@ set _wp(lib)		[file join $_wp(fileroot) lib]
 # directory used temporarily to stage attatched and detached files
 set _wp(detachpath)	[file join $_wp(fileroot) detach]
 
-set _wp(imagepath)	[file join / $_wp(cgidir) images]
+set _wp(imagepath)	[file join / $_wp(urlprefix) images]
 
 set _wp(buttonpath)	[file join $_wp(imagepath) buttons silver]
 
@@ -69,14 +66,14 @@ set _wp(servername)	[info hostname]
 
 # MUST specify SSL/TLS connection
 set _wp(serverport)	{}
-set _wp(serverpath)	https://[file join [join [eval list $_wp(servername) $_wp(serverport)] :] $_wp(cgidir)]
+set _wp(serverpath)	https://[file join [join [eval list $_wp(servername) $_wp(serverport)] :] $_wp(urlprefix)]
 
 # MAY specify a plaintext connection (comment out if plain support undesired)
 set _wp(plainport)	{}
-set _wp(plainservpath)	http://[file join [join [eval list $_wp(servername) $_wp(plainport)] :] $_wp(cgidir)]
+set _wp(plainservpath)	http://[file join [join [eval list $_wp(servername) $_wp(plainport)] :] $_wp(urlprefix)]
 
 # url of faq page(s) available from initial greeting page
-#set _wp(faq)		"http://www.washington.edu/computing/faqs/webpine.html"
+#set _wp(faq)		"http://www.yourserver/faqs/alpine.html"
 
 # url of informational page accessible from initial greeting page
 set _wp(releaseblurb)	"$_wp(plainservpath)/alpine/help/release.html"
@@ -154,7 +151,6 @@ set _wp(indexheight) [expr {$_wp(indexheight) <= 20 ? 20 : $_wp(indexheight) >= 
 #set _wp(spamfolder)	junk-mail
 #set _wp(spamsubj)	"ATTACHED SPAM"
 
-
 #
 # Nickname server bindings.  If not present, prompt for the
 # destination of the default pinerc location.
@@ -165,13 +161,7 @@ set _wp(hosts) {
       $User.deskmail.washington.edu/ssl
       $_wp(confdir)/conf.deskmail
     }
-    {
-      NDC-MS
-      ndcms.cac.washington.edu/ssl
-      $_wp(confdir)/conf.ndcms
-    }
 }
-
 
 #
 # Everbody inherits the cgi package
@@ -532,7 +522,7 @@ proc WPImport {valname {errstring ""} {default 0}} {
 proc WPExportCookie {name value {scope ""}} {
     global _wp
 
-    cgi_cookie_set $name=$value "path=[file join / $_wp(cgidir) $scope]"
+    cgi_cookie_set $name=$value "path=[file join / $_wp(urlprefix) $scope]"
 }
 
 
@@ -563,7 +553,7 @@ proc WPInfoPage {title exp1 {exp2 ""} {imgurl {}} {exp3 ""}} {
     cgi_html {
       cgi_head {
 	cgi_title $title
-	cgi_stylesheet [file join / $_wp(cgidir) $_wp(pubdir) standard.css]
+	cgi_stylesheet [file join / $_wp(urlprefix) $_wp(pubdir) standard.css]
       }
 
       cgi_body {
@@ -700,7 +690,7 @@ proc WPIndexLineHeight {{ih 0}} {
 proc WPStyleSheets {{ih 0}} {
   global _wp
 
-  cgi_stylesheet [file join / $_wp(cgidir) $_wp(pubdir) standard.css]
+  cgi_stylesheet [file join / $_wp(urlprefix) $_wp(pubdir) standard.css]
 
   if {$ih <= 0} {
     set ih [WPIndexLineHeight]
@@ -715,7 +705,7 @@ proc WPStdScripts {{ih 0}} {
 
     set ih [WPStyleSheets $ih]
 
-    cgi_script language="JavaScript" src="[file join / $_wp(cgidir) $_wp(pubdir) standard.js]" {}
+    cgi_script language="JavaScript" src="[file join / $_wp(urlprefix) $_wp(pubdir) standard.js]" {}
     cgi_script language="JavaScript1.3" {cgi_put "js_version = '1.3';"}
     cgi_javascript {
 	cgi_puts "function getIndexHeight(){return $ih}"

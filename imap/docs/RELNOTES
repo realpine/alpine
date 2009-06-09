@@ -11,6 +11,21 @@
  * ========================================================================
  */
 
+Updated: 15 November 2007
+
+imap-2007 is a release corresponding with the release of Alpine 1.0.
+Most changes from imap-2006k are bugfixes discovered between the
+Alpine 0.99999 pre-release and Alpine 1.0.
+
+A new function, utf8_csvalidmap(), has been added for the benefit of
+Alpine to use in examining UTF-8 text and determining efficiently
+whether it can be downgraded to a legacy charset.  If you develop an
+MUA, this may be useful for you too, although you'll have to read the
+source code to see how to use it.  The purpose of the "not-CJK" bit is
+to prevent messages being downgraded to a CJK charset if all they have
+in that charset are some special punctuation.
+
+
 Updated: 5 September 2007
 
 imap-2006k is a maintenance release, consisting primarily of bugfixes to

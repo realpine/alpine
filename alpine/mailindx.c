@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailindx.c 749 2007-10-15 21:02:56Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailindx.c 824 2007-11-19 23:55:01Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1224,7 +1224,7 @@ update_index(struct pine *state, struct index_state *screen)
 		    (size_t)screen->lines_per_page);
 
 	for(; i < screen->lines_per_page; i++)	/* init new entries */
-	  screen->entry_state[i].id = 0;
+	  memset(&screen->entry_state[i], 0, sizeof(struct entry_state));
     }
 
     /*---- figure out the first message on the display ----*/
@@ -1544,6 +1544,7 @@ update_index(struct pine *state, struct index_state *screen)
 							       MN_SLCT) > 0)
 				     : get_lflag(screen->stream, screen->msgmap,
 					         n, MN_SLCT));
+	    fflush(stdout);
 	    if(row && retval < 0)
 	      retval = row;
 	}
@@ -1674,7 +1675,7 @@ paint_index_line(ICE_S *argice, int line, long int msgno, IndexColType sfld,
 	  ielem = ifield->ielem;
 	  if(ielem && ielem->datalen > 0){
 	    if(draw_partial_line)
-	      MoveCursor(HEADER_ROWS(ps_global) + line, (int) (p-draw));
+	      MoveCursor(HEADER_ROWS(ps_global) + line, utf8_width(draw));
 
 	    if(ielem->datalen == 1){
 	      save_schar1 = ielem->data[0];
@@ -1709,7 +1710,7 @@ paint_index_line(ICE_S *argice, int line, long int msgno, IndexColType sfld,
 	else if(ifield->ctype == afld){
 
 	  if(draw_partial_line){
-	    MoveCursor(HEADER_ROWS(ps_global) + line, (int) (p-draw));
+	    MoveCursor(HEADER_ROWS(ps_global) + line, utf8_width(draw));
 	    for(i = 0; i < ifield->width-1; i++)
 	      Writechar(cur ? '-' : ' ', 0);
 
@@ -1731,7 +1732,7 @@ paint_index_line(ICE_S *argice, int line, long int msgno, IndexColType sfld,
 	    ielem->data[0] = ice->plus;
 
 	    if(draw_partial_line){
-	      MoveCursor(HEADER_ROWS(ps_global) + line, (int) (p-draw));
+	      MoveCursor(HEADER_ROWS(ps_global) + line, utf8_width(draw));
 	      Writechar(ielem->data[0], 0);
 	      Writechar(' ', 0);
 	    }

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: reply.c 796 2007-11-08 01:14:02Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: reply.c 847 2007-12-06 18:06:35Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -2205,7 +2205,7 @@ signature_edit_lit(char *litsig, char **result, char *title, HelpType composer_h
 	}
 
 	if(editor_result & (COMP_SUSPEND | COMP_GOTHUP | COMP_CANCEL)){
-	    ret = cpystr(_("Signature Edit Cancelled"));
+	    ret = cpystr(_("Edit Cancelled"));
 	}
 	else{
             /*------ Must have an edited buffer, write it to .sig -----*/
@@ -2246,7 +2246,7 @@ sigedit_exit_for_pico(struct headerentry *he, void (*redraw_pico)(void), int all
     char     *rstr = NULL;
     void    (*redraw)(void) = ps_global->redrawer;
     static ESCKEY_S opts[] = {
-	{'s', 's', "S", N_("Save changes to signature")},
+	{'s', 's', "S", N_("Save changes")},
 	{'d', 'd', "D", N_("Don't save changes")},
 	{-1, 0, NULL, NULL}
     };
@@ -2257,7 +2257,7 @@ sigedit_exit_for_pico(struct headerentry *he, void (*redraw_pico)(void), int all
     while(1){
 	rv = radio_buttons(_("Exit editor? "),
 			   -FOOTER_ROWS(ps_global), opts,
-			   's', 'x', h_folder_prop, RB_NORM);
+			   's', 'x', h_exit_editor, RB_NORM);
 	if(rv == 's'){				/* user ACCEPTS! */
 	    break;
 	}

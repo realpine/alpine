@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: string.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: string.c 841 2007-12-03 19:51:03Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1089,18 +1089,26 @@ parse_date(char *given_date, struct date *d)
     while(*p && isspace((unsigned char)*p))
       p++;
 
-    /* Start with month, weekday or day ? */
-    for(i = xdays; *i != NULL; i++) 
-      if(struncmp(p, *i, 3) == 0) /* Match first 3 letters */
-        break;
+    /* Start with weekday? */
+    if((q=strchr(p, ',')) != NULL){
 
-    if(*i != NULL) {
-        /* Started with week day */
-        d->wkday = i - xdays;
-        while(*p && !isspace((unsigned char)*p) && *p != ',')
-          p++;
-        while(*p && (isspace((unsigned char)*p) || *p == ','))
-          p++;
+	if(q - p == 3){
+	    *q = '\0';
+	    for(i = xdays; *i != NULL; i++) 
+	      if(strucmp(p, *i) == 0) /* Match first 3 letters */
+		break;
+
+	    *q = ',';
+
+	    if(*i != NULL) {
+		/* Started with week day */
+		d->wkday = i - xdays;
+	    }
+	}
+
+	p = q+1;
+	while(*p && isspace((unsigned char)*p))
+	  p++;
     }
 
     if(isdigit((unsigned char)*p)) {

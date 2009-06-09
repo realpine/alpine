@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: filter.c 757 2007-10-23 21:15:48Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: filter.c 832 2007-11-27 18:58:52Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -104,7 +104,7 @@ void	gf_8bit_put(FILTER_S *, int);
  * Hooks for callers to adjust behavior
  */
 char *(*pith_opt_pretty_var_name)(char *);
-char *(*pith_opt_pretty_feature_name)(char *);
+char *(*pith_opt_pretty_feature_name)(char *, int);
 
 
 /*
@@ -5855,7 +5855,7 @@ html_element_comment(FILTER_S *f, char *s)
 		else if(!struncmp(s, "FEAT_", 5)){
 		    p = s+5;
 		    if(pith_opt_pretty_feature_name)
-		      p = (*pith_opt_pretty_feature_name)(p);
+		      p = (*pith_opt_pretty_feature_name)(p, -1);
 		}
 		else
 		  p = NULL;
@@ -8827,28 +8827,49 @@ gf_prefix(FILTER_S *f, int flg)
 
 	while(GF_GETC(f, c)){
 
-	    if(first){			/* write initial prefix!! */
-		first = 0;		/* but just once */
+	    if(first){				/* write initial prefix!! */
+		first = 0;			/* but just once */
 		GF_PREFIX_WRITE((char *) f->opt);
 	    }
-	    else if(state){
-		state = 0;
-		GF_PUTC(f->next, '\015');
-		if(c == '\012'){
+
+	    /*
+	     * State == 0 is the starting state and the usual state.
+	     * State == 1 means we saw a CR and haven't acted on it yet.
+	     * We are looking for a LF to get the CRLF end of line.
+	     * However, we also treat bare CR and bare LF as if they
+	     * were CRLF sequences. What else could it mean in text?
+	     * This filter is only used for text so that is probably
+	     * a reasonable interpretation of the bad input.
+	     */
+	    if(c == '\015'){		/* CR */
+		if(state){			/* Treat pending CR as endofline, */
+		    GF_PUTC(f->next, '\015');	/* and remain in saw-a-CR state.  */
 		    GF_PUTC(f->next, '\012');
 		    GF_PREFIX_WRITE((char *) f->opt);
-		    continue;
 		}
-		/* else fall thru to handle 'c' */
+		else{
+		    state = 1;
+		}
 	    }
+	    else if(c == '\012'){	/* LF */
+		GF_PUTC(f->next, '\015');	/* Got either a CRLF or a bare LF, */
+		GF_PUTC(f->next, '\012');	/* treat both as if a CRLF.    */
+		GF_PREFIX_WRITE((char *) f->opt);
+		state = 0;
+	    }
+	    else{			/* any other character */
+		if(state){
+		    GF_PUTC(f->next, '\015');	/* Treat pending CR as endofline. */
+		    GF_PUTC(f->next, '\012');
+		    GF_PREFIX_WRITE((char *) f->opt);
+		    state = 0;
+		}
 
-	    if(c == '\015')		/* already has newline? */
-	      state = 1;
-	    else
-	      GF_PUTC(f->next, c);
+		GF_PUTC(f->next, c);
+	    }
 	}
 
-	f->f1 = state;
+	f->f1 = state;			/* save state for next chunk of data */
 	f->f2 = first;
 	GF_END(f, f->next);
     }

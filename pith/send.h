@@ -1,5 +1,5 @@
 /*
- * $Id: send.h 780 2007-10-26 21:28:17Z hubert@u.washington.edu $
+ * $Id: send.h 839 2007-12-01 01:10:52Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -213,7 +213,7 @@ extern PINEFIELD pf_template[];
 
 
 /* exported protoypes */
-int         postponed_stream(MAILSTREAM **);
+int         postponed_stream(MAILSTREAM **, char *, char *, int);
 int	    redraft_work(MAILSTREAM **, long, ENVELOPE **, BODY **, char **, char **,
 			 REPLY_S **, REDRAFT_POS_S **, PINEFIELD **, ACTION_S **, int, STORE_S *);
 int	    redraft_cleanup(MAILSTREAM **, int, int);
@@ -261,6 +261,7 @@ int         encode_whole_header(char *, METAENV *);
 int         news_poster(METAENV *, BODY *, char **, void (*)(PIPE_S *, int, void *));
 void        set_priority_header(METAENV *header, char *value);
 void        pine_free_body_data(BODY *);
+void        free_charsetchecker(void);
 
 
 #endif /* PITH_SEND_INCLUDED */

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: thread.c 728 2007-09-26 21:53:10Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: thread.c 842 2007-12-04 00:13:55Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1534,7 +1534,7 @@ find_thread_by_number(MAILSTREAM *stream, MSGNO_S *msgmap, long int target, PINE
  *  message is included in the msgset.
  */
 void
-set_search_bit_for_thread(MAILSTREAM *stream, PINETHRD_S *thrd, struct search_set **msgset)
+set_search_bit_for_thread(MAILSTREAM *stream, PINETHRD_S *thrd, SEARCHSET **msgset)
 {
     PINETHRD_S *nthrd, *bthrd;
 

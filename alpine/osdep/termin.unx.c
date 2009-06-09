@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: termin.unx.c 788 2007-11-06 23:51:13Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: termin.unx.c 830 2007-11-26 23:45:22Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -57,6 +57,7 @@ static char rcsid[] = "$Id: termin.unx.c 788 2007-11-06 23:51:13Z hubert@u.washi
 #include "../dispfilt.h"
 #include "../signal.h"
 #include "../mailcmd.h"
+#include "../setup.h"
 
 #include "termin.gen.h"
 #include "termout.gen.h"
@@ -525,10 +526,21 @@ read_char(int time_out)
 	}
 #ifdef MOUSE
 	else if(ch == ctrl('\\')){
+	    int e;
+
 	    dprint((9, "Read char got ^\\, toggle xterm mouse\n"));
-	    mouseexist() ? end_mouse() : init_mouse();
-	    q_status_message1(SM_ASYNC, 0, 2, "Xterm mouse tracking %s!",
-	                                       mouseexist() ? "on" : "off");
+	    if(F_ON(F_ENABLE_MOUSE, ps_global)){
+		(e=mouseexist()) ? end_mouse() : (void) init_mouse();
+		if(e != mouseexist())
+		  q_status_message1(SM_ASYNC, 0, 2, "Xterm mouse tracking %s!",
+						     mouseexist() ? "on" : "off");
+		else if(!e)
+		  q_status_message1(SM_ASYNC, 0, 2, "See help for feature \"%s\" ($DISPLAY variable set?)", pretty_feature_name(feature_list_name(F_ENABLE_MOUSE), -1));
+	    }
+	    else
+	      q_status_message1(SM_ASYNC, 0, 2, "Feature \"%s\" not enabled",
+				pretty_feature_name(feature_list_name(F_ENABLE_MOUSE), -1));
+
 	    return(NO_OP_COMMAND);
 	}
 #endif /* MOUSE */

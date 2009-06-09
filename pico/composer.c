@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: composer.c 788 2007-11-06 23:51:13Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: composer.c 847 2007-12-06 18:06:35Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -2735,7 +2735,7 @@ PaintHeader(int line,		/* physical line on screen */
     int              i, e, w;
 
     if(clear)
-      pclear(COMPOSER_TOP_LINE, ComposerTopLine);
+      pclear(COMPOSER_TOP_LINE, ComposerTopLine-1);
 
     curline  = COMPOSER_TOP_LINE;
     curindex = curoffset = 0;
@@ -3754,7 +3754,7 @@ call_builder(struct headerentry *entry, int *mangled, char **err)
     if(mangled && *mangled & BUILDER_FOOTER_MANGLED){
 	*mangled &= ~ BUILDER_FOOTER_MANGLED;
 	sgarbk = TRUE;
-	pclear(term.t_nrow - 1, term.t_nrow + 1);
+	pclear(term.t_nrow-1, term.t_nrow);
     }
 
     if(retval >= 0){

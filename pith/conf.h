@@ -1,5 +1,5 @@
 /*
- * $Id: conf.h 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
+ * $Id: conf.h 809 2007-11-09 21:13:47Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -850,6 +850,7 @@ char     **varlist_from_spec_colors(SPEC_COLOR_S *);
 void	   update_posting_charset(struct pine *, int);
 int	   test_old_growth_bits(struct pine *, int);
 int        feature_gets_an_x(struct pine *, struct variable *, FEATURE_S *, char **, EditWhich);
+int        longest_feature_comment(struct pine *, EditWhich);
 void       toggle_feature(struct pine *, struct variable *, FEATURE_S *, int, EditWhich);
 int        feature_in_list(char **, char *);
 int        test_feature(char **, char *, int);

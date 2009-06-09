@@ -1,4 +1,4 @@
-# $Id: genvars.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
+# $Id: genvars.tcl 850 2007-12-06 23:58:57Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -82,6 +82,7 @@ set folder_vars {
     {var incoming-folders "Incoming Folders"}
     {var pruned-folders "Pruned Folders"}
     {var pruning-rule "Pruning Rule"}
+    {feat prune-uses-yyyy-mm "Prune Uses YYYY-MM"}
     {feat enable-dot-folders "Enable Hidden Folders"}
     {feat enable-lame-list-mode "Enable Lame List Mode"}
     {feat try-alternative-authentication-driver-first "Try Alternative Authentication First"}

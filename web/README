@@ -5,10 +5,9 @@ distributed with the Alpine Mail System.
 WEB ALPINE 1.0
 --------------
 
-Web Alpine is the web-based component of the Alpine Mail System.
-It's based on the same distributed email technology behind 
-Alpine, but is accessible from almost any browser on the 
-World Wide Web.
+Web Alpine is the web-based component of the Alpine Mail System.  It
+rests on the same distributed email technology behind Alpine, but is
+accessible from almost any browser on the World Wide Web.
 
 Web Alpine uses TCL to provide the programmatic interface between
 the Alpine-provided message store and the cgi-served web pages.
@@ -58,7 +57,7 @@ User documentation is contained within the application and is
 reasonably complete.  Technical documentation is extremely rough and
 likely unsatisfying.  It's probably worth reading, but ultimately
 configuration or other questions are best answered by reviewing the
-source (which itself, while working reasonably, is pretty spotilly
+source (which itself, while working reasonably, is somewhat spotilly
 documented as well).
 
 

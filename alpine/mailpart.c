@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailpart.c 783 2007-10-31 16:35:12Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailpart.c 825 2007-11-21 06:29:53Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1577,7 +1577,7 @@ save_msg_att(long int msgno, ATTACH_S *a)
     snprintf(nmsgs, sizeof(nmsgs), _("Attached Msg (part %s) "), a->number);
     nmsgs[sizeof(nmsgs)-1] = '\0';
     if(save_prompt(ps_global, &cntxt, newfolder, sizeof(newfolder), nmsgs,
-		   a->body->nested.msg->env, msgno, a->number, NULL, NULL, NULL)){
+		   a->body->nested.msg->env, msgno, a->number, NULL, NULL)){
 	if(strucmp(newfolder, ps_global->inbox_name) == 0){
 	    save_folder = ps_global->VAR_INBOX_PATH;
 	    cntxt = NULL;
@@ -1655,7 +1655,7 @@ save_digest_att(long int msgno, ATTACH_S *a)
     nmsgs[sizeof(nmsgs)-1] = '\0';
 
     if(save_prompt(ps_global, &cntxt, newfolder, sizeof(newfolder),
-		   nmsgs, NULL, 0, NULL, NULL, NULL, NULL)){
+		   nmsgs, NULL, 0, NULL, NULL, NULL)){
 	save_folder = (strucmp(newfolder, ps_global->inbox_name) == 0)
 			? ps_global->VAR_INBOX_PATH : newfolder;
 

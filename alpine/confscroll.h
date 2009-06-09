@@ -1,5 +1,5 @@
 /*
- * $Id: confscroll.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
+ * $Id: confscroll.h 809 2007-11-09 21:13:47Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -87,6 +87,7 @@ CONF_S	*first_confline(CONF_S *);
 CONF_S  *first_sel_confline(CONF_S *);
 void	 snip_confline(CONF_S **);
 char    *pretty_value(struct pine *, CONF_S *);
+int      feature_indent(void);
 SAVED_CONFIG_S *save_config_vars(struct pine *, int);
 int      text_tool(struct pine *, int, CONF_S **, unsigned);
 int	 checkbox_tool(struct pine *, int, CONF_S **, unsigned);

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailindx.c 749 2007-10-15 21:02:56Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailindx.c 842 2007-12-04 00:13:55Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -502,6 +502,9 @@ static INDEX_PARSE_T itokens[] = {
     {"MSGID",		iMsgID,		FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"CURNEWS",		iCurNews,	FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"DAYDATE",		iRDate,		FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
+    {"PREFDATE",	iPrefDate,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
+    {"PREFTIME",	iPrefTime,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
+    {"PREFDATETIME",	iPrefDateTime,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"DAY",		iDay,		FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"DAYORDINAL",	iDayOrdinal,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"DAY2DIGIT",	iDay2Digit,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
@@ -530,6 +533,10 @@ static INDEX_PARSE_T itokens[] = {
     {"CURMONTHABBREV",	iCurMonAbb,	FOR_REPLY_INTRO|FOR_TEMPLATE|FOR_FILT},
     {"CURYEAR",		iCurYear,	FOR_REPLY_INTRO|FOR_TEMPLATE|FOR_FILT},
     {"CURYEAR2DIGIT",	iCurYear2Digit,	FOR_REPLY_INTRO|FOR_TEMPLATE|FOR_FILT},
+    {"CURPREFDATE",	iCurPrefDate,	FOR_REPLY_INTRO|FOR_TEMPLATE|FOR_FILT},
+    {"CURPREFTIME",	iCurPrefTime,	FOR_REPLY_INTRO|FOR_TEMPLATE|FOR_FILT},
+    {"CURPREFDATETIME",	iCurPrefDateTime,
+					FOR_REPLY_INTRO|FOR_TEMPLATE|FOR_FILT},
     {"LASTMONTH",	iLstMon,	FOR_REPLY_INTRO|FOR_TEMPLATE|FOR_FILT},
     {"LASTMONTH2DIGIT",	iLstMon2Digit,	FOR_REPLY_INTRO|FOR_TEMPLATE|FOR_FILT},
     {"LASTMONTHLONG",	iLstMonLong,	FOR_REPLY_INTRO|FOR_TEMPLATE|FOR_FILT},
@@ -542,6 +549,7 @@ static INDEX_PARSE_T itokens[] = {
     {"HEADER",		iHeader,	FOR_INDEX},
     {"TEXT",		iText,		FOR_INDEX},
     {"ARROW",		iArrow,		FOR_INDEX},
+    {"NEWLINE",		iNewLine,	FOR_REPLY_INTRO},
     {"CURSORPOS",	iCursorPos,	FOR_TEMPLATE},
     {NULL,		iNothing,	FOR_NOTHING}
 };
@@ -1010,6 +1018,22 @@ setup_index_header_widths(MAILSTREAM *stream)
 	  ps_global->display_keywordinits_in_subject = 1;
 
 	if(wtype == WeCalculate || wtype == Percent || cdesc->width != 0){
+
+	    switch(cdesc->ctype){
+	      case iSDate: case iSDateIso: case iSDateIsoS:
+	      case iSDateS1: case iSDateS2: case iSDateS3: case iSDateS4:
+	      case iSDateTime: case iSDateTimeIso: case iSDateTimeIsoS:
+	      case iSDateTimeS1: case iSDateTimeS2: case iSDateTimeS3: case iSDateTimeS4:
+	      case iSDateTime24: case iSDateTimeIso24: case iSDateTimeIsoS24:
+	      case iSDateTimeS124: case iSDateTimeS224: case iSDateTimeS324: case iSDateTimeS424:
+	      case iSTime:
+		set_format_includes_smartdate(stream);
+	        break;
+
+	      default:
+	        break;
+	    }
+
 	    if(ctype_is_fixed_length(cdesc->ctype)){
 		switch(cdesc->ctype){
 		  case iPrio:
@@ -1086,7 +1110,6 @@ setup_index_header_widths(MAILSTREAM *stream)
 		    break;
 
 		  case iSTime:
-		    set_format_includes_smartdate(stream);
 		    cdesc->actual_length = 7;
 		    cdesc->adjustment = Left;
 		    break;
@@ -1130,7 +1153,6 @@ setup_index_header_widths(MAILSTREAM *stream)
 		  case iSDateTimeS1: case iSDateTimeS2: case iSDateTimeS3: case iSDateTimeS4:
 		  case iSDateTimeS124: case iSDateTimeS224: case iSDateTimeS324: case iSDateTimeS424:
 		  case iSDateIso: case iSDateTimeIso: case iSDateTimeIso24:
-		    set_format_includes_smartdate(stream);
 		    if(cdesc->ctype == iSDateIso
 		       || cdesc->ctype == iSDateTimeIso
 		       || cdesc->ctype == iSDateTimeIso24)
@@ -2385,6 +2407,7 @@ format_index_index_line(INDEXDATA_S *idata)
 	      case iRDate: case iDay: case iDay2Digit: case iMon2Digit:
 	      case iDayOrdinal: case iMon: case iMonLong:
 	      case iDayOfWeekAbb: case iDayOfWeek:
+	      case iPrefDate: case iPrefTime: case iPrefDateTime:
 		date_str(fetch_date(idata), cdesc->ctype, 0, str, sizeof(str), cdesc->monabb_width);
 		break;
 
@@ -3301,7 +3324,7 @@ simple_index_line(char *buf, size_t buflen, int n, ICE_S *ice, long int msgno)
  *           It may be NULL, which indicates default.
  */
 int
-get_index_line_color(MAILSTREAM *stream, struct search_set *searchset,
+get_index_line_color(MAILSTREAM *stream, SEARCHSET *searchset,
 		     PAT_STATE **pstate, COLOR_PAIR **returned_color)
 {
     PAT_S           *pat = NULL;
@@ -3801,7 +3824,7 @@ fetch_header(INDEXDATA_S *idata, char *hdrname)
 		*p && isspace((unsigned char)*p); p++)
 		;
 
-	    decsize = 4 * strlen(p);
+	    decsize = (4 * strlen(p)) + 1;
 	    decode_buf = (unsigned char *) fs_get(decsize * sizeof(unsigned char));
 	    decoded = (char *) rfc1522_decode_to_utf8(decode_buf, decsize, p);
 	    p = decoded;
@@ -4068,7 +4091,7 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len,
 		minzero[3],	/* zero padded, 2-digit minutes */
 		timezone[6];	/* timezone, like -0800 or +... */
     int		hr12;
-    int         curtype, lastmonthtype, lastyeartype;
+    int         curtype, lastmonthtype, lastyeartype, preftype;
     int         sdatetimetype, sdatetime24type;
     struct	date d;
 #define TODAYSTR N_("Today")
@@ -4076,6 +4099,9 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len,
     curtype =       (type == iCurDate ||
 	             type == iCurDateIso ||
 	             type == iCurDateIsoS ||
+	             type == iCurPrefDate ||
+	             type == iCurPrefDateTime ||
+	             type == iCurPrefTime ||
 	             type == iCurTime24 ||
 	             type == iCurTime12 ||
 	             type == iCurDay ||
@@ -4117,6 +4143,12 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len,
 	             type == iSDateTimeS224 ||
 	             type == iSDateTimeS324 ||
 	             type == iSDateTimeS424);
+    preftype =      (type == iPrefDate ||
+	             type == iPrefDateTime ||
+	             type == iPrefTime ||
+	             type == iCurPrefDate ||
+	             type == iCurPrefDateTime ||
+	             type == iCurPrefTime);
     if(str_len > 0)
       str[0] = '\0';
 
@@ -4142,6 +4174,51 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len,
     else
       parse_date(F_ON(F_DATES_TO_LOCAL,ps_global)
 		    ? convert_date_to_local(datesrc) : datesrc, &d);
+
+    /* some special ones to start with */
+    if(preftype){
+	struct tm tm, *tmptr = NULL;
+	time_t now;
+
+	/*
+	 * Make sure we get the right one if we're using current time.
+	 */
+	if(curtype){
+	    now = time((time_t *) 0);
+	    if(now != (time_t) -1)
+	      tmptr = localtime(&now);
+	}
+
+	if(!tmptr){
+	    memset(&tm, 0, sizeof(tm));
+	    tm.tm_year = MIN(MAX(d.year-1900, 0), 2000);
+	    tm.tm_mon  = MIN(MAX(d.month-1, 0), 11);
+	    tm.tm_mday = MIN(MAX(d.day, 1), 31);
+	    tm.tm_hour = MIN(MAX(d.hour, 0), 23);
+	    tm.tm_min  = MIN(MAX(d.minute, 0), 59);
+	    tmptr = &tm;
+	}
+
+	switch(type){
+	  case iPrefDate:
+	  case iCurPrefDate:
+	    our_strftime(str, str_len, "%x", tmptr);
+	    break;
+	  case iPrefTime:
+	  case iCurPrefTime:
+	    our_strftime(str, str_len, "%X", tmptr);
+	    break;
+	  case iPrefDateTime:
+	  case iCurPrefDateTime:
+	    our_strftime(str, str_len, "%c", tmptr);
+	    break;
+	  default:
+	    assert(0);
+	    break;
+	}
+
+	return;
+    }
 
     strncpy(monabb, (d.month > 0 && d.month < 13)
 		    ? month_abbrev_locale(d.month) : "", sizeof(monabb));
@@ -4269,10 +4346,13 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len,
 
     switch(type){
       case iRDate:
+	/* this one is not locale-specific */
 	snprintf(str, str_len, "%s%s%s %s %s",
-		(d.wkday != -1) ? day_abbrev_locale(d.wkday) : "",
+		(d.wkday != -1) ? day_abbrev(d.wkday) : "",
 		(d.wkday != -1) ? ", " : "",
-		day, monabb, year4);
+		day,
+		(d.month > 0 && d.month < 13) ? month_abbrev(d.month) : "",
+		year4);
 	break;
       case iDayOfWeekAbb:
       case iCurDayOfWeekAbb:
@@ -4509,9 +4589,11 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len,
 			struct tm tm;
 
 			memset(&tm, 0, sizeof(tm));
-			tm.tm_year = MAX(d.year-1900, 0);
-			tm.tm_mon = d.month-1;
-			tm.tm_mday = d.day;
+			tm.tm_year = MIN(MAX(d.year-1900, 0), 2000);
+			tm.tm_mon  = MIN(MAX(d.month-1, 0), 11);
+			tm.tm_mday = MIN(MAX(d.day, 1), 31);
+			tm.tm_hour = MIN(MAX(d.hour, 0), 23);
+			tm.tm_min  = MIN(MAX(d.minute, 0), 59);
 			our_strftime(str, str_len, "%x", &tm);
 		      }
 

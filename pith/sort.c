@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: sort.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: sort.c 844 2007-12-05 17:50:54Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -181,10 +181,6 @@ sort_folder(MAILSTREAM *stream, MSGNO_S *msgmap, SortOrder new_sort,
 	mn_set_sort(msgmap, new_sort);
 	mn_set_revsort(msgmap, new_rev);
 	
-#ifndef	DOS
-	intr_handling_on();
-#endif
-
 	if(flags & SRT_VRB){
 	    /* TRANSLATORS: tell user they are waiting for Sorting of %s, the foldername */
 	    snprintf(sort_msg, sizeof(sort_msg), _("Sorting \"%s\""),
@@ -206,10 +202,6 @@ sort_folder(MAILSTREAM *stream, MSGNO_S *msgmap, SortOrder new_sort,
 
 	if(we_cancel)
 	  cancel_busy_cue(1);
-
-#ifndef	DOS
-	intr_handling_off();
-#endif
 
 	/*
 	 * Flip the sort if necessary (cheaper to do it once than for
@@ -235,21 +227,6 @@ sort_folder(MAILSTREAM *stream, MSGNO_S *msgmap, SortOrder new_sort,
 	mn_set_sort(msgmap, new_sort);
 	mn_set_revsort(msgmap, new_rev);
 	clear_index_cache(stream, 0);
-
-#ifndef	DOS
-	/*
-	 * Because this draws a keymenu, which in turn may call malloc
-	 * and free in pico/osdep functions having to do with colors,
-	 * we don't want to call it when alarm handling is turned on.
-	 * The reason is because the alarm could interrupt us in a precarious
-	 * state. For example, we are drawing this keymenu and have just
-	 * freed _last_bg_color but haven't set it to NULL yet, then the
-	 * alarm happens, does some status line drawing which resets the
-	 * background color, bango, it tries to free the thing we just
-	 * freed. So move this before the busy_cue call below.
-	 */
-	intr_handling_on();
-#endif
 
 	if(flags & SRT_VRB){
 	    int (*sort_func)() = NULL;
@@ -344,13 +321,11 @@ sort_folder(MAILSTREAM *stream, MSGNO_S *msgmap, SortOrder new_sort,
 
 	    mail_parameters(NULL, SET_THREADRESULTS, (void *) NULL);
 
-	    if(!thread || ps_global->intr_pending){
+	    if(!thread){
 		new_sort = current_sort;
 		new_rev  = current_rev;
-		q_status_message2(SM_ORDER, 3, 3,
-				  "Sort %.200s!  Restored %.200s sort.",
-				  ps_global->intr_pending
-				    ? "Canceled" : "Failed",
+		q_status_message1(SM_ORDER, 3, 3,
+				  "Sort Failed!  Restored %.200s sort.",
 				  sort_name(new_sort));
 	    }
 
@@ -385,13 +360,11 @@ sort_folder(MAILSTREAM *stream, MSGNO_S *msgmap, SortOrder new_sort,
 
 	    mail_parameters(NULL, SET_SORTRESULTS, (void *) NULL);
 
-	    if(!sort || ps_global->intr_pending){
+	    if(!sort){
 		new_sort = current_sort;
 		new_rev  = current_rev;
-		q_status_message2(SM_ORDER, 3, 3,
-				  "Sort %s!  Restored %s sort.",
-				  ps_global->intr_pending
-				    ? "Canceled" : "Failed",
+		q_status_message1(SM_ORDER, 3, 3,
+				  "Sort Failed!  Restored %s sort.",
 				  sort_name(new_sort));
 	    }
 
@@ -403,14 +376,6 @@ sort_folder(MAILSTREAM *stream, MSGNO_S *msgmap, SortOrder new_sort,
 
 	if(we_cancel)
 	  cancel_busy_cue(1);
-
-#ifndef	DOS
-	/*
-	 * Same here as intr_handling_on. We don't want the busy alarm
-	 * to be active when we call this.
-	 */
-	intr_handling_off();
-#endif
 
 	/*
 	 * Flip the sort if necessary (cheaper to do it once than for

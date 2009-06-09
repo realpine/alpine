@@ -21,7 +21,7 @@
 #		Internet: MRC@CAC.Washington.EDU
 #
 # Date:		7 December 1989
-# Last Edited:	7 November 2007
+# Last Edited:	1 December 2007
 
 
 # Normal command to build IMAP toolkit:
@@ -364,7 +364,7 @@ lfd:	an
 ln8:	an
 	$(TOUCH) ip6
 	$(BUILD) BUILDTYPE=slx IP=$(IP6) \
-	SPECIALS="SSLINCLUDE=/usr/include/openssl SSLLIB=/usr/lib SSLCERTS=/usr/share/certs LOCKPGM=/usr/sbin/mlock MAILSPOOL=/var/mail"
+	SPECIALS="SSLINCLUDE=/usr/include/openssl SSLLIB=/usr/lib SSLCERTS=/usr/lib/ssl/certs LOCKPGM=/usr/sbin/mlock MAILSPOOL=/var/mail"
 
 
 # RHE5 does not have the IPv6 bug

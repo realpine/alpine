@@ -14,7 +14,7 @@ dnl  */
 
 AC_PREREQ([2.57])
 
-AC_REVISION([$Id: configure.ac 800 2007-11-08 20:07:59Z mikes@u.washington.edu $])
+AC_REVISION([$Id: configure.ac 850 2007-12-06 23:58:57Z mikes@u.washington.edu $])
 
 dnl Alpine Version Number is in $srcdir/VERSION
 AC_INIT(alpine, m4_normalize(m4_include([VERSION])), [alpine-contact@cac.washington.edu])
@@ -580,12 +580,13 @@ else
   dnl preload c-client default locations/options
   case $host in
     *-linux-gnu)
-      if test -f /etc/fedora-release ; then  
+      if test -f /etc/fedora-release -o -f /etc/redhat-release -o -f /etc/redhat_version ; then  
         alpine_SSLTYPE="nopwd"
-        alpine_SSLDIR="/usr/share/ssl"
-      elif test -f /etc/redhat-release -o -f /etc/redhat_version ; then
-        alpine_SSLTYPE="nopwd"
-        alpine_SSLDIR="/usr/share/ssl"
+	if test -d /etc/pki/tls ; then  
+	  alpine_SSLDIR="/etc/pki/tls"
+	else
+	  alpine_SSLDIR="/usr/share/ssl"
+	fi
       elif test -f /etc/SuSE-release ; then
         alpine_SSLTYPE="nopwd"
         alpine_SSLDIR="/usr/share/ssl"
@@ -1203,7 +1204,9 @@ AC_CHECK_FUNCS([strchr \
 		listen \
 		wcwidth \
 		mbstowcs \
-		wcrtomb])
+		wcrtomb \
+		putenv \
+		setenv])
 
 AC_SEARCH_LIBS([gethostname],[nsl])
 
@@ -1446,30 +1449,27 @@ if test "x$alpine_SSLTYPE" = "xnone" ; then
 else
   dnl issue any warnings for common OpenSSL issues
 
-  if test -d $alpine_SSLCERTS ; then
+  if test -n "$alpine_SSLCERTS" -a -d "$alpine_SSLCERTS" ; then
     certdir="$alpine_SSLCERTS"
+  elif test -n "$alpine_SSLDIR" -a -d "${alpine_SSLDIR}/certs" ; then
+    certdir="${alpine_SSLDIR}/certs"
   else
-    if test -d "${alpine_SSLDIR}/certs" ; then
-      certdir="${alpine_SSLDIR}/certs"
-    else
-      AC_MSG_NOTICE([SSL Problem: certificate directory not found])
-    fi
+    AC_MSG_NOTICE([SSL Problem: certificate directory not found])
   fi
 
-  if test -f ${certdir}/factory.pem ; then
-    AC_MSG_NOTICE([* * * SSL file "factory.pem is missing])
-    AC_MSG_NOTICE([* * * This might indicate that CA certs did not get properly])
-    AC_MSG_NOTICE([* * * installed.  If you get certificate validation failures])
-    AC_MSG_NOTICE([* * * in Alpine, this might be the reason for them.])
+  if test ! -f ${certdir}/factory.pem ; then
+    AC_MSG_NOTICE([* * * SSL file "${certdir}/factory.pem" is missing.])
+    AC_MSG_NOTICE([* * *   This might indicate that CA certs did not get properly])
+    AC_MSG_NOTICE([* * *   installed.  If you get certificate validation failures])
+    AC_MSG_NOTICE([* * *   in Alpine, this might be the reason for them.])
   fi
 
-  if test -f "${certdir}/[0-9A-Za-z]\{8\}.0" ; then
-    AC_MSG_NOTICE([* * * No 8-hexdigit symlinks in certificate directory])
-    AC_MSG_NOTICE([* * * This might indicate that CA certs did not get properly])
-    AC_MSG_NOTICE([* * * installed.  If you get certificate validation failures])
-    AC_MSG_NOTICE([* * * in Alpine, this might be the reason for them.])
+  if test -z "`ls ${certdir} | $EGREP '^@<:@0-9A-Za-z@:>@{8}\.@<:@0-9@:>@'`" ; then
+    AC_MSG_NOTICE([* * * No 8-hexdigit symlinks in certificate directory "${certdir}".])
+    AC_MSG_NOTICE([* * *   This might indicate that CA certs did not get properly])
+    AC_MSG_NOTICE([* * *   installed.  If you get certificate validation failures])
+    AC_MSG_NOTICE([* * *   in Alpine, this might be the reason for them.])
   fi
-
 
   if test -n "$alpine_SSLDIR" ; then
     c_client_specials="${c_client_specials}SSLDIR=$alpine_SSLDIR "
@@ -1538,5 +1538,6 @@ AC_OUTPUT(m4/Makefile po/Makefile.in regex/Makefile \
 	  pith/osdep/Makefile pith/charconv/Makefile pith/Makefile \
 	  pico/osdep/Makefile pico/Makefile \
 	  alpine/osdep/Makefile alpine/Makefile \
-	  web/src/pubcookie/Makefile web/src/alpined.d/Makefile \
+	  web/src/Makefile web/src/pubcookie/Makefile \
+	  web/src/alpined.d/Makefile \
 	  Makefile)

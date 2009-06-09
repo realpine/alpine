@@ -177,7 +177,7 @@ extern char *(*pith_opt_pretty_var_name)(char *);
 /*
  * Hook to make feature names pretty in help text
  */
-extern char *(*pith_opt_pretty_feature_name)(char *);
+extern char *(*pith_opt_pretty_feature_name)(char *, int);
 
 
 /*

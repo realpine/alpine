@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: altedit.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: altedit.c 847 2007-12-06 18:06:35Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -312,7 +312,7 @@ alt_editor(int f, int n)
 	if(rv == FIOSUC && filesize > 0){
 	    snprintf(prompt, sizeof(prompt), prmpt, (long) filesize);
 	    /* clear bottom 3 rows */
-	    pclear(term.t_nrow-2, term.t_nrow+1);
+	    pclear(term.t_nrow-2, term.t_nrow);
 	    i = mlyesno_utf8(prompt, FALSE);
 	    if(i == TRUE){
 		ret = 0;

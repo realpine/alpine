@@ -3892,10 +3892,9 @@ SelectTTYFont (HWND hWnd)
     cfTTYFont.lStructSize    = sizeof (CHOOSEFONT);
     cfTTYFont.hwndOwner      = hWnd ;
     cfTTYFont.hDC            = NULL ;
-    cfTTYFont.rgbColors      = pTTYInfo->rgbFGColor;
     cfTTYFont.lpLogFont      = &newFont;
     cfTTYFont.Flags          = CF_SCREENFONTS | CF_FIXEDPITCHONLY |
-	    CF_EFFECTS | CF_INITTOLOGFONTSTRUCT |
+	    CF_INITTOLOGFONTSTRUCT |
 #if	0
 	    CF_FORCEFONTEXIST | CF_LIMITSIZE |
 	    CF_ENABLEHOOK | CF_APPLY;
@@ -3916,7 +3915,6 @@ SelectTTYFont (HWND hWnd)
 
 
     if (ChooseFont (&cfTTYFont)) {
-	pTTYInfo->rgbFGColor = cfTTYFont.rgbColors;
 	ResetTTYFont (hWnd, pTTYInfo, &newFont);
     }
 #if	0

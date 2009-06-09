@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: send.c 780 2007-10-26 21:28:17Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: send.c 839 2007-12-01 01:10:52Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -41,6 +41,7 @@ static char rcsid[] = "$Id: send.c 780 2007-10-26 21:28:17Z hubert@u.washington.
 #include "../pith/text.h"
 #include "../pith/imap.h"
 #include "../pith/ablookup.h"
+#include "../pith/sort.h"
 
 #include "../c-client/smtp.h"
 #include "../c-client/nntp.h"
@@ -137,6 +138,9 @@ char	  *posting_characterset(void *, char *, MsgPart);
 int        body_is_translatable(void *, char *);
 int        text_is_translatable(void *, char *);
 int        dummy_putc(int);
+unsigned long *init_charsetchecker(char *);
+int        representable_in_charset(unsigned long, char *);
+char      *most_preferred_charset(unsigned long);
 
 /* 
  * Storage object where the FCC (or postponed msg) is to be written.
@@ -217,14 +221,14 @@ static NETDRIVER piped_io = {
  *                    in argument.
  */
 int
-postponed_stream(MAILSTREAM **streamp)
+postponed_stream(MAILSTREAM **streamp, char *mbox, char *type, int checknmsgs)
 {
     MAILSTREAM *stream = NULL;
     CONTEXT_S  *p_cntxt = NULL;
-    char       *mbox, *p, *q, tmp[MAILTMPLEN], *fullname = NULL;
+    char       *p, *q, tmp[MAILTMPLEN], *fullname = NULL;
     int	        exists;
 
-    if(!streamp)
+    if(!(streamp && mbox))
       return(0);
 
     *streamp = NULL;
@@ -240,7 +244,7 @@ postponed_stream(MAILSTREAM **streamp)
      * in c-client to specify otherwise in the face of a remote
      * context.
      */
-    if(!is_absolute_path(mbox = ps_global->VAR_POSTPONED_FOLDER)
+    if(!is_absolute_path(mbox)
        && !(p_cntxt = default_save_context(ps_global->context_list)))
       p_cntxt = ps_global->context_list;
 
@@ -275,20 +279,34 @@ postponed_stream(MAILSTREAM **streamp)
 			&& !strcmp(p + 1, q + 1)))))
 	  stream = NULL;
 
-	if(!(stream
-	     || ((stream = context_open(p_cntxt,NULL,mbox,
-					SP_USEPOOL|SP_TEMPUSE, NULL))
-		 && !stream->halfopen))){
-	    q_status_message1(SM_ORDER | SM_DING, 3, 3,
-			      _("Can't open Postponed mailbox: %s"), mbox);
-	    if(stream)
-	      pine_mail_close(stream);
+	if(!stream){
+	    stream = context_open(p_cntxt, NULL, mbox,
+				  SP_USEPOOL|SP_TEMPUSE, NULL);
+	    if(stream && !stream->halfopen){
+		if(stream->nmsgs > 0)
+		  refresh_sort(stream, sp_msgmap(stream), SRT_NON);
+
+		if(checknmsgs && stream->nmsgs < 1){
+		    pine_mail_close(stream);
+		    exists = 0;
+		    stream = NULL;
+		}
+	    }
+	    else{
+		q_status_message2(SM_ORDER | SM_DING, 3, 3,
+				  _("Can't open %s mailbox: %s"), type, mbox);
+		if(stream)
+		  pine_mail_close(stream);
+
+		exists = 0;
+		stream = NULL;
+	    }
 	}
     }
     else{
 	if(F_ON(F_ALT_COMPOSE_MENU, ps_global)){
-	    q_status_message(SM_ORDER | SM_DING, 3, 3,
-			     _("Postponed message folder doesn't exist!"));
+	    q_status_message1(SM_ORDER | SM_DING, 3, 3,
+			     _("%s message folder doesn't exist!"), type);
 	}
     }
 
@@ -1892,6 +1910,20 @@ call_mailer(METAENV *header, struct mail_bodystruct *body, char **alt_smtp_serve
 	 * the first text body part from getting encoded.  We protect
 	 * it from getting encoded in "pine_rfc822_output_body" by
 	 * temporarily inventing a synonym for ENC8BIT...
+	 * This works like so:
+	 *   Suppose bp->encoding is set to ENC8BIT.
+	 *   We change that here to some unused value (added_encoding) and
+	 *    set body_encodings[added_encoding] to "8BIT".
+	 *   Then post_rfc822_output is called which calls
+	 *    pine_rfc822_output_body. Inside that routine
+	 *    pine_write_body_header writes out the encoding for the
+	 *    part. Normally it would see encoding == ENC8BIT and it would
+	 *    change that to QUOTED-PRINTABLE, but since encoding has been
+	 *    set to added_encoding it uses body_encodings[added_encoding]
+	 *    which is "8BIT" instead. Then the actual body is written by
+	 *    pine_write_body_header which does not do the gf_8bit_qp
+	 *    filtering because encoding != ENC8BIT (instead it's equal
+	 *    to added_encoding).
 	 */
 	if(bp && sending_stream->protocol.esmtp.eightbit.ok
 	      && sending_stream->protocol.esmtp.eightbit.want){
@@ -2802,7 +2834,15 @@ pine_encode_body (struct mail_bodystruct *body)
 
 	      set_parameter(&body->parameter, "charset", posting_charset);
 		
-	      /* fix iso-2022-up encoding to ENCNONE since it's escape based */
+	      /*
+	       * Fix iso-2022-jp encoding to ENC7BIT since it's escape based
+	       * and doesn't use anything but ASCII characters.
+	       * Why is it not ENC7BIT already? Because when we set the encoding
+	       * in set_mime_type_by_grope we were groping through UTF-8 text
+	       * not 2022 text. Not only that, but we didn't know at that point
+	       * that it wouldn't stay UTF-8 when we sent it, which would require
+	       * encoding.
+	       */
 	      if(!strucmp(posting_charset, "iso-2022-jp")
 		 && (lp = so_attr((STORE_S *) body->contents.text.data, "maxline", NULL))
 		 && strlen(lp) < 4)
@@ -3530,69 +3570,440 @@ post_rfc822_output(char *tmp,
 char *
 posting_characterset(void *data, char *preferred_charset, MsgPart mp)
 {
-    if(!ps_global->post_utf8){
-	int (*xlatable)(void *, char *) = (mp == MsgBody) ? body_is_translatable : text_is_translatable;
+    unsigned long *charsetmap = NULL;
+    unsigned long validbitmap;
+    static char *ascii = "US-ASCII";
+    static char *utf8 = "UTF-8";
+    int notcjk = 0;
 
-	if(strucmp(ps_global->posting_charmap, "UTF-8")){
+    if(!ps_global->post_utf8){
+	validbitmap = 0;
+
+	if(mp == HdrText){
+	    char *text = NULL;
+	    UCS *ucs = NULL, *ucsp;
+
+	    text = (char *) data;
+
+	    /* convert text in header to UCS characters */
+	    if(text)
+	      ucsp = ucs = utf8_to_ucs4_cpystr(text);
+
+	    if(!(ucs && *ucs))
+	      return(ascii);
+
+	    /*
+	     * After the while loop is done the validbitmap has
+	     * a 1 bit for all the character sets that can
+	     * represent all of the characters of this header.
+	     */
+	    charsetmap = init_charsetchecker(preferred_charset);
+
+	    if(!charsetmap)
+	      return(utf8);
+
+	    validbitmap = ~0;
+	    while((validbitmap & ~0x1) && (*ucsp)){
+		if(*ucsp > 0xffff){
+		    fs_give((void **) &ucs);
+		    return(utf8);
+		}
+
+		validbitmap &= charsetmap[(unsigned long) (*ucsp++)];
+	    }
+
+	    fs_give((void **) &ucs);
+
+	    notcjk = validbitmap & 0x1;
+	    validbitmap &= ~0x1;
+
+	    if(!validbitmap)
+	      return(utf8);
+	}
+	else{
+	    struct mail_bodystruct *body = NULL;
+	    STORE_S *the_text = NULL;
+	    int outchars;
+	    unsigned char c;
+	    UCS ucs;
+	    CBUF_S cbuf;
+
+	    cbuf.cbuf[0] = '\0';
+	    cbuf.cbufp = cbuf.cbuf;
+	    cbuf.cbufend = cbuf.cbuf;
+
+	    body = (struct mail_bodystruct *) data;
+
+	    if(body && body->type == TYPEMULTIPART)
+	      body = &body->nested.part->body;
+
+	    if(body && body->type == TYPETEXT)
+	      the_text = (STORE_S *) body->contents.text.data;
+
+	    if(!the_text)
+	      return(ascii);
+
+	    so_seek(the_text, 0L, 0);		/* rewind */
+
+	    charsetmap = init_charsetchecker(preferred_charset);
+
+	    if(!charsetmap)
+	      return(utf8);
+
+	    validbitmap = ~0;
+
+	    /*
+	     * Read a stream of UTF-8 characters from the_text
+	     * and convert them to UCS-4 characters for the translatable
+	     * test.
+	     */
+	    while((validbitmap & ~0x1) && so_readc(&c, the_text)){
+		if((outchars = utf8_to_ucs4_oneatatime(c, &cbuf, &ucs, NULL)) > 0){
+		    /* got a ucs character */
+		    if(ucs > 0xffff)
+		      return(utf8);
+
+		    validbitmap &= charsetmap[(unsigned long) ucs];
+		}
+	    }
+
+	    notcjk = validbitmap & 0x1;
+	    validbitmap &= ~0x1;
+
+	    if(!validbitmap)
+	      return(utf8);
+	}
+
+	/* user chooses something other than UTF-8 */
+	if(strucmp(ps_global->posting_charmap, utf8)){
 	    /*
 	     * If we're to post in other than UTF-8, and it can be
 	     * transliterated without losing fidelity, do it.
 	     * Else, use UTF-8.
 	     */
 
-	    if((*xlatable)(data, "US-ASCII"))
-	      return("US-ASCII");
+	    /* if ascii works, always use that */
+	    if(representable_in_charset(validbitmap, ascii))
+	      return(ascii);
 
-	    if((*xlatable)(data, ps_global->posting_charmap))
+	    /* does the user's posting character set work? */
+	    if(representable_in_charset(validbitmap, ps_global->posting_charmap))
 	      return(ps_global->posting_charmap);
 
+	    /* this is the charset the message we are replying to was in */
 	    if(preferred_charset
-	       && (!strucmp(preferred_charset, "US-ASCII")
-	           || !strucmp(preferred_charset, ps_global->posting_charmap)
-	           || !strucmp(preferred_charset, "UTF-8")))
-	      preferred_charset = NULL;
-
-	    /* Ours doesn't work, can we keep the original? */
-	    if(preferred_charset && (*xlatable)(data, preferred_charset))
+	       && strucmp(preferred_charset, ascii)
+	       && representable_in_charset(validbitmap, preferred_charset))
 	      return(preferred_charset);
+
+	    /* else, use UTF-8 */
+
 	}
+	/* user chooses nothing, going with the default */
 	else if(ps_global->vars[V_POST_CHAR_SET].main_user_val.p == NULL
 		&& ps_global->vars[V_POST_CHAR_SET].post_user_val.p == NULL
 		&& ps_global->vars[V_POST_CHAR_SET].fixed_val.p == NULL){
+	    char *most_preferred;
+
 	    /*
-	     * If user did not explicitly set UTF-8, consider downgrading
-	     * to something more specific, a la US-ASCII
+	     * In this case the user didn't specify a posting character set
+	     * and we will choose the most-specific one from our list.
 	     */
-	    int   i;
-	    char *downgrades[] = {
-		    "US-ASCII",
-		    "ISO-8859-15",
-		    "ISO-8859-1",
-		    AVOID_2022_JP_FOR_PUNC,
-		    "ISO-2022-JP",
-		    "KOI8-R"};
 
-	    if((*xlatable)(data, downgrades[0]))	/* ascii always best */
-	      return(downgrades[0]);
+	    /* ascii is best */
+	    if(representable_in_charset(validbitmap, ascii))
+	      return(ascii);
 
-	    /* Can we keep the original?  */
+	    /* Can we keep the original from the message we're replying to?  */
 	    if(preferred_charset
-	       && strucmp(preferred_charset, downgrades[0])
-	       && (!strucmp(preferred_charset, "utf-8")
-		   || (*xlatable)(data, preferred_charset)))
+	       && strucmp(preferred_charset, ascii)
+	       && representable_in_charset(validbitmap, preferred_charset))
 	      return(preferred_charset);
 
-	    for(i = 1; i < sizeof(downgrades)/sizeof(downgrades[0]); i++)
-	      if((*xlatable)(data, downgrades[i])){
-		  if(!strucmp(downgrades[i], AVOID_2022_JP_FOR_PUNC))
-		    return("UTF-8");
+	    /* choose the best of the rest */
+	    most_preferred = most_preferred_charset(validbitmap);
+	    if(!most_preferred)
+	      return(utf8);
 
-		  return(downgrades[i]);
-	      }
+	    /*
+	     * If the text we're labeling contains something like
+	     * smart quotes but no CJK characters, then instead of
+	     * labeling it as ISO-2022-JP we want to use UTF-8.
+	     */
+	    if(notcjk){
+		const CHARSET *cs;
+
+		cs = utf8_charset(most_preferred);
+		if(!cs
+		   || cs->script == SC_CHINESE_SIMPLIFIED
+		   || cs->script == SC_CHINESE_TRADITIONAL
+		   || cs->script == SC_JAPANESE
+		   || cs->script == SC_KOREAN)
+		  return(utf8);
+	    }
+
+	    return(most_preferred);
+	}
+	/* user explicitly chooses UTF-8 */
+	else{
+	    /* if ascii works, always use that */
+	    if(representable_in_charset(validbitmap, ascii))
+	      return(ascii);
+
+	    /* else, use UTF-8 */
+
 	}
     }
 
-    return("UTF-8");
+    return(utf8);
+}
+
+
+static char **charsetlist = NULL;
+static int items_in_charsetlist = 0;
+static unsigned long *charsetmap = NULL;
+
+static char *downgrades[] = {
+    "US-ASCII",
+    "ISO-8859-15",
+    "ISO-8859-1",
+    "ISO-8859-2",
+    "VISCII",
+    "KOI8-R",
+    "KOI8-U",
+    "ISO-8859-7",
+    "ISO-8859-6",
+    "ISO-8859-8",
+    "TIS-620",
+    "ISO-2022-JP",
+    "GB2312",
+    "BIG5",
+    "EUC-KR"
+};
+
+
+unsigned long *
+init_charsetchecker(char *preferred_charset)
+{
+    int i, count = 0, reset = 0;
+    char *ascii = "US-ASCII";
+    char *utf8 = "UTF-8";
+
+    /*
+     * When user doesn't set a posting character set posting_charmap ends up
+     * set to UTF-8. That also happens if user sets UTF-8 explicitly.
+     * That's where the strange set of if-else's come from.
+     */
+
+    /* user chooses something other than UTF-8 */
+    if(strucmp(ps_global->posting_charmap, utf8)){
+	count++;	/* US-ASCII */
+	if(items_in_charsetlist < 1 || strucmp(charsetlist[0], ascii))
+	  reset++;
+
+	/* if posting_charmap is valid, include it in list */
+	if(ps_global->posting_charmap && ps_global->posting_charmap[0]
+	   && strucmp(ps_global->posting_charmap, ascii)
+	   && strucmp(ps_global->posting_charmap, utf8)
+	   && utf8_charset(ps_global->posting_charmap)){
+	    count++;
+	    if(!reset
+	       && (items_in_charsetlist < count
+	           || strucmp(charsetlist[count-1], ps_global->posting_charmap)))
+	      reset++;
+	}
+
+	if(preferred_charset && preferred_charset[0]
+	   && strucmp(preferred_charset, ascii)
+	   && strucmp(preferred_charset, utf8)
+	   && (count < 2 || strucmp(preferred_charset, ps_global->posting_charmap))){
+	    count++;
+	    if(!reset
+	       && (items_in_charsetlist < count
+	           || strucmp(charsetlist[count-1], preferred_charset)))
+	      reset++;
+	}
+
+	if(items_in_charsetlist != count)
+	  reset++;
+
+	if(reset){
+	    if(charsetlist)
+	      free_list_array(&charsetlist);
+
+	    items_in_charsetlist = count;
+	    charsetlist = (char **) fs_get((count + 1) * sizeof(char *));
+
+	    i = 0;
+	    charsetlist[i++] = cpystr(ascii);
+
+	    if(ps_global->posting_charmap && ps_global->posting_charmap[0]
+	       && strucmp(ps_global->posting_charmap, ascii)
+	       && strucmp(ps_global->posting_charmap, utf8)
+	       && utf8_charset(ps_global->posting_charmap))
+	      charsetlist[i++] = cpystr(ps_global->posting_charmap);
+
+	    if(preferred_charset && preferred_charset[0]
+	       && strucmp(preferred_charset, ascii)
+	       && strucmp(preferred_charset, utf8)
+	       && (i < 2 || strucmp(preferred_charset, ps_global->posting_charmap)))
+	      charsetlist[i++] = cpystr(preferred_charset);
+
+	    charsetlist[i] = NULL;
+	}
+    }
+    /* user chooses nothing, going with the default */
+    else if(ps_global->vars[V_POST_CHAR_SET].main_user_val.p == NULL
+	    && ps_global->vars[V_POST_CHAR_SET].post_user_val.p == NULL
+	    && ps_global->vars[V_POST_CHAR_SET].fixed_val.p == NULL){
+	int add_preferred = 0;
+
+	/* does preferred_charset have to be added to the list?  */
+	if(preferred_charset && preferred_charset[0] && strucmp(preferred_charset, utf8)){
+	    add_preferred = 1;
+	    for(i = 0; add_preferred && i < sizeof(downgrades)/sizeof(downgrades[0]); i++)
+	      if(!strucmp(downgrades[i], preferred_charset))
+		add_preferred = 0;
+	}
+
+	if(add_preferred){
+	    /* existing list is right size already */
+	    if(items_in_charsetlist == sizeof(downgrades)/sizeof(downgrades[0]) + 1){
+		/* just check to see if last list item is the preferred_charset */
+		if(strucmp(preferred_charset, charsetlist[items_in_charsetlist-1])){
+		    /* no, fix it */
+		    reset++;
+		    fs_give((void **) &charsetlist[items_in_charsetlist-1]);
+		    charsetlist[items_in_charsetlist-1] = cpystr(preferred_charset);
+		}
+	    }
+	    else{
+		reset++;
+		if(charsetlist)
+		  free_list_array(&charsetlist);
+
+		count = sizeof(downgrades)/sizeof(downgrades[0]) + 1;
+		items_in_charsetlist = count;
+		charsetlist = (char **) fs_get((count + 1) * sizeof(char *));
+		for(i = 0; i < sizeof(downgrades)/sizeof(downgrades[0]); i++)
+		  charsetlist[i] = cpystr(downgrades[i]);
+
+		charsetlist[i++] = cpystr(preferred_charset);
+		charsetlist[i] = NULL;
+	    }
+	}
+	else{
+	    /* if list is same size as downgrades, consider it good */
+	    if(items_in_charsetlist != sizeof(downgrades)/sizeof(downgrades[0]))
+	      reset++;
+
+	    if(reset){
+		if(charsetlist)
+		  free_list_array(&charsetlist);
+
+		count = sizeof(downgrades)/sizeof(downgrades[0]);
+		items_in_charsetlist = count;
+		charsetlist = (char **) fs_get((count + 1) * sizeof(char *));
+		for(i = 0; i < sizeof(downgrades)/sizeof(downgrades[0]); i++)
+		  charsetlist[i] = cpystr(downgrades[i]);
+
+		charsetlist[i] = NULL;
+	    }
+	}
+    }
+    /* user explicitly chooses UTF-8 */
+    else{
+	/* include possibility of ascii even if they explicitly ask for UTF-8 */
+	count++;	/* US-ASCII */
+	if(items_in_charsetlist < 1 || strucmp(charsetlist[0], ascii))
+	  reset++;
+
+	if(items_in_charsetlist != count)
+	  reset++;
+
+	if(reset){
+	    if(charsetlist)
+	      free_list_array(&charsetlist);
+
+	    /* the list is just ascii and nothing else */
+	    items_in_charsetlist = count;
+	    charsetlist = (char **) fs_get((count + 1) * sizeof(char *));
+
+	    i = 0;
+	    charsetlist[i++] = cpystr(ascii);
+	    charsetlist[i] = NULL;
+	}
+    }
+
+
+    if(reset){
+	if(charsetmap)
+	  fs_give((void **) &charsetmap);
+
+	if(charsetlist)
+	  charsetmap = utf8_csvalidmap(charsetlist);
+    }
+
+    return(charsetmap);
+}
+
+
+/* total reset */
+void
+free_charsetchecker(void)
+{
+    if(charsetlist)
+      free_list_array(&charsetlist);
+
+    items_in_charsetlist = 0;
+
+    if(charsetmap)
+      fs_give((void **) &charsetmap);
+}
+
+
+int
+representable_in_charset(unsigned long validbitmap, char *charset)
+{
+    int i, done = 0, ret = 0;
+    unsigned long j;
+
+    if(!(charset && charset[0]))
+      return ret;
+
+    if(!strucmp(charset, "UTF-8"))
+      return 1;
+
+    for(i = 0; !done && i < items_in_charsetlist; i++){
+	if(!strucmp(charset, charsetlist[i])){
+	    j = 1;
+	    j <<= (i+1);
+	    done++;
+	    if(validbitmap & j)
+	      ret = 1;
+	}
+    }
+
+    return ret;
+}
+
+
+char *
+most_preferred_charset(unsigned long validbitmap)
+{
+    unsigned long bm;
+    unsigned long rm;
+    int index;
+
+    if(!(validbitmap && items_in_charsetlist > 0))
+      return("UTF-8");
+
+    /* careful, find_rightmost_bit modifies the bitmap */
+    bm = validbitmap;
+    rm = find_rightmost_bit(&bm);
+    index = MIN(MAX(rm-1,0), items_in_charsetlist-1);
+
+    return(charsetlist[index]);
 }
 
 
@@ -3636,177 +4047,6 @@ set_parameter(PARAMETER **param, char *paramname, char *new_value)
 	      pm->value = cpystr(new_value);
 	}
     }
-}
-
-
-/*
- * The message text pieces are UTF-8. The question is
- * whether or not the characters in the message can be
- * translated into charset. For example, there are many
- * UTF-8 characters that do not fit into a particular 8-bit
- * charset.
- *
- *  *_translatable functions return: 1 if translatable, 0 if not
- */
-/*
- * returns 1 if header line is translatable into charset from UTF-8
- */
-int
-text_is_translatable(void *data, char *charset)
-{
-    int   ret = 1;
-    char *cs, *text;
-    SIZEDTEXT src;
-    unsigned short *rmap;
-    int iso2022jp;
-    unsigned short *avoid_2022_jp_table = NULL;
-
-    if(!(text = (char *) data) || !text[0] || !charset || !charset[0])
-      return ret;
-
-    iso2022jp = !strucmp(charset, "ISO-2022-JP");
-
-    cs = iso2022jp ? "EUC-JP" : charset;
-
-    src.size = strlen(text);
-    src.data = (unsigned char *) text;
-
-    if(!strucmp(charset, AVOID_2022_JP_FOR_PUNC)){
-	avoid_2022_jp_table = setup_avoid_table();
-	rmap = avoid_2022_jp_table;
-    }
-    else
-      rmap = utf8_rmap(cs);
-
-    if(rmap)
-      ret = utf8_rmapsize(&src, rmap, 0, iso2022jp);
-    else
-      ret = 0;
-
-    if(avoid_2022_jp_table)
-      fs_give((void **) &avoid_2022_jp_table);
-
-    return ret;
-}
-
-
-int
-body_is_translatable(void *data, char *charset)
-{
-    int      ret = 1;
-    gf_io_t  gc;
-    STORE_S *the_text = NULL;
-    LOC_2022_JP ljp;
-    struct mail_bodystruct *body = (struct mail_bodystruct *) data;
-    unsigned short *avoid_2022_jp_table = NULL;
-
-    if(body->type == TYPEMULTIPART)
-      body = &body->nested.part->body;
-
-    if(body->type == TYPETEXT)
-      the_text = (STORE_S *) body->contents.text.data;
-
-    if(the_text){
-	void *table;
-
-	gf_filter_init();
-	gf_set_so_readc(&gc, the_text);
-
-	so_seek(the_text, 0L, 0);
-
-	if(charset && !strucmp(charset, "ISO-2022-JP")){
-	    ljp.report_err = 1;
-	    /*
-	     * We need to tell tranlate_utf8_to_2022_jp that we want to
-	     * report the error to its caller (gf_line_test). That is what
-	     * ljp does.
-	     */
-	    gf_link_filter(gf_line_test, gf_line_test_opt(translate_utf8_to_2022_jp,&ljp));
-	}
-	else if(charset && !strucmp(charset, AVOID_2022_JP_FOR_PUNC)){
-	    avoid_2022_jp_table = setup_avoid_table();
-	    table = avoid_2022_jp_table;
-	    gf_link_filter(gf_convert_utf8_charset, gf_convert_utf8_charset_opt(table,1));
-	}
-	else{
-	    table = utf8_rmap(charset);
-	    if(table)
-	      gf_link_filter(gf_convert_utf8_charset, gf_convert_utf8_charset_opt(table,1));
-	    else
-	      ret = 0;
-	}
-
-	if(ret && gf_pipe(gc, dummy_putc))
-	  ret = 0;
-
-	gf_clear_so_readc(the_text);
-    }
-
-    if(avoid_2022_jp_table)
-      fs_give((void **) &avoid_2022_jp_table);
-
-    return ret;
-}
-
-
-/*
- * This is a hack so that we will avoid labeling text that contains
- * smart quotes or similar punctuation but no other non-ascii text
- * as ISO-2022-JP. Instead, we'd like to call it UTF-8 so that people
- * who filter out Japanese won't filter this.
- *
- * Returns a table like utf8_rmap() returns but one that is only
- * suitable for checking translatability, not actually translating.
- *
- * Caller is responsible for freeing the table.
- */
-unsigned short *
-setup_avoid_table(void)
-{
-    unsigned short *ret = NULL;
-
-    ret = (unsigned short *) fs_get((0xffff + 1) * sizeof(unsigned short));
-
-    /*
-     * Set up the table so that the U2000 punctuation
-     * characters are translatable but the CJK characters in
-     * U3000 - U9000 are considered untranslatable. That way, we'll
-     * catch the case where there are punctuation marks and
-     * no CJK and call that UTF-8 instead of 2022-JP.
-     *
-     * We don't use this to translate so the actual values don't
-     * have to make sense.
-     */
-
-    /*
-     * Set whole table to NOCHAR. Careful with this, it's a little
-     * dicey because memset sets byte-at-a-time and NOCHAR is
-     * two bytes (0xffff) but the two bytes are the same.
-     */
-#define NOCHARBYTE (NOCHAR & 0xff)
-#if NOCHAR - ((NOCHARBYTE << 8) | NOCHARBYTE)
-    {   int i;
-	for(i = 0; i <= 0xffff); i++)
-	  rmap[i] = NOCHAR;
-    }
-#else
-    memset(ret, NOCHARBYTE, (0xffff + 1) * sizeof(unsigned short));
-#endif
-
-    /* replace ascii with an ok value */
-    memset(ret, 'A', 128 * sizeof(unsigned short));
-
-    /* replace U2000 range with an ok value */
-    memset(ret+0x2000, 'A', (0x3000 - 0x2000) * sizeof(unsigned short));
-
-    return ret;
-}
-
-
-int
-dummy_putc(int c)
-{
-    return TRUE;
 }
 
 

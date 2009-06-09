@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: folder.c 709 2007-09-07 22:31:39Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: folder.c 845 2007-12-05 22:34:30Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -243,11 +243,11 @@ get_folder_delimiter(char *folder)
                  FEX_NOENT  if it doesn't exist
 		 FEX_ERROR  on error
 
-  The two existance return values above may be logically OR'd
+  The two existence return values above may be logically OR'd
 
-  Uses mail_list to sniff out the existance of the requested folder.
+  Uses mail_list to sniff out the existence of the requested folder.
   The context string is just here for convenience.  Checking for
-  folder's existance within a given context is probably more efficiently
+  folder's existence within a given context is probably more efficiently
   handled outside this function for now using build_folder_list().
 
     ----*/
@@ -261,7 +261,7 @@ folder_exists(CONTEXT_S *cntxt, char *file)
 /*----------------------------------------------------------------------
        Check to see if folder exists in given context
 
-  Args: cntxt -- context inwhich to interpret "file" arg
+  Args: cntxt -- context in which to interpret "file" arg
         file  -- name of folder to check
 	name  -- name of folder folder with context applied
  
@@ -270,11 +270,11 @@ folder_exists(CONTEXT_S *cntxt, char *file)
                  FEX_NOENT  if it doesn't exist
 		 FEX_ERROR  on error
 
-  The two existance return values above may be logically OR'd
+  The two existence return values above may be logically OR'd
 
-  Uses mail_list to sniff out the existance of the requested folder.
+  Uses mail_list to sniff out the existence of the requested folder.
   The context string is just here for convenience.  Checking for
-  folder's existance within a given context is probably more efficiently
+  folder's existence within a given context is probably more efficiently
   handled outside this function for now using build_folder_list().
 
     ----*/
@@ -287,16 +287,9 @@ folder_name_exists(CONTEXT_S *cntxt, char *file, char **fullpath)
     char	*p, reference[MAILTMPLEN], tmp[MAILTMPLEN], *tfolder = NULL;
 
     /*
-     * No folder means "inbox", and it has to exist, also
-     * look explicitly for inbox...
+     * No folder means "inbox".
      */
-    if(ps_global->VAR_INBOX_PATH &&
-       (!*file
-        || !strucmp(file, ps_global->inbox_name))){
-	file  = ps_global->VAR_INBOX_PATH;
-	cntxt = NULL;
-    }
-    else if(*file == '{' && (p = strchr(file, '}')) && (!*(p+1))){
+    if(*file == '{' && (p = strchr(file, '}')) && (!*(p+1))){
 	size_t l;
 
 	l = strlen(file)+strlen("inbox");
@@ -1450,7 +1443,7 @@ folder_complete_internal(CONTEXT_S *context, char *name, size_t namelen,
 
 	strncpy(pat, fn, namelen-(pat-name));
 	name[namelen-1] = '\0';
-	if(f->isdir){
+	if(f->isdir && !f->isfolder){
 	    name[i = strlen(name)] = context->dir->delim;
 	    name[i+1] = '\0';
 	}
@@ -1987,7 +1980,7 @@ folder_unseen_count_updater(unsigned long flags)
 	     /* or it's been long enough and we've not been in this function too long */
 	     || (((time(0) - f->last_unseen_update) >= ps_global->inc_check_interval)
 		 && ((time(0) - started_checking) < MIN(4,ps_global->inc_check_timeout)))))
-	update_folder_unseen(f, ctxt, flags);
+	update_folder_unseen(f, ctxt, flags, NULL);
     }
 
     for(i = 0; i < first; i++){
@@ -1996,7 +1989,7 @@ folder_unseen_count_updater(unsigned long flags)
          && (flags & UFU_FORCE
 	     || (((time(0) - f->last_unseen_update) >= ps_global->inc_check_interval)
 		 && ((time(0) - started_checking) < MIN(4,ps_global->inc_check_timeout)))))
-	update_folder_unseen(f, ctxt, flags);
+	update_folder_unseen(f, ctxt, flags, NULL);
     }
   }
 }
@@ -2008,7 +2001,8 @@ folder_unseen_count_updater(unsigned long flags)
  * interval has passed or if the FORCE flag is set.
  */
 void
-update_folder_unseen(FOLDER_S *f, CONTEXT_S *ctxt, unsigned long flags)
+update_folder_unseen(FOLDER_S *f, CONTEXT_S *ctxt, unsigned long flags,
+		     MAILSTREAM *this_is_the_stream)
 {
     time_t now;
     int orig_valid;
@@ -2045,11 +2039,20 @@ update_folder_unseen(FOLDER_S *f, CONTEXT_S *ctxt, unsigned long flags)
 	}
     }
     else{
-	stream_is_open = (sp_stream_get(mailbox_name, SP_MATCH | SP_RO_OK)
+	MAILSTREAM *m = NULL;
+
+	stream_is_open = (this_is_the_stream
+			  || sp_stream_get(mailbox_name, SP_MATCH | SP_RO_OK)
+			  || ((m=ps_global->mail_stream) && !sp_dead_stream(m)
+			      && same_stream_and_mailbox(mailbox_name,m))
 	                  || (!IS_REMOTE(mailbox_name)
 			      && already_open_stream(mailbox_name, AOS_NONE))) ? 1 : 0;
 
-	if(!stream_is_open){
+	if(stream_is_open){
+	    if(m && !this_is_the_stream)
+	      this_is_the_stream = m;
+	}
+	else{
 	    /*
 	     * If it's IMAP or local we use a shorter interval.
 	     */
@@ -2087,7 +2090,7 @@ update_folder_unseen(FOLDER_S *f, CONTEXT_S *ctxt, unsigned long flags)
 	f->unseen_valid = 0;
 
 	dprint((9, "update_folder_unseen(%s)", FLDR_NAME(f)));
-	if(get_recent_in_folder(mailbox_name, newp, unsp, totp)){
+	if(get_recent_in_folder(mailbox_name, newp, unsp, totp, this_is_the_stream)){
 	    f->last_unseen_update = time(0);
 	    f->unseen_valid = 1;
 	    if(unsp)
@@ -2099,6 +2102,15 @@ update_folder_unseen(FOLDER_S *f, CONTEXT_S *ctxt, unsigned long flags)
 	    if(totp)
 	      f->total = tot;
 
+	    if(!orig_valid){
+		dprint((9, "update_folder_unseen(%s): original: %s%s%s%s",
+		    FLDR_NAME(f),
+		    F_ON(F_INCOMING_CHECKING_RECENT,ps_global) ? "new=" : "unseen=",
+		    F_ON(F_INCOMING_CHECKING_RECENT,ps_global) ? comatose(f->new) : comatose(f->unseen),
+		    F_ON(F_INCOMING_CHECKING_TOTAL,ps_global) ? " tot=" : "",
+		    F_ON(F_INCOMING_CHECKING_TOTAL,ps_global) ? comatose(f->total) : ""));
+	    }
+
 	    if(orig_valid
 	       && ((F_ON(F_INCOMING_CHECKING_RECENT, ps_global)
 		    && orig_new != f->new)
@@ -2109,7 +2121,16 @@ update_folder_unseen(FOLDER_S *f, CONTEXT_S *ctxt, unsigned long flags)
 	           (F_ON(F_INCOMING_CHECKING_TOTAL, ps_global)
 		    && orig_tot != f->total))){
 
-		ps_global->noticed_change_in_unseen = 1;
+		if(ps_global->in_folder_screen)
+		  ps_global->noticed_change_in_unseen = 1;
+
+		dprint((9, "update_folder_unseen(%s): changed: %s%s%s%s",
+		    FLDR_NAME(f),
+		    F_ON(F_INCOMING_CHECKING_RECENT,ps_global) ? "new=" : "unseen=",
+		    F_ON(F_INCOMING_CHECKING_RECENT,ps_global) ? comatose(f->new) : comatose(f->unseen),
+		    F_ON(F_INCOMING_CHECKING_TOTAL,ps_global) ? " tot=" : "",
+		    F_ON(F_INCOMING_CHECKING_TOTAL,ps_global) ? comatose(f->total) : ""));
+
 		if(flags & UFU_ANNOUNCE
 		   && ((F_ON(F_INCOMING_CHECKING_RECENT, ps_global)
 			&& orig_new < f->new)
@@ -2159,9 +2180,7 @@ update_folder_unseen_by_stream(MAILSTREAM *strm, unsigned long flags)
 	if(f->last_unseen_update == LUU_NOMORECHK)
 	  init_incoming_unseen_data(ps_global, f);
 
-	if(ps_global->in_folder_screen)
-	  update_folder_unseen(f, ctxt, flags | UFU_FORCE);
-
+	update_folder_unseen(f, ctxt, flags, strm);
 	return;
       }
     }
@@ -2179,7 +2198,8 @@ update_folder_unseen_by_stream(MAILSTREAM *strm, unsigned long flags)
  */
 int
 get_recent_in_folder(char *mailbox_name, long unsigned int *new,
-		     long unsigned int *unseen, long unsigned int *total)
+		     long unsigned int *unseen, long unsigned int *total,
+		     MAILSTREAM *this_is_the_stream)
 {
     MAILSTREAM   *strm = NIL;
     unsigned long tot, nw, uns;
@@ -2230,7 +2250,8 @@ get_recent_in_folder(char *mailbox_name, long unsigned int *new,
 
     /* do we already have it selected? */
     if(!gotit
-       && ((strm = sp_stream_get(mailbox_name, SP_MATCH | SP_RO_OK))
+       && ((strm = this_is_the_stream)
+           || (strm = sp_stream_get(mailbox_name, SP_MATCH | SP_RO_OK))
            || (!IS_REMOTE(mailbox_name)
 	       && (strm = already_open_stream(mailbox_name, AOS_NONE))))){
 	gotit++;

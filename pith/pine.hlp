@@ -1,4 +1,4 @@
-# $Id: pine.hlp 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
+# $Id: pine.hlp 847 2007-12-06 18:06:35Z hubert@u.washington.edu $
 #
 #        T H E   A L P I N E    M E S S A G E   S Y S T E M
 #
@@ -139,7 +139,7 @@ with help text for the config screen and the composer that didn't have any
 reasonable place to be called from.
 
 ============= h_revision =================
-$Id: pine.hlp 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
+$Id: pine.hlp 847 2007-12-06 18:06:35Z hubert@u.washington.edu $
 ============= h_news =================
 <HTML>
 <HEAD>
@@ -175,6 +175,60 @@ addresses bugs found in previous releases and has a few additions as well.
 Additions include:
 <P>
 <UL>
+   <LI> For dual-use folders make the name a separate handle from the
+	trailing [delimiter] indicator. Clicking on the name opens the
+	folder and clicking on the delimiter opens the directory.
+   <LI> Remove most &quot;specialness&quot; of INBOX so that it is
+	easier to access folders named INBOX other than the configured
+	INBOX
+   <LI> New token _NEWLINE_ to make it possible to remove the blank line
+	following the <A HREF="h_config_reply_intro"><!--#echo var="VAR_reply-leadin"--></A>
+   <LI> New tokens PREFDATE, PREFTIME, PREFDATETIME are locale-specific
+	versions of dates for use with the
+	the <A HREF="h_config_reply_intro"><!--#echo var="VAR_reply-leadin"--></A> option,
+	signatures, templates,
+	and the <A HREF="h_config_index_format"><!--#echo var="VAR_index-format"--></A> option
+</UL>
+
+<P>
+Bugs that have been addressed in this release include:
+<P>
+<UL>
+   <LI> Protect the thread that manipulates the busy spinner from window
+	resize events, hopefully fixing the resize crashes
+   <LI> Alpine failed to build using Sun Studio
+   <LI> Alpined failed to build with C90 compiler
+   <LI> Setup/Config screen overflowed off right edge of screen
+   <LI> Garbled index screen with Assume Slow Link and non-ascii characters
+   <LI> Improvements to character set labeling for outgoing messages
+   <LI> Do not fetch envelope data for sorting
+   <LI> Do not fetch unnecessary envelope data for select by Match Me
+   <LI> Cancel out of select by Match Me did not work
+   <LI> Make Reply more tolerant of non-compliant line endings when
+	adding the reply prefix
+   <LI> Remove the font color choice from the PC-Alpine Set Window Font
+	dialog box so that it doesn't change a custom Normal font color
+	to black
+   <LI> If sort order is non-arrival, when selecting a postponed message
+	to be resumed sometimes the wrong message was selected
+   <LI> Not really a bug, but changed
+	<A HREF="h_config_dates_to_local"><!--#echo var="FEAT_convert-dates-to-localtime"--></A>
+	so that it only converts dates in the index, not when viewing
+	a message
+   <LI> When a message showed up in the index as &quot;Yesterday&quot;
+	it wasn't changing when we passed midnight
+   <LI> AllParts command was visible in attachment save keymenu when it
+	should not have been there, it should only show up in the export
+	command keymenu when exporting a message which has attachments
+</UL>
+
+<P>
+Version 0.99999
+addressed bugs found in previous releases and had a few additions as well.
+<P>
+Additions included:
+<P>
+<UL>
    <LI> Change feature 
         <A HREF="h_config_thread_sorts_by_arrival"><!--#echo var="FEAT_thread-sorts-by-arrival"--></A>
 	to not preserve the sorting together of top-level threads that have the same subject.
@@ -195,7 +249,7 @@ Additions include:
 </UL>
 
 <P>
-Bugs that have been addressed in this release include:
+Bugs addressed in the 0.99999 release included:
 <P>
 <UL>
    <LI> Alpine would hang when invoking a display filter on freebsd
@@ -1886,7 +1940,6 @@ reasons.  Alpine does not use any of these keys:
  <DT>Ctrl-S</DT> <DD>Used by Unix as &quot;stop output&quot;</DD>
  <DT>Ctrl-Q</DT> <DD>Used by Unix as &quot;resume output&quot;</DD>
  <DT>Ctrl-]</DT> <DD>Often used by Telnet as escape key</DD>
- <DT>Ctrl-&#92;</DT> <DD>Often used by Unix as &quot;Abort&quot;</DD>
 </DL>
 <P>
 Note: Ctrl-S and Ctrl-Q can be subject to 
@@ -4891,7 +4944,7 @@ set of messages and then; (2) applying a command to that set. The first
 part is handled by the select command.  Select allows you to
 select messages based on their status (read, answered, etc.), contents,
 date, size, or keywords.
-You may also select based on one of your Rules,
+You may also select based on one of your Rules or based on threads,
 and there are quick options to select a specific message or range of messages,
 to select the current message, or to select all messages.
 <P>
@@ -5080,6 +5133,10 @@ a message, then that stops the search for a further match.
 This means that you may be confused if you try to use Select by Rule to
 check your Filter rules because the order is important when filtering but
 is not considered here.
+</DD>
+
+<DT>select by tHread</DT>
+<DD> Selects all of the messages in the current thread.
 </DD>
 </DL>
 
@@ -6862,8 +6919,11 @@ The &quot;To Spell&quot;
 (^T) 
 <!--chtml endif-->
 command calls an external spell checking program to look over the
-message you are composing.  By default, Alpine uses the simple Unix
+message you are composing.  By default, Alpine uses a simple Unix
 spell checker.
+For PC-Alpine, you must install the aspell library code that you
+may get from
+<A HREF="http://aspell.net/win32/">http://aspell.net/win32/</A>.
 
 <P>
 Under the default configuration, there are no suggested alternative
@@ -6874,7 +6934,7 @@ prompted to confirm the correction of each occurrence of it.  Lines
 beginning with &quot;&gt; &quot; (included messages) will not be checked.
 
 <P>
-If your system has a spell checking utility that does offer alternatives
+If your Unix system has a spell checking utility that does offer alternatives
 or otherwise improves on the default, the Setup/Config Menu's
 &quot;<A HREF="h_config_speller"><!--#echo var="VAR_speller"--></A>&quot; option will tell
 Alpine to use it instead.
@@ -18437,6 +18497,9 @@ The feature
 which adjusts for the timezone the message was sent from,
 may have an affect on the value of this token as well as the values of
 all of the other DATE or TIME tokens.
+Some of the DATE and TIME tokens are displayed in a locale-specific
+way unless the option
+<A HREF="h_config_disable_index_locale_dates"><!--#echo var="FEAT_disable-index-locale-dates"--></A> is set.
 </DD>
 
 <DT>SMARTDATE</DT>
@@ -18594,6 +18657,31 @@ to SMARTDATETIMES1.</DD>
 This token represents the date on which the message was sent, according
 to the &quot;Date&quot; header field.
 It looks like &quot;Sat, 23 Oct 1998&quot;.
+This token is never converted in any locale-specific way.
+</DD>
+
+<DT>PREFDATE</DT>
+<DD>
+This token represents the date on which the message was sent, according
+to the &quot;Date&quot; header field.
+It is your operating system's idea of the preferred date representation for the current locale.
+Internally it uses the %x version of the date from the strftime routine.
+</DD>
+
+<DT>PREFTIME</DT>
+<DD>
+This token represents the time at which the message was sent, according
+to the &quot;Date&quot; header field.
+It is the preferred time representation for the current locale.
+Internally it uses the %X version of the time from the strftime routine.
+</DD>
+
+<DT>PREFDATETIME</DT>
+<DD>
+This token represents the date and time at which the message was sent, according
+to the &quot;Date&quot; header field.
+It is the preferred date and time representation for the current locale.
+Internally it uses the %c version of the time from the strftime routine.
 </DD>
 
 <DT>DAY</DT>
@@ -19288,6 +19376,27 @@ This token represents the current date.
 It has the format YY-MM-DD. For example, &quot;98-10-23&quot;.
 </DD>
 
+<DT>CURPREFDATE</DT>
+<DD>
+This token represents the current date.
+It is your operating system's idea of the preferred date representation for the current locale.
+Internally it uses the %x version of the date from the strftime routine.
+</DD>
+
+<DT>CURPREFTIME</DT>
+<DD>
+This token represents the current time.
+It is the preferred time representation for the current locale.
+Internally it uses the %X version of the time from the strftime routine.
+</DD>
+
+<DT>CURPREFDATETIME</DT>
+<DD>
+This token represents the current date and time.
+It is the preferred date and time representation for the current locale.
+Internally it uses the %c version of the time from the strftime routine.
+</DD>
+
 <DT>CURTIME24</DT>
 <DD>
 This token represents the current time.
@@ -19433,6 +19542,21 @@ This token represents the nickname of the
 role currently being used.  If no role is being used,
 then no text will be printed for this token.
 This token does not work with Filter Rule folder names.
+</DD>
+</DL>
+
+<P>
+<H1><EM>Token Available Only for <!--#echo var="VAR_reply-leadin"--></EM></H1>
+See the help for the
+<A HREF="h_config_reply_intro">&quot;<!--#echo var="VAR_reply-leadin"-->&quot;</A> option
+to see why you might want to use this.
+Since the <!--#echo var="VAR_reply-leadin"--> contains free text this token
+must be surrounded by underscores when used.
+
+<DL>
+<DT>NEWLINE</DT>
+<DD>
+This is an end of line marker.
 </DD>
 </DL>
 
@@ -22380,17 +22504,19 @@ default behavior is to label composed text as specifically as
 possible.  That is, if the composed text has no non-ASCII characters,
 it is labeled as &quot;US-ASCII.&quot; Similarly, if it is composed of
 only ISO-8859-15 characters, it is labeled as such.  Alpine will
-automatically detect a number of character sets including ISO-8859-15,
-ISO-2022-JP, and KOI8-R.  If the message contains a mix of character sets,
+attempt to automatically detect a number of character sets including ISO-8859-15,
+ISO-8859-1, ISO-8859-2, VISCII, KOI8-R, KOI8-U, ISO-8859-7, ISO-8859-6,
+ISO-8859-8, TIS-620, ISO-2022-JP, GB2312, BIG5, and EUC-KR.
+If the message contains a mix of character sets,
 it is labeled as &quot;UTF-8.&quot;
 
 <P>
 
-This setting is provided to allow you to specify a character set that
-Alpine does not automatically detect. For example, if you typically
-send messages in Greek, setting this option to &quot;ISO-8859-7&quot;
-will result in such messages being labeled with the more specific
-character set.  Lastly, by setting this option explicitly to
+This setting is provided to allow you to force a particular character set that
+Alpine does not automatically detect. For example, if a message is representable
+in more than one character set then Alpine may choose a different default
+than you want.
+Lastly, by setting this option explicitly to
 &quot;UTF-8&quot; all non-ASCII messages you send will be labeled as
 &quot;UTF-8&quot; instead of something more specific.
 
@@ -22538,7 +22664,9 @@ what is wanted. In that default case, Alpine will attempt
 to label the message with the most specific character set from the
 rather arbitrary set
 <P>
-US-ASCII, ISO-8859-15, ISO-8859-1, ISO-2022-JP, KOI8-R, and UTF-8.
+US-ASCII, ISO-8859-15,
+ISO-8859-1, ISO-8859-2, VISCII, KOI8-R, KOI8-U, ISO-8859-7, ISO-8859-6,
+ISO-8859-8, TIS-620, ISO-2022-JP, GB2312, BIG5, EUC-KR, and UTF-8.
 <P>
 
 For example, if the message is made up of only US-ASCII characters, it
@@ -22672,6 +22800,12 @@ use that.
 <BODY>
 <H1>OPTION: <!--#echo var="VAR_speller"--></H1>
 
+UNIX Alpine only.
+<P>
+For PC-Alpine, you must install the aspell library code that you
+may get from
+<A HREF="http://aspell.net/win32/">http://aspell.net/win32/</A>.
+<P>
 This option affects the behavior of the ^T (spell check) command in the
 Composer.  It specifies the program invoked by ^T in the Composer.  By
 default, Alpine uses the system's &quot;spell&quot; command.  Alpine will use the
@@ -23380,12 +23514,59 @@ For example, the default is equivalent to:
 
 Since this variable includes regular text mixed with special tokens
 the tokens have to be surrounded by underscore characters.
-For example, to use the token &quot;<SAMP>DATE</SAMP>&quot;
-you would need to use &quot;<SAMP>_DATE_</SAMP>&quot;,
-not &quot;<SAMP>DATE</SAMP>&quot;.
+For example, to use the token &quot;<SAMP>PREFDATE</SAMP>&quot;
+you would need to use &quot;<SAMP>_PREFDATE_</SAMP>&quot;,
+not &quot;<SAMP>PREFDATE</SAMP>&quot;.
 <P>
 The list of available tokens is
 <A HREF="h_index_tokens">here</A>.
+
+<P>
+By default, the text is all on a single line and is followed by a blank line.
+If your &quot;<!--#echo var="VAR_reply-leadin"-->&quot; turns out to be longer
+than 80 characters when replying to a particular message, it is shortened.
+However, if you use the token
+<P>
+<CENTER><SAMP>_NEWLINE_</SAMP></CENTER>
+<P>
+
+anywhere in the value, no end of line or blank line is appended, and no
+shortening is done.
+The _NEWLINE_ token may be used to get rid of the blank line following
+the text, to add more blank lines, or to form a multi-line
+&quot;<!--#echo var="VAR_reply-leadin"-->&quot;.
+To clarify how _NEWLINE_ works recall that the default value is:
+<P>
+<CENTER><SAMP>On _DAYDATE_, _FROM_ wrote:</SAMP></CENTER>
+<P>
+
+That is equivalent to
+<P>
+<CENTER><SAMP>On _DAYDATE_, _FROM_ wrote:_NEWLINE__NEWLINE_</SAMP></CENTER>
+<P>
+
+In the former case, two newlines are added automatically because
+no _NEWLINE_ token appears in the value of the option (for backwards
+compatibility). In the latter case, the newlines are explicit.
+If you want to remove the blank line that follows the
+&quot;<!--#echo var="VAR_reply-leadin"-->&quot; text use a single
+_NEWLINE_ token like
+<P>
+<CENTER><SAMP>On _DAYDATE_, _FROM_ wrote:_NEWLINE_</SAMP></CENTER>
+<P>
+
+Because of the backwards compatibility problem, it is not possible to
+remove all of the ends of lines, because then there will be no _NEWLINE_ tokens
+and that will cause the automatic adding of two newlines!
+If you want, you may embed newlines in the middle of the text, as well,
+producing a multi-line &quot;<!--#echo var="VAR_reply-leadin"-->&quot;.
+
+<P>
+By default, no attempt is made to localize the date.
+If you prefer a localized form you may find that one of the tokens
+_PREFDATE_ or _PREFDATETIME_ is a satisfactory substitute.
+If you want more control one of the many other date tokens, such as _DATEISO_,
+might be better.
 
 <P>
 For the adventurous, there is a way to conditionally include text based
@@ -23394,10 +23575,6 @@ For example, you could include some text based on whether or not
 the _NEWS_ token would result in any newsgroups if it was used.
 It's explained in detail
 <A HREF="h_reply_token_conditionals">here</A>.
-
-<P>
-If your &quot;<!--#echo var="VAR_reply-leadin"-->&quot; turns out to be longer
-than 80 characters when replying to a particular message, it is shortened.
 
 <P>
 In the very unlikely event that you want to include a literal token
@@ -25658,7 +25835,7 @@ no more replies directly to the parent of the current message.
 It can be used to &quot;round-off&quot; the bottom of the vertical line
 by setting it to a character such as a backslash (&#92;) or
 a backquote (&#96;).
-By default, the value of this option is the vertical bar character (|).
+The default value of this option is the backslash character (&#92;).
 This option may not be set to the Empty Value.
 In that case, the default will be used instead.
 
@@ -29662,12 +29839,18 @@ It will be assumed that you do want to return to the INBOX.
 <BODY>
 <H1>FEATURE: <!--#echo var="FEAT_convert-dates-to-localtime"--></H1>
 
-Normally, the date that you see in the Date header of a message you
-are viewing or in the MESSAGE INDEX is displayed as is.
-If this feature is set those dates will be converted to your local timezone
-to be displayed.
+Normally, the message dates that you see in the
+MESSAGE INDEX are displayed in the timezone they were sent from.
+For example, if a message was sent to you from a few timezones to the east
+it might appear that it was sent from the future;
+or if it was sent from somewhere to the west it might appear
+as if it is from yesterday even though it was sent only a few minutes ago.
+If this feature is set an attempt will be made to convert the dates
+to your local timezone to be displayed.
+<P>
 Note that this does not affect the results of Select by Date or of
 anything else other than these displayed dates.
+When viewing the message the Date header will still be shown unconverted.
 <P>
 <UL>   
 <LI><A HREF="h_finding_help">Finding more information and requesting help</A>
@@ -30232,6 +30415,8 @@ but that is not implemented.
 <BODY>
 <H1>FEATURE: <!--#echo var="FEAT_assume-slow-link"--></H1>
 
+UNIX Alpine only.
+<P>
 This feature affects Alpine's display routines.  If set, the normal
 inverse-video cursor (used to highlight the current item in a list) will be
 replaced by an &quot;arrow&quot; cursor and other
@@ -33580,6 +33765,9 @@ run beyond the browser's right edge, requiring horizontal scrolling.
 ====== h_config_role_undo =====
 Yes, remember changes and exit back to list of roles; No, discard changes
 made in this screen; ^C, cancel exit and stay in this config screen.
+====== h_exit_editor =====
+S, save changes and exit from the editor; D, do not save changes but
+do exit from the editor; or ^C, cancel exit and stay in the editor.
 ====== h_config_undo =====
 Yes, save changes and exit; No, exit without saving any changes made since
 entering this CONFIGURATION screen; ^C, cancel exit and stay in config screen.

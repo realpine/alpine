@@ -1,4 +1,4 @@
-# $Id: index.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
+# $Id: index.tcl 849 2007-12-06 23:12:33Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -1408,7 +1408,7 @@ if {![info exists nopage]} {
 
 		cgi_table_data align=center valign=middle nowrap class=aggop width=30% {
 		  cgi_puts "<fieldset>"
-		  cgi_puts "<legend style=color:white>Search and Mark</legend>"
+		  cgi_puts "<legend style=\"color: white\">Search and Mark</legend>"
 		  cgi_submit_button "select=${selectverb}" class=aggop "style=\"vertical-align: middle; margin-right: 4\""
 
 		  if {$zoomed} {
@@ -1421,7 +1421,7 @@ if {![info exists nopage]} {
 
 		cgi_table_data align=center valign=middle nowrap class=aggop width=30% {
 		  cgi_puts "<fieldset>"
-		  cgi_puts "<legend style=color:white>Message Status</legend>"
+		  cgi_puts "<legend style=\"color: white\">Message Status</legend>"
 		  cgi_submit_button setflag=Set class=aggop "style=\"vertical-align:middle\""
 		  cgi_put "[cgi_nbspace]status to "
 		  cgi_select flags class=aggop "style=\"vertical-align:middle\"" {
@@ -1440,7 +1440,7 @@ if {![info exists nopage]} {
 
 		cgi_table_data align=center valign=middle class=aggop width=40% {
 		  cgi_puts "<fieldset>"
-		  cgi_puts "<legend style=color:white>Save Messages</legend>"
+		  cgi_puts "<legend style=\"color: white\">Save Messages</legend>"
 		  # * * * * Save * * * *
 
 		  cgi_submit_button "save=Save" class=aggop "style=\"vertical-align:middle\""
@@ -1574,9 +1574,9 @@ if {![info exists nopage]} {
 		    cgi_table width=\"100%\" cellpadding=0 cellspacing=0 border=0 {
 		      cgi_table_row {
 			cgi_table_data align=left valign=bottom {
-			  cgi_image_button hdroff=[WPimg barclose] border=0 alt=\"Hide List Headers\"
+			  cgi_image_button hdroff=[WPimg barclose] border=0 "alt=\"Hide List Headers\""
 			}
-			cgi_table_data align=center valign=middle style=\"padding-right: 14px\" {
+			cgi_table_data align=center valign=middle "style=\"padding-right: 14px\"" {
 			  set marked 1
 			  foreach v $miv {
 			    set u [lindex $v 1]
@@ -1791,7 +1791,7 @@ if {![info exists nopage]} {
 
 			set text [cgi_buffer {
 			  cgi_division "style=\"height: $indexheight; overflow: hidden;\"" {
-			    cgi_put "$leading$text"
+			    cgi_put "${leading}${text}"
 			  }
 			}]
 		      }
@@ -1844,6 +1844,7 @@ if {![info exists nopage]} {
 			    cgi_put [index_part_color $t [lindex $part 1]]
 			  }
 			}]
+
 			set onclick "onclick=\"fc('cb$u')\""
 		      }
 		      default {
@@ -1856,7 +1857,7 @@ if {![info exists nopage]} {
 		      set text doh
 		    }
 
-		    cgi_td nowrap $align class="$class" $onclick "$text"
+		    cgi_td $align class="$class" $onclick "$text"
 		  }
 
 		  if {[info exists use_plus_minus_to_grow_shrink]} {

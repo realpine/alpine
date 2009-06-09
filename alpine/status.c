@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: status.c 714 2007-09-17 20:54:01Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: status.c 834 2007-11-28 17:57:15Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -962,10 +962,6 @@ status_message_write(char *message, int from_alarm_handler)
 	    }
 	    else if(invert)
 	      EndInverse();
-
-	    /* move cursor to a consistent position */
-	    MoveCursor(row, 0);
-	    fflush(stdout);
 	}
 	else{
 	    if(pico_usingcolor())
@@ -1006,13 +1002,19 @@ status_message_write(char *message, int from_alarm_handler)
 	    else if(invert)
 	      EndInverse();
 
-	    MoveCursor(row, 0);
-	    fflush(stdout);
 	    strncpy(prevstatusbuf, newstatusbuf, sizeof(prevstatusbuf));
 	    prevstatusbuf[sizeof(prevstatusbuf)-1] = '\0';
 	    prevstartcol = col;
 	    prevendcol = col + utf8_width(prevstatusbuf) - 1;
 	}
+
+	/* move cursor to a consistent position */
+	if(F_ON(F_SHOW_CURSOR, ps_global))
+	  MoveCursor(row, MIN(MAX(0,col+1),ps_global->ttyo->screen_cols-1));
+	else
+	  MoveCursor(row, 0);
+
+	fflush(stdout);
 
 	if(prevbuf)
 	  fs_give((void **) &prevbuf);
@@ -1036,7 +1038,7 @@ status_message_write(char *message, int from_alarm_handler)
 int 
 output_message(SMQ_T *mq_entry, int ding)
 {
-    int rv = 0;
+    int col = 0;
 
     dprint((9, "output_message(%s)\n",
 	   (mq_entry && mq_entry->text) ? mq_entry->text : "?"));
@@ -1047,9 +1049,15 @@ output_message(SMQ_T *mq_entry, int ding)
     }
 
     if(!(mq_entry->flags & SM_MODAL)){
-	rv = status_message_write(mq_entry->text, 0);
+	col = status_message_write(mq_entry->text, 0);
     	if(ps_global->status_msg_delay > 0){
-	    MoveCursor(ps_global->ttyo->screen_rows-FOOTER_ROWS(ps_global), 0);
+	    if(F_ON(F_SHOW_CURSOR, ps_global))
+	      /* col+1 because col is "[" character */
+	      MoveCursor(ps_global->ttyo->screen_rows-FOOTER_ROWS(ps_global),
+			 MIN(MAX(0,col+1),ps_global->ttyo->screen_cols-1));
+	    else
+	      MoveCursor(ps_global->ttyo->screen_rows-FOOTER_ROWS(ps_global), 0);
+
 	    fflush(stdout);
 	    sleep(ps_global->status_msg_delay);
 	}
@@ -1057,7 +1065,7 @@ output_message(SMQ_T *mq_entry, int ding)
 	mq_entry->shown = 1;
     }
 
-    return(rv);
+    return(col);
 }
 
 
@@ -1241,7 +1249,11 @@ delay_cmd_cue(int on)
 	    free_color_pair(&lastc);
 	}
 
-	MoveCursor(ps_global->ttyo->screen_rows - FOOTER_ROWS(ps_global), 0);
+	if(F_ON(F_SHOW_CURSOR, ps_global))
+	  MoveCursor(ps_global->ttyo->screen_rows-FOOTER_ROWS(ps_global),
+		     MIN(MAX(0,(prevstartcol + on ? 2 : 1)),ps_global->ttyo->screen_cols-1));
+	else
+	  MoveCursor(ps_global->ttyo->screen_rows-FOOTER_ROWS(ps_global), 0);
     }
 
     fflush(stdout);

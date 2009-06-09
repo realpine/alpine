@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: alpined.c 801 2007-11-08 20:39:45Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: alpined.c 850 2007-12-06 23:58:57Z mikes@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -566,7 +566,7 @@ main(int argc, char *argv[])
 			tv.tv_sec = (peAbandonTimeout) ? peAbandonTimeout : peInputTimeout;
 			tv.tv_usec = 0;
 			if((n = select(s+1, &rfd, 0, 0, &tv)) > 0){
-			    socklen_t ll;
+			    socklen_t ll = l;
 
 			    peAbandonTimeout = 0;
 
@@ -1154,12 +1154,12 @@ PEInfoCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 		else if(!strcmp(s1, "alpinestate")){
                     char *wps, *p, *q;
 
-                    if(wps = ps_global->VAR_WP_STATE){
+                    if((wps = ps_global->VAR_WP_STATE) != NULL){
                         wps = p = q = cpystr(wps);
                         do
                           if(*q == '\\' && *(q+1) == '$')
                             q++;
-                        while(*p++ = *q++);
+                        while((*p++ = *q++) != '\0');
                     }
 
                     Tcl_SetResult(interp, wps ? wps : "", TCL_VOLATILE);
@@ -1858,7 +1858,7 @@ PEInfoCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
                                 if(*p == '$')
                                   *q++ = '\\';
                             }
-                            while(*q++ = *p++);
+			    while((*q++ = *p++) != '\0');
                         }
 
                         set_variable(V_WP_STATE, twps ? twps : wps, 0, 1, Main);
@@ -3888,9 +3888,25 @@ PESessionCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 		return(TCL_ERROR);
 	    }
 	    else{
-		pe_user = cpystr(s);
-		if(setenv("WPUSER", pe_user, 1)){
-		    Tcl_SetResult(interp, "Insufficient Environment Space", TCL_STATIC);
+		int   rv = 1;
+		char *envstr = NULL;
+
+#if	defined(HAVE_SETENV)
+		pe_user = envstr = cpystr(s);
+		rv = setenv("WPUSER", pe_user, 1);
+#elif	defined(HAVE_PUTENV)
+		int   l = strlen(s) + 8;
+		envstr = (char *) fs_get(l * sizeof(char));
+		snprintf(envstr, l, "WPUSER=%s", s);
+		pe_user = envstr + 7;
+		rv = putenv(envstr);
+#endif
+		if(rv){
+		    if(envstr)
+		      fs_give((void **) &envstr);
+		    Tcl_SetResult(interp, (errno == ENOMEM)
+					    ? "Insufficient Environment Space"
+					    : "Cannot set WPUSER in environment", TCL_STATIC);
 		    return(TCL_ERROR);
 		}
 	    }
@@ -9821,7 +9837,7 @@ PEPostponeCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONS
 		if(!strcmp(s1, "any")){
 		    MAILSTREAM *stream;
 
-		    if(postponed_stream(&stream) && stream){
+		    if(postponed_stream(&stream, ps_global->VAR_POSTPONED_FOLDER, "Postponed", 0) && stream){
 			Tcl_SetResult(interp, "1", TCL_STATIC);
 
 			if(stream != ps_global->mail_stream)
@@ -9838,7 +9854,7 @@ PEPostponeCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONS
 		    Tcl_Obj    *objEnv = NULL, *objEnvList;
 		    long	n;
 
-		    if(postponed_stream(&stream) && stream){
+		    if(postponed_stream(&stream, ps_global->VAR_POSTPONED_FOLDER, "Postponed", 0) && stream){
 			if(!stream->nmsgs){
 			    (void) redraft_cleanup(&stream, FALSE, REDRAFT_PPND);
 			    Tcl_SetResult(interp, "", TCL_STATIC);
@@ -9895,7 +9911,7 @@ PEPostponeCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONS
 			char	      *fcc = NULL,
 				      *lcc = NULL;
 
-			if(postponed_stream(&stream) && stream){
+			if(postponed_stream(&stream, ps_global->VAR_POSTPONED_FOLDER, "Postponed", 0) && stream){
 			    if((so = so_get(CharStar, NULL, EDIT_ACCESS)) != NULL){
 				if(((n = mail_msgno(stream, uid)) > 0L
 				   && redraft_work(&stream, n, &env, &b, &fcc, &lcc, &reply,
@@ -11853,12 +11869,15 @@ peRuleSet(Tcl_Interp *interp, Tcl_Obj **objv)
 		  ;
 
 		for (n = 0; n < nHdrList; n++){
+		    char *hdrfld;
+		    char *hdrval;
+
 		    Tcl_ListObjGetElements(interp, objHdrList[n], &nHdrPair, &objHdrPair);
 		    if(nHdrPair != 2)
 		      continue;
 
-		    char *hdrfld = Tcl_GetStringFromObj(objHdrPair[0], NULL);
-		    char *hdrval  = Tcl_GetStringFromObj(objHdrPair[1], NULL);
+		    hdrfld = Tcl_GetStringFromObj(objHdrPair[0], NULL);
+		    hdrval = Tcl_GetStringFromObj(objHdrPair[1], NULL);
 
 		    if(hdrfld){
 			*ahp = (ARBHDR_S *) fs_get(sizeof(ARBHDR_S));

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pattern.c 786 2007-11-02 23:23:04Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pattern.c 842 2007-12-04 00:13:55Z hubert@u.washington.edu $";
 #endif
 /*
  * ========================================================================
@@ -4682,7 +4682,7 @@ convert_statebits_to_vals(long int bits, int *dval, int *aval, int *ival, int *n
  *           -1 if couldn't perform search because of no_fetch restriction
  */
 int
-match_pattern(PATGRP_S *patgrp, MAILSTREAM *stream, struct search_set *searchset,
+match_pattern(PATGRP_S *patgrp, MAILSTREAM *stream, SEARCHSET *searchset,
 	      char *section, long int (*get_score)(MAILSTREAM *, long int),
 	      long int flags)
 {
@@ -4944,12 +4944,13 @@ match_pattern(PATGRP_S *patgrp, MAILSTREAM *stream, struct search_set *searchset
  * searched bit where appropriate.
  */
 void
-find_8bitsubj_in_messages(MAILSTREAM *stream, struct search_set *searchset,
+find_8bitsubj_in_messages(MAILSTREAM *stream, SEARCHSET *searchset,
 			  int stat_8bitsubj, int saveseqbits)
 {
     char         *savebits = NULL;
     SEARCHSET    *s, *ss = NULL;
     MESSAGECACHE *mc;
+    long          count = 0L;
     unsigned long msgno;
 
     /*
@@ -4979,32 +4980,40 @@ find_8bitsubj_in_messages(MAILSTREAM *stream, struct search_set *searchset,
     for(s = searchset; s; s = s->next)
       for(msgno = s->first; msgno <= s->last; msgno++)
 	if(msgno > 0L && msgno <= stream->nmsgs
-	   && (mc = mail_elt(stream, msgno)) && mc->searched)
-	  mc->sequence = 1;
+	   && (mc = mail_elt(stream, msgno)) && mc->searched){
+	    mc->sequence = 1;
+	    count++;
+	}
 
     ss = build_searchset(stream);
+
+    if(count){
+	SEARCHSET **sset;
+
+	mail_parameters(NULL, SET_FETCHLOOKAHEADLIMIT, (void *) count);
+
+	/*
+	 * This causes the lookahead to fetch precisely
+	 * the messages we want (in the searchset) instead
+	 * of just fetching the next 20 sequential
+	 * messages. If the searching so far has caused
+	 * a sparse searchset in a large mailbox, the
+	 * difference can be substantial.
+	 * This resets automatically after the first fetch.
+	 */
+	sset = (SEARCHSET **) mail_parameters(stream,
+					      GET_FETCHLOOKAHEAD,
+					      (void *) stream);
+	if(sset)
+	  *sset = ss;
+    }
 
     for(s = ss; s; s = s->next){
 	for(msgno = s->first; msgno <= s->last; msgno++){
 	    ENVELOPE   *e;
-	    SEARCHSET **sset;
 
 	    if(!stream || msgno <= 0L || msgno > stream->nmsgs)
 	      continue;
-
-	    /*
-	     * This causes the lookahead to fetch precisely
-	     * the messages we want (in the searchset) instead
-	     * of just fetching the next 20 sequential
-	     * messages. If the searching so far has caused
-	     * a sparse searchset in a large mailbox, the
-	     * difference can be substantial.
-	     */
-	    sset = (SEARCHSET **) mail_parameters(stream,
-						  GET_FETCHLOOKAHEAD,
-						  (void *) stream);
-	    if(sset)
-	      *sset = s;
 
 	    e = pine_mail_fetchenvelope(stream, msgno);
 	    if(stat_8bitsubj == PAT_STAT_YES){
@@ -5059,11 +5068,12 @@ find_8bitsubj_in_messages(MAILSTREAM *stream, struct search_set *searchset,
  * searched bit where appropriate.
  */
 void
-find_charsets_in_messages(MAILSTREAM *stream, struct search_set *searchset,
+find_charsets_in_messages(MAILSTREAM *stream, SEARCHSET *searchset,
 			  PATGRP_S *patgrp, int saveseqbits)
 {
     char         *savebits = NULL;
     unsigned long msgno;
+    long          count = 0L;
     MESSAGECACHE *mc;
     SEARCHSET    *s, *ss;
 
@@ -5161,31 +5171,39 @@ find_charsets_in_messages(MAILSTREAM *stream, struct search_set *searchset,
     for(s = searchset; s; s = s->next)
       for(msgno = s->first; msgno <= s->last; msgno++)
 	if(msgno > 0L && msgno <= stream->nmsgs
-	   && (mc = mail_elt(stream, msgno)) && mc->searched)
-	  mc->sequence = 1;
+	   && (mc = mail_elt(stream, msgno)) && mc->searched){
+	    mc->sequence = 1;
+	    count++;
+        }
 
     ss = build_searchset(stream);
 
+    if(count){
+	SEARCHSET **sset;
+
+	mail_parameters(NULL, SET_FETCHLOOKAHEADLIMIT, (void *) count);
+
+	/*
+	 * This causes the lookahead to fetch precisely
+	 * the messages we want (in the searchset) instead
+	 * of just fetching the next 20 sequential
+	 * messages. If the searching so far has caused
+	 * a sparse searchset in a large mailbox, the
+	 * difference can be substantial.
+	 * This resets automatically after the first fetch.
+	 */
+	sset = (SEARCHSET **) mail_parameters(stream,
+					      GET_FETCHLOOKAHEAD,
+					      (void *) stream);
+	if(sset)
+	  *sset = ss;
+    }
+
     for(s = ss; s; s = s->next){
 	for(msgno = s->first; msgno <= s->last; msgno++){
-	    SEARCHSET **sset;
 
 	    if(msgno <= 0L || msgno > stream->nmsgs)
 	      continue;
-
-	    /*
-	     * This causes the lookahead to fetch precisely
-	     * the messages we want (in the searchset) instead
-	     * of just fetching the next 20 sequential
-	     * messages. If the searching so far has caused
-	     * a sparse searchset in a large mailbox, the
-	     * difference can be substantial.
-	     */
-	    sset = (SEARCHSET **) mail_parameters(stream,
-						  GET_FETCHLOOKAHEAD,
-						  (void *) stream);
-	    if(sset)
-	      *sset = s;
 
 	    if(patgrp->charsets_list
 	       && charsets_present_in_msg(stream,msgno,patgrp->charsets_list)){
@@ -5491,7 +5509,7 @@ match_pattern_folder_specific(PATTERN_S *folders, MAILSTREAM *stream, int flags)
  * generate a search program corresponding to the provided patgrp
  */
 SEARCHPGM *
-match_pattern_srchpgm(PATGRP_S *patgrp, MAILSTREAM *stream, struct search_set *searchset)
+match_pattern_srchpgm(PATGRP_S *patgrp, MAILSTREAM *stream, SEARCHSET *searchset)
 {
     SEARCHPGM	 *pgm, *tmppgm;
     SEARCHOR     *or;

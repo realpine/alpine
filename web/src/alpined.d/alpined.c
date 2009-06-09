@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: alpined.c 1135 2008-08-12 20:47:04Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: alpined.c 1153 2008-08-21 00:43:42Z mikes@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -80,6 +80,7 @@ static char rcsid[] = "$Id: alpined.c 1135 2008-08-12 20:47:04Z mikes@u.washingt
 #include "../../../pith/mailcap.h"
 #include "../../../pith/sequence.h"
 #include "../../../pith/smime.h"
+#include "../../../pith/url.h"
 #include "../../../pith/charconv/utf8.h"
 
 #include "alpined.h"
@@ -448,6 +449,9 @@ long	     peAppendMsg(MAILSTREAM *, void *, char **, char **, STRING **);
 int	     remote_pinerc_failure(void);
 char	    *peWebAlpinePrefix(void);
 int	     peMessageNeedPassphrase(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+RSS_FEED_S  *peRssCache(RSS_FEED_S **);
+RSS_FEED_S  *peRssFetch(Tcl_Interp *, char *);
+void	     peRssComponentFree(char **,char **,char **,char **,char **,char **);
 
 
 /* Prototypes for Tcl-exported methods */
@@ -479,6 +483,8 @@ int	PEClistCmd(ClientData clientData, Tcl_Interp *interp,
 		   int objc, Tcl_Obj *CONST objv[]);
 int	PELdapCmd(ClientData clientData, Tcl_Interp *interp,
 		  int objc, Tcl_Obj *CONST objv[]);
+int	PERssCmd(ClientData clientData, Tcl_Interp *interp,
+		 int objc, Tcl_Obj *CONST objv[]);
 
 /* Append package */
 typedef struct append_pkg {
@@ -849,6 +855,9 @@ PEInit(Tcl_Interp *interp, char *sname)
 			(ClientData) NULL, (Tcl_CmdDeleteProc *) NULL);
 
     Tcl_CreateObjCommand(interp, "PELdap", PELdapCmd,
+			(ClientData) NULL, (Tcl_CmdDeleteProc *) NULL);
+
+    Tcl_CreateObjCommand(interp, "PERss", PERssCmd,
 			(ClientData) NULL, (Tcl_CmdDeleteProc *) NULL);
 
     Tcl_CreateExitHandler(PEExitCleanup, sname);
@@ -3356,6 +3365,54 @@ PEConfigCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 		  Tcl_SetResult(interp, int2string(ps_global->ttyo->screen_cols), TCL_VOLATILE);
 
 		return(TCL_OK);
+	    }
+	    else if(!strcmp(s1, "reset")){
+		char *p;
+
+		if((p = Tcl_GetStringFromObj(objv[2], NULL)) != NULL){
+		    if(!strcmp(p,"pinerc")){
+			struct variable *var;
+			PINERC_S	*prc;
+
+			/* new pinerc structure, copy location pointers */
+			prc = new_pinerc_s(ps_global->prc->name);
+			prc->type = ps_global->prc->type;
+			prc->rd = ps_global->prc->rd;
+			prc->outstanding_pinerc_changes = 1;
+
+			/* tie off original pinerc struct and free it */
+			ps_global->prc->rd = NULL;
+			ps_global->prc->outstanding_pinerc_changes = 0;
+			free_pinerc_s(&ps_global->prc);
+
+			/* set global->prc to new struct with no pinerc_lines
+			 * and fool write_pinerc into not writing changed vars
+			 */
+			ps_global->prc = prc;
+
+			/*
+			 * write at least one var into nearly empty pinerc
+			 * and clear user's var settings. clear global cause
+			 * they'll get reset in init_vars
+			 */
+			for(var = ps_global->vars; var->name != NULL; var++){
+			    var->been_written = ((var - ps_global->vars) != V_LAST_VERS_USED);
+			    if(var->is_list){
+				free_list_array(&var->main_user_val.l);
+				free_list_array(&var->global_val.l);
+			    }
+			    else{
+				fs_give((void **)&var->main_user_val.p);
+				fs_give((void **)&var->global_val.p);
+			    }
+			}
+
+			write_pinerc(ps_global, Main, WRP_NOUSER | WRP_PRESERV_WRITTEN);
+
+			init_vars(ps_global, NULL);
+			return(TCL_OK);
+		    }
+		}
 	    }
 	}
 	else if(objc == 4){
@@ -15191,7 +15248,7 @@ PELdapCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 		      if(setit){
 			  was_char = *tmp2;
 			  *tmp2 = '\0';
-			  lset[i][j++] = atoi(tmp);				
+			  lset[i][j++] = atoi(tmp);
 			  *tmp2 = was_char;
 		      }
 		      if(*tmp2) tmp2++;
@@ -15377,7 +15434,7 @@ peLdapQueryResults(Tcl_Interp *interp)
 	    if(org)
 	      ldap_value_free(org);
 	    if(mail)
-	      ldap_value_free(mail);	    
+	      ldap_value_free(mail);
 	}
 	}
 	if(Tcl_ListObjAppendElement(interp, secObj, resObj) != TCL_OK)
@@ -15400,7 +15457,7 @@ peLdapStrlist(Tcl_Interp *interp, Tcl_Obj *itemObj, char **strl)
         for(i = 0; strl[i] && strl[i][0]; i++){
 	    if(Tcl_ListObjAppendElement(interp, strlObj,
 		       Tcl_NewStringObj(strl[i], -1)) != TCL_OK)
-	        return(TCL_ERROR);		    
+	        return(TCL_ERROR);
 	}
     }
     if(Tcl_ListObjAppendElement(interp, itemObj, strlObj) != TCL_OK)
@@ -15778,4 +15835,224 @@ char *
 peWebAlpinePrefix(void)
 {
     return("Web ");
+}
+
+
+/* * * * * * * * * RSS 2.0 Support Routines  * * * * * * * * * * * */
+
+/*
+ * PERssCmd - RSS TCL interface
+ */
+int
+PERssCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    char *s1;
+    RSS_ITEM_S *item;
+    RSS_FEED_S *feed;
+    static RSS_FEED_S *newsfeed, *weatherfeed;
+
+    dprint((2, "PERssCmd"));
+
+    if(objc == 1){
+	Tcl_WrongNumArgs(interp, 1, objv, "cmd ?args?");
+	return(TCL_ERROR);
+    }
+    s1 = Tcl_GetStringFromObj(objv[1], NULL);
+
+    if(s1){
+	if(!strcmp(s1, "news")){
+	    if(ps_global->VAR_RSS_NEWS){
+		if((feed = peRssCache(&newsfeed)) != NULL
+		   || (feed = newsfeed = peRssFetch(interp, ps_global->VAR_RSS_NEWS)) != NULL){
+		    for(item = feed->items; item; item = item->next){
+			peAppListF(interp, Tcl_GetObjResult(interp), "%s %s", item->title, item->link);
+		    }
+
+		    return(TCL_OK);
+		}
+		else
+		  Tcl_SetResult(interp, "News feed request failed", TCL_STATIC);
+	    }
+	    else
+	      Tcl_SetResult(interp, "Undefined news RSS feed", TCL_STATIC);
+	}
+	else if(!strcmp(s1, "weather")){
+	    if(ps_global->VAR_RSS_WEATHER){
+		if((feed = peRssCache(&weatherfeed)) != NULL
+		   || (feed = weatherfeed = peRssFetch(interp, ps_global->VAR_RSS_WEATHER)) != NULL){
+		    for(item = feed->items; item; item = item->next){
+			peAppListF(interp, Tcl_GetObjResult(interp), "%s %s %s %s",
+				   item->title ? item->title : "",
+				   item->link ? item->link : "",
+				   item->description ? item->description : "",
+				   feed->image ? feed->image : "");
+		    }
+
+		    return(TCL_OK);
+		}
+		else
+		  Tcl_SetResult(interp, "Weather feed request failed", TCL_STATIC);
+	    }
+	    else
+	      Tcl_SetResult(interp, "Undefined weather RSS feed", TCL_STATIC);
+	}
+    }
+
+    return(TCL_ERROR);
+}
+
+RSS_FEED_S *
+peRssCache(RSS_FEED_S **cached_feed)
+{
+    /* dumb caching rules for now */
+    if(*cached_feed){
+	time_t now = time(0);
+
+	/* cache for channel's ttl or one hour */
+	if((now - (*cached_feed)->fetched) < ((((*cached_feed)->ttl) ? (*cached_feed)->ttl : 60) * 60)){
+	    return(*cached_feed);
+	}
+	else{
+	    gf_html2plain_rss_free(cached_feed);
+	}
+    }
+
+    return(NULL);
+}
+
+RSS_FEED_S *
+peRssFetch(Tcl_Interp *interp, char *rssUrl)
+{
+    char	  *scheme = NULL, *loc = NULL, *path = NULL, *parms = NULL, *query = NULL, *frag = NULL;
+    char	  *buffer = NULL, *p, *q;
+    unsigned long  port = 0L, buffer_len = 0L;
+    TCPSTREAM	  *tcp_stream;
+
+    if(rssUrl){
+	/* grok url */
+	rfc1808_tokens(rssUrl, &scheme, &loc, &path, &parms, &query, &frag);
+	if(scheme && loc && path){
+	    if((p = strchr(loc,':')) != NULL){
+		*p++  = '\0';
+		while(*p && isdigit((unsigned char) *p))
+		  port = ((port * 10) + (*p++ - '0'));
+
+		if(*p){
+		    Tcl_SetResult(interp, "Bad RSS port number", TCL_STATIC);
+		    peRssComponentFree(&scheme,&loc,&path,&parms,&query,&frag);
+		    return(NULL);
+		}
+	    }
+
+	    mail_parameters(NULL, SET_OPENTIMEOUT, (void *)(long) 5);
+	    tcp_stream = tcp_open (loc, scheme, port | NET_NOOPENTIMEOUT);
+	    mail_parameters(NULL, SET_OPENTIMEOUT, (void *)(long) 30);
+
+	    if(tcp_stream != NULL){
+		snprintf(tmp_20k_buf, SIZEOF_20KBUF, "GET /%s%s%s%s%s HTTP/1.1\r\nHost: %s\r\n\r\n",
+			 path, parms ? ":" : "", parms ? parms : "",
+			 query ? "?" : "", query ? query : "", loc);
+
+		mail_parameters(NULL, SET_READTIMEOUT, (void *)(long) 5);
+
+		if(tcp_sout(tcp_stream, tmp_20k_buf, strlen(tmp_20k_buf))){
+		    int ok = 0;
+
+		    while((p = tcp_getline(tcp_stream)) != NULL){
+			if(!ok){
+			    ok++;
+			    if(strucmp(p,"HTTP/1.1 200 OK")){
+				fs_give((void **) &p);
+				break;
+			    }
+			}
+			else if(*p == '\0'){
+			    if(buffer_len){
+				buffer = fs_get(buffer_len + 16);
+				if(!tcp_getbuffer(tcp_stream, buffer_len, buffer))
+				  fs_give((void **) &buffer);
+			    }
+
+			    fs_give((void **) &p);
+			    break;
+			}
+			else{
+			    if(q = strchr(p,':')){
+				int l = q - p;
+
+				*q++ = '\0';
+				while(isspace((unsigned char ) *q))
+				  q++;
+
+				/* content-length */
+				if(l == 14 && !strucmp(p,"content-length")){
+				    while(*q && isdigit((unsigned char) *q))
+				      buffer_len = ((buffer_len * 10) + (*q++ - '0'));
+
+				    if(*q)
+				      break;
+				}
+				else if(l == 12 && !strucmp(p, "content-type") && strucmp(q,"text/xml")){
+				    break;
+				}
+			    }
+			}
+		    }
+		}
+		else{
+		    Tcl_SetResult(interp, "RSS send failure", TCL_STATIC);
+		    peRssComponentFree(&scheme,&loc,&path,&parms,&query,&frag);
+		}
+
+		tcp_close(tcp_stream);
+		mail_parameters(NULL, SET_READTIMEOUT, (void *)(long) 60);
+		peRssComponentFree(&scheme,&loc,&path,&parms,&query,&frag);
+
+		if(buffer){
+		    RSS_FEED_S *feed;
+		    char       *err;
+		    STORE_S    *bucket;
+		    gf_io_t	gc, pc;
+
+		    /* grok response */
+		    bucket = so_get(CharStar, NULL, EDIT_ACCESS);
+		    gf_set_readc(&gc, buffer, buffer_len, CharStar, 0);
+		    gf_set_so_writec(&pc, bucket);
+		    gf_filter_init();
+		    gf_link_filter(gf_html2plain, gf_html2plain_rss_opt(&feed,0));
+		    if((err = gf_pipe(gc, pc)) == NULL){
+			feed->fetched = time(0);
+		    }
+		    else{
+			gf_html2plain_rss_free(&feed);
+			Tcl_SetResult(interp, "RSS connection failure", TCL_STATIC);
+		    }
+
+		    so_give(&bucket);
+		    fs_give((void **) &buffer);
+		    return(feed);
+		}
+	    }
+	    else
+	      Tcl_SetResult(interp, "RSS connection failure", TCL_STATIC);
+	}
+	else
+	  Tcl_SetResult(interp, "RSS feed missing scheme", TCL_STATIC);
+    }
+    else
+      Tcl_SetResult(interp, "No RSS Feed Defined", TCL_STATIC);
+
+    return(NULL);
+}
+
+
+void
+peRssComponentFree(char **scheme,char **loc,char **path,char **parms,char **query,char **frag)
+{
+    if(scheme) fs_give((void **) scheme);
+    if(loc) fs_give((void **) loc);
+    if(path) fs_give((void **) path);
+    if(parms) fs_give((void **) parms);
+    if(query) fs_give((void **) query);
+    if(frag) fs_give((void **) frag);
 }

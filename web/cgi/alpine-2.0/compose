@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: compose 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: compose 1150 2008-08-20 00:27:11Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2008 University of Washington
 #
@@ -342,6 +342,10 @@ WPEval $compose_args {
       }
     }
   } else {
+    foreach line [WPCmd PEInfo signature] {
+      append body "$line\r\n"
+    }
+
     if {[string length $contacts] && [regexp {^[0-9\.,]+$} $contacts]} {
       set hdrvals(to) ""
       foreach c [split $contacts ","] {
@@ -525,17 +529,14 @@ WPEval $compose_args {
 
       wpCommonPageLayout compose "$c" "$f" "$u" \
 	  $title \
-	  [list [cgi_cgi "$_wp(appdir_alt)/conduit/post.tcl"] composeForm formResponse] \
 	  [list [cgi_cgi "$_wp(appdir_alt)/browse/${c}/${f}"] Composition 0] \
 	  leave_test\
 	  {
-	    # CONTEXT COMMANDS
 	    cgi_division class=hdrBtns {
 	      cgi_put [cgi_url "[cgi_span "class=sp hdrBtnImg hbi3" ""][cgi_span "class=hdrBtnText" Help]" "javascript:openHelpWindow('compose.html');" class=wap]
 	      cgi_put [cgi_url "[cgi_span "class=sp hdrBtnImg hbi4" ""][cgi_span "class=hdrBtnText" "Sign out"]" "" "onClick=[leave_test "../../session/logout.tcl?cid=[WPCmd PEInfo key]&sessid=${sessid}"]"]
 	    }
 	  } {
-	    # TO MENUBAR
 	    cgi_anchor_name "toolbar"
 	    cgi_table class="toolbarTbl" cellpadding="0" cellspacing="0" {
 	      cgi_puts "<tbody>"
@@ -553,7 +554,6 @@ WPEval $compose_args {
 		  cgi_put [cgi_img  "img/cbn/div.gif"]
 		}
 		cgi_table_data class="wap yui-skin-sam yuimenu" id="priorityButtonContainer" {
-		  cgi_text "priority=0" type=hidden id=priority "notab"
 		  cgi_bullet_list class="wap menu" {
 		    cgi_put "<li class=\"menuHdr\">[cgi_url "Priority [cgi_img "img/cbn/menu.gif" class="wap menuDn menuImg"]" "#" "onClick=return false;"]"
 		    cgi_division {
@@ -578,12 +578,6 @@ WPEval $compose_args {
 		cgi_table_data class="wap" width="100%" {
 		  cgi_put [cgi_nbspace]
 		}
-		if {0} {
-		  TODO: if time permits
-		cgi_table_data class="wap" {
-		  cgi_put [cgi_url [cgi_img "img/cbn/detach.gif" class="wap"] "#" title="Open Compose in New Window" [noimp Detach]]
-		}
-		}
 		cgi_table_data class="wap tbPad" align="right" {
 		  cgi_put [cgi_nbspace]
 		}
@@ -591,8 +585,8 @@ WPEval $compose_args {
 	      cgi_puts "</tbody>"
 	    }
 	  } {
-	    # MAIN PAGE CONTENT
-	      cgi_table width="100%" height="100%" cellpadding="0" cellspacing="0" {
+	    cgi_form $_wp(appdir_alt)/conduit/post.tcl "enctype=multipart/form-data" id=composeForm target=formResponse {
+	      cgi_table width="100%" height="100%" cellpadding="0" cellspacing="0" id=compositionBody {
 		cgi_puts "<tbody>"
 		cgi_table_row {
 		  cgi_table_data {
@@ -605,6 +599,7 @@ WPEval $compose_args {
 			  cgi_text "sessid=$sessid" type=hidden "notab"
 			  cgi_text "postpost=$pop" type=hidden "notab"
 			  cgi_text "subtype=plain" type=hidden id=contentSubtype notab
+			  cgi_text "priority=0" type=hidden id=priority "notab"
 
 			  # TEST stuff we have to feed post.tcl to get it working
 			  cgi_text "action=OK" type=hidden "notab"
@@ -758,7 +753,6 @@ WPEval $compose_args {
 		    }
 		  }
 		}
-
 		cgi_table_row {
 		  cgi_table_data height="100%" {
 		    cgi_table class="composeBody" cellpadding="0" cellspacing="0" {
@@ -772,12 +766,10 @@ WPEval $compose_args {
 		    }
 		  }
 		}
-
 		cgi_puts "</tbody>"
-
+	      }
 	    }
 	  } {
-	    # BOTTOM MENUBAR
 	    cgi_table class="wap toolbarTbl" cellpadding="0" cellspacing="0" {
 	      cgi_puts "<tbody>"
 	      cgi_table_row  {
@@ -785,11 +777,6 @@ WPEval $compose_args {
 		}
 		cgi_table_data class=wap width="100%" {
 		  cgi_put [cgi_nbspace]
-		}
-		if {0} {
-		cgi_table_data  {
-		  cgi_put [cgi_url [cgi_img  "img/cbn/detach.gif" class=wap] "#" title="Open Compose in New Window" [noimp Detach]]
-		}
 		}
 		cgi_table_data  class="wap tbPad" align="right" {
 		  cgi_put [cgi_nbspace]

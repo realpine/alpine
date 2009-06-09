@@ -41,7 +41,7 @@ viewer-hdr-colors=/HDR=Subject/FG=black/BG=yellow,
 	/HDR=message-id/FG=black/BG=206\x2C206\x2C206,
 	/HDR=In-reply-to/FG=black/BG=206\x2C206\x2C206
 
-wp-indexlines=50
+wp-indexlines=25
 wp-aggstate=2
 
 sort-key=date/reverse
@@ -49,3 +49,7 @@ sort-key=date/reverse
 ldap-servers=people.u.washington.edu "/base=o=University of Washington,c=US/impl=1/rhs=0/ref=0/nosub=0/type=/srch=/time=/size=/cust=/nick=/matr=/catr=/satr=/gatr="
 
 addressbook-formats=FULLNAME NICKNAME ADDRESS
+
+rss-news=http://uwnews.org/apps/uwnews/public/rss.aspx?q=uwnAllCategories&numToShow=10
+
+rss-weather=http://www.weather.gov/xml/current_obs/KBFI.rss

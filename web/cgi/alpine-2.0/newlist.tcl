@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: newlist.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: newlist.tcl 1150 2008-08-20 00:27:11Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2008 University of Washington
 #
@@ -118,14 +118,9 @@ if {0 == [catch {WPCmd PEMailbox current} cm]} {
   }
 }
 
-if {0} {
-  # lines per page
-  if {[catch {WPCmd PEInfo indexlines} ppg] || $ppg <= 0} {
-    set ppg $_wp(indexlines)
-  }
-} else {
-  # TEST: hardwired for testing
-  set ppg 25
+# lines per page
+if {[catch {WPCmd PEInfo indexlines} ppg] || $ppg <= 0} {
+  set ppg $_wp(indexlines)
 }
 
 # deal with page change
@@ -324,7 +319,7 @@ if {$mc > 0} {
 	      WPCmd PEInfo statmsg "Search failed: $result"
 	  } else {
 	    if {$result == 0} {
-	      WPCmd PEInfo statmsg "Search for $criteria matched no messages"
+	      WPCmd PEInfo statmsg "No messages matched your search"
 	      if {0 == [string compare new $scope]} {
 		WPCmd PEMailbox focus 0
 		WPCmd PEMailbox search none
@@ -347,7 +342,7 @@ if {$mc > 0} {
 	    WPCmd PEInfo statmsg "Search failed: $result"
 	  } else {
 	    if {$result == 0} {
-	      WPCmd PEInfo statmsg "Search for $criteria matched no messages"
+	      WPCmd PEInfo statmsg "No messages matched your search"
 	      if {0 == [string compare new $scope]} {
 		WPCmd PEMailbox focus 0
 		WPCmd PEMailbox search none

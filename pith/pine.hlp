@@ -1,4 +1,4 @@
-# $Id: pine.hlp 1136 2008-08-12 20:50:16Z mikes@u.washington.edu $
+# $Id: pine.hlp 1145 2008-08-19 06:10:14Z mikes@u.washington.edu $
 #
 #        T H E   A L P I N E    M E S S A G E   S Y S T E M
 #
@@ -140,7 +140,7 @@ reasonable place to be called from.
 Dummy change to get revision in pine.hlp
 
 ============= h_revision =================
-$Id: pine.hlp 1136 2008-08-12 20:50:16Z mikes@u.washington.edu $
+$Id: pine.hlp 1145 2008-08-19 06:10:14Z mikes@u.washington.edu $
 ============= h_news =================
 <HTML>
 <HEAD>
@@ -34446,6 +34446,26 @@ with the specified message number is displayed.
 
 This Web Alpine option specifies whether or not a sound file is sent
 to the web browser along with the newmail notification message.
+
+
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_render_html_internally =====
+<HTML>
+<HEAD>
+<TITLE>FEATURE: render-html-internally</TITLE>
+</HEAD>
+<BODY>
+<H1>FEATURE: render-html-internally (Web Alpine Only)</H1>
+
+By default, Web Alpine will pass cleansed HTML text you receive in messages 
+to the browser for display (rendering).  This feature causes Web Alpine to convert 
+the HTML text into plain text in the same way Unix and PC-Alpine do.
 
 
 <P>

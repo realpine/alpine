@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: filter.c 1108 2008-07-10 05:01:13Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: filter.c 1152 2008-08-20 23:40:25Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -2781,6 +2781,7 @@ gf_enriched2plain_opt(int *plain)
 #define	HTML_ID_INC	2		/* indent func: increment by val */
 #define	HTML_HX_CENTER	0x0001
 #define	HTML_HX_ULINE	0x0002
+#define	RSS_ITEM_LIMIT	20		/* RSS 2.0 ITEM depth limit */
 
 
 /*
@@ -2896,19 +2897,21 @@ typedef struct html_data {
  * HTML filter options
  */
 typedef	struct _html_opts {
-    char      *base;			/* Base URL for this html file */
-    int	       columns,			/* Display columns (excluding margins) */
-	       indent;			/* Left margin */
-    HANDLE_S **handlesp;		/* Head of handles */
-    htmlrisk_t warnrisk_f;		/* Nasty link warning call */
-    unsigned   strip:1;			/* Hilite TAGs allowed */
-    unsigned   handles_loc:1;		/* Local handles requested? */
-    unsigned   showserver:1;		/* Display server after anchors */
-    unsigned   outputted:1;		/* any */
-    unsigned   no_relative_links:1;	/* Disable embeded relative links */
-    unsigned   related_content:1;	/* Embeded related content */
-    unsigned   html:1;			/* Output content in HTML */
-    unsigned   html_imgs:1;		/* Output IMG tags in HTML content */
+    char	*base;			/* Base URL for this html file */
+    int		 columns,		/* Display columns (excluding margins) */
+		 indent;		/* Left margin */
+    HANDLE_S   **handlesp;		/* Head of handles */
+    htmlrisk_t   warnrisk_f;		/* Nasty link warning call */
+    ELPROP_S	*element_table;		/* markup element table */
+    RSS_FEED_S **feedp;			/* hook for RSS feed response */
+    unsigned	strip:1;		/* Hilite TAGs allowed */
+    unsigned	handles_loc:1;		/* Local handles requested? */
+    unsigned	showserver:1;		/* Display server after anchors */
+    unsigned	outputted:1;		/* any */
+    unsigned	no_relative_links:1;	/* Disable embeded relative links */
+    unsigned	related_content:1;	/* Embeded related content */
+    unsigned	html:1;			/* Output content in HTML */
+    unsigned	html_imgs:1;		/* Output IMG tags in HTML content */
 } HTML_OPT_S;
 
 
@@ -2929,6 +2932,8 @@ typedef	struct _html_opts {
 #define	SHOWSERVER(X)	((X)->opt && ((HTML_OPT_S *)(X)->opt)->showserver)
 #define	NO_RELATIVE(X)	((X)->opt && ((HTML_OPT_S *)(X)->opt)->no_relative_links)
 #define	RELATED_OK(X)	((X)->opt && ((HTML_OPT_S *)(X)->opt)->related_content)
+#define	ELEMENTS(X)	(((HTML_OPT_S *)(X)->opt)->element_table)
+#define	RSS_FEED(X)	(*(((HTML_OPT_S *)(X)->opt)->feedp))
 #define	MAKE_LITERAL(C)	(HTML_LITERAL | ((C) & 0xff))
 #define	IS_LITERAL(C)	(HTML_LITERAL & (C))
 #define	HD(X)		((HTML_DATA_S *)(X)->data)
@@ -3213,6 +3218,18 @@ int	html_del(HANDLER_S *, int, int);
 int	html_abbr(HANDLER_S *, int, int);
 
 /*
+ * Protos for RSS 2.0 Tag handlers
+ */
+int	rss_rss(HANDLER_S *, int, int);
+int	rss_channel(HANDLER_S *, int, int);
+int	rss_title(HANDLER_S *, int, int);
+int	rss_image(HANDLER_S *, int, int);
+int	rss_link(HANDLER_S *, int, int);
+int	rss_description(HANDLER_S *, int, int);
+int	rss_ttl(HANDLER_S *, int, int);
+int	rss_item(HANDLER_S *, int, int);
+
+/*
  * Proto's for support routines
  */
 void	  html_pop(FILTER_S *, ELPROP_S *);
@@ -3247,7 +3264,8 @@ void	  html_write_indent(FILTER_S *, int);
 void	  html_write(FILTER_S *, char *, int);
 void	  html_putc(FILTER_S *, int);
 int	  html_event_attribute(char *);
-ELPROP_S *html_element_properties(char *);
+char	 *rss_skip_whitespace(char *s);
+ELPROP_S *element_properties(FILTER_S *, char *);
 
 
 /*
@@ -3528,7 +3546,7 @@ static struct html_entities {
 /*
  * Table of supported elements and corresponding handlers
  */
-static ELPROP_S element_table[] = {
+static ELPROP_S html_element_table[] = {
     {"HTML"},					/* HTML ignore if seen? */
     {"HEAD",		html_head},		/* slurp until <BODY> ? */
     {"TITLE",		html_title},		/* Document Title */
@@ -3621,6 +3639,21 @@ static ELPROP_S element_table[] = {
     {NULL,		NULL}
 };
 
+
+/*
+ * Table of supported RSS 2.0 elements
+ */
+static ELPROP_S rss_element_table[] = {
+    {"RSS",		rss_rss},		/* RSS 2.0 version */
+    {"CHANNEL",		rss_channel},		/* RSS 2.0 Channel */
+    {"TITLE",		rss_title},		/* RSS 2.0 Title */
+    {"IMAGE",		rss_image},		/* RSS 2.0 Channel Image */
+    {"LINK",		rss_link},		/* RSS 2.0 Channel/Item Link */
+    {"DESCRIPTION",	rss_description},	/* RSS 2.0 Channel/Item Description */
+    {"ITEM",		rss_item},		/* RSS 2.0 Channel ITEM */
+    {"TTL",		rss_ttl},		/* RSS 2.0 Item TTL */
+    {NULL,		NULL}
+};
 
 
 /*
@@ -6818,18 +6851,318 @@ html_style(HANDLER_S *hd, int ch, int cmd)
     return(1);
 }
 
+/*
+ *  RSS 2.0 <RSS> version
+ */
+int
+rss_rss(HANDLER_S *hd, int ch, int cmd)
+{
+    if(cmd == GF_RESET){
+	PARAMETER *p;
+
+	for(p = HD(hd->html_data)->el_data->attribs;
+	    p && p->attribute;
+	    p = p->next)
+	  if(!strucmp(p->attribute, "VERSION")){
+	      if(p->value && !strucmp(p->value,"2.0"))
+		return(0);	/* do not link in */
+	  }
+
+	gf_error("Incompatible RSS version");
+    }
+}
+
+/*
+ *  RSS 2.0 <CHANNEL>
+ */
+int
+rss_channel(HANDLER_S *hd, int ch, int cmd)
+{
+    if(cmd == GF_DATA){
+	html_handoff(hd, ch);
+    }
+    else if(cmd == GF_RESET){
+	RSS_FEED_S *feed;
+
+	feed = RSS_FEED(hd->html_data) = fs_get(sizeof(RSS_FEED_S));
+	memset(feed, 0, sizeof(RSS_FEED_S));
+    }
+    else if(cmd == GF_EOD){
+    }
+
+    return(1);			/* link in */
+}
+
+/*
+ *  RSS 2.0 <TITLE>
+ */
+int
+rss_title(HANDLER_S *hd, int ch, int cmd)
+{
+    static STORE_S *title_so;
+
+    if(cmd == GF_DATA){
+	/* collect data */
+	if(title_so){
+	    so_writec(ch, title_so);
+	}
+    }
+    else if(cmd == GF_RESET){
+	if(RSS_FEED(hd->html_data)){
+	    /* prepare for data */
+	    if(title_so)
+	      so_give(&title_so);
+
+	    title_so = so_get(CharStar, NULL, EDIT_ACCESS);
+	}
+    }
+    else if(cmd == GF_EOD){
+	if(title_so){
+	    RSS_FEED_S *feed = RSS_FEED(hd->html_data);
+	    RSS_ITEM_S *rip;
+
+	    if(feed){
+		if(rip = feed->items){
+		    for(; rip->next; rip = rip->next)
+		      ;
+
+		    if(rip->title)
+		      fs_give((void **) &rip->title);
+
+		    rip->title = cpystr(rss_skip_whitespace(so_text(title_so)));
+		}
+		else{
+		    if(feed->title)
+		      fs_give((void **) &feed->title);
+
+		    feed->title = cpystr(rss_skip_whitespace(so_text(title_so)));
+		}
+	    }
+
+	    so_give(&title_so);
+	}
+    }
+
+    return(1);			/* link in */
+}
+
+/*
+ *  RSS 2.0 <IMAGE>
+ */
+int
+rss_image(HANDLER_S *hd, int ch, int cmd)
+{
+    static STORE_S *img_so;
+
+    if(cmd == GF_DATA){
+	/* collect data */
+	if(img_so){
+	    so_writec(ch, img_so);
+	}
+    }
+    else if(cmd == GF_RESET){
+	if(RSS_FEED(hd->html_data)){
+	    /* prepare to collect data */
+	    if(img_so)
+	      so_give(&img_so);
+
+	    img_so = so_get(CharStar, NULL, EDIT_ACCESS);
+	}
+    }
+    else if(cmd == GF_EOD){
+	if(img_so){
+	    RSS_FEED_S *feed = RSS_FEED(hd->html_data);
+
+	    if(feed){
+		if(feed->image)
+		  fs_give((void **) &feed->image);
+
+		feed->image = cpystr(rss_skip_whitespace(so_text(img_so)));
+	    }
+
+	    so_give(&img_so);
+	}
+    }
+
+    return(1);			/* link in */
+}
+
+/*
+ *  RSS 2.0 <LINK>
+ */
+int
+rss_link(HANDLER_S *hd, int ch, int cmd)
+{
+    static STORE_S *link_so;
+
+    if(cmd == GF_DATA){
+	/* collect data */
+	if(link_so){
+	    so_writec(ch, link_so);
+	}
+    }
+    else if(cmd == GF_RESET){
+	if(RSS_FEED(hd->html_data)){
+	    /* prepare to collect data */
+	    if(link_so)
+	      so_give(&link_so);
+
+	    link_so = so_get(CharStar, NULL, EDIT_ACCESS);
+	}
+    }
+    else if(cmd == GF_EOD){
+	if(link_so){
+	    RSS_FEED_S *feed = RSS_FEED(hd->html_data);
+	    RSS_ITEM_S *rip;
+
+	    if(feed){
+		if(rip = feed->items){
+		    for(; rip->next; rip = rip->next)
+		      ;
+
+		    if(rip->link)
+		      fs_give((void **) &rip->link);
+
+		    rip->link = cpystr(rss_skip_whitespace(so_text(link_so)));
+		}
+		else{
+		    if(feed->link)
+		      fs_give((void **) &feed->link);
+
+		    feed->link = cpystr(rss_skip_whitespace(so_text(link_so)));
+		}
+	    }
+
+	    so_give(&link_so);
+	}
+    }
+
+    return(1);			/* link in */
+}
+
+/*
+ *  RSS 2.0 <DESCRIPTION>
+ */
+int
+rss_description(HANDLER_S *hd, int ch, int cmd)
+{
+    static STORE_S *desc_so;
+
+    if(cmd == GF_DATA){
+	/* collect data */
+	if(desc_so){
+	    so_writec(ch, desc_so);
+	}
+    }
+    else if(cmd == GF_RESET){
+	if(RSS_FEED(hd->html_data)){
+	    /* prepare to collect data */
+	    if(desc_so)
+	      so_give(&desc_so);
+
+	    desc_so = so_get(CharStar, NULL, EDIT_ACCESS);
+	}
+    }
+    else if(cmd == GF_EOD){
+	if(desc_so){
+	    RSS_FEED_S *feed = RSS_FEED(hd->html_data);
+	    RSS_ITEM_S *rip;
+
+	    if(feed){
+		if(rip = feed->items){
+		    for(; rip->next; rip = rip->next)
+		      ;
+
+		    if(rip->description)
+		      fs_give((void **) &rip->description);
+
+		    rip->description = cpystr(rss_skip_whitespace(so_text(desc_so)));
+		}
+		else{
+		    if(feed->description)
+		      fs_give((void **) &feed->description);
+
+		    feed->description = cpystr(rss_skip_whitespace(so_text(desc_so)));
+		}
+	    }
+
+	    so_give(&desc_so);
+	}
+    }
+
+    return(1);			/* link in */
+}
+
+/*
+ *  RSS 2.0 <TTL> (in minutes)
+ */
+int
+rss_ttl(HANDLER_S *hd, int ch, int cmd)
+{
+    RSS_FEED_S *feed = RSS_FEED(hd->html_data);
+
+    if(cmd == GF_DATA){
+	if(isdigit((unsigned char) ch))
+	  feed->ttl += ((feed->ttl * 10) + (ch - '0'));
+    }
+    else if(cmd == GF_RESET){
+	/* prepare to collect data */
+	feed->ttl = 0;
+    }
+    else if(cmd == GF_EOD){
+    }
+
+    return(1);			/* link in */
+}
+
+/*
+ *  RSS 2.0 <ITEM>
+ */
+int
+rss_item(HANDLER_S *hd, int ch, int cmd)
+{
+    /* BUG: verify no ITEM nesting? */
+    if(cmd == GF_RESET){
+	RSS_FEED_S *feed;
+
+	if((feed = RSS_FEED(hd->html_data)) != NULL){
+	    RSS_ITEM_S **rip;
+	    int		 n = 0;
+
+	    for(rip = &feed->items; *rip; rip = &(*rip)->next)
+	      if(++n > RSS_ITEM_LIMIT)
+		return(0);
+
+	    *rip = fs_get(sizeof(RSS_ITEM_S));
+	    memset(*rip, 0, sizeof(RSS_ITEM_S));
+	}
+    }
+
+    return(0);			/* don't link in */
+}
+
+
+char *
+rss_skip_whitespace(char *s)
+{
+    for(; *s && isspace((unsigned char) *s); s++)
+      ;
+
+    return(s);
+}
+
 
 /*
  * return the function associated with the given element name
  */
 ELPROP_S *
-html_element_properties(char *el_name)
+element_properties(FILTER_S *fd, char *el_name)
 {
-    register int i;
+    register ELPROP_S *el_table = ELEMENTS(fd);
 
-    for(i = 0; element_table[i].element; i++)
-      if(!strucmp(el_name, element_table[i].element))
-	return(&element_table[i]);
+    for(; el_table->element; el_table++)
+      if(!strucmp(el_name, el_table->element))
+	return(el_table);
 
     return(NULL);
 }
@@ -6906,7 +7239,7 @@ html_element_collector(FILTER_S *fd, int ch)
 	     * If we ran into an empty tag or we don't know how to deal
 	     * with it, just go on, ignoring it...
 	     */
-	    if(ED(fd)->element && (ep = html_element_properties(ED(fd)->element))){
+	    if(ED(fd)->element && (ep = element_properties(fd, ED(fd)->element))){
 		if(ep->handler){
 		    /* dispatch the element's handler */
 		    HTML_DEBUG_EL(ED(fd)->end_tag ? "POP" : "PUSH", ED(fd));
@@ -6935,19 +7268,19 @@ html_element_collector(FILTER_S *fd, int ch)
 				}
 				else{
 				    dprint((2, "-- html error: bad nesting pusing <TABLE>"));
-				    html_push(fd, html_element_properties("table"));
+				    html_push(fd, element_properties(fd, "table"));
 				}
 			    }
 			}
 			else if(!strucmp(ep->element, "td") || !strucmp(ep->element, "th")){
 			    if(!HANDLERS(fd)){
 				dprint((2, "-- html error: bad nesting: NO HANDLERS before <TD>"));
-				html_push(fd, html_element_properties("table"));
-				html_push(fd, html_element_properties("tr"));
+				html_push(fd, element_properties(fd, "table"));
+				html_push(fd, element_properties(fd, "tr"));
 			    }
 			    else if(strucmp(EL(HANDLERS(fd))->element, "tr")){
 				dprint((2, "-- html error: bad nesting for <TD>, GOT %s\n", EL(HANDLERS(fd))->element));
-				html_push(fd, html_element_properties("tr"));
+				html_push(fd, element_properties(fd, "tr"));
 			    }
 			    else if(!strucmp(EL(HANDLERS(fd))->element, "td")){
 				dprint((2, "-- html error: bad nesting popping <TD>"));
@@ -8535,7 +8868,66 @@ gf_html2plain_opt(char *base,
     op->related_content	  = ((flags & GFHP_RELATED_CONTENT) == GFHP_RELATED_CONTENT);
     op->html	    = ((flags & GFHP_HTML) == GFHP_HTML);
     op->html_imgs   = ((flags & GFHP_HTML_IMAGES) == GFHP_HTML_IMAGES);
+    op->element_table = html_element_table;
     return((void *) op);
+}
+
+
+void *
+gf_html2plain_rss_opt(RSS_FEED_S **feedp, int flags)
+{
+    HTML_OPT_S *op;
+    int		margin_l, margin_r;
+
+    op = (HTML_OPT_S *) fs_get(sizeof(HTML_OPT_S));
+    memset(op, 0, sizeof(HTML_OPT_S));
+
+    op->base = cpystr("");
+    op->element_table = rss_element_table;
+    *(op->feedp = feedp) = NULL;
+    return((void *) op);
+}
+
+void
+gf_html2plain_rss_free(RSS_FEED_S **feedp)
+{
+    if(feedp){
+	if((*feedp)->title)
+	  fs_give((void **) &(*feedp)->title);
+
+	if((*feedp)->link)
+	  fs_give((void **) &(*feedp)->link);
+
+	if((*feedp)->description)
+	  fs_give((void **) &(*feedp)->description);
+
+	if((*feedp)->source)
+	  fs_give((void **) &(*feedp)->source);
+
+	gf_html2plain_rss_free_items(&((*feedp)->items));
+	fs_give((void **) feedp);
+    }
+}
+
+void
+gf_html2plain_rss_free_items(RSS_ITEM_S **itemp)
+{
+    if(itemp){
+	if((*itemp)->title)
+	  fs_give((void **) &(*itemp)->title);
+
+	if((*itemp)->link)
+	  fs_give((void **) &(*itemp)->link);
+
+	if((*itemp)->description)
+	  fs_give((void **) &(*itemp)->description);
+
+	if((*itemp)->source)
+	  fs_give((void **) &(*itemp)->source);
+
+	gf_html2plain_rss_free_items(&(*itemp)->next);
+	fs_give((void **) itemp);
+    }
 }
 
 

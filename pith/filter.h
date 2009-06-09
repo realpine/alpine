@@ -1,5 +1,5 @@
 /*
- * $Id: filter.h 945 2008-03-05 18:56:28Z mikes@u.washington.edu $
+ * $Id: filter.h 1152 2008-08-20 23:40:25Z mikes@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -77,6 +77,25 @@ typedef struct url_hilite_s {
     HANDLE_S **handlesp;
     int        hdr_color;
 } URL_HILITE_S;
+
+typedef struct _rss_item_s {
+	char *title;
+	char *link;
+	char *description;
+	char *source;
+	struct _rss_item_s *next;
+} RSS_ITEM_S;
+
+typedef struct _rss_feed_s {
+	char   *title;
+	char   *image;
+	char   *link;
+	char   *description;
+	char   *source;
+	int     ttl;
+	time_t  fetched;
+	struct _rss_item_s *items;
+} RSS_FEED_S;
 
 
 /*
@@ -177,6 +196,9 @@ void	    gf_enriched2plain(FILTER_S *, int);
 void	   *gf_enriched2plain_opt(int *);
 void	    gf_html2plain(FILTER_S *, int);
 void	   *gf_html2plain_opt(char *, int, int *, HANDLE_S **, htmlrisk_t, int);
+void	   *gf_html2plain_rss_opt(RSS_FEED_S **, int);
+void	    gf_html2plain_rss_free(RSS_FEED_S **);
+void	    gf_html2plain_rss_free_items(RSS_ITEM_S **);
 void	    gf_escape_filter(FILTER_S *, int);
 void	    gf_control_filter(FILTER_S *, int);
 void	   *gf_control_filter_opt(int *);

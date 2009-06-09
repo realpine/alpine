@@ -1,5 +1,5 @@
 /*
- * $Id: conftype.h 1122 2008-08-02 00:32:26Z hubert@u.washington.edu $
+ * $Id: conftype.h 1150 2008-08-20 00:27:11Z mikes@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2008 University of Washington
@@ -282,6 +282,8 @@ typedef	enum {    V_PERSONAL_NAME = 0
 #ifdef	ENABLE_LDAP
 		, V_LDAP_SERVERS  /* should be last so make will work right */
 #endif
+		, V_RSS_NEWS
+		, V_RSS_WEATHER
 		, V_WP_INDEXHEIGHT
 		, V_WP_INDEXLINES
 		, V_WP_AGGSTATE
@@ -509,6 +511,7 @@ typedef enum {
 	F_AUTO_UNSELECT,
 	F_SEND_CONFIRM_ON_EXPAND,
 	F_ENABLE_NEWMAIL_SOUND,
+	F_RENDER_HTML_INTERNALLY,
 	F_ENABLE_JUMP_CMD,
 	F_FORWARD_AS_ATTACHMENT,
 #ifndef	_WINDOWS

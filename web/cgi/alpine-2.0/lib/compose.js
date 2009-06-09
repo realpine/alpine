@@ -1,4 +1,4 @@
-/* $Id: compose.js 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+/* $Id: compose.js 1150 2008-08-20 00:27:11Z mikes@u.washington.edu $
  * ========================================================================
  * Copyright 2008 University of Washington
  *
@@ -162,14 +162,16 @@ function autoSize(el){
 }
 
 function autoSizeAddressField(id){
-    var ev = YAHOO.util.Event;
-    if(!gFieldHeight){
-	var r = YAHOO.util.Dom.getRegion(id);
-	gFieldHeight = r.bottom - r.top - 4;
-    }
+    var el = document.getElementById(id);
+    if(el){
+	if(!gFieldHeight){
+	    var r = YAHOO.util.Dom.getRegion(el);
+	    gFieldHeight = r.bottom - r.top - 4;
+	}
 
-    ev.addListener(id,'keypress',autoSizeThis);
-    autoSize(document.getElementById(id));
+	YAHOO.util.Event.addListener(el,'keypress',autoSizeThis);
+	autoSize(el);
+    }
 }
 
 function autoCompleteDefaults(o){
@@ -245,7 +247,7 @@ function cancelComposition(dest){
 	}
 	else{
 	    el = document.getElementById('composeText');
-	    changes += el.value.length;
+	    if(el) changes += el.value.length;
 	}
     }
 
@@ -489,15 +491,17 @@ function removeAttachment(e,o){
 
 function setCursorPosition(inputId, cursorOffset) {
     var inputEl = document.getElementById(inputId);
-    if (inputEl.setSelectionRange) {
-	inputEl.focus();
-	inputEl.setSelectionRange(cursorOffset, cursorOffset);
-    } else if (inputEl.createTextRange) {
-	var range = inputEl.createTextRange();
-	range.collapse(true);
-	range.moveEnd('character', cursorOffset);
-	range.moveStart('character', cursorOffset);
-	range.select();
+    if(inputEl){
+	if (inputEl.setSelectionRange) {
+	    inputEl.focus();
+	    inputEl.setSelectionRange(cursorOffset, cursorOffset);
+	} else if (inputEl.createTextRange) {
+	    var range = inputEl.createTextRange();
+	    range.collapse(true);
+	    range.moveEnd('character', cursorOffset);
+	    range.moveStart('character', cursorOffset);
+	    range.select();
+	}
     }
 }
 

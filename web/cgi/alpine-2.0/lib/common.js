@@ -1,4 +1,4 @@
-/* $Id: common.js 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+/* $Id: common.js 1152 2008-08-20 23:40:25Z mikes@u.washington.edu $
  * ========================================================================
  * Copyright 2008 University of Washington
  *
@@ -551,6 +551,7 @@ function panelDialog(title,body,done,onClose){
 	var i = buttons.length;
 	buttons[i] = {
 	    type:'button',
+	    id:done.label.replace(/ /g,'_').toLowerCase(),
 	    label:done.label,
 	    disabled:done.disabled,
 	    onclick:{
@@ -810,23 +811,23 @@ function pickFolder(containerID,label,defCollection,onDone){
     dom.addClass(div,'flistInstructions');
     div.innerHTML = label + ' to: '
 
-    var input = createInputElement('text','pickFolderName');
-    input.setAttribute('id','pickFolderName');
-    input.value = '';
-    div.appendChild(input);
-    YAHOO.util.Event.addListener(input,'keyup',panelDialogInputChange);
+    var elFolderName = createInputElement('text','pickFolderName');
+    elFolderName.setAttribute('id','pickFolderName');
+    elFolderName.value = '';
+    div.appendChild(elFolderName);
+    YAHOO.util.Event.addListener(elFolderName,'keyup',panelDialogInputChange);
 
     el = document.createTextNode(' ');
     div.appendChild(el);
 
-    el = createInputElement('hidden','folderCollection');
-    el.value = defCollection;
-    el.setAttribute('id','pickFolderCollection');
-    div.appendChild(el);
+    var elFolderCollection = createInputElement('hidden','folderCollection');
+    elFolderCollection.value = defCollection;
+    elFolderCollection.setAttribute('id','pickFolderCollection');
+    div.appendChild(elFolderCollection);
 
-    el = createInputElement('hidden','pickFolderPath');
-    el.setAttribute('id','pickFolderPath');
-    div.appendChild(el);
+    var elFolderPath = createInputElement('hidden','pickFolderPath');
+    elFolderPath.setAttribute('id','pickFolderPath');
+    div.appendChild(elFolderPath);
 
     dbody.appendChild(div);
     div = document.createElement('div');
@@ -841,16 +842,16 @@ function pickFolder(containerID,label,defCollection,onDone){
 		    label:label,
 		    disabled: true,
 		    fn: function(){
-			  var fc = document.getElementById('pickFolderCollection').value;
-			  var fp = document.getElementById('pickFolderPath').value;
-			  var fn = document.getElementById('pickFolderName').value;
+			  var fc = elFolderCollection.value;
+			  var fp = elFolderPath.value;
+			  var fn = elFolderName.value;
 			  if(fp && fp.length) fn = fp + '/' + fn;
 			  if(fc >= 0 && fn && fn.length) onDone({c:fc,f:fn});
 			  else showStatusMessage('No folder name provided.  No messages moved or copied.',5);
 		    }
 		});
 
-    input.focus();
+    elFolderName.focus();
     drawFolderList(containerID,defCollection);
     return false;
 }
@@ -1174,7 +1175,7 @@ function searchContent(context,treeId){
 	showStatusMessage(found.n + ' match' + plural + ' found', 3);
 	found.o.scrollIntoView();
     }
-    else showStatusMessage('No ' + context + ' found matching: ' + elSearch.value, 3);
+    else showStatusMessage('No ' + context + ' found matching your seach', 3);
 
     return(false);
 }
@@ -1212,6 +1213,7 @@ function advanceSearch(){
     function newInput(id){
 	var el = createInputElement('text',id);
 	el.setAttribute('id',id);
+	YAHOO.util.Event.addListener(el,'keypress',searchOnEnter,'_search_');
 	return(el);
     }
 
@@ -1230,7 +1232,7 @@ function advanceSearch(){
 	    el = document.createElement('div');
 	    form.appendChild(el);
 	    dom.addClass(el,'scope');
-	    elScope = newSelect('searchScope',['Search within current search results','Add search results to current results','Fresh search, ignoring current results']);
+	    elScope = newSelect('searchScope',['Perform this search within current search results','Add results of this search to current results','Perform a fresh search, abandoning the current results']);
 	    el.appendChild(elScope);
 	}
     }
@@ -1268,10 +1270,12 @@ function advanceSearch(){
     // empty searchTerm
     elWhichStatus = newSelect('whichStatus',['All Message','Unread Message','Read Messages','Starred Messages','Unstarred Messages']);
     form.appendChild(newSearch('Status',elWhichStatus));
-    panelDialog('Advanced Search', form,
+
+    panelDialog('Advanced Search',
+		form,
 		{
 		    label:' Search ',
-		    fn: function(){
+		    fn: function() {
 			var scope = 'new', criteria = '';
 
 			if(elScope){
@@ -1356,6 +1360,42 @@ function advanceSearchDate(e){
     }
 }
 
+function searchOnEnter(e,btn){
+    if(YAHOO.util.Event.getCharCode(e) == 13){
+	var el = document.getElementById(btn);
+	if(el){
+	    // dig thru any decoration to find button
+	    while(el && !el.click) el = el.firstChild;
+	    if(el && el.click){
+		el.click();
+		return false;
+	    }
+	}
+    }
+
+    return true;
+}
+
+function rotateNews(el){
+    if(el.parentNode){
+	var dom = YAHOO.util.Dom;
+	var node = el.parentNode;
+
+	dom.setStyle(node, 'display', 'none');
+	if(node.nextSibling && node.nextSibling.tagName == 'SPAN'){
+	    node = node.nextSibling;
+	}
+	else{
+	    for(var node = el.parentNode; node.previousSibling && node.previousSibling.tagName == 'SPAN'; node = node.previousSibling)
+		;
+	}
+
+	dom.setStyle(node,'display','inline');
+    }
+
+    return false;
+}
+
 // Hacks to work around IE
 function createInputElement(type,name){
     if(YAHOO.env.ua.ie > 0){
@@ -1384,20 +1424,20 @@ function sizeVPHeight(){
     var dom = YAHOO.util.Dom;
     var docHeight = dom.getDocumentHeight();
     var topToolbarY = dom.getY('topToolbar');
-    var pageContentY = dom.getY('pageContent');
+    var alpineContentY = dom.getY('alpineContent');
     var bottomToolbarY = dom.getY('bottomToolbar');
     var bottomHeight =  docHeight - bottomToolbarY;
-    var contentHeight = dom.getViewportHeight() - (pageContentY + bottomHeight);
-    var leftColumnHeight = contentHeight + (pageContentY - topToolbarY);
+    var contentHeight = dom.getViewportHeight() - (alpineContentY + bottomHeight);
+    var leftColumnHeight = contentHeight + (alpineContentY - topToolbarY);
     if(contentHeight > 0){
-	dom.setStyle('divVPHeight','height', contentHeight);
-	dom.setStyle('leftColumn','height', leftColumnHeight);
+	dom.setStyle('alpineContent','height', Math.round(contentHeight));
+	dom.setStyle('leftColumn','height', Math.round(leftColumnHeight));
     }
 }
 
 function resizeVPHeight(){
     var dom = YAHOO.util.Dom;
-    dom.setStyle('divVPHeight','height', 'auto');
+    dom.setStyle('alpineContent','height', 'auto');
     dom.setStyle('leftColumn','height', 'auto');
     sizeVPHeight();
 }

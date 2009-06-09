@@ -106,6 +106,7 @@ set _wp(timeout)	900
 set _wp(autodraft)	300
 set _wp(logoutpause)	60
 set _wp(indexlines)	20
+set _wp(indexlinesmax)	50
 set _wp(indexheight)	24
 set _wp(navheight)	28
 set _wp(width)		80
@@ -114,7 +115,7 @@ set _wp(titlesep)	4
 set _wp(config)		remote_pinerc
 set _wp(motd)		motd
 set _wp(save_cache_max)	6
-set _wp(fldr_cache_max)	8
+set _wp(fldr_cache_max)	20
 set _wp(fldr_cache_def)	3
 set _wp(statushelp)	0
 set _wp(imgbuttons)	0
@@ -155,6 +156,12 @@ set _wp(indexheight) [expr {$_wp(indexheight) <= 20 ? 20 : $_wp(indexheight) >= 
 #set _wp(spamaddr)	spamaddr@sample-domain.edu
 #set _wp(spamfolder)	junk-mail
 #set _wp(spamsubj)	"ATTACHED SPAM"
+
+# external mail filter config link
+#set _wp(filter_link)	http://delivery-filter.sample-domain.edu/filter/config
+
+# external vacation config link
+#set _wp(vacation_link)	http://vacation.sample-domain.edu/vacation/config
 
 # default command evaluator DO NOT MESS WITH THIS
 set _wp(eval)		{}

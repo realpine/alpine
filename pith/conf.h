@@ -1,5 +1,5 @@
 /*
- * $Id: conf.h 1069 2008-06-03 15:54:15Z hubert@u.washington.edu $
+ * $Id: conf.h 1150 2008-08-20 00:27:11Z mikes@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2008 University of Washington
@@ -276,6 +276,8 @@
 #ifdef	ENABLE_LDAP
 #define VAR_LDAP_SERVERS             vars[V_LDAP_SERVERS].current_val.l
 #endif
+#define VAR_RSS_NEWS                 vars[V_RSS_NEWS].current_val.p
+#define VAR_RSS_WEATHER              vars[V_RSS_WEATHER].current_val.p
 #define VAR_WP_INDEXHEIGHT           vars[V_WP_INDEXHEIGHT].current_val.p
 #define VAR_WP_INDEXLINES            vars[V_WP_INDEXLINES].current_val.p
 #define GLO_WP_INDEXHEIGHT           vars[V_WP_INDEXHEIGHT].global_val.p
@@ -787,8 +789,9 @@ struct sm_folder {
 /*
  * Flags for write_pinerc
  */
-#define	WRP_NONE	   0
-#define	WRP_NOUSER	0x01
+#define	WRP_NONE		   0
+#define	WRP_NOUSER		0x01
+#define	WRP_PRESERV_WRITTEN	0x02
 
 
 #define ALL_EXCEPT	"all-except"

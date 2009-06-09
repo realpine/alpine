@@ -149,7 +149,7 @@ proc onClick {dest} {
 # NOTES: bodyform doesn't flow thru cgi.tcl,but it keeps menu bar's
 #        easier for caller to keep stright
 #
-proc wpCommonPageLayout {curpage c f u context bodyform searchform leavetest cmds menubar_top content menubar_bottom} {
+proc wpCommonPageLayout {curpage c f u context searchform leavetest cmds menubar_top content menubar_bottom} {
   global _wp clicktest
 
   set thispage [lindex $curpage 0]
@@ -188,7 +188,16 @@ proc wpCommonPageLayout {curpage c f u context bodyform searchform leavetest cmd
       cgi_table_data  class="wap topHdr" {
 	cgi_division class=hdrContent {
 	  # RSS INFO STREAM
-	  cgi_put [cgi_span class=RSS "[cgi_bold "UWeek: "][cgi_url "Commencements slated June 8-10 &ndash; President Emmert will officiate at Commencement ceremonies in Seattle June 9 ..." "http://uwnews.washington.edu/ni/uweek/uweekarticle.asp?articleID=33883" target=_blank]"]
+	  if {[catch {WPCmd PERss news} news]} {
+	    cgi_html_comment "RSS FAILURE: $news"
+	  } else {
+	    set style ""
+	    set n 0
+	    foreach item $news {
+	      cgi_put [cgi_span class=RSS $style "[cgi_url [cgi_span "class=sp newsImg" ""] # "onClick=return rotateNews(this);"] [cgi_url [lindex $item 0] [lindex $item 1] "onClick=this.blur();" id=newsItem$n target=_blank]"]
+	      set style "style=display: none;"
+	    }
+	  }
 
 	  # STATUS LINE
 	  cgi_division class=wbar id=statusMessage {
@@ -208,7 +217,15 @@ proc wpCommonPageLayout {curpage c f u context bodyform searchform leavetest cmd
 	  cgi_division class=wbar id=weatherBar {
 	    # RSS WEATHER
 	    cgi_division class=weather id=rssWeather {
-	      cgi_put "UW Weather: [cgi_img "img/cbn/partly.gif" "alt=Partly Cloudy" class=wap][cgi_nbspace][cgi_nbspace][cgi_url "Partly Cloudy 58&deg;/81&deg;" "http://www.weather.gov/data/current_obs/KBFI.rss" target=_blank]"
+	      if {[catch {WPCmd PERss weather} weather]} {
+		cgi_html_comment "RSS FAILURE: $weather"
+	      } else {
+		if {[llength $weather] > 0} {
+		  set item [lindex $weather 0]
+		  cgi_html_comment "index 2 is: [lindex $item 2]"
+		  cgi_put [cgi_url [lindex $item 0] [lindex $item 1] "onClick=this.blur();" target=_blank]
+		}
+	      }
 	    }
 	    cgi_division class=usage {
 	      cgi_table  width="180px" cellpadding="0" cellspacing="0" {
@@ -299,14 +316,14 @@ proc wpCommonPageLayout {curpage c f u context bodyform searchform leavetest cmd
 
 	cgi_division class=searchFormDiv {
 	  cgi_form [lindex $searchform 0] id=searchForm method=post enctype=multipart/form-data {
-	    cgi_text "searchText=Search in [lindex $searchform 1]" class=wap id=searchField title="Click here to search" "onBlur=recallTextField(this, 'Search in [lindex $searchform 1]')" "onClick=\"clearTextField(this, 'Search in [lindex $searchform 1]')\"" maxlength="256"
 	    if {[string length [lindex $searchform 3]]} {
 	      set sclick [lindex $searchform 3]
 	    } else {
 	      set sclick "showStatusMessage('Search is NOT implemented yet',3)"
 	    }
 
-	    cgi_put "<input alt=\"Search\" name=\"search\" class=\"sp searchBtn\" type=\"submit\" value=\"\" src=\"\" onClick=\"${sclick}; this.blur(); return false;\" />"
+	    cgi_text "searchText=Search in [lindex $searchform 1]" class=wap id=searchField title="Click here to search" "onBlur=recallTextField(this, 'Search in [lindex $searchform 1]')" "onClick=\"clearTextField(this, 'Search in [lindex $searchform 1]')\"" "onKeyPress=\"return searchOnEnter(event,'searchButton');\"" maxlength="256"
+	    cgi_put "<input alt=\"Search\" name=\"search\" class=\"sp searchBtn\" type=\"submit\" value=\"\" src=\"\" id=\"searchButton\" onClick=\"${sclick}; this.blur(); return false;\" />"
 
 	    set srclass "fld"
 	    set searched 0
@@ -474,16 +491,6 @@ proc wpCommonPageLayout {curpage c f u context bodyform searchform leavetest cmd
 
       cgi_table_data width="100%" valign="top" {
 	# pay not attention to the man behind the curtain
-	if {[llength $bodyform]} {
-	  if {[string length [lindex $bodyform 2]]} {
-	    set target "target=\"[lindex $bodyform 2]\""
-	  } else {
-	    set target ""
-	  }
-
-	  cgi_put "<form action=\"[lindex $bodyform 0]\" enctype=\"multipart/form-data\" id=\"[lindex $bodyform 1]\" method=\"post\" ${target}>"
-	}
-
 	cgi_table class="wap content" cellpadding="0" cellspacing="0" {
 	  cgi_puts "<tbody>"
 	  cgi_table_row  {
@@ -495,15 +502,14 @@ proc wpCommonPageLayout {curpage c f u context bodyform searchform leavetest cmd
 
 	  # display page content
 	  cgi_table_row  {
-	    cgi_table_data id=pageContent height="100%" valign="top" {
-	      uplevel 1 $content
+	    cgi_table_data height="100%" valign="top" {
+	      cgi_division id=alpineContent {
+		uplevel 1 $content
+	      }
 	    }
 	  }
-	  cgi_puts "</tbody>"
-	}
 
-	if {[llength $bodyform]} {
-	  cgi_put "</form>"
+	  cgi_puts "</tbody>"
 	}
       }
     }

@@ -1,4 +1,4 @@
-/* $Id: folders.js 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+/* $Id: folders.js 1150 2008-08-20 00:27:11Z mikes@u.washington.edu $
  * ========================================================================
  * Copyright 2008 University of Washington
  *
@@ -23,7 +23,7 @@ function doOpen(){
 }
 
 function doDelete(o){
-    var el = document.getElementById('divVPHeight');
+    var el = document.getElementById('alpineContent');
     newFolderList(el,null,o.c,o.path,{op:'delete',f:o.folder});
     var fne = document.getElementById('pickFolderName');
     if(fne) fne.value = '';
@@ -89,7 +89,7 @@ function addFolder(){
 			label:"New Folder",
 			disabled: true,
 			fn: function(){
-			    if(input.value.length) newFolderList(document.getElementById('divVPHeight'),null,fc,fp,{op:'add',f:input.value});
+			    if(input.value.length) newFolderList(document.getElementById('alpineContent'),null,fc,fp,{op:'add',f:input.value});
 			    else showStatusMessage('No folder name provided.  No folder added.',5);
 			    var fne = document.getElementById('pickFolderName');
 			    if(fne) fne.value = '';
@@ -144,7 +144,7 @@ function renameFolder(){
 			fn: function(){
 				if(fc >= 0 && fn.length && input.value.length){
 				    if(fn != input.value){
-					var el = document.getElementById('divVPHeight');
+					var el = document.getElementById('alpineContent');
 					newFolderList(el,null,fc,fp,{op:'rename',sf:fn,df:input.value});
 				    }
 				    else showStatusMessage('Folder name unchanged.',5);
@@ -190,7 +190,7 @@ function redrawFolderList(){
     var fc = document.getElementById('pickFolderCollection').value;
     var fp = document.getElementById('pickFolderPath').value;
     if(fc >= 0){
-	var el = document.getElementById('divVPHeight');
+	var el = document.getElementById('alpineContent');
 	newFolderList(el,null,fc,fp,{op:'noop'});
     }
 }

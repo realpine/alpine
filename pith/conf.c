@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: conf.c 1069 2008-06-03 15:54:15Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: conf.c 1150 2008-08-20 00:27:11Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -125,15 +125,19 @@ CONF_TXT_T cf_text_cacertcontainer[] =	"If this option is set then CAcerts are k
 CONF_TXT_T cf_text_ldap_server[] =		"LDAP servers for looking up addresses.";
 #endif	/* ENABLE_LDAP */
 
-CONF_TXT_T cf_text_wp_indexheight[] =		"WebAlpine index table row height";
+CONF_TXT_T cf_text_rss_news[] =			"RSS News feed";
 
-CONF_TXT_T cf_text_wp_indexlines[] =		"WebAlpine number of index lines in table";
+CONF_TXT_T cf_text_rss_weather[] =		"RSS Weather feed";
 
-CONF_TXT_T cf_text_wp_aggstate[] =		"WebAlpine aggregate operations tab state";
+CONF_TXT_T cf_text_wp_indexheight[] =		"Web Alpine index table row height";
 
-CONF_TXT_T cf_text_wp_state[] =			"WebAlpine various aspects of cross-session state";
+CONF_TXT_T cf_text_wp_indexlines[] =		"Web Alpine number of index lines in table";
 
-CONF_TXT_T cf_text_wp_columns[] =		"WebAlpine preferred width for message display in characters";
+CONF_TXT_T cf_text_wp_aggstate[] =		"Web Alpine aggregate operations tab state";
+
+CONF_TXT_T cf_text_wp_state[] =			"Web Alpine various aspects of cross-session state";
+
+CONF_TXT_T cf_text_wp_columns[] =		"Web Alpine preferred width for message display in characters";
 
 CONF_TXT_T cf_text_inbox_path[] =		"Path of (local or remote) INBOX, e.g. ={mail.somewhere.edu}inbox\n# Normal Unix default is the local INBOX (usually /usr/spool/mail/$USER).";
 
@@ -873,6 +877,10 @@ static struct variable variables[] = {
 {"ldap-servers",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
 	"LDAP Servers",		cf_text_ldap_server},
 #endif	/* ENABLE_LDAP */
+{"rss-news",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_rss_news},
+{"rss-weather",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_rss_weather},
 {"wp-indexheight", 			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
 	NULL,			cf_text_wp_indexheight},
 {"wp-indexlines",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
@@ -2426,6 +2434,8 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
     /* this should come after pre441 is set or not */
     set_current_color_vals(ps);
 
+    set_current_val(&vars[V_RSS_NEWS], TRUE, TRUE);
+    set_current_val(&vars[V_RSS_WEATHER], TRUE, TRUE);
     set_current_val(&vars[V_WP_INDEXHEIGHT], TRUE, TRUE);
     set_current_val(&vars[V_WP_INDEXLINES], TRUE, TRUE);
     set_current_val(&vars[V_WP_AGGSTATE], TRUE, TRUE);
@@ -3194,7 +3204,9 @@ feature_list(int index)
 	{"enable-jump-cmd", NULL,		/* exposed in Web Alpine */
 	 F_ENABLE_JUMP_CMD, h_config_enable_jump_command, PREF_HIDDEN, 0},
 	{"enable-newmail-sound", NULL,		/* exposed in Web Alpine */
-	 F_ENABLE_NEWMAIL_SOUND, h_config_enable_newmail_sound, PREF_HIDDEN, 0}
+	 F_ENABLE_NEWMAIL_SOUND, h_config_enable_newmail_sound, PREF_HIDDEN, 0},
+	{"render-html-internally", NULL,		/* exposed in Web Alpine */
+	 F_RENDER_HTML_INTERNALLY, h_config_render_html_internally, PREF_HIDDEN, 0}
     };
 
     return((index >= 0 && index < (sizeof(feat_list)/sizeof(feat_list[0])))
@@ -5634,8 +5646,9 @@ write_pinerc(struct pine *ps, EditWhich which, int flags)
 	  goto io_err;
     }
 
-    for(var = ps->vars; var->name != NULL; var++) 
-      var->been_written = 0;
+    if(!(flags & WRP_PRESERV_WRITTEN))
+      for(var = ps->vars; var->name != NULL; var++) 
+	var->been_written = 0;
 
     if(prc->type == Loc && ps->first_time_user &&
        !so_puts(so, native_nl(cf_text_comment)))

@@ -177,7 +177,6 @@ proc drawBottomListMenuBar {c f pn pt mc} {
 }
 
 proc drawMessageList {c f n ppg} {
-  cgi_division id=divMsgList class=contentBody {
     # before getting the list, move anything deleted to Trash
     if {[catch {PEMailbox trashdeleted current} result]} {
       PEInfo statmsg "Trash move Failed: $result"
@@ -259,12 +258,12 @@ proc drawMessageList {c f n ppg} {
 	    set sorturl "browse/$c/[WPPercentQuote $f {/}]?sort=[string tolower $cursort]&rev=$revbin"
 	    set onclick "onClick=return newMessageList({control:this,parms:{'op':'sort${rev}[string tolower $cursort]'}});"
 	    if {$revsort} {
-	      set sortimg "img/cbn/dn.gif"
-	      #set sortclass "spml12"
-	      set sortimgt "Descending"
-	    } else {
 	      set sortimg "img/cbn/up.gif"
 	      #set sortclass "spml13"
+	      set sortimgt "Descending"
+	    } else {
+	      set sortimg "img/cbn/dn.gif"
+	      #set sortclass "spml12"
 	      set sortimgt "Increasing"
 	    }
 
@@ -598,5 +597,4 @@ proc drawMessageList {c f n ppg} {
       cgi_puts "}"
       cgi_puts "</script>"
     }
-  }
 }

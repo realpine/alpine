@@ -1,5 +1,4 @@
-#!./tclsh
-# $Id: tconfig.tcl 1008 2008-03-25 01:25:48Z mikes@u.washington.edu $
+# $Id: tconfig.tcl 1145 2008-08-19 06:10:14Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -19,7 +18,7 @@
 set conf_vars {
   {newconf {} 0}
   {oncancel "Nothing set for oncancel"}
-  {wv      "" "general"}
+  {wv      "" general}
   {vlavar  "" ""}
 }
 
@@ -27,7 +26,6 @@ set conf_vars {
 #
 
 # read config
-source ./alpine.tcl
 source genvars.tcl
 
 set confs {
@@ -80,7 +78,7 @@ foreach item $conf_vars {
 }
 
 set type $wv
-WPCmd PEInfo set conf_page $type
+WPCmd set conf_page $type
 switch -- $type {
   msgl {
     set goodvars $msglist_vars

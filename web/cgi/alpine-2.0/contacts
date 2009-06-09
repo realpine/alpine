@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: contacts 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: contacts 1150 2008-08-20 00:27:11Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2008 University of Washington
 #
@@ -103,7 +103,7 @@ WPEval $contacts_args {
 	cgi_puts " initMenus();"
 	cgi_puts " if(YAHOO.env.ua.gecko > 0){ sizeVPHeight(); window.onresize = resizeVPHeight; }"
 	cgi_puts " setNewMailCheckInterval([WPCmd PEInfo inputtimeout]);"
-	cgi_puts " drawContactList('divVPHeight',gCurrentAbook,{hdr:'on',sendto:'on',canedit:'on'});"
+	cgi_puts " drawContactList('alpineContent',gCurrentAbook,{hdr:'on',sendto:'on',canedit:'on'});"
         cgi_puts "}"
 
 	# WHILE TESTING/DEBUGGING
@@ -115,7 +115,7 @@ WPEval $contacts_args {
 
     cgi_body class=wap "onLoad=bodyOnLoad()" {
 
-      wpCommonPageLayout contacts "$c" "$f" "$u" "Contacts" "" [list [cgi_cgi "$_wp(appdir_alt)/contacts"] Contacts 0 searchContent('contacts','clistContacts')] "" {
+      wpCommonPageLayout contacts "$c" "$f" "$u" "Contacts" [list [cgi_cgi "$_wp(appdir_alt)/contacts"] Contacts 0 searchContent('contacts','clistContacts')] "" {
 	# CONTEXT COMMANDS
 	cgi_division class=hdrBtns {
 	  cgi_put [cgi_url "[cgi_span "class=sp hdrBtnImg hbi1" ""][cgi_span "class=hdrBtnText" Print]" "print" "onClick=if(window.print){window.print();return false;}else return true;"]
@@ -177,9 +177,7 @@ WPEval $contacts_args {
 	}
       } {
 	# MAIN PAGE CONTENT
-	cgi_division id=divVPHeight class="contentBody" {
-	  cgi_puts "Loading..."
-	}
+	cgi_puts "Loading..."
       } {
 	# BOTTOM MENUBAR
 	cgi_table class="wap toolbarTbl" cellpadding="0" cellspacing="0" {

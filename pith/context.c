@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: context.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: context.c 1143 2008-08-14 00:51:47Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -96,6 +96,8 @@ context_digest(char *context, char *scontext, char *host, char *rcontext,
 	    if(*p != '[')		/* not quoted: "[[" */
 	      break;
 	}
+	else if(*p == ']' && *(p+1) == ']')	/* these may be quoted, too */
+	  p++;
     }
 
     if(*p == '\0')
@@ -657,6 +659,7 @@ new_context(char *cntxt_string, int *prime)
     if(c_string && *c_string == '\"')
       (void)removing_double_quotes(c_string);
 
+    view[0] = rcontext[0] = host[0] = dcontext[0] = '\0';
     if((p = context_digest(c_string, dcontext, host, rcontext, view, MAXPATH)) != NULL){
 	q_status_message2(SM_ORDER | SM_DING, 3, 4,
 			  "Bad context, %.200s : %.200s", p, c_string);

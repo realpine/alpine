@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: browse 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: browse 1150 2008-08-20 00:27:11Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2008 University of Washington
 #
@@ -148,13 +148,8 @@ WPEval $browse_args {
   }
 
   # lines per page
-  if {0} {
   if {[catch {WPCmd PEInfo indexlines} ppg] || $ppg <= 0} {
     set ppg $_wp(indexlines)
-  }
-  } else {
-    # BUG: fix index scrolling under table header
-    set ppg 25
   }
 
   # look for image button clicks
@@ -289,7 +284,7 @@ WPEval $browse_args {
 	set context [cgi_quote_html $f]
       }
 
-      wpCommonPageLayout browse $c $f $u $context {} [list [cgi_cgi "$_wp(appdir_alt)/browse/${c}/${f}"] "$f" 1 mailboxSearch()] "" {
+      wpCommonPageLayout browse $c $f $u $context [list [cgi_cgi "$_wp(appdir_alt)/browse/${c}/${f}"] "$f" 1 mailboxSearch()] "" {
 	cgi_division class=hdrBtns {
 	  cgi_put [cgi_url "[cgi_span "class=sp hdrBtnImg hbi1" ""][cgi_span "class=hdrBtnText" Print]" "print" "onClick=if(window.print){window.print();return false;}else return true;"]
 	  cgi_put [cgi_url "[cgi_span "class=sp hdrBtnImg hbi2" ""][cgi_span "class=hdrBtnText" Settings]" "settings"]
@@ -305,9 +300,7 @@ WPEval $browse_args {
 	}
       } {
 	if {[info exists opening_folder]} {
-	  cgi_division id=divMsgList class=contentBody {
-	    cgi_puts "Opening $f..."
-	  }
+	  cgi_puts "Opening $f..."
 	} else {
 	  cgi_puts [WPCmd cgi_buffer "drawMessageList $c {$f} $n $ppg"]
 	}

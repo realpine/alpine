@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: folder.c 1024 2008-04-07 22:58:40Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: folder.c 1143 2008-08-14 00:51:47Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -210,6 +210,7 @@ int	    shuffle_incoming_folders(CONTEXT_S *, int);
 int         swap_incoming_folders(int, int, FLIST *);
 int         search_folder_list(void *, char *);
 char       *get_post_list(char **);
+char       *quote_brackets_if_needed(char *);
 #ifdef	_WINDOWS
 int	    folder_list_popup(SCROLL_S *, int);
 int	    folder_list_select_popup(SCROLL_S *, int);
@@ -896,8 +897,10 @@ context_edit_screen(struct pine *ps, char *func, char *def_nick,
 		    char *def_serv, char *def_path, char *def_view)
 {
     int	       editor_result, i, j;
-    char       tmp[MAILTMPLEN], stmp[MAILTMPLEN], *nick, *serv, *path, *view,
-	      *new_cntxt = NULL, *val, *p, btmp[MAILTMPLEN];
+    char       nickpart[MAILTMPLEN], servpart[MAILTMPLEN], new_cntxt[MAILTMPLEN];
+    char       pathpart[MAILTMPLEN], allbutnick[MAILTMPLEN];
+    char       tmp[MAILTMPLEN], *nick, *serv, *path, *view,
+	      *return_cntxt = NULL, *val, *p, new[MAILTMPLEN];
     char       nickpmt[100], servpmt[100], pathpmt[100], viewpmt[100];
     int        indent;
     PICO       pbf;
@@ -996,75 +999,88 @@ context_edit_screen(struct pine *ps, char *func, char *def_nick,
 	cmd_cancelled(func);
     }
     else if(editor_result & COMP_EXIT){
+	servpart[0] = pathpart[0] = new_cntxt[0] = allbutnick[0] = '\0';
 	if(serv && *serv){
 	    if(serv[0] == '{'  && serv[strlen(serv)-1] == '}'){
-		strncpy(stmp, serv, sizeof(stmp)-1);
-		stmp[sizeof(stmp)-1] = '\0';
+		strncpy(servpart, serv, sizeof(servpart)-1);
+		servpart[sizeof(servpart)-1] = '\0';
 	    }
 	    else
-	      snprintf(stmp, sizeof(stmp), "{%s}", serv);
+	      snprintf(servpart, sizeof(servpart), "{%s}", serv);
 
-	    if(mail_valid_net_parse(stmp, &mb)){
+	    if(mail_valid_net_parse(servpart, &mb)){
 		if(!struncmp(mb.service, "nntp", 4)
 		   && (!path || strncmp(path, "#news.", 6)))
-		  strncat(stmp, "#news.", sizeof(stmp)-1-strlen(stmp));
+		  strncat(servpart, "#news.", sizeof(servpart)-1-strlen(servpart));
 	    }
 	    else
 	      panic("Unexpected invalid server");
 	}
 	else
-	  stmp[0] = '\0';
+	  servpart[0] = '\0';
 
-	stmp[sizeof(stmp)-1] = '\0';
+	servpart[sizeof(servpart)-1] = '\0';
 
-	tmp[0] = '\0';
+	new_cntxt[0] = '\0';
 	if(nick && *nick){
 	    val = quote_if_needed(nick);
 	    if(val){
-		strncpy(tmp, val, sizeof(tmp)-2);
-		tmp[sizeof(tmp)-2] = '\0';
+		strncpy(new_cntxt, val, sizeof(new_cntxt)-2);
+		new_cntxt[sizeof(new_cntxt)-2] = '\0';
 		if(val != nick)
 		  fs_give((void **)&val);
 	    
-		strncat(tmp, " ", sizeof(tmp)-strlen(tmp)-1);
-		tmp[sizeof(tmp)-1] = '\0';
+		strncat(new_cntxt, " ", sizeof(new_cntxt)-strlen(new_cntxt)-1);
+		new_cntxt[sizeof(new_cntxt)-1] = '\0';
 	    }
 	}
 
-	p = btmp;
-	sstrncpy(&p, stmp, sizeof(btmp)-1-(p-btmp));
-	btmp[sizeof(btmp)-1] = '\0';
-	sstrncpy(&p, path, sizeof(btmp)-1-(p-btmp));
-	btmp[sizeof(btmp)-1] = '\0';
-	if(pbf.headents[AC_PATH].bldr_private != (void *) 0){
-	    sstrncpy(&p, (char *) pbf.headents[AC_PATH].bldr_private,
-		     sizeof(btmp)-1-(p-btmp));
-	    btmp[sizeof(btmp)-1] = '\0';
+	p = allbutnick;
+	sstrncpy(&p, servpart, sizeof(allbutnick)-1-(p-allbutnick));
+	allbutnick[sizeof(allbutnick)-1] = '\0';
+
+	if(path){
+	    val = quote_brackets_if_needed(path);
+	    if(val){
+		strncpy(pathpart, val, sizeof(pathpart)-1);
+		pathpart[sizeof(pathpart)-1] = '\0';
+		if(val != path)
+		  fs_give((void **)&val);
+	    }
+
+	    if(pbf.headents[AC_PATH].bldr_private != (void *) 0){
+		strncat(pathpart, (char *) pbf.headents[AC_PATH].bldr_private,
+			sizeof(pathpart)-strlen(pathpart)-1);
+		pathpart[sizeof(pathpart)-1] = '\0';
+	    }
 	}
 
-	if(view[0] != '[' && sizeof(btmp)-1-(p-btmp) > 0){
+	sstrncpy(&p, pathpart, sizeof(allbutnick)-1-(p-allbutnick));
+	allbutnick[sizeof(allbutnick)-1] = '\0';
+
+	if(view[0] != '[' && sizeof(allbutnick)-1-(p-allbutnick) > 0){
 	    *p++ = '[';
 	    *p = '\0';
 	}
 
-	sstrncpy(&p, view, sizeof(btmp)-1-(p-btmp));
-	btmp[sizeof(btmp)-1] = '\0';
+	sstrncpy(&p, view, sizeof(allbutnick)-1-(p-allbutnick));
+	allbutnick[sizeof(allbutnick)-1] = '\0';
 	if((j=strlen(view)) < 2 || (view[j-1] != ']' &&
-	   sizeof(btmp)-1-(p-btmp) > 0)){
+	   sizeof(allbutnick)-1-(p-allbutnick) > 0)){
 	    *p++ = ']';
 	    *p = '\0';
 	}
 
-	val = quote_if_needed(btmp);
+	val = quote_if_needed(allbutnick);
 	if(val){
-	    strncat(tmp, val, sizeof(tmp)-1-strlen(tmp));
-	    tmp[sizeof(tmp)-1] = '\0';
+	    strncat(new_cntxt, val, sizeof(new_cntxt)-1-strlen(new_cntxt));
+	    new_cntxt[sizeof(new_cntxt)-1] = '\0';
 
-	    if(val != btmp)
+	    if(val != allbutnick)
 	      fs_give((void **)&val);
 	}
 
-	new_cntxt = cpystr(tmp);
+	return_cntxt = cpystr(new_cntxt);
     }
 
     for(i = 0; headents_templ[i].prompt; i++)
@@ -1080,7 +1096,31 @@ context_edit_screen(struct pine *ps, char *func, char *def_nick,
     if(msgso)
       so_give(&msgso);
 
-    return(new_cntxt);
+    return(return_cntxt);
+}
+
+
+/*
+ * Doubles up '[' and ']' characters and returns either
+ * an allocated string or a pointer to the source string
+ * if no quoting is needed.
+ */
+char *
+quote_brackets_if_needed(char *src)
+{
+    char *step1 = NULL, *step2 = NULL, *ret;
+
+    ret = src;
+
+    if((strpbrk(src, "[]") != NULL)
+       && ((step1 = add_escapes(src, "[", '[', "", "")) != NULL)
+       && ((step2 = add_escapes(step1, "]", ']', "", ""))))
+      ret = step2;
+
+    if(step1)
+      fs_give((void **) &step1);
+
+    return(ret);
 }
 
 

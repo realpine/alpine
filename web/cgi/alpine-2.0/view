@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: view 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: view 1150 2008-08-20 00:27:11Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2008 University of Washington
 #
@@ -85,7 +85,7 @@ WPEval $view_args {
   # load message drawing routine for this session
   # save per-message source, proc overhead
   # to reinstall on the fly:
-  catch {WPCmd rename drawMessageText {}}
+  #catch {WPCmd rename drawMessageText {}}
   if {0 == [llength [WPCmd info commands drawMessageText]]} {
     if {[catch {
       WPCmd source "[pwd]/messageview.tcl"
@@ -214,7 +214,7 @@ WPEval $view_args {
 	cgi_put [cgi_url "Skip to Compose" "compose#to"]
       }
 
-      wpCommonPageLayout view $c $f $u [cgi_url "[cgi_quote_html $f], Message $n of $mc" browse/$c/[WPPercentQuote $f $delim] id=gBigContext] {} [list [cgi_cgi "$_wp(appdir_alt)/browse/${c}/${f}?u=${u}"] "$f" 1 mailboxSearch()] {} {
+      wpCommonPageLayout view $c $f $u [cgi_url "[cgi_quote_html $f], Message $n of $mc" browse/$c/[WPPercentQuote $f $delim] id=gBigContext] [list [cgi_cgi "$_wp(appdir_alt)/browse/${c}/${f}?u=${u}"] "$f" 1 mailboxSearch()] {} {
 	# CONTEXT COMMANDS
 	cgi_division class=hdrBtns {
 	  cgi_put [cgi_url "[cgi_span "class=sp hdrBtnImg hbi1" ""][cgi_span "class=hdrBtnText" Print]" "print" "onClick=if(window.print){window.print();return false;}else return true;"]

@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: settings 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: settings 1150 2008-08-20 00:27:11Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2008 University of Washington
 #
@@ -13,10 +13,10 @@
 
 #  view.tcl
 #
-#  Purpose:  CGI script settings for Web Alpine 2.0 pages
+#  Purpose:  CGI script settings for Web Alpine 2.0 settings page
 #
-#  Input:    PATH_INFO: [/<col_number>]/<folder_name>[/<uid_of_viewed_msg>
-#            along with possible search parameters:
+#  Input:    
+#            
 set settings_args {
 }
 
@@ -25,88 +25,66 @@ source ./alpine.tcl
 source ./foldercache.tcl
 source ./common.tcl
 
+set script_base "$_wp(serverpath)/$_wp(appdir_alt)/"
+
 # TEST
 proc cgi_suffix {args} {
   return ""
 }
 
-# WHILE TESTING/DEBUGGING
-proc noimp {s} {
-  return "onClick=return noImp('${s}');"
+set labels 0
+proc set_feature {feature desc} {
+  global labels
+  cgi_checkbox $feature=1 [set_checked [WPCmd PEInfo feature $feature]] id="label_[incr labels]"
+  cgi_put " <label for=\"label_${labels}\">$desc</label>"
 }
 
-set dmsgs ""
-proc dm {s} {
-  global dmsgs
-
-  lappend dmsgs $s
-}
-
-# default location state
-set c -1
-set f ""
-
-# grok PATH_INFO for collection 'c' and folder 'f'
-if {[info exists env(PATH_INFO)] && [string length $env(PATH_INFO)]} {
-  # look for collection number, c
-  if {[regexp {^/([0-9]+)(/.*)} $env(PATH_INFO) dummy c r]} {
-    if {![string length $r]} {
-      set f $c
-      set c -1
-    }
-  } else {
-    set r $env(PATH_INFO)
+proc set_checked {checked {token checked}} {
+  if {$checked > 0} {
+    return $token
   }
 
-  # look for folder name (f) in remainder, r
-  if {[regexp {^/([^/]+)((/.*)|$)} $r dummy f r]} {
-    # look for uid of page's top message, u
-    if {[regexp {^/([0-9a-fA-F]+)} $r dummy u]} {
-    } else {
+  return ""
+}
+
+proc set_variable {var {desc ""}} {
+  global labels
+  if {[string length $desc]} {
+    cgi_put "<label for=\"label_[incr labels]\">${desc}</label>"
+  }
+  cgi_text ${var}=[var_value $var] id="label_${labels}"
+}
+
+proc var_value {var} {
+  set varval [WPCmd PEConfig varget $var]
+  switch [lindex $varval 1] {
+    textarea {
+      return [join [lindex $varval 0] "\n"]
     }
-  } else {
-    if {[string length $r]} {
-      # can't grok, reset context
-      set c -1
+    listbox {
+      return [lindex $varval 0]
+    }
+    default {
+      return [lindex [lindex $varval 0] 0]
     }
   }
+
+  return ""
 }
+
+
 
 WPEval $settings_args {
-  # verify current collection/folder
-  if {[catch {WPCmd PEFolder current} curfold]} {
-    error [list _action browse "cannot determine default folder: $curfold"]
+
+  if {0 == [catch {WPCmd PEFolder current} curfold]} {
+    set c [lindex $curfold 0]
+    set f [lindex $curfold 1]
   } else {
-    set curc [lindex $curfold 0]
-    set curf [lindex $curfold 1]
+    set c 0
+    set f inbox
   }
 
-  # "current" folder's context
-  if {$c < 0} {
-    set c $curc
-  }
-
-  # "current" folder
-  if {0 == [string length $f]} {
-    set f $curf
-  }
-
-  # open a different folder?
-  if {$c != $curc || [string compare $f $curf]} {
-    # BUG: validate $u?
-
-    error [list _action browse "NOT PREPARED TO OPEN NEW FOLDER $f YET"]
-    if {[catch {eval WPCmd PEMailbox open [list $c $f]} reason]} {
-    } else {
-      # STATUS: Opened Folder $f
-    }
-  }
-
-  set defc [WPCmd PEFolder defaultcollection]
-  set cols [WPCmd PEFolder collections]
-  
   set charset "UTF-8"
-  set u 0
 
   cgi_http_head {
     WPStdHttpHdrs "text/html; charset=$charset"
@@ -115,12 +93,9 @@ WPEval $settings_args {
   cgi_html {
     cgi_head {
       cgi_content_type "text/html; charset=$charset"
-      #      WPStdHttpHdrs "text/html; charset=$charset"
       cgi_title [wpPageTitle "Settings"]
-      cgi_base "href=$_wp(serverpath)/$_wp(appdir_alt)/"
-      cgi_stylesheet css/menu.css
+      cgi_base "href=$script_base"
       cgi_stylesheet css/cbn/screen.css
-      cgi_stylesheet css/cbn/settings.css
       # Yahoo Styles
       cgi_stylesheet lib/yui/build/container/assets/container-core.css
       cgi_stylesheet lib/yui/build/menu/assets/skins/sam/menu.css
@@ -136,24 +111,14 @@ WPEval $settings_args {
       cgi_script language="JavaScript" src="lib/settings.js" {}
       cgi_javascript {
 	cgi_puts "YAHOO.alpine.cgi_root = '$_wp(serverpath)';"
+	cgi_puts "YAHOO.alpine.cgi_base = '$script_base';"
 	cgi_puts "YAHOO.alpine.current.incoming = [WPCmd PEFolder isincoming $c];"
 	cgi_puts "YAHOO.alpine.current.c = $c;"
 	cgi_puts "YAHOO.alpine.current.f = \"$f\";"
-	foreach col $cols {
-	  regsub {'} [lindex $col 1] {\'} colname
-	  lappend colnames "'$colname'"
-	}
-	cgi_puts "YAHOO.alpine.current.u = $u;"
-	cgi_puts "YAHOO.alpine.current.collections = \[[join $colnames {,}]\];"
 	cgi_puts "function bodyOnLoad() {"
-	cgi_puts " initMenus();"
 	cgi_puts " if(YAHOO.env.ua.gecko > 0){ sizeVPHeight(); window.onresize = resizeVPHeight; }"
 	cgi_puts " setNewMailCheckInterval([WPCmd PEInfo inputtimeout]);"
         cgi_puts "}"
-
-	# WHILE TESTING/DEBUGGING
-	cgi_puts "var impi = new Array(); function noImp(m){ var sm; if(impi\[m\]) {impi\[m\]++; if(impi\[m\] > 4) sm = '<b>Seriously,</b> ' + m + ' will <b>never</b> get implemented if you keep bothering me!'; else sm = m + ' is <b>still</b> not implemented!'; } else { sm = m + ' is not implemented yet!' ; impi\[m\] = 1 ;} showStatusMessage(sm,3); return false; }"
-
 	cgi_puts "browserDetect();"
       }
     }
@@ -162,63 +127,61 @@ WPEval $settings_args {
       cgi_puts {<iframe name="formResponse" id="formResponse" src="img/cbn/spritelib.gif"></iframe>}
       wpCommonPageLayout {settings {
 	cgi_hr
-	cgi_division id=backToInbox {
-	  cgi_put [cgi_url "[cgi_img img/cbn/inbox.gif class=wap] Back to $f" browse/$c/$f title="Return to $f without saving changes"]
+	cgi_division {
+	  cgi_put [cgi_url [cgi_span "class=sp splci tbi5" "Back to $f"] browse/$c/$f class=wap title="Return to $f without saving changes"]
 	}
 	cgi_hr
 	cgi_division class="ftitle bld" {
 	  cgi_put "Common Settings"
 	}
-	cgi_division "class=\"fld bld sel\"" {
-	  cgi_put [cgi_url "[cgi_img img/cbn/rt.gif class=wap] General Preferences" # class=wap id=Page1 "onClick=return settingsPage(this);"]
+	cgi_division "class=\"bld sel\"" {
+	  cgi_put [cgi_url [cgi_span "class=sp splcs splc12" "General Preferences"] # class=wap id=Page1 "onClick=return settingsPage(this);"]
 	}
-	cgi_division "class=\"fld bld\"" {
-	  cgi_put [cgi_url "[cgi_img img/cbn/rt.gif class=wap] Personal Information" # class=wap id=Page2 "onClick=return settingsPage(this);"]
+	cgi_division class=bld {
+	  cgi_put [cgi_url [cgi_span "class=sp splcs splc12" "Personal Preferences"] # class=wap id=Page2 "onClick=return settingsPage(this);"]
 	}
-	cgi_division "class=\"fld bld\"" {
-	  cgi_put [cgi_url "[cgi_img img/cbn/rt.gif class=wap] News and Weather" # class=wap id=Page3 "onClick=return settingsPage(this);"]
+	cgi_division class=bld {
+	  cgi_put [cgi_url [cgi_span "class=sp splcs splc12" "News and Weather"] # class=wap id=Page3 "onClick=return settingsPage(this);"]
+	}
+	if {[info exists _wp(filter_link)] || [info exists _wp(vacation_link)]} {
+	  cgi_division class="ftitle bld" "style=\"margin-top: 2em;\"" {
+	    cgi_put "External Settings"
+	  }
+	  cgi_division class=bld {
+	    cgi_put [cgi_url [cgi_span "class=sp splcs splc12" "Message Filtering"] $_wp(filter_link) class=wap target=_blank]
+	  }
+	  cgi_division class=bld {
+	    cgi_put [cgi_url [cgi_span "class=sp splcs splc12" "Vacation Auto-Reply"] $_wp(vacation_link) class=wap target=_blank]
+	  }
 	}
 	cgi_division class="ftitle bld" "style=\"margin-top: 2em;\"" {
-	  cgi_put "External Settings"
-	}
-	#if _wp(spamfilterlink) then set this up
-	cgi_division "class=\"fld bld\"" {
-	  cgi_put [cgi_url "[cgi_img img/cbn/rt.gif class=wap] Spam Filtering" # class=wap [noimp "Filter Confi"]]
-	}
-	#if _wp(vacationlink) then set this up
-	cgi_division "class=\"fld bld\"" {
-	  cgi_put [cgi_url "[cgi_img img/cbn/rt.gif class=wap] Vacation Auto-Reply" # class=wap [noimp "Vacation Config"]]
-	}
-	cgi_division class="ftitle bld" "style=\"margin-top: 2em;\"" {
-	  cgi_put "[cgi_url [cgi_img img/cbn/f_plus.gif class=wap] # "onClick=return toggleAdvance(this);"] Advance Settings"
+	  cgi_put [cgi_url "[cgi_img img/cbn/f_plus.gif class=wap]  Advance Settings" # class=wap "onClick=return toggleAdvance(this);"]
 	}
 	cgi_division id=advancedSettings {
-	  cgi_division "class=\"fld bld\"" {
-	    cgi_put [cgi_url "[cgi_img img/cbn/rt.gif class=wap] Message List" # class=wap id=Page4 "onClick=return settingsPage(this);"]
+	  cgi_division class=bld {
+	    cgi_put [cgi_url [cgi_span "class=sp splcs splc12" "Message List"] # class=wap id=Page4 "onClick=return settingsPage(this);"]
 	  }
-	  cgi_division "class=\"fld bld\"" {
-	    cgi_put [cgi_url "[cgi_img img/cbn/rt.gif class=wap] Message View" # class=wap id=Page5 "onClick=return settingsPage(this);"]
+	  cgi_division class=bld {
+	    cgi_put [cgi_url [cgi_span "class=sp splcs splc12" "Message View"] # class=wap id=Page5 "onClick=return settingsPage(this);"]
 	  }
-	  cgi_division "class=\"fld bld\"" {
-	    cgi_put [cgi_url "[cgi_img img/cbn/rt.gif class=wap] Compose" # class=wap id=Page6 "onClick=return settingsPage(this);"]
+	  cgi_division class=bld {
+	    cgi_put [cgi_url [cgi_span "class=sp splcs splc12" "Folders"] # class=wap id=Page8 "onClick=return settingsPage(this);"]
 	  }
-	  cgi_division "class=\"fld bld\"" {
-	    cgi_put [cgi_url "[cgi_img img/cbn/rt.gif class=wap] Filters" # class=wap id=Page7 "onClick=return settingsPage(this);"]
-	  }
-	  cgi_division "class=\"fld bld\"" {
-	    cgi_put [cgi_url "[cgi_img img/cbn/rt.gif class=wap] Folders" # class=wap id=Page8 "onClick=return settingsPage(this);"]
+	  cgi_division class=bld {
+	    cgi_put [cgi_url [cgi_span "class=sp splcs splc12" "Compose"] # class=wap id=Page6 "onClick=return settingsPage(this);"]
 	  }
 	  cgi_division class="ftitle bld" "style=\"margin-top: 2em;\"" {
 	    cgi_put "Server Settings"
 	  }
-	  cgi_division "class=\"fld bld\"" {
-	    cgi_put [cgi_url "[cgi_img img/cbn/rt.gif class=wap] Directory Servers" # class=wap id=Page9 "onClick=return settingsPage(this);"]
+	  cgi_division class=bld {
+	    cgi_put [cgi_url [cgi_span "class=sp splcs splc12" "Mail Servers"] # class=wap id=Page10 "onClick=return settingsPage(this);"]
 	  }
-	  cgi_division "class=\"fld bld\"" {
-	    cgi_put [cgi_url "[cgi_img img/cbn/rt.gif class=wap] Mail Servers" # class=wap id=Page10 "onClick=return settingsPage(this);"]
+	  cgi_division class=bld {
+	    cgi_put [cgi_url [cgi_span "class=sp splcs splc12" "Directory Servers"] # class=wap id=Page9 "onClick=return settingsPage(this);"]
 	  }
 	}
-      }} "$c" "$f" "$u" Settings {} [list [cgi_cgi "$_wp(appdir_alt)/browse/${c}/${f}"] Settings 0] "" {
+      }} "$c" "$f" 0 Settings \
+	  [list [cgi_cgi "$_wp(appdir_alt)/browse/${c}/${f}"] Settings 0 searchContent('settings','alpineContent')] "" {
 	# CONTEXT COMMANDS
 	cgi_division class=hdrBtns {
 	  cgi_put [cgi_url "[cgi_span "class=sp hdrBtnImg hbi1" ""][cgi_span "class=hdrBtnText" Print]" "print" "onClick=if(window.print){window.print();return false;}else return true;"]
@@ -226,7 +189,7 @@ WPEval $settings_args {
 	  cgi_put [cgi_url "[cgi_span "class=sp hdrBtnImg hbi4" ""][cgi_span "class=hdrBtnText" "Sign out"]" "../../session/logout.tcl?cid=[WPCmd PEInfo key]&sessid=${sessid}"]
 	}
       } {
-	# TO MENUBAR
+	# TOP MENUBAR
 	cgi_anchor_name "toolbar"
 	cgi_table  class="toolbarTbl" cellpadding="0" cellspacing="0" {
 	  cgi_puts "<tbody>"
@@ -236,10 +199,10 @@ WPEval $settings_args {
 		cgi_puts "<tbody>"
 		cgi_table_row {
 		  cgi_table_data class="wap" {
-		    cgi_put [cgi_url [cgi_span "class=sp spmbi spmb10" "Save Settings"] "#" [noimp Save] title="Save Settings Changes"]
+		    cgi_put [cgi_url [cgi_span "class=sp spmbi spmb10" "Save Settings"] "#" title="Save Settings Changes" "onClick=return saveSettings();"]
 		  }
 		  cgi_table_data class="wap" {
-		    cgi_put [cgi_url [cgi_span "class=sp spmbi spmb21" "Reset to Default Settings"] "#" [noimp "Restore Default"] title="Reset to Default Settings"]
+		    cgi_put [cgi_url [cgi_span "class=sp spmbi spmb21" "Reset to Default Settings"] "#" "onClick=panelConfirm('Restoring default settings will erase all custom settings.<p>Are you sure you want to restore default settings?',{text:'Restore Defaults',fn:restoreDefaultSettings}); return false;" title="Reset to Default Settings"]
 		  }
 		  cgi_table_data class="wap" {
 		    cgi_put [cgi_url [cgi_span "class=sp spmbi spmb12" "Cancel"] "browse/$c/$f" title="Cancel Settings Changes"]
@@ -255,65 +218,43 @@ WPEval $settings_args {
 	  cgi_puts "</tbody>"
 	}
       } {
-	cgi_division id=divVPHeight class="contentBody" {
+	cgi_form $_wp(appdir_alt)/conduit/settings.tcl "enctype=multipart/form-data" id=settingsForm target=formResponse {
+	  cgi_text "restore=false" id=restore type=hidden notab
 	  cgi_table id=settingsPage1 "class=\"fields settings\"" cellpadding="0" cellspacing="0" {
 	    cgi_puts "<tbody>"
 	    cgi_puts "<tr><td class=title colspan=2><h2>General Preferences</h2></td></tr>"
 	    cgi_table_row {
 	      cgi_table_data class="title" {
-		cgi_puts "Display"
+		cgi_puts "Message Display"
 		#[cgi_br]<a href="#" title="more info..." onClick="help_popup1.showPopup('anchor1');return false;" name="anchor1" id="anchor1"><img src="img/cbn/help_sm.gif"></a>
 	      }
 	      cgi_table_data class="body" {
-		cgi_table {
-		  cgi_put "<tbody>"
-		  cgi_table_row {
-		    cgi_table_data {
-		      cgi_put "Theme: "
-		    }
-		    cgi_table_data {
-		      cgi_select theme {
-			cgi_option "Carbon Fiber" value=cbn
-			cgi_option "Alpine Snow" value=snw
-			cgi_option "UW Dawgs" value=dwg
-		      }
+		if {[info exists _wp(themes)]} {
+		  cgi_put "Theme: "
+		  cgi_select theme {
+		    foreach theme $_wp(themes) {
+		      cgi_option [lindex $theme 0] value=[lindex $theme 1]
 		    }
 		  }
-		  cgi_table_row {
-		    cgi_table_data {
-		      cgi_put "Number of messages per page "
-		    }
-		    cgi_table_data {
-		      cgi_select msgPerPage {
-			cgi_option 10 value=10
-			cgi_option 15 value=15
-			cgi_option 20 value=20
-			cgi_option 30 value=30
-			cgi_option 40 value=40
-			cgi_option 50 value=50
-		      }
-		    }
-		  }
-		  cgi_table_row {
-		    cgi_table_data {
-		      cgi_put "Wrap Plain Text message at "
-		    }
-		    cgi_table_data {
-		      cgi_text wrap=72 size="2"
-		      cgi_put " characters"
-		    }
-		  }
-		  cgi_put "</tbody>"
+		  cgi_br
 		}
-		cgi_nl
-		cgi_checkbox altRows= id=alt_row_colors title="Alternate Row Shading"
-		cgi_put " <label for=alt_row_colors>Enable alternating row colors in message list</label><br>"
-		cgi_nl
-		cgi_checkbox jump= id=enable_jump title="Enable Jump Command"
-		cgi_put " <label for=enable_jump>Enable jump to message number</label><br>"
-		cgi_nl
-		cgi_checkbox pageSel= id=page_selector title="Page Selector"
-		cgi_put " <label for=page_selector>Enable page selector menu</label>"
+		cgi_put "Display "
+		set n [var_value wp-indexlines]
+		cgi_select wp-indexlines {
+		  for {set i 10} {$i <= $_wp(indexlinesmax)} {incr i 5} {
+		    cgi_option $i value=$i [set_checked [expr {$i == $n}] selected]
+		  }
+		}
+		cgi_put " messages per page"
+		cgi_br
+		cgi_put "Wrap Plain Text message at "
+		set n [WPCmd PEConfig columns]
+		cgi_select wrapColumn {
+		  for {set i 20} {$i < 130} {incr i 4} {
+		    cgi_option $i value=$i [set_checked [expr {$i == $n}] selected]
+		  }
+		}
+		cgi_put " characters"
 	      }
 	    }
 	    cgi_table_row {
@@ -323,206 +264,77 @@ WPEval $settings_args {
 	      }
 	      cgi_table_data class="body" {
 		cgi_put "Display "
+		if {[catch {WPSessionState left_column_folders} n]} {
+		  set n $_wp(fldr_cache_def)
+		}
+
 		cgi_select folderCache {
-		  cgi_option 5 value=5
-		  cgi_option 10 value=10
-		  cgi_option 15 value=15
-		  cgi_option 20 value=20
+		  for {set i 5} {$i <= $_wp(fldr_cache_max)} {incr i} {
+		    cgi_option $i value=$i [set_checked [expr {$i == $n}] selected]
+		  }
 		}
 		cgi_put " recent folders in left column"
 	      }
 	    }
 	    cgi_table_row {
 	      cgi_table_data class="title" {
-		cgi_put "Compose Encoding"
+		cgi_put "Reply[cgi_nbspace]Options"
 		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
 	      }
 	      cgi_table_data class="body" {
-		cgi_radio_button "text_enc=1" id="default_encoding" checked
-		cgi_put " <label for=default_encoding>Use the browser's default encoding for outgoing messages</label><br>"
-		cgi_radio_button "text_enc=2" id="always_unicode"
-		cgi_put " <label for=always_unicode>Use</label> "
-		cgi_select encodings {
-		  cgi_option "Unicode (UTF-8)" value=UTF-8
-		  cgi_option "Chinese Simplified (GB2312)" value=GB2312
-		  cgi_option "Chinese Simplified (GB18030)" value=GB18030
-		  cgi_option "Chinese Traditional (Big5)" value=Big5
-		  cgi_option "Cyrillic (KOI8-R)" value=KOI8-R
-		  cgi_option "Japanese (ISO-2022-JP)" value=ISO-2022-JP
-		  cgi_option "Western (ISO-8859-15)" value=ISO-8859-15
-		}
-		cgi_put " <label for=always_unicode> encoding for outgoing messages</label>"
+		set_feature include-header-in-reply "Include headers in replies"
+		cgi_br
+		set_feature include-attachments-in-reply "Include attachments in replies"
+		cgi_br
+		set_feature signature-at-bottom "Append signature below reply text"
+		cgi_br
+		set_feature strip-from-sigdashes-on-reply "Strip signatures when replying"
 	      }
 	    }
 	    cgi_table_row {
 	      cgi_table_data class="title" {
-		cgi_put "Reply Options"
+		cgi_put "Forwarding[cgi_nbspace]Options"
 		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
 	      }
 	      cgi_table_data class="body" {
-		cgi_checkbox richText= id="reply_format" checked
-		cgi_put " <label for=reply_format>Use the same message format as original, e.g. Rich Text</label><br>"
-		cgi_checkbox headerInReply= id="inc_header_reply"
-		cgi_put " <label for=inc_header_reply>Include headers in replies</label><br>"
-		cgi_checkbox attachInReply= id="inc_attach_reply"
-		cgi_put " <label for=inc_attach_reply>Include attachments in replies</label><br>"
-		cgi_checkbox sigBefore= id="append_sig_before"
-		cgi_put " <label for=append_sig_before>Append signature above reply text</label><br>"
-		cgi_checkbox replyStripSig= id="reply_strip_sig"
-		cgi_put " <label for=reply_strip_sig>Strip signatures when replying</label>"
-	      }
-	    }
-	    cgi_table_row {
-	      cgi_table_data class="title" {
-		cgi_put "Forwarding Options"
-		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
-	      }
-	      cgi_table_data class="body" {
-		cgi_radio_button forwardOption=0 id="forward_inline" checked
-		cgi_put " <label for=forward_inline>Forward messsages inline</label><br>"
-		cgi_radio_button forwardOption=1 id="forward_attachment"
+		set as_attach [WPCmd PEInfo feature forward-as-attachment]
+		cgi_radio_button forwardAs=inline id="forward_inline" [set_checked [expr {$as_attach == 0}]]
+		cgi_put " <label for=forward_inline>Forward messsages inline</label>"
+		cgi_br
+		cgi_radio_button forwardAs=attached id="forward_attachment" [set_checked $as_attach]
 		cgi_put " <label for=forward_attachment>Forward messsages as attachments</label>"
 	      }
 	    }
 	    cgi_table_row {
 	      cgi_table_data class="title" {
-		cgi_put "Flag Personal Email"
+		cgi_put "Sent[cgi_nbspace]Message[cgi_nbspace]Options"
+		cgi_put "<p><span class=tips><strong>Tip:</strong> Set folder blank to prevent saving of Sent messages</span>"
 		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+
 	      }
 	      cgi_table_data class="body" {
-		cgi_checkbox personalLevel id="personal_level" checked
-		cgi_put " <label for=personal_level>Display an arrow ( › ) for messages Cc: or Bcc: to me, and a double arrow ( » ) for messages addressed only to me.</label>"
-	      }
-	    }
-	    cgi_table_row {
-	      cgi_table_data class="title" {
-		cgi_put "New Mail Notification"
-		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
-	      }
-	      cgi_table_data class="body" {
-		cgi_checkbox enableSound= id="enable_sound" checked
-		cgi_put " <label for=enable_sound>Play a sound when new mail arrives</label>";# &nbsp;<a href="#"><img src="img/cbn/sound.gif"> play sound</a>"
-	      }
-	    }
-	    cgi_table_row {
-	      cgi_table_data class="title" {
-		cgi_put "Auto-Contacts"
-		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
-	      }
-	      cgi_table_data class="body" {
-		cgi_checkbox autosSaveAddr= id="autosave_sent_addr"
-		cgi_put " <label for=autosave_sent_addr>Automatically save sent email addresses into Contacts</label>"
-	      }
-	    }
-	    cgi_table_row {
-	      cgi_table_data class="title" {
-		cgi_put "Save Sent"
-		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
-	      }
-	      cgi_table_data class="body" {
-		cgi_checkbox saveSent= id="save_sent_mail" checked
-		cgi_put " <label for=save_sent_mail>Save your sent messages into the Sent folder</label>"
-	      }
-	    }
-	    cgi_table_row {
-	      cgi_table_data class="title" {
-		cgi_put "Archive Sent"
-		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
-	      }
-	      cgi_table_data class="body" {
-		cgi_radio_button archive_sent_mail=0 id="ask_archive_sent_mail" checked
-		cgi_put " <label for=ask_archive_sent_mail>Ask to archive Sent mail (once per month)</label><br>"
-		cgi_radio_button archive_sent_mail=1 id="always_archive_sent_mail"
-		cgi_put " <label for=always_archive_sent_mail>Always archive Sent mail</label><br>"
-		cgi_radio_button archive_sent_mail=2 id="never_archive_sent_mail"
-		cgi_put " <label for=never_archive_sent_mail>Never archive Sent mail</label><br><br>"
-		cgi_radio_button delete_old_sent_mail=0 id="ask_delete_old_sent_mail" checked
-		cgi_put " <label for=ask_delete_old_sent_mail>Ask to delete old Sent mail (once per month)</label><br>"
-		cgi_radio_button delete_old_sent_mail=1 id="never_delete_old_sent_mail"
-		cgi_put " <label for=never_delete_old_sent_mail>Never delete old Sent mail</label>"
-	      }
-	    }
-	    cgi_table_row {
-	      cgi_table_data class="title" {
-		cgi_put "Emptying Trash"
-		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
-	      }
-	      cgi_table_data class="body" {
-		cgi_checkbox promptExpunge= id="prompt_expunge" checked
-		cgi_put " <label for=prompt_expunge>Ask for confirmation when emptying the Trash</label><br>"
-		cgi_checkbox monthlyExpunge= id="periodic_expunge" checked
-		cgi_put " <label for=periodic_expunge>Regularly delete old messages from Trash folder (once per month)</label><br>"
-		cgi_checkbox expungeOnExit= id="expunge_on_exit"
-		cgi_put " <label for=expunge_on_exit>Empty the Trash folder when exiting</label>"
-	      }
-	    }
-	    cgi_table_row {
-	      cgi_table_data class="title" {
-		cgi_put "Fcc Options"
-		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
-	      }
-	      cgi_table_data class="body" {
-		cgi_checkbox fccWithoutAttach= id="fcc_without_attach"
-		cgi_put " <label for=fcc_without_attach>Fcc without attachments (e.g. Save to Sent folder without attachments)</label>"
-	      }
-	    }
-	    cgi_table_row {
-	      cgi_table_data class="title" {
-		cgi_put "Keyboard Shortcuts"
-		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
-	      }
-	      cgi_table_data class="body" {
-		cgi_checkbox kbShortcuts= id="kb_shortcuts"
-		cgi_put " <label for=kb_shortcuts>Enable Keyboard Shortcuts</label>"
+		set_variable default-fcc "Name of your Sent mail folder (also called \"Fcc\"): "
+		cgi_br
+		set_feature fcc-without-attachments "Save sent messages to Sent folder without attachments"
 	      }
 	    }
 	    cgi_puts "</tbody>"
 	  }
 	  cgi_table id=settingsPage2 "class=\"fields settings\"" "style=\"display: none;\"" cellpadding="0" cellspacing="0" {
 	    cgi_puts "<tbody>"
-	    cgi_puts "<tr><td class=title colspan=2><h2>Personal Information</h2></td></tr>"
+	    cgi_puts "<tr><td class=title colspan=2><h2>Personal[cgi_nbspace]Information</h2></td></tr>"
 	    cgi_table_row {
 	      cgi_table_data class="title" {
-		cgi_put "Display Name"
+		cgi_put "Display[cgi_nbspace]Name"
 		#<br><a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
 	      }
 	      cgi_table_data class="body" {
-		cgi_text personalName=
+		set_variable personal-name
 	      }
 	    }
 	    cgi_table_row {
 	      cgi_table_data class="title" {
-		cgi_put "\"From:\" Address"
-		#<br><a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
-	      }
-	      cgi_table_data class="body" {
-		cgi_text fromAddress=
-	      }
-	    }
-	    cgi_table_row {
-	      cgi_table_data class="title" {
-		cgi_put "\"Reply-To\" Address"
-		#<br><a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
-	      }
-	      cgi_table_data class="body" {
-		cgi_text replyTo=
-	      }
-	    }
-	    cgi_table_row {
-	      cgi_table_data class="title" {
-		cgi_put "Alternate Addresses"
-		cgi_put "<br><span class=tips><b>Tip:</b> List alternate email addresses<br>"
-		cgi_put "you use.  Reply All will not include"
-		cgi_put "<br>these email addresses when replying.</span>"
-		#<br><a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
-	      }
-	      cgi_table_data class="body" {
-		cgi_textarea altAddresses= cols="72" rows="5" "title=\"Exclude Addresses\""
-	      }
-	    }
-	    cgi_table_row {
-	      cgi_table_data class="title" {
-		cgi_put "Email Signature"
+		cgi_put "Email[cgi_nbspace]Signature"
 		#<br><a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
 	      }
 	      cgi_table_data class="body" {
@@ -530,47 +342,30 @@ WPEval $settings_args {
 		#<label for="no_sig">No Signature</label><br>
 		#<input name="signature" id="use_sig" type="radio" />
 		#<label for="use_sig">Append Signature when composing messages</label><br>
-		cgi_textarea signature= cols="72" rows="5" title=Signature
-	      }
-	    }
-	    cgi_puts "</tbody>"
-	  }
-	  cgi_table id=settingsPage3 "class=\"fields settings\"" "style=\"display: none;\"" cellpadding="0" cellspacing="0" {
-	    cgi_puts "<tbody>"
-	    cgi_puts "<tr><td class=title colspan=2><h2>News and Weather</h2></td></tr>"
-
-	    cgi_table_row {
-	      cgi_table_data class="title" {
-		cgi_put "Headline News"
-		#<br><a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
-	      }
-	      cgi_table_data class="body" {
-		cgi_put " <label for=rss>RSS URL:</label>"
-		cgi_text rssNews= id="rss" value="http://uwnews.org/uweek/recent.rss"
+		cgi_textarea signature=[join [WPCmd PEInfo rawsig] "\n"] cols="72" rows="5" title=Signature
 	      }
 	    }
 	    cgi_table_row {
 	      cgi_table_data class="title" {
-		cgi_put "Weather Bar"
+		cgi_put "Alternate[cgi_nbspace]Addresses"
+		cgi_put "<p><span class=tips><b>Tip:</b> List alternate email addresses "
+		cgi_put "you use. Reply All will not include"
+		cgi_put "these email addresses when replying.</span>"
 		#<br><a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
 	      }
 	      cgi_table_data class="body" {
-		cgi_table {
-		  cgi_put "<tbody>"
-		  cgi_table_row {
-		    cgi_table_data {
-		      cgi_put " <label for=weather_zipcode>Zipcode:</label>"
-		    }
-		    cgi_table_data {
-		      cgi_text areaCode= id="weather_zipcode" value="98195"
-		    }
-		  }
-		  cgi_table_row {
-		    cgi_table_data {
-		      cgi_put " <label for=weather_label>Display text for location:</label>"
-		    }
-		    cgi_table_data {
-		      cgi_text weatherLabel= id="weather_label" value="UW Weather"
+		cgi_put "Add/Remove Addresses: <input type=button name=addCH value=Add onClick=\"return listAdd('altAddrTable','altAddr');\"/>"
+		set varval [WPCmd PEConfig varget alt-addresses]
+		cgi_text "altAddrs=[llength [lindex $varval 0]]" id=altAddrs type=hidden notab
+		cgi_table id=altAddrTable {
+		  set n 0
+		  foreach svr [lindex $varval 0] {
+		    incr n
+		    cgi_table_row {
+		      cgi_table_data {
+			cgi_text altAddr${n}=[string trim $svr] size="45"
+			cgi_put [cgi_url [cgi_img img/cbn/remove.gif class=wap] # "onClick=return removeTableRow(this);"]
+		      }
 		    }
 		  }
 		}
@@ -578,22 +373,255 @@ WPEval $settings_args {
 	    }
 	    cgi_puts "</tbody>"
 	  }
+	  cgi_table id=settingsPage3 "class=\"fields settings\"" "style=\"display: none;\"" cellpadding="0" cellspacing="0" {
+	    cgi_puts "<tbody>"
+	    cgi_puts "<tr><td class=title colspan=2><h2>News[cgi_nbspace]and[cgi_nbspace]Weather</h2></td></tr>"
+
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Headline[cgi_nbspace]News"
+		#<br><a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		cgi_put "RSS URL: "
+		cgi_text rss-news=[var_value rss-news] size="45"
+	      }
+	    }
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Weather[cgi_nbspace]Bar"
+		#<br><a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		cgi_put "RSS URL: "
+		cgi_text rss-weather=[var_value rss-weather] size="45"
+	      }
+	    }
+	    cgi_puts "</tbody>"
+	  }
 	  cgi_table id=settingsPage4 "class=\"fields settings\"" "style=\"display: none;\"" cellpadding="0" cellspacing="0" {
 	    cgi_puts "<tbody>"
-	    cgi_puts "<tr><td class=title colspan=2><h2>Message List</h2></td></tr>"
+	    cgi_puts "<tr><td class=title colspan=2><h2>Message[cgi_nbspace]List</h2></td></tr>"
 
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Message List"
+	      }
+	      cgi_table_data class="body" {
+		cgi_table {
+		  cgi_put "<tbody>"
+		  cgi_table_row {
+		    cgi_table_data {
+		      cgi_put "Sort Order (default): "
+		    }
+		    cgi_table_data {
+		      set val [WPCmd PEConfig varget sort-key]
+		      cgi_select sort-key {
+			foreach k [lindex $val 2] {
+			  cgi_option $k value=$k [set_checked [expr {0 == [string compare -nocase $k [lindex $val 0]]}] selected]
+			}
+		      }
+		    }
+		  }
+		  cgi_table_row {
+		    cgi_table_data {
+		      cgi_put "Start display at:"
+		    }
+		    cgi_table_data {
+		      set val [WPCmd PEConfig varget incoming-startup-rule]
+		      cgi_select startupRule {
+			foreach k [lindex $val 2] {
+			  cgi_option $k value=$k [set_checked [expr {0 == [string compare -nocase $k [lindex $val 0]]}] selected]
+			}
+		      }
+		    }
+		  }
+		  cgi_put "</tbody>"
+		}
+	      }
+	    }
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Message[cgi_nbspace]Handling"
+	      }
+	      cgi_table_data class="body" {
+		set_feature auto-move-read-msgs "Automatically Move Read Messages"
+	      }
+	    }
 	    cgi_puts "</tbody>"
 	  }
 	  cgi_table id=settingsPage5 "class=\"fields settings\"" "style=\"display: none;\"" cellpadding="0" cellspacing="0" {
 	    cgi_puts "<tbody>"
 	    cgi_puts "<tr><td class=title colspan=2><h2>Message View</h2></td></tr>"
 
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Display[cgi_nbspace]Headers"
+	      }
+	      cgi_table_data class="body" {
+		cgi_put "Add/Remove Header Names: <input type=button name=addCH value=Add onClick=\"return listAdd('viewerHdrsTable','viewerHdr');\"/>"
+		set varval [WPCmd PEConfig varget viewer-hdrs]
+		cgi_text "viewerHdrs=[llength [lindex $varval 0]]" id=viewerHdrs type=hidden notab
+		cgi_table id=viewerHdrsTable {
+		  set n 0
+		  foreach svr [lindex $varval 0] {
+		    incr n
+		    cgi_table_row {
+		      cgi_table_data {
+			cgi_text viewerHdr${n}=[string trim $svr] size="45"
+			cgi_put [cgi_url [cgi_img img/cbn/remove.gif class=wap] # "onClick=return removeTableRow(this);"]
+		      }
+		    }
+		  }
+		}
+	      }
+	    }
+
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Display[cgi_nbspace]Links[cgi_nbspace]in[cgi_nbspace]Messages"
+		cgi_put "<p><span class=tips><b>Tip:</b> Applies only to plain text messages.</span>"
+		#<br><a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		cgi_table {
+		  cgi_put "<tbody>"
+		  cgi_table_row {
+		    cgi_table_data {
+		      set_feature enable-msg-view-urls "Display complete URLs as links"
+		    }
+		  }
+		  cgi_table_row {
+		    cgi_table_data {
+		      set_feature enable-msg-view-web-hostnames "Display hostnames and incomplete URLs as links"
+		    }
+		  }
+		  cgi_table_row {
+		    cgi_table_data {
+		      set_feature enable-msg-view-addresses "Display Email addresses as links"
+		    }
+		  }
+		  cgi_put "</tbody>"
+		}
+	      }
+	    }
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Rich[cgi_nbspace]Text[cgi_nbspace]Display"
+		#<br><a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		set_feature render-html-internally "Show rich text messages as plain text"
+	      }
+	    }
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Anti-phishing"
+		cgi_put "<p><span class=tips><b>Tip:</b> This feature aids in identifying fake links.  Applies only when rich text shown as plain text.</span>"
+		#<br><a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		set_feature quell-server-after-link-in-html "Hide appended real hostname after links"
+	      }
+	    }
 	    cgi_puts "</tbody>"
 	  }
 	  cgi_table id=settingsPage6 "class=\"fields settings\"" "style=\"display: none;\"" cellpadding="0" cellspacing="0" {
 	    cgi_puts "<tbody>"
 	    cgi_puts "<tr><td class=title colspan=2><h2>Compose</h2></td></tr>"
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Compose[cgi_nbspace]Headers"
+		cgi_put "<p><span class=tips><b>Tip:</b> Default header fields displayed in Compose</span>"
+	      }
+	      cgi_table_data class="body" {
+		cgi_put "Add/Remove Header Names: <input type=button name=addCH value=Add onClick=\"return listAdd('composeHdrsTable','composeHdr');\"/>"
+		set varval [WPCmd PEConfig varget default-composer-hdrs]
+		cgi_text "composeHdrs=[llength [lindex $varval 0]]" id=composeHdrs type=hidden notab
+		cgi_table id=composeHdrsTable {
+		  set n 0
+		  foreach svr [lindex $varval 0] {
+		    incr n
+		    cgi_table_row {
+		      cgi_table_data {
+			cgi_text composeHdr${n}=[string trim $svr] size="45"
+			cgi_put [cgi_url [cgi_img img/cbn/remove.gif class=wap] # "onClick=return removeTableRow(this);"]
+		      }
+		    }
+		  }
+		}
+	      }
+	    }
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Custom[cgi_nbspace]Headers"
+	      }
+	      cgi_table_data class="body" {
+		cgi_put "Add/Remove Headers: <input type=button name=addhdr value=Add onClick=\"return customHdrAdd('customHdrTbl');\"/>"
+		set varval [WPCmd PEConfig varget customized-hdrs]
+		cgi_text "customHdrFields=[llength [lindex $varval 0]]" id=customHdrFields type=hidden notab
+		cgi_table id=customHdrTbl {
+		  set nh 0
+		  foreach hdr [lindex $varval 0] {
+		    incr nh
+		    cgi_table_row {
+		      set n [string first {:} $hdr]
+		      switch -- $n {
+			-1 -
+			0 -
+			1 {
+			  cgi_table_data colspan=2 {
+			    cgi_text "customHdrField${nh}=[cgi_quote_html $hdr]" type=hidden notab
+			    cgi_put "$hdr"
+			  }
+			}
+			default {
+			  cgi_table_data {
+			    set field_name [string range $hdr 0 [expr {$n - 1}]]
+			    cgi_put $field_name
+			    cgi_text "customHdrField${nh}=[cgi_quote_html $field_name]" type=hidden notab
+			  }
+			  cgi_table_data {
+			    cgi_text customHdrData${nh}=[string trim [string range $hdr [incr n] end]] size="45"
+			    cgi_put [cgi_url [cgi_img img/cbn/remove.gif class=wap] # "onClick=return removeTableRow(this);"]
+			  }
+			}
+		      }
+		    }
+		  }
+		}
+	      }
+	    }
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Message[cgi_nbspace]Encoding"
+		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		set_variable posting-character-set "Send messages using character encoding: "
+	      }
+	    }
 
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Reply[cgi_nbspace]Options"
+		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		set_variable reply-leadin "Reply intro string: "
+		cgi_br
+		set_variable reply-indent-string "Reply prefix: "
+	      }
+	    }
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Flowed[cgi_nbspace]Text[cgi_nbspace]Handling"
+		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		set_feature quell-flowed-text "Do not send text as Flowed Text"
+	      }
+	    }
 	    cgi_puts "</tbody>"
 	  }
 	  cgi_table id=settingsPage7 "class=\"fields settings\"" "style=\"display: none;\"" cellpadding="0" cellspacing="0" {
@@ -605,18 +633,91 @@ WPEval $settings_args {
 	  cgi_table id=settingsPage8 "class=\"fields settings\"" "style=\"display: none;\"" cellpadding="0" cellspacing="0" {
 	    cgi_puts "<tbody>"
 	    cgi_puts "<tr><td class=title colspan=2><h2>Folders</h2></td></tr>"
-
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Draft[cgi_nbspace]Folder"
+		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		set_variable postponed-folder
+	      }
+	    }
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Trash[cgi_nbspace]Folder"
+		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		set_variable trash-folder
+	      }
+	    }
 	    cgi_puts "</tbody>"
 	  }
-	  cgi_table id=settingsPage9 "class=\"fields settings\"" "style=\"display: none;\"" cellpadding="0" cellspacing="0" {
-	    cgi_puts "<tbody>"
-	    cgi_puts "<tr><td class=title colspan=2><h2>Directory Servers</h2></td></tr>"
+	  if {0 == [catch {WPCmd PEConfig varget ldap-servers} varval]} {
+	    cgi_table id=settingsPage9 "class=\"fields settings\"" "style=\"display: none;\"" cellpadding="0" cellspacing="0" {
+	      cgi_puts "<tbody>"
+	      cgi_puts "<tr><td class=title colspan=2><h2>Directory[cgi_nbspace]Servers</h2></td></tr>"
 
-	    cgi_puts "</tbody>"
+	      cgi_table_row {
+		cgi_table_data class="title" {
+		  cgi_put "LDAP[cgi_nbspace]Server"
+		}
+		cgi_table_data class="body" {
+		  cgi_put "Add/Remove Servers: <input type=button name=addldap value=Add onClick=\"return listAdd('ldapServerTable','ldapServer');\"/>"
+		  cgi_text "ldapServers=[llength [lindex $varval 0]]" id=ldapServers type=hidden notab
+		  cgi_table id=ldapServerTable {
+		    set n 0
+		    foreach svr [lindex $varval 0] {
+		      incr n
+		      cgi_table_row {
+			cgi_table_data {
+			  cgi_text ldapServer${n}=[string trim $svr] size="45"
+			  cgi_put [cgi_url [cgi_img img/cbn/remove.gif class=wap] # "onClick=return removeTableRow(this);"]
+			}
+		      }
+		    }
+		  }
+		}
+	      }
+
+	      cgi_puts "</tbody>"
+	    }
 	  }
 	  cgi_table id=settingsPage10 "class=\"fields settings\"" "style=\"display: none;\"" cellpadding="0" cellspacing="0" {
 	    cgi_puts "<tbody>"
-	    cgi_puts "<tr><td class=title colspan=2><h2>Mail Servers</h2></td></tr>"
+	    cgi_puts "<tr><td class=title colspan=2><h2>Mail[cgi_nbspace]Servers</h2></td></tr>"
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Inbox[cgi_nbspace]Server"
+		cgi_put "<p><span class=tips><b>Tip:</b> Server name inside brackets, folder name after</span>"
+	      }
+	      cgi_table_data class="body" {
+		cgi_text inbox-path=[var_value inbox-path] size="45"
+	      }
+	    }
+
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "SMTP[cgi_nbspace]Server"
+	      }
+	      cgi_table_data class="body" {
+		cgi_put "Add/Remove Servers: <input type=button name=addsmtp value=Add onClick=\"return listAdd('smtpServerTable','smtpServer');\"/>"
+		set varval [WPCmd PEConfig varget smtp-server]
+		cgi_text "smtpServers=[llength [lindex $varval 0]]" id=smtpServers type=hidden notab
+		cgi_table id=smtpServerTable {
+		  set n 0
+		  foreach svr [lindex $varval 0] {
+		    incr n
+		    cgi_table_row {
+		      cgi_table_data {
+			cgi_text smtpServer${n}=[string trim $svr] size="45"
+			cgi_put [cgi_url [cgi_img img/cbn/remove.gif class=wap] # "onClick=return removeTableRow(this);"]
+		      }
+		    }
+		  }
+		}
+	      }
+	    }
 
 	    cgi_puts "</tbody>"
 	  }
@@ -626,12 +727,6 @@ WPEval $settings_args {
 	cgi_table class="wap toolbarTbl" cellpadding="0" cellspacing="0" {
 	  cgi_puts "<tbody><tr><td>&nbsp;</td></tr></tbody>"
 	}
-      }
-
-      # any debugging info to insert?
-      foreach dmsg $dmsgs {
-	cgi_html_comment "DEBUG: $dmsg"
-	cgi_puts ""
       }
     }
   }

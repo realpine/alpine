@@ -1,4 +1,4 @@
-/* $Id: view.js 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+/* $Id: mailbox.js 1150 2008-08-20 00:27:11Z mikes@u.washington.edu $
  * ========================================================================
  * Copyright 2008 University of Washington
  *
@@ -495,7 +495,7 @@ function setStar(u,flagState,onDone){
 
 // Load next message list for viewing relative to current list
 function newMessageList(o){
-    var div = document.getElementById('pageContent');
+    var div = document.getElementById('alpineContent');
     if(div){
 	var nUrl = 'newlist.tcl/' + YAHOO.alpine.current.c + '/' + encodeURIFolderPath(YAHOO.alpine.current.f);
 	var conj = '?';
@@ -667,7 +667,7 @@ function cursor(style){
 // VIEW FUNCTIONS
 
 function newMessageText(o){
-    var div = document.getElementById('pageContent');
+    var div = document.getElementById('alpineContent');
     var ac = YAHOO.alpine.current;
     if(div){
 	var uid = (o.uid) ? o.uid : ac.u;
@@ -1009,6 +1009,10 @@ function updateBrowseLinksAndSuch(o){
 	dom.setStyle('searchRefine','display','none');
 	dom.setStyle('searchClear','display','none');
 	document.getElementById('searchScope').selectedIndex = 2;
+    }
+    if(YAHOO.env.ua.gecko > 0){
+	sizeVPHeight();
+	window.onresize = resizeVPHeight;
     }
 }
 

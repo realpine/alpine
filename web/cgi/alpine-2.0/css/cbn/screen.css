@@ -1,4 +1,6 @@
-/* ========================================================================
+/*
+ * $Id: screen.css 1152 2008-08-20 23:40:25Z mikes@u.washington.edu $
+ * ========================================================================
  * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -297,6 +299,18 @@ span.hbi1 { background-position: 0 -768px; }
 span.hbi2 { background-position: 0 -792px; }
 span.hbi3 { background-position: 0 -816px; }
 span.hbi4 { background-position: 0 -840px; }
+
+span.newsImg
+{
+	display: block;
+	float: left;
+	height: 16px;
+	width: 16px;
+	margin-top: 2px;
+	margin-right: 6px;
+	cursor: pointer;
+	background-position: 0 -1800px;
+}
 
 /*** SEARCH ***/
 .searchFormDiv
@@ -930,6 +944,7 @@ span.attachmentName
 /*** GENERAL FIELDS (e.g. settings, advance search, contact details, etc.) ***/
 table.fields
 {
+	font-size: .7em;
 	width: 95%;
 	margin: 10px 20px;
 }
@@ -937,7 +952,6 @@ table.fields td.title
 {
 	width: 20%;
 	font-weight: bold;
-	font-size: .7em;
 	vertical-align: top;
 	color: #555555;
 }
@@ -978,24 +992,16 @@ table.fields span.tips
 }
 
 
-
 /*** SETTINGS (requires "fields" class) ***/
 table.settings td.title, table.settings td.body
 {
-	padding: 12px 0;
+	padding: 12px 12px 12px 0;
 }
 
 div#advancedSettings
 {
 	display: none;
 }
-
-div#backToInbox
-{
-	text-align: middle;
-	line-height: 2em;
-}
-
 
 /*** CONTACTS (requires "fields" class) ***/
 table.contacts *.contactText
@@ -1295,8 +1301,6 @@ table.bannerFolderSearch a
 
 div.attachInput
 {
-/*	margin-left: 20%;*/
-/*	width: 80%;*/
 	margin: 2px 2px 2px 0;
 }
 div.attachInput form
@@ -1521,7 +1525,7 @@ div.panelInput input
 }
 
 /*** Viewport Height Limiter ***/
-div#divVPHeight
+div#alpineContent
 {
 	height: 100%;
 	overflow: auto;
@@ -1538,6 +1542,24 @@ div#divVPHeight
 /*** Sprite based images ****/
 
 /* left column icons */
+span.splci
+{
+	display:block;
+	line-height: 24px;
+	padding-left: 30px;
+	margin-left: 4px;
+	cursor: pointer;
+}
+
+span.splcs
+{
+	display:block;
+	line-height: 20px;
+	padding-left: 30px;
+	margin-left: 4px;
+	cursor: pointer;
+}
+
 span.splc
 {
 	width: 17px;
@@ -1545,7 +1567,6 @@ span.splc
 	float: left;
 	margin-right: 8px;
 	margin-top: 1px;
-	cursor: pointer;
 }
 
 span.splc1
@@ -1600,6 +1621,10 @@ span.splc10
 span.splc11
 {
 	background-position: 0 -1680px;
+}
+span.splc12
+{
+	background-position: 0 -1776px;
 }
 
 /* menu bar icons */
@@ -2050,7 +2075,7 @@ div.takeList
 		border-bottom: 2px groove black;
 		display: block;
 	}
-	div#divVPHeight {
+	div#alpineContent {
 		height: 100%;
 		overflow: visible;
 	}

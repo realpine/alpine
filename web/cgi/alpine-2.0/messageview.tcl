@@ -172,7 +172,6 @@ proc drawBottomViewMenuBar {c f u n mc} {
 }
 
 proc drawMessageText {c f u {showimg ""}} {
-  cgi_division id=divVPHeight class=contentBody {
     # before getting the list, move anything deleted to Trash
     if {[catch {PEMailbox trashdeleted current} result]} {
       PEInfo statmsg "Trash move Failed: $result"
@@ -239,11 +238,13 @@ proc drawMessageText {c f u {showimg ""}} {
     set showimages ""
 
     if {[info exists shownsubtype] && 0 == [string compare $shownsubtype html]} {
-      # If html becomes optional, set "html" conditionally and change the
-      # "image_set" to allow_cid_images in line with web alpine 1.0 interface
-      set html 1
-      lappend bodyopts html
-      set image_set allow_images
+      if {[WPCmd PEInfo feature render-html-internally] == 0} {
+	set html 1
+	lappend bodyopts html
+	set image_set allow_images
+      } else {
+	set image_set allow_cid_images
+      }
 
       switch -- $showimg {
 	1 {			;# show images this once
@@ -724,5 +725,4 @@ proc drawMessageText {c f u {showimg ""}} {
     if {$wasnew} {
       cgi_put "<script>decUnreadCount(1);</script>"
     }
-  }
 }

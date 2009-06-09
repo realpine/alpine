@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: conf_process.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
+# $Id: conf_process.tcl 1145 2008-08-19 06:10:14Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -264,9 +264,10 @@ proc wpGetRuleAction {tosave} {
 			}
 		      }
 		      left-column-folders {
-			wpGetVar fcachel
-			if {$fcachel <= $_wp(fldr_cache_max)} {
-			  catch {WPSessionState left_column_folders $fcachel}
+			if {0 == [catch {wpGetVar fcachel}]} {
+			  if {$fcachel <= $_wp(fldr_cache_max)} {
+			    catch {WPSessionState left_column_folders $fcachel}
+			  }
 			}
 		      }
 		      signature {
@@ -1347,7 +1348,7 @@ proc wpGetRuleAction {tosave} {
 	    }
 	    cancel {
 	      set script $oncancel
-	      catch {WPCmd PEInfo unset conf_page} res
+	      catch {WPCmd unset conf_page} res
 	    }
 	    default {
 		error [list _close "Unknown process operation: $op"]

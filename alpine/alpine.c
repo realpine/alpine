@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: alpine.c 881 2007-12-18 18:29:24Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: alpine.c 938 2008-02-29 18:18:49Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -175,6 +175,7 @@ main(int argc, char **argv)
     pith_opt_reply_to_all_prompt   = reply_to_all_query;
     pith_opt_save_create_prompt	   = create_for_save_prompt;
     pith_opt_daemon_confirm	   = confirm_daemon_send;
+    pith_opt_save_size_changed_prompt = save_size_changed_prompt;
     pith_opt_save_index_state	   = setup_index_state;
     pith_opt_filter_pattern_cmd	   = pattern_filter_command;
     pith_opt_get_signature_file	   = get_signature_file;

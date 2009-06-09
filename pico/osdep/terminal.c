@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: terminal.c 867 2007-12-13 19:31:13Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: terminal.c 919 2008-01-29 23:21:10Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -248,7 +248,9 @@ setup_dflt_esc_seq(void)
     kpinsert("\033?v", KEY_RIGHT, 1);
     kpinsert("\033?x", KEY_UP, 1);
 
-
+    /*
+     * Some Ctrl-Arrow keys
+     */
     kpinsert("\033[5A", CTRL_KEY_UP, 1);
     kpinsert("\033[5B", CTRL_KEY_DOWN, 1);
     kpinsert("\033[5C", CTRL_KEY_RIGHT, 1);
@@ -259,6 +261,17 @@ setup_dflt_esc_seq(void)
     kpinsert("\033[1;5C", CTRL_KEY_RIGHT, 1);
     kpinsert("\033[1;5D", CTRL_KEY_LEFT, 1);
 
+    /*
+     * Map some shift+up/down/left/right to their shiftless counterparts
+     */
+    kpinsert("\033[1;2A", KEY_UP, 1);
+    kpinsert("\033[1;2B", KEY_DOWN, 1);
+    kpinsert("\033[1;2C", KEY_RIGHT, 1);
+    kpinsert("\033[1;2D", KEY_LEFT, 1);
+    kpinsert("\033[a", KEY_UP, 1);
+    kpinsert("\033[b", KEY_DOWN, 1);
+    kpinsert("\033[c", KEY_RIGHT, 1);
+    kpinsert("\033[d", KEY_LEFT, 1);
 
     /*
      * Sun Console sequences.
@@ -904,7 +917,7 @@ setup_dflt_esc_seq(void)
     kpinsert("\033Ow", F12, 1);
 
     /*
-     * DC vt100, ANSI and cursor key mode.
+     * DEC vt100, ANSI and cursor key mode.
      */
     kpinsert("\033OA", KEY_UP, 1);
     kpinsert("\033OB", KEY_DOWN, 1);
@@ -969,24 +982,12 @@ setup_dflt_esc_seq(void)
     kpinsert("\033[=l", F12, 1);
 
     /*
-     * DEC vt100, ANSI, cursor key mode reset.
+     * DEC vt100, ANSI and cursor key mode reset.
      */
     kpinsert("\033[A", KEY_UP, 1);
     kpinsert("\033[B", KEY_DOWN, 1);
     kpinsert("\033[C", KEY_RIGHT, 1);
     kpinsert("\033[D", KEY_LEFT, 1);
-
-
-    kpinsert("\033[5A", CTRL_KEY_UP, 1);
-    kpinsert("\033[5B", CTRL_KEY_DOWN, 1);
-    kpinsert("\033[5C", CTRL_KEY_RIGHT, 1);
-    kpinsert("\033[5D", CTRL_KEY_LEFT, 1);
-
-    kpinsert("\033[1;5A", CTRL_KEY_UP, 1);
-    kpinsert("\033[1;5B", CTRL_KEY_DOWN, 1);
-    kpinsert("\033[1;5C", CTRL_KEY_RIGHT, 1);
-    kpinsert("\033[1;5D", CTRL_KEY_LEFT, 1);
-
 
     /*
      * DEC vt52 mode.
@@ -1003,6 +1004,31 @@ setup_dflt_esc_seq(void)
     kpinsert("\033?t", KEY_LEFT, 1);
     kpinsert("\033?v", KEY_RIGHT, 1);
     kpinsert("\033?x", KEY_UP, 1);
+
+    /*
+     * Some Ctrl-Arrow keys
+     */
+    kpinsert("\033[5A", CTRL_KEY_UP, 1);
+    kpinsert("\033[5B", CTRL_KEY_DOWN, 1);
+    kpinsert("\033[5C", CTRL_KEY_RIGHT, 1);
+    kpinsert("\033[5D", CTRL_KEY_LEFT, 1);
+
+    kpinsert("\033[1;5A", CTRL_KEY_UP, 1);
+    kpinsert("\033[1;5B", CTRL_KEY_DOWN, 1);
+    kpinsert("\033[1;5C", CTRL_KEY_RIGHT, 1);
+    kpinsert("\033[1;5D", CTRL_KEY_LEFT, 1);
+
+    /*
+     * Map some shift+up/down/left/right to their shiftless counterparts
+     */
+    kpinsert("\033[1;2A", KEY_UP, 1);
+    kpinsert("\033[1;2B", KEY_DOWN, 1);
+    kpinsert("\033[1;2C", KEY_RIGHT, 1);
+    kpinsert("\033[1;2D", KEY_LEFT, 1);
+    kpinsert("\033[a", KEY_UP, 1);
+    kpinsert("\033[b", KEY_DOWN, 1);
+    kpinsert("\033[c", KEY_RIGHT, 1);
+    kpinsert("\033[d", KEY_LEFT, 1);
 
     /*
      * Sun Console sequences.

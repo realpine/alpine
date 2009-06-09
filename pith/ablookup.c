@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: ablookup.c 842 2007-12-04 00:13:55Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: ablookup.c 949 2008-03-06 01:13:33Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,6 +33,8 @@ static char rcsid[] = "$Id: ablookup.c 842 2007-12-04 00:13:55Z hubert@u.washing
  * Internal prototypes
  */
 int   addr_is_in_addrbook(PerAddrBook *, ADDRESS *);
+ABOOK_ENTRY_S *adrbk_list_of_possible_trie_completions(AdrBk_Trie *, AdrBk *, char *);
+void  gather_abook_entry_list(AdrBk *, AdrBk_Trie *, char *, ABOOK_ENTRY_S **);
 
 
 /*
@@ -979,6 +981,17 @@ addr_lookup(char *nickname, int *which_addrbook, int not_here)
  *
  * Allocated answer is returned in answer argument.
  * Caller needs to free the answer.
+ *
+ * This seems like a bit of overkill to me now. Why not just get the list
+ * of all the nicknames that start with prefix and if there is exactly
+ * one of those it is unambiguous. I guess we might save ourselves a little
+ * bit of processing time by not returning the whole list.
+ * In any case, we probably shouldn't have two methods of doing this
+ * completion stuff. There is this older adrbk_nick_complete() along with
+ * adrbk_list_of_possible_nicks() to get a list and then there is the
+ * newer list gatherer adrbk_list_of_completions() below, which uses
+ * different data structures.
+ * 
  */
 int
 adrbk_nick_complete(char *prefix, char **answer, unsigned flags)
@@ -1156,4 +1169,309 @@ adrbk_nick_complete(char *prefix, char **answer, unsigned flags)
     }
 
     return(ambiguity);
+}
+
+
+/*
+ * Look in all of the address books for all of the possible entries
+ * that match the query string. The matches can be for the nickname,
+ * for the fullname, or for the address@host part of the address.
+ * All of the matches are at the starts of the strings, not a general
+ * substring match.
+ *
+ * Args     query  -- What the user has typed so far
+ *
+ * Returns a list of possibilities for the given query string.
+ *
+ * Caller needs to free the answer.
+ */
+COMPLETE_S *
+adrbk_list_of_completions(char *query)
+{
+    int i;
+    SAVE_STATE_S  state;
+    PerAddrBook  *pab;
+    ABOOK_ENTRY_S *list, *list2, *biglist = NULL;
+    COMPLETE_S *return_list = NULL, *new;
+    BuildTo toaddr;
+    char *newaddr = NULL;
+
+    init_ab_if_needed();
+
+    if(pith_opt_save_and_restore)
+      (*pith_opt_save_and_restore)(SAR_SAVE, &state);
+
+    for(i = 0; i < as.n_addrbk; i++){
+
+	pab = &as.adrbks[i];
+
+	if(pab->ostatus != Open && pab->ostatus != NoDisplay)
+	  init_abook(pab, NoDisplay);
+
+	list = adrbk_list_of_possible_completions(pab ? pab->address_book : NULL, query);
+	combine_abook_entry_lists(&biglist, list);
+    }
+
+    /*
+     * Eliminate duplicates by NO_NEXTing the entrynums.
+     */
+    for(list = biglist; list; list = list->next)
+      /* eliminate any dups further along in the list */
+      if(list->entrynum != NO_NEXT)
+	for(list2 = list->next; list2; list2 = list2->next)
+	  if(list2->entrynum ==  list->entrynum)
+	    list2->entrynum = NO_NEXT;
+
+    /* build the return list */
+    for(list = biglist; list; list = list->next)
+      if(list->entrynum != NO_NEXT){
+	  toaddr.type = Abe;
+	  toaddr.arg.abe = adrbk_get_ae(list->ab, list->entrynum);
+	  if(our_build_address(toaddr, &newaddr, NULL, NULL, NULL) == 0){
+
+	      new = new_complete_s(toaddr.arg.abe ? toaddr.arg.abe->nickname : "", newaddr);
+
+	      if(return_list == NULL)
+		return_list = new;
+	      else{
+		  new->next = return_list;
+		  return_list = new;
+	      }
+	  }
+
+	  if(newaddr)
+	    fs_give((void **) &newaddr);
+      }
+
+    if(pith_opt_save_and_restore)
+      (*pith_opt_save_and_restore)(SAR_RESTORE, &state);
+
+    free_abook_entry_s(&biglist);
+
+    return(return_list);
+}
+
+
+COMPLETE_S *
+new_complete_s(char *nick, char *full)
+{
+    COMPLETE_S *new = NULL;
+
+    new = (COMPLETE_S *) fs_get(sizeof(*new));
+    memset((void *) new, 0, sizeof(*new));
+    new->nickname = cpystr(nick ? nick : "");
+    new->full_address = cpystr(full ? full : "");
+
+    return(new);
+}
+
+
+void
+free_complete_s(COMPLETE_S **compptr)
+{
+    if(compptr && *compptr){
+	if((*compptr)->next)
+	  free_complete_s(&(*compptr)->next);
+
+	if((*compptr)->nickname)
+	  fs_give((void **) &(*compptr)->nickname);
+
+	if((*compptr)->full_address)
+	  fs_give((void **) &(*compptr)->full_address);
+
+	fs_give((void **) compptr);
+    }
+}
+
+
+ABOOK_ENTRY_S *
+new_abook_entry_s(AdrBk *ab, a_c_arg_t numarg)
+{
+    ABOOK_ENTRY_S *new = NULL;
+    adrbk_cntr_t entrynum;
+
+    entrynum = (adrbk_cntr_t) numarg;
+
+    new = (ABOOK_ENTRY_S *) fs_get(sizeof(*new));
+    memset((void *) new, 0, sizeof(*new));
+    new->ab = ab;
+    new->entrynum = entrynum;
+
+    return(new);
+}
+
+
+void
+free_abook_entry_s(ABOOK_ENTRY_S **aep)
+{
+    if(aep && *aep){
+	if((*aep)->next)
+	  free_abook_entry_s(&(*aep)->next);
+
+	fs_give((void **) aep);
+    }
+}
+
+
+/*
+ * Add the second list to the end of the first.
+ */
+void
+combine_abook_entry_lists(ABOOK_ENTRY_S **first, ABOOK_ENTRY_S *second)
+{
+    ABOOK_ENTRY_S *sl;
+
+    if(!second)
+      return;
+
+    if(first){
+	if(*first){
+	    for(sl = *first; sl->next; sl = sl->next)
+	      ;
+
+	    sl->next = second;
+	}
+	else
+	  *first = second;
+    }
+}
+
+
+ABOOK_ENTRY_S *
+adrbk_list_of_possible_completions(AdrBk *ab, char *prefix)
+{
+    ABOOK_ENTRY_S *list = NULL, *biglist = NULL;
+
+    if(!ab || !prefix)
+      return(biglist);
+
+    if(ab->addr_trie){
+	list = adrbk_list_of_possible_trie_completions(ab->addr_trie, ab, prefix);
+	combine_abook_entry_lists(&biglist, list);
+    }
+
+    if(ab->full_trie){
+	list = adrbk_list_of_possible_trie_completions(ab->full_trie, ab, prefix);
+	combine_abook_entry_lists(&biglist, list);
+    }
+
+    if(ab->nick_trie){
+	list = adrbk_list_of_possible_trie_completions(ab->nick_trie, ab, prefix);
+	combine_abook_entry_lists(&biglist, list);
+    }
+
+    return(biglist);
+}
+
+
+/*
+ * Look in this address book for all nicknames, addresses, or fullnames
+ * which begin with the prefix prefix, and return an allocated
+ * list of them.
+ */
+ABOOK_ENTRY_S *
+adrbk_list_of_possible_trie_completions(AdrBk_Trie *trie, AdrBk *ab, char *prefix)
+{
+    AdrBk_Trie *t;
+    char        *p, *lookthisup;
+    char         buf[1000];
+    ABOOK_ENTRY_S *list = NULL;
+
+    if(!ab || !prefix || !trie)
+      return(list);
+
+    t = trie;
+
+    /* make lookup case independent */
+
+    for(p = prefix; *p && !(*p & 0x80) && islower((unsigned char) *p); p++)
+      ;
+
+    if(*p){
+	strncpy(buf, prefix, sizeof(buf));
+	buf[sizeof(buf)-1] = '\0';
+	for(p = buf; *p; p++)
+	  if(!(*p & 0x80) && isupper((unsigned char) *p))
+	    *p = tolower(*p);
+
+	lookthisup = buf;
+    }
+    else
+      lookthisup = prefix;
+
+    p = lookthisup;
+
+    while(*p){
+	/* search for character at this level */
+	while(t->value != *p){
+	    if(t->right == NULL)
+	      return(list);		/* no match */
+
+	    t = t->right;
+	}
+
+	if(*++p == '\0')		/* matched through end of prefix */
+	  break;
+
+	/* need to go down to match next character */
+	if(t->down == NULL)		/* no match */
+	  return(list);
+
+	t = t->down;
+    }
+
+    /*
+     * If we get here that means we found at least
+     * one entry that matches up through prefix.
+     * Gather_abook_list recursively adds the nicknames starting at
+     * this node.
+     */
+    if(t->entrynum != NO_NEXT){
+	/*
+	 * Add it to the list.
+	 */
+	list = new_abook_entry_s(ab, t->entrynum);
+    }
+
+    gather_abook_entry_list(ab, t->down, prefix, &list);
+
+    return(list);
+}
+
+
+void
+gather_abook_entry_list(AdrBk *ab, AdrBk_Trie *node, char *prefix, ABOOK_ENTRY_S **list)
+{
+  char *next_prefix = NULL;
+  size_t l;
+  ABOOK_ENTRY_S *newlist = NULL;
+
+  if(node){
+    if(node->entrynum != NO_NEXT || node->down || node->right){
+      l = strlen(prefix ? prefix : "");
+      if(node->entrynum != NO_NEXT){
+	/*
+	 * Add it to the list.
+	 */
+	newlist = new_abook_entry_s(ab, node->entrynum);
+	combine_abook_entry_lists(list, newlist);
+      }
+
+      /* same prefix for node->right */
+      if(node->right)
+        gather_abook_entry_list(ab, node->right, prefix, list);
+
+      /* prefix is one longer for node->down */
+      if(node->down){
+	next_prefix = (char *) fs_get((l+2) * sizeof(char));
+	strncpy(next_prefix, prefix ? prefix : "", l+2);
+	next_prefix[l] = node->value;
+	next_prefix[l+1] = '\0';
+	gather_abook_entry_list(ab, node->down, next_prefix, list);
+
+	if(next_prefix)
+	  fs_give((void **) &next_prefix);
+      }
+    }
+  }
 }

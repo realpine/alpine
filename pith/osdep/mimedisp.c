@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mimedisp.c 771 2007-10-24 19:10:40Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mimedisp.c 941 2008-03-03 22:31:51Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -130,6 +130,10 @@ mime_get_os_mimetype_command(char *mime_type, char *mime_ext, char *cmd,
      * with our mime-type, which is safe for opening
      */
     if(!mime_os_specific_access())
+      return(0);
+
+    /* don't want to use Mail or something for a part alpine is good at */
+    if(!strucmp(mime_type, "message/rfc822"))
       return(0);
 
     return(osx_build_mime_type_cmd(mime_type, cmd, clen, sp_hndlp)

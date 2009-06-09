@@ -1,4 +1,4 @@
-# $Id: fr_resume.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: fr_resume.tcl 961 2008-03-14 18:15:38Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -59,25 +59,15 @@ if {[catch {WPLoadCGIVar cid} result]} {
 } elseif {$cid != [WPCmd PEInfo key]} {
   catch {WPCmd PEInfo statmsg "Invalid Command ID"}
   source [WPTFScript $oncancel]
-} elseif {[catch {WPCmd PEPostpone list} postponed]} {
+} elseif {[catch {WPCmd PEPostpone count} postponed]} {
   catch {WPCmd PEInfo statmsg "Resume Error: $postponed"}
   source [WPTFScript $oncancel]
 } else {
-  switch -- [llength $postponed] {
+  switch -- $postponed {
+    -1 -
     0 {
       catch {WPCmd PEInfo statmsg "No Postponed Messages"}
       source [WPTFScript $oncancel]
-    }
-    1x {
-      if {[catch {ppnd_uid [lindex $postponed 0]} uid]} {
-	catch {WPCmd PEInfo statmsg "Resume Error: $uid"}
-	source [WPTFScript $oncancel]
-      } else {
-	set style Postponed
-	set uid ${uid}
-	set cid [WPCmd PEInfo key]
-	source [file join $_wp(cgipath) $_wp(appdir) fr_compose.tcl]
-      }
     }
     default {
       cgi_http_head {

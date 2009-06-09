@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcmd.c 879 2007-12-18 00:46:28Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailcmd.c 938 2008-02-29 18:18:49Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2032,7 +2032,7 @@ the_maint_screen:
 	     * do that for us, but it's failure isn't very friendly
 	     * error-wise. So we try to make it a little smoother.
 	     */
-	    if(fp->flag != F_KEYWORD || !fp->set
+	    if(!(fp->flag == F_KEYWORD || fp->flag == F_FWD) || !fp->set
 	       || ((i=user_flag_index(state->mail_stream, flagit)) >= 0
 	           && i < NUSERFLAGS))
 	      mail_flag(state->mail_stream, seq, flagit, flags);
@@ -2046,6 +2046,9 @@ the_maint_screen:
 		    if(some_user_flags_defined(state->mail_stream))
 		      q_status_message(SM_ORDER, 3, 4,
 			       _("No more keywords allowed in this folder!"));
+		    else if(fp->flag == F_FWD)
+		      q_status_message(SM_ORDER, 3, 4,
+				   _("Cannot add keywords for this folder so cannot set Forwarded flag"));
 		    else
 		      q_status_message(SM_ORDER, 3, 4,
 				   _("Cannot add keywords for this folder"));
@@ -2551,7 +2554,8 @@ role_compose(struct pine *state)
 	if(role_select_screen(state, &role,
 			      action == 'f' ? MC_FORWARD :
 			       action == 'r' ? MC_REPLY :
-				action == 'c' ? MC_COMPOSE : 0) < 0){
+			        action == 'b' ? MC_BOUNCE :
+				 action == 'c' ? MC_COMPOSE : 0) < 0){
 	    cmd_cancelled(action == 'f' ? _("Forward") :
 			  action == 'r' ? _("Reply") :
 			   action == 'c' ? _("Composition") : _("Bounce"));
@@ -3302,6 +3306,75 @@ expunge_prompt(MAILSTREAM *stream, char *folder, long int deleted)
 	       short_folder_name);
 
     return(want_to(prompt_b, 'y', 0, NO_HELP, WT_NORM));
+}
+
+
+/*
+ * This is used with multiple append saves. Call it once before
+ * the series of appends with SSCP_INIT and once after all are
+ * done with SSCP_END. In between, it is called automatically
+ * from save_fetch_append or save_fetch_append_cb when we need
+ * to ask the user if he or she wants to continue even though
+ * announced message size doesn't match the actual message size.
+ * As of 2008-02-29 the gmail IMAP server has these size mismatches
+ * on a regular basis even though the data is ok.
+ */
+int
+save_size_changed_prompt(long msgno, int flags)
+{
+    int ret;
+    char prompt[100];
+    static int remember_the_yes = 0;
+    static int possible_corruption = 0;
+    static ESCKEY_S save_size_opts[] = {
+	{'y', 'y', "Y", "Yes"},
+	{'n', 'n', "N", "No"},
+	{'a', 'a', "A", "yes to All"},
+	{-1, 0, NULL, NULL}
+    };
+
+    if(flags & SSCP_INIT || flags & SSCP_END){
+	if(flags & SSCP_END && possible_corruption)
+	  q_status_message(SM_ORDER, 3, 3, "There is possible data corruption, check the results");
+
+	remember_the_yes = 0;
+	possible_corruption = 0;
+	ps_global->noshow_error = 0;
+	ps_global->noshow_warn = 0;
+	return(0);
+    }
+
+    if(remember_the_yes){
+	snprintf(prompt, sizeof(prompt),
+		 "Message to save shrank! (msg # %ld): Continuing", msgno);
+	q_status_message(SM_ORDER, 0, 3, prompt);
+	display_message('x');
+	return(remember_the_yes);
+    }
+
+    snprintf(prompt, sizeof(prompt),
+	     "Message to save shrank! (msg # %ld): Continue anyway ? ", msgno);
+    ret = radio_buttons(prompt, -FOOTER_ROWS(ps_global), save_size_opts,
+			'n', 0, h_save_size_changed, RB_NORM);
+
+    switch(ret){
+      case 'a':
+	remember_the_yes = 'y';
+	possible_corruption++;
+	return(remember_the_yes);
+
+      case 'y':
+	possible_corruption++;
+	return('y');
+
+      default:
+	possible_corruption = 0;
+	ps_global->noshow_error = 1;
+	ps_global->noshow_warn = 1;
+	break;
+    }
+
+    return('n');
 }
 
 
@@ -8566,6 +8639,70 @@ choose_list_of_keywords(void)
 
 
 /*
+ * Allow user to choose a charset
+ *
+ * Returns an allocated charset on success, NULL otherwise.
+ */
+char *
+choose_a_charset(int which_charsets)
+{
+    char      *choice = NULL;
+    char     **charset_list, **lp;
+    const CHARSET *cs;
+    int        cnt;
+
+    /*
+     * Build a list of charsets to choose from.
+     */
+
+    for(cnt = 0, cs = utf8_charset(NIL); cs && cs->name; cs++){
+	if(!(cs->flags & (CF_UNSUPRT|CF_NOEMAIL))
+	   && ((which_charsets & CAC_ALL)
+	       || (which_charsets & CAC_POSTING
+		   && cs->flags & CF_POSTING)
+	       || (which_charsets & CAC_DISPLAY
+		   && cs->type != CT_2022
+		   && (cs->flags & (CF_PRIMARY|CF_DISPLAY)) == (CF_PRIMARY|CF_DISPLAY))))
+	  cnt++;
+    }
+
+    if(cnt <= 0){
+	q_status_message(SM_ORDER, 3, 4,
+	    _("No charsets found? Enter charset manually."));
+	return(choice);
+    }
+
+    lp = charset_list = (char **) fs_get((cnt + 1) * sizeof(*charset_list));
+    memset(charset_list, 0, (cnt+1) * sizeof(*charset_list));
+
+    for(cs = utf8_charset(NIL); cs && cs->name; cs++){
+	if(!(cs->flags & (CF_UNSUPRT|CF_NOEMAIL))
+	   && ((which_charsets & CAC_ALL)
+	       || (which_charsets & CAC_POSTING
+		   && cs->flags & CF_POSTING)
+	       || (which_charsets & CAC_DISPLAY
+		   && cs->type != CT_2022
+		   && (cs->flags & (CF_PRIMARY|CF_DISPLAY)) == (CF_PRIMARY|CF_DISPLAY))))
+	  *lp++ = cpystr(cs->name);
+    }
+
+    /* TRANSLATORS: SELECT A CHARACTER SET is a screen title
+       TRANSLATORS: Print something1 using something2.
+       "character sets" is something1 */
+    choice = choose_item_from_list(charset_list, _("SELECT A CHARACTER SET"),
+				   _("character sets"), h_select_charset_screen,
+				   _("HELP FOR SELECTING A CHARACTER SET"), NULL);
+
+    if(!choice)
+      q_status_message(SM_ORDER, 1, 4, "No choice");
+
+    free_list_array(&charset_list);
+
+    return(choice);
+}
+
+
+/*
  * Allow user to choose a list of character sets and/or scripts
  *
  * Returns allocated list.
@@ -9015,7 +9152,7 @@ print_index(struct pine *state, MSGNO_S *msgmap, int agg)
 	    return(0);
 	   */
 
-	  if(!gf_puts(simple_index_line(buf,sizeof(buf),ps_global->ttyo->screen_cols,ice,i),
+	  if(!gf_puts(simple_index_line(buf,sizeof(buf),ice,i),
 				        print_char)
 	     || !gf_puts(NEWLINE, print_char))
 	    return(0);

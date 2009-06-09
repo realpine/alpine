@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailindx.c 873 2007-12-15 02:39:22Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailindx.c 939 2008-03-03 17:52:11Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1450,7 +1450,7 @@ build_header_work(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
 	   && ice->tice->color_lookup_done && ice->tice->widths_done){
 #ifdef DEBUG
 	    char buf[MAX_SCREEN_COLS+1];
-	    simple_index_line(buf, sizeof(buf), ps_global->ttyo->screen_cols, ice->tice, msgno);
+	    simple_index_line(buf, sizeof(buf), ice->tice, msgno);
 #endif
 	    dprint((9, "Hitt: Returning %p -> <%s (%d)\n",
 		       ice->tice,
@@ -1467,7 +1467,7 @@ build_header_work(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
 	if(ice->ifield && ice->color_lookup_done && ice->widths_done){
 #ifdef DEBUG
 	    char buf[MAX_SCREEN_COLS+1];
-	    simple_index_line(buf, sizeof(buf), ps_global->ttyo->screen_cols, ice, msgno);
+	    simple_index_line(buf, sizeof(buf), ice, msgno);
 #endif
 	    dprint((9, "Hit: Returning %p -> <%s (%d)\n",
 		       ice,
@@ -2068,11 +2068,11 @@ format_index_index_line(INDEXDATA_S *idata)
 		     if(mc->seen)
 		       status = ' ';
 
-		     if(mc->answered)
-		       status = 'A';
-
 		     if(user_flag_is_set(idata->stream, idata->rawno, FORWARDED_FLAG))
 		       status = 'F';
+
+		     if(mc->answered)
+		       status = 'A';
 
 		     if(mc->deleted)
 		       status = 'D';
@@ -3263,26 +3263,20 @@ format_thread_index_line(INDEXDATA_S *idata)
 
 
 /*
- * Print the fields of ice in buf with a single space between
- * fields. Buf must have size at least n+1.
+ * Print the fields of ice in buf with a single space between fields.
  *
  * Args    buf    -- place to put the line
- *           n    -- the max length of the returned string. Buf has to be
- *                   at least n+1 in size.
  *         ice    -- the data for the line
  *       msgno    -- this is the msgno to be used, blanks if <= 0
  *
  * Returns a pointer to buf.
  */
 char *
-simple_index_line(char *buf, size_t buflen, int n, ICE_S *ice, long int msgno)
+simple_index_line(char *buf, size_t buflen, ICE_S *ice, long int msgno)
 {
     char     *p;
     IFIELD_S *ifield, *previfield = NULL;
     IELEM_S  *ielem;
-
-    if(n < 0 || n > 1000)
-      panic("unreasonable n in simple_index_line()");
 
     if(!buf)
       panic("NULL buf in simple_index_line()");
@@ -3290,19 +3284,14 @@ simple_index_line(char *buf, size_t buflen, int n, ICE_S *ice, long int msgno)
     if(buflen > 0)
       buf[0] = '\0';
 
-    if(buflen > n)
-      buf[n] = '\0';
-
     p = buf;
 
     if(ice){
       
-      for(ifield = ice->ifield; ifield && p-buf < n; ifield = ifield->next){
+      for(ifield = ice->ifield; ifield && p-buf < buflen; ifield = ifield->next){
 
 	/* space between fields */
-	if(ifield != ice->ifield
-	   && !(previfield && previfield->ctype == iText)
-	   && (p-buf) < buflen)
+	if(ifield != ice->ifield && !(previfield && previfield->ctype == iText))
 	  *p++ = ' ';
 
 	/* message number string is generated on the fly */
@@ -3313,24 +3302,30 @@ simple_index_line(char *buf, size_t buflen, int n, ICE_S *ice, long int msgno)
 	      snprintf(ielem->data, ielem->datalen+1, "%*.ld", ifield->width, msgno);
 	    else
 	      snprintf(ielem->data, ielem->datalen+1, "%*.*s", ifield->width, ifield->width, "");
-
-	    ielem->data[MIN(ifield->width,ielem->datalen)] = '\0';
 	  }
 	}
 
 	for(ielem = ifield->ielem;
-	    ielem && ielem->print_format && p-buf < MIN(n,buflen);
+	    ielem && ielem->print_format && p-buf < buflen;
 	    ielem = ielem->next){
-	  snprintf(p, MIN(n+1,buflen)-(p-buf), ielem->print_format, ielem->data);
-	  buf[MIN(n,buflen-1)] = '\0';
-	  p += strlen(p);
+	  char *src;
+	  size_t bytes_added;
+
+	  src = ielem->data;
+	  bytes_added = utf8_pad_to_width(p, src,
+					  buflen-(p-buf) * sizeof(char),
+					  ielem->wid, ifield->leftadj);
+	  p += bytes_added;
 	}
 
 	previfield = ifield;
       }
+
+      if(p-buf < buflen)
+        *p = '\0';
     }
 
-    buf[MIN(n,buflen-1)] = '\0';
+    buf[buflen-1] = '\0';
 
     return(buf);
 }
@@ -3850,6 +3845,11 @@ fetch_header(INDEXDATA_S *idata, char *hdrname)
 	   && (h = pine_fetchheader_lines(idata->stream, idata->rawno,
 					  NULL, fields))){
 				      
+	    if(strlen(h) < strlen(hdrname) + 1){
+		fs_give((void **) &h);
+		return(cpystr(""));
+	    }
+
 	    /* skip "hdrname:" */
 	    for(p = h + strlen(hdrname) + 1;
 		*p && isspace((unsigned char)*p); p++)
@@ -3968,10 +3968,15 @@ set_index_addr(INDEXDATA_S	   *idata,
 	  fields[1] = NULL;
 	  if((h = pine_fetchheader_lines(idata->stream, idata->rawno,
 					NULL, fields)) != NULL){
-	      /* skip "field:" */
-	      for(p = h + strlen(field) + 1;
-		  *p && isspace((unsigned char)*p); p++)
-		;
+	      if(strlen(h) < strlen(field) + 1){
+		  p = h + strlen(h);
+	      }
+	      else{
+		  /* skip "field:" */
+		  for(p = h + strlen(field) + 1;
+		      *p && isspace((unsigned char)*p); p++)
+		    ;
+	      }
 
 	      orig_width = width;
 	      sptr = stmp = (char *) fs_get((orig_width+1) * sizeof(char));
@@ -6319,7 +6324,7 @@ ice_hash(ICE_S *ice)
     buf[0] = '\0';
 
     if(ice)
-      simple_index_line(buf, sizeof(buf), ps_global->ttyo->screen_cols, ice, 0L);
+      simple_index_line(buf, sizeof(buf), ice, 0L);
 
     buf[sizeof(buf) - 1] = '\0';
 

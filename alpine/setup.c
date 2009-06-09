@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: setup.c 863 2007-12-11 18:54:24Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: setup.c 917 2008-01-23 19:15:36Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,6 +42,7 @@ int      inbox_path_text_tool(struct pine *, int, CONF_S **, unsigned);
 int      incoming_monitoring_list_tool(struct pine *, int, CONF_S **, unsigned);
 int      stayopen_list_tool(struct pine *, int, CONF_S **, unsigned);
 char   **adjust_list_of_monitored_incoming(CONTEXT_S *, EditWhich, int);
+int      to_charsets_text_tool(struct pine *, int, CONF_S **, unsigned);
 
 
 #define CONFIG_SCREEN_TITLE             _("SETUP CONFIGURATION")
@@ -282,6 +283,16 @@ option_screen(struct pine *ps, int edit_exceptions)
 	}
 	else if(vtmp == &ps->vars[V_INBOX_PATH]){
 	    ctmpa->tool    = inbox_path_text_tool;
+	    ctmpa->value   = pretty_value(ps, ctmpa);
+	}
+	else if(vtmp == &ps->vars[V_POST_CHAR_SET]
+#ifndef _WINDOWS
+		|| vtmp == &ps->vars[V_CHAR_SET]
+	        || vtmp == &ps->vars[V_KEY_CHAR_SET]
+#endif /* !_WINDOWS */
+		|| vtmp == &ps->vars[V_UNK_CHAR_SET]){
+	    ctmpa->keymenu = &config_text_to_charsets_keymenu;
+	    ctmpa->tool    = to_charsets_text_tool;
 	    ctmpa->value   = pretty_value(ps, ctmpa);
 	}
 	else if(vtmp->is_list){
@@ -692,7 +703,19 @@ incoming_monitoring_list_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned in
 	if(the_list){
 	    alval = ALVAL((*cl)->var, ew);
 	    free_list_array(alval);
-	    config_add_list(ps, cl, the_list, NULL, 0);
+	    if(!*the_list){
+		q_status_message(SM_ORDER, 0, 3, _("Using default, monitor all incoming folders"));
+		if(alval){
+		    /*
+		     * Remove config lines except for first one.
+		     */
+		    *cl = (*cl)->varnamep;
+		    while((*cl)->next && (*cl)->next->varnamep == (*cl)->varnamep)
+		      snip_confline(&(*cl)->next);
+		}
+	    }
+	    else
+	      config_add_list(ps, cl, the_list, NULL, 0);
 
 	    /* only have to free the top-level pointer */
 	    fs_give((void **) &the_list);
@@ -814,7 +837,7 @@ adjust_list_of_monitored_incoming(CONTEXT_S *cntxt, EditWhich which, int varnum)
     }
 
     if(!select_from_list_screen(listhead,
-			SFL_ALLOW_LISTMODE|SFL_STARTIN_LISTMODE|SFL_ONLY_LISTMODE,
+			SFL_ALLOW_LISTMODE|SFL_STARTIN_LISTMODE|SFL_ONLY_LISTMODE|SFL_CTRLC,
 			        _("SELECT FOLDERS TO MONITOR"), _("folders"),
 				h_select_incoming_to_monitor,
 				_("HELP FOR SELECTING FOLDERS"), NULL)){
@@ -823,7 +846,7 @@ adjust_list_of_monitored_incoming(CONTEXT_S *cntxt, EditWhich which, int varnum)
 	  if(p->selected)
 	    cnt++;
 
-	if(cnt > 0 && cnt <= ftotal){
+	if(cnt >= 0 && cnt <= ftotal){
 	    the_list = (char **) fs_get((cnt+1) * sizeof(*the_list));
 	    memset(the_list, 0, (cnt+1) * sizeof(*the_list));
 	    for(i = 0, p = listhead; p; p = p->next)
@@ -912,6 +935,99 @@ stayopen_list_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 
 	opt_screen = saved_screen;
 	ps->mangled_screen = 1;
+        break;
+
+      default:
+	rv = text_tool(ps, cmd, cl, flags);
+	break;
+    }
+
+    return(rv);
+}
+
+
+int
+to_charsets_text_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
+{
+    int	        rv = 0;
+    char      **newval = NULL;
+    void      (*prev_screen)(struct pine *) = ps->prev_screen,
+	      (*redraw)(void) = ps->redrawer;
+    OPT_SCREEN_S *saved_screen = NULL;
+    char      **apval;
+    char       *charset = NULL;
+
+    switch(cmd){
+      case MC_CHOICE:
+	if(fixed_var((*cl)->var, NULL, NULL))
+	  break;
+
+	apval = APVAL((*cl)->var, ew);
+
+	if(apval){
+	    int cac_flags = CAC_ALL;
+
+	    ps->redrawer = NULL;
+	    ps->next_screen = SCREEN_FUN_NULL;
+	    saved_screen = opt_screen;
+
+	    if((*cl)->var == &ps->vars[V_POST_CHAR_SET])
+	      cac_flags = CAC_POSTING;
+#ifndef _WINDOWS
+	    else if((*cl)->var == &ps->vars[V_CHAR_SET]
+		    || (*cl)->var == &ps->vars[V_KEY_CHAR_SET])
+	      cac_flags = CAC_DISPLAY;
+#endif /* !_WINDOWS */
+
+	    charset = choose_a_charset(cac_flags);
+
+	    removing_leading_and_trailing_white_space(charset);
+	    if(charset && *charset){
+		rv = 1;
+		if(apval && *apval)
+		  fs_give((void **) apval);
+
+		*apval = charset;
+		charset = NULL;
+		newval = &(*cl)->value;
+
+		/* this stuff is from bottom of text_toolit() */
+
+		/*
+		 * At this point, if changes occurred, var->user_val.X is set.
+		 * So, fix the current_val, and handle special cases...
+		 *
+		 * NOTE: we don't worry about the "fixed variable" case here, because
+		 *       editing such vars should have been prevented above...
+		 */
+
+		/*
+		 * Now go and set the current_val based on user_val changes
+		 * above.  Turn off command line settings...
+		 */
+		set_current_val((*cl)->var, TRUE, FALSE);
+		fix_side_effects(ps, (*cl)->var, 0);
+		if(newval){
+		    if(*newval)
+		      fs_give((void **) newval);
+
+		    *newval = pretty_value(ps, *cl);
+		}
+
+		exception_override_warning((*cl)->var);
+	    }
+	    else{
+		ps->next_screen = prev_screen;
+		ps->redrawer = redraw;
+		rv = 0;
+	    }
+
+	    if(charset)
+	      fs_give((void **) &charset);
+
+	    opt_screen = saved_screen;
+	    ps->mangled_screen = 1;
+	}
         break;
 
       default:

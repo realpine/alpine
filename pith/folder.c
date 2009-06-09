@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: folder.c 878 2007-12-17 23:09:45Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: folder.c 958 2008-03-11 17:45:09Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -743,7 +743,7 @@ init_inbox_mapping(char *path, CONTEXT_S *cntxt)
 
     /* see if this folder is in the monitoring list */
     check_this = 0;
-    if(F_ON(F_ENABLE_INCOMING_CHECKING, ps_global)){
+    if(F_ON(F_ENABLE_INCOMING_CHECKING, ps_global) && ps_global->VAR_INCOMING_FOLDERS && ps_global->VAR_INCOMING_FOLDERS[0]){
 	if(!ps_global->VAR_INCCHECKLIST)
 	  check_this++;			/* everything in by default */
 	else{
@@ -1095,6 +1095,7 @@ mail_list_filter(MAILSTREAM *stream, char *mailbox, int delim, long int attribs,
 {
     BFL_DATA_S *ld = (BFL_DATA_S *) data;
     FOLDER_S   *new_f = NULL, *dual_f = NULL;
+    int         suppress_folder_add = 0;
 
     if(!ld)
       return;
@@ -1123,26 +1124,161 @@ mail_list_filter(MAILSTREAM *stream, char *mailbox, int delim, long int attribs,
     }
 
     /*
-     * If this response is INBOX then check to see if INBOX
-     * is already in the list (which it would be if we added it with
-     * init_inbox_mapping) and skip it if it's there.
-     * One consequence of this is that if this inbox is
-     * actually the real inbox then we aren't going to mark
-     * it as dual-use even if it is dual-use. If we wanted to
-     * make that work it would be difficult because we somehow
-     * need to figure out that the returned INBOX really is
-     * our inbox with the same path and everything.
+     * If this response is INBOX we have to handle it specially.
+     * The special cases are:
+     *
+     * Incoming folders are enabled and this INBOX is in the Incoming
+     * folders list already. We don't want to list it here, as well,
+     * unless it is also a directory.
+     *
+     * Incoming folders are not enabled, but we inserted INBOX into
+     * this primary collection (with init_inbox_mapping()) so it is
+     * already accounted for unless it is also a directory.
+     *
+     * Incoming folders are not enabled, but we inserted INBOX into
+     * the primary collection (which we are not looking at here) so
+     * it is already accounted for there. We'll add it as a directory
+     * as well here if that is what is called for.
      */
     if(!strucmp(mailbox, ps_global->inbox_name)){
-	int	      i;
+	int ftotal, i;
+	FOLDER_S *f;
+	char fullname[1000], tmp1[1000], tmp2[1000], *l1, *l2;
 
-	/* is it already in the folder list? */
-	for(i = 0; i < folder_total(ld->list); i++)
-	  if(!strucmp(FLDR_NAME(folder_entry(i, ld->list)), ps_global->inbox_name))
-	    return;
+	/* fullname is the name of the mailbox in the list response */
+	if(ld->args.reference){
+	    strncpy(fullname, ld->args.reference, sizeof(fullname)-1);
+	    fullname[sizeof(fullname)-1] = '\0';
+	}
+	else
+	  fullname[0] = '\0';
+
+	strncat(fullname, mailbox, sizeof(fullname)-strlen(fullname)-1);
+	fullname[sizeof(fullname)-1] = '\0';
+
+	/* check if Incoming Folders are enabled */
+	if(ps_global->context_list && ps_global->context_list->use & CNTXT_INCMNG){
+	    int this_inbox_is_in_incoming = 0;
+
+	    /*
+	     * Figure out if this INBOX is already in the Incoming list.
+	     */
+
+	    /* compare fullname to each incoming folder */
+	    ftotal = folder_total(FOLDERS(ps_global->context_list));
+	    for(i = 0; i < ftotal && !this_inbox_is_in_incoming; i++){
+		f = folder_entry(i, FOLDERS(ps_global->context_list));
+		if(f && f->name){
+		    if(same_remote_mailboxes(fullname, f->name)
+		       || ((!IS_REMOTE(fullname) && !IS_REMOTE(f->name))
+			   && (l1=mailboxfile(tmp1,fullname))
+			   && (l2=mailboxfile(tmp2,f->name))
+			   && !strcmp(l1,l2)))
+		      this_inbox_is_in_incoming++;
+		}
+	    }
+
+	    if(this_inbox_is_in_incoming){
+		/*
+		 * Don't add a folder for this, only a directory if called for.
+		 * If it isn't a directory, skip it.
+		 */
+		if(!(delim && !(attribs & LATT_NOINFERIORS)))
+		  return;
+
+		suppress_folder_add++;
+	    }
+	}
+	else{
+	    int inbox_is_in_this_collection = 0;
+
+	    /* is INBOX already in this folder list? */
+	    ftotal = folder_total(ld->list);
+	    for(i = 0; i < ftotal && !inbox_is_in_this_collection; i++){
+		f = folder_entry(i, ld->list);
+	        if(!strucmp(FLDR_NAME(f), ps_global->inbox_name))
+		  inbox_is_in_this_collection++;
+	    }
+
+	    if(inbox_is_in_this_collection){
+
+		/*
+		 * Inbox is already inserted in this collection. Unless
+		 * it is also a directory, we are done.
+		 */
+		if(!(delim && !(attribs & LATT_NOINFERIORS)))
+		  return;
+
+		/*
+		 * Since it is also a directory, what we do depends on
+		 * the F_SEP feature. If that feature is not set we just
+		 * want to mark the existing entry dual-use. If F_SEP is
+		 * set we want to add a new directory entry.
+		 */
+		if(F_ON(F_SEPARATE_FLDR_AS_DIR, ps_global)){
+		    f->isdir = 0;
+		    f->haschildren = 0;
+		    f->hasnochildren = 0;
+		    /* fall through and add a new directory */
+		}
+		else{
+		    /* mark existing entry dual-use and return */
+		    ld->response.count++;
+		    ld->response.isdir = 1;
+		    f->isdir = 1;
+		    if(attribs & LATT_HASCHILDREN)
+		      f->haschildren = 1;
+
+		    if(attribs & LATT_HASNOCHILDREN)
+		      f->hasnochildren = 1;
+
+		    return;
+		}
+
+		suppress_folder_add++;
+	    }
+	    else{
+		int found_it = 0;
+		int this_inbox_is_primary_inbox = 0;
+
+		/*
+		 * See if this INBOX is the same as the INBOX we inserted
+		 * in the primary collection.
+		 */
+
+		/* first find the existing INBOX entry */
+		ftotal = folder_total(FOLDERS(ps_global->context_list));
+		for(i = 0; i < ftotal && !found_it; i++){
+		    f = folder_entry(i, FOLDERS(ps_global->context_list));
+		    if(!strucmp(FLDR_NAME(f), ps_global->inbox_name))
+		      found_it++;
+		}
+
+		if(found_it && f && f->name){
+		    if(same_remote_mailboxes(fullname, f->name)
+		       || ((!IS_REMOTE(fullname) && !IS_REMOTE(f->name))
+			   && (l1=mailboxfile(tmp1,fullname))
+			   && (l2=mailboxfile(tmp2,f->name))
+			   && !strcmp(l1,l2)))
+		      this_inbox_is_primary_inbox++;
+		}
+
+		if(this_inbox_is_primary_inbox){
+		    /*
+		     * Don't add a folder for this, only a directory if called for.
+		     * If it isn't a directory, skip it.
+		     */
+		    if(!(delim && !(attribs & LATT_NOINFERIORS)))
+		      return;
+
+		    suppress_folder_add++;
+		}
+	    }
+	}
     }
 
-    if(!(attribs & LATT_NOSELECT)){
+    /* is it a mailbox? */
+    if(!(attribs & LATT_NOSELECT) && !suppress_folder_add){
 	ld->response.count++;
 	ld->response.isfile = 1;
 	new_f = new_folder(mailbox, 0);
@@ -1263,7 +1399,7 @@ mail_list_in_collection(char **mailbox, char *ref, char *name, char *tail)
     if(boxlen
        && (reflen ? !struncmp(*mailbox, ref, reflen)
 		  : (p = strpbrk(name, "%*"))
-		       ? !struncmp(*mailbox, name, reflen = p - name)
+		       ? !struncmp(*mailbox, name, p - name)
 		       : !strucmp(*mailbox,name))
        && (!taillen
 	   || (taillen < boxlen - reflen

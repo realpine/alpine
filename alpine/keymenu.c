@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: keymenu.c 786 2007-11-02 23:23:04Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: keymenu.c 937 2008-02-28 01:04:46Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1383,6 +1383,36 @@ struct key config_text_keys[] =
 INST_KEY_MENU(config_text_keymenu, config_text_keys);
 
 
+struct key config_text_to_charsets_keys[] = 
+       {HELP_MENU,
+	OTHER_MENU,
+	EXIT_SETUP_MENU,
+	{"C", "[" N_("Change Val") "]", {MC_EDIT,3,{'c',ctrl('M'),ctrl('J')}}, KS_NONE},
+	PREV_MENU,
+	NEXT_MENU,
+	PREVPAGE_MENU,
+	NEXTPAGE_MENU,
+	{"A", N_("Add Value"), {MC_ADD,1,{'a'}}, KS_NONE},
+	{"D", N_("Delete Val"), {MC_DELETE,1,{'d'}}, KS_NONE},
+	PRYNTTXT_MENU,
+	WHEREIS_MENU,
+
+	HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	/* TRANSLATORS: go to list of keywords */
+	{"T", N_("ToCharsets"), {MC_CHOICE, 2, {'t', ctrl('T')}}, KS_NONE},
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
+INST_KEY_MENU(config_text_to_charsets_keymenu, config_text_to_charsets_keys);
+
+
 struct key direct_config_keys[] = 
        {HELP_MENU,
 	NULL_MENU,
@@ -1431,6 +1461,22 @@ struct key sel_from_list_keys[] =
 INST_KEY_MENU(sel_from_list, sel_from_list_keys);
 
 
+struct key sel_from_list_keys_ctrlc[] = 
+       {HELP_MENU,
+	NULL_MENU,
+        {"^C", N_("exit"),     {MC_EXIT,1,{ctrl('C')}}, KS_EXITMODE},
+        {"S", "[" N_("Select") "]", {MC_SELECT,3,{'s',ctrl('J'),ctrl('M')}}, KS_NONE},
+	{"P", N_("Prev"), {MC_PREVITEM, 1, {'p'}}, KS_NONE},
+	{"N", N_("Next"), {MC_NEXTITEM, 2, {'n', TAB}}, KS_NONE},
+	PREVPAGE_MENU,
+	NEXTPAGE_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU,
+	PRYNTTXT_MENU,
+	WHEREIS_MENU};
+INST_KEY_MENU(sel_from_list_ctrlc, sel_from_list_keys_ctrlc);
+
+
 struct key sel_from_list_keys_sm[] = 
        {HELP_MENU,
 	OTHER_MENU,
@@ -1458,6 +1504,35 @@ struct key sel_from_list_keys_sm[] =
 	HOMEKEY_MENU,
 	ENDKEY_MENU};
 INST_KEY_MENU(sel_from_list_sm, sel_from_list_keys_sm);
+
+
+struct key sel_from_list_keys_sm_ctrlc[] = 
+       {HELP_MENU,
+	OTHER_MENU,
+        {"^C", N_("exit"),     {MC_EXIT,1,{ctrl('C')}}, KS_EXITMODE},
+        {"S", "[" N_("Select") "]", {MC_SELECT,3,{'s',ctrl('J'),ctrl('M')}}, KS_NONE},
+	{"P", N_("Prev"), {MC_PREVITEM, 1, {'p'}}, KS_NONE},
+	{"N", N_("Next"), {MC_NEXTITEM, 2, {'n', TAB}}, KS_NONE},
+	PREVPAGE_MENU,
+	NEXTPAGE_MENU,
+	NULL_MENU,
+	{"L",N_("ListMode"),{MC_LISTMODE,1,{'l'}},KS_NONE},
+	PRYNTTXT_MENU,
+	WHEREIS_MENU,
+
+	HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
+INST_KEY_MENU(sel_from_list_sm_ctrlc, sel_from_list_keys_sm_ctrlc);
 
 
 struct key sel_from_list_keys_lm[] = 
@@ -1489,6 +1564,35 @@ struct key sel_from_list_keys_lm[] =
 INST_KEY_MENU(sel_from_list_lm, sel_from_list_keys_lm);
 
 
+struct key sel_from_list_keys_lm_ctrlc[] = 
+       {HELP_MENU,
+	OTHER_MENU,
+        {"^C", N_("exit"),     {MC_EXIT,1,{ctrl('C')}}, KS_EXITMODE},
+        {"S", "[" N_("Select") "]", {MC_SELECT,3,{'s',ctrl('J'),ctrl('M')}}, KS_NONE},
+	{"P", N_("Prev"), {MC_PREVITEM, 1, {'p'}}, KS_NONE},
+	{"N", N_("Next"), {MC_NEXTITEM, 2, {'n', TAB}}, KS_NONE},
+	PREVPAGE_MENU,
+	NEXTPAGE_MENU,
+	{"X", N_("Set/Unset"), {MC_TOGGLE,1,{'x'}}, KS_NONE},
+	{"1",N_("SinglMode"),{MC_LISTMODE,1,{'1'}},KS_NONE},
+	PRYNTTXT_MENU,
+	WHEREIS_MENU,
+
+	HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
+INST_KEY_MENU(sel_from_list_lm_ctrlc, sel_from_list_keys_lm_ctrlc);
+
+
 struct key sel_from_list_keys_olm[] = 
        {HELP_MENU,
 	OTHER_MENU,
@@ -1516,6 +1620,35 @@ struct key sel_from_list_keys_olm[] =
 	HOMEKEY_MENU,
 	ENDKEY_MENU};
 INST_KEY_MENU(sel_from_list_olm, sel_from_list_keys_olm);
+
+
+struct key sel_from_list_keys_olm_ctrlc[] = 
+       {HELP_MENU,
+	OTHER_MENU,
+        {"^C", N_("exit"),     {MC_EXIT,1,{ctrl('C')}}, KS_EXITMODE},
+        {"S", "[" N_("Select") "]", {MC_SELECT,3,{'s',ctrl('J'),ctrl('M')}}, KS_NONE},
+	{"P", N_("Prev"), {MC_PREVITEM, 1, {'p'}}, KS_NONE},
+	{"N", N_("Next"), {MC_NEXTITEM, 2, {'n', TAB}}, KS_NONE},
+	PREVPAGE_MENU,
+	NEXTPAGE_MENU,
+	{"X", N_("Set/Unset"), {MC_TOGGLE,1,{'x'}}, KS_NONE},
+	NULL_MENU,
+	PRYNTTXT_MENU,
+	WHEREIS_MENU,
+
+	HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
+INST_KEY_MENU(sel_from_list_olm_ctrlc, sel_from_list_keys_olm_ctrlc);
 
 
 #ifndef	DOS
@@ -1581,7 +1714,7 @@ struct key role_select_keys[] =
 	NEXTPAGE_MENU,
 	HOMEKEY_MENU,
 	ENDKEY_MENU,
-	NULL_MENU,
+	{"D", "", {MC_TOGGLE, 1, {'d'}}, KS_NONE},
 	WHEREIS_MENU};
 INST_KEY_MENU(role_select_km, role_select_keys);
 

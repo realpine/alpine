@@ -1,10 +1,10 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: browse.c 861 2007-12-11 02:18:44Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: browse.c 936 2008-02-26 23:07:15Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1532,6 +1532,12 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 
 		  /* user actually used ListMode, the list is finished */
 		  if(gmp->flags & FB_LMODE){
+		      if(!gmp->lm){
+			  (*term.t_beep)();
+			  emlwrite(_("No files are selected, use \"X\" to mark files for selection"), NULL);
+			  break;
+		      }
+
 		      *lmreturn = gmp->lm;
 		      gmp->lm = NULL;
 		  }
@@ -1557,6 +1563,7 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 		      *lmreturn = new;
 		  }
 
+		  zotmaster(&gmp);
 		  return(1);
 	      }
 

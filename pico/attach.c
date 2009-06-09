@@ -1,10 +1,10 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: attach.c 734 2007-10-01 18:36:45Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: attach.c 923 2008-02-05 23:09:15Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -693,8 +693,13 @@ ParseAttach(struct hdr_line **lp,		/* current header line      */
 	      c = (*lp)->text[*off = bod = 0];	/* reset offset */
 	}
 
-	if(c != '\0')
-	  c_lookahead = (*lp)->text[*off + 1];
+	if(c != '\0'){
+	    c_lookahead = (*lp)->text[*off + 1];
+	    if(c_lookahead == '\0'){	/* end of display line */
+		if((*lp)->next != NULL)
+		  c_lookahead = (*lp)->next->text[0];
+	    }
+	}
 
 	switch(level){
 	  case LWS:				/* skip leading white space */

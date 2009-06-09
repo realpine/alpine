@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pipe.c 745 2007-10-11 18:03:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pipe.c 922 2008-02-01 18:42:29Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,8 +47,7 @@ static char rcsid[] = "$Id: pipe.c 745 2007-10-11 18:03:32Z hubert@u.washington.
 /*
  * Global's to helpsignal handler tell us child's status has changed...
  */
-short	child_jump = 0;
-pid_t	child_pid;
+static pid_t	child_pid;
 
 
 /*

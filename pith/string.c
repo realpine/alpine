@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: string.c 866 2007-12-12 19:08:54Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: string.c 904 2008-01-09 20:45:31Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -306,9 +306,10 @@ skip_to_white_space(char *string)
 char *
 removing_quotes(char *string)
 {
-    register char *p, *q;
+    char *p, *q;
 
     if(*(p = q = string) == '\"'){
+	q++;
 	do
 	  if(*q == '\"' || *q == '\\')
 	    q++;

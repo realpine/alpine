@@ -1,7 +1,6 @@
 alpine.tar.z web/INSTALL
-$id$
 /* ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -112,7 +111,14 @@ installed separately.
 
 If you plan to use UW pubcookie for browser-based network login,
 please review src/pubcookie/README.  Be sure the Web Alpine Mail
-System was configured with the "--with-pubcookie" option set.
+System was configured with the "--with-pubcookie" AND --with-web-bin=
+options set.  The latter is set to the directory that will eventually
+contain Web Alpine's binary components.  For the example system
+described in the next section, you would add:
+
+    --with-pubcookie --with-web-bin=/usr/local/libexec/alpine/bin
+
+to the configure script's command line.
 
 
 INSTALLING WEB ALPINE COMPONENTS
@@ -317,4 +323,4 @@ what's going on and why.  If you have any questions or comments drop
 us a note <alpine-contact@cac.washington.edu>.
 
 -- 
-$Id: INSTALL 884 2007-12-20 18:30:27Z mikes@u.washington.edu $
+$Id: INSTALL 906 2008-01-11 19:15:07Z mikes@u.washington.edu $

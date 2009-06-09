@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 
 dnl /* ========================================================================
-dnl  * Copyright 2006-2007 University of Washington
+dnl  * Copyright 2006-2008 University of Washington
 dnl  *
 dnl  * Licensed under the Apache License, Version 2.0 (the "License");
 dnl  * you may not use this file except in compliance with the License.
@@ -14,10 +14,10 @@ dnl  */
 
 AC_PREREQ([2.57])
 
-AC_REVISION([$Id: configure.ac 887 2007-12-20 22:32:04Z mikes@u.washington.edu $])
+AC_REVISION([$Id: configure.ac 961 2008-03-14 18:15:38Z mikes@u.washington.edu $])
 
 dnl Alpine Version Number is in $srcdir/VERSION
-AC_INIT(alpine, m4_normalize(m4_include([VERSION])), [alpine-contact@cac.washington.edu])
+AC_INIT(alpine, m4_normalize(m4_include([VERSION])), [alpine-contact@u.washington.edu])
 
 AC_CONFIG_SRCDIR([include/system.h])
 AC_CONFIG_HEADERS([include/config.h])
@@ -49,6 +49,7 @@ AC_PROG_LIBTOOL
 AC_PATH_PROG(AR, ar, ar)
 AC_PATH_PROG(RM, rm, rm)
 AC_PATH_PROG(CP, cp, cp)
+AC_PATH_PROG(LN, ln, ln)
 AC_PATH_PROG(SED, sed, sed)
 AC_PATH_PROG(MAKE, make)
 
@@ -163,6 +164,21 @@ AC_ARG_WITH(pubcookie,
     if test "x$withval" != "xno" ; then
       WEB_PUBCOOKIE_BUILD=web/src/pubcookie
     fi
+  ])
+
+
+AC_ARG_WITH(web-bin,
+  AC_HELP_STRING([--with-web-bin=PATH], [Directory to hold Web Alpine component binary files]),
+  [
+    case "$withval" in
+      no)
+	;;
+      yes)
+	;;
+      *)
+	WEB_BINDIR=$withval
+	;;
+    esac
   ])
 
 dnl disable debug, turned on by default
@@ -501,6 +517,7 @@ PINEVAR(default-fcc, DF_DEFAULT_FCC, [sent-mail], [Default sent mail folder])
 PINEVAR(default-save-folder, DEFAULT_SAVE, [saved-messages], [Default save folder])
 PINEVAR(default-legacy-postponed-folder, POSTPONED_MAIL, [postponed-mail], [Pre Pine 3.90 postponed folder])
 PINEVAR(default-postponed-folder, POSTPONED_MSGS, [postponed-msgs], [Default postponed folder])
+PINEVAR(default-trash-folder, TRASH_FOLDER, [Trash], [Default Trash folder for Web Alpine])
 PINEVAR(default-interrupted-mail, INTERRUPTED_MAIL, [.pine-interrupted-mail], [Default folder for interrupted mail])
 PINEVAR(default-dead-letter-folder, DEADLETTER, [dead.letter], [Default dead letter folder])
 PINEVAR(default-mail-directory, DF_MAIL_DIRECTORY, [mail], [Default mail directory])
@@ -940,10 +957,24 @@ fi
 
 dnl provide KRB5 support?
 if test "x$alpine_GSSTYPE" != "xnone" ; then
-  AC_CHECK_FUNC(gss_init_sec_context,,
+  AC_SEARCH_LIBS(gss_init_sec_context,gss gssapi gssapi_krb5,
+    [
+      dnl MIT-based?
+      AC_CHECK_HEADER([gssapi/gssapi_generic.h],,
+	[
+	  if test ! -d /usr/kerberos/include ; then
+	    alpine_GSSTYPE="none"
+	    alpine_gss_none_reason="header files not found"
+	  fi
+	])
+    ],
     [
       alpine_GSSTYPE="none"
+      alpine_gss_none_reason="libraries not found"
     ])
+  if test -n "$alpine_gss_none_reason" ; then
+    AC_MSG_NOTICE([NOT including Kerberos Support: $alpine_gss_none_reason])
+  fi
 fi
 
 dnl check for tcl libraries for Web Alpine (HACKY)
@@ -1242,6 +1273,9 @@ case "$host" in
       else
 	alpine_c_client_target="lrh"
       fi
+    elif test -f /etc/mandrake-release ; then
+      systype="LMD"
+      alpine_c_client_target="lmd"
     elif test -f /etc/redhat-release -o -f /etc/redhat_version ; then
       systype="LRH"
       if test -d /etc/pki/tls ; then  
@@ -1260,9 +1294,6 @@ case "$host" in
     elif test -f /etc/SuSE-release ; then
       systype="LSU"
       alpine_c_client_target="lsu"
-    elif test -f /etc/mandrake-release ; then
-      systype="LMD"
-      alpine_c_client_target="lmd"
     else
       systype="LNX"
       AC_CHECK_LIB(pam, pam_start,
@@ -1302,7 +1333,7 @@ case "$host" in
       ])
     ;;
   *-*-solaris*)
-    if test "x$CC" = "xgcc" ; then
+    if test x$GCC = "xyes" ; then
       systype="GSO"
       alpine_c_client_target="gso"
     else
@@ -1320,6 +1351,19 @@ case "$host" in
     alpine_path_delim="/"
     alpine_mode_readonly="(0600)"
     alpine_c_client_target="s40"
+    ;;
+  *-*-sco3.2v5*)
+    if test x$GCC = "xyes" ; then
+      systype="GO5"
+      alpine_c_client_target="go5"
+    else
+      systype="SC5"
+      alpine_c_client_target="sc5"
+    fi
+    alpine_path_delim="/"
+    alpine_mode_readonly="(0600)"
+    dnl possible other OS's need this.
+    dnl Use autoconf 2.61's AC_USE_SYSTEM_EXTENSIONS at some point
     ;;
   *-next-*)
     systype="NXT"
@@ -1502,9 +1546,16 @@ else
       WEB_PUBCOOKIE_BUILD=
       AC_MSG_NOTICE([* * * Kerberos5 support not found.])
       AC_MSG_NOTICE([* * * WEB ALPINE PUBCOOKIE COMPONENT WILL NOT BE BUILT.])
+    elif test -z "$WEB_BINDIR" ; then
+      WEB_PUBCOOKIE_BUILD=
+      AC_MSG_NOTICE([* * * Web Alpine binary directory not provided.])
+	AC_MSG_ERROR([* * * --with-pubcookie requires --with-web-bin=PATH.
+        Please re-run configure with these options:
+        --with-pubcookie --with-web-bin=/usr/local/libexec/alpine/bin])
     else
       AC_DEFINE([PUBCOOKIE],[1],[Include support for UW Pubcookie Web Authentication])
-      WEB_PUBCOOKIE_LIB=${srcdir}/pubcookie/libauthgssproxy.a
+      WEB_PUBCOOKIE_LIB=../pubcookie/libauthgssproxy.a
+      WEB_PUBCOOKIE_LINK=gssapi_proxy.l
     fi
   fi
 fi
@@ -1512,7 +1563,10 @@ fi
 AC_SUBST([REGEX_BUILD])
 
 AC_SUBST([WEB_BUILD])
+AC_SUBST([WEB_BINDIR])
+AC_SUBST([WEB_PUBCOOKIE_BUILD])
 AC_SUBST([WEB_PUBCOOKIE_LIB])
+AC_SUBST([WEB_PUBCOOKIE_LINK])
 
 AC_SUBST([AM_CFLAGS])
 AC_SUBST([AM_LDFLAGS])

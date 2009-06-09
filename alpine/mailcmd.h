@@ -1,8 +1,8 @@
 /*
- * $Id: mailcmd.h 825 2007-11-21 06:29:53Z hubert@u.washington.edu $
+ * $Id: mailcmd.h 938 2008-02-29 18:18:49Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,6 +49,12 @@
 #define GER_ALLPARTS		0x04	/* AllParts toggle is on            */
 
 
+#define CAC_NONE		0x00	/* flags for choose_a_charset		   */
+#define CAC_ALL			0x01	/* choose from entire list		   */
+#define CAC_POSTING		0x02	/* choose from charsets useful for posting */
+#define CAC_DISPLAY		0x04	/* choose from charsets useful for display */
+
+
 typedef enum {DontAsk, NoDel, Del, RetNoDel, RetDel} SaveDel;
 typedef enum {DontAskPreserve, NoPreserve, Preserve, RetNoPreserve, RetPreserve} SavePreserveOrder;
 
@@ -65,6 +71,7 @@ int	    save_prompt(struct pine *, CONTEXT_S **, char *, size_t,
 			SavePreserveOrder *);
 int	    create_for_save_prompt(CONTEXT_S *, char *, int);
 int	    expunge_prompt(MAILSTREAM *, char *, long);
+int	    save_size_changed_prompt(long, int);
 void	    expunge_and_close_begins(int, char *);
 int         simple_export(struct pine *, void *, SourceType, char *, char *);
 int         get_export_filename(struct pine *, char *, char *, char *, size_t, char *,
@@ -78,6 +85,7 @@ void	    visit_folder(struct pine *, char *, CONTEXT_S *, MAILSTREAM *, unsigned
 int	    select_by_current(struct pine *, MSGNO_S *, CmdWhere);
 int	    apply_command(struct pine *, MAILSTREAM *, MSGNO_S *, UCS, int, int);
 char      **choose_list_of_keywords(void);
+char       *choose_a_charset(int);
 char      **choose_list_of_charsets(void);
 char       *choose_item_from_list(char **, char *, char *, HelpType, char *, char *);
 int	    display_folder_list(CONTEXT_S **, char *, int,

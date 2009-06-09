@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: bldpath.c 681 2007-08-21 23:37:23Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: bldpath.c 932 2008-02-21 19:42:44Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,8 +55,15 @@ still exist.
 void
 build_path(char *pathbuf, char *first_part, char *second_part, size_t len)
 {
+    if(!(pathbuf && len > 0))
+      return;
+
+    pathbuf[0] = '\0';
+
     if(!first_part || is_rooted_path(second_part)){
-	strncpy(pathbuf, second_part, len-1);
+	if(second_part)
+	  strncpy(pathbuf, second_part, len-1);
+
 	pathbuf[len-1] = '\0';
     }
     else{
@@ -67,15 +74,17 @@ build_path(char *pathbuf, char *first_part, char *second_part, size_t len)
 	for(i = 0; i < len-2 && first_part[i]; i++)
 	  *pathbuf++ = first_part[i];
 
-	if(i && first_part[i-1] == '\\'){	/* first part ended with \  */
-	    if(*second_part == '\\')		/* and second starts with \ */
-	      second_part++;			/* else just append second  */
-	}
-	else if(*second_part != '\\')		/* no slash at all, so      */
-	  *pathbuf++ = '\\';			/* insert one...	    */
+	if(second_part){
+	    if(i && first_part[i-1] == '\\'){	/* first part ended with \  */
+		if(*second_part == '\\')		/* and second starts with \ */
+		  second_part++;			/* else just append second  */
+	    }
+	    else if(*second_part != '\\')		/* no slash at all, so      */
+	      *pathbuf++ = '\\';			/* insert one...	    */
 
-	while(pathbuf-orig_pathbuf < len-1 && *second_part)
-	  *pathbuf++ = *second_part++;
+	    while(pathbuf-orig_pathbuf < len-1 && *second_part)
+	      *pathbuf++ = *second_part++;
+	}
 
 	*pathbuf = '\0';
 
@@ -85,12 +94,15 @@ build_path(char *pathbuf, char *first_part, char *second_part, size_t len)
 
 	strncpy(pathbuf, first_part, len-2);
 	pathbuf[len-2] = '\0';
-	if(*pathbuf && pathbuf[(fpl=strlen(pathbuf))-1] != '/'){
-	    pathbuf[fpl++] = '/';
-	    pathbuf[fpl] = '\0';
+	if(second_part){
+	    if(*pathbuf && pathbuf[(fpl=strlen(pathbuf))-1] != '/'){
+		pathbuf[fpl++] = '/';
+		pathbuf[fpl] = '\0';
+	    }
+
+	    strncat(pathbuf, second_part, len-1-strlen(pathbuf));
 	}
 
-	strncat(pathbuf, second_part, len-1-strlen(pathbuf));
 	pathbuf[len-1] = '\0';
 
 #endif

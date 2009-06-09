@@ -1,7 +1,7 @@
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1952,7 +1952,7 @@ BOOL APIENTRY DllMain(
 
 	now = time((time_t *)0);
 	tm_now = localtime(&now);
-	fprintf(ms_global->dfd, "pmapi32.dll for Alpine Version 1.00\r\n");
+	fprintf(ms_global->dfd, "pmapi32.dll for Alpine Version 1.10\r\n");
 	fprintf(ms_global->dfd, " Build date: %s\r\n", datestamp);
 	fprintf(ms_global->dfd,
 		" please report all bugs to alpine-contact@u.washington.edu\r\n");

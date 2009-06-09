@@ -1,8 +1,8 @@
 /*
- * $Id: conftype.h 245 2006-11-18 02:46:41Z hubert@u.washington.edu $
+ * $Id: conftype.h 937 2008-02-28 01:04:46Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -67,6 +67,7 @@ typedef struct conf_line {
 	    PAT_LINE_S *patline;
 	    PAT_S      *pat;
 	    PAT_S     **selected;
+	    int        *change_def;
 	} r;
 	struct abook_conf {
 	    char **selected;

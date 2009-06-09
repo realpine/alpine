@@ -1,8 +1,8 @@
 /*
- * $Id: conf.h 809 2007-11-09 21:13:47Z hubert@u.washington.edu $
+ * $Id: conf.h 961 2008-03-14 18:15:38Z mikes@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -105,6 +105,8 @@
 #define GLO_READ_MESSAGE_FOLDER	     vars[V_READ_MESSAGE_FOLDER].global_val.p
 #define VAR_FORM_FOLDER		     vars[V_FORM_FOLDER].current_val.p
 #define GLO_FORM_FOLDER		     vars[V_FORM_FOLDER].global_val.p
+#define VAR_TRASH_FOLDER	     vars[V_TRASH_FOLDER].current_val.p
+#define GLO_TRASH_FOLDER	     vars[V_TRASH_FOLDER].global_val.p
 #define VAR_SIGNATURE_FILE	     vars[V_SIGNATURE_FILE].current_val.p
 #define GLO_SIGNATURE_FILE	     vars[V_SIGNATURE_FILE].global_val.p
 #define VAR_LITERAL_SIG		     vars[V_LITERAL_SIG].current_val.p
@@ -153,6 +155,7 @@
 #endif	/* ! _WINDOWS */
 #define VAR_POST_CHAR_SET	     vars[V_POST_CHAR_SET].current_val.p
 #define GLO_POST_CHAR_SET	     vars[V_POST_CHAR_SET].global_val.p
+#define VAR_UNK_CHAR_SET	     vars[V_UNK_CHAR_SET].current_val.p
 #define VAR_EDITOR		     vars[V_EDITOR].current_val.l
 #define GLO_EDITOR		     vars[V_EDITOR].global_val.l
 #define VAR_SPELLER		     vars[V_SPELLER].current_val.p
@@ -860,6 +863,7 @@ void       parse_printer(char *, char **, char **, char **, char **, char **, ch
 int        copy_pinerc(char *, char *, char **);
 int        copy_abook(char *, char *, char **);
 HelpType   config_help(int, int);
+int        printer_value_check_and_adjust(void);
 char     **get_supported_options(void);
 unsigned   reset_startup_rule(MAILSTREAM *);
 void	   free_pinerc_lines(PINERC_LINE **);

@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: send.c 844 2007-12-05 17:50:54Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: send.c 928 2008-02-08 17:43:23Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -86,6 +86,7 @@ int	   redraft(MAILSTREAM **, ENVELOPE **, BODY **, char **, char **, REPLY_S **
 		   REDRAFT_POS_S **, PINEFIELD **, ACTION_S **, int);
 int	   redraft_prompt(char *, char *, int);
 int	   check_for_subject(METAENV *);
+int	   check_for_fcc(char *);
 void	   free_prompts(PINEFIELD *);
 int	   postpone_prompt(void);
 METAENV	  *pine_simple_send_header(ENVELOPE *, char **, char ***);
@@ -171,7 +172,7 @@ static int	   news_busy_cue = 0;
 
 
 /*
- * For check_for_subject
+ * For check_for_subject and check_for_fcc
  */
 #define CF_OK		0x1
 #define CF_MISSING	0x2
@@ -3653,6 +3654,19 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 		continue;
 	    }
 
+	    if(F_ON(F_WARN_ABOUT_NO_FCC, ps_global)
+	       && check_for_fcc(fcc) == CF_MISSING){
+		dprint((4, "No fcc, continuing\n"));
+		if(local_redraft_pos && local_redraft_pos != redraft_pos)
+		  free_redraft_pos(&local_redraft_pos);
+		
+		local_redraft_pos
+			= (REDRAFT_POS_S *) fs_get(sizeof(*local_redraft_pos));
+		memset((void *) local_redraft_pos,0,sizeof(*local_redraft_pos));
+		local_redraft_pos->hdrname = cpystr("Fcc");
+		continue;
+	    }
+
 	    set_last_fcc(fcc);
 
             /*---- Check out fcc -----*/
@@ -4055,6 +4069,29 @@ check_for_subject(METAENV *header)
 	  break;
       }
 	      
+
+    return(rv);
+}
+
+
+/*
+ * Check for fcc in outgoing message.
+ * 
+ * Asks user whether to proceed with no fcc.
+ */
+int
+check_for_fcc(char *fcc)
+{
+    int        rv = CF_OK;
+
+    if(fcc && *fcc)
+      rv = CF_OK;
+    else{
+	if(want_to("No Fcc, send anyway ", 'n', 'n', h_send_check_fcc, WT_NORM) == 'y') 
+	  rv = CF_OK;
+	else
+	  rv = CF_MISSING;
+    }
 
     return(rv);
 }

@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: print.c 745 2007-10-11 18:03:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: print.c 936 2008-02-26 23:07:15Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -441,13 +441,15 @@ close_printer(void)
     } else {
 	(void) close_system_pipe(&ps_global->print->pipe, NULL, pipe_callback);
 	display_output_file(ps_global->print->result, "PRINT", NULL, 1);
-	fs_give((void **)&ps_global->print->result);
+	if(ps_global->print && ps_global->print->result)
+	  fs_give((void **) &ps_global->print->result);
     }
 #else /* _WINDOWS */
     mswin_print_done();
 #endif /* _WINDOWS */
 
-    fs_give((void **)&ps_global->print);
+    if(ps_global->print)
+      fs_give((void **) &ps_global->print);
 
     q_status_message(SM_ASYNC, 0, 3, "Print command completed");
     display_message('x');

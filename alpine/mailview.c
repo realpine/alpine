@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailview.c 881 2007-12-18 18:29:24Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: mailview.c 940 2008-03-03 21:37:30Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -242,6 +242,7 @@ mail_view_screen(struct pine *ps)
     dprint((1, "\n\n  -----  MAIL VIEW  -----\n"));
 
     ps->prev_screen = mail_view_screen;
+    ps->force_prefer_plain = ps->force_no_prefer_plain = 0;
 
     if(ps->ttyo->screen_rows - HEADER_ROWS(ps) - FOOTER_ROWS(ps) < 1){
 	q_status_message(SM_ORDER | SM_DING, 0, 3,
@@ -427,11 +428,26 @@ mail_view_screen(struct pine *ps)
 	   && scrollargs.start.on == Offset)
 	  offset = scrollargs.start.loc.offset;
 
-	if(cmd == MC_TOGGLE && force_prefer == 0)
-	    force_prefer = F_ON(F_PREFER_PLAIN_TEXT, ps_global) ? FM_FORCENOPREFPLN
-								: FM_FORCEPREFPLN;
-	else
+	if(cmd == MC_TOGGLE && ps->force_prefer_plain == 0 && ps->force_no_prefer_plain == 0){
+	    if(F_ON(F_PREFER_PLAIN_TEXT, ps_global))
+	      ps->force_no_prefer_plain = 1;
+	    else
+	      ps->force_prefer_plain = 1;
+	}
+	else{
+	    ps->force_prefer_plain = ps->force_no_prefer_plain = 0;
+	}
+
+	/*
+	 * We could use the values directly but this is the way it
+	 * already worked with the flags, so leave it alone.
+	 */
+	if(ps->force_prefer_plain == 0 && ps->force_no_prefer_plain == 0)
 	  force_prefer = 0;
+	else if(ps->force_prefer_plain)
+	  force_prefer = FM_FORCEPREFPLN;
+	else if(ps->force_no_prefer_plain)
+	  force_prefer = FM_FORCENOPREFPLN;
 
 	save_what = scrollargs.keys.what;
 	ps_global->unseen_in_view = 0;
@@ -445,6 +461,8 @@ mail_view_screen(struct pine *ps)
 
     if(we_cancel)
       cancel_busy_cue(-1);
+
+    ps->force_prefer_plain = ps->force_no_prefer_plain = 0;
 
     /*
      * Unless we're going into attachment screen,
@@ -1391,7 +1409,7 @@ url_launch(HANDLE_S *handle)
 	else
 #endif
 	/* quote shell specials */
-	if(strpbrk(handle->h.url.path, "&*;<>?[]|~$(){}") != NULL){
+	if(strpbrk(handle->h.url.path, "&*;<>?[]|~$(){}'\"") != NULL){
 	    escape_single_quotes++;
 	    if((p = strstr(toolp, "_URL_")) != NULL){  /* explicit arg? */
 		int in_quote = 0;

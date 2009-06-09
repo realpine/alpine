@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: help.c 781 2007-10-26 21:48:16Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: help.c 897 2008-01-04 22:49:15Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,7 +52,7 @@ help_name2section(char *url, int url_len)
 
 
 char *
-get_alpine_revision_number(char *buf, size_t nbuf)
+get_alpine_revision_string(char *buf, size_t nbuf)
 {
     char ourbuf[100], *p;
     char *rev = NULL;
@@ -84,6 +84,43 @@ get_alpine_revision_number(char *buf, size_t nbuf)
 	      ;
 
 	    /* skip over date to following space */
+	    for(; *p && !isspace((unsigned char) (*p)); p++)
+	      ;
+
+	    strncpy(buf, rev, MIN(p-rev, nbuf-1));
+	    buf[MIN(p-rev,nbuf-1)] = '\0';
+	}
+    }
+
+    return(buf);
+}
+
+
+char *
+get_alpine_revision_number(char *buf, size_t nbuf)
+{
+    char ourbuf[100], *p;
+    char *rev = NULL;
+
+    buf[0] = '\0';
+    ourbuf[0] = '\0';
+
+    /* HelpType (the type of h_revision) is assumed to be char ** */
+    if(h_revision && h_revision[0] && h_revision[0][0]){
+	strncpy(ourbuf, h_revision[0], sizeof(ourbuf)-1);
+	ourbuf[sizeof(ourbuf)-1] = '\0';
+    }
+
+    if(ourbuf[0]){
+	/* move to revision number */
+	for(p = ourbuf; *p && !isdigit((unsigned char) (*p)); p++)
+	  ;
+
+	if(*p)
+	  rev = p;
+
+	if(rev){
+	    /* skip to following space */
 	    for(; *p && !isspace((unsigned char) (*p)); p++)
 	      ;
 

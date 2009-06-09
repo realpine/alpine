@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: init.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: init.tcl 948 2008-03-06 00:24:37Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -148,9 +148,17 @@ cgi_eval {
   lappend parms defconf
   lappend parms $defconf
   lappend parms startpage
-  lappend parms "$_wp(appdir)/fr_main.tcl"
-  lappend parms prunepage
-  lappend parms "$_wp(appdir)/wp.tcl?page=queryprune&nojs=1&"
+
+  if {0 == [catch {cgi_import altui}] && $altui} {
+    lappend parms "$_wp(appdir_alt)/browse/0/INBOX"
+    lappend parms prunepage
+    lappend parms ""
+  } else {
+    lappend parms "$_wp(appdir)/fr_main.tcl"
+    lappend parms prunepage
+    lappend parms "$_wp(appdir)/wp.tcl?page=queryprune&nojs=1&"
+  }
+
   if {[info exists hPx]} {
     lappend parms hPx
     lappend parms $hPx

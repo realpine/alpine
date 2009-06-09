@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: querydelfldr.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: querydelfldr.tcl 963 2008-03-14 21:51:18Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -60,9 +60,9 @@ WPEval $fldr_vars {
     cgi_body BGCOLOR="$_wp(bordercolor)" {
       cgi_form $_wp(appdir)/wp method=get name=confirm target=_top {
 	cgi_text "page=folders" type=hidden notab
-	cgi_text "fid=$fid" type=hidden
-	cgi_text "cid=[WPCmd PEInfo key]" type=hidden
-	cgi_text "frestore=1" type=hidden
+	cgi_text "fid=$fid" type=hidden notab
+	cgi_text "cid=[WPCmd PEInfo key]" type=hidden notab
+	cgi_text "frestore=1" type=hidden notab
 
 	cgi_table border=0 cellspacing=0 cellpadding=2 width="100%" height="100%" {
 	  cgi_table_row {

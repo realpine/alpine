@@ -1,7 +1,7 @@
 # Web Alpine Config options
 # $Id$
 # ========================================================================
-# Copyright 2006 University of Washington
+# Copyright 2006-2008 University of Washington
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 # ========================================================================
 
 set _wp(appname)	Alpine
-set _wp(version)	0.999999
+set _wp(version)	1.00
 set _wp(admin)		admin@sample-domain.edu
 set _wp(helpdesk)	admin@sample-domain.edu
 set _wp(comments)	help@sample-domain.edu
@@ -163,9 +163,7 @@ set _wp(hosts) {
     }
 }
 
-#
-# Everbody inherits the cgi package
-#
+# Everybody inherits the cgi, comm packages
 lappend auto_path $_wp(lib)
 
 package require cgi
@@ -347,42 +345,9 @@ proc WPEval {vars cmd} {
 	    cgi_debug -on
 	}
 
-	# Import data and validate it
-	if {[catch {cgi_input "sessid=8543949466398&"} result]} {
-	  WPInfoPage "Web Alpine Error" [font size=+2 $result] "Please close this window."
-	  return
-	}
-
 	# Session id?
-	if {[catch {WPImport sessid "Missing Session ID"} errstr]} {
-	  if {[regexp {.*sessid.*no such.*} $errstr]} {
-	    WPInactivePage [list "Your browser may have failed to send the necessary <i>cookie</i> information.  Please verify your browser configuration has cookies enabled."]
-	  } else {
-	    WPInfoPage "Web Alpine Error" [font size=+2 $errstr] "Please close this window."
-	  }
-
+	if {[catch {WPGetInputAndID sessid}]} {
 	  return
-	} else {
-	    # initialization here
-	    if {[catch {WPValidId $sessid} result]} {
-	      if {[string compare [lindex $result 0] redirect]} {
-		WPInfoPage "Web Alpine Error" [font size=+2 "$result"] \
-			"Please complain to the [cgi_link Admin] and visit the [cgi_link Start] later."
-	      } else {
-		cgi_http_head {
-		  cgi_redirect [lindex $result 1]
-		}
-	      }
-
-	      return
-	    } elseif {$_wp(sessid) == 0} {
-	      WPInactivePage
-	      return
-	    }
-
-	    if {[catch {WPCmd set serverroot} serverroot] == 0} {
-	      cgi_root $serverroot
-	    }
 	}
 
 	foreach item $_wp(vars) {
@@ -463,6 +428,49 @@ proc WPEval {vars cmd} {
       WPdebug "Cumulative Eval: $_wp(cumulative)"
       unset _wp(cumulative)
     }
+}
+
+proc WPGetInputAndID {_sessid} {
+  global _wp
+  upvar $_sessid sessid
+
+  # Import data and validate it
+  if {[catch {cgi_input "sessid=8543949466398&"} result]} {
+    WPInfoPage "Web Alpine Error" [font size=+2 $result] "Please close this window."
+    error "Cannot get CGI Input"
+  }
+
+  if {[catch {WPImport sessid "Missing Session ID"} errstr]} {
+    if {[regexp {.*sessid.*no such.*} $errstr]} {
+      WPInactivePage [list "Your browser may have failed to send the necessary <i>cookie</i> information.  Please verify your browser configuration has cookies enabled."]
+    } else {
+      WPInfoPage "Web Alpine Error" [font size=+2 $errstr] "Please close this window."
+    }
+
+    error "Session ID Failure"
+  } else {
+    # initialization here
+    if {[catch {WPValidId $sessid} result]} {
+      if {[string compare [lindex $result 0] redirect]} {
+	WPInfoPage "Web Alpine Error" [font size=+2 "$result"] \
+	    "Please complain to the [cgi_link Admin] and visit the [cgi_link Start] later."
+      } else {
+	cgi_http_head {
+	  cgi_redirect [lindex $result 1]
+	}
+      }
+
+      error "Unrecoverable Error"
+    } elseif {$_wp(sessid) == 0} {
+      WPInactivePage
+      error "Inactive Session"
+    }
+
+    if {[catch {WPCmd set serverroot} serverroot] == 0} {
+      cgi_root $serverroot
+    }
+  }
+
 }
 
 proc WPCmd {args} {

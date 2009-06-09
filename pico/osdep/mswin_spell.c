@@ -517,7 +517,12 @@ get_next_bad_word(WORD_INFO *word_info)
     {
         int ret;
 
-        ret = speller_check_word(word_info->aspellinfo, word_info->word_utf8, -1);
+	/* pass over words that contain @ */
+	if(strchr(word_info->word_utf8, '@'))
+	  ret = 1;
+	else
+          ret = speller_check_word(word_info->aspellinfo, word_info->word_utf8, -1);
+
         if(ret == -1)
         {
             word_info->utf8_err_message =

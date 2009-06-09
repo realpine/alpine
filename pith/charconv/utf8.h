@@ -1,5 +1,5 @@
 /*-----------------------------------------------------------------------
- $Id: utf8.h 583 2007-05-29 23:10:02Z hubert@u.washington.edu $
+ $Id: utf8.h 902 2008-01-08 17:04:58Z hubert@u.washington.edu $
   -----------------------------------------------------------------------*/
 
 /*
@@ -95,7 +95,7 @@ int            posting_charset_is_supported(char *);
 char          *utf8_to_charset(char *, char *, int);
 char          *comatose(long);
 char          *tose(long);
-void           line_paint(int, struct display_line *, int *);
+void           line_paint(int, struct display_line *, int);
 
 
 #endif	/* PITH_CHARCONV_UTF8_INCLUDED */

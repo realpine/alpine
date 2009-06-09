@@ -576,6 +576,9 @@
 /* Define to 1 if your <sys/time.h> declares `struct tm'. */
 #undef TM_IN_SYS_TIME
 
+/* Default configuration value */
+#undef TRASH_FOLDER
+
 /* System defined unsigned 16 bit integer */
 #undef UINT16
 

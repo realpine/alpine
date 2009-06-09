@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: resume.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
+# $Id: resume.tcl 961 2008-03-14 18:15:38Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -46,7 +46,7 @@ WPEval $resume_vars {
   }
 
   if {[catch {WPCmd PEPostpone list} postponed]} {
-    error [list _action Resume $posponed "Click Back button to try again."]
+    error [list _action Resume $postponed "Click Back button to try again."]
   }
 
   set charset [lindex $postponed 1]
@@ -58,7 +58,7 @@ WPEval $resume_vars {
   cgi_html {
     cgi_head {
       cgi_http_equiv Content-Type "text/html; charset=$charset"
-      WPStdHtmlHdr "Postoned Messages"
+      WPStdHtmlHdr "Postponed Messages"
       WPStyleSheets
       cgi_puts  "<style type='text/css'>"
       cgi_puts  ".gradient	{ background-image: url('[WPimg indexhdr]') ; background-repeat: repeat-x }"

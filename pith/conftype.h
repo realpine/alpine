@@ -1,8 +1,8 @@
 /*
- * $Id: conftype.h 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
+ * $Id: conftype.h 961 2008-03-14 18:15:38Z mikes@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,6 +44,7 @@ typedef	enum {    V_PERSONAL_NAME = 0
 		, V_POSTPONED_FOLDER
 		, V_READ_MESSAGE_FOLDER
 		, V_FORM_FOLDER
+		, V_TRASH_FOLDER
 		, V_LITERAL_SIG
 		, V_SIGNATURE_FILE
 		, V_FEATURE_LIST
@@ -74,6 +75,7 @@ typedef	enum {    V_PERSONAL_NAME = 0
 		, V_KEY_CHAR_SET
 #endif	/* ! _WINDOWS */
 		, V_POST_CHAR_SET
+		, V_UNK_CHAR_SET
 		, V_EDITOR
 		, V_SPELLER
 		, V_FILLCOL
@@ -314,6 +316,7 @@ typedef enum {
 	F_NEXT_THRD_WO_CONFIRM,
 	F_USE_CURRENT_DIR,
 	F_STARTUP_STAYOPEN,
+	F_USE_RESENTTO,
 	F_SAVE_WONT_DELETE,
 	F_SAVE_ADVANCES,
 	F_UNSELECT_WONT_ADVANCE,
@@ -389,6 +392,7 @@ typedef enum {
 	F_TAB_TO_NEW,
 	F_MARK_FOR_CC,
 	F_WARN_ABOUT_NO_SUBJECT,
+	F_WARN_ABOUT_NO_FCC,
 	F_WARN_ABOUT_NO_TO_OR_CC,
 	F_QUELL_DEAD_LETTER,
 	F_QUELL_BEEPS,
@@ -480,6 +484,7 @@ typedef enum {
 	F_ALT_ROLE_MENU,
 	F_ALWAYS_SPELL_CHECK,
 	F_QUELL_TIMEZONE,
+	F_QUELL_USERAGENT,
 	F_COLOR_LINE_IMPORTANT,
 	F_SLASH_COLL_ENTIRE,
 	F_ENABLE_FULL_HDR_AND_TEXT,

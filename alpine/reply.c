@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: reply.c 847 2007-12-06 18:06:35Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: reply.c 937 2008-02-28 01:04:46Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -747,6 +747,7 @@ int
 confirm_role(long int rflags, ACTION_S **role)
 {
     ACTION_S       *role_p = NULL;
+    ACTION_S       *default_role = NULL;
     char            prompt[80], *prompt_fodder;
     int             cmd, done, ret = 1;
     void (*prev_screen)(struct pine *) = ps_global->prev_screen,
@@ -769,8 +770,8 @@ confirm_role(long int rflags, ACTION_S **role)
 	*role && (*role)->forw_type == ROLE_FORW_NOCONF) ||
        ((rflags & ROLE_COMPOSE) &&
 	*role && (*role)->comp_type == ROLE_COMP_NOCONF) ||
-       (!*role && F_OFF(F_ROLE_CONFIRM_DEFAULT, ps_global) &&
-	 !(rflags & ROLE_DEFAULTOK)))
+       (!*role && F_OFF(F_ROLE_CONFIRM_DEFAULT, ps_global)
+        && !ps_global->default_role))
       return(ret);
 
     /*
@@ -798,8 +799,25 @@ confirm_role(long int rflags, ACTION_S **role)
     if(pat == first_pattern(&pstate) && *role)	/* no ^T */
       ekey[2].ch    = -1;
     
-    /* Setup default */
+    /*
+     * Setup default role
+     * Go through the loop just in case default_role doesn't point
+     * to a real current role.
+     */
+    if(ps_global->default_role){
+	for(pat = first_pattern(&pstate);
+	    pat;
+	    pat = next_pattern(&pstate)){
+	    if(pat->action == ps_global->default_role){
+		default_role = ps_global->default_role;
+		break;
+	    }
+	}
+    }
+
     curpat = NULL;
+
+    /* override default */
     if(*role){
 	for(pat = first_pattern(&pstate);
 	    pat;
@@ -827,8 +845,13 @@ confirm_role(long int rflags, ACTION_S **role)
 	    ekey[0].name  = "Y";
 	    ekey[0].label = N_("Yes");
 	    ekey[1].name  = "N";
-	    ekey[1].label = N_("No, use default settings");
+	    if(default_role)
+	      ekey[1].label = N_("No, use default role");
+	    else
+	      ekey[1].label = N_("No, use default settings");
+
 	    ekey[2].label = N_("To Select Alternate Role");
+
 	    if(curpat->patgrp && curpat->patgrp->nick)
 	      /* TRANSLATORS: This is something like Use role <nickname of role> for Reply? */
 	      snprintf(prompt, sizeof(prompt), _("Use role \"%s\" for %s? "),
@@ -847,8 +870,8 @@ confirm_role(long int rflags, ACTION_S **role)
 	    ekey[1].label = "";
 	    ekey[2].label = N_("To Select Role");
 	    snprintf(prompt, sizeof(prompt),
-		    _("Press Return to %s using no role, or ^T to select a role "),
-		    prompt_fodder);
+		    _("Press Return to %s using %s role, or ^T to select a role "),
+		    prompt_fodder, default_role ? _("default") : _("no"));
 	}
 
 	prompt[sizeof(prompt)-1] = '\0';
@@ -859,7 +882,7 @@ confirm_role(long int rflags, ACTION_S **role)
 	switch(cmd){
 	  case 'y':					/* Accept */
 	    done++;
-	    *role = curpat ? curpat->action : NULL;
+	    *role = curpat ? curpat->action : default_role;
 	    break;
 
 	  case 'x':					/* Cancel */
@@ -868,7 +891,7 @@ confirm_role(long int rflags, ACTION_S **role)
 
 	  case 'n':					/* NoRole */
 	    done++;
-	    *role = NULL;
+	    *role = default_role;
 	    break;
 
 	  case 2:					/* ^T */
@@ -1618,6 +1641,10 @@ forward(struct pine *ps, ACTION_S *role_arg)
 	if(charset)
 	  fs_give((void **) &charset);
 
+	/*
+	 * I don't think orig_charset is ever used except possibly
+	 * right here. Hubert 2008-01-15.
+	 */
 	if(reply.orig_charset)
 	  reply.forw = 1;
     }

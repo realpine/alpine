@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: filter.c 875 2007-12-17 18:39:47Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: filter.c 957 2008-03-07 19:30:14Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2344,7 +2344,19 @@ gf_utf8_opt(char *charset)
     UTF8_S *utf8;
 
     utf8 = (UTF8_S *) fs_get(sizeof(UTF8_S));
+
     utf8->charset = (CHARSET *) utf8_charset(charset);
+
+    /*
+     * When we get 8-bit non-ascii characters but it is supposed to
+     * be ascii we want it to turn into question marks, not
+     * just behave as if it is UTF-8 which is what happens
+     * with ascii because there is no translation table.
+     * So we need to catch the ascii special case here.
+     */
+    if(utf8->charset && utf8->charset->type == CT_ASCII)
+      utf8->charset = NULL;
+
     return((void *) utf8);
 }
 
@@ -2772,22 +2784,29 @@ gf_enriched2plain_opt(int *plain)
 
 
 /*
- * Types used to manage HTML parsing
- */
-typedef int (*html_f)();
-
-/*
  * Handler data, state information including function that uses it
  */
 typedef struct handler_s {
-    FILTER_S	     *html_data;
-    struct handler_s *below;
-    html_f	      f;
-    long	      x, y, z;
-    void	     *dp;
-    unsigned char    *s;
+    FILTER_S	      *html_data;
+    void	      *element;
+    long	       x, y, z;
+    void	      *dp;
+    unsigned char     *s;
+    struct handler_s  *below;
 } HANDLER_S;
 
+/*
+ * Element Property structure
+ */
+typedef struct _element_properties {
+    char      *element;
+    int	     (*handler)(HANDLER_S *, int, int);
+    unsigned   blocklevel:1;
+} ELPROP_S;
+
+/*
+ * Types used to manage HTML parsing
+ */
 static void html_handoff(HANDLER_S *, int);
 
 
@@ -2867,6 +2886,7 @@ typedef struct html_data {
     unsigned	center:1;		/* center output text */
     unsigned	bitbucket:1;		/* Ignore input */
     unsigned	head:1;			/* In doc's HEAD */
+    unsigned	body:1;			/* In doc's BODY */
     unsigned	alt_entity:1;		/* use alternative entity values */
     unsigned	wrote:1;		/* anything witten yet? */
 } HTML_DATA_S;
@@ -2887,7 +2907,10 @@ typedef	struct _html_opts {
     unsigned   outputted:1;		/* any */
     unsigned   no_relative_links:1;	/* Disable embeded relative links */
     unsigned   related_content:1;	/* Embeded related content */
+    unsigned   html:1;			/* Output content in HTML */
+    unsigned   html_imgs:1;		/* Output IMG tags in HTML content */
 } HTML_OPT_S;
+
 
 
 /*
@@ -2898,6 +2921,8 @@ typedef	struct _html_opts {
 #define	HTML_WROTE(X)	(HD(X)->wrote)
 #define	HTML_BASE(X)	((X)->opt ? ((HTML_OPT_S *)(X)->opt)->base : NULL)
 #define	STRIP(X)	((X)->opt && ((HTML_OPT_S *)(X)->opt)->strip)
+#define	PASS_HTML(X)	((X)->opt && ((HTML_OPT_S *)(X)->opt)->html)
+#define	PASS_IMAGES(X)	((X)->opt && ((HTML_OPT_S *)(X)->opt)->html_imgs)
 #define	HANDLESP(X)	(((HTML_OPT_S *)(X)->opt)->handlesp)
 #define	DO_HANDLES(X)	((X)->opt && HANDLESP(X))
 #define	HANDLES_LOC(X)	((X)->opt && ((HTML_OPT_S *)(X)->opt)->handles_loc)
@@ -2908,6 +2933,7 @@ typedef	struct _html_opts {
 #define	IS_LITERAL(C)	(HTML_LITERAL & (C))
 #define	HD(X)		((HTML_DATA_S *)(X)->data)
 #define	ED(X)		(HD(X)->el_data)
+#define	EL(X)		((ELPROP_S *) (X)->element)
 #define	ASCII_ISSPACE(C) ((C) < 0x80 && isspace((unsigned char) (C)))
 #define	HTML_ISSPACE(C)	(IS_LITERAL(C) == 0 && ((C) == HTML_NEWLINE || ASCII_ISSPACE(C)))
 #define	NEW_CLCTR(X)	{						\
@@ -3076,7 +3102,7 @@ typedef	struct _html_opts {
 			       break;					    \
 			 }
 #define	HTML_TEXT_OUT(F, C) if(HANDLERS(F)) /* let handlers see C */	    \
-			       (*HANDLERS(F)->f)(HANDLERS(F),(C),GF_DATA);   \
+			      (*EL(HANDLERS(F))->handler)(HANDLERS(F),(C),GF_DATA); \
 			     else					    \
 			       html_output(F, C);
 #ifdef	DEBUG
@@ -3114,19 +3140,42 @@ typedef	struct _html_opts {
 int	html_head(HANDLER_S *, int, int);
 int	html_base(HANDLER_S *, int, int);
 int	html_title(HANDLER_S *, int, int);
+int	html_body(HANDLER_S *, int, int);
 int	html_a(HANDLER_S *, int, int);
 int	html_br(HANDLER_S *, int, int);
 int	html_hr(HANDLER_S *, int, int);
 int	html_p(HANDLER_S *, int, int);
+int	html_table(HANDLER_S *, int, int);
+int	html_caption(HANDLER_S *, int, int);
 int	html_tr(HANDLER_S *, int, int);
 int	html_td(HANDLER_S *, int, int);
+int	html_th(HANDLER_S *, int, int);
+int	html_thead(HANDLER_S *, int, int);
+int	html_tbody(HANDLER_S *, int, int);
+int	html_tfoot(HANDLER_S *, int, int);
+int	html_col(HANDLER_S *, int, int);
+int	html_colgroup(HANDLER_S *, int, int);
 int	html_b(HANDLER_S *, int, int);
+int	html_u(HANDLER_S *, int, int);
 int	html_i(HANDLER_S *, int, int);
+int	html_em(HANDLER_S *, int, int);
+int	html_strong(HANDLER_S *, int, int);
 int	html_s(HANDLER_S *, int, int);
 int	html_big(HANDLER_S *, int, int);
 int	html_small(HANDLER_S *, int, int);
+int	html_font(HANDLER_S *, int, int);
 int	html_img(HANDLER_S *, int, int);
+int	html_map(HANDLER_S *, int, int);
+int	html_area(HANDLER_S *, int, int);
 int	html_form(HANDLER_S *, int, int);
+int	html_input(HANDLER_S *, int, int);
+int	html_option(HANDLER_S *, int, int);
+int	html_optgroup(HANDLER_S *, int, int);
+int	html_button(HANDLER_S *, int, int);
+int	html_select(HANDLER_S *, int, int);
+int	html_textarea(HANDLER_S *, int, int);
+int	html_label(HANDLER_S *, int, int);
+int	html_fieldset(HANDLER_S *, int, int);
 int	html_ul(HANDLER_S *, int, int);
 int	html_ol(HANDLER_S *, int, int);
 int	html_menu(HANDLER_S *, int, int);
@@ -3143,44 +3192,62 @@ int	html_address(HANDLER_S *, int, int);
 int	html_pre(HANDLER_S *, int, int);
 int	html_center(HANDLER_S *, int, int);
 int	html_div(HANDLER_S *, int, int);
+int	html_span(HANDLER_S *, int, int);
 int	html_dl(HANDLER_S *, int, int);
 int	html_dt(HANDLER_S *, int, int);
 int	html_dd(HANDLER_S *, int, int);
-int	html_style(HANDLER_S *, int, int);
 int	html_script(HANDLER_S *, int, int);
+int	html_applet(HANDLER_S *, int, int);
+int	html_style(HANDLER_S *, int, int);
+int	html_kbd(HANDLER_S *, int, int);
+int	html_dfn(HANDLER_S *, int, int);
+int	html_var(HANDLER_S *, int, int);
+int	html_tt(HANDLER_S *, int, int);
+int	html_samp(HANDLER_S *, int, int);
+int	html_sub(HANDLER_S *, int, int);
+int	html_sup(HANDLER_S *, int, int);
+int	html_cite(HANDLER_S *, int, int);
+int	html_code(HANDLER_S *, int, int);
+int	html_ins(HANDLER_S *, int, int);
+int	html_del(HANDLER_S *, int, int);
+int	html_abbr(HANDLER_S *, int, int);
 
 /*
  * Proto's for support routines
  */
-void	html_pop(FILTER_S *, html_f);
-int	html_push(FILTER_S *, html_f);
-int	html_element_collector(FILTER_S *, int);
-int	html_element_flush(CLCTR_S *);
-void	html_element_comment(FILTER_S *, char *);
-void	html_element_output(FILTER_S *, int);
-int	html_entity_collector(FILTER_S *, int, UCS *, char **);
-void	html_a_prefix(FILTER_S *);
-void	html_a_finish(HANDLER_S *);
-void	html_a_output_prefix(FILTER_S *, int);
-void	html_a_output_info(HANDLER_S *);
-void	html_a_relative(char *, char *, HANDLE_S *);
-int	html_href_relative(char *);
-int	html_indent(FILTER_S *, int, int);
-void	html_blank(FILTER_S *, int);
-void	html_newline(FILTER_S *);
-void	html_output(FILTER_S *, int);
-void	html_output_normal(FILTER_S *, int, int);
-void	html_output_flush(FILTER_S *);
-void	html_output_centered(FILTER_S *, int, int);
-void	html_centered_handle(int *, char *, int);
-void	html_centered_putc(WRAPLINE_S *, int);
-void	html_centered_flush(FILTER_S *);
-void	html_centered_flush_line(FILTER_S *);
-void	html_write_anchor(FILTER_S *, int);
-void	html_write_newline(FILTER_S *);
-void	html_write_indent(FILTER_S *, int);
-void	html_write(FILTER_S *, char *, int);
-void	html_putc(FILTER_S *, int);
+void	  html_pop(FILTER_S *, ELPROP_S *);
+int	  html_push(FILTER_S *, ELPROP_S *);
+int	  html_element_collector(FILTER_S *, int);
+int	  html_element_flush(CLCTR_S *);
+void	  html_element_comment(FILTER_S *, char *);
+void	  html_element_output(FILTER_S *, int);
+int	  html_entity_collector(FILTER_S *, int, UCS *, char **);
+void	  html_a_prefix(FILTER_S *);
+void	  html_a_finish(HANDLER_S *);
+void	  html_a_output_prefix(FILTER_S *, int);
+void	  html_a_output_info(HANDLER_S *);
+void	  html_a_relative(char *, char *, HANDLE_S *);
+int	  html_href_relative(char *);
+int	  html_indent(FILTER_S *, int, int);
+void	  html_blank(FILTER_S *, int);
+void	  html_newline(FILTER_S *);
+void	  html_output(FILTER_S *, int);
+void	  html_output_string(FILTER_S *, char *);
+void	  html_output_raw_tag(FILTER_S *, char *);
+void	  html_output_normal(FILTER_S *, int, int);
+void	  html_output_flush(FILTER_S *);
+void	  html_output_centered(FILTER_S *, int, int);
+void	  html_centered_handle(int *, char *, int);
+void	  html_centered_putc(WRAPLINE_S *, int);
+void	  html_centered_flush(FILTER_S *);
+void	  html_centered_flush_line(FILTER_S *);
+void	  html_write_anchor(FILTER_S *, int);
+void	  html_write_newline(FILTER_S *);
+void	  html_write_indent(FILTER_S *, int);
+void	  html_write(FILTER_S *, char *, int);
+void	  html_putc(FILTER_S *, int);
+int	  html_event_attribute(char *);
+ELPROP_S *html_element_properties(char *);
 
 
 /*
@@ -3461,72 +3528,95 @@ static struct html_entities {
 /*
  * Table of supported elements and corresponding handlers
  */
-static struct element_table {
-    char      *element;
-    int	     (*handler)();
-} element_table[] = {
-    {"HTML",		NULL},			/* HTML ignore if seen? */
+static ELPROP_S element_table[] = {
+    {"HTML"},					/* HTML ignore if seen? */
     {"HEAD",		html_head},		/* slurp until <BODY> ? */
     {"TITLE",		html_title},		/* Document Title */
     {"BASE",		html_base},		/* HREF base */
-    {"BODY",		NULL},			/* (NO OP) */
+    {"BODY",		html_body},		/* HTML BODY */
     {"A",		html_a},		/* Anchor */
+    {"ABBR",		html_abbr},		/* Abbreviation */
     {"IMG",		html_img},		/* Image */
-    {"HR",		html_hr},		/* Horizontal Rule */
+    {"MAP",		html_map},		/* Image Map */
+    {"AREA",		html_area},		/* Image Map Area */
+    {"HR",		html_hr, 1},		/* Horizontal Rule */
     {"BR",		html_br},		/* Line Break */
-    {"P",		html_p},		/* Paragraph */
-    {"OL",		html_ol},		/* Ordered List */
-    {"UL",		html_ul},		/* Unordered List */
+    {"P",		html_p, 1},		/* Paragraph */
+    {"OL",		html_ol, 1},		/* Ordered List */
+    {"UL",		html_ul, 1},		/* Unordered List */
     {"MENU",		html_menu},		/* Menu List */
     {"DIR",		html_dir},		/* Directory List */
     {"LI",		html_li},		/*  ... List Item */
-    {"DL",		html_dl},		/* Definition List */
+    {"DL",		html_dl, 1},		/* Definition List */
     {"DT",		html_dt},		/*  ... Def. Term */
     {"DD",		html_dd},		/*  ... Def. Definition */
     {"I",		html_i},		/* Italic Text */
-    {"EM",		html_i},		/* Typographic Emphasis */
-    {"STRONG",		html_i},		/* STRONG Typo Emphasis */
+    {"EM",		html_em},		/* Typographic Emphasis */
+    {"STRONG",		html_strong},		/* STRONG Typo Emphasis */
     {"VAR",		html_i},		/* Variable Name */
     {"B",		html_b},		/* Bold Text */
+    {"U",		html_u},		/* Underline Text */
     {"S",		html_s},		/* Strike-Through Text */
     {"STRIKE",		html_s},		/* Strike-Through Text */
     {"BIG",		html_big},		/* Big Font Text */
     {"SMALL",		html_small},		/* Small Font Text */
-    {"BLOCKQUOTE", 	html_blockquote}, 	/* Blockquote */
-    {"ADDRESS",		html_address},		/* Address */
+    {"FONT",		html_font},		/* Font display directives */
+    {"BLOCKQUOTE", 	html_blockquote, 1}, 	/* Blockquote */
+    {"ADDRESS",		html_address, 1},	/* Address */
     {"CENTER",		html_center},		/* Centered Text v3.2 */
-    {"DIV",		html_div},		/* Document Division 3.2 */
-    {"H1",		html_h1},		/* Headings... */
-    {"H2",		html_h2},
-    {"H3",		html_h3},
-    {"H4",		html_h4},
-    {"H5",		html_h5},
-    {"H6",		html_h6},
-    {"PRE",		html_pre},		/* Preformatted Text */
-    {"KBD",		NULL},			/* Keyboard Input (NO OP) */
-    {"TT",		NULL},			/* Typetype (NO OP) */
-    {"SAMP",		NULL},			/* Sample Text (NO OP) */
-
-/*----- Handlers below are NOT DONE OR CHECKED OUT YET -----*/
-
-    {"CITE",		NULL},			/* Citation */
-    {"CODE",		NULL},			/* Code Text */
+    {"DIV",		html_div, 1},		/* Document Division 3.2 */
+    {"SPAN",		html_span},		/* Text Span */
+    {"H1",		html_h1, 1},		/* Headings... */
+    {"H2",		html_h2, 1},
+    {"H3",		html_h3,1},
+    {"H4",		html_h4, 1},
+    {"H5",		html_h5, 1},
+    {"H6",		html_h6, 1},
+    {"PRE",		html_pre, 1},		/* Preformatted Text */
+    {"KBD",		html_kbd},		/* Keyboard Input (NO OP) */
+    {"DFN",		html_dfn},		/* Definition (NO OP) */
+    {"VAR",		html_var},		/* Variable (NO OP) */
+    {"TT",		html_tt},		/* Typetype (NO OP) */
+    {"SAMP",		html_samp},		/* Sample Text (NO OP) */
+    {"CITE",		html_cite},		/* Citation (NO OP) */
+    {"CODE",		html_code},		/* Code Text (NO OP) */
+    {"INS",		html_ins},		/* Text Inseted (NO OP) */
+    {"DEL",		html_del},		/* Text Deleted (NO OP) */
+    {"SUP",		html_sup},		/* Text Superscript (NO OP) */
+    {"SUB",		html_sub},		/* Text Superscript (NO OP) */
+    {"STYLE",		html_style},		/* CSS Definitions */
 
 /*----- Handlers below UNIMPLEMENTED (and won't until later) -----*/
 
-    {"FORM",		html_form},		/* form within a document */
-    {"INPUT",		NULL},			/* One input field, options */
-    {"OPTION",		NULL},			/* One option within Select */
-    {"SELECT",		NULL},			/* Selection from a set */
-    {"TEXTAREA",	NULL},			/* A multi-line input field */
+    {"FORM",		html_form, 1},		/* form within a document */
+    {"INPUT",		html_input},		/* One input field, options */
+    {"BUTTON",		html_button},		/* Push Button */
+    {"OPTION",		html_option},		/* One option within Select */
+    {"OPTION",		html_optgroup},		/* Option Group Definition */
+    {"SELECT",		html_select},		/* Selection from a set */
+    {"TEXTAREA",	html_textarea},		/* A multi-line input field */
+    {"LABEL",		html_label},		/* Control Label */
+    {"FIELDSET",	html_fieldset, 1},	/* Fieldset Control Group */
+
+/*----- Handlers below NEVER TO BE IMPLEMENTED -----*/
     {"SCRIPT",		html_script},		/* Embedded scripting statements */
-    {"STYLE",		html_style},		/* Embedded CSS data */
+    {"APPLET",		NULL},			/* Embedded applet statements */
+    {"OBJECT",		NULL},			/* Embedded object statements */
+    {"LINK",		NULL},			/* References to external data */
+    {"PARAM",		NULL},			/* Applet/Object parameters */
 
 /*----- Handlers below provide limited support for RFC 1942 Tables -----*/
 
-    {"CAPTION",	html_center},		/* Table Caption */
+    {"TABLE",		html_table, 1},		/* Table */
+    {"CAPTION",		html_caption},		/* Table Caption */
     {"TR",		html_tr},		/* Table Table Row */
     {"TD",		html_td},		/* Table Table Data */
+    {"TH",		html_th},		/* Table Table Head */
+    {"THEAD",		html_thead},		/* Table Table Head */
+    {"TBODY",		html_tbody},		/* Table Table Body */
+    {"TFOOT",		html_tfoot},		/* Table Table Foot */
+    {"COL",		html_col},		/* Table Column Attibutes */
+    {"COLGROUP",	html_colgroup},		/* Table Column Group Attibutes */
 
     {NULL,		NULL}
 };
@@ -3541,15 +3631,15 @@ static struct element_table {
  *          0 if handler declined
  */
 int
-html_push(FILTER_S *fd, html_f hf)
+html_push(FILTER_S *fd, ELPROP_S *ep)
 {
     HANDLER_S *new;
 
     new = (HANDLER_S *)fs_get(sizeof(HANDLER_S));
     memset(new, 0, sizeof(HANDLER_S));
     new->html_data = fd;
-    new->f	   = hf;
-    if((*hf)(new, 0, GF_RESET)){	/* stack the handler? */
+    new->element   = ep;
+    if((*ep->handler)(new, 0, GF_RESET)){ /* stack the handler? */
 	 new->below   = HANDLERS(fd);
 	 HANDLERS(fd) = new;		/* push */
 	 return(1);
@@ -3565,15 +3655,17 @@ html_push(FILTER_S *fd, html_f hf)
  * after letting it accept its demise.
  */
 void
-html_pop(FILTER_S *fd, html_f hf)
+html_pop(FILTER_S *fd, ELPROP_S *ep)
 {
     HANDLER_S *tp;
 
-    for(tp = HANDLERS(fd); tp && hf != tp->f; tp = tp->below)
-      ;
+    for(tp = HANDLERS(fd); tp && ep != EL(tp); tp = tp->below){
+	dprint((3, "--html Tag Nesting Inbalance: Expected /%s Got /%s",
+		ep->element, EL(tp)->element));
+    }
 
     if(tp){
-	(*tp->f)(tp, 0, GF_EOD);	/* may adjust handler list */
+	(void) (*EL(tp)->handler)(tp, 0, GF_EOD);	/* may adjust handler list */
 	if(tp != HANDLERS(fd)){
 	    HANDLER_S *p;
 
@@ -3589,20 +3681,8 @@ html_pop(FILTER_S *fd, html_f hf)
 
 	fs_give((void **)&tp);
     }
-    else if(hf == html_p || hf == html_li || hf == html_dt || hf == html_dd){
-	/*
-	 * Possible "special case" tag handling here.
-	 * It's for such tags as Paragraph (`</P>'), List Item
-	 * (`</LI>'), Definition Term (`</DT>'), and Definition Description
-	 * (`</DD>') elements, which may be omitted...
-	 */
-	HANDLER_S hd;
-
-	memset(&hd, 0, sizeof(HANDLER_S));
-	hd.html_data = fd;
-	hd.f	     = hf;
-
-	(*hf)(&hd, 0, GF_EOD);
+    else{
+	dprint((3, "--html Unhandled Closing Tag: %s", ep->element));
     }
     /* BUG: else, we should bitch */
 }
@@ -3615,7 +3695,7 @@ static void
 html_handoff(HANDLER_S *hd, int ch)
 {
     if(hd->below)
-      (*hd->below->f)(hd->below, ch, GF_DATA);
+      (void) (*EL(hd->below)->handler)(hd->below, ch, GF_DATA);
     else
       html_output(hd->html_data, ch);
 }
@@ -3627,8 +3707,14 @@ html_handoff(HANDLER_S *hd, int ch)
 int
 html_br(HANDLER_S *hd, int ch, int cmd)
 {
-    if(cmd == GF_RESET)
-      html_output(hd->html_data, HTML_NEWLINE);
+    if(cmd == GF_RESET){
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "br");
+	}
+	else{
+	    html_output(hd->html_data, HTML_NEWLINE);
+	}
+    }
 
     return(0);				/* don't get linked */
 }
@@ -3641,51 +3727,56 @@ int
 html_hr(HANDLER_S *hd, int ch, int cmd)
 {
     if(cmd == GF_RESET){
-	int	   i, old_wrap, width, align;
-	PARAMETER *p;
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "hr");
+	}
+	else{
+	    int	   i, old_wrap, width, align;
+	    PARAMETER *p;
 
-	width = WRAP_COLS(hd->html_data);
-	align = 0;
-	for(p = HD(hd->html_data)->el_data->attribs;
-	    p && p->attribute;
-	    p = p->next)
-	  if(p->value){
-	      if(!strucmp(p->attribute, "ALIGN")){
-		  if(!strucmp(p->value, "LEFT"))
-		    align = 1;
-		  else if(!strucmp(p->value, "RIGHT"))
-		    align = 2;
+	    width = WRAP_COLS(hd->html_data);
+	    align = 0;
+	    for(p = HD(hd->html_data)->el_data->attribs;
+		p && p->attribute;
+		p = p->next)
+	      if(p->value){
+		  if(!strucmp(p->attribute, "ALIGN")){
+		      if(!strucmp(p->value, "LEFT"))
+			align = 1;
+		      else if(!strucmp(p->value, "RIGHT"))
+			align = 2;
+		  }
+		  else if(!strucmp(p->attribute, "WIDTH")){
+		      char *cp;
+
+		      width = 0;
+		      for(cp = p->value; *cp; cp++)
+			if(*cp == '%'){
+			    width = (WRAP_COLS(hd->html_data)*MIN(100,width))/100;
+			    break;
+			}
+			else if(isdigit((unsigned char) *cp))
+			  width = (width * 10) + (*cp - '0');
+
+		      width = MIN(width, WRAP_COLS(hd->html_data));
+		  }
 	      }
-	      else if(!strucmp(p->attribute, "WIDTH")){
-		  char *cp;
 
-		  width = 0;
-		  for(cp = p->value; *cp; cp++)
-		    if(*cp == '%'){
-			width = (WRAP_COLS(hd->html_data)*MIN(100,width))/100;
-			break;
-		    }
-		    else if(isdigit((unsigned char) *cp))
-		      width = (width * 10) + (*cp - '0');
+	    html_blank(hd->html_data, 1);	/* at least one blank line */
 
-		  width = MIN(width, WRAP_COLS(hd->html_data));
-	      }
-	  }
+	    old_wrap = HD(hd->html_data)->wrapstate;
+	    HD(hd->html_data)->wrapstate = 0;
+	    if((i = MAX(0, WRAP_COLS(hd->html_data) - width))
+	       && ((align == 0) ? i /= 2 : (align == 2)))
+	      for(; i > 0; i--)
+		html_output(hd->html_data, ' ');
 
-	html_blank(hd->html_data, 1);	/* at least one blank line */
+	    for(i = 0; i < width; i++)
+	      html_output(hd->html_data, '_');
 
-	old_wrap = HD(hd->html_data)->wrapstate;
-	HD(hd->html_data)->wrapstate = 0;
-	if((i = MAX(0, WRAP_COLS(hd->html_data) - width))
-	   && ((align == 0) ? i /= 2 : (align == 2)))
-	  for(; i > 0; i--)
-	    html_output(hd->html_data, ' ');
-
-	for(i = 0; i < width; i++)
-	  html_output(hd->html_data, '_');
-
-	html_blank(hd->html_data, 1);
-	HD(hd->html_data)->wrapstate = old_wrap;
+	    html_blank(hd->html_data, 1);
+	    HD(hd->html_data)->wrapstate = old_wrap;
+	}
     }
 
     return(0);				/* don't get linked */
@@ -3698,21 +3789,98 @@ html_hr(HANDLER_S *hd, int ch, int cmd)
 int
 html_p(HANDLER_S *hd, int ch, int cmd)
 {
-    if(cmd == GF_RESET){
-	/* Make sure there's at least 1 blank line */
-	html_blank(hd->html_data, 1);
+    if(cmd == GF_DATA){
+	html_handoff(hd, ch);
+    }
+    else if(cmd == GF_RESET){
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "p");
+	}
+	else{
+	    /* Make sure there's at least 1 blank line */
+	    html_blank(hd->html_data, 1);
 
-	/* adjust indent level if needed */
-	if(HD(hd->html_data)->li_pending){
-	    html_indent(hd->html_data, 4, HTML_ID_INC);
-	    HD(hd->html_data)->li_pending = 0;
+	    /* adjust indent level if needed */
+	    if(HD(hd->html_data)->li_pending){
+		html_indent(hd->html_data, 4, HTML_ID_INC);
+		HD(hd->html_data)->li_pending = 0;
+	    }
 	}
     }
-    else if(cmd == GF_EOD)
-      /* Make sure there's at least 1 blank line */
-      html_blank(hd->html_data, 1);
+    else if(cmd == GF_EOD){
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</p>");
+	}
+	else{
+	    /* Make sure there's at least 1 blank line */
+	    html_blank(hd->html_data, 1);
+	}
+    }
 
-    return(0);				/* don't get linked */
+    return(1);				/* GET linked */
+}
+
+
+/*
+ * HTML Table <TABLE> (paragraph) table row
+ */
+int
+html_table(HANDLER_S *hd, int ch, int cmd)
+{
+    if(cmd == GF_DATA){
+	if(PASS_HTML(hd->html_data)){
+	    html_handoff(hd, ch);
+	}
+    }
+    else if(cmd == GF_RESET){
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "table");
+	}
+	else
+	  /* Make sure there's at least 1 blank line */
+	  html_blank(hd->html_data, 0);
+    }
+    else if(cmd == GF_EOD){
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</table>");
+	}
+	else
+	  /* Make sure there's at least 1 blank line */
+	  html_blank(hd->html_data, 0);
+    }
+    return(PASS_HTML(hd->html_data));		/* maybe get linked */
+}
+
+
+/*
+ * HTML <CAPTION> (Table Caption) element handler
+ */
+int
+html_caption(HANDLER_S *hd, int ch, int cmd)
+{
+    if(cmd == GF_DATA){
+	html_handoff(hd, ch);
+    }
+    else if(cmd == GF_RESET){
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "caption");
+	}
+	else{
+	    /* turn ON the centered bit */
+	    CENTER_BIT(hd->html_data) = 1;
+	}
+    }
+    else if(cmd == GF_EOD){
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</caption>");
+	}
+	else{
+	    /* turn OFF the centered bit */
+	    CENTER_BIT(hd->html_data) = 0;
+	}
+    }
+
+    return(1);
 }
 
 
@@ -3722,11 +3890,28 @@ html_p(HANDLER_S *hd, int ch, int cmd)
 int
 html_tr(HANDLER_S *hd, int ch, int cmd)
 {
-    if(cmd == GF_RESET || cmd == GF_EOD)
-      /* Make sure there's at least 1 blank line */
-      html_blank(hd->html_data, 0);
-
-    return(0);				/* don't get linked */
+    if(cmd == GF_DATA){
+	if(PASS_HTML(hd->html_data)){
+	    html_handoff(hd, ch);
+	}
+    }
+    else if(cmd == GF_RESET){
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "tr");
+	}
+	else
+	  /* Make sure there's at least 1 blank line */
+	  html_blank(hd->html_data, 0);
+    }
+    else if(cmd == GF_EOD){
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</tr>");
+	}
+	else
+	  /* Make sure there's at least 1 blank line */
+	  html_blank(hd->html_data, 0);
+    }
+    return(PASS_HTML(hd->html_data));		/* maybe get linked */
 }
 
 
@@ -3736,20 +3921,185 @@ html_tr(HANDLER_S *hd, int ch, int cmd)
 int
 html_td(HANDLER_S *hd, int ch, int cmd)
 {
-    if(cmd == GF_RESET){
-	PARAMETER *p;
+    if(cmd == GF_DATA){
+	if(PASS_HTML(hd->html_data)){
+	    html_handoff(hd, ch);
+	}
+    }
+    else if(cmd == GF_RESET){
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "td");
+	}
+	else{
+	    PARAMETER *p;
 
-	for(p = HD(hd->html_data)->el_data->attribs;
-	    p && p->attribute;
-	    p = p->next)
-	  if(!strucmp(p->attribute, "nowrap")
-	     && (hd->html_data->f2 || hd->html_data->n)){
-	      HTML_DUMP_LIT(hd->html_data, " | ", 3);
-	      break;
+	    for(p = HD(hd->html_data)->el_data->attribs;
+		p && p->attribute;
+		p = p->next)
+	      if(!strucmp(p->attribute, "nowrap")
+		 && (hd->html_data->f2 || hd->html_data->n)){
+		  HTML_DUMP_LIT(hd->html_data, " | ", 3);
+		  break;
+	      }
+	}
+    }
+    else if(cmd == GF_EOD){
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</td>");
+	}
+    }
+
+    return(PASS_HTML(hd->html_data));		/* maybe get linked */
+}
+
+
+/*
+ * HTML Table <TH> (paragraph) table head
+ */
+int
+html_th(HANDLER_S *hd, int ch, int cmd)
+{
+    if(cmd == GF_DATA){
+	if(PASS_HTML(hd->html_data)){
+	    html_handoff(hd, ch);
+	}
+    }
+    else if(cmd == GF_RESET){
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "th");
+	}
+	else{
+	    PARAMETER *p;
+
+	    for(p = HD(hd->html_data)->el_data->attribs;
+		p && p->attribute;
+		p = p->next)
+	      if(!strucmp(p->attribute, "nowrap")
+		 && (hd->html_data->f2 || hd->html_data->n)){
+		  HTML_DUMP_LIT(hd->html_data, " | ", 3);
+		  break;
+	      }
 	  }
+    }
+    else if(cmd == GF_EOD){
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</th>");
+	}
+    }
+
+    return(PASS_HTML(hd->html_data));		/* don't get linked */
+}
+
+
+/*
+ * HTML Table <THEAD> table head
+ */
+int
+html_thead(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "thead");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</thead>");
+	}
+
+	return(1);		/* GET linked */
+    }
+
+    return(0);		/* don't get linked */
+}
+
+
+/*
+ * HTML Table <TBODY> table body
+ */
+int
+html_tbody(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "tbody");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</tbody>");
+	}
+
+	return(1);		/* GET linked */
+    }
+
+    return(0);		/* don't get linked */
+}
+
+
+/*
+ * HTML Table <TFOOT> table body
+ */
+int
+html_tfoot(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "tfoot");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</tfoot>");
+	}
+
+	return(1);		/* GET linked */
+    }
+
+    return(0);		/* don't get linked */
+}
+
+
+/*
+ * HTML <COL> (Table Column Attributes) element handler
+ */
+int
+html_col(HANDLER_S *hd, int ch, int cmd)
+{
+    if(cmd == GF_RESET){
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "col");
+	}
     }
 
     return(0);				/* don't get linked */
+}
+
+
+/*
+ * HTML Table <COLGROUP> table body
+ */
+int
+html_colgroup(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "colgroup");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</colgroup>");
+	}
+
+	return(1);		/* GET linked */
+    }
+
+    return(0);		/* don't get linked */
 }
 
 
@@ -3781,26 +4131,140 @@ html_i(HANDLER_S *hd, int ch, int cmd)
 
 
 /*
+ * HTML <EM> element handler
+ */
+int
+html_em(HANDLER_S *hd, int ch, int cmd)
+{
+    if(cmd == GF_DATA){
+	if(!PASS_HTML(hd->html_data)){
+	    /* include LITERAL in spaceness test! */
+	    if(hd->x && !ASCII_ISSPACE((unsigned char) (ch & 0xff))){
+		HTML_ITALIC(hd->html_data, 1);
+		hd->x = 0;
+	    }
+	}
+
+	html_handoff(hd, ch);
+    }
+    else if(cmd == GF_RESET){
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "em");
+	}
+	else{
+	    hd->x = 1;
+	}
+    }
+    else if(cmd == GF_EOD){
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</em>");
+	}
+	else{
+	    if(!hd->x)
+	      HTML_ITALIC(hd->html_data, 0);
+	}
+    }
+
+    return(1);				/* get linked */
+}
+
+
+/*
+ * HTML <STRONG> element handler
+ */
+int
+html_strong(HANDLER_S *hd, int ch, int cmd)
+{
+    if(cmd == GF_DATA){
+	if(!PASS_HTML(hd->html_data)){
+	    /* include LITERAL in spaceness test! */
+	    if(hd->x && !ASCII_ISSPACE((unsigned char) (ch & 0xff))){
+		HTML_ITALIC(hd->html_data, 1);
+		hd->x = 0;
+	    }
+	}
+
+	html_handoff(hd, ch);
+    }
+    else if(cmd == GF_RESET){
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "strong");
+	}
+	else{
+	    hd->x = 1;
+	}
+    }
+    else if(cmd == GF_EOD){
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</strong>");
+	}
+	else{
+	    if(!hd->x)
+	      HTML_ITALIC(hd->html_data, 0);
+	}
+    }
+
+    return(1);				/* get linked */
+}
+
+
+/*
+ * HTML <u> (Underline text) element handler
+ */
+int
+html_u(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "u");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</u>");
+	}
+
+	return(1);		/* get linked */
+    }
+
+    return(0);			/* do NOT get linked */
+}
+
+
+/*
  * HTML <b> (Bold text) element handler
  */
 int
 html_b(HANDLER_S *hd, int ch, int cmd)
 {
     if(cmd == GF_DATA){
-	/* include LITERAL in spaceness test! */
-	if(hd->x && !ASCII_ISSPACE((unsigned char) (ch & 0xff))){
-	    HTML_BOLD(hd->html_data, 1);
-	    hd->x = 0;
+	if(!PASS_HTML(hd->html_data)){
+	    /* include LITERAL in spaceness test! */
+	    if(hd->x && !ASCII_ISSPACE((unsigned char) (ch & 0xff))){
+		HTML_BOLD(hd->html_data, 1);
+		hd->x = 0;
+	    }
 	}
-
+	
 	html_handoff(hd, ch);
     }
     else if(cmd == GF_RESET){
-	hd->x = 1;
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "b");
+	}
+	else{
+	    hd->x = 1;
+	}
     }
     else if(cmd == GF_EOD){
-	if(!hd->x)
-	  HTML_BOLD(hd->html_data, 0);
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</b>");
+	}
+	else{
+	    if(!hd->x)
+	      HTML_BOLD(hd->html_data, 0);
+	}
     }
 
     return(1);				/* get linked */
@@ -3814,20 +4278,32 @@ int
 html_s(HANDLER_S *hd, int ch, int cmd)
 {
     if(cmd == GF_DATA){
-	/* include LITERAL in spaceness test! */
-	if(hd->x && !ASCII_ISSPACE((unsigned char) (ch & 0xff))){
-	    HTML_STRIKE(hd->html_data, 1);
-	    hd->x = 0;
+	if(!PASS_HTML(hd->html_data)){
+	    /* include LITERAL in spaceness test! */
+	    if(hd->x && !ASCII_ISSPACE((unsigned char) (ch & 0xff))){
+		HTML_STRIKE(hd->html_data, 1);
+		hd->x = 0;
+	    }
 	}
 
 	html_handoff(hd, ch);
     }
     else if(cmd == GF_RESET){
-	hd->x = 1;
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "s");
+	}
+	else{
+	    hd->x = 1;
+	}
     }
     else if(cmd == GF_EOD){
-	if(!hd->x)
-	  HTML_STRIKE(hd->html_data, 0);
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</s>");
+	}
+	else{
+	    if(!hd->x)
+	      HTML_STRIKE(hd->html_data, 0);
+	}
     }
 
     return(1);				/* get linked */
@@ -3889,76 +4365,153 @@ html_small(HANDLER_S *hd, int ch, int cmd)
 
 
 /*
+ * HTML <FONT> element handler
+ */
+int
+html_font(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "font");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</font>");
+	}
+
+	return(1);				/* get linked */
+    }
+
+    return(0);
+}
+
+
+/*
  * HTML <IMG> element handler
  */
 int
 html_img(HANDLER_S *hd, int ch, int cmd)
 {
+    PARAMETER *p;
+    char      *alt = NULL, *src = NULL, *s;
+
     if(cmd == GF_RESET){
-	PARAMETER *p;
-	char	  *alt = NULL, *src = NULL, *s;
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "img");
+	}
+	else{
+	    for(p = HD(hd->html_data)->el_data->attribs;
+		p && p->attribute;
+		p = p->next)
+	      if(p->value && p->value[0]){
+		  if(!strucmp(p->attribute, "alt"))
+		    alt = p->value;
+		  if(!strucmp(p->attribute, "src"))
+		    src = p->value;
+	      }
 
-	for(p = HD(hd->html_data)->el_data->attribs;
-	    p && p->attribute;
-	    p = p->next)
-	  if(p->value && p->value[0]){
-	      if(!strucmp(p->attribute, "alt"))
-		alt = p->value;
-	      if(!strucmp(p->attribute, "src"))
-		src = p->value;
-	  }
+	    /*
+	     * Multipart/Related Content ID pointer
+	     * ONLY attached messages are recognized
+	     * if we ever decide web bugs aren't a problem
+	     * anymore then we might expand the scope
+	     */
+	    if(src
+	       && DO_HANDLES(hd->html_data)
+	       && RELATED_OK(hd->html_data)
+	       && struncmp(src, "cid:", 4) == 0){
+		char      buf[32];
+		int	      i, n;
+		HANDLE_S *h = new_handle(HANDLESP(hd->html_data));
 
-	/*
-	 * Multipart/Related Content ID pointer
-	 * ONLY attached messages are recognized
-	 * if we ever decide web bugs aren't a problem
-	 * anymore then we might expand the scope
-	 */
-	if(src
-	   && DO_HANDLES(hd->html_data)
-	   && RELATED_OK(hd->html_data)
-	   && struncmp(src, "cid:", 4) == 0){
-	    char      buf[32];
-	    int	      i, n;
-	    HANDLE_S *h = new_handle(HANDLESP(hd->html_data));
+		h->type	 = IMG;
+		h->h.img.src = cpystr(src + 4);
+		h->h.img.alt = cpystr((alt) ? alt : "Attached Image");
 
-	    h->type	 = IMG;
-	    h->h.img.src = cpystr(src + 4);
-	    h->h.img.alt = cpystr((alt) ? alt : "Attached Image");
+		HTML_TEXT(hd->html_data, TAG_EMBED);
+		HTML_TEXT(hd->html_data, TAG_HANDLE);
 
-	    HTML_TEXT(hd->html_data, TAG_EMBED);
-	    HTML_TEXT(hd->html_data, TAG_HANDLE);
+		sprintf(buf, "%d", h->key);
+		n = strlen(buf);
+		HTML_TEXT(hd->html_data, n);
+		for(i = 0; i < n; i++){
+		    unsigned int uic = buf[i];
+		    HTML_TEXT(hd->html_data, uic);
+		}
 
-	    sprintf(buf, "%d", h->key);
-	    n = strlen(buf);
-	    HTML_TEXT(hd->html_data, n);
-	    for(i = 0; i < n; i++){
-		unsigned int uic = buf[i];
-		HTML_TEXT(hd->html_data, uic);
+		return(0);
+	    }
+	    else if(alt && strlen(alt) < 256){ /* arbitrary "reasonable" limit */
+		HTML_DUMP_LIT(hd->html_data, alt, strlen(alt));
+		HTML_TEXT(hd->html_data, ' ');
+		return(0);
+	    }
+	    else if(src
+		    && (s = strrindex(src, '/'))
+		    && *++s != '\0'){
+		HTML_TEXT(hd->html_data, '[');
+		HTML_DUMP_LIT(hd->html_data, s, strlen(s));
+		HTML_TEXT(hd->html_data, ']');
+		HTML_TEXT(hd->html_data, ' ');
+		return(0);
 	    }
 
-	    return(0);
+	    /* text filler of last resort */
+	    HTML_DUMP_LIT(hd->html_data, "[IMAGE] ", 7);
 	}
-	else if(alt && strlen(alt) < 256){ /* arbitrary "reasonable" limit */
-	    HTML_DUMP_LIT(hd->html_data, alt, strlen(alt));
-	    HTML_TEXT(hd->html_data, ' ');
-	    return(0);
-	}
-	else if(src
-		&& (s = strrindex(src, '/'))
-		&& *++s != '\0'){
-	    HTML_TEXT(hd->html_data, '[');
-	    HTML_DUMP_LIT(hd->html_data, s, strlen(s));
-	    HTML_TEXT(hd->html_data, ']');
-	    HTML_TEXT(hd->html_data, ' ');
-	    return(0);
-	}
-
-	/* text filler of last resort */
-	HTML_DUMP_LIT(hd->html_data, "[IMAGE] ", 7);
     }
 
     return(0);				/* don't get linked */
+}
+
+
+/*
+ * HTML <MAP> (Image Map) element handler
+ */
+int
+html_map(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data) && PASS_IMAGES(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "map");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</map>");
+	}
+
+	return(1);
+    }
+
+    return(0);
+}
+
+
+/*
+ * HTML <AREA> (Image Map Area) element handler
+ */
+int
+html_area(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data) && PASS_IMAGES(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "area");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</area>");
+	}
+
+	return(1);
+    }
+
+    return(0);
 }
 
 
@@ -3968,16 +4521,230 @@ html_img(HANDLER_S *hd, int ch, int cmd)
 int
 html_form(HANDLER_S *hd, int ch, int cmd)
 {
-    if(cmd == GF_RESET){
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    PARAMETER **pp;
 
-	html_blank(hd->html_data, 0);
+	    /* SECURITY: make sure to redirect to new browser instance */
+	    for(pp = &(HD(hd->html_data)->el_data->attribs);
+		*pp && (*pp)->attribute;
+		pp = &(*pp)->next)
+	      if(!strucmp((*pp)->attribute, "target")){
+		  if((*pp)->value)
+		    fs_give((void **) &(*pp)->value);
 
-	HTML_DUMP_LIT(hd->html_data, "[FORM]", 6);
+		  (*pp)->value = cpystr("_blank");
+	      }
 
-	html_blank(hd->html_data, 0);
+	    if(!*pp){
+		*pp = (PARAMETER *)fs_get(sizeof(PARAMETER));
+		memset(*pp, 0, sizeof(PARAMETER));
+		(*pp)->attribute = cpystr("target");
+		(*pp)->value = cpystr("_blank");
+	    }
+
+	    html_output_raw_tag(hd->html_data, "form");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</form>");
+	}
+    }
+    else{
+	if(cmd == GF_RESET){
+	    html_blank(hd->html_data, 0);
+	    HTML_DUMP_LIT(hd->html_data, "[FORM]", 6);
+	    html_blank(hd->html_data, 0);
+	}
+    }
+
+    return(PASS_HTML(hd->html_data));		/* maybe get linked */
+}
+
+
+/*
+ * HTML <INPUT> (Form) element handler
+ */
+int
+html_input(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "input");
+	}
     }
 
     return(0);				/* don't get linked */
+}
+
+
+/*
+ * HTML <BUTTON> (Form) element handler
+ */
+int
+html_button(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "button");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</button>");
+	}
+
+	return(1);				/* get linked */
+    }
+
+    return(0);
+}
+
+
+/*
+ * HTML <OPTION> (Form) element handler
+ */
+int
+html_option(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "option");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</option>");
+	}
+
+	return(1);				/* get linked */
+    }
+
+    return(0);
+}
+
+
+/*
+ * HTML <OPTGROUP> (Form) element handler
+ */
+int
+html_optgroup(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "optgroup");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</optgroup>");
+	}
+
+	return(1);				/* get linked */
+    }
+
+    return(0);
+}
+
+
+/*
+ * HTML <SELECT> (Form) element handler
+ */
+int
+html_select(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "select");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</select>");
+	}
+
+	return(1);				/* get linked */
+    }
+
+    return(0);
+}
+
+
+/*
+ * HTML <TEXTAREA> (Form) element handler
+ */
+int
+html_textarea(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "textarea");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</textarea>");
+	}
+
+	return(1);				/* get linked */
+    }
+
+    return(0);
+}
+
+
+/*
+ * HTML <LABEL> (Form) element handler
+ */
+int
+html_label(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "label");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</label>");
+	}
+
+	return(1);				/* get linked */
+    }
+
+    return(0);
+}
+
+
+/*
+ * HTML <FIELDSET> (Form) element handler
+ */
+int
+html_fieldset(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "fieldset");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</fieldset>");
+	}
+
+	return(1);				/* get linked */
+    }
+
+    return(0);
 }
 
 
@@ -4057,6 +4824,78 @@ html_title(HANDLER_S *hd, int ch, int cmd)
 
 
 /*
+ * HTML <BODY> element handler
+ */
+int
+html_body(HANDLER_S *hd, int ch, int cmd)
+{
+    if(cmd == GF_DATA){
+	html_handoff(hd, ch);
+    }
+    else if(cmd == GF_RESET){
+	if(PASS_HTML(hd->html_data)){
+	    PARAMETER  *p, *tp;
+	    char      **style = NULL, *text = NULL, *bgcolor = NULL, *pcs;
+
+	    /* modify any attributes in a useful way? */
+	    for(p = HD(hd->html_data)->el_data->attribs;
+		p && p->attribute;
+		p = p->next)
+	      if(p->value){
+		  if(!strucmp(p->attribute, "style"))
+		    style = &p->value;
+		  else if(!strucmp(p->attribute, "text"))
+		    text = p->value;
+		  else if(!strucmp(p->attribute, "bgcolor"))
+		    bgcolor = p->value;
+	      }
+
+	    /* colors pretty much it */
+	    if(text || bgcolor){
+		if(!style){
+		    tp = (PARAMETER *)fs_get(sizeof(PARAMETER));
+		    memset(tp, 0, sizeof(PARAMETER));
+		    tp->next = HD(hd->html_data)->el_data->attribs;
+		    HD(hd->html_data)->el_data->attribs = tp;
+		    tp->attribute = cpystr("style");
+
+		    tmp_20k_buf[0] = '\0';
+		    style = &tp->value;
+		    pcs = "%s%s%s%s%s";
+		}
+		else{
+		    snprintf(tmp_20k_buf, SIZEOF_20KBUF, "%s", *style);
+		    fs_give((void **) style);
+		    pcs = "; %s%s%s%s%s";
+		}
+
+		snprintf(tmp_20k_buf + strlen(tmp_20k_buf),
+			 SIZEOF_20KBUF - strlen(tmp_20k_buf),
+			 pcs,
+			 (text) ? "color: " : "", (text) ? text : "",
+			 (text && bgcolor) ? ";" : "", 
+			 (bgcolor) ? "background-color: " : "", (bgcolor) ? bgcolor : "");
+		*style = cpystr(tmp_20k_buf);
+	    }
+
+	    html_output_raw_tag(hd->html_data, "div");
+	}
+
+	HD(hd->html_data)->body = 1;
+    }
+    else if(cmd == GF_EOD){
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</div>");
+	}
+
+	HD(hd->html_data)->body = 0;
+    }
+
+    return(1);				/* get linked */
+}
+
+
+/*
  * HTML <A> (Anchor) element handler
  */
 int
@@ -4079,7 +4918,7 @@ html_a(HANDLER_S *hd, int ch, int cmd)
 	 * space insertion/line breaking that's yet to get done...
 	 */
 	if(HD(hd->html_data)->prefix){
-	    dprint((1, "-- html_a: NESTED/UNTERMINATED ANCHOR!\n"));
+	    dprint((2, "-- html_a: NESTED/UNTERMINATED ANCHOR!\n"));
 	    html_a_finish(hd);
 	}
 
@@ -4093,7 +4932,8 @@ html_a(HANDLER_S *hd, int ch, int cmd)
 	  if(!strucmp(p->attribute, "HREF")
 	     && p->value
 	     && (HANDLES_LOC(hd->html_data)
-		 || struncmp(p->value, "x-alpine-", 9)))
+		 || struncmp(p->value, "x-alpine-", 9)
+		 || p->value[0] == '#'))
 	    href = p;
 	  else if(!strucmp(p->attribute, "NAME"))
 	    name = p;
@@ -4216,12 +5056,14 @@ html_a_finish(HANDLER_S *hd)
 {
     if(DO_HANDLES(hd->html_data)){
 	if(HD(hd->html_data)->prefix){
-	    char *empty_link = "[LINK]";
-	    int   i;
+	    if(!PASS_HTML(hd->html_data)){
+		char *empty_link = "[LINK]";
+		int   i;
 
-	    html_a_prefix(hd->html_data);
-	    for(i = 0; empty_link[i]; i++)
-	      html_output(hd->html_data, empty_link[i]);
+		html_a_prefix(hd->html_data);
+		for(i = 0; empty_link[i]; i++)
+		  html_output(hd->html_data, empty_link[i]);
+	    }
 	}
 
 	if(pico_usingcolor()){
@@ -4688,16 +5530,26 @@ html_ul(HANDLER_S *hd, int ch, int cmd)
 	html_handoff(hd, ch);
     }
     else if(cmd == GF_RESET){
-	HD(hd->html_data)->li_pending = 1;
-	html_blank(hd->html_data, 0);
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "ul");
+	}
+	else{
+	    HD(hd->html_data)->li_pending = 1;
+	    html_blank(hd->html_data, 0);
+	}
     }
     else if(cmd == GF_EOD){
-	html_blank(hd->html_data, 0);
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</ul>");
+	}
+	else{
+	    html_blank(hd->html_data, 0);
 
-	if(!HD(hd->html_data)->li_pending)
-	  html_indent(hd->html_data, -4, HTML_ID_INC);
-	else
-	  HD(hd->html_data)->li_pending = 0;
+	    if(!HD(hd->html_data)->li_pending)
+	      html_indent(hd->html_data, -4, HTML_ID_INC);
+	    else
+	      HD(hd->html_data)->li_pending = 0;
+	}
     }
 
     return(1);				/* get linked */
@@ -4714,21 +5566,31 @@ html_ol(HANDLER_S *hd, int ch, int cmd)
 	html_handoff(hd, ch);
     }
     else if(cmd == GF_RESET){
-	/*
-	 * Signal that we're expecting to see <LI> as our next elemnt
-	 * and set the the initial ordered count.
-	 */
-	HD(hd->html_data)->li_pending = 1;
-	hd->x = 1L;
-	html_blank(hd->html_data, 0);
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "ol");
+	}
+	else{
+	    /*
+	     * Signal that we're expecting to see <LI> as our next elemnt
+	     * and set the the initial ordered count.
+	     */
+	    HD(hd->html_data)->li_pending = 1;
+	    hd->x = 1L;
+	    html_blank(hd->html_data, 0);
+	}
     }
     else if(cmd == GF_EOD){
-	html_blank(hd->html_data, 0);
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</ol>");
+	}
+	else{
+	    html_blank(hd->html_data, 0);
 
-	if(!HD(hd->html_data)->li_pending)
-	  html_indent(hd->html_data, -4, HTML_ID_INC);
-	else
-	  HD(hd->html_data)->li_pending = 0;
+	    if(!HD(hd->html_data)->li_pending)
+	      html_indent(hd->html_data, -4, HTML_ID_INC);
+	    else
+	      HD(hd->html_data)->li_pending = 0;
+	}
     }
 
     return(1);				/* get linked */
@@ -4745,15 +5607,25 @@ html_menu(HANDLER_S *hd, int ch, int cmd)
 	html_handoff(hd, ch);
     }
     else if(cmd == GF_RESET){
-	HD(hd->html_data)->li_pending = 1;
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "menu");
+	}
+	else{
+	    HD(hd->html_data)->li_pending = 1;
+	}
     }
     else if(cmd == GF_EOD){
-	html_blank(hd->html_data, 0);
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</menu>");
+	}
+	else{
+	    html_blank(hd->html_data, 0);
 
-	if(!HD(hd->html_data)->li_pending)
-	  html_indent(hd->html_data, -4, HTML_ID_INC);
-	else
-	  HD(hd->html_data)->li_pending = 0;
+	    if(!HD(hd->html_data)->li_pending)
+	      html_indent(hd->html_data, -4, HTML_ID_INC);
+	    else
+	      HD(hd->html_data)->li_pending = 0;
+	}
     }
 
     return(1);				/* get linked */
@@ -4770,15 +5642,25 @@ html_dir(HANDLER_S *hd, int ch, int cmd)
 	html_handoff(hd, ch);
     }
     else if(cmd == GF_RESET){
-	HD(hd->html_data)->li_pending = 1;
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "dir");
+	}
+	else{
+	    HD(hd->html_data)->li_pending = 1;
+	}
     }
     else if(cmd == GF_EOD){
-	html_blank(hd->html_data, 0);
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</dir>");
+	}
+	else{
+	    html_blank(hd->html_data, 0);
 
-	if(!HD(hd->html_data)->li_pending)
-	  html_indent(hd->html_data, -4, HTML_ID_INC);
-	else
-	  HD(hd->html_data)->li_pending = 0;
+	    if(!HD(hd->html_data)->li_pending)
+	      html_indent(hd->html_data, -4, HTML_ID_INC);
+	    else
+	      HD(hd->html_data)->li_pending = 0;
+	}
     }
 
     return(1);				/* get linked */
@@ -4791,7 +5673,12 @@ html_dir(HANDLER_S *hd, int ch, int cmd)
 int
 html_li(HANDLER_S *hd, int ch, int cmd)
 {
-    if(cmd == GF_RESET){
+    if(cmd == GF_DATA){
+	if(PASS_HTML(hd->html_data)){
+	    html_handoff(hd, ch);
+	}
+    }
+    else if(cmd == GF_RESET){
 	HANDLER_S *p, *found = NULL;
 
 	/*
@@ -4800,57 +5687,72 @@ html_li(HANDLER_S *hd, int ch, int cmd)
 	 * or else we crap out...
 	 */
 	for(p = HANDLERS(hd->html_data); p; p = p->below)
-	  if(p->f == html_ul || p->f == html_ol
-	     || p->f == html_menu || p->f == html_dir){
+	  if(EL(p)->handler == html_ul
+	     || EL(p)->handler == html_ol
+	     || EL(p)->handler == html_menu
+	     || EL(p)->handler == html_dir){
 	      found = p;
 	      break;
 	  }
 
 	if(found){
-	    char buf[8], *p;
-	    int  wrapstate;
+	    if(PASS_HTML(hd->html_data)){
+	    }
+	    else{
+		char buf[8], *p;
+		int  wrapstate;
 
-	    /* Start a new line */
-	    html_blank(hd->html_data, 0);
+		/* Start a new line */
+		html_blank(hd->html_data, 0);
 
-	    /* adjust indent level if needed */
-	    if(HD(hd->html_data)->li_pending){
+		/* adjust indent level if needed */
+		if(HD(hd->html_data)->li_pending){
+		    html_indent(hd->html_data, 4, HTML_ID_INC);
+		    HD(hd->html_data)->li_pending = 0;
+		}
+
+		if(EL(found)->handler == html_ul){
+		    int l = html_indent(hd->html_data, 0, HTML_ID_GET);
+
+		    strncpy(buf, "   ", sizeof(buf));
+		    buf[1] = (l < 5) ? '*' : (l < 9) ? '+' : (l < 17) ? 'o' : '#';
+		}
+		else if(EL(found)->handler == html_ol)
+		  snprintf(buf, sizeof(buf), "%2ld.", found->x++);
+		else if(EL(found)->handler == html_menu){
+		    strncpy(buf, " ->", sizeof(buf));
+		    buf[sizeof(buf)-1] = '\0';
+		}
+
+		html_indent(hd->html_data, -4, HTML_ID_INC);
+
+		/* So we don't munge whitespace */
+		wrapstate = HD(hd->html_data)->wrapstate;
+		HD(hd->html_data)->wrapstate = 0;
+
+		html_write_indent(hd->html_data, HD(hd->html_data)->indent_level);
+		for(p = buf; *p; p++)
+		  html_output(hd->html_data, (int) *p);
+
+		HD(hd->html_data)->wrapstate = wrapstate;
 		html_indent(hd->html_data, 4, HTML_ID_INC);
-		HD(hd->html_data)->li_pending = 0;
 	    }
-
-	    if(found->f == html_ul){
-		int l = html_indent(hd->html_data, 0, HTML_ID_GET);
-
-		strncpy(buf, "   ", sizeof(buf));
-		buf[1] = (l < 5) ? '*' : (l < 9) ? '+' : (l < 17) ? 'o' : '#';
-	    }
-	    else if(found->f == html_ol)
-	      snprintf(buf, sizeof(buf), "%2ld.", found->x++);
-	    else if(found->f == html_menu){
-	      strncpy(buf, " ->", sizeof(buf));
-	      buf[sizeof(buf)-1] = '\0';
-	    }
-
-	    html_indent(hd->html_data, -4, HTML_ID_INC);
-
-	    /* So we don't munge whitespace */
-	    wrapstate = HD(hd->html_data)->wrapstate;
-	    HD(hd->html_data)->wrapstate = 0;
-
-	    html_write_indent(hd->html_data, HD(hd->html_data)->indent_level);
-	    for(p = buf; *p; p++)
-	      html_output(hd->html_data, (int) *p);
-
-	    HD(hd->html_data)->wrapstate = wrapstate;
-	    html_indent(hd->html_data, 4, HTML_ID_INC);
+	    /* else BUG: should really bitch about this */
 	}
-	/* BUG: should really bitch about this */
+
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "li");
+	    return(1);				/* get linked */
+	}
+    }
+    else if(cmd == GF_EOD){
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</li>");
+	}
     }
 
-    return(0);				/* DON'T get linked */
+    return(PASS_HTML(hd->html_data));	/* DON'T get linked */
 }
-
 
 
 /*
@@ -4863,16 +5765,26 @@ html_dl(HANDLER_S *hd, int ch, int cmd)
 	html_handoff(hd, ch);
     }
     else if(cmd == GF_RESET){
-	/*
-	 * Set indention level for definition terms and definitions...
-	 */
-	hd->x = html_indent(hd->html_data, 0, HTML_ID_GET);
-	hd->y = hd->x + 2;
-	hd->z = hd->y + 4;
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "dl");
+	}
+	else{
+	    /*
+	     * Set indention level for definition terms and definitions...
+	     */
+	    hd->x = html_indent(hd->html_data, 0, HTML_ID_GET);
+	    hd->y = hd->x + 2;
+	    hd->z = hd->y + 4;
+	}
     }
     else if(cmd == GF_EOD){
-	html_indent(hd->html_data, (int) hd->x, HTML_ID_SET);
-	html_blank(hd->html_data, 1);
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</dl>");
+	}
+	else{
+	    html_indent(hd->html_data, (int) hd->x, HTML_ID_SET);
+	    html_blank(hd->html_data, 1);
+	}
     }
 
     return(1);				/* get linked */
@@ -4885,6 +5797,20 @@ html_dl(HANDLER_S *hd, int ch, int cmd)
 int
 html_dt(HANDLER_S *hd, int ch, int cmd)
 {
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "dt");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</dt>");
+	}
+
+	return(1);				/* get linked */
+    }
+
     if(cmd == GF_RESET){
 	HANDLER_S *p;
 
@@ -4892,7 +5818,7 @@ html_dt(HANDLER_S *hd, int ch, int cmd)
 	 * There better be a Definition Handler installed
 	 * or else we crap out...
 	 */
-	for(p = HANDLERS(hd->html_data); p && p->f != html_dl; p = p->below)
+	for(p = HANDLERS(hd->html_data); p && EL(p)->handler != html_dl; p = p->below)
 	  ;
 
 	if(p){				/* adjust indent level if needed */
@@ -4912,6 +5838,20 @@ html_dt(HANDLER_S *hd, int ch, int cmd)
 int
 html_dd(HANDLER_S *hd, int ch, int cmd)
 {
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "dd");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</dd>");
+	}
+
+	return(1);				/* get linked */
+    }
+
     if(cmd == GF_RESET){
 	HANDLER_S *p;
 
@@ -4919,7 +5859,7 @@ html_dd(HANDLER_S *hd, int ch, int cmd)
 	 * There better be a Definition Handler installed
 	 * or else we crap out...
 	 */
-	for(p = HANDLERS(hd->html_data); p && p->f != html_dl; p = p->below)
+	for(p = HANDLERS(hd->html_data); p && EL(p)->handler != html_dl; p = p->below)
 	  ;
 
 	if(p){				/* adjust indent level if needed */
@@ -4947,13 +5887,23 @@ html_h1(HANDLER_S *hd, int ch, int cmd)
 	html_handoff(hd, ch);
     }
     else if(cmd == GF_RESET){
-	/* turn ON the centered bit */
-	CENTER_BIT(hd->html_data) = 1;
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "h1");
+	}
+	else{
+	    /* turn ON the centered bit */
+	    CENTER_BIT(hd->html_data) = 1;
+	}
     }
     else if(cmd == GF_EOD){
-	/* turn OFF the centered bit, add blank line */
-	CENTER_BIT(hd->html_data) = 0;
-	html_blank(hd->html_data, 1);
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</h1>");
+	}
+	else{
+	    /* turn OFF the centered bit, add blank line */
+	    CENTER_BIT(hd->html_data) = 0;
+	    html_blank(hd->html_data, 1);
+	}
     }
 
     return(1);				/* get linked */
@@ -4967,43 +5917,58 @@ int
 html_h2(HANDLER_S *hd, int ch, int cmd)
 {
     if(cmd == GF_DATA){
-	if((hd->x & HTML_HX_ULINE) && !ASCII_ISSPACE((unsigned char) (ch & 0xff))){
-	    HTML_ULINE(hd->html_data, 1);
-	    hd->x ^= HTML_HX_ULINE;	/* only once! */
+	if(PASS_HTML(hd->html_data)){
+	    html_handoff(hd, ch);
 	}
+	else{
+	    if((hd->x & HTML_HX_ULINE) && !ASCII_ISSPACE((unsigned char) (ch & 0xff))){
+		HTML_ULINE(hd->html_data, 1);
+		hd->x ^= HTML_HX_ULINE;	/* only once! */
+	    }
 
-	html_handoff(hd, (ch < 128 && islower((unsigned char) ch))
-			   ? toupper((unsigned char) ch) : ch);
+	    html_handoff(hd, (ch < 128 && islower((unsigned char) ch))
+			 ? toupper((unsigned char) ch) : ch);
+	}
     }
     else if(cmd == GF_RESET){
-	/*
-	 * Bold, large font, flush-left. One or two blank lines
-	 * above and below.
-	 */
-	if(CENTER_BIT(hd->html_data)) /* stop centering for now */
-	  hd->x = HTML_HX_CENTER;
-	else
-	  hd->x = 0;
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "h2");
+	}
+	else{
+	    /*
+	     * Bold, large font, flush-left. One or two blank lines
+	     * above and below.
+	     */
+	    if(CENTER_BIT(hd->html_data)) /* stop centering for now */
+	      hd->x = HTML_HX_CENTER;
+	    else
+	      hd->x = 0;
 
-	hd->x |= HTML_HX_ULINE;
+	    hd->x |= HTML_HX_ULINE;
 	    
-	CENTER_BIT(hd->html_data) = 0;
-	hd->y = html_indent(hd->html_data, 0, HTML_ID_SET);
-	hd->z = HD(hd->html_data)->wrapcol;
-	HD(hd->html_data)->wrapcol = WRAP_COLS(hd->html_data) - 8;
-	html_blank(hd->html_data, 1);
+	    CENTER_BIT(hd->html_data) = 0;
+	    hd->y = html_indent(hd->html_data, 0, HTML_ID_SET);
+	    hd->z = HD(hd->html_data)->wrapcol;
+	    HD(hd->html_data)->wrapcol = WRAP_COLS(hd->html_data) - 8;
+	    html_blank(hd->html_data, 1);
+	}
     }
     else if(cmd == GF_EOD){
-	/*
-	 * restore previous centering, and indent level
-	 */
-	if(!(hd->x & HTML_HX_ULINE))
-	  HTML_ULINE(hd->html_data, 0);
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</h2>");
+	}
+	else{
+	    /*
+	     * restore previous centering, and indent level
+	     */
+	    if(!(hd->x & HTML_HX_ULINE))
+	      HTML_ULINE(hd->html_data, 0);
 
-	html_indent(hd->html_data, hd->y, HTML_ID_SET);
-	html_blank(hd->html_data, 1);
-	CENTER_BIT(hd->html_data)  = (hd->x & HTML_HX_CENTER) != 0;
-	HD(hd->html_data)->wrapcol = hd->z;
+	    html_indent(hd->html_data, hd->y, HTML_ID_SET);
+	    html_blank(hd->html_data, 1);
+	    CENTER_BIT(hd->html_data)  = (hd->x & HTML_HX_CENTER) != 0;
+	    HD(hd->html_data)->wrapcol = hd->z;
+	}
     }
 
     return(1);				/* get linked */
@@ -5017,41 +5982,53 @@ int
 html_h3(HANDLER_S *hd, int ch, int cmd)
 {
     if(cmd == GF_DATA){
-	if((hd->x & HTML_HX_ULINE) && !ASCII_ISSPACE((unsigned char) (ch & 0xff))){
-	    HTML_ULINE(hd->html_data, 1);
-	    hd->x ^= HTML_HX_ULINE;	/* only once! */
+	if(!PASS_HTML(hd->html_data)){
+	    if((hd->x & HTML_HX_ULINE) && !ASCII_ISSPACE((unsigned char) (ch & 0xff))){
+		HTML_ULINE(hd->html_data, 1);
+		hd->x ^= HTML_HX_ULINE;	/* only once! */
+	    }
 	}
 
 	html_handoff(hd, ch);
     }
     else if(cmd == GF_RESET){
-	/*
-	 * Italic, large font, slightly indented from the left
-	 * margin. One or two blank lines above and below.
-	 */
-	if(CENTER_BIT(hd->html_data)) /* stop centering for now */
-	  hd->x = HTML_HX_CENTER;
-	else
-	  hd->x = 0;
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "h3");
+	}
+	else{
+	    /*
+	     * Italic, large font, slightly indented from the left
+	     * margin. One or two blank lines above and below.
+	     */
+	    if(CENTER_BIT(hd->html_data)) /* stop centering for now */
+	      hd->x = HTML_HX_CENTER;
+	    else
+	      hd->x = 0;
 
-	hd->x |= HTML_HX_ULINE;
-	CENTER_BIT(hd->html_data) = 0;
-	hd->y = html_indent(hd->html_data, 2, HTML_ID_SET);
-	hd->z = HD(hd->html_data)->wrapcol;
-	HD(hd->html_data)->wrapcol = WRAP_COLS(hd->html_data) - 8;
-	html_blank(hd->html_data, 1);
+	    hd->x |= HTML_HX_ULINE;
+	    CENTER_BIT(hd->html_data) = 0;
+	    hd->y = html_indent(hd->html_data, 2, HTML_ID_SET);
+	    hd->z = HD(hd->html_data)->wrapcol;
+	    HD(hd->html_data)->wrapcol = WRAP_COLS(hd->html_data) - 8;
+	    html_blank(hd->html_data, 1);
+	}
     }
     else if(cmd == GF_EOD){
-	/*
-	 * restore previous centering, and indent level
-	 */
-	if(!(hd->x & HTML_HX_ULINE))
-	  HTML_ULINE(hd->html_data, 0);
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</h3>");
+	}
+	else{
+	    /*
+	     * restore previous centering, and indent level
+	     */
+	    if(!(hd->x & HTML_HX_ULINE))
+	      HTML_ULINE(hd->html_data, 0);
 
-	html_indent(hd->html_data, hd->y, HTML_ID_SET);
-	html_blank(hd->html_data, 1);
-	CENTER_BIT(hd->html_data)  = (hd->x & HTML_HX_CENTER) != 0;
-	HD(hd->html_data)->wrapcol = hd->z;
+	    html_indent(hd->html_data, hd->y, HTML_ID_SET);
+	    html_blank(hd->html_data, 1);
+	    CENTER_BIT(hd->html_data)  = (hd->x & HTML_HX_CENTER) != 0;
+	    HD(hd->html_data)->wrapcol = hd->z;
+	}
     }
 
     return(1);				/* get linked */
@@ -5068,25 +6045,35 @@ html_h4(HANDLER_S *hd, int ch, int cmd)
 	html_handoff(hd, ch);
     }
     else if(cmd == GF_RESET){
-	/*
-	 * Bold, normal font, indented more than H3. One blank line
-	 * above and below.
-	 */
-	hd->x = CENTER_BIT(hd->html_data); /* stop centering for now */
-	CENTER_BIT(hd->html_data) = 0;
-	hd->y = html_indent(hd->html_data, 4, HTML_ID_SET);
-	hd->z = HD(hd->html_data)->wrapcol;
-	HD(hd->html_data)->wrapcol = WRAP_COLS(hd->html_data) - 8;
-	html_blank(hd->html_data, 1);
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "h4");
+	}
+	else{
+	    /*
+	     * Bold, normal font, indented more than H3. One blank line
+	     * above and below.
+	     */
+	    hd->x = CENTER_BIT(hd->html_data); /* stop centering for now */
+	    CENTER_BIT(hd->html_data) = 0;
+	    hd->y = html_indent(hd->html_data, 4, HTML_ID_SET);
+	    hd->z = HD(hd->html_data)->wrapcol;
+	    HD(hd->html_data)->wrapcol = WRAP_COLS(hd->html_data) - 8;
+	    html_blank(hd->html_data, 1);
+	}
     }
     else if(cmd == GF_EOD){
-	/*
-	 * restore previous centering, and indent level
-	 */
-	html_indent(hd->html_data, (int) hd->y, HTML_ID_SET);
-	html_blank(hd->html_data, 1);
-	CENTER_BIT(hd->html_data)  = hd->x;
-	HD(hd->html_data)->wrapcol = hd->z;
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</h4>");
+	}
+	else{
+	    /*
+	     * restore previous centering, and indent level
+	     */
+	    html_indent(hd->html_data, (int) hd->y, HTML_ID_SET);
+	    html_blank(hd->html_data, 1);
+	    CENTER_BIT(hd->html_data)  = hd->x;
+	    HD(hd->html_data)->wrapcol = hd->z;
+	}
     }
 
     return(1);				/* get linked */
@@ -5103,25 +6090,35 @@ html_h5(HANDLER_S *hd, int ch, int cmd)
 	html_handoff(hd, ch);
     }
     else if(cmd == GF_RESET){
-	/*
-	 * Italic, normal font, indented as H4. One blank line
-	 * above.
-	 */
-	hd->x = CENTER_BIT(hd->html_data); /* stop centering for now */
-	CENTER_BIT(hd->html_data) = 0;
-	hd->y = html_indent(hd->html_data, 6, HTML_ID_SET);
-	hd->z = HD(hd->html_data)->wrapcol;
-	HD(hd->html_data)->wrapcol = WRAP_COLS(hd->html_data) - 8;
-	html_blank(hd->html_data, 1);
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "h5");
+	}
+	else{
+	    /*
+	     * Italic, normal font, indented as H4. One blank line
+	     * above.
+	     */
+	    hd->x = CENTER_BIT(hd->html_data); /* stop centering for now */
+	    CENTER_BIT(hd->html_data) = 0;
+	    hd->y = html_indent(hd->html_data, 6, HTML_ID_SET);
+	    hd->z = HD(hd->html_data)->wrapcol;
+	    HD(hd->html_data)->wrapcol = WRAP_COLS(hd->html_data) - 8;
+	    html_blank(hd->html_data, 1);
+	}
     }
     else if(cmd == GF_EOD){
-	/*
-	 * restore previous centering, and indent level
-	 */
-	html_indent(hd->html_data, (int) hd->y, HTML_ID_SET);
-	html_blank(hd->html_data, 1);
-	CENTER_BIT(hd->html_data)  = hd->x;
-	HD(hd->html_data)->wrapcol = hd->z;
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</h5>");
+	}
+	else{
+	    /*
+	     * restore previous centering, and indent level
+	     */
+	    html_indent(hd->html_data, (int) hd->y, HTML_ID_SET);
+	    html_blank(hd->html_data, 1);
+	    CENTER_BIT(hd->html_data)  = hd->x;
+	    HD(hd->html_data)->wrapcol = hd->z;
+	}
     }
 
     return(1);				/* get linked */
@@ -5138,25 +6135,35 @@ html_h6(HANDLER_S *hd, int ch, int cmd)
 	html_handoff(hd, ch);
     }
     else if(cmd == GF_RESET){
-	/*
-	 * Bold, indented same as normal text, more than H5. One
-	 * blank line above.
-	 */
-	hd->x = CENTER_BIT(hd->html_data); /* stop centering for now */
-	CENTER_BIT(hd->html_data) = 0;
-	hd->y = html_indent(hd->html_data, 8, HTML_ID_SET);
-	hd->z = HD(hd->html_data)->wrapcol;
-	HD(hd->html_data)->wrapcol = WRAP_COLS(hd->html_data) - 8;
-	html_blank(hd->html_data, 1);
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "h6");
+	}
+	else{
+	    /*
+	     * Bold, indented same as normal text, more than H5. One
+	     * blank line above.
+	     */
+	    hd->x = CENTER_BIT(hd->html_data); /* stop centering for now */
+	    CENTER_BIT(hd->html_data) = 0;
+	    hd->y = html_indent(hd->html_data, 8, HTML_ID_SET);
+	    hd->z = HD(hd->html_data)->wrapcol;
+	    HD(hd->html_data)->wrapcol = WRAP_COLS(hd->html_data) - 8;
+	    html_blank(hd->html_data, 1);
+	}
     }
     else if(cmd == GF_EOD){
-	/*
-	 * restore previous centering, and indent level
-	 */
-	html_indent(hd->html_data, (int) hd->y, HTML_ID_SET);
-	html_blank(hd->html_data, 1);
-	CENTER_BIT(hd->html_data)  = hd->x;
-	HD(hd->html_data)->wrapcol = hd->z;
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</h6>");
+	}
+	else{
+	    /*
+	     * restore previous centering, and indent level
+	     */
+	    html_indent(hd->html_data, (int) hd->y, HTML_ID_SET);
+	    html_blank(hd->html_data, 1);
+	    CENTER_BIT(hd->html_data)  = hd->x;
+	    HD(hd->html_data)->wrapcol = hd->z;
+	}
     }
 
     return(1);				/* get linked */
@@ -5176,27 +6183,37 @@ html_blockquote(HANDLER_S *hd, int ch, int cmd)
 	html_handoff(hd, ch);
     }
     else if(cmd == GF_RESET){
-	/*
-	 * A typical rendering might be a slight extra left and
-	 * right indent, and/or italic font. The Blockquote element
-	 * causes a paragraph break, and typically provides space
-	 * above and below the quote.
-	 */
-	html_indent(hd->html_data, HTML_BQ_INDENT, HTML_ID_INC);
-	j = HD(hd->html_data)->wrapstate;
-	HD(hd->html_data)->wrapstate = 0;
-	html_blank(hd->html_data, 1);
-	HD(hd->html_data)->wrapstate = j;
-	HD(hd->html_data)->wrapcol  -= HTML_BQ_INDENT;
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "blockquote");
+	}
+	else{
+	    /*
+	     * A typical rendering might be a slight extra left and
+	     * right indent, and/or italic font. The Blockquote element
+	     * causes a paragraph break, and typically provides space
+	     * above and below the quote.
+	     */
+	    html_indent(hd->html_data, HTML_BQ_INDENT, HTML_ID_INC);
+	    j = HD(hd->html_data)->wrapstate;
+	    HD(hd->html_data)->wrapstate = 0;
+	    html_blank(hd->html_data, 1);
+	    HD(hd->html_data)->wrapstate = j;
+	    HD(hd->html_data)->wrapcol  -= HTML_BQ_INDENT;
+	}
     }
     else if(cmd == GF_EOD){
-	html_blank(hd->html_data, 1);
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</blockquote>");
+	}
+	else{
+	    html_blank(hd->html_data, 1);
 
-	j = HD(hd->html_data)->wrapstate;
-	HD(hd->html_data)->wrapstate = 0;
-	html_indent(hd->html_data, -(HTML_BQ_INDENT), HTML_ID_INC);
-	HD(hd->html_data)->wrapstate = j;
-	HD(hd->html_data)->wrapcol  += HTML_BQ_INDENT;
+	    j = HD(hd->html_data)->wrapstate;
+	    HD(hd->html_data)->wrapstate = 0;
+	    html_indent(hd->html_data, -(HTML_BQ_INDENT), HTML_ID_INC);
+	    HD(hd->html_data)->wrapstate = j;
+	    HD(hd->html_data)->wrapcol  += HTML_BQ_INDENT;
+	}
     }
 
     return(1);				/* get linked */
@@ -5216,25 +6233,35 @@ html_address(HANDLER_S *hd, int ch, int cmd)
 	html_handoff(hd, ch);
     }
     else if(cmd == GF_RESET){
-	/*
-	 * A typical rendering might be a slight extra left and
-	 * right indent, and/or italic font. The Blockquote element
-	 * causes a paragraph break, and typically provides space
-	 * above and below the quote.
-	 */
-	html_indent(hd->html_data, HTML_ADD_INDENT, HTML_ID_INC);
-	j = HD(hd->html_data)->wrapstate;
-	HD(hd->html_data)->wrapstate = 0;
-	html_blank(hd->html_data, 1);
-	HD(hd->html_data)->wrapstate = j;
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "address");
+	}
+	else{
+	    /*
+	     * A typical rendering might be a slight extra left and
+	     * right indent, and/or italic font. The Blockquote element
+	     * causes a paragraph break, and typically provides space
+	     * above and below the quote.
+	     */
+	    html_indent(hd->html_data, HTML_ADD_INDENT, HTML_ID_INC);
+	    j = HD(hd->html_data)->wrapstate;
+	    HD(hd->html_data)->wrapstate = 0;
+	    html_blank(hd->html_data, 1);
+	    HD(hd->html_data)->wrapstate = j;
+	}
     }
     else if(cmd == GF_EOD){
-	html_blank(hd->html_data, 1);
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</address>");
+	}
+	else{
+	    html_blank(hd->html_data, 1);
 
-	j = HD(hd->html_data)->wrapstate;
-	HD(hd->html_data)->wrapstate = 0;
-	html_indent(hd->html_data, -(HTML_ADD_INDENT), HTML_ID_INC);
-	HD(hd->html_data)->wrapstate = j;
+	    j = HD(hd->html_data)->wrapstate;
+	    HD(hd->html_data)->wrapstate = 0;
+	    html_indent(hd->html_data, -(HTML_ADD_INDENT), HTML_ID_INC);
+	    HD(hd->html_data)->wrapstate = j;
+	}
     }
 
     return(1);				/* get linked */
@@ -5269,28 +6296,65 @@ html_pre(HANDLER_S *hd, int ch, int cmd)
 		return(1);
 	    }
 
-	  default :
-	    hd->y = 0;
+	  case 3 :
+	    /* passing tags?  replace CRLF with <BR> to make
+	     * sure hard newline survives in the end...
+	     */
+	    if(PASS_HTML(hd->html_data))
+	      hd->y = 4;		/* keep looking for CRLF */
+	    else
+	      hd->y = 0;		/* stop looking */
+
+	    break;
+
+	  case 4 :
+	    if(ch == '\015'){
+		hd->y = 5;
+		return(1);
+	    }
+
+	    break;
+
+	  case 5 :
+	    hd->y = 4;
+	    if(ch == '\012'){
+		html_output_string(hd->html_data, "<br />");
+		return(1);
+	    }
+	    else
+	      html_handoff(hd, '\015');	/* not CRLF, pass raw CR */
+
+	    break;
+
+	  default :			/* zero case */
 	    break;
 	}
 
 	html_handoff(hd, ch);
     }
     else if(cmd == GF_RESET){
-	html_blank(hd->html_data, 1);
-	hd->x = HD(hd->html_data)->wrapstate;
-	HD(hd->html_data)->wrapstate = 0;
 	hd->y = 1;
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "pre");
+	}
+	else{
+	    html_blank(hd->html_data, 1);
+	    hd->x = HD(hd->html_data)->wrapstate;
+	    HD(hd->html_data)->wrapstate = 0;
+	}
     }
     else if(cmd == GF_EOD){
-	HD(hd->html_data)->wrapstate = (hd->x != 0);
-	html_blank(hd->html_data, 0);
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</pre>");
+	}
+	else{
+	    HD(hd->html_data)->wrapstate = (hd->x != 0);
+	    html_blank(hd->html_data, 0);
+	}
     }
 
     return(1);
 }
-
-
 
 
 /*
@@ -5303,17 +6367,26 @@ html_center(HANDLER_S *hd, int ch, int cmd)
 	html_handoff(hd, ch);
     }
     else if(cmd == GF_RESET){
-	/* turn ON the centered bit */
-	CENTER_BIT(hd->html_data) = 1;
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "center");
+	}
+	else{
+	    /* turn ON the centered bit */
+	    CENTER_BIT(hd->html_data) = 1;
+	}
     }
     else if(cmd == GF_EOD){
-	/* turn OFF the centered bit */
-	CENTER_BIT(hd->html_data) = 0;
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</center>");
+	}
+	else{
+	    /* turn OFF the centered bit */
+	    CENTER_BIT(hd->html_data) = 0;
+	}
     }
 
     return(1);
 }
-
 
 
 /*
@@ -5326,55 +6399,406 @@ html_div(HANDLER_S *hd, int ch, int cmd)
 	html_handoff(hd, ch);
     }
     else if(cmd == GF_RESET){
-	PARAMETER *p;
+	if(PASS_HTML(hd->html_data)){
+	    html_output_raw_tag(hd->html_data, "div");
+	}
+	else{
+	    PARAMETER *p;
 
-	for(p = HD(hd->html_data)->el_data->attribs;
-	    p && p->attribute;
-	    p = p->next)
-	  if(!strucmp(p->attribute, "ALIGN")){
-	      if(p->value){
-		  /* remember previous values */
-		  hd->x = CENTER_BIT(hd->html_data);
-		  hd->y = html_indent(hd->html_data, 0, HTML_ID_GET);
+	    for(p = HD(hd->html_data)->el_data->attribs;
+		p && p->attribute;
+		p = p->next)
+	      if(!strucmp(p->attribute, "ALIGN")){
+		  if(p->value){
+		      /* remember previous values */
+		      hd->x = CENTER_BIT(hd->html_data);
+		      hd->y = html_indent(hd->html_data, 0, HTML_ID_GET);
 
-		  html_blank(hd->html_data, 0);
-		  CENTER_BIT(hd->html_data) = !strucmp(p->value, "CENTER");
-		  html_indent(hd->html_data, 0, HTML_ID_SET);
-		  /* NOTE: "RIGHT" not supported yet */
+		      html_blank(hd->html_data, 0);
+		      CENTER_BIT(hd->html_data) = !strucmp(p->value, "CENTER");
+		      html_indent(hd->html_data, 0, HTML_ID_SET);
+		      /* NOTE: "RIGHT" not supported yet */
+		  }
 	      }
 	  }
     }
     else if(cmd == GF_EOD){
-	/* restore centered bit and indentiousness */
-	CENTER_BIT(hd->html_data) = hd->y;
-	html_indent(hd->html_data, hd->y, HTML_ID_SET);
-	html_blank(hd->html_data, 0);
+	if(PASS_HTML(hd->html_data)){
+	    html_output_string(hd->html_data, "</div>");
+	}
+	else{
+	    /* restore centered bit and indentiousness */
+	    CENTER_BIT(hd->html_data) = hd->y;
+	    html_indent(hd->html_data, hd->y, HTML_ID_SET);
+	    html_blank(hd->html_data, 0);
+	}
     }
 
     return(1);
 }
 
 
+/*
+ * HTML <SPAN> (Text Span) element handler
+ */
+int
+html_span(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "span");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</span>");
+	}
+
+	return(1);
+    }
+
+    return(0);
+}
+
 
 /*
- * HTML <SCRIPT> (Inline Script) element handler
+ * HTML <KBD> (Text Kbd) element handler
+ */
+int
+html_kbd(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "kbd");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</kbd>");
+	}
+
+	return(1);
+    }
+
+    return(0);
+}
+
+
+/*
+ * HTML <DFN> (Text Definition) element handler
+ */
+int
+html_dfn(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "dfn");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</dfn>");
+	}
+
+	return(1);
+    }
+
+    return(0);
+}
+
+
+/*
+ * HTML <TT> (Text Tt) element handler
+ */
+int
+html_tt(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "tt");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</tt>");
+	}
+
+	return(1);
+    }
+
+    return(0);
+}
+
+
+/*
+ * HTML <VAR> (Text Var) element handler
+ */
+int
+html_var(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "var");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</var>");
+	}
+
+	return(1);
+    }
+
+    return(0);
+}
+
+
+/*
+ * HTML <SAMP> (Text Samp) element handler
+ */
+int
+html_samp(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "samp");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</samp>");
+	}
+
+	return(1);
+    }
+
+    return(0);
+}
+
+
+/*
+ * HTML <SUP> (Text Superscript) element handler
+ */
+int
+html_sup(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "sup");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</sup>");
+	}
+
+	return(1);
+    }
+
+    return(0);
+}
+
+
+/*
+ * HTML <SUB> (Text Subscript) element handler
+ */
+int
+html_sub(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "sub");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</sub>");
+	}
+
+	return(1);
+    }
+
+    return(0);
+}
+
+
+/*
+ * HTML <CITE> (Text Citation) element handler
+ */
+int
+html_cite(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "cite");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</cite>");
+	}
+
+	return(1);
+    }
+
+    return(0);
+}
+
+
+/*
+ * HTML <CODE> (Text Code) element handler
+ */
+int
+html_code(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "code");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</code>");
+	}
+
+	return(1);
+    }
+
+    return(0);
+}
+
+
+/*
+ * HTML <INS> (Text Inserted) element handler
+ */
+int
+html_ins(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "ins");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</ins>");
+	}
+
+	return(1);
+    }
+
+    return(0);
+}
+
+
+/*
+ * HTML <DEL> (Text Deleted) element handler
+ */
+int
+html_del(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "del");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</del>");
+	}
+
+	return(1);
+    }
+
+    return(0);
+}
+
+
+/*
+ * HTML <ABBR> (Text Abbreviation) element handler
+ */
+int
+html_abbr(HANDLER_S *hd, int ch, int cmd)
+{
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    html_handoff(hd, ch);
+	}
+	else if(cmd == GF_RESET){
+	    html_output_raw_tag(hd->html_data, "abbr");
+	}
+	else if(cmd == GF_EOD){
+	    html_output_string(hd->html_data, "</abbr>");
+	}
+
+	return(1);
+    }
+
+    return(0);
+}
+
+
+/*
+ * HTML <SCRIPT> element handler
  */
 int
 html_script(HANDLER_S *hd, int ch, int cmd)
 {
-    /* ignore everything */
+    /* Link in and drop everything within on the floor */
     return(1);
 }
 
 
+/*
+ * HTML <APPLET> element handler
+ */
+int
+html_applet(HANDLER_S *hd, int ch, int cmd)
+{
+    /* Link in and drop everything within on the floor */
+    return(1);
+}
+
 
 /*
- * HTML <STYLE> (Embedded CSS data) element handler
+ * HTML <STYLE> CSS element handler
  */
 int
 html_style(HANDLER_S *hd, int ch, int cmd)
 {
-    /* ignore everything */
+    static STORE_S  *css_stuff ;
+
+    if(PASS_HTML(hd->html_data)){
+	if(cmd == GF_DATA){
+	    /* collect style settings */
+	    so_writec(ch, css_stuff);
+	}
+	else if(cmd == GF_RESET){
+	    if(css_stuff)
+	      so_give(&css_stuff);
+
+	    css_stuff = so_get(CharStar, NULL, EDIT_ACCESS);
+	}
+	else if(cmd == GF_EOD){
+	    /* deal with collected CSS stuff */
+
+
+	    so_give(&css_stuff);
+	}
+    }
+
     return(1);
 }
 
@@ -5382,14 +6806,14 @@ html_style(HANDLER_S *hd, int ch, int cmd)
 /*
  * return the function associated with the given element name
  */
-html_f
-html_element_func(char *el_name)
+ELPROP_S *
+html_element_properties(char *el_name)
 {
     register int i;
 
     for(i = 0; element_table[i].element; i++)
       if(!strucmp(el_name, element_table[i].element))
-	return(element_table[i].handler);
+	return(&element_table[i]);
 
     return(NULL);
 }
@@ -5449,7 +6873,7 @@ html_element_collector(FILTER_S *fd, int ch)
 	    return(1);			/* return without display... */
 	}
 	else if(!ED(fd)->quoted || ED(fd)->badform){
-	    html_f f;
+	    ELPROP_S *ep;
 
 	    /*
 	     * We either have the whole thing or all that we could
@@ -5466,18 +6890,38 @@ html_element_collector(FILTER_S *fd, int ch)
 	     * If we ran into an empty tag or we don't know how to deal
 	     * with it, just go on, ignoring it...
 	     */
-	    if(ED(fd)->element && (f = html_element_func(ED(fd)->element))){
-		/* dispatch the element's handler */
-		if(ED(fd)->end_tag){
-		    html_pop(fd, f);		/* remove it's handler */
-		}
-		else if(html_push(fd, f)){	/* add it's handler */
-		    if(ED(fd)->empty){
-			html_pop(fd, f);	/* remove empty element */
+	    if(ED(fd)->element && (ep = html_element_properties(ED(fd)->element))){
+		if(ep->handler){
+		    /* dispatch the element's handler */
+		    if(ED(fd)->end_tag){
+			html_pop(fd, ep);	/* remove it's handler */
 		    }
-		}
+		    else{
+			/* if a block element, pop any open <p>'s */
+			if(ep->blocklevel){
+			    HANDLER_S *tp;
 
-		HTML_DEBUG_EL(ED(fd)->end_tag ? "POP" : "PUSH", ED(fd));
+			    for(tp = HANDLERS(fd); tp && EL(tp)->handler == html_p; tp = tp->below){
+				HTML_DEBUG_EL("Unclosed <P>", ED(fd));
+				html_pop(fd, EL(tp));
+				break;
+			    }
+			}
+
+			/* add it's handler */
+			if(html_push(fd, ep)){
+			    if(ED(fd)->empty){
+				/* remove empty element */
+				html_pop(fd, ep);
+			    }
+			}
+		    }
+
+		    HTML_DEBUG_EL(ED(fd)->end_tag ? "POP" : "PUSH", ED(fd));
+		}
+		else {
+		    HTML_DEBUG_EL("IGNORED", ED(fd));
+		}
 	    }
 	    else{			/* else, empty or unrecognized */
 		HTML_DEBUG_EL("?", ED(fd));
@@ -5561,10 +7005,14 @@ html_element_collector(FILTER_S *fd, int ch)
 
 	if(ED(fd)->quoted){
 	    if(ED(fd)->quoted == (char) ch){
+		/* end of a quoted value */
 		ED(fd)->quoted = 0;
+		if(ED(fd)->len && html_element_flush(ED(fd)))
+		  ED(fd)->badform = 1;
+
 		return(0);		/* continue collecting chars */
 	    }
-	    /* else fall thru writing other quoting char */
+	    /* ELSE fall thru writing other quoting char */
 	}
 	else{
 	    ED(fd)->quoted = (char) ch;
@@ -5576,7 +7024,7 @@ html_element_collector(FILTER_S *fd, int ch)
     ch &= 0xff;			/* strip any "literal" high bits */
     if(ED(fd)->quoted
        || isalnum(ch)
-       || strchr("-.!", ch)){
+       || strchr("#-.!", ch)){
 	if(ED(fd)->len < ((ED(fd)->element || !ED(fd)->hit_equal)
 			       ? HTML_BUF_LEN:MAX_ELEMENT)){
 	    ED(fd)->buf[(ED(fd)->len)++] = ch;
@@ -5765,7 +7213,7 @@ html_element_comment(FILTER_S *f, char *s)
 		    p = ALPINE_VERSION;
 		}
 		else if(!strcmp(s, "ALPINE_REVISION")){
-		    p = get_alpine_revision_number(buf, sizeof(buf));
+		    p = get_alpine_revision_string(buf, sizeof(buf));
 		}
 		else if(!strcmp(s, "C_CLIENT_VERSION")){
 		    p = CCLIENTVERSION;
@@ -5879,7 +7327,7 @@ void
 html_element_output(FILTER_S *f, int ch)
 {
     if(HANDLERS(f))
-      (*HANDLERS(f)->f)(HANDLERS(f), ch, GF_DATA);
+      (*EL(HANDLERS(f))->handler)(HANDLERS(f), ch, GF_DATA);
     else
       html_output(f, ch);
 }
@@ -6053,7 +7501,7 @@ gf_html2plain(FILTER_S *f, int flg)
 		    break;
 		}
 	    }
-	    else if(c == '&' && !HD(f)->quoted){
+	    else if(!PASS_HTML(f) && c == '&' && !HD(f)->quoted){
 		f->t = '&';
 		continue;
 	    }
@@ -6068,9 +7516,10 @@ gf_html2plain(FILTER_S *f, int flg)
 	GF_OP_END(f);			/* clean up our input pointers */
     }
     else if(flg == GF_EOD){
-	while(HANDLERS(f))
-	  /* BUG: should complain about "Unexpected end of HTML text." */
-	  html_pop(f, HANDLERS(f)->f);
+	while(HANDLERS(f)){
+	    dprint((2, "--html Missing Closing Tag: %s",EL(HANDLERS(f))->element));
+	    html_pop(f, EL(HANDLERS(f)));
+	}
 
 	html_output(f, HTML_NEWLINE);
 	if(ULINE_BIT(f))
@@ -6099,7 +7548,8 @@ gf_html2plain(FILTER_S *f, int flg)
 	dprint((9, "-- gf_reset html2plain\n"));
 	f->data  = (HTML_DATA_S *) fs_get(sizeof(HTML_DATA_S));
 	memset(f->data, 0, sizeof(HTML_DATA_S));
-	HD(f)->wrapstate = 1;		/* start with flowing text */
+	/* start with flowing text */
+	HD(f)->wrapstate = !PASS_HTML(f);
 	HD(f)->wrapcol   = WRAP_COLS(f) - 8;
 	f->f1    = DFL;			/* state */
 	f->f2    = 0;			/* chars in wrap buffer */
@@ -6216,6 +7666,105 @@ html_output(FILTER_S *f, int ch)
     else
       HD(f)->cb.cbufend = HD(f)->cb.cbufp;
     /* else do nothing until we have a full character */
+}
+
+
+void
+html_output_string(FILTER_S *f, char *s)
+{
+    for(; *s; s++)
+      html_output(f, *s);
+}
+
+
+void
+html_output_raw_tag(FILTER_S *f, char *tag)
+{
+    PARAMETER *p;
+    char      *vp;
+    int	       i;
+
+    html_output(f, '<');
+    html_output_string(f, tag);
+    for(p = HD(f)->el_data->attribs;
+	p && p->attribute;
+	p = p->next){
+	/* SECURITY: no javascript */
+	/* PRIVACY: no img src without permission */
+	/* BUGS: no class collisions since <head> ignored */
+	if(html_event_attribute(p->attribute)
+	   || !strucmp(p->attribute, "class")
+	   || (!PASS_IMAGES(f) && !strucmp(tag, "img") && !strucmp(p->attribute, "src")))
+	  continue;
+
+	/* PRIVACY: sniff out background images */
+	if(p->value && !PASS_IMAGES(f)){
+	    if(!strucmp(p->attribute, "style")){
+		if((vp = srchstr(p->value, "background-image")) != NULL){
+		    /* neuter in place */
+		    vp[11] = vp[12] = vp[13] = vp[14] = vp[15] = 'X';
+		}
+		else{
+		    for(vp = p->value; (vp = srchstr(vp, "background")) != NULL; vp++)
+		      if(vp[10] == ' ' || vp[10] == ':')
+			for(i = 11; vp[i] && vp[i] != ';'; i++)
+			  if((vp[i] == 'u' && vp[i+1] == 'r' && vp[i+2] == 'l' && vp[i+3] == '(')
+			     || vp[i] == ':' || vp[i] == '/' || vp[i] == '.')
+			    vp[0] = 'X';
+		}
+	    }
+	    else if(!strucmp(p->attribute, "background")){
+		char *ip;
+
+		for(ip = p->value; *ip && !(*ip == ':' || *ip == '/' || *ip == '.'); ip++)
+		  ;
+
+		if(ip)
+		  continue;
+	    }
+	}
+
+	html_output(f, ' ');
+	html_output_string(f, p->attribute);
+	if(p->value){
+	    html_output(f, '=');
+	    html_output(f, '\"');
+	    html_output_string(f, p->value);
+	    html_output(f, '\"');
+	}
+    }
+
+    /* append warning to form submission */
+    if(!strucmp(tag, "form")){
+	html_output_string(f, " onsubmit=\"return window.confirm('This form is submitting information to an outside server.\\nAre you sure?');\"");
+    }
+
+    if(ED(f)->end_tag){
+	html_output(f, ' ');
+	html_output(f, '/');
+    }
+
+    html_output(f, '>');
+}
+
+
+int
+html_event_attribute(char *attr)
+{
+    int i;
+    static char *events[] = {
+	"onabort",     "onblur",      "onchange",   "onclick",     "ondblclick", "ondragdrop",
+	"onerror",     "onfocus",     "onkeydown",  "onkeypress",  "onkeyup",    "onload",
+	"onmousedown", "onmousemove", "onmouseout", "onmouseover", "onmouseup",  "onmove",
+	"onreset",     "onresize",    "onselec",    "onsubmit",    "onunload"
+    };
+
+    if((attr[0] == 'o' || attr[0] == 'O') && (attr[1] == 'n' || attr[1] == 'N'))
+      for(i = 0; i < sizeof(events)/sizeof(events[0]); i++)
+	if(!strucmp(attr, events[i]))
+	  return(TRUE);
+
+    return(FALSE);
 }
 
 
@@ -6930,6 +8479,8 @@ gf_html2plain_opt(char *base,
     op->warnrisk_f  = risk_f;
     op->no_relative_links = ((flags & GFHP_NO_RELATIVE) == GFHP_NO_RELATIVE);
     op->related_content	  = ((flags & GFHP_RELATED_CONTENT) == GFHP_RELATED_CONTENT);
+    op->html	    = ((flags & GFHP_HTML) == GFHP_HTML);
+    op->html_imgs   = ((flags & GFHP_HTML_IMAGES) == GFHP_HTML_IMAGES);
     return((void *) op);
 }
 
@@ -7133,6 +8684,7 @@ typedef struct wrap_col_s {
     unsigned    for_compose:1;
     unsigned    handle_soft_hyphen:1;
     unsigned    saw_soft_hyphen:1;
+    unsigned	trailing_space:1;
     unsigned char  utf8buf[7];
     unsigned char *utf8bufp;
     COLOR_PAIR *color;
@@ -7189,6 +8741,7 @@ typedef struct wrap_col_s {
 #define	WRAP_PB_LEN(F)	(((WRAP_S *)(F)->opt)->prefbrkn)
 #define	WRAP_ALLWSP(F)	(((WRAP_S *)(F)->opt)->allwsp)
 #define	WRAP_SPC_LEN(F)	(((WRAP_S *)(F)->opt)->space_len)
+#define	WRAP_TRL_SPC(F)	(((WRAP_S *)(F)->opt)->trailing_space)
 #define	WRAP_SPEC(F, C)	((WRAP_S *) (F)->opt)->special[C]
 #define	WRAP_COLOR(F)	(((WRAP_S *)(F)->opt)->color)
 #define	WRAP_COLOR_SET(F)  ((WRAP_COLOR(F)) && (WRAP_COLOR(F)->fg[0]))
@@ -7271,7 +8824,8 @@ gf_wrap(FILTER_S *f, int flg)
 		state = BOL;				/* either way, handle start */
 
 		if(WRAP_FLOW(f)){
-		    if(f->f2 == 0 && WRAP_SPC_LEN(f)){	/* wrapped line */
+		    /* wrapped line? */
+		    if(f->f2 == 0 && WRAP_SPC_LEN(f) && WRAP_TRL_SPC(f)){
 			/*
 			 * whack trailing space char, but be aware
 			 * of embeds in space buffer.  grok them just
@@ -7321,6 +8875,7 @@ gf_wrap(FILTER_S *f, int flg)
 
 				*scp++ = '\0';
 				WRAP_SPC_LEN(f)--;
+				WRAP_TRL_SPC(f) = 0;
 
 				so_puts(ns, sb);
 				so_puts(ns, scp);
@@ -7704,6 +9259,7 @@ gf_wrap(FILTER_S *f, int flg)
 			switch(c){			/* remember separator */
 			  case ' ' :
 			    WRAP_SPC_LEN(f)++;
+			    WRAP_TRL_SPC(f) = 1;
 			    so_writec(' ',WRAP_SPACES(f));
 			    break;
 
@@ -7716,12 +9272,14 @@ gf_wrap(FILTER_S *f, int flg)
 			      while(++i & 0x07);
 
 			      so_writec(TAB,WRAP_SPACES(f));
+			      WRAP_TRL_SPC(f) = 0;
 			  }
 
 			  break;
 
 			  default :			/* some control char? */
 			    WRAP_SPC_LEN(f) += 2;
+			    WRAP_TRL_SPC(f) = 0;
 			    break;
 			}
 
@@ -7941,8 +9499,15 @@ gf_wrap(FILTER_S *f, int flg)
 			 * if there's at least a preferable break point, use
 			 * it and stuff what's left back into the wrap buffer.
 			 * The "nwsp" latch is used to skip leading whitespace
+			 * The second half of the test prevents us from wrapping
+			 * at the preferred break point in the case that it
+			 * is so early in the line that it doesn't help.
+			 * That is, the width of the indent is even more than
+			 * the width of the first part before the preferred
+			 * break point. An example would be breaking after
+			 * "To:" when the indent is 4 which is > 3.
 			 */
-			if(WRAP_PB_OFF(f)){
+			if(WRAP_PB_OFF(f) && WRAP_PB_LEN(f) >= WRAP_INDENT(f)){
 			    char *p1 = f->line + WRAP_PB_OFF(f);
 			    char *p2 = f->linep;
 			    char  c2;
@@ -8122,6 +9687,7 @@ wrap_flush(FILTER_S *f, unsigned char **ipp, unsigned char **eibp,
     wrap_flush_s(f, s, n, WRAP_SPC_LEN(f), ipp, eibp, opp, eobp, WFE_NONE);
     so_truncate(WRAP_SPACES(f), 0L);
     WRAP_SPC_LEN(f) = 0;
+    WRAP_TRL_SPC(f) = 0;
     s = f->line;
     n = f->linep - f->line;
     wrap_flush_s(f, s, n, f->f2, ipp, eibp, opp, eobp, WFE_NONE);
@@ -8144,6 +9710,7 @@ wrap_flush_embed(FILTER_S *f, unsigned char **ipp, unsigned char **eibp, unsigne
   wrap_flush_s(f, s, n, 0, ipp, eibp, opp, eobp, WFE_CNT_HANDLE);
   so_truncate(WRAP_SPACES(f), 0L);
   WRAP_SPC_LEN(f) = 0;
+  WRAP_TRL_SPC(f) = 0;
 
   return 0;
 }
@@ -8314,6 +9881,7 @@ wrap_eol(FILTER_S *f, int c, unsigned char **ipp, unsigned char **eibp,
     f->n = 0L;
     so_truncate(WRAP_SPACES(f), 0L);
     WRAP_SPC_LEN(f) = 0;
+    WRAP_TRL_SPC(f) = 0;
 
     return 0;
 }

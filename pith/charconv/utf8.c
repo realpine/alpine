@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: utf8.c 737 2007-10-03 19:40:34Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: utf8.c 902 2008-01-08 17:04:58Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -38,6 +38,9 @@ static char rcsid[] = "$Id: utf8.c 737 2007-10-03 19:40:34Z hubert@u.washington.
 #include "utf8.h"
 
 #include <stdarg.h>
+
+
+unsigned single_width_chars_a_to_b(UCS *, int, int);
 
 
 static char locale_charmap[50];
@@ -2221,37 +2224,21 @@ tose(long int number)
 
 /*
  * line_paint - where the real work of managing what is displayed gets done.
- *              The passwd variable is overloaded: if non-zero, don't
- *              output anything, else only blat blank chars across line
- *              once and use this var to tell us we've already written the 
- *              line.
  */
 void
 line_paint(int offset,			/* current dot offset into vl */
 	   struct display_line *displ,
-	   int *passwd)			/* flag to hide display of chars */
+	   int passwd)			/* flag to hide display of chars */
 {
     int i, w, w2, already_got_one = 0;
     int vfirst, vlast, dfirst, dlast, vi, di;
     int new_vbase;
+    unsigned (*width_a_to_b)(UCS *, int, int);
 
-    /*
-     * for now just leave line blank, but maybe do '*' for each char later
-     */
-    if(passwd && *passwd){
-	if(*passwd > 1)
-	  return;
-	else
-	  *passwd = 2;		/* only blat once */
-
-	i = 0;
-	(*displ->movecursor)(displ->row, displ->col);
-	while(i++ <= displ->dwid)
-	  (*displ->writechar)(' ');
-
-	(*displ->movecursor)(displ->row, displ->col);
-	return;
-    }
+    if(passwd)
+      width_a_to_b = single_width_chars_a_to_b;
+    else
+      width_a_to_b = ucs4_str_width_a_to_b;
 
     /*
      * vl is the virtual line (the actual data). We operate on it by typing
@@ -2285,9 +2272,9 @@ line_paint(int offset,			/* current dot offset into vl */
      *  the right hand edge of the window and if the last visible character
      * is double wide. We don't want the offset to be under that > character.)
      */
-    for(w = ucs4_str_width_a_to_b(displ->vl, displ->vbase, offset);
+    for(w = (*width_a_to_b)(displ->vl, displ->vbase, offset);
 	w + 2 + (displ->vbase ? 1 : 0) > displ->dwid;
-        w = ucs4_str_width_a_to_b(displ->vl, displ->vbase, offset)){
+        w = (*width_a_to_b)(displ->vl, displ->vbase, offset)){
 	/*
 	 * offset is off the window to the right
 	 * It looks like   a b c d e f g h
@@ -2304,9 +2291,9 @@ line_paint(int offset,			/* current dot offset into vl */
 	 * then see if that's sufficient.
 	 */
 	new_vbase = displ->vbase + 1;
-	for(w2 = ucs4_str_width_a_to_b(displ->vl, displ->vbase+1, new_vbase);
+	for(w2 = (*width_a_to_b)(displ->vl, displ->vbase+1, new_vbase);
 	    w2 < displ->dwid/2;
-	    w2 = ucs4_str_width_a_to_b(displ->vl, displ->vbase+1, new_vbase))
+	    w2 = (*width_a_to_b)(displ->vl, displ->vbase+1, new_vbase))
 	  new_vbase++;
 
 	displ->vbase = new_vbase;
@@ -2316,21 +2303,21 @@ line_paint(int offset,			/* current dot offset into vl */
     while(displ->vbase > 0 && displ->vbase >= offset){
 	/* add about dwid/2 more width */
 	new_vbase = displ->vbase - 1;
-	for(w2 = ucs4_str_width_a_to_b(displ->vl, new_vbase, displ->vbase);
+	for(w2 = (*width_a_to_b)(displ->vl, new_vbase, displ->vbase);
 	    w2 < (displ->dwid+1)/2 && new_vbase > 0;
-	    w2 = ucs4_str_width_a_to_b(displ->vl, new_vbase, displ->vbase))
+	    w2 = (*width_a_to_b)(displ->vl, new_vbase, displ->vbase))
 	  new_vbase--;
 
 	/* but don't let it get too small, recheck off right end */
-	for(w = ucs4_str_width_a_to_b(displ->vl, new_vbase, offset);
+	for(w = (*width_a_to_b)(displ->vl, new_vbase, offset);
 	    w + 2 + (new_vbase ? 1 : 0) > displ->dwid;
-	    w = ucs4_str_width_a_to_b(displ->vl, displ->vbase, offset))
+	    w = (*width_a_to_b)(displ->vl, displ->vbase, offset))
 	  new_vbase++;
 
 	displ->vbase = MAX(new_vbase, 0);
     }
 
-    if(displ->vbase == 1 && wcellwidth(displ->vl[0]) == 1)
+    if(displ->vbase == 1 && (passwd || wcellwidth(displ->vl[0]) == 1))
       displ->vbase = 0;
 	 
     vfirst = displ->vbase;
@@ -2341,13 +2328,13 @@ line_paint(int offset,			/* current dot offset into vl */
     }
 
     vlast = displ->vused-1;			/* end */
-    w = ucs4_str_width_a_to_b(displ->vl, vfirst, vlast);
+    w = (*width_a_to_b)(displ->vl, vfirst, vlast);
 
     if(w + dfirst > displ->dwid){			/* off window right */
 
 	/* find last ucs character to be printed */
 	while(w + dfirst > displ->dwid - 1)	/* -1 for > */
-	  w = ucs4_str_width_a_to_b(displ->vl, vfirst, --vlast);
+	  w = (*width_a_to_b)(displ->vl, vfirst, --vlast);
 
 	/* worry about double-width characters */
 	if(w + dfirst == displ->dwid - 1){	/* no prob, hit it exactly */
@@ -2367,13 +2354,16 @@ line_paint(int offset,			/* current dot offset into vl */
      * Copy the relevant part of the virtual line into the display line.
      */
     for(vi = vfirst, di = dfirst; vi <= vlast; vi++, di++)
-      displ->dl[di] = displ->vl[vi];
+      if(passwd)
+        displ->dl[di] = '*';		/* to conceal password */
+      else
+        displ->dl[di] = displ->vl[vi];
 
     /*
      * Add spaces to clear the rest of the line.
      * We have dwid total space to fill.
      */
-    w = ucs4_str_width_a_to_b(displ->dl, 0, dlast);	/* width through dlast */
+    w = (*width_a_to_b)(displ->dl, 0, dlast);	/* width through dlast */
     for(di = dlast+1, i = displ->dwid - w; i > 0 ; i--)
       displ->dl[di++] = ' ';
 
@@ -2387,7 +2377,7 @@ line_paint(int offset,			/* current dot offset into vl */
 	if(already_got_one || displ->dl[di] != displ->olddl[di]){
 	    /* move cursor first time */
 	    if(!already_got_one++){
-		w = (di > 0) ? ucs4_str_width_a_to_b(displ->dl, 0, di-1) : 0;
+		w = (di > 0) ? (*width_a_to_b)(displ->dl, 0, di-1) : 0;
 		(*displ->movecursor)(displ->row, displ->col + w);
 	    }
 
@@ -2407,7 +2397,27 @@ line_paint(int offset,			/* current dot offset into vl */
      * character, so we need to find the width of all the characters up
      * to that point.
      */
-    w = (offset > 0) ? ucs4_str_width_a_to_b(displ->dl, 0, offset-displ->vbase+dfirst-1) : 0;
+    w = (offset > 0) ? (*width_a_to_b)(displ->dl, 0, offset-displ->vbase+dfirst-1) : 0;
 
     (*displ->movecursor)(displ->row, displ->col + w);
+}
+
+
+/*
+ * This is just like ucs4_str_width_a_to_b() except all of the characters
+ * are assumed to be of width 1. This is for printing out *'s when user
+ * enters a password, while still managing to use the same code to do the
+ * display.
+ */
+unsigned
+single_width_chars_a_to_b(UCS *ucsstr, int a, int b)
+{
+    unsigned width = 0;
+    int i;
+
+    if(ucsstr)
+      for(i = a; i <= b && ucsstr[i]; i++)
+	width++;
+
+    return width;
 }

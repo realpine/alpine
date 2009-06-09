@@ -1,8 +1,8 @@
 /*
- * $Id: keymenu.h 639 2007-07-09 22:12:40Z hubert@u.washington.edu $
+ * $Id: keymenu.h 937 2008-02-28 01:04:46Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -540,6 +540,7 @@ struct key_menu {
 #define	NUOV_PREV_PG		7
 #define	NUOV_RELNOTES		10
 #define	DEFAULT_KEY		3
+#define	CHANGEDEF_KEY		10
 
 
 extern struct key_menu	cancel_keymenu,
@@ -593,9 +594,13 @@ extern struct key_menu	cancel_keymenu,
 			config_text_keymenu,
 			dir_conf_km,
 			sel_from_list,
+			sel_from_list_ctrlc,
 			sel_from_list_sm,
+			sel_from_list_sm_ctrlc,
 			sel_from_list_lm,
+			sel_from_list_lm_ctrlc,
 			sel_from_list_olm,
+			sel_from_list_olm_ctrlc,
 			printer_edit_keymenu,
 			printer_select_keymenu,
 			role_select_km,
@@ -619,6 +624,7 @@ extern struct key_menu	cancel_keymenu,
 			config_role_afrom_keymenu,
 			config_checkbox_keymenu,
 			config_text_keymenu,
+			config_text_to_charsets_keymenu,
 			config_radiobutton_keymenu,
 			config_yesno_keymenu,
 			color_changing_keymenu,

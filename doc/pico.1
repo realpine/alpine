@@ -1,4 +1,4 @@
-.TH pico 1 "Version 5.00"
+.TH pico 1 "Version 5.01"
 .SH Name
 pico \- simple text editor in the style of the Alpine Composer
 .SH Syntax
@@ -64,7 +64,8 @@ into the file. (Note: no space between "+" sign and number)
 Display all files including those beginning with a period (.).
 .IP \fB-b\fR
 Enable the option to Replace text matches found using the
-"Where is" command.
+"Where is" command. This now does nothing. Instead, the option is
+always turned on (as if the -b flag had been specified).
 .IP \fB-d\fR
 Rebind the "delete" key so the character the cursor is on is rubbed out
 rather than the character to its left.
@@ -164,11 +165,11 @@ Laurence Lundblade <lgl@cac.washington.edu>
 .br
 Pico was originally derived from MicroEmacs 3.6, by Dave G. Conroy.
 .br
-Copyright 1989-2007 by the University of Washington.
+Copyright 1989-2008 by the University of Washington.
 .SH "See Also"
 alpine(1)
 .br
 Source distribution (part of the Alpine Message System):
 
 .nf
-$Date: 2007-12-20 13:25:36 -0800 (Thu, 20 Dec 2007) $
+$Date: 2008-03-14 16:53:39 -0700 (Fri, 14 Mar 2008) $

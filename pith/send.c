@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: send.c 839 2007-12-01 01:10:52Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: send.c 931 2008-02-15 02:11:48Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -948,7 +948,14 @@ redraft_cleanup(MAILSTREAM **streamp, int problem, int flags)
 
 	if(!stream->nmsgs){			/* close and delete folder */
 	    int do_the_broach = 0;
-	    char *mbox = cpystr(stream->mailbox);
+	    char *mbox = NULL;
+
+	    if(stream){
+		if(stream->original_mailbox && stream->original_mailbox[0])
+		  mbox = cpystr(stream->original_mailbox);
+		else if(stream->mailbox && stream->mailbox[0])
+		  mbox = cpystr(stream->mailbox);
+	    }
 
 	    /* if it is current, we have to change folders */
 	    if(stream == ps_global->mail_stream)
@@ -984,12 +991,13 @@ redraft_cleanup(MAILSTREAM **streamp, int problem, int flags)
 		ps_global->mail_stream = NULL;	/* already closed above */
 	    }
 
-	    if(!pine_mail_delete(NULL, mbox))
+	    if(mbox && !pine_mail_delete(NULL, mbox))
 	      q_status_message1(SM_ORDER|SM_DING, 3, 3,
 				/* TRANSLATORS: Arg is a mailbox name */
 				_("Can't delete %s"), mbox);
 
-	    fs_give((void **) &mbox);
+	    if(mbox)
+	      fs_give((void **) &mbox);
 	}
     }
 
@@ -1041,7 +1049,7 @@ simple_header_parse(char *text, char **fields, char **values)
 		  while(*p){			/* check for cont'n lines */
 		      if(*p == '\015' && *(p+1) == '\012'){
 			  if(isspace((unsigned char) *(p+2))){
-			      p += 3;
+			      p += 2;
 			      continue;
 			  }
 			  else
@@ -1558,7 +1566,7 @@ Returns: with appropriate flags set and index cache entries suitably tweeked
 void
 update_answered_flags(REPLY_S *reply)
 {
-    char       *seq, *p;
+    char       *seq = NULL, *p;
     long	i, ourstream = 0, we_cancel = 0;
     MAILSTREAM *stream = NULL;
 
@@ -1628,10 +1636,26 @@ update_answered_flags(REPLY_S *reply)
 		tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
 	    }
 
-	    mail_flag(stream, seq = cpystr(tmp_20k_buf),
-		      (reply->forwarded) ? FORWARDED_FLAG : "\\ANSWERED",
-		      ST_SET | ((reply->uid) ? ST_UID : 0L));
-	    fs_give((void **)&seq);
+	    if(reply->forwarded){
+		/*
+		 * $Forwarded is a regular keyword so we only try to
+		 * set it if the stream allows keywords.
+		 * We could mess up if the stream has keywords but just
+		 * isn't allowing anymore and $Forwarded already exists,
+		 * but what are the odds?
+		 */
+		if(stream && stream->kwd_create)
+		  mail_flag(stream, seq = cpystr(tmp_20k_buf),
+			    FORWARDED_FLAG,
+			    ST_SET | ((reply->uid) ? ST_UID : 0L));
+	    }
+	    else
+	      mail_flag(stream, seq = cpystr(tmp_20k_buf),
+		        "\\ANSWERED",
+		        ST_SET | ((reply->uid) ? ST_UID : 0L));
+
+	    if(seq)
+	      fs_give((void **)&seq);
 	}
 
 	if(ourstream)
@@ -4715,6 +4739,8 @@ pine_header_forbidden(char *name)
 	"resent-reply-to",
 	"mime-version",
 	"content-type",
+	"x-priority",
+	"user-agent",
 	NULL
     };
 

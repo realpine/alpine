@@ -1,8 +1,8 @@
 /*
- * $Id: listsel.h 649 2007-07-18 23:45:23Z hubert@u.washington.edu $
+ * $Id: listsel.h 917 2008-01-23 19:15:36Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,8 @@
 #define	SFL_STARTIN_LISTMODE	0x002	/* should also light ALLOW_LISTMODE */
 #define	SFL_ONLY_LISTMODE	0x004	/* don't allow switching back out of ListMode */
 #define	SFL_NOSELECT		0x008	/* per item flag, line not selectable */
+#define	SFL_CTRLC		0x010	/* use ^C instead of Exit for Exit and
+					   allow zero selections */
 
 
 typedef struct list_selection {

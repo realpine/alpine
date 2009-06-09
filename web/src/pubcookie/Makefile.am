@@ -2,7 +2,7 @@
 ## Use aclocal -I m4; automake
 
 # ========================================================================
-# Copyright 2006 University of Washington
+# Copyright 2006-2008 University of Washington
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,10 +15,10 @@
 
 WP_UIDMAPPER_SOCKET = "/tmp/wp_uidmapper"
 WEBSERVER_UID = 65534
-BINDIR=/usr/local/alpine/web/bin
 
 CFLAGS = '-DWP_UIDMAPPER_SOCKET=$(WP_UIDMAPPER_SOCKET)' \
-         '-DWEBSERVER_UID=$(WEBSERVER_UID)'
+         '-DWEBSERVER_UID=$(WEBSERVER_UID)' \
+         '-DAUTH_GSS_PROXY_PATH="$(WEB_BINDIR)/wp_gssapi_proxy"'
 
 bin_PROGRAMS = wp_uidmapper wp_tclsh wp_gssapi_proxy wp_umc
 

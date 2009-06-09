@@ -1,10 +1,10 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: display.c 847 2007-12-06 18:06:35Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: display.c 933 2008-02-22 23:52:28Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1590,6 +1590,7 @@ mlreplyd(UCS *prompt, UCS *buf, int nbuf, int flg, EXTRAKEYS *extras)
 		else
 		  btn_list[j].ch = extras[i].key;
 
+		btn_list[j].rval = extras[i].key;
 		free_names[j] = utf8_to_lptstr(extras[i].name);
 		btn_list[j].name = free_names[j];
 		free_labels[j] = utf8_to_lptstr(extras[i].label);
@@ -1602,6 +1603,9 @@ mlreplyd(UCS *prompt, UCS *buf, int nbuf, int flg, EXTRAKEYS *extras)
 
 	return_val = mswin_dialog(prompt, buf, nbuf, ((flg&QDEFLT) > 0), 
 			    FALSE, btn_list, NULL, 0);
+
+	if(return_val == 3)
+	  return_val = HELPCH;
 
 	for(i = 0; i < 12; i++){
 	    if(free_names[i])
@@ -1698,7 +1702,7 @@ mlreplyd(UCS *prompt, UCS *buf, int nbuf, int flg, EXTRAKEYS *extras)
 
     for(;;){
 
-	line_paint(b-buf, &dline, NULL);
+	line_paint(b-buf, &dline, 0);
 	(*term.t_flush)();
 
 #ifdef	MOUSE

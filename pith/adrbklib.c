@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: adrbklib.c 745 2007-10-11 18:03:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: adrbklib.c 949 2008-03-06 01:13:33Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1004,6 +1004,9 @@ build_abook_tries(AdrBk *ab, char *warning)
     if(ab->addr_trie)
       free_abook_trie(&ab->addr_trie);
 
+    if(ab->full_trie)
+      free_abook_trie(&ab->full_trie);
+
     /*
      * Go through addrbook entries and add each to the nickname trie.
      * Add each Single entry to the address lookup trie, as well.
@@ -1013,6 +1016,24 @@ build_abook_tries(AdrBk *ab, char *warning)
 	if(ae){
 	    if(ae->nickname && ae->nickname[0])
 	      add_entry_to_trie(&ab->nick_trie, ae->nickname, (a_c_arg_t) entry_num);
+
+	    if(ae->fullname && ae->fullname[0]){
+		add_entry_to_trie(&ab->full_trie, ae->fullname, (a_c_arg_t) entry_num);
+
+		/*
+		 * We have some fullnames stored as Last, First. Put both in.
+		 */
+		if(ae->fullname[0] != '"' && strindex(ae->fullname, ',') != NULL){
+		    char *reversed;
+
+		    reversed = adrbk_formatname(ae->fullname, NULL, NULL);
+		    if(reversed && reversed[0])
+		      add_entry_to_trie(&ab->full_trie, reversed, (a_c_arg_t) entry_num);
+
+		    if(reversed)
+		      fs_give((void **) &reversed);
+		}
+	    }
 
 	    if(ae->tag == Single && ae->addr.addr && ae->addr.addr[0]){
 		char     buf[1000];
@@ -1030,6 +1051,20 @@ build_abook_tries(AdrBk *ab, char *warning)
 
 		if(addr){
 		    simple_addr = simple_addr_string(addr, buf, sizeof(buf));
+
+		    /*
+		     * If the fullname wasn't set in the addrbook entry there
+		     * may still be one that is part of the address. We need
+		     * to be careful because we may be in the middle of opening
+		     * the address book right now. Don't call something like
+		     * our_build_address because it will probably re-open this
+		     * same addrbook infinitely.
+		     */
+		    if(!(ae->fullname && ae->fullname[0])
+		       && addr->personal && addr->personal[0])
+		      add_entry_to_trie(&ab->full_trie, addr->personal,
+					(a_c_arg_t) entry_num);
+
 		    mail_free_address(&addr);
 		}
 
@@ -1311,7 +1346,7 @@ adrbk_longest_unambig_nick(AdrBk *ab, char *prefix, char **answer)
 
 /*
  * Look in this address book for all nicknames which begin
- * with the prefix prefix, and return an allocated, null-terminated
+ * with the prefix prefix, and return an allocated
  * list of them.
  */
 STRLIST_S *
@@ -2958,6 +2993,9 @@ adrbk_close(AdrBk *ab)
     if(ab->addr_trie)
       free_abook_trie(&ab->addr_trie);
 
+    if(ab->full_trie)
+      free_abook_trie(&ab->full_trie);
+
     if(we_cancel)
       cancel_busy_cue(0);
 
@@ -4310,12 +4348,14 @@ void
 repair_abook_tries(AdrBk *ab)
 {
     if(ab->arr){
-	AdrBk_Trie *save_nick_trie, *save_addr_trie;
+	AdrBk_Trie *save_nick_trie, *save_addr_trie, *save_full_trie;
 
 	save_nick_trie = ab->nick_trie;
 	ab->nick_trie = NULL;
 	save_addr_trie = ab->addr_trie;
 	ab->addr_trie = NULL;
+	save_full_trie = ab->full_trie;
+	ab->full_trie = NULL;
 	if(build_abook_tries(ab, NULL)){
 	    dprint((2, "trouble rebuilding tries, restoring\n"));
 	    if(ab->nick_trie)
@@ -4328,6 +4368,11 @@ repair_abook_tries(AdrBk *ab)
 	      free_abook_trie(&ab->addr_trie);
 
 	    ab->addr_trie = save_addr_trie;
+
+	    if(ab->full_trie)
+	      free_abook_trie(&ab->full_trie);
+
+	    ab->full_trie = save_full_trie;
 	}
 	else{
 	    if(save_nick_trie)
@@ -4335,6 +4380,9 @@ repair_abook_tries(AdrBk *ab)
 
 	    if(save_addr_trie)
 	      free_abook_trie(&save_addr_trie);
+
+	    if(save_full_trie)
+	      free_abook_trie(&save_full_trie);
 	}
     }
 }

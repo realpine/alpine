@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailview.c 841 2007-12-03 19:51:03Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailview.c 945 2008-03-05 18:56:28Z mikes@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -100,7 +100,7 @@ int	    format_blip_seen(long);
 int	    is_an_env_hdr(char *);
 int         is_an_addr_hdr(char *);
 void	    format_env_hdr(MAILSTREAM *, long, char *, ENVELOPE *,
-			   gf_io_t, char *, char *, int);
+			   fmt_env_t, gf_io_t, char *, char *, int);
 int	    delineate_this_header(char *, char *, char **, char **);
 char	   *url_embed(int);
 int         color_headers(long, char *, LT_INS_S **, void *);
@@ -114,8 +114,6 @@ int         any_hdr_color(char *);
 void	    format_addr_string(MAILSTREAM *, long, char *, char *,
 			       ADDRESS *, int, char *, gf_io_t);
 void        pine_rfc822_write_address_noquote(ADDRESS *, gf_io_t, int *);
-void        pine_rfc822_address(ADDRESS *, gf_io_t);
-void        pine_rfc822_cat(char *, const char *, gf_io_t);
 void	    format_newsgroup_string(char *, char *, int, gf_io_t);
 int	    format_raw_hdr_string(char *, char *, gf_io_t, char *, int);
 int	    format_env_puts(char *, gf_io_t);
@@ -151,14 +149,9 @@ int
 format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 	       HANDLE_S **handlesp, int flgs, gf_io_t pc)
 {
-    char     *decode_err = NULL, *tmp1, *description;
+    char     *decode_err = NULL;
     HEADER_S  h;
-    ATTACH_S *a;
-    int       show_parts, error_found = 0, width;
-    int       is_in_sig = OUT_SIG_BLOCK;
-    int       filt_only_c0 = 0, wrapflags;
-    URL_HILITE_S uh;
-    gf_io_t   gc;
+    int       width;
 
     clear_cur_embedded_color();
 
@@ -180,10 +173,9 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 			   _("Full header mode ON.  All header text being included"));
     }
 
-    HD_INIT(&h, ps_global->VAR_VIEW_HEADERS, ps_global->view_all_except,
-	    FE_DEFAULT);
+    HD_INIT(&h, ps_global->VAR_VIEW_HEADERS, ps_global->view_all_except, FE_DEFAULT);
     switch(format_header(ps_global->mail_stream, msgno, NULL,
-			 env, &h, NULL, handlesp, flgs, pc)){
+			 env, &h, NULL, handlesp, flgs, NULL, pc)){
 			      
       case -1 :			/* write error */
 	goto write_error;
@@ -196,10 +188,40 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 	break;
     }
 
+    if(!(body == NULL 
+	 || (ps_global->full_header == 2
+	     && F_ON(F_ENABLE_FULL_HDR_AND_TEXT, ps_global))))
+      format_attachment_list(msgno, body, handlesp, flgs, width, pc);
+
+    /* write delimiter and body */
+    if(gf_puts(NEWLINE, pc)
+       && (decode_err = format_body(msgno, body, handlesp, &h, flgs, width, pc)) == NULL)
+      return(1);
+
+
+  write_error:
+
+    if(!(flgs & FM_DISPLAY))
+      q_status_message1(SM_ORDER, 3, 4, _("Error writing message: %s"),
+			decode_err ? decode_err : error_description(errno));
+
+    return(0);
+}
+
+
+char *
+format_body(long int msgno, BODY *body, HANDLE_S **handlesp, HEADER_S *hp, int flgs, int width, gf_io_t pc)
+{
+    int		  filt_only_c0 = 0, wrapflags, error_found = 0;
+    int		  is_in_sig = OUT_SIG_BLOCK;
+    char	 *charset, *decode_err = NULL, *tmp1, *description;
+    ATTACH_S	 *a;
+    URL_HILITE_S  uh;
+    gf_io_t	  gc;
+
     if(body == NULL 
        || (ps_global->full_header == 2
 	   && F_ON(F_ENABLE_FULL_HDR_AND_TEXT, ps_global))) {
-	char *charset;
 
         /*--- Server is not an IMAP2bis, It can't parse MIME
               so we just show the text here. Hopefully the 
@@ -211,7 +233,8 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 						msgno, NULL, NULL, NIL)) != NULL){
 
  	    if(!gf_puts(NEWLINE, pc))		/* write delimiter */
-	      goto write_error;
+	      return("Write Error");
+
 	    gf_set_readc(&gc, text2, (unsigned long)strlen(text2), CharStar, 0);
 	    gf_filter_init();
 
@@ -294,7 +317,7 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 		   && gf_puts(NEWLINE, pc))
 		  decode_err = NULL;
 		else
-		  goto write_error;
+		  return(decode_err);
 	    }
 	}
 
@@ -303,18 +326,196 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 	       || !gf_puts(_("    [ERROR fetching text of message]"), pc)
 	       || !gf_puts(NEWLINE, pc)
 	       || !gf_puts(NEWLINE, pc))
-	      goto write_error;
+	      return("Write Error");
+	}
+    }
+    else{
+	int show_parts = 0;
+
+	/*======== Now loop through formatting all the parts =======*/
+	for(a = ps_global->atmts; a->description != NULL; a++) {
+
+	    if(a->body->type == TYPEMULTIPART)
+	      continue;
+
+	    if(!a->shown) {
+		if(a->suppress_editorial)
+		  continue;
+
+		if(!(flgs & FM_NOEDITORIAL)
+		   && (!gf_puts(NEWLINE, pc)
+		       || (decode_err = part_desc(a->number, a->body,
+						  (flgs & FM_DISPLAY)
+						  ? (a->can_display != MCD_NONE)
+						  ? 1 : 2
+						  : 3, width, flgs, pc))))
+		  return("Write Error");
+
+		continue;
+	    } 
+
+	    switch(a->body->type){
+
+	      case TYPETEXT:
+		/*
+		 * If a message is multipart *and* the first part of it
+		 * is text *and that text is empty, there is a good chance that
+		 * there was actually something there that c-client was
+		 * unable to parse.  Here we report the empty message body
+		 * and insert the raw RFC822.TEXT (if full-headers are
+		 * on).
+		 */
+		if(body->type == TYPEMULTIPART
+		   && a == ps_global->atmts
+		   && a->body->size.bytes == 0
+		   && F_ON(F_ENABLE_FULL_HDR, ps_global)){
+		    char *err = NULL;
+
+		    snprintf(tmp_20k_buf, SIZEOF_20KBUF,
+			     "Empty or malformed message%s.",
+			     ps_global->full_header == 2 
+			     ? ". Displaying raw text"
+			     : ". Use \"H\" to see raw text");
+		    tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
+
+		    if(!(gf_puts(NEWLINE, pc) && gf_puts(NEWLINE, pc)
+			 && !format_editorial(tmp_20k_buf, width, flgs, handlesp, pc)
+			 && gf_puts(NEWLINE, pc) && gf_puts(NEWLINE, pc)))
+		      return("Write Error");
+
+		    if(ps_global->full_header == 2
+		       && (err = detach_raw(ps_global->mail_stream, msgno,
+					    a->number, pc, flgs))){
+			snprintf(tmp_20k_buf, SIZEOF_20KBUF,
+				 "%s%s  [ Formatting error: %s ]%s%s",
+				 NEWLINE, NEWLINE, err, NEWLINE, NEWLINE);
+			tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
+			if(!gf_puts(tmp_20k_buf, pc))
+			  return("Write Error");
+		    }
+
+		    break;
+		}
+
+		/*
+		 * Don't write our delimiter if this text part is
+		 * the first part of a message/rfc822 segment...
+		 */
+		if(show_parts && a != ps_global->atmts 
+		   && a[-1].body && a[-1].body->type != TYPEMESSAGE
+		   && !(flgs & FM_NOEDITORIAL)){
+		    tmp1 = a->body->description ? a->body->description
+		      : "Attached Text";
+		    description = iutf8ncpy((char *)(tmp_20k_buf+10000),
+					    (char *)rfc1522_decode_to_utf8((unsigned char *)(tmp_20k_buf+15000), 5000, tmp1), 5000);
+		
+		    snprintf(tmp_20k_buf, SIZEOF_20KBUF, "Part %s: \"%.1024s\"", a->number,
+			     description);
+		    tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
+		    if(!(gf_puts(NEWLINE, pc) && gf_puts(NEWLINE, pc)
+			 && !format_editorial(tmp_20k_buf, width, flgs, handlesp, pc)
+			 && gf_puts(NEWLINE, pc) && gf_puts(NEWLINE, pc)))
+		      return("Write Error");
+		}
+
+		error_found += decode_text(a, msgno, pc, handlesp,
+					   (flgs & FM_DISPLAY) ? InLine : QStatus,
+					   flgs);
+		break;
+
+	      case TYPEMESSAGE:
+		tmp1 = a->body->description ? a->body->description
+		  : (strucmp(a->body->subtype, "delivery-status") == 0)
+		  ? "Delivery Status"
+		  : "Included Message";
+		description = iutf8ncpy((char *)(tmp_20k_buf+10000),
+					(char *)rfc1522_decode_to_utf8((unsigned char *)(tmp_20k_buf+15000), 5000, tmp1), 5000);
+	    
+		snprintf(tmp_20k_buf, SIZEOF_20KBUF, "Part %s: \"%.1024s\"", a->number,
+			 description);
+		tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
+
+		if(!(gf_puts(NEWLINE, pc) && gf_puts(NEWLINE, pc)
+		     && !format_editorial(tmp_20k_buf, width, flgs, handlesp, pc)
+		     && gf_puts(NEWLINE, pc) && gf_puts(NEWLINE, pc)))
+		  return("Write Error");
+
+		if(a->body->subtype && strucmp(a->body->subtype, "rfc822") == 0){
+		    /* imapenvonly, we may not have all the headers we need */
+		    if(a->body->nested.msg->env->imapenvonly)
+		      mail_fetch_header(ps_global->mail_stream, msgno,
+					a->number, NULL, NULL, FT_PEEK);
+		    switch(format_header(ps_global->mail_stream, msgno, a->number,
+					 a->body->nested.msg->env, hp,
+					 NULL, handlesp, flgs, NULL, pc)){
+		      case -1 :			/* write error */
+			return("Write Error");
+
+		      case 1 :			/* fetch error */
+			if(!(gf_puts("[ Error fetching header ]",  pc)
+			     && !gf_puts(NEWLINE, pc)))
+			  return("Write Error");
+
+			break;
+		    }
+		}
+		else if(a->body->subtype && strucmp(a->body->subtype, "external-body") == 0){
+		    int *margin, avail, m1, m2;
+
+		    avail = width;
+		    margin = (flgs & FM_NOINDENT) ? NULL : format_view_margin();
+
+		    m1 = MAX(MIN(margin ? margin[0] : 0, avail), 0);
+		    avail -= m1;
+
+		    m2 = MAX(MIN(margin ? margin[1] : 0, avail), 0);
+		    avail -= m2;
+
+		    if(format_editorial("This part is not included and can be fetched as follows:", avail, flgs, handlesp, pc)
+		       || !gf_puts(NEWLINE, pc)
+		       || format_editorial(display_parameters(a->body->parameter), avail, flgs, handlesp, pc))
+		      return("Write Error");
+		}
+		else
+		  error_found += decode_text(a, msgno, pc, handlesp,
+					     (flgs&FM_DISPLAY) ? InLine : QStatus,
+					     flgs);
+
+		if(!gf_puts(NEWLINE, pc))
+		  return("Write Error");
+
+		break;
+
+	      default:
+		if((decode_err = part_desc(a->number, a->body,
+					   (flgs & FM_DISPLAY) ? 1 : 3,
+					   width, flgs, pc)) != NULL)
+		  return("Write Error");
+	    }
+
+	    show_parts++;
 	}
 
-	return(1);
+	if(!(!error_found
+	     && (pith_opt_rfc2369_editorial ? (*pith_opt_rfc2369_editorial)(msgno, handlesp, flgs, width, pc) : 1)
+	     && format_blip_seen(msgno)))
+	  return("Cannot format body.");
     }
+
+    return(NULL);
+}
+
+
+int
+format_attachment_list(long int msgno, BODY *body, HANDLE_S **handlesp, int flgs, int width, gf_io_t pc)
+{
+    ATTACH_S *a;
 
     if(flgs & FM_NEW_MESS) {
 	zero_atmts(ps_global->atmts);
 	describe_mime(body, "", 1, 1, 0, flgs);
     }
 
-    /*=========== Format the header into the buffer =========*/
     /*----- First do the list of parts/attachments if needed ----*/
     if((flgs & FM_DISPLAY)
        && (ps_global->atmts[1].description
@@ -367,7 +568,7 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 	if(m1 > 0){
 	    snprintf(tmp, sizeof(tmp), "%*.*s", m1, m1, "");
 	    if(!gf_puts(tmp, pc))
-	      goto write_error;
+	      return(0);
 	}
 
 	utf8_snprintf(tmp, sizeof(tmp),
@@ -377,7 +578,7 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 	    padwid, padwid, "");
 
 	if(!((!hdrcolor || embed_color(hdrcolor, pc)) && gf_puts(tmp, pc) && gf_puts(NEWLINE, pc)))
-	  goto write_error;
+	  return(0);
 
 
 	/*----- Figure max display widths -----*/
@@ -441,7 +642,7 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 	    if(m1 > 0){
 		snprintf(tmp, sizeof(tmp), "%*.*s", m1, m1, "");
 		if(!gf_puts(tmp, pc))
-		  goto write_error;
+		  return(0);
 	    }
 
 	    utf8_snprintf(tmp, sizeof(tmp),
@@ -467,7 +668,7 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 		(descwid > 2 && a->description) ? a->description : "");
 
 	    if(!(!hdrcolor || embed_color(hdrcolor, pc)))
-	      goto write_error;
+	      return(0);
 
 	    if(F_ON(F_VIEW_SEL_ATTACH, ps_global) && handlesp){
 		char      buf[16], color[64];
@@ -476,7 +677,7 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 
 		for(tmpp = tmp; *tmpp && *tmpp == ' '; tmpp++)
 		  if(!(*pc)(' '))
-		    goto write_error;
+		    return(0);
 
 		h	    = new_handle(handlesp);
 		h->type	    = Attach;
@@ -489,49 +690,49 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 		   && handle_start_color(color, sizeof(color), &l, 1)){
 		    lastc = get_cur_embedded_color();
 		    if(!gf_nputs(color, (long) l, pc))
-		       goto write_error;
+		      return(0);
 		}
 		else if(F_OFF(F_SLCTBL_ITEM_NOBOLD, ps_global)
 			&& (!((*pc)(TAG_EMBED) && (*pc)(TAG_BOLDON))))
-		  goto write_error;
+		  return(0);
 
 		if(!((*pc)(TAG_EMBED) && (*pc)(TAG_HANDLE)
 		     && (*pc)(strlen(buf)) && gf_puts(buf, pc)))
-		  goto write_error;
+		  return(0);
 	    }
 	    else
 	      tmpp = tmp;
 
 	    if(!format_env_puts(tmpp, pc))
-	      goto write_error;
+	      return(0);
 
 	    if(F_ON(F_VIEW_SEL_ATTACH, ps_global) && handlesp){
 		if(lastc){
 		    if(F_OFF(F_SLCTBL_ITEM_NOBOLD, ps_global)){
 			if(!((*pc)(TAG_EMBED) && (*pc)(TAG_BOLDOFF)))
-			  goto write_error;
+			  return(0);
 		    }
 
 		    if(!embed_color(lastc, pc))
-		      goto write_error;
+		      return(0);
 
 		    free_color_pair(&lastc);
 		}
 		else if(!((*pc)(TAG_EMBED) && (*pc)(TAG_BOLDOFF)))
-		  goto write_error;
+		  return(0);
 
 		if(!((*pc)(TAG_EMBED) && (*pc)(TAG_INVOFF)))
-		  goto write_error;
+		  return(0);
 	    }
 
 	    if(padwid > 0){
 		snprintf(tmp, sizeof(tmp), "%*.*s", padwid, padwid, "");
 		if(!gf_puts(tmp, pc))
-		  goto write_error;
+		  return(0);
 	    }
 
 	    if(!gf_puts(NEWLINE, pc))
-	      goto write_error;
+	      return(0);
         }
 
 	/*
@@ -547,7 +748,7 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 	    if(m1 > 0){
 		snprintf(tmp, sizeof(tmp), "%*.*s", m1, m1, "");
 		if(!gf_puts(tmp, pc))
-		  goto write_error;
+		  return(0);
 	    }
 
 	    snprintf(tmp, sizeof(tmp),
@@ -568,193 +769,13 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 	}
 
 	if(!((!hdrcolor || embed_color(hdrcolor, pc)) && gf_puts(tmp, pc) && gf_puts(NEWLINE, pc)))
-	  goto write_error;
+	  return(0);
 
 	if(hdrcolor)
 	  free_color_pair(&hdrcolor);
     }
 
-    if(!gf_puts(NEWLINE, pc))		/* write delimiter */
-      goto write_error;
-
-    show_parts = 0;
-
-    /*======== Now loop through formatting all the parts =======*/
-    for(a = ps_global->atmts; a->description != NULL; a++) {
-
-	if(a->body->type == TYPEMULTIPART)
-	  continue;
-
-        if(!a->shown) {
-	    if(a->suppress_editorial)
-	      continue;
-
-	    if(!(flgs & FM_NOEDITORIAL)
-	       && (!gf_puts(NEWLINE, pc)
-	           || (decode_err = part_desc(a->number, a->body,
-					   (flgs & FM_DISPLAY)
-					     ? (a->can_display != MCD_NONE)
-						? 1 : 2
-					     : 3, width, flgs, pc))))
-	      goto write_error;
-
-            continue;
-        } 
-
-        switch(a->body->type){
-
-          case TYPETEXT:
-	    /*
-	     * If a message is multipart *and* the first part of it
-	     * is text *and that text is empty, there is a good chance that
-	     * there was actually something there that c-client was
-	     * unable to parse.  Here we report the empty message body
-	     * and insert the raw RFC822.TEXT (if full-headers are
-	     * on).
-	     */
-	    if(body->type == TYPEMULTIPART
-	       && a == ps_global->atmts
-	       && a->body->size.bytes == 0
-	       && F_ON(F_ENABLE_FULL_HDR, ps_global)){
-		char *err = NULL;
-
-		snprintf(tmp_20k_buf, SIZEOF_20KBUF,
-			"Empty or malformed message%s.",
-			ps_global->full_header == 2 
-			    ? ". Displaying raw text"
-			    : ". Use \"H\" to see raw text");
-		tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
-
-		if(!(gf_puts(NEWLINE, pc) && gf_puts(NEWLINE, pc)
-		     && !format_editorial(tmp_20k_buf, width, flgs, handlesp, pc)
-		     && gf_puts(NEWLINE, pc) && gf_puts(NEWLINE, pc)))
-		  goto write_error;
-
-		if(ps_global->full_header == 2
-		   && (err = detach_raw(ps_global->mail_stream, msgno,
-					a->number, pc, flgs))){
-		    snprintf(tmp_20k_buf, SIZEOF_20KBUF,
-			    "%s%s  [ Formatting error: %s ]%s%s",
-			    NEWLINE, NEWLINE, err, NEWLINE, NEWLINE);
-		    tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
-		    if(!gf_puts(tmp_20k_buf, pc))
-		      goto write_error;
-		}
-
-		break;
-	    }
-
-	    /*
-	     * Don't write our delimiter if this text part is
-	     * the first part of a message/rfc822 segment...
-	     */
-	    if(show_parts && a != ps_global->atmts 
-	       && a[-1].body && a[-1].body->type != TYPEMESSAGE
-	       && !(flgs & FM_NOEDITORIAL)){
-		tmp1 = a->body->description ? a->body->description
-					      : "Attached Text";
-	    	description = iutf8ncpy((char *)(tmp_20k_buf+10000),
-					(char *)rfc1522_decode_to_utf8((unsigned char *)(tmp_20k_buf+15000), 5000, tmp1), 5000);
-		
-		snprintf(tmp_20k_buf, SIZEOF_20KBUF, "Part %s: \"%.1024s\"", a->number,
-			description);
-		tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
-		if(!(gf_puts(NEWLINE, pc) && gf_puts(NEWLINE, pc)
-		     && !format_editorial(tmp_20k_buf, width, flgs, handlesp, pc)
-		     && gf_puts(NEWLINE, pc) && gf_puts(NEWLINE, pc)))
-		  goto write_error;
-	    }
-
-	    error_found += decode_text(a, msgno, pc, handlesp,
-				       (flgs & FM_DISPLAY) ? InLine : QStatus,
-				       flgs);
-            break;
-
-          case TYPEMESSAGE:
-	    tmp1 = a->body->description ? a->body->description
-		      : (strucmp(a->body->subtype, "delivery-status") == 0)
-		          ? "Delivery Status"
-			  : "Included Message";
-	    description = iutf8ncpy((char *)(tmp_20k_buf+10000),
-				    (char *)rfc1522_decode_to_utf8((unsigned char *)(tmp_20k_buf+15000), 5000, tmp1), 5000);
-	    
-            snprintf(tmp_20k_buf, SIZEOF_20KBUF, "Part %s: \"%.1024s\"", a->number,
-		    description);
-	    tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
-
-	    if(!(gf_puts(NEWLINE, pc) && gf_puts(NEWLINE, pc)
-		 && !format_editorial(tmp_20k_buf, width, flgs, handlesp, pc)
-		 && gf_puts(NEWLINE, pc) && gf_puts(NEWLINE, pc)))
-	      goto write_error;
-
-	    if(a->body->subtype && strucmp(a->body->subtype, "rfc822") == 0){
-		/* imapenvonly, we may not have all the headers we need */
-		if(a->body->nested.msg->env->imapenvonly)
-		  mail_fetch_header(ps_global->mail_stream, msgno,
-				    a->number, NULL, NULL, FT_PEEK);
-		switch(format_header(ps_global->mail_stream, msgno, a->number,
-				     a->body->nested.msg->env, &h,
-				     NULL, handlesp, flgs, pc)){
-		  case -1 :			/* write error */
-		    goto write_error;
-
-		  case 1 :			/* fetch error */
-		    if(!(gf_puts("[ Error fetching header ]",  pc)
-			 && !gf_puts(NEWLINE, pc)))
-		      goto write_error;
-
-		    break;
-		}
-	    }
-            else if(a->body->subtype && strucmp(a->body->subtype, "external-body") == 0){
-		int *margin, avail, m1, m2;
-
-		avail = width;
-		margin = (flgs & FM_NOINDENT) ? NULL : format_view_margin();
-
-		m1 = MAX(MIN(margin ? margin[0] : 0, avail), 0);
-		avail -= m1;
-
-		m2 = MAX(MIN(margin ? margin[1] : 0, avail), 0);
-		avail -= m2;
-
-		if(format_editorial("This part is not included and can be fetched as follows:", avail, flgs, handlesp, pc)
-		   || !gf_puts(NEWLINE, pc)
-		   || format_editorial(display_parameters(a->body->parameter), avail, flgs, handlesp, pc))
-		  goto write_error;
-            }
-	    else
-	      error_found += decode_text(a, msgno, pc, handlesp,
-					 (flgs&FM_DISPLAY) ? InLine : QStatus,
-					 flgs);
-
-	    if(!gf_puts(NEWLINE, pc))
-	      goto write_error;
-
-            break;
-
-          default:
-	    if((decode_err = part_desc(a->number, a->body,
-				      (flgs & FM_DISPLAY) ? 1 : 3,
-				      width, flgs, pc)) != NULL)
-	      goto write_error;
-        }
-
-	show_parts++;
-    }
-
-    return(!error_found
-	   && (pith_opt_rfc2369_editorial ? (*pith_opt_rfc2369_editorial)(msgno, handlesp, flgs, width, pc) : 1)
-	   && format_blip_seen(msgno));
-
-
-  write_error:
-
-    if(!(flgs & FM_DISPLAY))
-      q_status_message1(SM_ORDER, 3, 4, _("Error writing message: %s"),
-			decode_err ? decode_err : error_description(errno));
-
-    return(0);
+    return(1);
 }
 
 
@@ -854,14 +875,16 @@ is_an_addr_hdr(char *fieldname)
  */
 void
 format_env_hdr(MAILSTREAM *stream, long int msgno, char *section, ENVELOPE *env,
-	       gf_io_t pc, char *field, char *oacs, int flags)
+	       fmt_env_t fmt_env, gf_io_t pc, char *field, char *oacs, int flags)
 {
     register int i;
 
+    if(!fmt_env)
+      fmt_env = format_envelope;
+
     for(i = 0; envelope_hdrs[i].name; i++)
       if(!strucmp(field, envelope_hdrs[i].name)){
-	  format_envelope(stream, msgno, section, env, pc,
-			  envelope_hdrs[i].val, oacs, flags);
+	  (*fmt_env)(stream, msgno, section, env, pc, envelope_hdrs[i].val, oacs, flags);
 	  return;
       }
 }
@@ -1896,7 +1919,7 @@ url_bogus(char *url, char *reason)
 int
 format_header(MAILSTREAM *stream, long int msgno, char *section, ENVELOPE *env,
 	      HEADER_S *hdrs, char *prefix, HANDLE_S **handlesp, int flags,
-	      gf_io_t final_pc)
+	      fmt_env_t fmt_env, gf_io_t final_pc)
 {
     int	     rv = FHT_OK;
     int	     nfields, i;
@@ -1911,6 +1934,9 @@ format_header(MAILSTREAM *stream, long int msgno, char *section, ENVELOPE *env,
       gf_set_so_writec(&tmp_pc, tmp_store);
     else
       return(FHT_WRTERR);
+
+    if(!fmt_env)
+      fmt_env = format_envelope;
 
     if(ps_global->full_header == 2){
 	rv = format_raw_header(stream, msgno, section, tmp_pc);
@@ -2015,8 +2041,8 @@ format_header(MAILSTREAM *stream, long int msgno, char *section, ENVELOPE *env,
 		     */
 		    if(!delineate_this_header(tmp, current+1, &dummystart,
 					      &dummyfinish))
-		      format_env_hdr(stream, msgno, section,
-				     env, tmp_pc, tmp, hdrs->charset, flags);
+		      format_env_hdr(stream, msgno, section, env,
+				     fmt_env, tmp_pc, tmp, hdrs->charset, flags);
 		}
 		else{
 		    if((rv = format_raw_hdr_string(start, finish, tmp_pc,
@@ -2035,16 +2061,14 @@ format_header(MAILSTREAM *stream, long int msgno, char *section, ENVELOPE *env,
 
 	    /* default envelope for default view */
 	    if(hdrs->type == HD_BFIELD)
-	      format_envelope(stream, msgno, section, env,
-			      tmp_pc, hdrs->h.b, hdrs->charset, flags);
+	      (*fmt_env)(stream, msgno, section, env, tmp_pc, hdrs->h.b, hdrs->charset, flags);
 
 	    /* go through each header in list, v initialized above */
 	    for(; (q = *v) != NULL; v++){
 		if(is_an_env_hdr(q)){
 		    /* pretty format for env hdrs */
-		    format_env_hdr(stream, msgno, section,
-				   env, tmp_pc, q,
-				   hdrs->charset, flags);
+		    format_env_hdr(stream, msgno, section, env,
+				   fmt_env, tmp_pc, q, hdrs->charset, flags);
 		}
 		else{
 		    /*
@@ -2578,7 +2602,7 @@ format_addr_string(MAILSTREAM *stream, long int msgno, char *section, char *fiel
 
  
 
-static char *rspecials_minus_quote_and_dot = "()<>@,;:\\[]";
+const char *rspecials_minus_quote_and_dot = "()<>@,;:\\[]";
 				/* RFC822 continuation, must start with CRLF */
 #define RFC822CONT "\015\012    "
 

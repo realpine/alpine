@@ -3955,6 +3955,27 @@ This option is displayed as &quot;Threading Last Reply Character&quot;.
 <DD> <A HREF="#titlebar-style"><EM>titlebar-color-style</EM></A>.
 <P>
 
+<DT> <A NAME="unknown-character-set"><EM>unknown-character-set</EM></A>
+
+<DD> A text message should either be made up of all US-ASCII characters
+or it should contain a charset label which tells the software which
+character set encoding to use to interpret the message.
+Sometimes a malformed message may be unlabeled but contain non-ascii text.
+This message is outside of the standards so any attempt to read it could fail.
+When <EM>Alpine</EM> attempts to read such a message it will try to interpret the
+text in the character set you specify here.
+For example, if you have correspondents who send you unlabeled messages that
+are usually made up of characters from the WINDOWS-1251 character set, setting
+this unknown-character-set to <CODE>WINDOWS-1251</CODE> will
+allow you to read those messages.
+Of course, if the unlabeled message is actually in some other character set,
+then you may see garbage on your screen.
+
+<P>
+In the Setup/Config screen you may choose from a list of all the
+character sets <EM>Alpine</EM> knows about by using the &quot;T&quot; ToCharsets command.
+<P>
+
 <DT> <A NAME="upload-command"><EM>upload-command</EM></A>
 
 <DD> This option affects the behavior of the Composer's <EM>^R</EM> (Read File)
@@ -7367,6 +7388,11 @@ of flowed text.
 This feature is displayed as &quot;Strip Whitespace Before Sending&quot;.
 <P>
 
+<DT> <A NAME="suppress-user-agent-when-sending"><EM>suppress-user-agent-when-sending</EM></A>
+<DD> If this feature is set then <EM>Alpine</EM> will not generate a
+<CODE>User-Agent</CODE> header in outgoing messages.
+<P>
+
 <DT> <A NAME="tab-checks-recent"><EM>tab-checks-recent</EM></A>
 
 <DD> In a FOLDER LIST screen, the TAB key usually just changes which
@@ -7614,6 +7640,19 @@ The above special behavior is thought to be useful.
 However, it is special and different from what you might at first expect.
 If this feature is set, then Stay Open folders will not be treated specially
 as far as the startup rule is concerned.
+<P>
+
+<DT> <A NAME="use-resent-to-in-rules"><EM>use-resent-to-in-rules</EM></A>
+
+<DD> This feature is turned off by default because turning it on causes problems
+with some deficient IMAP servers.
+In <EM>Alpine</EM> Filters and other types of Rules, if the
+Pattern
+contains a To header pattern and this feature is turned on,
+then a check is made in the message to see
+if a Resent-To header is present, and that is used instead of the To header.
+If this feature is not turned on, then the regular To header will always
+be used.
 <P>
 
 <DT> <A NAME="use-sender-not-x-sender"><EM>use-sender-not-x-sender</EM></A>
@@ -8074,7 +8113,7 @@ may have an affect on the value of this token as well as the values of
 all of the other DATE or TIME tokens.
 Some of the DATE and TIME tokens are displayed in a locale-specific
 way unless the option
-<A HREF="h_config_disable_index_locale_dates"><!--#echo var="FEAT_disable-index-locale-dates"--></A> is set.
+<A HREF="#disable-index-locale-dates"><EM>Disable-Index-Locale-Dates</EM></A> is set.
 </DD>
 
 <DT>SMARTDATE</DT>
@@ -9953,7 +9992,7 @@ This is done by using the
 It is also possible to color
 (<A HREF="#keywords">keywords</A>
 in the index using the
-Setup/Kolor screen (<A HREF="h_config_kw_color">Keyword Colors</A>);
+Setup/Kolor screen (<A HREF="#keyword-colors">Keyword Colors</A>);
 the <A HREF="#index-arrow-color">ARROW</A> cursor;
 the Subject using
 <A HREF="#index-subject-color">Index Subject Color</A>;
@@ -10190,6 +10229,21 @@ with the Patterns of the roles marked as eligible for use when replying.
 The comparisons start with the first eligible role and keep going until there
 is a match.
 If a match is found, the matching role's Actions are taken.
+<P>
+It is also possible to set a default role and to change that role during
+your <EM>Alpine</EM> session.
+When you start <EM>Alpine</EM> no default role will be set.
+You may set or change the current default role by using the &quot;D&quot;
+command in the role selection screen.
+You'll see that screen while composing a message and being asked to select
+a role.
+An easy way to get to that screen is to use the Role Command to
+compose a message.
+You may find a default role useful if you normally perform the duties of one
+of your roles for a while, then you switch to another role and stay in the
+new role for another period of time.
+It may be easier than using the Role Command to select the role each time you
+compose a message.
 
 <H3>Role Uses</H3>
 
@@ -11025,7 +11079,8 @@ if a message matches a defined
 From pattern, it still must be checked against the other parts of the
 Pattern which have been defined.
 The To header pattern is a slightly special case.
-If the message being checked has a Resent-To header, the addresses
+If the message being checked has a Resent-To header
+and the feature <A HREF="#use-resent-to-in-rules">Use-Resent-To-in-Rules</A> is turned on, the addresses
 there are used in place of the addresses in the To header.
 This is only true for the To header.
 Resent-cc and Resent-From headers are never used unless you add them
@@ -11260,14 +11315,21 @@ The same is true of the other four message status settings which depend
 on whether or not the message is New; whether the message has 
 been Answered or not; whether the message has been Deleted or not, and
 whether the message is Recent or not. 
-The nomenclature is a bit confusing.
+<P>
+The nomenclature for New and Recent is a bit confusing:
+<P>
 New means that the message is Unseen.
 It could have been in your mailbox for a long time but if you haven't looked
 at it, it is still considered New.
-That matches the default <EM>Alpine</EM> index display which shows an N for such a
+That matches the default <EM>Alpine</EM> index display that shows an N for such a
 message.
+<P>
 Recent means that the message was added to this folder since the last time
 you opened the folder.
+<EM>Alpine</EM> also shows an N by default for these types of messages.
+If you were to run two copies of <EM>Alpine</EM> that opened a folder one right after
+the other, a message would only show up as Recent in (at most) the first
+<EM>Alpine</EM> session.
 
 <H4>Message Keywords</H4>
 
@@ -11843,14 +11905,20 @@ to be a match.
 &quot;New&quot; is the same as <EM>Unseen</EM> and not &quot;New&quot; is the
 same as <EM>Seen</EM>.
 <P>
-The nomenclature is a bit confusing.
+The nomenclature for New and Recent is a bit confusing:
+<P>
 New means that the message is Unseen.
 It could have been in your mailbox for a long time but if you haven't looked
 at it, it is still considered New.
-That matches the default <EM>Alpine</EM> index display which shows an N for such a
+That matches the default <EM>Alpine</EM> index display that shows an N for such a
 message.
+<P>
 Recent means that the message was added to this folder since the last time
 you opened the folder.
+<EM>Alpine</EM> also shows an N by default for these types of messages.
+If you were to run two copies of <EM>Alpine</EM> that opened a folder one right after
+the other, a message would only show up as Recent in (at most) the first
+<EM>Alpine</EM> session.
 <P>
 
 <DT> <A NAME="message-status-recent"><EM>Message Status Recent</EM></A>
@@ -11866,14 +11934,20 @@ the last time the folder was opened.
 If more than one mail client has the folder opened, the message will
 appear to be &quot;Recent&quot; to only one of the clients.
 <P>
-The nomenclature is a bit confusing.
+The nomenclature for New and Recent is a bit confusing:
+<P>
 New means that the message is Unseen.
 It could have been in your mailbox for a long time but if you haven't looked
 at it, it is still considered New.
-That matches the default <EM>Alpine</EM> index display which shows an N for such a
+That matches the default <EM>Alpine</EM> index display that shows an N for such a
 message.
+<P>
 Recent means that the message was added to this folder since the last time
 you opened the folder.
+<EM>Alpine</EM> also shows an N by default for these types of messages.
+If you were to run two copies of <EM>Alpine</EM> that opened a folder one right after
+the other, a message would only show up as Recent in (at most) the first
+<EM>Alpine</EM> session.
 <P>
 
 <DT> <A NAME="message-status-deleted"><EM>Message Status Deleted</EM></A>

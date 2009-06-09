@@ -15,7 +15,7 @@
 @SET_MAKE@
 
 # ========================================================================
-# Copyright 2006 University of Washington
+# Copyright 2006-2008 University of Washington
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -114,7 +114,8 @@ AWK = @AWK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = '-DWP_UIDMAPPER_SOCKET=$(WP_UIDMAPPER_SOCKET)' \
-         '-DWEBSERVER_UID=$(WEBSERVER_UID)'
+         '-DWEBSERVER_UID=$(WEBSERVER_UID)' \
+         '-DAUTH_GSS_PROXY_PATH="$(WEB_BINDIR)/wp_gssapi_proxy"'
 
 CP = @CP@
 CPP = @CPP@
@@ -155,6 +156,7 @@ LIBINTL = @LIBINTL@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
+LN = @LN@
 LN_S = @LN_S@
 LTLIBICONV = @LTLIBICONV@
 LTLIBINTL = @LTLIBINTL@
@@ -190,8 +192,11 @@ SHELL = @SHELL@
 STRIP = @STRIP@
 USE_NLS = @USE_NLS@
 VERSION = @VERSION@
+WEB_BINDIR = @WEB_BINDIR@
 WEB_BUILD = @WEB_BUILD@
+WEB_PUBCOOKIE_BUILD = @WEB_PUBCOOKIE_BUILD@
 WEB_PUBCOOKIE_LIB = @WEB_PUBCOOKIE_LIB@
+WEB_PUBCOOKIE_LINK = @WEB_PUBCOOKIE_LINK@
 XGETTEXT = @XGETTEXT@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
@@ -249,7 +254,6 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 WP_UIDMAPPER_SOCKET = "/tmp/wp_uidmapper"
 WEBSERVER_UID = 65534
-BINDIR = /usr/local/alpine/web/bin
 noinst_LIBRARIES = libauthgssproxy.a
 libauthgssproxy_a_SOURCES = auth_gss_proxy.c
 wp_uidmapper_SOURCES = wp_uidmapper.c id_table.c id_table.h 

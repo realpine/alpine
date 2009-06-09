@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: roleconf.c 725 2007-09-25 21:03:06Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: roleconf.c 937 2008-02-28 01:04:46Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -126,6 +126,7 @@ role_select_screen(struct pine *ps, ACTION_S **role, int alt_compose)
     OPT_SCREEN_S   screen;
     PAT_S         *pat, *sel_pat = NULL;
     int            ret = -1;
+    int            change_default = 0;
     long           rflags = ROLE_DO_ROLES;
     char          *helptitle;
     HelpType       help;
@@ -146,11 +147,16 @@ role_select_screen(struct pine *ps, ACTION_S **role, int alt_compose)
 
     if(alt_compose){
 	menu_init_binding(&role_select_km,
-	  alt_compose == MC_FORWARD ? 'F' : alt_compose == MC_REPLY ? 'R' : 'C',
+	  alt_compose == MC_FORWARD ? 'F' :
+	   alt_compose == MC_REPLY ? 'R' :
+	    alt_compose == MC_COMPOSE ? 'C' : 'B',
 	  MC_CHOICE,
-	  alt_compose == MC_FORWARD ? "F" : alt_compose == MC_REPLY ? "R" : "C",
-	  alt_compose == MC_FORWARD ? "[ForwardAs]"
-	    : alt_compose == MC_REPLY ? "[ReplyAs]" : "[" N_("ComposeAs") "]",
+	  alt_compose == MC_FORWARD ? "F" :
+	   alt_compose == MC_REPLY ? "R" :
+	    alt_compose == MC_COMPOSE ? "C" : "B",
+	  alt_compose == MC_FORWARD ? "[" N_("ForwardAs") "]" :
+	   alt_compose == MC_REPLY ? "[" N_("ReplyAs") "]" :
+	    alt_compose == MC_COMPOSE ? "[" N_("ComposeAs") "]" : "[" N_("BounceAs") "]",
 	  DEFAULT_KEY);
 	menu_add_binding(&role_select_km, ctrl('J'), MC_CHOICE);
 	menu_add_binding(&role_select_km, ctrl('M'), MC_CHOICE);
@@ -162,14 +168,15 @@ role_select_screen(struct pine *ps, ACTION_S **role, int alt_compose)
 	menu_add_binding(&role_select_km, ctrl('M'), MC_CHOICE);
     }
 
-    if(alt_compose){
-	helptitle = _("HELP FOR SELECTING A ROLE TO COMPOSE AS");
-	help      = h_role_select;
-    }
-    else{
-	helptitle = _("HELP FOR SELECTING A ROLE NICKNAME");
-	help      = h_role_nick_select;
-    }
+    help      = h_role_select;
+    if(alt_compose == MC_BOUNCE)
+      helptitle = _("HELP FOR SELECTING A ROLE TO BOUNCE AS");
+    else if(alt_compose)
+      helptitle = _("HELP FOR SELECTING A ROLE TO COMPOSE AS");
+    else
+      helptitle = _("HELP FOR SELECTING A ROLE");
+
+    menu_init_binding(&role_select_km, 'D', MC_TOGGLE, "D", "changeDef", CHANGEDEF_KEY); 
 
     for(pat = first_pattern(&pstate);
 	pat;
@@ -182,6 +189,7 @@ role_select_screen(struct pine *ps, ACTION_S **role, int alt_compose)
 					? pat->patgrp->nick : "?");
 	ctmp->d.r.selected = &sel_pat;
 	ctmp->d.r.pat      = pat;
+	ctmp->d.r.change_def = &change_default;
 	ctmp->keymenu      = &role_select_km;
 	ctmp->help         = help;
 	ctmp->help_title   = helptitle;
@@ -198,6 +206,11 @@ role_select_screen(struct pine *ps, ACTION_S **role, int alt_compose)
 
     if(sel_pat){
 	*role = sel_pat->action;
+	if(change_default == 1)
+	  ps_global->default_role = *role;
+	else if(change_default == 2)
+	  ps_global->default_role = NULL;
+
 	ret = 0;
     }
 
@@ -209,12 +222,40 @@ role_select_screen(struct pine *ps, ACTION_S **role, int alt_compose)
 int
 role_select_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 {
-    int retval;
+    int retval = 0, newval;
 
     switch(cmd){
       case MC_CHOICE :
 	*((*cl)->d.r.selected) = (*cl)->d.r.pat;
 	retval = simple_exit_cmd(flags);
+	break;
+
+      case MC_TOGGLE :
+	newval = (*((*cl)->d.r.change_def) + 1) % 3;
+	*((*cl)->d.r.change_def) = newval;
+	menu_init_binding((*cl)->keymenu, 'D', MC_TOGGLE, "D",
+	    (newval == 0) ? "changeDef" : (newval == 1) ? "removeDef" : "leaveDef",
+	    CHANGEDEF_KEY); 
+	if(newval == 1){
+	    if(ps_global->default_role)
+	      q_status_message(SM_ORDER, 0, 3,
+		  _("Default role will be changed to the role you Select"));
+	    else
+	      q_status_message(SM_ORDER, 0, 3,
+		  _("Default role will be set to the role you Select"));
+	}
+	else if(newval == 2){
+	    q_status_message(SM_ORDER, 0, 3, _("Default role will be unset"));
+	}
+	else{		/* newval == 0 */
+	    if(ps_global->default_role)
+	      q_status_message(SM_ORDER, 0, 3, _("Default role will remain unchanged"));
+	    else
+	      q_status_message(SM_ORDER, 0, 3, _("Default role will remain unset"));
+	}
+
+	ps->mangled_footer = 1;
+	retval = 0;
 	break;
 
       case MC_EXIT :
@@ -348,6 +389,12 @@ uh_oh:
 	  /*
 	   * Flush out current_vals of anything we've possibly changed.
 	   */
+
+	  if(ps_global->default_role){
+	      q_status_message(SM_ORDER,0,3, "Default role is unset");
+	      ps_global->default_role = NULL;
+	  }
+
 	  close_patterns((rflags & ROLE_MASK) | PAT_USE_CURRENT);
 
 	  /* scores may have changed */
@@ -638,6 +685,12 @@ role_take(struct pine *ps, MSGNO_S *msgmap, int rtype)
 	    /*
 	     * Flush out current_vals of anything we've possibly changed.
 	     */
+
+	    if(rflags & ROLE_DO_ROLES && ps_global->default_role){
+		q_status_message(SM_ORDER,0,3, "Default role is unset");
+		ps_global->default_role = NULL;
+	    }
+
 	    close_patterns(rflags | PAT_USE_CURRENT);
 
 	    role_type_print(msg, sizeof(msg), "New %srule saved", rflags);

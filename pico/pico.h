@@ -1,8 +1,8 @@
 /*
- * $Id: pico.h 859 2007-12-08 01:47:54Z mikes@u.washington.edu $
+ * $Id: pico.h 964 2008-03-14 23:53:39Z jpf@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -192,6 +192,7 @@ typedef struct pico_struct {
     UCS   *wordseps;			/* word separator characters other than space */
     int    fillcolumn;			/* where to wrap */
     int    menu_rows;			/* number of rows in menu (0 or 2) */
+    int    space_stuffed;		/* space-stuffed for flowed, in case needs undoing */
     long   edit_offset;			/* offset into hdr line or body */
     PATMT *attachments;			/* linked list of attachments */
     PCOLORS *colors;                    /* colors for titlebar and keymenu */
@@ -376,7 +377,7 @@ typedef struct  KBSTREE {
  */
 #ifdef	maindef
 PICO	*Pmaster = NULL;		/* composer specific stuff */
-char	*version = "5.00";		/* PICO version number */
+char	*version = "5.01";		/* PICO version number */
 
 #else
 extern	PICO *Pmaster;			/* composer specific stuff */

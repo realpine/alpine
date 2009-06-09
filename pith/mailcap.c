@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcap.c 771 2007-10-24 19:10:40Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailcap.c 932 2008-02-21 19:42:44Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -109,16 +109,23 @@ mc_conf_path(char *def_path, char *env_path, char *user_file, int separator, cha
 	 * potentially shared config data...
 	 */
 	if(s = last_cmpnt(ps_global->pinerc)){
-	    strncpy(tmp_20k_buf, ps_global->pinerc, MIN(s - ps_global->pinerc,SIZEOF_20KBUF));
-	    tmp_20k_buf[MIN(s - ps_global->pinerc,SIZEOF_20KBUF-1)] = '\0';
+	    strncpy(tmp_20k_buf+1000, ps_global->pinerc, MIN(s - ps_global->pinerc,SIZEOF_20KBUF-1000));
+	    tmp_20k_buf[1000+MIN(s - ps_global->pinerc,SIZEOF_20KBUF-1000-1)] = '\0';
 	}
 	else
-	  strncpy(tmp_20k_buf, ".\\", SIZEOF_20KBUF);
+	  strncpy(tmp_20k_buf+1000, ".\\", SIZEOF_20KBUF-1000);
 
+	/* pinerc directory version of file */
+	build_path(tmp_20k_buf+2000, tmp_20k_buf+1000, user_file, SIZEOF_20KBUF-2000);
 	tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
 
-	snprintf(tmp_20k_buf + strlen(tmp_20k_buf), SIZEOF_20KBUF-strlen(tmp_20k_buf), "%s%c%s\\%s",
-		user_file, separator, ps_global->pine_dir, user_file);
+	/* pine.exe directory version of file */
+	build_path(tmp_20k_buf+3000, ps_global->pine_dir, user_file, SIZEOF_20KBUF-3000);
+	tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
+
+	/* combine them */
+	snprintf(tmp_20k_buf, SIZEOF_20KBUF, "%s%c%s", tmp_20k_buf+2000, separator, tmp_20k_buf+3000);
+
 #else	/* !DOS */
 	build_path(tmp_20k_buf, ps_global->home_dir, stdpath, SIZEOF_20KBUF);
 #endif	/* !DOS */
@@ -881,18 +888,21 @@ mc_cmd_bldr(char *controlstring, int type, char *subtype,
 		     * Backslash quote is ignored inside single quotes so
 		     * have to put those outside of the single quotes.
 		     * (The parm+1000 nonsense is to protect against
-		     * malicious mail trying to overlow our buffer.)
+		     * malicious mail trying to overflow our buffer.)
+		     *
+		     * TCH - Change 2/8/1999
+		     * Also quote the ` to prevent execution of arbitrary code
 		     */
 		    for(p = parm; *p && p < parm+1000; p++){
-			if(*p == '\''){
-			    if(to-tmp_20k_buf+3 < SIZEOF_20KBUF){
+			if((*p == '\'') || (*p == '`')){
+			    if(to-tmp_20k_buf+4 < SIZEOF_20KBUF){
 				*to++ = '\'';  /* closing quote */
 				*to++ = '\\';
-				*to++ = '\'';  /* below will be opening quote */
+				*to++ = *p;    /* quoted character */
+				*to++ = '\'';  /* opening quote */
 			    }
 			}
-
-			if(to-tmp_20k_buf < SIZEOF_20KBUF)
+			else if(to-tmp_20k_buf < SIZEOF_20KBUF)
 			  *to++ = *p;
 		    }
 

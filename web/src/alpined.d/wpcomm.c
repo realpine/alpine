@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: wpcomm.c 701 2007-08-31 18:52:30Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: wpcomm.c 901 2008-01-07 22:01:34Z mikes@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -78,7 +78,7 @@ WPSendCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
        && (fname = Tcl_GetStringFromObj(objv[1], NULL))
        && (cmd = Tcl_GetStringFromObj(objv[2], NULL))){
 	if((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1){
-	    snprintf(errbuf = buf, sizeof(buf), "socket: %s", strerror(errno));
+	    snprintf(errbuf = buf, sizeof(buf), "WPC: socket: %s", strerror(errno));
 	}
 	else{
 	    name.sun_family = AF_UNIX;
@@ -86,9 +86,9 @@ WPSendCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 
 	    if(connect(s, (struct sockaddr *) &name, sizeof(name)) == -1){
 		if(errno == ECONNREFUSED || errno == ENOENT)
-		  snprintf(errbuf = buf, sizeof(buf), "Inactive session");
+		  snprintf(errbuf = buf, sizeof(buf), "WPC: Inactive session");
 		else
-		  snprintf(errbuf = buf, sizeof(buf), "connect: %s", strerror(errno));
+		  snprintf(errbuf = buf, sizeof(buf), "WPC: connect: %s", strerror(errno));
 	    }
 	    else if((wlen = n = strlen(cmd)) != 0){
 		if(n < 0x7fffffff){
@@ -97,7 +97,7 @@ WPSendCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 		    if(write(s, lbuf, i) == i){
 			for(i = 0; n; n = n - i)
 			  if((i = write(s, cmd + i, n)) == -1){
-			      snprintf(errbuf = buf, sizeof(buf), "write: %s", strerror(errno));
+			      snprintf(errbuf = buf, sizeof(buf), "WPC: write: %s", strerror(errno));
 			      break;
 			  }
 		    }
@@ -121,7 +121,7 @@ WPSendCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 			    else{
 				rs = 1;
 				if(append_rbuf(rbuf, &buf[b], i - b) < 0)
-				  snprintf(errbuf = buf, sizeof(buf), "Response Code Overrun");
+				  snprintf(errbuf = buf, sizeof(buf), "WPC: Response Code Overrun");
 				else if(!strcasecmp(rbuf,"OK"))
 				  rv = TCL_OK;
 				else if(!strcasecmp(rbuf,"ERROR"))
@@ -131,7 +131,7 @@ WPSendCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 				else if(!strcasecmp(rbuf,"RETURN"))
 				  rv = TCL_RETURN;
 				else
-				  snprintf(errbuf = buf, sizeof(buf), "Unexpected response: %s", rbuf);
+				  snprintf(errbuf = buf, sizeof(buf), "WPC: Unexpected response: %s", rbuf);
 			    }
 
 			    b = i + 1;
@@ -141,23 +141,27 @@ WPSendCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 			  if(rs)
 			    Tcl_AppendToObj(Tcl_GetObjResult(interp), &buf[b], i - b);
 			  else if(append_rbuf(rbuf, &buf[b], i - b) < 0)
-			    snprintf(errbuf = buf, sizeof(buf), "Response Code Overrun");
+			    snprintf(errbuf = buf, sizeof(buf), "WPC: Response Code Overrun");
 		      }
 		  }
 
 		if(!errbuf){
 		    if(n < 0){
-			snprintf(errbuf = buf, sizeof(buf), "read: %s", strerror(errno));
+			snprintf(errbuf = buf, sizeof(buf), "WPC: read: %s", strerror(errno));
 			rv = TCL_ERROR;
 		    }
 		    else if(!rs){
-			snprintf(errbuf = buf, sizeof(buf), "Invalid Response to %.*s (%d), (errno %d): %.*s", 12, cmd, wlen, errno, RESULT_MAX, rbuf);
+			if(n == 0)
+			  snprintf(errbuf = buf, sizeof(buf), "WPC: Server connection closed (%d)", errno);
+			else
+			  snprintf(errbuf = buf, sizeof(buf), "WPC: Invalid Response to \"%.*s\" (len %d) (%d): %.*s", 12, cmd, wlen, errno, RESULT_MAX, rbuf);
+
 			rv = TCL_ERROR;
 		    }
 		    else if(rv == TCL_ERROR){
 			char *s = Tcl_GetStringFromObj(Tcl_GetObjResult(interp), NULL);
 			if(!(s && *s))
-			  snprintf(errbuf = buf, sizeof(buf), "Empty ERROR Response");
+			  snprintf(errbuf = buf, sizeof(buf), "WPC: Empty ERROR Response");
 		    }
 		}
 	    }

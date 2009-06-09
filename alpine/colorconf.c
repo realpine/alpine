@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: colorconf.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: colorconf.c 929 2008-02-08 18:39:55Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1206,6 +1206,8 @@ color_setting_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
     char            *pval;
 #endif
 
+    sval[0] = '\0';
+
     switch(cmd){
       case MC_CHOICE :				/* set a color */
 
@@ -1937,6 +1939,10 @@ color_setting_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 	/* add it to end of list */
 	alval = ALVAL(&ps->vars[V_VIEW_HDR_COLORS], ew);
 	if(alval){
+	    /* get rid of possible empty value first */
+	    if((t = *alval) && t[0] && !t[0][0] && !(t+1)[0])
+	      free_list_array(alval);
+
 	    for(t = *alval, i=0; t && t[0]; t++)
 	      i++;
 	    
@@ -2578,6 +2584,7 @@ color_edit_screen(struct pine *ps, CONF_S **cl)
 
     new_confline(&ctmp)->var = vtmp;
 
+    name[0] = '\0';
     if(is_general){
 	p = srchstr(vtmp->name, "-foreground-color");
 	snprintf(name, sizeof(name), "%.*s", p ? MIN(p - vtmp->name, 30) : 30, vtmp->name);
@@ -2648,11 +2655,8 @@ color_edit_screen(struct pine *ps, CONF_S **cl)
 		  color = hdr_color(kw->kw, NULL, hcolors);
 	}
     }
-    else{
-	name[0] = '\0';
-    }
 
-    snprintf(tmp, sizeof(tmp), "%s Color =", name);
+    snprintf(tmp, sizeof(tmp), "%s Color =", name[0] ? name : "?");
     tmp[sizeof(tmp)-1] = '\0';
     ctmp->varname		 = cpystr(tmp);
     ctmp->varnamep		 = ctmpb = ctmp;

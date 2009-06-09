@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: folder.c 845 2007-12-05 22:34:30Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: folder.c 954 2008-03-06 22:35:32Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -302,7 +302,7 @@ folder_screen(struct pine *ps)
 	  && ((n++) ? (cntxt = context_screen(cntxt,&c_mgr_km,1)) != NULL :1)){
 
 	fs.context = cntxt;
-	if(F_ON(F_ENABLE_INCOMING_CHECKING, ps))
+	if(F_ON(F_ENABLE_INCOMING_CHECKING, ps) && ps->VAR_INCOMING_FOLDERS && ps->VAR_INCOMING_FOLDERS[0])
 	  ps->in_folder_screen = 1;
 
 	if((folders = folder_lister(ps, &fs)) != NULL){
@@ -1708,7 +1708,9 @@ folder_list_text(struct pine *ps, FPROC_S *fp, gf_io_t pc, HANDLE_S **handlesp, 
 
 		    if(fp->fs->include_unseen_cnt
 		       && c_list->use & CNTXT_INCMNG
-		       && F_ON(F_ENABLE_INCOMING_CHECKING, ps_global)){
+		       && F_ON(F_ENABLE_INCOMING_CHECKING, ps_global)
+		       && ps_global->VAR_INCOMING_FOLDERS
+		       && ps_global->VAR_INCOMING_FOLDERS[0]){
 
 			update_folder_unseen(f, c_list, UFU_ANNOUNCE, NULL);
 			if(F_ON(F_INCOMING_CHECKING_RECENT, ps_global)
@@ -1801,7 +1803,9 @@ folder_list_text(struct pine *ps, FPROC_S *fp, gf_io_t pc, HANDLE_S **handlesp, 
 
 			    if(fp->fs->include_unseen_cnt
 			       && c_list->use & CNTXT_INCMNG
-			       && F_ON(F_ENABLE_INCOMING_CHECKING, ps_global))
+			       && F_ON(F_ENABLE_INCOMING_CHECKING, ps_global)
+			       && ps_global->VAR_INCOMING_FOLDERS
+			       && ps_global->VAR_INCOMING_FOLDERS[0])
 			      flags |= FLW_UNSEEN;
 
 			    width = folder_list_write(pc, handlesp, c_list,
@@ -1992,7 +1996,8 @@ folder_list_write_suffix(FOLDER_S *f, int flags, gf_io_t pc)
 	if(F_ON(F_INCOMING_CHECKING_RECENT, ps_global)
 	   && f->unseen_valid
 	   && (f->new > 0L
-	       || F_ON(F_INCOMING_CHECKING_TOTAL, ps_global))){
+	       || (F_ON(F_INCOMING_CHECKING_TOTAL, ps_global)
+	           && f->total > 0L))){
 	    snprintf(buf, sizeof(buf), " (%s%s%s)",
 		     tose(f->new),
 		     F_ON(F_INCOMING_CHECKING_TOTAL, ps_global) ? "/" : "",
@@ -2001,7 +2006,8 @@ folder_list_write_suffix(FOLDER_S *f, int flags, gf_io_t pc)
 	else if(F_OFF(F_INCOMING_CHECKING_RECENT, ps_global)
 	   && f->unseen_valid
 	   && (f->unseen > 0L
-	       || F_ON(F_INCOMING_CHECKING_TOTAL, ps_global))){
+	       || (F_ON(F_INCOMING_CHECKING_TOTAL, ps_global)
+	           && f->total > 0L))){
 	    snprintf(buf, sizeof(buf), " (%s%s%s)",
 		     tose(f->unseen),
 		     F_ON(F_INCOMING_CHECKING_TOTAL, ps_global) ? "/" : "",

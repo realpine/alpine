@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: signal.c 876 2007-12-17 19:36:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: signal.c 922 2008-02-01 18:42:29Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -494,8 +494,8 @@ winch_cleanup(void)
    IMAP stream alive.
 
   ----------------------------------------------------------------------*/
-short    child_signalled, child_jump;
-jmp_buf  child_state;
+static short    child_signalled, child_jump;
+static jmp_buf  child_state;
 
 RETSIGTYPE
 child_signal(int sig)

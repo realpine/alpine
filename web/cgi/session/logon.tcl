@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: logon.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: logon.tcl 948 2008-03-06 00:24:37Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -153,7 +153,7 @@ cgi_eval {
 
     set startpage "[cgi_root]/${startpage}?sessid=$sessid"
 
-    if {[WPCmd PEInfo prunecheck] == 1} {
+    if {[string length $prunepage] && [WPCmd PEInfo prunecheck] == 1} {
       set startpage "[cgi_root]/${prunepage}cid=[WPCmd PEInfo key]&sessid=${sessid}&start=[WPPercentQuote ${startpage}]"
     }
 

@@ -1,10 +1,10 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: search.c 848 2007-12-06 19:57:49Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: search.c 897 2008-01-04 22:49:15Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -395,7 +395,7 @@ replace_pat(UCS *defpat, int *wrapt)
 	    *promptp = '\0';
 	}
 
-	prompt[sizeof(prompt)-1] = '\0';
+	prompt[NPMT-1] = '\0';
 
 	status = mlreplyd(prompt, lpat, NPAT, QDEFLT, menu_pat);
 

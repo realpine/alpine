@@ -22,9 +22,9 @@ echo Must specify build command!
 :usage
 echo usage: BUILD cmd
 echo   where "cmd" is one of either:
-echo         WNT        -- Windows
-echo         W2K        -- Windows with Win2k Kerb
-echo         CLEAN      -- to remove obj, lib, and exe files from source
+echo         wnt        -- Windows
+echo         w2k        -- Windows with Win2k Kerb
+echo         clean      -- to remove obj, lib, and exe files from source
 goto fini
 
 :wnt

@@ -1,5 +1,5 @@
 /*
- * $Id: filter.h 663 2007-08-04 00:05:21Z hubert@u.washington.edu $
+ * $Id: filter.h 945 2008-03-05 18:56:28Z mikes@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -30,6 +30,8 @@
 #define GFHP_NO_RELATIVE	0x08
 #define GFHP_RELATED_CONTENT	0x10
 #define	GFHP_SHOW_SERVER	0x20
+#define	GFHP_HTML		0x40
+#define	GFHP_HTML_IMAGES	0x80
 
 
 /* gf_wrap flags */

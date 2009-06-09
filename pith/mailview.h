@@ -1,8 +1,8 @@
 /*
- * $Id: mailview.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
+ * $Id: mailview.h 945 2008-03-05 18:56:28Z mikes@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,16 +30,19 @@
 
 
 /* format_message flags */
-#define	FM_DISPLAY	0x0001		/* result is headed for display		*/
-#define	FM_NEW_MESS	0x0002		/* a new message so zero out attachment descrip */
-#define	FM_NOWRAP	0x0008		/* no wrapping done			*/
-#define	FM_NOCOLOR	0x0010		/* no color added			*/
-#define	FM_NOINDENT	0x0020		/* no indents, but only works has effect if wrapping */
-#define	FM_NOEDITORIAL	0x0040		/* no editorial comments		*/
-#define	FM_NOHTMLREL	0x0200		/* no relative links			*/
-#define	FM_HTMLRELATED	0x0400		/* allow multi/related			*/
-#define	FM_FORCEPREFPLN	0x0800		/* force prefer-plain this time		*/
+#define	FM_DISPLAY	  0x0001	/* result is headed for display		*/
+#define	FM_NEW_MESS	  0x0002	/* a new message so zero out attachment descrip */
+#define	FM_NOWRAP	  0x0008	/* no wrapping done			*/
+#define	FM_NOCOLOR	  0x0010	/* no color added			*/
+#define	FM_NOINDENT	  0x0020	/* no indents, but only works has effect if wrapping */
+#define	FM_NOEDITORIAL	  0x0040	/* no editorial comments		*/
+#define	FM_NOHTMLREL	  0x0200	/* no relative links			*/
+#define	FM_HTMLRELATED	  0x0400	/* allow multi/related			*/
+#define	FM_FORCEPREFPLN	  0x0800	/* force prefer-plain this time		*/
 #define	FM_FORCENOPREFPLN 0x1000	/* force not prefer-plain this time	*/
+#define	FM_HIDESERVER	  0x2000	/* HIDE servername after active HTML links */
+#define	FM_HTML		  0x4000	/* filter/preserve HTML markup		*/
+#define	FM_HTMLIMAGES	  0x8000	/* filter/preserve HTML IMG tags	*/
 
 
 #define SIGDASHES	"-- "
@@ -69,6 +72,11 @@
 			 | FE_NEWSGROUPS | FE_SUBJECT | FE_REPLYTO \
 			 | FE_FOLLOWUPTO)
 
+
+/*
+ * Function to format 
+ */
+typedef void (*fmt_env_t)(MAILSTREAM *, long int, char *, ENVELOPE *, gf_io_t, long int, char *, int);
 
 /*
  * Structure and macros to help control format_header_text
@@ -111,8 +119,9 @@ typedef struct header_s {
 
 
 /* exported protoypes */
-int	 format_message(long, ENVELOPE *, BODY *, HANDLE_S **,
-				  int, gf_io_t);
+int	 format_message(long, ENVELOPE *, BODY *, HANDLE_S **, int, gf_io_t);
+int	 format_attachment_list(long int, BODY *, HANDLE_S **, int, int, gf_io_t);
+char	*format_body(long int, BODY *, HANDLE_S **, HEADER_S *, int, int, gf_io_t);
 int	 url_hilite(long, char *, LT_INS_S **, void *);
 int	 handle_start_color(char *, size_t, int *, int);
 int	 handle_end_color(char *, size_t, int *);
@@ -124,8 +133,10 @@ int	 handle_end_color(char *, size_t, int *);
 int	    url_external_specific_handler(char *, int);
 int	    url_imap_folder(char *, char **, imapuid_t *, imapuid_t *, char **, int);
 int	    url_bogus(char *, char *);
-int	    format_header(MAILSTREAM *, long, char *, ENVELOPE *,
-			  HEADER_S *, char *, HANDLE_S **, int, gf_io_t);
+void        pine_rfc822_address(ADDRESS *, gf_io_t);
+void        pine_rfc822_cat(char *, const char *, gf_io_t);
+int	    format_header(MAILSTREAM *, long, char *, ENVELOPE *, HEADER_S *,
+			  char *, HANDLE_S **, int,  fmt_env_t, gf_io_t);
 COLOR_PAIR *hdr_color(char *, char *, SPEC_COLOR_S *);
 char	   *display_parameters(PARAMETER *);
 char	   *pine_fetch_header(MAILSTREAM *, long, char *, char **, long);

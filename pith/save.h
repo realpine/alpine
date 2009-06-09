@@ -1,8 +1,8 @@
 /*
- * $Id: save.h 609 2007-06-22 23:38:20Z hubert@u.washington.edu $
+ * $Id: save.h 938 2008-02-29 18:18:49Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,12 @@
 #define SV_FIX_DELS		0x4	/* remove Del mark before saving	*/
 #define SV_INBOXWOCNTXT		0x8	/* interpret "inbox" as one true inbox	*/
 #define SV_PRESERVE		0x10	/* preserve order			*/
+
+
+#define SSCP_NONE		0x0
+#define SSCP_INIT		0x1
+#define SSCP_END		0x2
+#define SSCP_ANSWER_IS_YES	0x4
 
 
 /* exported protoypes */

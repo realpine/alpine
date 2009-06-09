@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: reply.c 839 2007-12-01 01:10:52Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: reply.c 953 2008-03-06 20:54:01Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -957,24 +957,37 @@ reply_body(MAILSTREAM *stream, ENVELOPE *env, struct mail_bodystruct *orig_body,
 	    body		     = mail_newbody();
 	    body->type		     = TYPETEXT;
 	    body->contents.text.data = msgtext;
-	    if(orig_body
-	       && (charset = rfc2231_get_param(orig_body->parameter, "charset", NULL, NULL)))
-	      set_parameter(&body->parameter, "charset", charset);
-
-	    if(charset)
-	      fs_give((void **) &charset);
-
 	    reply_delimiter(env, role, pc);
 	    if(F_ON(F_INCLUDE_HEADER, ps_global))
 	      reply_forward_header(stream, msgno, sect_prefix,
 				   env, pc, prefix);
 
 	    if(!orig_body || reply_raw_body || reply_body_text(orig_body, &tmp_body)){
-		get_body_part_text(stream, reply_raw_body ? NULL : tmp_body, msgno,
-				   reply_raw_body ? sect_prefix
-				   : (p = body_partno(stream, msgno, tmp_body)),
+		BODY *bodyp = NULL;
+
+		bodyp = reply_raw_body ? NULL : tmp_body;
+
+		/*
+		 * We set the charset in the outgoing message to the same
+		 * as the one in the message we're replying to unless it
+		 * is the unknown charset. We do that in order to attempt
+		 * to preserve the same charset in the reply if possible.
+		 * It may be safer to just set it to whatever we want instead
+		 * but then the receiver may not be able to read it.
+		 */
+		if(bodyp
+		   && (charset = rfc2231_get_param(bodyp->parameter, "charset", NULL, NULL))
+		   && strucmp(charset, UNKNOWN_CHARSET))
+		  set_parameter(&body->parameter, "charset", charset);
+
+		if(charset)
+		  fs_give((void **) &charset);
+
+		get_body_part_text(stream, bodyp, msgno,
+				   bodyp ? (p = body_partno(stream, msgno, bodyp))
+					 : sect_prefix,
 				   0L, pc, prefix, NULL, GBPT_NONE);
-		if(!reply_raw_body && p)
+		if(bodyp && p)
 		  fs_give((void **) &p);
 	    }
 	    else{
@@ -1010,7 +1023,8 @@ reply_body(MAILSTREAM *stream, ENVELOPE *env, struct mail_bodystruct *orig_body,
 		    get_body_part_text(stream, tmp_body, msgno,
 				       p = body_partno(stream,msgno,tmp_body),
 				       0L, pc, prefix, NULL, GBPT_NONE);
-		    fs_give((void **) &p);
+		    if(p)
+		      fs_give((void **) &p);
 		}
 		else
 		  q_status_message(SM_ORDER | SM_DING, 3, 3,
@@ -1045,7 +1059,7 @@ reply_body(MAILSTREAM *stream, ENVELOPE *env, struct mail_bodystruct *orig_body,
 					   env, pc, prefix);
 
 		    if(!(get_body_part_text(stream,
-					    &body->nested.part->body,
+					    &orig_body->nested.part->body,
 					    msgno, section, 0L, pc, prefix,
 					    &new_charset, GBPT_NONE)
 			 && fetch_contents(stream, msgno, sect_prefix, body)))
@@ -1207,15 +1221,37 @@ reply_body_text(struct mail_bodystruct *body, struct mail_bodystruct **new_body)
 	  case TYPEMULTIPART :
 	    if(body->subtype && !strucmp(body->subtype, "alternative")){
 		PART *part;
+		int got_one = 0;
 
-		/* Pick out the interesting text piece */
-		for(part = body->nested.part; part; part = part->next)
-		  if((!part->body.type || part->body.type == TYPETEXT)
-		     && (!part->body.subtype
-			 || !strucmp(part->body.subtype, "plain"))){
-		      *new_body = &part->body;
-		      return(1);
-		  }
+		if(ps_global->force_prefer_plain
+		   || (!ps_global->force_no_prefer_plain
+		       && F_ON(F_PREFER_PLAIN_TEXT, ps_global))){
+		    for(part = body->nested.part; part; part = part->next)
+		      if((!part->body.type || part->body.type == TYPETEXT)
+			 && (!part->body.subtype
+			     || !strucmp(part->body.subtype, "plain"))){
+			  *new_body = &part->body;
+			  return(1);
+		      }
+		}
+
+		/*
+		 * Else choose last alternative among plain or html parts.
+		 * Perhaps we should really be using mime_show() to make this
+		 * potentially more general than just plain or html.
+		 */
+		for(part = body->nested.part; part; part = part->next){
+		    if((!part->body.type || part->body.type == TYPETEXT)
+		        && ((!part->body.subtype || !strucmp(part->body.subtype, "plain"))
+			    ||
+			    (part->body.subtype && !strucmp(part->body.subtype, "html")))){
+			got_one++;
+			*new_body = &part->body;
+		    }
+		}
+
+		if(got_one)
+		  return(1);
 	    }
 	    else if(body->nested.part)
 	      /* NOTE: we're only interested in "first" part of mixed */
@@ -2043,8 +2079,8 @@ reply_forward_header(MAILSTREAM *stream, long int msgno, char *part, ENVELOPE *e
     }
 
     HD_INIT(&h, list, ps_global->view_all_except, FE_DEFAULT & ~FE_BCC);
-    if((rv = format_header(stream, msgno, part, env, &h, prefix, NULL,
-			  FM_NOINDENT, pc)) != 0){
+    if((rv = format_header(stream, msgno, part, env, &h,
+			   prefix, NULL, FM_NOINDENT, NULL, pc)) != 0){
 	if(rv == 1)
 	  gf_puts("  [Error fetching message header data]", pc);
     }
@@ -2727,13 +2763,18 @@ twsp_strip(long int linenum, char *line, LT_INS_S **ins, void *local)
 {
     char *p, *ws = NULL;
 
-    for(p = line; *p; p++)
+    for(p = line; *p; p++){
+      /* don't strip trailing space on signature line */
+      if(*line == '-' && *(line+1) == '-' && *(line+2) == ' ' && !*(line+3))
+        break;
+
       if(isspace((unsigned char) *p)){
 	  if(!ws)
 	    ws = p;
       }
       else
 	ws = NULL;
+    }
 
     if(ws)
       ins = gf_line_test_new_ins(ins, ws, "", -(p - ws));
@@ -3128,9 +3169,12 @@ generate_user_agent(void)
     char         buf[128];
     char         rev[128];
 
+    if(F_ON(F_QUELL_USERAGENT, ps_global))
+      return(NULL);
+
     snprintf(buf, sizeof(buf),
 	     "Alpine %s (%s %s)", ALPINE_VERSION, SYSTYPE,
-	     get_alpine_revision_number(rev, sizeof(rev)));
+	     get_alpine_revision_string(rev, sizeof(rev)));
 
     return(cpystr(buf));
 }
@@ -3431,19 +3475,44 @@ forward_multi_alt(MAILSTREAM *stream, ENVELOPE *env, struct mail_bodystruct *ori
 		  long int msgno, char *sect_prefix, void *msgtext, gf_io_t pc, int flags)
 {
     BODY *body = NULL;
-    PART *part;
+    PART *part = NULL, *bestpart = NULL;
     char  tmp_buf[256];
     char *new_charset = NULL;
-    int   partnum;
+    int   partnum, bestpartnum;
 
-    /* Pick out the interesting text piece */
-    for(part = orig_body->nested.part, partnum = 1;
-	part;
-	part = part->next, partnum++)
-      if((!part->body.type || part->body.type == TYPETEXT)
-	 && (!part->body.subtype
-	     || !strucmp(part->body.subtype, "plain")))
-	break;
+    if(ps_global->force_prefer_plain
+       || (!ps_global->force_no_prefer_plain
+	   && F_ON(F_PREFER_PLAIN_TEXT, ps_global))){
+	for(part = orig_body->nested.part, partnum = 1;
+	    part;
+	    part = part->next, partnum++)
+	  if((!part->body.type || part->body.type == TYPETEXT)
+	     && (!part->body.subtype
+		 || !strucmp(part->body.subtype, "plain")))
+	      break;
+    }
+
+    /*
+     * Else choose last alternative among plain or html parts.
+     * Perhaps we should really be using mime_show() to make this
+     * potentially more general than just plain or html.
+     */
+    if(!part){
+	for(part = orig_body->nested.part, partnum = 1;
+	    part;
+	    part = part->next, partnum++){
+	    if((!part->body.type || part->body.type == TYPETEXT)
+		&& ((!part->body.subtype || !strucmp(part->body.subtype, "plain"))
+		    ||
+		    (part->body.subtype && !strucmp(part->body.subtype, "html")))){
+		bestpart = part;
+		bestpartnum = partnum;
+	    }
+	}
+
+	part = bestpart;
+	partnum = bestpartnum;
+    }
 
     /*
      * IF something's interesting insert it
@@ -3468,7 +3537,7 @@ forward_multi_alt(MAILSTREAM *stream, ENVELOPE *env, struct mail_bodystruct *ori
 		sect_prefix ? "." : "", flags & FWD_NESTED ? "1." : "",
 		partnum);
 	tmp_buf[sizeof(tmp_buf)-1] = '\0';
-	get_body_part_text(stream, body, msgno, tmp_buf, 0L, pc,
+	get_body_part_text(stream, &part->body, msgno, tmp_buf, 0L, pc,
 			   NULL, &new_charset, GBPT_NONE);
 
 	/*

@@ -1,9 +1,9 @@
-# $Id: pine.hlp 882 2007-12-20 16:34:31Z hubert@u.washington.edu $
+# $Id: pine.hlp 962 2008-03-14 18:34:08Z hubert@u.washington.edu $
 #
 #        T H E   A L P I N E    M E S S A G E   S Y S T E M
 #
 #/* ========================================================================
-# * Copyright 2006-2007 University of Washington
+# * Copyright 2006-2008 University of Washington
 # *
 # * Licensed under the Apache License, Version 2.0 (the "License");
 # * you may not use this file except in compliance with the License.
@@ -137,10 +137,10 @@ NOTE: Several sections of help text which weren't being used were removed
 at RCS version number 4.122.  In particular, there were some placeholders
 with help text for the config screen and the composer that didn't have any
 reasonable place to be called from.
-Dummy change to get revision in pine.hlp.
+Dummy change to get revision in pine.hlp
 
 ============= h_revision =================
-$Id: pine.hlp 882 2007-12-20 16:34:31Z hubert@u.washington.edu $
+$Id: pine.hlp 962 2008-03-14 18:34:08Z hubert@u.washington.edu $
 ============= h_news =================
 <HTML>
 <HEAD>
@@ -149,7 +149,7 @@ $Id: pine.hlp 882 2007-12-20 16:34:31Z hubert@u.washington.edu $
 <BODY>                 
 <H1>Alpine Release Notes</H1>
 <DIV ALIGN=CENTER>
-Version <!--#echo var="ALPINE_VERSION"-->
+Version <!--#echo var="ALPINE_VERSION"-->(<!--#echo var="ALPINE_REVISION"-->)
 <BR>
 <!--chtml if pinemode="running"-->
 (built <!--#echo var=ALPINE_COMPILE_DATE-->)
@@ -167,16 +167,125 @@ variety of Unix&reg; operating systems.  A version for Microsoft Windows&reg;
 is available as is a world wide web based version designed to run under the
 Apache web server.
 
-<H2>New in Alpine <!--#echo var="ALPINE_VERSION"--></H2>
+<H2>New in Alpine <!--#echo var="ALPINE_VERSION"-->(<!--#echo var="ALPINE_REVISION"-->)</H2>
 
-Alpine <!--#echo var="ALPINE_VERSION"-->
-is an evolutionary release that is based on
+Version <!--#echo var="ALPINE_VERSION"-->(<!--#echo var="ALPINE_REVISION"-->)
+addresses bugs found in previous releases and has a few additions as well.
+
+<P>
+Additions include:
+<P>
+
+<UL>
+   <LI> Add the possibility of setting a default role
+	(see <A HREF="h_role_select">Roles Screen</A>)
+	which may be convenient if your work flow involves acting in one
+	role for a while then switching to another role and staying in the
+	new role for another period of time
+   <LI> When Saving and the IMAP server problem &quot;Message to save shrank!&quot;
+	is encountered, ask the user if he or she wants to continue with the
+	risky Save anyway instead of aborting. This may be helpful if your
+	IMAP server is broken in this way but be aware that it is possible there
+	was a real error instead of just a broken server implementation.
+   <LI> Some configure adjustments for Kerberos detection and
+	for SCO OpenServer 5 support
+   <LI> Hide INBOX in a collection if it also appears as an
+	<A HREF="h_config_enable_incoming">Incoming Folder</A>
+   <LI> Show asterisks for feedback when the user is typing a password
+   <LI> Performance improvement for threading of large folders
+   <LI> Previously, the search used to find
+	Pattern matches containing To patterns searched for both To
+	and Resent-To headers. The relatively complicated search this
+	produces causes problems when using some deficient IMAP servers.
+	Now the default is to look only for To headers and ignore the
+	presence of Resent-To. The previous behavior may be restored
+	with the <A HREF="h_config_use_resentto"><!--#echo var="FEAT_use-resent-to-in-rules"--></A> feature.
+   <LI> Add an
+	<A HREF="h_config_unk_char_set"><!--#echo var="VAR_unknown-character-set"--></A>
+	to help with reading malformed unlabeled messages
+   <LI><A HREF="h_config_suppress_user_agent"><!--#echo var="FEAT_suppress-user-agent-when-sending"--></A> option added
+   <LI> Map some Shift-LeftArrow escape sequences to LeftArrow
+   <LI> Add feature <A HREF="h_config_warn_if_fcc_blank"><!--#echo var="FEAT_warn-if-blank-fcc"--></A>
+</UL>
+
+<P>
+Bugs that have been addressed include:
+<P>
+
+<UL>
+   <LI> Crash when encountering certain errors from an SMTP server
+   <LI> Crash in composer caused by overflow in replace_pat()
+   <LI> Hang when authenticating to an SMTP server that fails with a
+	&quot;connection disconnected&quot; error
+   <LI> Bug in handling of trailing tab character in flowed text
+   <LI> Security enhancement for mailcap parameter substitution
+   <LI> <A HREF="h_config_strip_sigdashes"><!--#echo var="FEAT_strip-from-sigdashes-on-reply"--></A>
+	did not work if the message being replied to was not flowed text
+	and <A HREF="h_config_quell_flowed_text"><!--#echo var="FEAT_quell-flowed-text"--></A>
+	was not turned on
+   <LI> Don't allow printer to be changed through hidden config screen
+	if system administrator didn't want it to be allowed
+   <LI> Attempts are sometimes made to set the Forwarded flag when alpine
+	should know that it won't work, causing error messages to appear
+   <LI> A <A HREF="h_config_reply_indent_string"><!--#echo var="VAR_reply-indent-string"--></A>
+        of double-quote double-quote didn't work right
+   <LI> Quoting wasn't being done to protect special characters from the
+	MacOS X shell when
+	<A HREF="h_config_browser"><!--#echo var="VAR_url-viewers"--></A>
+	was not defined
+   <LI> On MacOS X message attachments should be shown internally instead of
+	being shown using the Mail application
+   <LI> When replying to a message with a charset of X-UNKNOWN Alpine would
+	sometimes set the outgoing charset to X-UNKNOWN, making the result
+	unreadable
+   <LI> When the sending of a message failed lines with leading spaces had one
+	additional space inserted in each of those lines when the user
+	was returned to the composer
+   <LI> The <A HREF="h_index_cmd_whereis">WhereIs</A> command missed some index lines
+	that contained non-ascii characters because it was truncating the
+	line being searched so that it was shorter than what was visible on
+	the screen
+   <LI> When composing, an attachment with a long name that causes wrapping in
+	just the wrong place would generate an error and cause the send
+	of the attachment to fail
+   <LI> After calling the file browser to attach a file in the composer, a resize
+	of the window when back in the composer would redraw the last screen that
+	had been shown in the browser instead of the current composer screen
+   <LI> Possible crash in index screen when encountering unparseable addresses
+	or when using one of the PRIORITY tokens or the HEADER token in the
+	<a href="h_config_index_format"><!--#echo var="VAR_index-format"--></a>
+   <LI> Problems with Header Color editing if the configuration option
+	<a href="h_config_customhdr_color"><!--#echo var="VAR_viewer-hdr-colors"--></a>
+	was inadvertently changed to the Empty Value in the hidden config screen
+   <LI> When resuming the final postponed message from an Exchange server the user
+	could get a certificate validation failure because alpine was trying
+	to validate the canonical name of the folder instead of the name the
+	user used
+   <LI> Windows line endings in a mimetypes file on a Unix system cause a
+	failure to find a match
+   <LI> Make matching of extension names case independent in mimetypes files
+   <LI> Windows dialog boxes for entering text were not working correctly
+   <LI> Replying to or Forwarding multipart/alternative messages which had a
+	single text/html part did not work well
+   <LI> Printing the print confirmation page caused a crash
+   <LI> A To line with a long, quoted personal name could display incorrectly
+	if it was close to the same width as the screen
+   <LI> When <A HREF="h_config_enable_incoming_checking"><!--#echo var="FEAT_enable-incoming-folders-checking"--></A>
+	and <A HREF="h_config_incoming_checking_total"><!--#echo var="FEAT_incoming-checking-includes-total"--></A>
+	are turned on hide (0/0) when the folder is empty
+   <LI> Folder completion while Saving didn't work if the collection being
+	saved to was the local home directory
+</UL>
+
+<P>
+Version 1.00
+was an evolutionary release based on
 <A HREF="http://www.washington.edu/pine/">Pine</A>, which was also
 developed at the University of Washington.
 It is upwards-compatible for existing Pine users.
 
 <P>
-Changes include:
+Changes included:
 <P>
 <UL>
    <LI> Ground-up reorganization of source code around addition
@@ -193,6 +302,7 @@ Changes include:
 </UL>
 
 <P>
+
 Details on changes in previous (prerelease) versions of Alpine
 may be found at the following URL:
 <P>
@@ -245,7 +355,7 @@ page at
 <CENTER><A HREF="http://www.washington.edu/alpine/credits.html">http://www.washington.edu/alpine/credits</A></CENTER>
 
 <P>
-Alpine Copyright 2006-2007 University of Washington
+Alpine Copyright 2006-2008 University of Washington
 
 <P>
 Additional legal notices can be found <A HREF="h_news_legal">here</A>
@@ -3039,6 +3149,7 @@ There are also additional details on
 <li><a href="h_config_quell_host_after_url">FEATURE: <!--#echo var="FEAT_quell-server-after-link-in-html"--></a>
 <li><a href="h_config_quell_beeps">FEATURE: <!--#echo var="FEAT_quell-status-message-beeping"--></a>
 <li><a href="h_config_quell_tz_comment">FEATURE: <!--#echo var="FEAT_quell-timezone-comment-when-sending"--></a>
+<li><a href="h_config_suppress_user_agent">FEATURE: <!--#echo var="FEAT_suppress-user-agent-when-sending"--></a>
 <li><a href="h_config_tab_checks_recent">FEATURE: <!--#echo var="FEAT_tab-checks-recent"--></a>
 <li><a href="h_config_tab_uses_unseen">FEATURE: <!--#echo var="FEAT_tab-uses-unseen-for-next-folder"--></a>
 <li><a href="h_config_tab_new_only">FEATURE: <!--#echo var="FEAT_tab-visits-next-new-message-only"--></a>
@@ -3049,10 +3160,12 @@ There are also additional details on
 <li><a href="h_config_use_current_dir">FEATURE: <!--#echo var="FEAT_use-current-dir"--></a>
 <li><a href="h_config_use_fk">FEATURE: <!--#echo var="FEAT_use-function-keys"--></a>
 <li><a href="h_config_use_reg_start_for_stayopen">FEATURE: <!--#echo var="FEAT_use-regular-startup-rule-for-stayopen-folders"--></a>
+<li><a href="h_config_use_resentto">FEATURE: <!--#echo var="FEAT_use-resent-to-in-rules"--></a>
 <li><a href="h_config_use_sender_not_x">FEATURE: <!--#echo var="FEAT_use-sender-not-x-sender"--></a>
 <li><a href="h_config_suspend_spawns">FEATURE: <!--#echo var="FEAT_use-subshell-for-suspend"--></a>
 <li><a href="h_config_use_system_translation">FEATURE: Use System Translation</a>
 <li><a href="h_config_vertical_list">FEATURE: <!--#echo var="FEAT_vertical-folder-list"--></a>
+<li><a href="h_config_warn_if_fcc_blank">FEATURE: <!--#echo var="FEAT_warn-if-blank-fcc"--></a>
 <li><a href="h_config_warn_if_subj_blank">FEATURE: <!--#echo var="FEAT_warn-if-blank-subject"--></a>
 <li><a href="h_config_warn_if_no_to_or_cc">FEATURE: <!--#echo var="FEAT_warn-if-blank-to-and-cc-and-newsgroups"--></a>
 <li><a href="h_mainhelp_filtering">Filtering</a>
@@ -3264,6 +3377,7 @@ There are also additional details on
 <li><a href="h_config_title_color">OPTION: Title Color</a>
 <li><a href="h_config_titleclosed_color">OPTION: Title Closed Color</a>
 <li><a href="h_config_titlebar_color_style">OPTION: <!--#echo var="VAR_titlebar-color-style"--></a>
+<li><a href="h_config_unk_char_set">OPTION: <!--#echo var="VAR_unknown-character-set"--></a>
 <li><a href="h_config_upload_cmd">OPTION: <!--#echo var="VAR_upload-command"--></a>
 <li><a href="h_config_upload_prefix">OPTION: <!--#echo var="VAR_upload-command-prefix"--></a>
 <li><a href="h_config_browser">OPTION: <!--#echo var="VAR_url-viewers"--></a>
@@ -3273,7 +3387,7 @@ There are also additional details on
 <li><a href="h_config_user_input_timeo">OPTION: <!--#echo var="VAR_user-input-timeout"--></a>
 <li><a href="h_config_viewer_headers">OPTION: <!--#echo var="VAR_viewer-hdrs"--></a>
 <li><a href="h_config_customhdr_pattern">OPTION: Viewer Header Color Pattern</a>
-<li><a href="h_config_customhdr_color">OPTION: Viewer Header Colors</a>
+<li><a href="h_config_customhdr_color">OPTION: <!--#echo var="VAR_viewer-hdr-colors"--></a>
 <li><a href="h_config_viewer_margin_left">OPTION: <!--#echo var="VAR_viewer-margin-left"--></a>
 <li><a href="h_config_viewer_margin_right">OPTION: <!--#echo var="VAR_viewer-margin-right"--></a>
 <li><a href="h_config_viewer_overlap">OPTION: <!--#echo var="VAR_viewer-overlap"--></a>
@@ -3758,13 +3872,13 @@ results in:
 </PRE>
 <P>
 
-For some configuration options, like &quot;Viewer-Hdr-Colors&quot; or
+For some configuration options, like &quot;<!--#echo var="VAR_viewer-hdr-colors"-->&quot; or
 &quot;<!--#echo var="VAR_patterns-roles"-->&quot;, it is
 difficult to insert the value &quot;INHERIT&quot; into the list of values
 for the option using the normal Setup tools.
 In other words, the color setting screen (for example) does not
 provide a way to input the text &quot;INHERIT&quot; as the first
-item in the Viewer-Hdr-Colors option.
+item in the <!--#echo var="VAR_viewer-hdr-colors"--> option.
 The way to do this is to either edit the pinerc file directly and manually
 insert it, or turn
 on the <A HREF="h_config_expose_hidden_config"><!--#echo var="FEAT_expose-hidden-config"--></A>
@@ -7588,6 +7702,58 @@ instead of the actual keyword.
 &lt;End of help on this topic&gt;
 </BODY>
 </HTML>
+===== h_select_charset_screen =====
+<HTML>
+<HEAD>
+<TITLE>SELECT A CHARACTER SET SCREEN</TITLE>
+</HEAD>
+<BODY>
+<H1>SELECT A CHARACTER SET SCREEN</H1>
+<H2>COMMANDS</H2>
+<!--chtml if pinemode="function_key"-->
+<PRE>
+Available  Commands                        
+-------------------------------            
+F1  Show Help Text
+F3  Exit without selecting anything
+F4  Select the highlighted character set
+F5  Move highlight to previous character set
+F6  Move highlight to next character set
+F7  Previous page of character sets
+F8  Next page of character sets
+F11 Print
+F12 WhereIs
+</PRE>
+<!--chtml else-->
+<PRE>
+Navigation                     General Alpine Commands
+-----------------------        ---------------------
+ P  Prev Character Set          ?  Display this help text
+ N  Next Character Set          E  Exit without selecting anything
+ -  Previous page               %  Print
+Spc (space bar) Next page
+ W  WhereIs
+
+Select Command
+------------------------------------------------
+ S  Select the highlighted character set
+</PRE>
+<!--chtml endif-->
+
+<H2>Description of the Select A Character Set Screen</H2>
+
+This screen just gives you an easy way to select a character set from the
+set of character sets Alpine knows about.
+The list presented will vary slightly depending on what option you are
+selecting the character set for.
+
+<P><UL>
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL>
+<P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
 ===== h_select_multcharsets_screen =====
 <HTML>
 <HEAD>
@@ -7733,7 +7899,7 @@ F12 WhereIs
 Navigation                     General Alpine Commands
 -----------------------        ---------------------
  P  Prev Folder                 ?  Display this help text
- N  Next Folder                 E  Exit without selecting anything
+ N  Next Folder                ^C  exit without changing anything
  -  Previous page               %  Print
 Spc (space bar) Next page
  W  WhereIs
@@ -7760,7 +7926,7 @@ an &quot;X&quot;.
 When you've finished marking all your selections use the Select
 command to register your choices.
 To return to the default of checking all incoming folders
-choose Exit or mark all folders.
+delete all folders or unmark all folders.
 
 <P><UL>
 <LI><A HREF="h_finding_help">Finding more information and requesting help</A>
@@ -7782,12 +7948,13 @@ choose Exit or mark all folders.
 Available  Commands                        
 -------------------------------            
 F1  Show Help Text
-F3  Back to MAIN Alpine menu
+F3  Exit without a selection
 F4  Select a role to use in composition
 F5  Move to previous role
 F6  Move to next role
 F7  Previous page of roles
 F8  Next page of roles
+F11 Change Default Role
 F12 Whereis (search role nicknames)
 </PRE>
 <!--chtml else-->
@@ -7795,14 +7962,15 @@ F12 Whereis (search role nicknames)
 Navigation                     General Alpine Commands
 -----------------------        ---------------------
  P  Prev Role                     ?  Display this help text
- N  Next Role                     E  Back to MAIN Alpine menu
+ N  Next Role                     E  Exit without a selection
  -  Previous page
 Spc (space bar) Next page
  W  WhereIs (search for word in role nicknames)
 
 Select Role Commands
 ------------------------------------------------
- C  Compose using highlighted role
+ [Return]  Select highlighted role
+ D         Change Default Role
 </PRE>
 <!--chtml endif-->
 
@@ -7812,11 +7980,16 @@ With this screen you select a role to be used in the composition of a
 message.
 Use the Previous and Next commands to highlight the role you wish to
 use.
-When you type C you will be placed in the composer using the highlighted role.
+When you type carriage return you will be placed in the composer using the highlighted role.
 <P>
 You don't have any non-default <A HREF="h_rules_roles">roles</A>
 available unless you set them up.
 You may do so by using the Setup/Rules command on the MAIN MENU.
+<P>
+By using the D command, you may set a default role that will persist until
+you change it or until you exit Alpine.
+The D command toggles through three states: set the default role, unset the
+default role, and leave the default role as it is.
 <P><UL>
 <LI><A HREF="h_finding_help">Finding more information and requesting help</A>
 </UL>
@@ -7867,59 +8040,6 @@ Select Role Commands
 This screen helps you select one of your address books.
 Use the Previous and Next commands to highlight the address book you wish to
 select.
-<P><UL>
-<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
-</UL>
-<P>
-&lt;End of help on this topic&gt;
-</BODY>
-</HTML>
-===== h_role_nick_select =====
-<HTML>
-<HEAD>
-<TITLE>ROLE NICKNAME SCREEN</TITLE>
-</HEAD>
-<BODY>
-<H1>ROLE NICKNAME SCREEN</H1>
-<H2>COMMANDS</H2>
-<!--chtml if pinemode="function_key"-->
-<PRE>
-Available  Commands                        
--------------------------------            
-F1  Show Help Text
-F3  Back to MAIN Alpine menu
-F4  Select highlighted role
-F5  Move to previous role
-F6  Move to next role
-F7  Previous page of roles
-F8  Next page of roles
-F12 Whereis (search role nicknames)
-</PRE>
-<!--chtml else-->
-<PRE>
-Navigation                     General Alpine Commands
------------------------        ---------------------
- P  Prev Role                     ?  Display this help text
- N  Next Role                     E  Back to MAIN Alpine menu
- -  Previous page
-Spc (space bar) Next page
- W  WhereIs (search for word in role nicknames)
-
-Select Role Commands
-------------------------------------------------
- S  Select highlighted role
-</PRE>
-<!--chtml endif-->
-
-<H2>Description of the Role Nicknames Screen</H2>
-
-This screen helps you select one of your role nicknames.
-Use the Previous and Next commands to highlight the role you wish to
-use.
-<P>
-You don't have any non-default <A HREF="h_rules_roles">roles</A>
-available unless you set them up.
-You may do so by using the Setup/Rules command on the MAIN MENU.
 <P><UL>
 <LI><A HREF="h_finding_help">Finding more information and requesting help</A>
 </UL>
@@ -8105,7 +8225,8 @@ if a message matches a defined
 From pattern, it still must be checked against the other parts of the
 Pattern that have been defined.
 The To header pattern is a slightly special case.
-If the message being checked has a Resent-To header, the addresses
+If the message being checked has a Resent-To header
+and the feature <A HREF="h_config_use_resentto"><!--#echo var="FEAT_use-resent-to-in-rules"--></A> is turned on, the addresses
 there are used in place of the addresses in the To header.
 This is only true for the To header.
 Resent-cc and Resent-From headers are never used unless you add them
@@ -8339,14 +8460,21 @@ The same is true of the other four message status settings that depend
 on whether or not the message is New; whether the message has 
 been Answered or not; whether the message has been Deleted or not, and
 whether the message is Recent or not. 
-The nomenclature is a bit confusing.
+<P>
+The nomenclature for New and Recent is a bit confusing:
+<P>
 New means that the message is Unseen.
 It could have been in your mailbox for a long time but if you haven't looked
 at it, it is still considered New.
 That matches the default Alpine index display that shows an N for such a
 message.
+<P>
 Recent means that the message was added to this folder since the last time
 you opened the folder.
+Alpine also shows an N by default for these types of messages.
+If you were to run two copies of Alpine that opened a folder one right after
+the other, a message would only show up as Recent in (at most) the first
+Alpine session.
 
 <H3><A NAME="pattern_message_keywords">Message Keywords</A></H3>
 
@@ -8556,6 +8684,21 @@ with the Patterns of the roles marked as eligible for use when replying.
 The comparisons start with the first eligible role and keep going until there
 is a match.
 If a match is found, the matching role's Actions are taken.
+<P>
+It is also possible to set a default role and to change that role during
+your Alpine session.
+When you start Alpine no default role will be set.
+You may set or change the current default role by using the &quot;D&quot;
+command in the role selection screen.
+You'll see that screen while composing a message and being asked to select
+a role.
+An easy way to get to that screen is to use the <A HREF="h_common_role">Role Command</A> to
+compose a message.
+You may find a default role useful if you normally perform the duties of one
+of your roles for a while, then you switch to another role and stay in the
+new role for another period of time.
+It may be easier than using the Role Command to select the role each time you
+compose a message.
 
 <H2>Role Uses</H2>
 
@@ -14516,7 +14659,9 @@ That is exactly what using a list does.)
 
 Some messages may be &quot;bounced&quot; to you, and will
 have a &quot;Resent-To:&quot; header line.
-If the message contains a Resent-To: line, Alpine will look for
+If the message contains a Resent-To: line
+and the feature <A HREF="h_config_use_resentto"><!--#echo var="FEAT_use-resent-to-in-rules"--></A> is turned on,
+Alpine will look for
 matches to your &quot;To patterns&quot; there, and <EM>NOT</EM> in
 the original To: line.
 <P>
@@ -14623,7 +14768,9 @@ That is exactly what using a list does.)
 
 Some messages may be &quot;bounced&quot; to you, and will
 have a &quot;Resent-To:&quot; header line.
-If the message contains a Resent-To: line, Alpine will look for
+If the message contains a Resent-To: line
+and the feature <A HREF="h_config_use_resentto"><!--#echo var="FEAT_use-resent-to-in-rules"--></A> is turned on,
+Alpine will look for
 matches to your &quot;To patterns&quot; there, and <EM>NOT</EM> in
 the original To: line.
 <P>
@@ -14763,7 +14910,9 @@ That is exactly what using a list does.)
 
 Some messages may be &quot;bounced&quot; to you, and will
 have a &quot;Resent-To:&quot; header line.
-If the message contains a Resent-To: line, Alpine will look for
+If the message contains a Resent-To: line
+and the feature <A HREF="h_config_use_resentto"><!--#echo var="FEAT_use-resent-to-in-rules"--></A> is turned on,
+Alpine will look for
 matches to your &quot;To patterns&quot; there, and <EM>NOT</EM> in
 the original To: line.
 <P>
@@ -14870,7 +15019,9 @@ That is exactly what using a list does.)
 
 Some messages may be &quot;bounced&quot; to you, and will
 have a &quot;Resent-To:&quot; header line.
-If the message contains a Resent-To: line, Alpine will look for
+If the message contains a Resent-To: line
+and the feature <A HREF="h_config_use_resentto"><!--#echo var="FEAT_use-resent-to-in-rules"--></A> is turned on,
+Alpine will look for
 matches to your &quot;To patterns&quot; there, and <EM>NOT</EM> in
 the original To: line.
 <P>
@@ -16439,14 +16590,20 @@ to be a match.
 &quot;New&quot; is the same as <EM>Unseen</EM> and not &quot;New&quot; is the
 same as <EM>Seen</EM>.
 <P>
-The nomenclature is a bit confusing.
+The nomenclature for New and Recent is a bit confusing:
+<P>
 New means that the message is Unseen.
 It could have been in your mailbox for a long time but if you haven't looked
 at it, it is still considered New.
 That matches the default Alpine index display that shows an N for such a
 message.
+<P>
 Recent means that the message was added to this folder since the last time
 you opened the folder.
+Alpine also shows an N by default for these types of messages.
+If you were to run two copies of Alpine that opened a folder one right after
+the other, a message would only show up as Recent in (at most) the first
+Alpine session.
 <P>
 Look &quot;<A HREF="h_rule_patterns">here</A>&quot;
 for more information on Patterns.
@@ -16476,14 +16633,20 @@ the last time the folder was opened.
 If more than one mail client has the folder opened, the message will
 appear to be &quot;Recent&quot; to only one of the clients.
 <P>
-The nomenclature is a bit confusing.
+The nomenclature for New and Recent is a bit confusing:
+<P>
 New means that the message is Unseen.
 It could have been in your mailbox for a long time but if you haven't looked
 at it, it is still considered New.
 That matches the default Alpine index display that shows an N for such a
 message.
+<P>
 Recent means that the message was added to this folder since the last time
 you opened the folder.
+Alpine also shows an N by default for these types of messages.
+If you were to run two copies of Alpine that opened a folder one right after
+the other, a message would only show up as Recent in (at most) the first
+Alpine session.
 <P>
 Look &quot;<A HREF="h_rule_patterns">here</A>&quot;
 for more information on Patterns.
@@ -20282,9 +20445,8 @@ a colon (:) under UNIX; for example:<PRE>
 This variable is used to replace Alpine's default mime.types file search path.
 It takes one or more file names (full paths must be specified) in which to
 look for file-name-extension to MIME type mapping data.  The default search
-path can be found in the release notes ("R" command off the MAIN MENU).
-can be found in this
-<A HREF="h_news_config">Alpine Configuration</A> help, near the bottom.
+path can be found in this
+<A HREF="h_news_config">Alpine Configuration</A> help.
 
 <P>
 
@@ -21965,6 +22127,10 @@ Lastly, by setting this option explicitly to
 &quot;UTF-8&quot; instead of something more specific.
 
 <P>
+In the Setup/Config screen you may choose from a list of all the
+character sets Alpine knows about by using the &quot;T&quot; ToCharsets command.
+
+<P>
 The options
 <A HREF="h_config_char_set">&quot;Display Character Set&quot;</A>
 and <A HREF="h_config_key_char_set">&quot;Keyboard Character Set&quot;</A>
@@ -21972,6 +22138,44 @@ are closely related.
 Setting the feature
 <A HREF="h_config_use_system_translation">&quot;Use System Translation&quot;</A>
 should cause this option to be ignored.
+
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_unk_char_set =====
+<HTML>
+<HEAD>
+<TITLE>OPTION: <!--#echo var="VAR_unknown-character-set"--></TITLE>
+</HEAD>
+<BODY>
+<H1>OPTION: <!--#echo var="VAR_unknown-character-set"--></H1>
+
+The <!--#echo var="VAR_unknown-character-set"--> configuration option is used
+when reading or replying to messages.
+
+<P>
+
+A text message should either be made up of all US-ASCII characters
+or it should contain a charset label which tells the software which
+character set encoding to use to interpret the message.
+Sometimes a malformed message may be unlabeled but contain non-ascii text.
+This message is outside of the standards so any attempt to read it could fail.
+When Alpine attempts to read such a message it will try to interpret the
+text in the character set you specify here.
+For example, if you have correspondents who send you unlabeled messages that
+are usually made up of characters from the WINDOWS-1251 character set, setting
+this <!--#echo var="VAR_unknown-character-set"--> to <CODE>WINDOWS-1251</CODE> will
+allow you to read those messages.
+Of course, if the unlabeled message is actually in some other character set,
+then you may see garbage on your screen.
+
+<P>
+In the Setup/Config screen you may choose from a list of all the
+character sets Alpine knows about by using the &quot;T&quot; ToCharsets command.
 
 <P>
 <UL>   
@@ -22054,6 +22258,8 @@ The types of values that the character set variables may be set to are
 The <CODE>ISO-2022</CODE> character sets are not supported for input or
 for display, but as a special case, <CODE>ISO-2022-JP</CODE> is supported
 for use only as a <!--#echo var="VAR_posting-character-set"-->.
+In the Setup/Config screen you may choose from a list of all the
+character sets Alpine knows about by using the &quot;T&quot; ToCharsets command.
 Here is a list of many of the possible character sets:
 
 <P>
@@ -22100,6 +22306,9 @@ for display on your terminal.
 Characters typed at the keyboard will be converted from the
 Keyboard Character Set to Unicode for Alpine's internal
 use.
+You may find that you can read some malformed messages that do not
+contain a character set label by setting the option
+<A HREF="h_config_unk_char_set">&quot;<!--#echo var="VAR_unknown-character-set"-->&quot;</A>.
 <P>
 
 The <!--#echo var="VAR_posting-character-set"--> is used when sending messages.
@@ -22180,6 +22389,10 @@ This character set is also used when accessing files in your local
 file system.
 The names of the files are assumed to be in the same character set as
 what the keyboard produces, as well as the contents of the files.
+
+<P>
+In the Setup/Config screen you may choose from a list of all the
+character sets Alpine knows about by using the &quot;T&quot; ToCharsets command.
 
 <P>
 The options
@@ -28619,11 +28832,11 @@ When viewing a message there is a command &quot;A TogglePreferPlain&quot;,
 which will temporarily change the sense of this option.
 If this option is set you will first see the plain text version of a
 message.
-If you then type the &quot;A&quot; command, you will see the alternate version,
+If you then type the &quot;A&quot; command, you will see the most preferred version,
 most likely HTML, instead.
 Typing the &quot;A&quot; command a second time will switch it back.
 Alternatively, if the present option is not set you will originally see
-the HTML version of the message and typing &quot;A&quot; will switch to
+the most preferred version of the message and typing &quot;A&quot; will switch to
 the plain text version.
 <P>
 &lt;End of help on this topic&gt;
@@ -29626,6 +29839,28 @@ be asked to confirm that you want to Save with a prompt that looks like:
 <CENTER><SAMP>Saved copy will NOT include entire message!  Continue?</SAMP></CENTER>
 <P>
 If this feature is set, you will not be asked.
+<P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_use_resentto =====
+<HTML>
+<HEAD>
+<TITLE>FEATURE: <!--#echo var="FEAT_use-resent-to-in-rules"--></TITLE>
+</HEAD>
+<BODY>
+<H1>FEATURE: <!--#echo var="FEAT_use-resent-to-in-rules"--></H1>
+
+This feature is turned off by default because turning it on causes problems
+with some deficient IMAP servers.
+In Alpine <A HREF="h_mainhelp_filtering">Filters</A> and other types of Rules, if the
+<A HREF="h_rule_patterns">Pattern</A>
+contains a To header pattern and this feature is turned on,
+then a check is made in the message to see
+if a Resent-To header is present, and that is used instead of the To header.
+If this feature is not turned on, then the regular To header will always
+be used.
+
 <P>
 &lt;End of help on this topic&gt;
 </BODY>
@@ -30877,7 +31112,7 @@ By default, this is the same as the Normal Color.
 <P>
 It is also possible to set the colors for specific header fields, for
 example the Subject, using
-<A HREF="h_config_customhdr_color">Viewer Header Colors</A>.
+<A HREF="h_config_customhdr_color"><!--#echo var="VAR_viewer-hdr-colors"--></A>.
 If both a Header General Color and a specific Viewer Header Color are set
 the specific color will override the general color, as you would expect.
 <P>
@@ -31068,10 +31303,10 @@ to see the available Editing and Navigation commands.
 ====== h_config_customhdr_color =====
 <HTML>
 <HEAD>
-<TITLE>OPTION: Viewer Header Colors</TITLE>
+<TITLE>OPTION: <!--#echo var="VAR_viewer-hdr-colors"--></TITLE>
 </HEAD>
 <BODY>
-<H1>OPTION: Viewer Header Colors</H1>
+<H1>OPTION: <!--#echo var="VAR_viewer-hdr-colors"--></H1>
 
 Sets the colors Alpine uses for specific header fields in the MESSAGE TEXT screen.
 For example, you may set the color of the Subject header or the From header.
@@ -32334,6 +32569,27 @@ If not, you will be asked if you want to send the message anyway.
 &lt;End of help on this topic&gt;
 </BODY>
 </HTML>
+====== h_config_warn_if_fcc_blank =====
+<HTML>
+<HEAD>
+<TITLE>FEATURE: <!--#echo var="FEAT_warn-if-blank-fcc"--></TITLE>
+</HEAD>
+<BODY>
+<H1>FEATURE: <!--#echo var="FEAT_warn-if-blank-fcc"--></H1>
+
+This feature affects Alpine's behavior when you send a message being
+composed.
+If this option is set, Alpine will check to see if the message about to be sent
+has an Fcc or not.
+If not, you will be asked if you want to send the message anyway.
+<P>
+
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
 ====== h_config_warn_if_no_to_or_cc =====
 <HTML>
 <HEAD>
@@ -32417,6 +32673,23 @@ This feature affects Alpine's behavior when it displays status message
 will not affect the display of such messages, but will cause those that
 emit a beep to become silent.
 
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_suppress_user_agent =====
+<HTML>
+<HEAD>
+<TITLE>FEATURE: <!--#echo var="FEAT_suppress-user-agent-when-sending"--></TITLE>
+</HEAD>
+<BODY>
+<H1>FEATURE: <!--#echo var="FEAT_suppress-user-agent-when-sending"--></H1>
+
+If this feature is set then Alpine will not generate a
+<CODE>User-Agent</CODE> header in outgoing messages.
 <P>
 <UL>   
 <LI><A HREF="h_finding_help">Finding more information and requesting help</A>
@@ -33671,6 +33944,9 @@ Answering Yes will remove this printer completely from your printer list.
 ========== h_config_print_name_cmd ==========
 You may edit the Nickname of this printer, the Command to be executed when
 printing, or change the Options associated with this printer.
+========== h_send_check_fcc ==========
+Yes, send message without an Fcc.
+No, return to composer.
 ========== h_send_check_subj ==========
 Yes, send message without a Subject.
 No, return to composer.
@@ -33743,6 +34019,9 @@ contain only configuration data. It shouldn't contain other mail messages.
 ========== h_role_compose ==========
 Compose a New message, Reply to current message, Forward current message, or
 Bounce message. Then you will be asked to choose one of your Roles to be used.
+========== h_save_size_changed ==========
+The reported size of a message is not the same as the actual size. Answer Yes
+to continue and hope for the best or No to Cancel the entire Save.
 ========== h_select_by_larger_size ==========
 Enter a number or ^C to cancel. All messages greater than this many characters
 in size will be selected. Examples: 2176, 1.53K (1530), or 3M (3000000).

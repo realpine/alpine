@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mimetype.c 771 2007-10-24 19:10:40Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mimetype.c 953 2008-03-06 20:54:01Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -194,6 +194,7 @@ mt_browse_types_file(MT_OPERATORPROC mt_operator, MT_MAP_T *mt_map, char *filena
     int   rv = 0;
     FILE *file;
 
+    dprint((7, "mt_browse_types_file(%s)\n", filename ? filename : "?"));
     if((file = our_fopen(filename, "rb")) != NULL){
 	rv = (*mt_operator)(mt_map, file);
 	fclose(file);
@@ -219,11 +220,6 @@ int
 mt_srch_by_ext(MT_MAP_T *e2b, FILE *file)
 {
     char buffer[LINE_BUF_SIZE];
-#if	defined(DOS) || defined(OS2)
-#define	STRCMP	strucmp
-#else
-#define	STRCMP	strcmp
-#endif
 
     /* construct a loop reading the file line by line. Then check each
      * line for a matching definition.
@@ -235,8 +231,6 @@ mt_srch_by_ext(MT_MAP_T *e2b, FILE *file)
 	if(buffer[0] == '#')
 	  continue;		/* comment */
 
-	/* remove last character from the buffer */
-	buffer[strlen(buffer)-1] = '\0';
 	/* divide the input buffer into words separated by whitespace.
 	 * The first words is the type and subtype. All following words
 	 * are file extensions.
@@ -247,12 +241,12 @@ mt_srch_by_ext(MT_MAP_T *e2b, FILE *file)
 	  continue;
 
 	dprint((5, "typespec=\"%s\"\n", typespec ? typespec : "?"));
-	while((try_extension = strtok(NULL, " \t")) != NULL){
+	while((try_extension = strtok(NULL, " \t\n\r")) != NULL){
 	    /* compare the extensions, and assign the type if a match
 	     * is found.
 	     */
 	    dprint((5,"traverse: trying ext \"%s\"\n",try_extension));
-	    if(STRCMP(try_extension, e2b->from.ext) == 0){
+	    if(strucmp(try_extension, e2b->from.ext) == 0){
 		/* split the 'type/subtype' specification */
 		char *type, *subtype = NULL;
 
@@ -299,8 +293,6 @@ mt_srch_by_type(MT_MAP_T *t2e, FILE *file)
 	if(buffer[0] == '#')
 	  continue;		/* comment */
 
-	/* remove last character from the buffer */
-	buffer[strlen(buffer)-1] = '\0';
 	/* divide the input buffer into words separated by whitespace.
 	 * The first words is the type and subtype. All following words
 	 * are file extensions.
@@ -309,7 +301,7 @@ mt_srch_by_type(MT_MAP_T *t2e, FILE *file)
 	typespec = strtok(buffer," \t");	/* extract type,subtype  */
 	dprint((5, "typespec=%s.\n", typespec ? typespec : "?"));
 	if (strucmp (typespec, t2e->from.mime_type) == 0) {
-	    while((try_extension = strtok(NULL, " \t")) != NULL) {
+	    while((try_extension = strtok(NULL, " \t\n\r")) != NULL){
 		if (strlen (try_extension) <= MT_MAX_FILE_EXTENSION) {
 		    strncpy (t2e->to.ext, try_extension, 32);
 		    /*

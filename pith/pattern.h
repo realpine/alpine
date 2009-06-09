@@ -1,8 +1,8 @@
 /*
- * $Id: pattern.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
+ * $Id: pattern.h 937 2008-02-28 01:04:46Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -224,7 +224,6 @@ typedef struct action_s {
 #define ROLE_FORWARD	0x00000400	/* roles with forward value != NO   */
 #define ROLE_INCOL	0x00000800	/* patterns with non-Normal colors  */
 #define ROLE_SCORE	0x00001000	/* patterns with non-zero scorevals */
-#define ROLE_DEFAULTOK	0x00002000	/* ok to use default role w confirm */
 #define ROLE_DO_ROLES	0x00010000	/* role patterns		    */
 #define ROLE_DO_INCOLS	0x00020000	/* index line color patterns	    */
 #define ROLE_DO_SCORES	0x00040000	/* set score patterns		    */

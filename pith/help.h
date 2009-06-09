@@ -1,8 +1,8 @@
 /*
- * $Id: help.h 757 2007-10-23 21:15:48Z hubert@u.washington.edu $
+ * $Id: help.h 897 2008-01-04 22:49:15Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,6 +53,7 @@ HelpType    help_name2section(char *, int);
 void        debugjournal_to_file(FILE *);
 void	    add_review_message(char *, int);
 int         gripe_gripe_to(char *);
+char       *get_alpine_revision_string(char *, size_t);
 char       *get_alpine_revision_number(char *, size_t);
 
 

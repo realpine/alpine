@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: thread.c 873 2007-12-15 02:39:22Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: thread.c 939 2008-03-03 17:52:11Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,20 +31,10 @@ static char rcsid[] = "$Id: thread.c 873 2007-12-15 02:39:22Z hubert@u.washingto
 
 
 /*
- * Keep track of the sort array and some of the thread structure
- * temporarily as we're building the PINETHRD_S structures.
- */
-struct pass_along {
-    unsigned long rawno;
-    PINETHRD_S   *thrd;
-} *thrd_flatten_array;
-
-
-/*
  * Internal prototypes
  */
-struct pass_along *sort_thread_flatten(THREADNODE *, MAILSTREAM *,
-				       struct pass_along *, PINETHRD_S *, unsigned);
+long *sort_thread_flatten(THREADNODE *, MAILSTREAM *, long *,
+			  char *, long, PINETHRD_S *, unsigned);
 void		   make_thrdflags_consistent(MAILSTREAM *, MSGNO_S *, PINETHRD_S *, int);
 THREADNODE	  *collapse_threadnode_tree(THREADNODE *);
 THREADNODE	  *collapse_threadnode_tree_sorted(THREADNODE *);
@@ -161,23 +151,16 @@ void
 sort_thread_callback(MAILSTREAM *stream, THREADNODE *tree)
 {
     THREADNODE *collapsed_tree = NULL;
-    long          i;
     PINETHRD_S   *thrd = NULL;
     unsigned long msgno, rawno;
     int           un_view_thread = 0;
     long          raw_current;
+    char         *dup_chk = NULL;
 
 
     dprint((2, "sort_thread_callback\n"));
 
     g_sort.msgmap->max_thrdno = 0L;
-
-    thrd_flatten_array =
-	(struct pass_along *) fs_get(mn_get_total(g_sort.msgmap) *
-						 sizeof(*thrd_flatten_array));
-
-    memset(thrd_flatten_array, 0,
-	   mn_get_total(g_sort.msgmap) * sizeof(*thrd_flatten_array));
 
     /*
      * Eliminate dummy nodes from tree and collapse the tree in a logical
@@ -188,9 +171,26 @@ sort_thread_callback(MAILSTREAM *stream, THREADNODE *tree)
       collapsed_tree = collapse_threadnode_tree_sorted(tree);
     else
       collapsed_tree = collapse_threadnode_tree(tree);
-    (void) sort_thread_flatten(collapsed_tree, stream, thrd_flatten_array,
+
+    /* dup_chk is like sort with an origin of 1 */
+    dup_chk = (char *) fs_get((mn_get_nmsgs(g_sort.msgmap)+1) * sizeof(char));
+    memset(dup_chk, 0, (mn_get_nmsgs(g_sort.msgmap)+1) * sizeof(char));
+
+    memset(&g_sort.msgmap->sort[1], 0, mn_get_total(g_sort.msgmap) * sizeof(long));
+
+    (void) sort_thread_flatten(collapsed_tree, stream,
+			       &g_sort.msgmap->sort[1],
+			       dup_chk, mn_get_nmsgs(g_sort.msgmap),
 			       NULL, THD_TOP);
-    mail_free_threadnode(&collapsed_tree);
+
+    /* reset the inverse array */
+    msgno_reset_isort(g_sort.msgmap);
+
+    if(dup_chk)
+      fs_give((void **) &dup_chk);
+
+    if(collapsed_tree)
+      mail_free_threadnode(&collapsed_tree);
 
     if(any_lflagged(g_sort.msgmap, MN_HIDE))
       g_sort.msgmap->visible_threads = calculate_visible_threads(stream);
@@ -198,19 +198,6 @@ sort_thread_callback(MAILSTREAM *stream, THREADNODE *tree)
       g_sort.msgmap->visible_threads = g_sort.msgmap->max_thrdno;
 
     raw_current = mn_m2raw(g_sort.msgmap, mn_get_cur(g_sort.msgmap));
-
-    memset(&g_sort.msgmap->sort[1], 0,
-	   mn_get_total(g_sort.msgmap) * sizeof(long));
-
-    /*
-     * Copy the results of the sort into the real sort array and
-     * create the inverse array.
-     */
-    for(i = 1L; i <= mn_get_total(g_sort.msgmap); i++)
-      g_sort.msgmap->sort[i] = thrd_flatten_array[i-1].rawno;
-
-    /* reset the inverse array */
-    msgno_reset_isort(g_sort.msgmap);
 
     sp_set_need_to_rethread(stream, 0);
 
@@ -381,8 +368,6 @@ sort_thread_callback(MAILSTREAM *stream, THREADNODE *tree)
 
     stream->spare = 1;
 
-    fs_give((void **) &thrd_flatten_array);
-
     dprint((2, "sort_thread_callback done\n"));
 }
 
@@ -483,44 +468,55 @@ calculate_visible_threads(MAILSTREAM *stream)
 }
 
 
-struct pass_along *
+/*
+ * This routine does a couple things. The input is the THREADNODE node
+ * that we get from c-client because of the THREAD command. The rest of
+ * the arguments are used to help guide this function through its
+ * recursive steps. One thing it does is to place the sort order in
+ * the array initially pointed to by the entry argument. All it is doing
+ * is walking the tree in the next then branch order you see below and
+ * incrementing the entry number one for each node. The other thing it
+ * is doing at the same time is to create a PINETHRD_S tree from the
+ * THREADNODE tree. The two trees are completely equivalent but the
+ * PINETHRD_S version has additional back pointers and parent pointers
+ * and so on to make it easier for alpine to deal with it. Each node
+ * of that tree is tied to the data associated with a particular message
+ * by the msgno_thread_info() call, so that we can go from a message
+ * number to the place in the thread tree that message sits.
+ */
+long *
 sort_thread_flatten(THREADNODE *node, MAILSTREAM *stream,
-		    struct pass_along *entry, PINETHRD_S *thrd, unsigned int flags)
+		    long *entry, char *dup_chk, long maxno,
+		    PINETHRD_S *thrd, unsigned int flags)
 {
-    long n = 0L;
     PINETHRD_S *newthrd = NULL;
 
     if(node){
-	if(node->num){		/* holes happen */
-	    n = (long) (entry - thrd_flatten_array);
+	if(node->num > 0L && node->num <= maxno){		/* holes happen */
+	    if(!dup_chk[node->num]){				/* not a duplicate */
+		*entry = node->num;
+		dup_chk[node->num] = 1;
 
-	    for(; n > 0; n--)
-	      if(thrd_flatten_array[n].rawno == node->num)
-		break;	/* duplicate */
+		/*
+		 * Build a richer threading structure that will help us paint
+		 * and operate on threads and subthreads.
+		 */
+		newthrd = msgno_thread_info(stream, node->num, thrd, flags);
+		if(newthrd){
+		  entry++;
 
-	    if(!n)
-	      entry->rawno = node->num;
-	}
+		  if(node->next)
+		    entry = sort_thread_flatten(node->next, stream,
+						entry, dup_chk, maxno,
+						newthrd, THD_NEXT);
 
-	/*
-	 * Build a richer threading structure that will help us paint
-	 * and operate on threads and subthreads.
-	 */
-	if(!n && node->num){
-	    newthrd = msgno_thread_info(stream, node->num, thrd, flags);
-	    if(newthrd){
-		entry->thrd = newthrd;
-		entry++;
-
-		if(node->next)
-		  entry = sort_thread_flatten(node->next, stream, entry,
-					      newthrd, THD_NEXT);
-
-		if(node->branch)
-		  entry = sort_thread_flatten(node->branch, stream, entry,
-					      newthrd,
-					      (flags == THD_TOP) ? THD_TOP
-								 : THD_BRANCH);
+		  if(node->branch)
+		    entry = sort_thread_flatten(node->branch, stream,
+						entry, dup_chk, maxno,
+						newthrd,
+						(flags == THD_TOP) ? THD_TOP
+								   : THD_BRANCH);
+		}
 	    }
 	}
     }
@@ -1139,11 +1135,6 @@ set_thread_lflags(MAILSTREAM *stream, PINETHRD_S *thrd, MSGNO_S *msgmap, int fla
 }
 
 
-/*
- * This is D if all of thread is deleted,
- * else N if any unseen and not deleted,
- * else blank.
- */
 char
 status_symbol_for_thread(MAILSTREAM *stream, PINETHRD_S *thrd, IndexColType type)
 {
@@ -1156,6 +1147,13 @@ status_symbol_for_thread(MAILSTREAM *stream, PINETHRD_S *thrd, IndexColType type
     save_branch = thrd->branch;
     thrd->branch = 0L;		/* branch is a sibling, not part of thread */
     
+    /*
+     * This is D if all of thread is deleted,
+     * else A if all of thread is answered,
+     * else F if all of thread is forwarded,
+     * else N if any unseen and not deleted,
+     * else blank.
+     */
     if(type == iStatus){
 	tot_in_thrd = count_flags_in_thread(stream, thrd, F_NONE);
 	/* all deleted */
@@ -1164,6 +1162,9 @@ status_symbol_for_thread(MAILSTREAM *stream, PINETHRD_S *thrd, IndexColType type
 	/* all answered */
 	else if(count_flags_in_thread(stream, thrd, F_ANS) == tot_in_thrd)
 	  status = 'A';
+	/* all forwarded */
+	else if(count_flags_in_thread(stream, thrd, F_FWD) == tot_in_thrd)
+	  status = 'F';
 	/* or any new and not deleted */
 	else if((!IS_NEWS(stream)
 		 || F_ON(F_FAKE_NEW_IN_NEWS, ps_global))

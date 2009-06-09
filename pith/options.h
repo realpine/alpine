@@ -2,7 +2,7 @@
  * $Id: options.h 101 2006-08-10 22:53:04Z mikes@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -153,6 +153,14 @@ extern int (*pith_opt_save_create_prompt)(CONTEXT_S *, char *, int);
  * of sending to MAILER-DAEMON
  */
 extern int (*pith_opt_daemon_confirm)(void);
+
+
+/*
+ * optional hook in save.c to prompt for permission to continue save
+ * in spite of size error.  Return 'y' to continue or 'a' to answer
+ * yes to all until next reinitialization of the function.
+ */
+extern int (*pith_opt_save_size_changed_prompt)(long, int);
 
 
 /*

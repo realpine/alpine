@@ -442,6 +442,8 @@ The types of values that the character set variables may be set to are
 The <CODE>ISO-2022</CODE> character sets are not supported for input or
 for display, but as a special case, <CODE>ISO-2022-JP</CODE> is supported
 for use only as a <EM>posting-character-set</EM>.
+In the Setup/Config screen you may choose from a list of all the
+character sets <EM>Alpine</EM> knows about by using the &quot;T&quot; ToCharsets command.
 Here is a list of many of the possible character sets:
 
 <P>
@@ -488,6 +490,9 @@ for display on your terminal.
 Characters typed at the keyboard will be converted from the
 <EM>keyboard-character-set</EM> to Unicode for <EM>Alpine</EM>'s internal
 use.
+You may find that you can read some malformed messages that do not
+contain a character set label by setting the option
+<A HREF="config.html#unknown-character-set"><EM>unknown-character-set</EM></A>.
 <P>
 
 The <EM>posting-character-set</EM> is used when sending messages.

@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: termout.unx.c 706 2007-09-05 17:24:59Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: termout.unx.c 943 2008-03-04 20:41:47Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -444,6 +444,9 @@ MoveCursor(int row, int col)
     if (!_moveto)
     	return;
 
+    if (_col >= ps_global->ttyo->screen_cols)
+      _col = ps_global->ttyo->screen_cols - 1;
+
     if (row == _line) {
       if (col == _col)
         return;				/* already there! */
@@ -804,6 +807,13 @@ Writewchar(UCS ucs)
 	      obuf[outchars++] = ' ';
 
 	    obuf[outchars++] = '>';
+
+	    /*
+	     * In case last time through wrote in the last column and
+	     * caused an autowrap, reposition cursor.
+	     */
+	    if(_col >= ps_global->ttyo->screen_cols)
+	      moveabsolute(ps_global->ttyo->screen_cols-1, _line);
 	}
 	else{
 	    /*
@@ -832,11 +842,13 @@ Writewchar(UCS ucs)
      * We used to wrap by moving to the next line and making _col = 0
      * when we went past the end. We don't believe that this is useful
      * anymore. If we wrap it is unintentional. Instead, stay at the
-     * end of the line.
+     * end of the line. We need to be a little careful because we're
+     * moving to a different place than _col is set to, but since _col
+     * is off the right edge, it should be ok.
      */
     if(_col >= ps_global->ttyo->screen_cols) {
-	_col = ps_global->ttyo->screen_cols-1;
-	moveabsolute(_col, _line);
+	_col = ps_global->ttyo->screen_cols;
+	moveabsolute(ps_global->ttyo->screen_cols-1, _line);
     }
 }
 

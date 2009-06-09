@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailpart.c 881 2007-12-18 18:29:24Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: mailpart.c 945 2008-03-05 18:56:28Z mikes@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,6 +63,7 @@ static char rcsid[] = "$Id: mailpart.c 881 2007-12-18 18:29:24Z mikes@u.washingt
 #include "../pith/icache.h"
 #include "../pith/list.h"
 #include "../pith/ablookup.h"
+#include "../pith/options.h"
 
 
 /*
@@ -1598,9 +1599,15 @@ save_msg_att(long int msgno, ATTACH_S *a)
 	    else
 	      *date = '\0';
 
+	    if(pith_opt_save_size_changed_prompt)
+	      (*pith_opt_save_size_changed_prompt)(0L, SSCP_INIT);
+
 	    rv = save_fetch_append(ps_global->mail_stream, msgno, a->number,
 				   save_stream, save_folder, cntxt,
 				   a->body->size.bytes, flags, date, so);
+
+	    if(pith_opt_save_size_changed_prompt)
+	      (*pith_opt_save_size_changed_prompt)(0L, SSCP_END);
 
 	    if(flags)
 	      fs_give((void **) &flags);
@@ -1661,6 +1668,9 @@ save_digest_att(long int msgno, ATTACH_S *a)
 
 	save_stream = save_msg_stream(cntxt, save_folder, &our_stream);
 
+	if(pith_opt_save_size_changed_prompt)
+	  (*pith_opt_save_size_changed_prompt)(0L, SSCP_INIT);
+
 	for(part = a->body->nested.part; part; part = part->next)
 	  if(MIME_MSG(part->body.type, part->body.subtype)){
 	      if((so = so_get(CharStar, NULL, WRITE_ACCESS)) != NULL){
@@ -1684,6 +1694,9 @@ save_digest_att(long int msgno, ATTACH_S *a)
 	      if(rv != 1)
 		break;
 	  }
+
+	if(pith_opt_save_size_changed_prompt)
+	  (*pith_opt_save_size_changed_prompt)(0L, SSCP_END);
 
 	if(rv == 1)
 	  q_status_message2(SM_ORDER, 0, 4,
@@ -2681,7 +2694,7 @@ format_msg_att(long int msgno, ATTACH_S **a, HANDLE_S **handlesp, gf_io_t pc, in
 		FE_DEFAULT);
 	switch(format_header(ps_global->mail_stream, msgno, (*a)->number,
 			     (*a)->body->nested.msg->env, &h, NULL, NULL,
-			     flags, pc)){
+			     flags, NULL, pc)){
 	  case -1 :			/* write error */
 	    return(0);
 

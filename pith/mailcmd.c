@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcmd.c 878 2007-12-17 23:09:45Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailcmd.c 945 2008-03-05 18:56:28Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -1495,7 +1495,7 @@ expunge_and_close(MAILSTREAM *stream, char **final_msg, long unsigned int flags)
 	    }
 
 	    if(ret != 'y'){
-		if(expunge){
+		if(!ps_global->noexpunge_on_close && expunge){
 		    MESSAGECACHE *mc;
 		    char	 *seq;
 		    int		  expbits;

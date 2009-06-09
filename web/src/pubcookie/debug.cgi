@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 $| = 1;
-$wp_uidmapper_bin = "/data/webpine/bin/wp_uidmapper";
+$wp_uidmapper_bin = "/usr/local/libexec/alpine/bin/wp_uidmapper";
 $wp_uidmapper_socket = "/tmp/wp_uidmapper";
 
 print "Content-type: text/plain\n\n";
@@ -42,7 +42,7 @@ foreach $key (sort { $a cmp $b } keys(%ENV)) {
     print "$key: $ENV{$key}\n";
 }
 
-print "\nWebpine user processes:\n";
+print "\nAlpine user processes:\n";
 foreach $line (@ps) { ($line =~ m/^\#/) && print $line; }
 exit 0;
 

@@ -1,8 +1,8 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: listsel.c 649 2007-07-18 23:45:23Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: listsel.c 917 2008-01-23 19:15:36Z hubert@u.washington.edu $";
 #endif
 /* ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ static char rcsid[] = "$Id: listsel.c 649 2007-07-18 23:45:23Z hubert@u.washingt
  * Internal prototypes
  */
 int      select_from_list_tool(struct pine *, int, CONF_S **, unsigned);
+int      select_from_list_tool_allow_noselections(struct pine *, int, CONF_S **, unsigned);
 
 
 /*
@@ -62,6 +63,7 @@ select_from_list_screen(LIST_SEL_S *lsel, long unsigned int flags, char *title,
     char        *display;
     size_t       l;
     ScreenMode   listmode = SingleMode;
+    int         (*tool)(struct pine *, int, CONF_S **, unsigned);
 
     if(!lsel)
       return(ret);
@@ -78,6 +80,8 @@ select_from_list_screen(LIST_SEL_S *lsel, long unsigned int flags, char *title,
 
     lv = MIN(lv, ps_global->ttyo->screen_cols - 4);
 
+    tool = (flags & SFL_CTRLC)	? select_from_list_tool_allow_noselections
+				: select_from_list_tool;
 
     /*
      * Convert the passed in list to conf_scroll lines.
@@ -106,14 +110,22 @@ select_from_list_screen(LIST_SEL_S *lsel, long unsigned int flags, char *title,
 
 	    ctmp->d.l.lsel     = p;
 	    ctmp->d.l.listmode = &listmode;
-	    if(flags & SFL_ONLY_LISTMODE)
-	      ctmp->keymenu      = &sel_from_list_olm;
-	    else
-	      ctmp->keymenu      = &sel_from_list_sm;
+	    if(flags & SFL_ONLY_LISTMODE){
+	      if(flags & SFL_CTRLC)
+	        ctmp->keymenu      = &sel_from_list_olm_ctrlc;
+	      else
+	        ctmp->keymenu      = &sel_from_list_olm;
+	    }
+	    else{
+	      if(flags & SFL_CTRLC)
+	        ctmp->keymenu      = &sel_from_list_sm_ctrlc;
+	      else
+	        ctmp->keymenu      = &sel_from_list_sm;
+	    }
 
 	    ctmp->help         = help;
 	    ctmp->help_title   = htitle;
-	    ctmp->tool         = select_from_list_tool;
+	    ctmp->tool         = tool;
 	    ctmp->flags        = CF_STARTITEM |
 				 ((p->flags & SFL_NOSELECT) ? CF_NOSELECT : 0);
 	}
@@ -139,10 +151,14 @@ select_from_list_screen(LIST_SEL_S *lsel, long unsigned int flags, char *title,
 
 	    ctmp->d.l.lsel     = p;
 	    ctmp->d.l.listmode = &listmode;
-	    ctmp->keymenu      = &sel_from_list;
+	    if(flags & SFL_CTRLC)
+	      ctmp->keymenu      = &sel_from_list_ctrlc;
+	    else
+	      ctmp->keymenu      = &sel_from_list;
+
 	    ctmp->help         = help;
 	    ctmp->help_title   = htitle;
-	    ctmp->tool         = select_from_list_tool;
+	    ctmp->tool         = tool;
 	    ctmp->flags        = CF_STARTITEM |
 				 ((p->flags & SFL_NOSELECT) ? CF_NOSELECT : 0);
 	    ctmp->valoffset    = 4;
@@ -158,10 +174,18 @@ select_from_list_screen(LIST_SEL_S *lsel, long unsigned int flags, char *title,
 	      ctmp->value[0] = '[';
 	      ctmp->value[1] = ctmp->d.l.lsel->selected ? 'X' : SPACE;
 	      ctmp->value[2] = ']';
-	      if(flags & SFL_ONLY_LISTMODE)
-	        ctmp->keymenu      = &sel_from_list_olm;
-	      else
-	        ctmp->keymenu      = &sel_from_list_lm;
+	      if(flags & SFL_ONLY_LISTMODE){
+	        if(flags & SFL_CTRLC)
+	          ctmp->keymenu      = &sel_from_list_olm_ctrlc;
+	        else
+	          ctmp->keymenu      = &sel_from_list_olm;
+	      }
+	      else{
+	        if(flags & SFL_CTRLC)
+	          ctmp->keymenu      = &sel_from_list_lm_ctrlc;
+	        else
+	          ctmp->keymenu      = &sel_from_list_lm;
+	      }
 	  }
     }
 
@@ -272,6 +296,31 @@ select_from_list_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 
       default:
 	retval = -1;
+	break;
+    }
+
+    if(retval > 0)
+      ps->mangled_body = 1;
+
+    return(retval);
+}
+
+
+int
+select_from_list_tool_allow_noselections(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
+{
+    int retval = 0;
+
+    switch(cmd){
+      case MC_SELECT :
+	retval = 3;
+	if(*(*cl)->d.l.listmode == SingleMode)
+	  (*cl)->d.l.lsel->selected = 1;
+
+	break;
+
+      default:
+        retval = select_from_list_tool(ps, cmd, cl, flags);
 	break;
     }
 

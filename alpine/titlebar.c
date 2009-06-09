@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: titlebar.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: titlebar.c 897 2008-01-04 22:49:15Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -400,7 +400,7 @@ format_titlebar(void)
 {
     char    version[50], fold_tmp[6*MAXPATH+1], *titlebar_line,
 	    loc1[200], loc_label[10], *thd_label, *ss_string, *q,
-	   *plus, *loc2 = "", title[200];
+	   *plus, *loc2 = "", title[200], revision[10];
     int     title_len = 0, ver_len, loc1_len = 0, loc2_len = 0, fold_len = 0, num_len,
 	    s1 = 0, s2 = 0, s3 = 0, s4 = 0, s5 = 0, s6 = 0, tryloc = 1,
 	    cur_mess_col_offset = -1, percent_column_offset = -1, page_column_offset = -1,
@@ -444,7 +444,7 @@ format_titlebar(void)
 
     is_context        = as.context_name ? strlen(as.context_name) : 0;
 
-    snprintf(version, sizeof(version), "ALPINE %s", ALPINE_VERSION);
+    snprintf(version, sizeof(version), "ALPINE %s(%s)", ALPINE_VERSION, get_alpine_revision_number(revision, sizeof(revision)));
     version[sizeof(version)-1] = '\0';
     ver_len = (int) utf8_width(version);	/* fixed version field width */
 

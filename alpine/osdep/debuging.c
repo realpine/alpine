@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: debuging.c 785 2007-10-31 22:04:47Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: debuging.c 897 2008-01-04 22:49:15Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -123,7 +123,7 @@ init_debug(void)
 	       debug, ps_global->debug_imap,
 	       ALPINE_VERSION,
 	       SYSTYPE ? SYSTYPE : "?",
-	       get_alpine_revision_number(rev, sizeof(rev)),
+	       get_alpine_revision_string(rev, sizeof(rev)),
 	       ctime(&now)));
 
 	dprint((0, "Starting after the reading_pinerc calls, the data in this file should\nbe encoded as UTF-8. Before that it will be in the user's native charset.\n"));

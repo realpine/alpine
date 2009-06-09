@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: greeting.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: greeting.tcl 948 2008-03-06 00:24:37Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -305,6 +305,19 @@ cgi_eval {
 		    }
 		  }
 		}
+
+		if {[info exists _wp(appdir_alt)] && [file isdirectory [file join .. $_wp(appdir_alt)]]} {
+		    cgi_table_row {
+		      cgi_table_data align=right {
+			cgi_checkbox altui=1
+		      }
+		      cgi_table_data "style=\"font-family: helvetica, sans-serif;\"" {
+			cgi_puts "Try 2.0 User Interface"
+		      }
+		    }
+		  }
+
+
 	      }
 	    }
 	  }

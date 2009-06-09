@@ -1,10 +1,10 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pico.c 848 2007-12-06 19:57:49Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pico.c 920 2008-01-31 00:44:12Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -886,6 +886,8 @@ cleanwhitespace(void)
 	    }
 	    if(do_space_stuffing && llength(*lp) && ucs4_isspace(lgetc(*lp, 0).c)){
 		/* space-stuff only if flowed */
+		if(Pmaster)
+		  Pmaster->space_stuffed = 1;
 		curwp->w_doto = 0;
 		if(is_cursor_line && cursor_doto)
 		  cursor_doto++;
@@ -1848,6 +1850,21 @@ breplace(void *w)
     free(curbp->b_linep);
 
     curbp->b_linep   = PT(w)->linep;			/* arrange pointers */
+
+    /*
+     * Undo space-stuffing that was done when we were preparing to send.
+     * Some error happened so we're back to the composer.
+     */
+    if(Pmaster && Pmaster->space_stuffed){
+	Pmaster->space_stuffed = 0;
+	for(lp = lforw(curbp->b_linep); lp != curbp->b_linep; lp = lforw(lp)){
+	    if(llength(lp) && ucs4_isspace(lgetc(lp, 0).c)){
+	      curwp->w_dotp = lp;
+	      curwp->w_doto = 0;
+	      forwdel(FALSE,1);
+	    }
+	}
+    }
 
     curwp->w_linep   = lforw(curbp->b_linep);
     curwp->w_dotp    = lforw(curbp->b_linep);

@@ -1,5 +1,5 @@
 /*
- * $Id: edef.h 537 2007-04-24 23:27:18Z hubert@u.washington.edu $
+ * $Id: edef.h 898 2008-01-05 00:41:49Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -42,7 +42,7 @@ int     mline_open = FALSE;             /* TRUE if message line is open */
 int	ComposerTopLine = 2;		/* TRUE if message line is open */
 int	ComposerEditing = FALSE;	/* TRUE if editing the headers  */
 char	modecode[] = "WCSEVO";		/* letters to represent modes	*/
-long	gmode = MDWRAP;			/* global editor mode		*/
+long	gmode = MDWRAP|MDREPLACE;	/* global editor mode		*/
 int     sgarbf  = TRUE;                 /* TRUE if screen is garbage	*/
 int     mpresf  = FALSE;                /* TRUE if message in last line */
 int	clexec	= FALSE;		/* command line execution flag	*/

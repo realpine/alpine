@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailindx.c 881 2007-12-18 18:29:24Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: mailindx.c 922 2008-02-01 18:42:29Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1630,11 +1630,13 @@ paint_index_line(ICE_S *argice, int line, long int msgno, IndexColType sfld,
 
   /* This better not happen! */
   if(!ice){
-    q_status_message1(SM_ORDER | SM_DING, 5, 5,
-		      "NULL ice in paint_index_line: %s",
-		      THRD_INDX() ? "THRD_INDX" : "reg index");
-    dprint((1, "NULL ice in paint_index_line: %s\n",
-			       THRD_INDX() ? "THRD_INDX" : "reg index"));
+    q_status_message3(SM_ORDER | SM_DING, 5, 5,
+		      "NULL ice in paint_index_line: %s, msgno=%s line=%s",
+		      THRD_INDX() ? "THRD_INDX" : "reg index",
+		      comatose(msgno), comatose(line));
+    dprint((1, "NULL ice in paint_index_line: %s, msgno=%ld line=%d\n",
+			       THRD_INDX() ? "THRD_INDX" : "reg index",
+			       msgno, line));
     return 0;
   }
 
@@ -1747,7 +1749,7 @@ paint_index_line(ICE_S *argice, int line, long int msgno, IndexColType sfld,
 
 	  src = ielem->data;
 	  bytes_added = utf8_pad_to_width(p, src,
-					  ((p-draw)+n+1) * sizeof(char),
+					  ((n+1)-(p-draw)) * sizeof(char),
 					  ielem->wid, ifield->leftadj);
 	  p += bytes_added;
 	}
@@ -3108,7 +3110,7 @@ index_search(struct pine *state, MAILSTREAM *stream, int command_line, MSGNO_S *
 
       ice = (ic && THRD_INDX() && ic->tice) ? ic->tice : ic;
 
-      if(srchstr(simple_index_line(buf, sizeof(buf), ps_global->ttyo->screen_cols, ice, i),
+      if(srchstr(simple_index_line(buf, sizeof(buf), ice, i),
 				   search_string)){
 	selected++;
 	if(select_all)
@@ -3131,7 +3133,7 @@ index_search(struct pine *state, MAILSTREAM *stream, int command_line, MSGNO_S *
 
         ice = (ic && THRD_INDX() && ic->tice) ? ic->tice : ic;
 
-        if(srchstr(simple_index_line(buf, sizeof(buf), ps_global->ttyo->screen_cols, ice, i),
+        if(srchstr(simple_index_line(buf, sizeof(buf), ice, i),
 				     search_string)){
 	  selected++;
 	  if(select_all)
@@ -3151,8 +3153,7 @@ index_search(struct pine *state, MAILSTREAM *stream, int command_line, MSGNO_S *
 
 	    ice = (ic && THRD_INDX() && ic->tice) ? ic->tice : ic;
 
-	    if(srchstr(simple_index_line(buf, sizeof(buf),
-					 ps_global->ttyo->screen_cols, ice, i),
+	    if(srchstr(simple_index_line(buf, sizeof(buf), ice, i),
 		       search_string)){
 		selected++;
 	    }

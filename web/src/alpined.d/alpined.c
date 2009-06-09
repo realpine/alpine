@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: alpined.c 850 2007-12-06 23:58:57Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: alpined.c 963 2008-03-14 21:51:18Z mikes@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -55,6 +55,7 @@ static char rcsid[] = "$Id: alpined.c 850 2007-12-06 23:58:57Z mikes@u.washingto
 #include "../../../pith/sort.h"
 #include "../../../pith/ldap.h"
 #include "../../../pith/addrbook.h"
+#include "../../../pith/ablookup.h"
 #include "../../../pith/takeaddr.h"
 #include "../../../pith/bldaddr.h"
 #include "../../../pith/copyaddr.h"
@@ -211,9 +212,32 @@ typedef struct _msg_data {
 	int	   fcc_colid;
 	int	   postop_fcc_no_attach;
 	int	   flowed;
+	int	   rich;
 	char	  *charset;
 	int	 (*postfunc)(METAENV *, BODY *, char *, CONTEXT_S **, char *);
 } MSG_COL_S;
+
+
+/*
+ * locally global structure to keep track of various bits of state
+ * needed to collect filtered output
+ */
+static struct _embedded_data {
+    Tcl_Interp *interp;
+    Tcl_Obj    *obj;
+    STORE_S    *store;
+    long	uid;
+    HANDLE_S   *handles;
+    char	inhandle;
+    ENVELOPE   *env;
+    BODY       *body;
+    struct {
+	char	fg[7];
+	char	bg[7];
+	char	fgdef[7];
+	char	bgdef[7];
+    } color;
+} peED;
 
 
 #ifdef ENABLE_LDAP
@@ -232,6 +256,11 @@ WPLDAP_S *wpldap_global;
  * length of thread info string
  */
 #define	WP_MAX_THRD_S	64
+
+/*
+ * static buf size for putenv() if necessary
+ */
+#define PUTENV_MAX	64
 
 
 
@@ -276,6 +305,7 @@ int	     peAppendIndexParts(Tcl_Interp *, imapuid_t, Tcl_Obj *, int *);
 int	     peAppendIndexColor(Tcl_Interp *, imapuid_t, Tcl_Obj *, int *);
 int	     peMessageStatusBits(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
 char	    *peMsgStatBitString(struct pine *, MAILSTREAM *, MSGNO_S *, long, long, long, int *);
+Tcl_Obj	    *peMsgStatNameList(Tcl_Interp *, struct pine *, MAILSTREAM *, MSGNO_S *, long, long, long, int *);
 int	     peNewMailResult(Tcl_Interp *);
 int	     peMessageSize(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
 int	     peMessageDate(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
@@ -288,8 +318,16 @@ int	     peMessageStatus(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
 int	     peMessageCharset(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
 int	     peMessageBounce(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
 int	     peMessageSpam(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+int	     peMessageTrash(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
 int	     peMsgnoFromUID(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
 int	     peMessageText(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+int	     peMessageHeader(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+void	     peFormatEnvelope(MAILSTREAM *, long, char *, ENVELOPE *, gf_io_t, long, char *, int);
+void	     peFormatEnvelopeAddress(MAILSTREAM *, long, char *, char *, ADDRESS *, int, char *, gf_io_t);
+void	     peFormatEnvelopeNewsgroups(char *, char *, int, gf_io_t);
+void	     peFormatEnvelopeText(char *, char *);
+int	     peMessageAttachments(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+int	     peMessageBody(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
 int	     peMessagePartFromCID(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
 int	     peLocateBodyByCID(char *, char *, BODY *);
 char	    *peColorStr(char *, char *);
@@ -437,7 +475,13 @@ main(int argc, char *argv[])
 #if	PUBCOOKIE
     extern AUTHENTICATOR auth_gss_proxy;
 #endif
+
     srandom(getpid() + time(0));
+
+#if	defined(DMALLOC)
+    /* set 'high' flags */
+    dmalloc_debug_setup("debug=0x4f4ed03,log=logfile");
+#endif
 
     /*----------------------------------------------------------------------
            Initialize c-client
@@ -650,7 +694,7 @@ main(int argc, char *argv[])
 
 			    close(cs);
 			}
-			else{
+			else if(errno != EINTR){
 			    if(n < 0){
 				dprint((SYSDBG_ALERT, "select failure: %s", error_description(errno)));
 			    }
@@ -1490,6 +1534,10 @@ PEInfoCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 		      pine_mail_ping(ps_global->mail_stream);
 
 		    Tcl_SetResult(interp, "NOOP", TCL_STATIC);
+		    return(TCL_OK);
+		}
+		else if(!strcmp(s1, "inputtimeout")){
+		    Tcl_SetResult(interp, int2string(get_input_timeout()), TCL_VOLATILE);
 		    return(TCL_OK);
 		}
 	    }
@@ -3862,9 +3910,9 @@ PESessionCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 {
     char *op, *err = "Unknown PESession option";
     char *pe_user, *pe_host;
-    int	  pe_alt;
+    int	  pe_alt, l;
 
-    dprint((2, "PEConfigCmd"));
+    dprint((2, "PESessionCmd"));
 
     if((op = Tcl_GetStringFromObj(objv[1], NULL)) != NULL){
 	if(!strcmp(op, "open")){
@@ -3883,27 +3931,36 @@ PESessionCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 		return(TCL_ERROR);
 	    }
 
-	    if(!(s = Tcl_GetStringFromObj(objv[2], NULL))){
+	    if(!(s = Tcl_GetStringFromObj(objv[2], &l))){
 		Tcl_SetResult(interp, "Unknown User", TCL_STATIC);
 		return(TCL_ERROR);
 	    }
 	    else{
-		int   rv = 1;
-		char *envstr = NULL;
+		int rv;
+
+		pe_user = cpystr(s);
 
 #if	defined(HAVE_SETENV)
-		pe_user = envstr = cpystr(s);
 		rv = setenv("WPUSER", pe_user, 1);
 #elif	defined(HAVE_PUTENV)
-		int   l = strlen(s) + 8;
-		envstr = (char *) fs_get(l * sizeof(char));
-		snprintf(envstr, l, "WPUSER=%s", s);
-		pe_user = envstr + 7;
-		rv = putenv(envstr);
+		{
+		    static char putenvbuf[PUTENV_MAX];
+
+		    if(l + 8 < PUTENV_MAX){
+			if(putenvbuf[0])	/* only called once, but you never know */
+			  snprintf(putenvbuf + 7, PUTENV_MAX - 7, "%s", pe_user);
+			else
+			  snprintf(putenvbuf, PUTENV_MAX, "WPUSER=%s", pe_user);
+
+			rv = putenv(putenvbuf);
+		    }
+		    else
+		      rv = 1;
+		}
 #endif
+
 		if(rv){
-		    if(envstr)
-		      fs_give((void **) &envstr);
+		    fs_give((void **) &pe_user);
 		    Tcl_SetResult(interp, (errno == ENOMEM)
 					    ? "Insufficient Environment Space"
 					    : "Cannot set WPUSER in environment", TCL_STATIC);
@@ -4191,6 +4248,30 @@ PESessionCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 		  err = "Can't read timeout";
 	    }
 	}
+	else if(!strcmp(op, "noexpunge")){
+	    /*
+	     * CMD: noexpunge <state>
+	     *
+	     * Returns: nothing
+	     */
+
+	    if(objc != 3){
+		err = "PESession: noexpunge <state>";
+	    } else {
+		int onoff;
+
+		if(Tcl_GetIntFromObj(interp, objv[2], &onoff) == TCL_OK){
+		    if(onoff == 0 || onoff == 1){
+			ps_global->noexpunge_on_close = onoff;
+			return(TCL_OK);
+		    }
+
+		    err = "unrecognized on/off state";
+		}
+		else
+		  err = "Can't read on/off state";
+	    }
+	}
     }
 
     Tcl_SetResult(interp, err, TCL_STATIC);
@@ -4282,14 +4363,24 @@ PEFolderCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 	if(ps_global && ps_global->mail_stream){
 	    if(objc == 2){
 		if(!strcmp(op, "current")){
+		    CONTEXT_S *cp;
+		    int	       i;
+
 		    /*
 		     * CMD: current
 		     *
 		     * Returns: string representing the name of the
 		     *		current mailbox
 		     */
-		    Tcl_SetResult(interp, ps_global->cur_folder, TCL_VOLATILE);
-		    return(TCL_OK);
+		    
+		    for(i = 0, cp = ps_global->context_list; cp && cp != ps_global->context_current; i++, cp = cp->next)
+		      ;
+
+		    if(Tcl_ListObjAppendElement(interp, Tcl_GetObjResult(interp), Tcl_NewIntObj(cp ? i : 0)) == TCL_OK
+		       && Tcl_ListObjAppendElement(interp, Tcl_GetObjResult(interp), Tcl_NewStringObj(ps_global->cur_folder,-1)) == TCL_OK)
+		      return(TCL_OK);
+
+		    return(TCL_ERROR);
 		}
 		else if(!strcmp(op, "collections")){
 		    CONTEXT_S *cp;
@@ -4411,6 +4502,60 @@ PEFolderCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 		}
 		else
 		  err = "PEFolder: isincoming: Can't read collection ID";
+	    }
+	    else if(objc == 4 && !strcmp(op, "unread")){
+		char       *folder, tmp[MAILTMPLEN];
+		MAILSTREAM *mstream;
+		CONTEXT_S  *cp;
+		long	    colid, i, count = 0, flags = (F_UNSEEN | F_UNDEL);
+		int	    our_stream = 0;
+		/*
+		 * CMD: unread
+		 *
+		 * Returns: number of unread messages in given
+		 *          folder
+		 */
+		if(Tcl_GetLongFromObj(interp,objv[2],&colid) != TCL_ERROR){
+		    for(i = 0, cp = ps_global->context_list; cp ; i++, cp = cp->next)
+		      if(i == colid)
+			break;
+
+		    if(cp){
+			if((folder = Tcl_GetStringFromObj(objv[3], NULL)) != NULL){
+			    /* short circuit INBOX */
+			    if(colid == 0 && !strucmp(folder, "inbox")){
+				count = count_flagged(sp_inbox_stream(), flags);
+			    }
+			    else{
+				/*
+				 * BUG: some sort of caching to prevent open() fore each call?
+				 * does stream cache offset this?
+				 */
+				if(!(context_allowed(context_apply(tmp, cp, folder, sizeof(tmp)))
+				     && (mstream = same_stream_and_mailbox(tmp, ps_global->mail_stream)))){
+				    long retflags = 0;
+
+				    our_stream = 1;
+				    mstream = context_open(cp, NULL, folder,
+							   OP_READONLY | OP_SHORTCACHE,
+							   &retflags);
+				}
+
+				count = count_flagged(mstream, flags);
+
+				if(our_stream)
+				  pine_mail_close(mstream);
+			    }
+
+			    Tcl_SetResult(interp, long2string(count), TCL_VOLATILE);
+			    return(TCL_OK);
+			}
+		    }
+		    else
+		      err = "PEFolder: unread: Invalid collection ID";
+		}
+		else
+		  err = "PEFolder: unread: Can't read collection ID";
 	    }
 	    else if(!strcmp(op, "export")){
 		/*
@@ -4795,8 +4940,9 @@ PEFolderCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 		  return(TCL_OK);
 		}
 		else if(!strucmp(op, "delete")){
-		  char *folder;
-		  
+		  char	     *folder;
+		  MAILSTREAM *strm = NULL;
+
 		  folder = Tcl_GetStringFromObj(objv[objc - 1], NULL);
 		  if(!folder) {
 		    Tcl_SetResult(interp, "PEFolder delete: Can't read folder", TCL_VOLATILE);
@@ -4809,6 +4955,14 @@ PEFolderCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 		  ps_global->c_client_error[0] = ps_global->last_error[0] = '\0';
 
 		  peNoPassword = 0;
+
+		  /* close open folder, then delete */
+		  if((strm = context_already_open_stream(cp,folder,AOS_NONE)) != NULL
+		     && strm == ps_global->mail_stream){
+		      do_broach_folder(ps_global->inbox_name,
+				       ps_global->context_list, NULL, DB_INBOXWOCNTXT);
+		  }
+
 		  if(!context_delete(cp, NULL, folder)){
 		    if(peNoPassword){
 		      Tcl_SetResult(interp, AUTH_FAILURE_STRING, TCL_VOLATILE);
@@ -4916,7 +5070,9 @@ PEMailboxCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 		    int	       i, colid;
 		    char      *folder;
 		    CONTEXT_S *cp;
-	      
+
+		    peED.uid = 0;		/* forget cached embedded data */
+
 		    /*
 		     * CMD: open <context-index> <folder>
 		     *
@@ -5011,17 +5167,15 @@ PEMailboxCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 			if(Tcl_GetLongFromObj(interp, objv[3], &count) == TCL_OK){
 
 			    /* set index range for efficiency */
-			    if(msgno > 0L && msgno <= mn_get_total(ps_global->msgmap)){
+			    if(msgno > 0L && msgno <= mn_get_total(sp_msgmap(ps_global->mail_stream))){
 				peITop   = msgno;
 				peICount = count;
 			    }
 
 			    if(objc == 4 || Tcl_ListObjGetElements(interp, objv[4], &aObjN, &aObj) == TCL_OK){
 
-				if(count > 0
-				   && !(msgno < 1L || msgno > mn_get_total(sp_msgmap(ps_global->mail_stream)))
-				   && (rvObj = Tcl_NewListObj(0, NULL))){
-
+				if((rvObj = Tcl_NewListObj(0, NULL)) != NULL && count > 0
+				   && !(msgno < 1L || msgno > mn_get_total(sp_msgmap(ps_global->mail_stream)))){
 				    mn_set_cur(ps_global->msgmap, msgno);
 
 				    for(countdown = count; countdown > 0; countdown--){
@@ -5042,6 +5196,12 @@ PEMailboxCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 											     ps_global->msgmap, peMessageNumber(uid),
 											     peITop, peICount, &fetched);
 								Tcl_ListObjAppendElement(interp, avObj, Tcl_NewStringObj(s, -1));
+							    }
+							    else if(!strcmp(s, "statuslist")){
+								Tcl_Obj *nObj = peMsgStatNameList(interp, ps_global, ps_global->mail_stream,
+												  ps_global->msgmap, peMessageNumber(uid),
+												  peITop, peICount, &fetched);
+								Tcl_ListObjAppendElement(interp, avObj, nObj);
 							    }
 							    else if(!strcmp(s, "status")){
 								long	      raw;
@@ -5139,7 +5299,7 @@ PEMailboxCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 		     * Returns: count of messsages in open mailbox
 		     */
 		    Tcl_SetResult(interp,
-				  long2string(mn_get_total(ps_global->msgmap)),
+				  long2string(mn_get_total(sp_msgmap(ps_global->mail_stream))),
 				  TCL_VOLATILE);
 		    return(TCL_OK);
 		}
@@ -5260,7 +5420,7 @@ PEMailboxCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 		    if(any_lflagged(ps_global->msgmap, MN_HIDE)){
 			long n;
 
-			for(n = 1L; n <= mn_get_total(ps_global->msgmap); n++)
+			for(n = 1L; n <= mn_get_total(sp_msgmap(ps_global->mail_stream)); n++)
 			  if(!get_lflag(ps_global->mail_stream, ps_global->msgmap, n, MN_HIDE)){
 			      Tcl_SetResult(interp, long2string(n), TCL_VOLATILE);
 			      return(TCL_OK);
@@ -5277,14 +5437,14 @@ PEMailboxCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 		    if(any_lflagged(ps_global->msgmap, MN_HIDE)){
 			long n;
 
-			for(n = mn_get_total(ps_global->msgmap); n > 0L; n--)
+			for(n = mn_get_total(sp_msgmap(ps_global->mail_stream)); n > 0L; n--)
 			  if(!get_lflag(ps_global->mail_stream, ps_global->msgmap, n, MN_HIDE)){
 			      Tcl_SetResult(interp, long2string(n), TCL_VOLATILE);
 			      return(TCL_OK);
 			  }
 		    }
 		    else{
-			Tcl_SetResult(interp, long2string(mn_get_total(ps_global->msgmap)), TCL_VOLATILE);
+			Tcl_SetResult(interp, long2string(mn_get_total(sp_msgmap(ps_global->mail_stream))), TCL_VOLATILE);
 			return(TCL_OK);
 		    }
 
@@ -5318,6 +5478,10 @@ PEMailboxCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 		    else
 		      Tcl_SetResult(interp, "ok", TCL_STATIC);
 
+		    return(TCL_OK);
+		}
+		else if(!strucmp(op, "excludedeleted")){
+		    msgno_exclude_deleted(ps_global->mail_stream, ps_global->msgmap);
 		    return(TCL_OK);
 		}
 	    }
@@ -5452,7 +5616,7 @@ PEMailboxCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 
 		    if(Tcl_GetIntFromObj(interp, objv[2], &newstate) != TCL_ERROR){
 			if(newstate > 0){
-			    if(any_lflagged(ps_global->msgmap, MN_HIDE) != (mn_get_total(ps_global->msgmap) - (n = any_lflagged(ps_global->msgmap, MN_SLCT)))){
+			    if(any_lflagged(ps_global->msgmap, MN_HIDE) != (mn_get_total(sp_msgmap(ps_global->mail_stream)) - (n = any_lflagged(ps_global->msgmap, MN_SLCT)))){
 				zoom_index(ps_global, ps_global->mail_stream, ps_global->msgmap);
 				zoomed = n;
 			    }
@@ -5533,7 +5697,7 @@ PEMailboxCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 		    if((range = Tcl_GetStringFromObj(objv[2], NULL))
 		       && Tcl_GetLongFromObj(interp, objv[3], &n) != TCL_ERROR){
 			if(!strucmp(range, "before")){
-			    for(i = 1L; i < n && i <= mn_get_total(ps_global->msgmap); i++)
+			    for(i = 1L; i < n && i <= mn_get_total(sp_msgmap(ps_global->mail_stream)); i++)
 			      if(get_lflag(ps_global->mail_stream, ps_global->msgmap, i, MN_SLCT)){
 				  rv = 1;
 				  break;
@@ -5543,7 +5707,7 @@ PEMailboxCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 			    return(TCL_OK);
 			}
 			else if(!strucmp(range, "after")){
-			    for(i = n + 1L; i <= mn_get_total(ps_global->msgmap); i++)
+			    for(i = n + 1L; i <= mn_get_total(sp_msgmap(ps_global->mail_stream)); i++)
 			      if(get_lflag(ps_global->mail_stream, ps_global->msgmap, i, MN_SLCT)){
 				  rv = 1;
 				  break;
@@ -5603,7 +5767,7 @@ PEMailboxCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 
 		    if(Tcl_GetLongFromObj(interp, objv[2], &msgno) != TCL_ERROR
 		       && Tcl_GetLongFromObj(interp, objv[3], &count) != TCL_ERROR){
-			if(count > 0 && !(msgno < 1L || msgno > mn_get_total(ps_global->msgmap))){
+			if(count > 0 && !(msgno < 1L || msgno > mn_get_total(sp_msgmap(ps_global->mail_stream)))){
 			    mn_set_cur(ps_global->msgmap, msgno);
 
 			    while(count--){
@@ -5642,7 +5806,7 @@ PEMailboxCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 
 		    if((relative = Tcl_GetStringFromObj(objv[2], NULL))
 		       && Tcl_GetLongFromObj(interp, objv[3], &msgno) != TCL_ERROR){
-			if(msgno < 1L || msgno > mn_get_total(ps_global->msgmap)){
+			if(msgno < 1L || msgno > mn_get_total(sp_msgmap(ps_global->mail_stream))){
 			    Tcl_SetResult(interp, "relative msgno out of range", TCL_STATIC);
 			    return(TCL_ERROR);
 			}
@@ -5656,7 +5820,7 @@ PEMailboxCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 			    return(TCL_OK);
 			}
 			else if(!strucmp(relative, "after")){
-			    for(n = msgno + 1; n <= mn_get_total(ps_global->msgmap); n++)
+			    for(n = msgno + 1; n <= mn_get_total(sp_msgmap(ps_global->mail_stream)); n++)
 			      if(!get_lflag(ps_global->mail_stream, ps_global->msgmap, n, MN_HIDE))
 				count++;
 
@@ -5666,6 +5830,44 @@ PEMailboxCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 		    }
 
 		    Tcl_SetResult(interp, "can't read range for count", TCL_STATIC);
+		    return(TCL_ERROR);
+		}
+		else if(!strcmp(op, "selectvector")){
+		    long     msgno, count;
+
+		    /*
+		     * CMD: selectvector
+		     *
+		     * ARGS: msgno - message number "next" is relative to
+		     *       count - how many msgno slots to return
+		     *
+		     * Returns: vector containing next <count> messagenumbers
+		     */
+
+		    if(Tcl_GetLongFromObj(interp, objv[2], &msgno) != TCL_ERROR
+		       && Tcl_GetLongFromObj(interp, objv[3], &count) != TCL_ERROR){
+			if(msgno > 0L){
+			    mn_set_cur(ps_global->msgmap, msgno);
+			    while(count--){
+				msgno = mn_get_cur(ps_global->msgmap);
+
+				if(get_lflag(ps_global->mail_stream, ps_global->msgmap, msgno, MN_SLCT))
+				  if(Tcl_ListObjAppendElement(interp,
+							      Tcl_GetObjResult(interp),
+							      Tcl_NewLongObj((long) mail_uid(ps_global->mail_stream, msgno))) != TCL_OK)
+				    return(TCL_ERROR);
+
+				mn_inc_cur(ps_global->mail_stream, ps_global->msgmap, MH_NONE);
+
+				if(msgno == mn_get_cur(ps_global->msgmap))
+				  break;
+			    }
+			}
+
+			return(TCL_OK);
+		    }
+
+		    Tcl_SetResult(interp, "selectvector: no message number", TCL_STATIC);
 		    return(TCL_ERROR);
 		}
 	    }
@@ -5787,9 +5989,9 @@ peSelect(Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 			    first = n;
 			}
 
-			if(first >= 1L && first <= mn_get_total(ps_global->msgmap)){
+			if(first >= 1L && first <= mn_get_total(sp_msgmap(ps_global->mail_stream))){
 			    if(last){
-				if(last >= 1L && last <= mn_get_total(ps_global->msgmap)){
+				if(last >= 1L && last <= mn_get_total(sp_msgmap(ps_global->mail_stream))){
 				    for(n = first; n <= last; n++)
 				      mm_searched(ps_global->mail_stream,
 						  mn_m2raw(ps_global->msgmap, n));
@@ -5916,7 +6118,7 @@ peSelect(Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	     */
 
 	    if(narrow)				/* make sure something was selected */
-	      for(i = 1L; i <= mn_get_total(ps_global->msgmap); i++)
+	      for(i = 1L; i <= mn_get_total(sp_msgmap(ps_global->mail_stream)); i++)
 		if(mail_elt(ps_global->mail_stream,
 			    mn_m2raw(ps_global->msgmap, i))->searched){
 		    if(get_lflag(ps_global->mail_stream, ps_global->msgmap, i, MN_SLCT))
@@ -5931,7 +6133,7 @@ peSelect(Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 		 * loop thru all the messages, adjusting local flag bits
 		 * based on their "searched" bit...
 		 */
-		for(i = 1L, msgno = 0L; i <= mn_get_total(ps_global->msgmap); i++)
+		for(i = 1L, msgno = 0L; i <= mn_get_total(sp_msgmap(ps_global->mail_stream)); i++)
 		  if(narrow){
 		      /* turning OFF selectedness if the "searched" bit isn't lit. */
 		      if(get_lflag(ps_global->mail_stream, ps_global->msgmap, i, MN_SLCT)){
@@ -6187,6 +6389,7 @@ peApply(Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 				fs_give((void **) &seq);
 			    }
 
+			    restore_selected(ps_global->msgmap);
 			    Tcl_SetResult(interp, int2string(flagged), TCL_VOLATILE);
 			    return(TCL_OK);
 			}
@@ -6589,7 +6792,7 @@ static struct _message_cmds {
     struct {
 	int	 argcount;
 	int    (*f)(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
-    } h[2];
+    } h[3];
 } message_cmds[] = {
     {"size",		1,  {{3, peMessageSize}}},
     {"date",		2,  {{3, peMessageDate}, {4, peMessageDate}}},
@@ -6604,12 +6807,14 @@ static struct _message_cmds {
     {"envelope",	0},
     {"rawenvelope",	0},
     {"text",		1,  {{3, peMessageText}}},
+    {"header",		1,  {{3, peMessageHeader}}},
+    {"attachments",	1,  {{3, peMessageAttachments}}},
+    {"body",		3,  {{3, peMessageBody}, {4, peMessageBody}, {5, peMessageBody}}},
     {"cid",		1,  {{4, peMessagePartFromCID}}},
     {"flag",		2,  {{4, peGetFlag}, {5, peSetFlag}}},
-    {"body",		0},
     {"replyheaders",	2,  {{3, peReplyHeaders},{4, peReplyHeaders}}},
     {"replytext",	2,  {{4, peReplyText}, {5, peReplyText}}},
-    {"forwardheaders",	2,  {{3, peForwardHeaders},{4, peForwardHeaders}}},
+    {"forwardheaders",	2,  {{3, peForwardHeaders}, {4, peForwardHeaders}}},
     {"forwardtext",	2,  {{3, peForwardText}, {4, peForwardText}}},
     {"rawbody",		0},
     {"select",		2,  {{3, peMsgSelect}, {4, peMsgSelect}}},
@@ -6621,6 +6826,7 @@ static struct _message_cmds {
     {"replyquote",	1,  {{3, peReplyQuote}}},
     {"bounce",		2,  {{4, peMessageBounce},{5, peMessageBounce}}},
     {"spam",		2,  {{4, peMessageSpam}, {5, peMessageSpam}}},
+    {"trash",		2,  {{4, peMessageTrash}, {5, peMessageTrash}}},
     {NULL, 0}
 };
 
@@ -6886,26 +7092,6 @@ peMsgnoFromUID(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
     Tcl_SetResult(interp, long2string(peMessageNumber(uid)), TCL_VOLATILE);
     return(TCL_OK);
 }
-
-
-/*
- * locally global structure to keep track of various bits of state
- * needed to collect filtered output
- */
-static struct _embedded_data {
-    Tcl_Interp *interp;
-    STORE_S    *store;
-    long	uid;
-    HANDLE_S   *handles;
-    char	inhandle;
-    struct {
-	char	fg[7];
-	char	bg[7];
-	char	fgdef[7];
-	char	bgdef[7];
-    } color;
-} peED;
-
 
 
 /*
@@ -7192,9 +7378,7 @@ peInterpFlush(void)
     else
       peAppListF(peED.interp, lobjp, "%s%s", "t", "");
 
-    if(Tcl_ListObjAppendElement(peED.interp,
-				Tcl_GetObjResult(peED.interp),
-				lobjp) == TCL_OK){
+    if(Tcl_ListObjAppendElement(peED.interp, peED.obj, lobjp) == TCL_OK){
 	so_truncate(peED.store, 0L);
 	return(TCL_OK);
     }
@@ -7243,6 +7427,542 @@ peColorStr(char *s, char *b)
 }
 
 
+/*
+ * returns a list of elements
+ */
+int
+peMessageHeader(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
+{
+    MESSAGECACHE *mc;
+    HEADER_S	  h;
+    int		  flags, rv = TCL_OK;
+    long	  raw;
+    char	 *color;
+
+    /*
+     * ONLY full header mode (raw) output should get written to the 
+     * writec function we pass format_header.  If there's something
+     * in the store after formatting ,we'll write it to the Tcl result
+     * then, not as its accumulated
+     */
+    peED.interp = interp;
+    peED.obj	= Tcl_NewStringObj("", -1);
+
+    if(peED.store)
+      so_seek(peED.store, 0L, 0);
+    else
+      peED.store = so_get(CharStar, NULL, EDIT_ACCESS);
+
+    flags = FM_DISPLAY | FM_NEW_MESS | FM_NOEDITORIAL | FM_NOHTMLREL | FM_HTMLRELATED;
+
+#if	0
+    peED.color.fg[0] = '\0';
+    if((color = pico_get_last_fg_color()) && (color = color_to_asciirgb(color))){
+	peInterpWritec(TAG_EMBED);
+	peInterpWritec(TAG_FGCOLOR);
+	gf_puts(color, peInterpWritec);
+	strcpy(peED.color.fgdef, peColorStr(color, tmp_20k_buf));
+    }
+
+    peED.color.bg[0] = '\0';
+    if((color = pico_get_last_bg_color()) && (color = color_to_asciirgb(color))){
+	peInterpWritec(TAG_EMBED);
+	peInterpWritec(TAG_BGCOLOR);
+	gf_puts(color, peInterpWritec);
+	strcpy(peED.color.bgdef, peColorStr(color,tmp_20k_buf));
+    }
+
+    peInterpFlush();
+#endif
+
+    raw = peSequenceNumber(uid);
+    if(peED.uid != uid){
+	peED.uid  = uid;
+	peED.body = NULL;
+
+	ps_global->c_client_error[0] = ps_global->last_error[0] = '\0';
+	if(!((peED.env = pine_mail_fetchstructure(ps_global->mail_stream, raw, &peED.body))
+	     && (mc = mail_elt(ps_global->mail_stream, raw)))){
+	    char buf[256];
+
+	    snprintf(buf, sizeof(buf), "Error getting message %ld: %s", peMessageNumber(uid),
+		     ps_global->last_error[0] ? ps_global->last_error : "Indeterminate");
+
+	    dprint((1, "ERROR fetching %s of msg %ld: %s",
+		    peED.env ? "elt" : "env", mn_get_cur(ps_global->msgmap),
+		    ps_global->last_error[0] ? ps_global->last_error : "Indeterminate"));
+
+	    Tcl_SetResult(interp, buf, TCL_VOLATILE);
+	    rv = TCL_ERROR;
+	}
+	else{
+	    zero_atmts(ps_global->atmts);
+	    describe_mime(peED.body, "", 1, 1, 0, flags);
+	}
+    }
+
+    /* NO HANDLES init_handles(&peED.handles);*/
+
+    /*
+     * Collect header pieces into lists via the passed custom formatter.  Collect
+     * everything else in the storage object passed.  The latter should only end up
+     * with raw header data.
+     *
+     * BUG: DEAL WITH COLORS
+     */
+    if(rv == TCL_OK){
+	HD_INIT(&h, ps_global->VAR_VIEW_HEADERS, ps_global->view_all_except, FE_DEFAULT);
+	if(format_header(ps_global->mail_stream, raw, NULL, peED.env, &h,
+			 NULL, NULL, flags, peFormatEnvelope, peInterpWritec) != 0){
+	    char buf[256];
+
+	    snprintf(buf, sizeof(buf), "Error formatting header %ld", peMessageNumber(uid));
+	    dprint((1, buf));
+
+	    Tcl_SetResult(interp, buf, TCL_VOLATILE);
+	    rv = TCL_ERROR;
+	}
+    }
+
+    peInterpFlush();
+    peAppListF(peED.interp, Tcl_GetObjResult(peED.interp), "%s%s%o", "raw", "", peED.obj);
+
+    so_give(&peED.store);
+    return(rv);
+}
+
+void
+peFormatEnvelope(MAILSTREAM *s, long int n, char *sect, ENVELOPE *e, gf_io_t pc, long int which, char *oacs, int flags)
+{
+    char *p2, buftmp[MAILTMPLEN];
+    Tcl_Obj *objHdr;
+
+    if(!e)
+      return;
+
+    if((which & FE_DATE) && e->date) {
+	if((objHdr = Tcl_NewListObj(0, NULL)) != NULL){
+	    snprintf(buftmp, sizeof(buftmp), "%s", (char *) e->date);
+	    buftmp[sizeof(buftmp)-1] = '\0';
+	    p2 = (char *)rfc1522_decode_to_utf8((unsigned char *) tmp_20k_buf, SIZEOF_20KBUF, buftmp);
+	    peFormatEnvelopeText("Date", p2);
+	}
+	/* BUG: how does error feedback bubble back up? */
+    }
+
+    if((which & FE_FROM) && e->from)
+      peFormatEnvelopeAddress(s, n, sect, "From", e->from, flags, oacs, pc);
+
+    if((which & FE_REPLYTO) && e->reply_to && (!e->from || !address_is_same(e->reply_to, e->from)))
+      peFormatEnvelopeAddress(s, n, sect, "Reply-To", e->reply_to, flags, oacs, pc);
+
+    if((which & FE_TO) && e->to)
+      peFormatEnvelopeAddress(s, n, sect, "To", e->to, flags, oacs, pc);
+
+    if((which & FE_CC) && e->cc)
+      peFormatEnvelopeAddress(s, n, sect, "Cc", e->cc, flags, oacs, pc);
+
+    if((which & FE_BCC) && e->bcc)
+      peFormatEnvelopeAddress(s, n, sect, "Bcc", e->bcc, flags, oacs, pc);
+
+    if((which & FE_RETURNPATH) && e->return_path)
+      peFormatEnvelopeAddress(s, n, sect, "Return-Path", e->return_path, flags, oacs, pc);
+
+    if((which & FE_NEWSGROUPS) && e->newsgroups)
+      peFormatEnvelopeNewsgroups("Newsgroups", e->newsgroups, flags, pc);
+
+    if((which & FE_FOLLOWUPTO) && e->followup_to)
+      peFormatEnvelopeNewsgroups("Followup-To", e->followup_to, flags, pc);
+
+    if((which & FE_SUBJECT) && e->subject && e->subject[0]){
+	if((objHdr = Tcl_NewListObj(0, NULL)) != NULL){
+	    char *freeme = NULL;
+
+	    p2 = iutf8ncpy((char *)(tmp_20k_buf+10000),
+			   (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf, 10000, e->subject),
+			   SIZEOF_20KBUF-10000);
+
+	    if(flags & FM_DISPLAY
+	       && (ps_global->display_keywords_in_subject
+		   || ps_global->display_keywordinits_in_subject)){
+
+		/* don't bother if no keywords are defined */
+		if(some_user_flags_defined(s))
+		  p2 = freeme = prepend_keyword_subject(s, n, p2,
+							ps_global->display_keywords_in_subject ? KW : KWInit,
+							NULL, ps_global->VAR_KW_BRACES);
+	    }
+
+	    peFormatEnvelopeText("Subject", p2);
+
+	    if(freeme)
+	      fs_give((void **) &freeme);
+	}
+    }
+
+    if((which & FE_SENDER) && e->sender && (!e->from || !address_is_same(e->sender, e->from)))
+      peFormatEnvelopeAddress(s, n, sect, "Sender", e->sender, flags, oacs, pc);
+
+    if((which & FE_MESSAGEID) && e->message_id){
+	p2 = iutf8ncpy((char *)(tmp_20k_buf+10000), (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf, 10000, e->message_id), SIZEOF_20KBUF-10000);
+	peFormatEnvelopeText("Message-ID", p2);
+    }
+
+    if((which & FE_INREPLYTO) && e->in_reply_to){
+	p2 = iutf8ncpy((char *)(tmp_20k_buf+10000), (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf, 10000, e->in_reply_to), SIZEOF_20KBUF-10000);
+	peFormatEnvelopeText("In-Reply-To", p2);
+    }
+
+    if((which & FE_REFERENCES) && e->references) {
+	p2 = iutf8ncpy((char *)(tmp_20k_buf+10000), (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf, 10000, e->references), SIZEOF_20KBUF-10000);
+	peFormatEnvelopeText("References", p2);
+    }
+}
+
+
+/*
+ * appends caller's result with: {"text" field_name {field_value}}
+ */
+void
+peFormatEnvelopeText(char *field_name, char *field_value)
+{
+    peAppListF(peED.interp, Tcl_GetObjResult(peED.interp), "%s%s%s", "text", field_name, field_value);
+}
+
+
+/*
+ * appends caller's result with: {"addr" field_name {{{personal} {mailbox}} ... }}
+ *				 {"rawaddr" field_name {{raw_address} ... }}
+ */
+void
+peFormatEnvelopeAddress(MAILSTREAM *stream, long int msgno, char *section, char *field_name,
+			struct mail_address *addr, int flags, char *oacs, gf_io_t pc)
+{
+    char    *ptmp, *mtmp, *atype = "addr";
+    int	     group = 0;
+    ADDRESS *atmp;
+    Tcl_Obj *objAddrList = NULL;
+    STORE_S *tso;
+    gf_io_t  tpc;
+    extern const char *rspecials;
+    extern const char *rspecials_minus_quote_and_dot;
+
+    if(!addr)
+      return;
+
+    /*
+     * quickly run down address list to make sure none are patently bogus.
+     * If so, just blat raw field out.
+     */
+    for(atmp = addr; stream && atmp; atmp = atmp->next)
+      if(atmp->host && atmp->host[0] == '.'){
+	  char *field, *fields[2];
+
+	  atype = "rawaddr";
+	  if((objAddrList = Tcl_NewListObj(0,NULL)) == NULL)
+	    return;	       /* BUG: handle list creation failure */
+
+	  fields[1] = NULL;
+	  fields[0] = cpystr(field_name);
+	  if((ptmp = strchr(fields[0], ':')) != NULL)
+	    *ptmp = '\0';
+
+	  if((field = pine_fetchheader_lines(stream, msgno, section, fields)) != NULL){
+	      char *h, *t;
+
+	      for(t = h = field; *h ; t++)
+		if(*t == '\015' && *(t+1) == '\012'){
+		    *t = '\0';			/* tie off line */
+
+		    Tcl_ListObjAppendElement(peED.interp, objAddrList, Tcl_NewStringObj(h,-1));
+
+		    if(!*(h = (++t) + 1))	/* set new h and skip CRLF */
+		      break;			/* no more to write */
+		}
+		else if(!*t){			/* shouldn't happen much */
+		    if(h != t)
+		      Tcl_ListObjAppendElement(peED.interp, objAddrList, Tcl_NewStringObj(h,-1));
+
+		    break;
+		}
+
+	      fs_give((void **)&field);
+	  }
+
+	  fs_give((void **)&fields[0]);
+      }
+
+    if(!objAddrList){
+	if((objAddrList = Tcl_NewListObj(0,NULL)) == NULL || (tso = so_get(CharStar, NULL, EDIT_ACCESS)) == NULL)
+	  return;	       /* BUG: handle list creation failure */
+
+	gf_set_so_writec(&tpc, tso);
+
+	while(addr){
+
+	    atmp	   = addr->next;		/* remember what's next */
+	    addr->next     = NULL;
+	    if(!addr->host && addr->mailbox){
+		mtmp = addr->mailbox;
+		addr->mailbox = cpystr((char *)rfc1522_decode_to_utf8(
+					       (unsigned char *)tmp_20k_buf,
+					       SIZEOF_20KBUF, addr->mailbox));
+	    }
+
+	    ptmp	       = addr->personal;	/* RFC 1522 personal name? */
+	    addr->personal = iutf8ncpy((char *)tmp_20k_buf, (char *)rfc1522_decode_to_utf8((unsigned char *)(tmp_20k_buf+10000), SIZEOF_20KBUF-10000, addr->personal), 10000);
+	    tmp_20k_buf[10000-1] = '\0';
+
+
+	    /* Logic taken from: pine_rfc822_write_address_noquote(addr, pc, &group); */
+	    if (addr->host) {		/* ordinary address? */
+		if (!(addr->personal || addr->adl)){
+		    so_seek(tso, 0L, 0);
+		    pine_rfc822_address (addr, tpc);
+		    peAppListF(peED.interp, objAddrList, "%s%o", "", Tcl_NewStringObj((char *) so_text(tso), so_tell(tso)));
+		}
+		else {			/* no, must use phrase <route-addr> form */
+		    Tcl_Obj *objTmp;
+
+		    if (addr->personal){
+			so_seek(tso, 0L, 0);
+			pine_rfc822_cat (addr->personal, rspecials_minus_quote_and_dot, tpc);
+			objTmp = Tcl_NewStringObj((char *) so_text(tso), so_tell(tso));
+		    }
+
+		    so_seek(tso, 0L, 0);
+		    pine_rfc822_address(addr, tpc);
+		    peAppListF(peED.interp, objAddrList, "%o%o", objTmp, Tcl_NewStringObj((char *) so_text(tso), so_tell(tso)));
+		}
+
+		if(group)
+		  group++;
+	    }
+	    else if (addr->mailbox) {	/* start of group? */
+		so_seek(tso, 0L, 0);
+		/* yes, write group name */
+		pine_rfc822_cat (addr->mailbox, rspecials, tpc);
+		peAppListF(peED.interp, objAddrList, "%o%s", Tcl_NewStringObj((char *) so_text(tso), so_tell(tso)), "");
+		group = 1;		/* in a group */
+	    }
+	    else if (group) {		/* must be end of group (but be paranoid) */
+		peAppListF(peED.interp, objAddrList, "%s%s", "", ";");
+		group = 0;		/* no longer in that group */
+	    }
+
+	    addr->personal = ptmp;			/* restore old personal ptr */
+	    if(!addr->host && addr->mailbox){
+		fs_give((void **)&addr->mailbox);
+		addr->mailbox = mtmp;
+	    }
+
+	    addr->next = atmp;
+	    addr       = atmp;
+	}
+
+	gf_clear_so_writec(tso);
+	so_give(&tso);
+    }
+
+    peAppListF(peED.interp, Tcl_GetObjResult(peED.interp), "%s%s%o", atype, field_name, objAddrList);
+}
+
+
+/*
+ * appends caller's result with: {"news" field_name {{newsgroup1} {newsgroup2} ... }}
+ */
+void
+peFormatEnvelopeNewsgroups(char *field_name, char *newsgrps, int flags, gf_io_t pc)
+{
+    char     buf[MAILTMPLEN];
+    int	     llen;
+    char    *next_ng;
+    Tcl_Obj *objNewsgroups;
+
+    /* BUG: handle list creation failure */
+    if(!newsgrps || !*newsgrps || (objNewsgroups = Tcl_NewListObj(0,NULL)) == NULL)
+      return;
+
+    llen = strlen(field_name);
+    while(*newsgrps){
+        for(next_ng = newsgrps; *next_ng && *next_ng != ','; next_ng++)
+	  ;
+
+        strncpy(buf, newsgrps, MIN(next_ng - newsgrps, sizeof(buf)-1));
+        buf[MIN(next_ng - newsgrps, sizeof(buf)-1)] = '\0';
+
+	Tcl_ListObjAppendElement(peED.interp, objNewsgroups, Tcl_NewStringObj(buf,-1));
+
+        newsgrps = next_ng;
+        if(*newsgrps)
+          newsgrps++;
+    }
+
+    peAppListF(peED.interp, Tcl_GetObjResult(peED.interp), "news", field_name, objNewsgroups);
+}
+
+
+int
+peMessageAttachments(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
+{
+    MESSAGECACHE *mc;
+    ATTACH_S	 *a;
+    BODY	 *body;
+    Tcl_Obj	 *objAtt, *tObj, *stObj, *fnObj;
+    int		  flags, rv = TCL_OK;
+    long	  raw;
+
+    peED.interp = interp;
+    peED.obj	= Tcl_GetObjResult(interp);
+
+    flags = FM_DISPLAY | FM_NEW_MESS | FM_NOEDITORIAL | FM_HTML | FM_NOHTMLREL | FM_HTMLRELATED | FM_HIDESERVER;
+
+    raw = peSequenceNumber(uid);
+
+    if(peED.uid != uid){
+	memset(&peED, 0, sizeof(peED));
+
+	peED.uid  = uid;
+
+	ps_global->c_client_error[0] = ps_global->last_error[0] = '\0';
+	if(!((peED.env = pine_mail_fetchstructure(ps_global->mail_stream, raw, &peED.body))
+	     && (mc = mail_elt(ps_global->mail_stream, raw)))){
+	    char buf[256];
+
+	    snprintf(buf, sizeof(buf), "Error getting message %ld: %s", peMessageNumber(uid),
+		     ps_global->last_error[0] ? ps_global->last_error : "Indeterminate");
+
+	    dprint((1, "ERROR fetching %s of msg %ld: %s",
+		    peED.env ? "elt" : "env", mn_get_cur(ps_global->msgmap),
+		    ps_global->last_error[0] ? ps_global->last_error : "Indeterminate"));
+
+	    Tcl_SetResult(interp, buf, TCL_VOLATILE);
+	    rv = TCL_ERROR;
+	}
+	else{
+	    zero_atmts(ps_global->atmts);
+	    describe_mime(peED.body, "", 1, 1, 0, flags);
+	}
+    }
+
+    /* package up attachment list */
+    for(a = ps_global->atmts; rv == TCL_OK && a->description != NULL; a++)
+      if((objAtt = Tcl_NewListObj(0, NULL)) != NULL
+	 && (body = mail_body(ps_global->mail_stream, raw, (unsigned char *) a->number)) != NULL){
+	  peGetMimeTyping(body, &tObj, &stObj, &fnObj, NULL);
+
+	  if(!(peAppListF(interp, objAtt, "%s", a->number ? a->number : "") == TCL_OK
+	       && peAppListF(interp, objAtt, "%s", a->shown ? "shown" : "") == TCL_OK
+	       && Tcl_ListObjAppendElement(interp, objAtt, tObj) == TCL_OK
+	       && Tcl_ListObjAppendElement(interp, objAtt, stObj) == TCL_OK
+	       && Tcl_ListObjAppendElement(interp, objAtt, fnObj) == TCL_OK
+	       && peAppListF(interp, objAtt, "%s", a->body->description) == TCL_OK
+	       && Tcl_ListObjAppendElement(interp, Tcl_GetObjResult(interp), objAtt) == TCL_OK))
+	    rv = TCL_ERROR;
+      }
+      else
+	rv = TCL_ERROR;
+
+    return(rv);
+}
+
+
+int
+peMessageBody(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
+{
+    MESSAGECACHE *mc;
+    int		  flags, rv = TCL_OK;
+    long	  raw;
+    char	 *color, *fmt, *imgs;
+
+    peED.interp = interp;
+    peED.obj	= Tcl_GetObjResult(interp);
+
+    if(peED.store)
+      so_seek(peED.store, 0L, 0);
+    else
+      peED.store = so_get(CharStar, NULL, EDIT_ACCESS);
+
+    flags = FM_DISPLAY | FM_NEW_MESS | FM_NOEDITORIAL | FM_NOHTMLREL | FM_HTMLRELATED;
+
+    if(objc >= 1 && objv[0]
+       && (fmt = Tcl_GetStringFromObj(objv[0], NULL)) != NULL
+       && !strucmp(fmt, "html")){
+	flags |= (FM_HTML | FM_HIDESERVER);
+    }
+
+    if(objc == 2 && (flags & FM_HTML) != 0 && objv[1]
+       && (imgs = Tcl_GetStringFromObj(objv[1], NULL)) != NULL
+       && !strucmp(imgs, "images")){
+	flags |= (FM_HTMLIMAGES);
+    }
+
+    peED.color.fg[0] = '\0';
+    if((color = pico_get_last_fg_color()) && (color = color_to_asciirgb(color))){
+	peInterpWritec(TAG_EMBED);
+	peInterpWritec(TAG_FGCOLOR);
+	gf_puts(color, peInterpWritec);
+	strcpy(peED.color.fgdef, peColorStr(color, tmp_20k_buf));
+    }
+
+    peED.color.bg[0] = '\0';
+    if((color = pico_get_last_bg_color()) && (color = color_to_asciirgb(color))){
+	peInterpWritec(TAG_EMBED);
+	peInterpWritec(TAG_BGCOLOR);
+	gf_puts(color, peInterpWritec);
+	strcpy(peED.color.bgdef, peColorStr(color,tmp_20k_buf));
+    }
+
+    peInterpFlush();
+
+    init_handles(&peED.handles);
+
+    raw = peSequenceNumber(uid);
+
+    if(peED.uid != uid){
+	peED.uid  = uid;
+	peED.body = NULL;
+
+	ps_global->c_client_error[0] = ps_global->last_error[0] = '\0';
+	if(!((peED.env = pine_mail_fetchstructure(ps_global->mail_stream, raw, &peED.body))
+	     && (mc = mail_elt(ps_global->mail_stream, raw)))){
+	    char buf[256];
+
+	    snprintf(buf, sizeof(buf), "Error getting message %ld: %s", peMessageNumber(uid),
+		     ps_global->last_error[0] ? ps_global->last_error : "Indeterminate");
+
+	    dprint((1, "ERROR fetching %s of msg %ld: %s",
+		    peED.env ? "elt" : "env", mn_get_cur(ps_global->msgmap),
+		    ps_global->last_error[0] ? ps_global->last_error : "Indeterminate"));
+
+	    Tcl_SetResult(interp, buf, TCL_VOLATILE);
+	    rv = TCL_ERROR;
+	}
+	else{
+	    zero_atmts(ps_global->atmts);
+	    describe_mime(peED.body, "", 1, 1, 0, flags);
+	}
+    }
+
+    /* format message body */
+    if(rv == TCL_OK){
+	HEADER_S  h;
+	char	 *errstr;
+
+	HD_INIT(&h, ps_global->VAR_VIEW_HEADERS, ps_global->view_all_except, FE_DEFAULT);
+	if((errstr = format_body(raw, peED.body, &peED.handles, &h, flags, FAKE_SCREEN_WIDTH, peInterpWritec)) != NULL){
+	    gf_puts(errstr, peInterpWritec);
+	    rv = TCL_ERROR;
+	}
+    }
+
+    peInterpFlush();
+
+    so_give(&peED.store);
+    free_handles(&peED.handles);
+    return(rv);
+}
+
 
 int
 peMessageText(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
@@ -7256,7 +7976,8 @@ peMessageText(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 
     memset(&peED, 0, sizeof(peED));
     peED.interp = interp;
-    peED.store = so_get(CharStar, NULL, EDIT_ACCESS);
+    peED.obj    = Tcl_GetObjResult(interp);
+    peED.store  = so_get(CharStar, NULL, EDIT_ACCESS);
 
     peED.color.fg[0] = '\0';
     if((color = pico_get_last_fg_color()) && (color = color_to_asciirgb(color))){
@@ -7682,12 +8403,14 @@ peMsgStatBitString(struct pine *state,
 {
     static char	  buf[36];
     int		  i;
+    long	  raw;
     MESSAGECACHE *mc;
     ICE_S	 *h;
 
+    raw = mn_m2raw(msgmap, msgno);
     if((h = build_header_work(state, stream, msgmap,
 			      msgno, top_msgno, msgcount, fetched))
-       && (mc = mail_elt(stream, mn_m2raw(msgmap, msgno)))){
+       && (mc = mail_elt(stream, raw))){
 	/* return a string representing a bit field where:
 	   index     meaning
 	   -----     -------
@@ -7697,6 +8420,9 @@ peMsgStatBitString(struct pine *state,
 	   3         flagged
 	   4         to us
 	   5         cc us
+	   6	     recent
+	   7	     forwarded
+	   8	     attachments
 	*/
 	i = 0;
 	buf[i++] = (mc->seen) ? '0' : '1';
@@ -7705,12 +8431,67 @@ peMsgStatBitString(struct pine *state,
 	buf[i++] = (mc->flagged) ? '1' : '0';
 	buf[i++] = (h->to_us) ? '1' : '0';
 	buf[i++] = (h->cc_us) ? '1' : '0';
+	buf[i++] = (mc->recent) ? '1' : '0';
+	buf[i++] = (user_flag_is_set(stream, raw, FORWARDED_FLAG)) ? '1' : '0';
+	buf[i++] = '0';
 	buf[i++] = '\0';
 
 	return(buf);
     }
 
-    return("100000");
+    return("100000000");
+}
+
+
+Tcl_Obj *
+peMsgStatNameList(Tcl_Interp *interp,
+		  struct pine *state,
+		  MAILSTREAM  *stream,
+		  MSGNO_S     *msgmap,
+		  long		msgno,
+		  long		top_msgno,
+		  long		msgcount,
+		  int	       *fetched)
+{
+    Tcl_Obj	 *objList;
+    long	  raw;
+    MESSAGECACHE *mc;
+    ICE_S	 *h;
+
+    objList = Tcl_NewListObj(0, NULL);
+    raw = mn_m2raw(msgmap, msgno);
+    if((h = build_header_work(state, stream, msgmap,
+			      msgno, top_msgno, msgcount, fetched))
+       && (mc = mail_elt(stream, raw))){
+	if(!mc->seen)
+	  Tcl_ListObjAppendElement(interp, objList, Tcl_NewStringObj("new", -1));
+
+	if(mc->deleted)
+	  Tcl_ListObjAppendElement(interp, objList, Tcl_NewStringObj("deleted", -1));
+
+	if(mc->answered)
+	  Tcl_ListObjAppendElement(interp, objList, Tcl_NewStringObj("answered", -1));
+
+	if(mc->flagged)
+	  Tcl_ListObjAppendElement(interp, objList, Tcl_NewStringObj("flagged", -1));
+
+	if(h->to_us)
+	  Tcl_ListObjAppendElement(interp, objList, Tcl_NewStringObj("to_us", -1));
+
+	if(h->cc_us)
+	  Tcl_ListObjAppendElement(interp, objList, Tcl_NewStringObj("cc_us", -1));
+
+	if(mc->recent)
+	  Tcl_ListObjAppendElement(interp, objList, Tcl_NewStringObj("recent", -1));
+
+	if(user_flag_is_set(stream, raw, FORWARDED_FLAG))
+	  Tcl_ListObjAppendElement(interp, objList, Tcl_NewStringObj("forwarded", -1));
+
+	if(get_lflag(ps_global->mail_stream, ps_global->msgmap, msgno, MN_SLCT))
+	  Tcl_ListObjAppendElement(interp, objList, Tcl_NewStringObj("selected", -1));
+    }
+
+    return(objList);
 }
 
 
@@ -7976,8 +8757,16 @@ peForwardHeaders(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 	tmp = forward_subject(env, FS_NONE);
 	result = peAppListF(interp, Tcl_GetObjResult(interp),
 			    "%s%s", "subject", tmp);
-
 	fs_give((void **) &tmp);
+
+	/* Fill in x-reply-uid data and append it */
+	if(result == TCL_OK && ps_global->mail_stream->uid_validity){
+	    snprintf(tmp_20k_buf, SIZEOF_20KBUF, "()(1 %lu %lu)%s",
+		     ps_global->mail_stream->uid_validity, uid,
+		     ps_global->mail_stream->mailbox);
+	    result = peAppListF(interp, Tcl_GetObjResult(interp), "%s%s",
+				"x-reply-uid", tmp_20k_buf) != TCL_OK;
+	}
 
 	return(result);
     }
@@ -8671,6 +9460,9 @@ peAppListF(Tcl_Interp *interp, Tcl_Obj *lobjp, char *fmt, ...)
 
 		  break;
 
+		case 'o':	/* Tcl_Obj * */
+		  sObj = va_arg(args, Tcl_Obj *);
+		  break;
 	      }
 
 	    if(sObj)
@@ -9285,6 +10077,14 @@ peMessageSpam(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 }
 
 
+int
+peMessageTrash(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
+{
+    Tcl_SetResult(interp, "OK", TCL_VOLATILE);
+    return(TCL_OK);
+}
+
+
 /* * * * * * * * * * * * *  Start of Composer Routines * * * * * * * * * * * */
 
 
@@ -9848,6 +10648,20 @@ PEPostponeCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONS
 
 		    return(TCL_OK);
 		}
+		else if(!strcmp(s1, "count")){
+		    MAILSTREAM *stream;
+
+		    if(postponed_stream(&stream, ps_global->VAR_POSTPONED_FOLDER, "Postponed", 0) && stream){
+			Tcl_SetResult(interp, Tcl_NewLongObj(stream->nmsgs), TCL_STATIC);
+
+			if(stream != ps_global->mail_stream)
+			  pine_mail_close(stream);
+		    }
+		    else
+		      Tcl_SetResult(interp, "-1", TCL_STATIC);
+
+		    return(TCL_OK);
+		}
 		else if(!strcmp(s1, "list")){
 		    MAILSTREAM *stream;
 		    ENVELOPE   *env;
@@ -9867,8 +10681,8 @@ PEPostponeCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONS
 			    if((env = pine_mail_fetchstructure(stream, n, NULL)) != NULL){
 				objEnv = Tcl_NewListObj(0, NULL);
 
-				peAppListF(interp, objEnv, "uid",
-					   "%s%s", ulong2string(mail_uid(stream, n)));
+				peAppListF(interp, objEnv, "%s%s", "uid",
+					   ulong2string(mail_uid(stream, n)));
 
 				peAppListF(interp, objEnv, "%s%a", "to", env->to);
 
@@ -10256,6 +11070,16 @@ peMsgCollector(Tcl_Interp *interp,
 			    }
 			}
 		    }
+		    else if(!strucmp(value, "richtext")){
+			if((value = Tcl_GetStringFromObj(objPO[1], NULL)) != NULL){
+			    if(!strucmp(value, "yes"))
+			      md.rich = 1;
+			}
+			else{
+			    err = "Post option read failure";
+			    return(peMsgCollected(interp, &md, err));
+			}
+		    }
 		    else{
 			sprintf(err = tmp_20k_buf, "Unknown Post Option: %s", value);
 			return(peMsgCollected(interp, &md, err));
@@ -10499,6 +11323,9 @@ peMsgCollected(Tcl_Interp *interp, MSG_COL_S *md, char *err)
 
 	/* assign MIME parameters to text body part */
 	tbp->type = TYPETEXT;
+	if(md->rich)
+	  tbp->subtype = cpystr("HTML");
+
 	tbp->contents.text.data = (void *) md->msgtext;
 
 	/*
@@ -10961,6 +11788,42 @@ PEAddressCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 		Tcl_SetResult(interp, buf, TCL_VOLATILE);
 		return(TCL_ERROR);
 	    }
+	    else if(!strcmp(op, "complete")){
+		/*
+		 * CMD: complete
+		 *
+		 *    Look for possible completions for
+		 *    given query_string.  
+		 *
+		 * ARGS: <query_string>
+		 *
+		 * Returns: candidate list: {nickname  {personal mailbox}}
+		 */
+		char	    *query;
+		COMPLETE_S  *completions, *cp;
+
+		if(peInitAddrbooks(interp, 0) != TCL_OK)
+		  return(TCL_ERROR);
+
+		if((query = Tcl_GetStringFromObj(objv[2], NULL)) != NULL){
+
+		    completions = adrbk_list_of_completions(query);
+
+		    if(completions){
+			for(cp = completions; cp; cp = cp->next)
+			  peAppListF(interp, Tcl_GetObjResult(interp), "%s %s",
+				     cp->nickname ? cp->nickname : "",
+				     cp->full_address ? cp->full_address : "");
+
+			free_complete_s(&completions);
+		    }
+		    else
+		      Tcl_SetResult(interp, "", TCL_STATIC);
+		}
+
+		return(TCL_OK);
+	    }
+
 	}
 	else if(objc == 4){
 	    if(!strcmp(op, "verify")){

@@ -1,6 +1,5 @@
-
 /* ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -88,7 +87,7 @@ long auth_gssapi_proxy_valid (void)
  */
 
 #ifndef AUTH_GSS_PROXY_PATH
-#define AUTH_GSS_PROXY_PATH "/data/webpine/bin/wp_gssapi_proxy"
+#define AUTH_GSS_PROXY_PATH "/usr/local/libexec/alpine/bin/wp_gssapi_proxy"
 #endif
 #define AUTH_GSS_PROXY_MESSAGE 1
 #define AUTH_GSS_PROXY_READ 2

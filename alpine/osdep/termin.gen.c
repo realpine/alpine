@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: termin.gen.c 881 2007-12-18 18:29:24Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: termin.gen.c 902 2008-01-08 17:04:58Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -85,7 +85,7 @@ things.  The duration of the timeout is set in pine.c.
 UCS
 read_command(char **utf8str)
 {
-    int i, tm = 0, more_freq_timeo;
+    int tm = 0, more_freq_timeo;
     UCS ucs;
     long dtime; 
     static unsigned char utf8buf[7];
@@ -300,7 +300,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 	       x_base, y_base, utf8string_size,
 	       (flags && *flags & OE_APPEND_CURRENT)));
     dprint((9, "passwd:%d   utf8prompt:\"%s\"   label:\"%s\"\n",
-               (flags && *flags & OE_PASSWD),
+	       (flags && *flags & OE_PASSWD) ? 1 : 0,
 	       utf8prompt ? utf8prompt : "",
 	       (escape_list && escape_list[0].ch != -1 && escape_list[0].label)
 		 ? escape_list[0].label: ""));
@@ -502,7 +502,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 	field_pos++;
 
     passwd = (flags && *flags & OE_PASSWD) ? 1 : 0;
-    line_paint(field_pos, &dline, &passwd);
+    line_paint(field_pos, &dline, passwd);
 
     /*----------------------------------------------------------------------
       The main loop
@@ -571,7 +571,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 	    if(field_pos >= string_size || string[field_pos] == '\0')
               goto bleep;
 
-	    line_paint(++field_pos, &dline, &passwd);
+	    line_paint(++field_pos, &dline, passwd);
 	    break;
 
 	    /*--------------- KEY LEFT ---------------*/
@@ -580,7 +580,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 	    if(field_pos <= 0)
 	      goto bleep;
 
-	    line_paint(--field_pos, &dline, &passwd);
+	    line_paint(--field_pos, &dline, passwd);
 	    break;
 
           /*-------------------- WORD SKIP --------------------*/
@@ -601,7 +601,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 		  && !isalnum((unsigned char) string[field_pos]))
 	      field_pos++;
 
-	    line_paint(field_pos, &dline, &passwd);
+	    line_paint(field_pos, &dline, passwd);
 	    break;
 
           /*--------------------  RETURN --------------------*/
@@ -636,7 +636,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 	      *s2 = s2[1];
 
 	    *s2 = 0;			/* Copy last NULL */
-	    line_paint(field_pos, &dline, &passwd);
+	    line_paint(field_pos, &dline, passwd);
 	    if(flags)		/* record change if requested  */
 	      *flags |= OE_USER_MODIFIED;
 
@@ -655,7 +655,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 
 		kill_buffer = ucs4_cpystr(&string[field_pos = i]);
 		string[field_pos] = '\0';
-		line_paint(field_pos, &dline, &passwd);
+		line_paint(field_pos, &dline, passwd);
 		if(flags)		/* record change if requested  */
 		  *flags |= OE_USER_MODIFIED;
 	    }
@@ -698,7 +698,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 
 	    dline.vused = ucs4_strlen(string);
             fs_give((void **) &kb);
-	    line_paint(field_pos, &dline, &passwd);
+	    line_paint(field_pos, &dline, passwd);
             break;
             
 	    /*-------------------- Interrupt --------------------*/
@@ -726,13 +726,13 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
           case ctrl('A'):
 	  case KEY_HOME:
             /*-------------------- Start of line -------------*/
-	    line_paint(field_pos = 0, &dline, &passwd);
+	    line_paint(field_pos = 0, &dline, passwd);
             break;
 
           case ctrl('E'):
 	  case KEY_END:
             /*-------------------- End of line ---------------*/
-	    line_paint(field_pos = dline.vused, &dline, &passwd);
+	    line_paint(field_pos = dline.vused, &dline, passwd);
             break;
 
 	    /*-------------------- Help --------------------*/
@@ -763,7 +763,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 		PutLine0(real_y_base, x_base, utf8prompt);
 		memset(dline.dl,    0, dline.dlen * sizeof(UCS));
 		memset(dline.olddl, 0, dline.dlen * sizeof(UCS));
-		line_paint(field_pos, &dline, &passwd);
+		line_paint(field_pos, &dline, passwd);
 		break;
 	    }
 
@@ -822,7 +822,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 		  field_pos = MIN(MAX(field_pos, 0), dline.vused);
 
 		  /* just allow line_paint to choose vbase */
-		  line_paint(field_pos, &dline, &passwd);
+		  line_paint(field_pos, &dline, passwd);
 		  break;
 
 		case M_BUTTON_RIGHT :
@@ -860,7 +860,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 		  
 		  field_pos = MIN(MAX(field_pos, 0), dline.vused);
 
-		  line_paint(field_pos, &dline, &passwd);
+		  line_paint(field_pos, &dline, passwd);
 
 		  mswin_allowpaste(MSWIN_PASTE_LINE);
 		  mswin_paste_popup();
@@ -898,7 +898,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 	      goto cancel;
 
 	    if(i < 0){
-	      line_paint(field_pos, &dline, &passwd);
+	      line_paint(field_pos, &dline, passwd);
 	      break;			/* no changes, get on with life */
 	    }
 	    /* Else fall into redraw */
@@ -942,7 +942,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 		fs_resize((void **) &dline.olddl, (size_t) dline.dlen * sizeof(UCS));
 		memset(dline.dl,    0, dline.dlen * sizeof(UCS));
 		memset(dline.olddl, 0, dline.dlen * sizeof(UCS));
-		line_paint(field_pos, &dline, &passwd);
+		line_paint(field_pos, &dline, passwd);
             }
 
             fflush(stdout);
@@ -994,7 +994,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 	      *s2 = *(s2-1);
 
 	    string[field_pos++] = ucs;
-	    line_paint(field_pos, &dline, &passwd);
+	    line_paint(field_pos, &dline, passwd);
 	    if(flags)		/* record change if requested  */
 	      *flags |= OE_USER_MODIFIED;
 		    

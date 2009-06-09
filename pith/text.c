@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: text.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: text.c 945 2008-03-05 18:56:28Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -238,17 +238,19 @@ decode_text(ATTACH_S	    *att,
 
 	    if(handlesp){		/* pass on handles awareness */
 		opts |= GFHP_HANDLES;
-	    
-		if(F_OFF(F_QUELL_HOST_AFTER_URL, ps_global))
+
+		if(F_OFF(F_QUELL_HOST_AFTER_URL, ps_global) && !(flags & FM_HIDESERVER))
 		  opts |= GFHP_SHOW_SERVER;
 	    }
 
-	    warn_so = so_get(CharStar, NULL, EDIT_ACCESS);
-	    gf_set_so_writec(&warn_pc, warn_so);
-	    format_editorial(HTML_WARNING, column, flags, handlesp, warn_pc);
-	    gf_clear_so_writec(warn_so);
-	    so_puts(warn_so, "\015\012");
-	    so_writec('\0', warn_so);
+	    if(!(flags & FM_NOEDITORIAL)){
+		warn_so = so_get(CharStar, NULL, EDIT_ACCESS);
+		gf_set_so_writec(&warn_pc, warn_so);
+		format_editorial(HTML_WARNING, column, flags, handlesp, warn_pc);
+		gf_clear_so_writec(warn_so);
+		so_puts(warn_so, "\015\012");
+		so_writec('\0', warn_so);
+	    }
 	}
 	else
 	  opts |= GFHP_STRIPPED;	/* don't embed anything! */
@@ -258,6 +260,12 @@ decode_text(ATTACH_S	    *att,
 
 	if(flags & FM_HTMLRELATED)
 	  opts |= GFHP_RELATED_CONTENT;
+
+	if(flags & FM_HTML)
+	  opts |= GFHP_HTML;
+
+	if(flags & FM_HTMLIMAGES)
+	  opts |= GFHP_HTML_IMAGES;
 
 	wrapit = 0;		/* wrap already handled! */
 	filters[filtcnt].filter = gf_html2plain;

@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: save.c 786 2007-11-02 23:23:04Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: save.c 938 2008-02-29 18:18:49Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,6 +54,7 @@ int	  save_ex_output_line(char *, unsigned long *, gf_io_t);
  * pith hook
  */
 int (*pith_opt_save_create_prompt)(CONTEXT_S *, char *, int);
+int (*pith_opt_save_size_changed_prompt)(long, int);
 
 
 
@@ -843,6 +844,9 @@ save(struct pine *state, MAILSTREAM *stream, CONTEXT_S *context, char *folder,
 
 	nmsgs = 0L;
 
+	if(pith_opt_save_size_changed_prompt)
+	  (*pith_opt_save_size_changed_prompt)(0L, SSCP_INIT);
+
 	/* 
 	 * if there is more than one message, do multiappend.
 	 * otherwise, we can use our already open stream.
@@ -965,6 +969,9 @@ save(struct pine *state, MAILSTREAM *stream, CONTEXT_S *context, char *folder,
 		break;
 	    }
 	}
+
+	if(pith_opt_save_size_changed_prompt)
+	  (*pith_opt_save_size_changed_prompt)(0L, SSCP_END);
 
 	if(our_stream)
 	  pine_mail_close(save_stream);
@@ -1106,15 +1113,32 @@ long save_fetch_append_cb(MAILSTREAM *stream, void *data, char **flags,
 	if(size && mlen < size){
 	    char buf[128];
 
-	    if(sp_dead_stream(pkg->stream))
-	      snprintf(buf, sizeof(buf), _("Cannot save because current folder is Closed"));
-	    else
-	      snprintf(buf, sizeof(buf), "Message to save shrank!  (#%ld: %ld --> %ld)",
-		      raw, size, mlen);
-
-	    q_status_message(SM_ORDER | SM_DING, 3, 4, buf);
-	    dprint((1, "BOTCH: %s\n", buf));
-	    return(0);
+	    if(sp_dead_stream(pkg->stream)){
+		snprintf(buf, sizeof(buf), _("Cannot save because current folder is Closed"));
+		q_status_message(SM_ORDER | SM_DING, 3, 4, buf);
+		dprint((1, "save_fetch_append_cb: %s\n", buf));
+		return(0);
+	    }
+	    else{
+		if(pith_opt_save_size_changed_prompt
+		   && (*pith_opt_save_size_changed_prompt)(mn_raw2m(pkg->msgmap, raw), 0) == 'y'){
+		    snprintf(buf, sizeof(buf),
+			     "Message to save shrank! (raw msg# %ld: %ld -> %ld): User says continue",
+			     raw, size, mlen);
+		    dprint((1, "save_fetch_append_cb: %s", buf));
+		    snprintf(buf, sizeof(buf),
+	 "Message to save shrank: source msg # %ld may be saved incorrectly",
+			     mn_raw2m(pkg->msgmap, raw));
+		    q_status_message(SM_ORDER, 0, 3, buf);
+		}
+		else{
+		    snprintf(buf, sizeof(buf),
+	 "Message to save shrank: raw msg # %ld went from announced size %ld to actual size %ld",
+			     raw, size, mlen);
+		    dprint((1, "save_fetch_append_cb: %s", buf));
+		    return(0);
+		}
+	    }
 	}
 
 	INIT(pkg->msg, mail_string, (void *)so_text(pkg->so), mlen);
@@ -1276,15 +1300,32 @@ save_fetch_append(MAILSTREAM *stream, long int raw, char *sect,
     if(size && mlen < size){
 	char buf[128];
 
-	if(sp_dead_stream(stream))
-	  snprintf(buf, sizeof(buf), _("Cannot save because current folder is Closed"));
-	else
-	  snprintf(buf, sizeof(buf), "Message to save shrank!  (#%ld: %ld --> %ld)",
-		  raw, size, mlen);
-
-	q_status_message(SM_ORDER | SM_DING, 3, 4, buf);
-	dprint((1, "BOTCH: %s\n", buf));
-	return(0);
+	if(sp_dead_stream(stream)){
+	    snprintf(buf, sizeof(buf), _("Cannot save because current folder is Closed"));
+	    q_status_message(SM_ORDER | SM_DING, 3, 4, buf);
+	    dprint((1, "save_fetch_append: %s", buf));
+	    return(0);
+	}
+	else{
+	    if(pith_opt_save_size_changed_prompt
+	       && (*pith_opt_save_size_changed_prompt)(mn_raw2m(sp_msgmap(stream), raw), 0) == 'y'){
+		snprintf(buf, sizeof(buf),
+			 "Message to save shrank! (raw msg# %ld: %ld -> %ld): User says continue",
+			 raw, size, mlen);
+		dprint((1, "save_fetch_append: %s", buf));
+		snprintf(buf, sizeof(buf),
+     "Message to save shrank: source msg # %ld may be saved incorrectly",
+			 mn_raw2m(sp_msgmap(stream), raw));
+		q_status_message(SM_ORDER, 0, 3, buf);
+	    }
+	    else{
+		snprintf(buf, sizeof(buf),
+     "Message to save shrank: source raw msg # %ld went from announced size %ld to actual size %ld",
+			 raw, size, mlen);
+		dprint((1, "save_fetch_append: %s", buf));
+		return(0);
+	    }
+	}
     }
 
     INIT(&msg, mail_string, (void *)so_text(so), mlen);

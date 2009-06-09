@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: imap.c 745 2007-10-11 18:03:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: imap.c 938 2008-02-29 18:18:49Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ static char rcsid[] = "$Id: imap.c 745 2007-10-11 18:03:32Z hubert@u.washington.
 #include "../pith/stream.h"
 #include "../pith/newmail.h"
 #include "../pith/icache.h"
+#include "../pith/options.h"
 
 #ifdef _WINDOWS
 #include "../pico/osdep/mswin.h"
@@ -678,11 +679,20 @@ long
 imap_proxycopy(MAILSTREAM *stream, char *sequence, char *mailbox, long int flags)
 {
     SE_APP_S args;
+    long ret;
 
     args.folder = mailbox;
     args.flags  = flags;
 
-    return(imap_seq_exec(stream, sequence, imap_seq_exec_append, &args));
+    if(pith_opt_save_size_changed_prompt)
+      (*pith_opt_save_size_changed_prompt)(0L, SSCP_INIT);
+
+    ret = imap_seq_exec(stream, sequence, imap_seq_exec_append, &args);
+
+    if(pith_opt_save_size_changed_prompt)
+      (*pith_opt_save_size_changed_prompt)(0L, SSCP_END);
+
+    return(ret);
 }
 
 

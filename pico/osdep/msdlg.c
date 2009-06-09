@@ -1,6 +1,20 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: msdlg.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: msdlg.c 933 2008-02-22 23:52:28Z hubert@u.washington.edu $";
 #endif
+
+/*
+ * ========================================================================
+ * Copyright 2006-2008 University of Washington
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * ========================================================================
+ */
+
 /*---------------------------------------------------------------------------
  *
  *  Module: msdlg.c
@@ -950,9 +964,9 @@ BuildButtonList(HWND hDlg, MDlgButton *built_in, int biCount, MDlgButton *button
     _sntprintf(caption, ncaption, TEXT("%s '%s'"), button_list[maxstrIdx].label, 
 				  button_list[maxstrIdx].name);
 
-    GetTextExtentPoint32(hdc, caption, ncaption, &size);
-
     maxstrLen = lstrlen(caption);
+    GetTextExtentPoint32(hdc, caption, maxstrLen, &size);
+
     textExtent = size.cx;
 
     ReleaseDC(hBtn1, hdc);

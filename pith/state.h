@@ -1,8 +1,8 @@
 /*
- * $Id: state.h 739 2007-10-04 17:55:10Z hubert@u.washington.edu $
+ * $Id: state.h 937 2008-02-28 01:04:46Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -184,6 +184,8 @@ struct pine {
     unsigned	 in_folder_screen:1;
     unsigned	 noticed_change_in_unseen:1;
     unsigned	 first_open_was_attempted:1;
+    unsigned	 force_prefer_plain:1;
+    unsigned	 force_no_prefer_plain:1;
 
     unsigned	 phone_home:1;
     unsigned     painted_body_on_startup:1;
@@ -327,6 +329,8 @@ struct pine {
 
     KEYWORD_S   *keywords;
     SPEC_COLOR_S *kw_colors;
+
+    ACTION_S    *default_role;		/* pointer to one of regular roles */
 
     char	 last_error[500];
     INIT_ERR_S  *init_errs;

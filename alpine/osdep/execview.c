@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: execview.c 813 2007-11-14 00:47:15Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: execview.c 940 2008-03-03 21:37:30Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -333,8 +333,7 @@ url_os_specified_browser(char *url)
     return(mswin_reg_default_browser(url));
 #elif	OSX_TARGET
     if(mime_os_specific_access()){
-	snprintf(tmp_20k_buf, SIZEOF_20KBUF, "open %.3000s", url);
-	return(cpystr(tmp_20k_buf));
+	return(cpystr("open"));
     }
 #else
     /* do nothing here */

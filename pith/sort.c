@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: sort.c 844 2007-12-05 17:50:54Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: sort.c 912 2008-01-16 01:20:37Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -487,7 +487,7 @@ sort_sort_callback(MAILSTREAM *stream, long unsigned int *list, long unsigned in
 
     /* copy ulongs to array of longs */
     for(i = nmsgs; i > 0; i--)
-      g_sort.msgmap->sort[i] = (long) list[i-1];
+      g_sort.msgmap->sort[i] = list ? (long) list[i-1] : i-1;
 
     /* reset the inverse array */
     msgno_reset_isort(g_sort.msgmap);

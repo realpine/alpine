@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: confscroll.c 881 2007-12-18 18:29:24Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: confscroll.c 897 2008-01-04 22:49:15Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -5581,6 +5581,14 @@ fix_side_effects(struct pine *ps, struct variable *var, int revert)
     }
     else if(var == &ps->vars[V_USE_ONLY_DOMAIN_NAME]){
 	init_hostname(ps);
+    }
+    else if(var == &ps->vars[V_PRINTER]){
+	if(!revert && ps->vars[V_PERSONAL_PRINT_COMMAND].is_fixed){
+	    if(printer_value_check_and_adjust())
+	      q_status_message1(SM_ORDER, 3, 5,
+			        _("Can't set \"%s\" to that value, see Setup/Printer"),
+			        pretty_var_name(var->name));
+	}
     }
     else if(var == &ps->vars[V_KW_COLORS] ||
 	    var == &ps->vars[V_IND_PLUS_FORE_COLOR] ||

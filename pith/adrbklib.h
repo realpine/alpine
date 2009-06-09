@@ -1,8 +1,8 @@
 /*
- * $Id: adrbklib.h 592 2007-06-07 17:46:58Z hubert@u.washington.edu $
+ * $Id: adrbklib.h 947 2008-03-05 23:25:51Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -202,6 +202,7 @@ typedef struct adrbk {
     AdrBk_Entry  *del;                 /* array of deleted entries           */
     AdrBk_Trie   *nick_trie;
     AdrBk_Trie   *addr_trie;
+    AdrBk_Trie   *full_trie;
     time_t        last_change_we_know_about;/* to look for others changing it*/
     time_t        last_local_valid_chk;/* when valid check was done          */
     unsigned      flags;               /* see defines in alpine.h (DEL_FILE...)*/

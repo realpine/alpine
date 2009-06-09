@@ -1,76 +1,90 @@
+alpine.tar.z web/src/pubcookie/INSTALL
+$id$
+/* ========================================================================
+ * Copyright 2006-2008 University of Washington
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * ========================================================================
+ */
 
-STEPS TO ADD PUBCOOKIE SUPPORT TO WEBPINE
+STEPS TO ADD PUBCOOKIE SUPPORT TO WEB ALPINE
+--------------------------------------------
 
-Based on webpine using pine 4.43 source built under RedHat Enterprise
-Server.  This document assumes the WebPine package has been unpacked
-in "/usr/local/webpine/", Kerberos 5 is installed and the development
-tools are available in "/usr/kerberos".
+UW Pubcookie <http://www.pubcookie.org> provides single-sign-on
+service for web-based applications.  Web Alpine can be built to use UW
+Pubcookie within a Kerberos authorization framework.
 
-0. verify settings in src/pubcookie/auth_gss_proxy.c, check that
-   #define AUTH_GSS_PROXY_PATH line is correct or make sure
-   AUTH_GSS_PROXY_PATH passed on build command line is correct.
+Building Web Alpine to use pubcookie authentication should be
+accomplished by simply adding:
 
-1. Build pinetcld:
+    --with-pubcookie 
 
-  cd src/pubcookie
+and:
 
-  cp auth_gss_proxy.c ../pine4.43/imap/src/c-client/
+    --with-web-bin=/usr/local/libexec/alpine/bin
 
-  cd ../pine4.43/pine/
+to the configure script's command line.  Note, the value you supply in
+the second configure option is the directory where ultimately the Web
+Alpine's binary support tools will be installed.  In addition,
+Kerberos 5 must be available on the Alpine web server.
 
-  patch < ../../pubcookie/pinetcld.pubcookie.patch
+Installation of the extra binary components for pubcookie support
+should happen automatically.  After the "make install" command typed
+in web/src directory completes successfully, verify that:
 
-  cd ..
+    web/bin/wp_uidmapper
+    web/bin/wp_tclsh
+    web/bin/wp_gssapi_proxy
 
-  ./build clean
-  ./build lrh EXTRACFLAGS=-DWEBPINE 'EXTRAAUTHENTICATORS=gss_proxy gss' GSSDIR=/usr/kerberos
+all exist.  Then simply follow the normal Web Alpine installation
+steps described in the web/INSTALL document.
 
-  cd pine
+Once Web Alpine is installed, there is some additional configuration
+required.  First, you'll need to change permissions on a couple of the
+binary components as they do make use of the setuid() system call.  It
+should be simply a matter of:
 
-  make -f makefile.wp
+    cd /usr/local/libexec/alpine/bin
+    sudo chmod 4755 wp_gssapi_proxy wp_tclsh
 
+Next, you'll need to:
 
-2. Build other binaries:
+    cd /usr/local/libexec/alpine/cgi/session
 
-  cd ../pubcookie
+In that directory you'll need to edit the ".htaccess" file, adding the
+lines contained in the example htaccess file in the distribution's
+"web/src/pubcookie/_htaccess_session".
 
-  a) Edit Makefile, checking first 3 lines
+Then, 
 
-  b)  make clean
-      make
-  
-3. Install binaries:
+    cd /usr/local/libexec/alpine/cgi/session
 
-  cp pinetcld ../../../bin/
-  su2
-  cp wp_uidmapper wp_tclsh wp_gssapi_proxy ../../../bin
-  cd ../../../bin
-  chmod 4755 wp_gssapi_proxy wp_tclsh
-  exit
+and edit the ".htaccess" file therein, adding the lines contained in
+the example file "web/src/pubcookie/_htaccess_session_logout".
 
-4. Add pubcookie directives to various htaccess files, document assumes
-   httpd server's document root is /usr/local/webpine/webpine (or the
-   files have been relocated to it and a suitable symbolic link exists).
+Running Web Alpine with pubcookie requires some extra care and
+feeding.  First, the service provided by "wp_uidmapper" must be
+started and maintained as long as the web server is providing Web
+Alpine service.  It must be run under the same uid as the web server.
+The helper script "debug.cgi" can be used to conveniently
+start/restart the wp_uidmapper service.  Make sure the path defined
+within that script is correct for your system.
 
-  cd src/pubcookie
-  
-  Edit /usr/local/webpine/webpine/session/.htaccess, adding 
-      lines from _htaccess_session
+Finally, you'll need to create within the Kerberos 5 system the ID of
+the "IMAP Superuser".  This userid is used by the web server to log
+into the UW IMAP server via SASL proxy authentication.  That is, to
+establish an IMAP session, the web server logs into the IMAP server
+via Kerberos as the IMAP Superuser (which must be configured on the
+IMAP server separately) and specifies in that SASL exchange that login
+in being performed on behalf of the UW Pubcookie-provided userid.
 
-  Edit /usr/local/webpine/webpine/session/logout/.htaccess, adding
-      lines from _htaccess_session_logout
+With the IMAP Superuser ID established and configured on the IMAP
+server, you'll need to acquire a Kerbero ticket on the web server.
+Typically, you'll want to install a crontab entry to periodically
+refresh the ticket.  See web/src/pubcookie/README.
 
-  Edit debug.cgi, make sure first few lines point to right locations
-
-  cp debug.cgi /usr/local/webpine/webpine/
-
-  cd ../../config/
-
-  Edit config/alpine.tcl, making sure pc_servlet
-      setting is pointing to the pinetcld binary just made,
-      and that other admin and servlet settings are right
-
-  Make sure cron job is set up to run kinit for
-      alpine-contact@u.washington.edu every 8 hours or so
-
-5. Try it.

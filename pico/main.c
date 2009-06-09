@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: main.c 737 2007-10-03 19:40:34Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: main.c 898 2008-01-05 00:41:49Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -585,7 +585,15 @@ Loop:
             gmode ^= MDDOTSOK;          /* show dot files */
             break;
 	  case 'b':
+#ifdef notdef
+    /*
+     * Make MDREPLACE always on instead
+     * Don't leave this to allow turning off of MDREPLACE because the
+     * polarity of -b will have changed. Don't think anybody wants to
+     * turn it off.
+     */
 	    gmode ^= MDREPLACE;  /* -b for replace string in where is command */
+#endif
 	    break;
 	  case 'd':			/* -d for rebind delete key */
 	    bindtokey(0x7f, forwdel);

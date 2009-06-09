@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: detach.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: detach.c 913 2008-01-18 18:23:46Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -203,7 +203,21 @@ detach(MAILSTREAM *stream,		/* c-client stream to use         */
     /* convert all text to UTF-8 */
     if(is_text){
 	charset = rfc2231_get_param(body->parameter, "charset", NULL, NULL);
-	if(charset && strucmp(charset, "us-ascii") && strucmp(charset, "utf-8"))
+
+	/*
+	 * If the charset is unlabeled or unknown replace it
+	 * with the user's configured unknown charset.
+	 */
+	if(!charset || !strucmp(charset, UNKNOWN_CHARSET)){
+	    if(charset)
+	      fs_give((void **) &charset);
+
+	    if(ps_global->VAR_UNK_CHAR_SET)
+	      charset = cpystr(ps_global->VAR_UNK_CHAR_SET);
+	}
+
+	/* convert to UTF-8 */
+	if(!(charset && !strucmp(charset, "utf-8")))
 	  gf_link_filter(gf_utf8, gf_utf8_opt(charset));
 
 	if(charset)

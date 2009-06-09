@@ -448,19 +448,19 @@
 #define PACKAGE "alpine"
 
 /* Define to the address where bug reports for this package should be sent. */
-#define PACKAGE_BUGREPORT "pine@cac.washington.edu"
+#define PACKAGE_BUGREPORT "alpine-contact@u.washington.edu"
 
 /* Define to the full name of this package. */
 #define PACKAGE_NAME "alpine"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "alpine 1.00"
+#define PACKAGE_STRING "alpine 1.10"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "alpine"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.00"
+#define PACKAGE_VERSION "1.10"
 
 /* Program users use to change their password */
 /* #undef PASSWD_PROG */
@@ -473,6 +473,9 @@
 
 /* Default configuration value */
 #define POSTPONED_MSGS "postpond"
+
+/* Default Trash folder for Web Alpine */
+#define TRASH_FOLDER "Trash"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
@@ -549,7 +552,7 @@
 #define UTF8_INTERNAL
 
 /* Version number of package */
-#define VERSION "1.00"
+#define VERSION "1.10"
 
 /* Windows is just too different */
 #ifndef _WINDOWS

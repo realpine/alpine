@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pattern.c 842 2007-12-04 00:13:55Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pattern.c 908 2008-01-14 20:12:44Z hubert@u.washington.edu $";
 #endif
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -5809,9 +5809,10 @@ set_up_search_pgm(char *field, PATTERN_S *pattern, SEARCHPGM *pgm)
 	 *  Some servers (Exchange, apparently) seem to have trouble with
 	 *  the search for the empty string to decide if the header exists
 	 *  or not. So, we will search for either the empty string OR the
-	 *  header with a SPACE in it.
+	 *  header with a SPACE in it. Some still have trouble with this
+	 *  so we are changing it to be off by default.
 	 */
-	if(!strucmp(field, "to")){
+	if(!strucmp(field, "to") && F_ON(F_USE_RESENTTO, ps_global)){
 	    or = next_or(&pgm->or);
 
 	    add_type_to_pgm("resent-to", pattern, or->first);

@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: conf.c 867 2007-12-13 19:31:13Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: conf.c 961 2008-03-14 18:15:38Z mikes@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -140,6 +140,8 @@ CONF_TXT_T cf_text_read_message_folder[] =	"If set, specifies where already-read
 
 CONF_TXT_T cf_text_form_letter_folder[] =	"If set, specifies where form letters should be stored.";
 
+CONF_TXT_T cf_text_trash_folder[] =	"If set, specifies where trash is moved to in Web Alpine.";
+
 CONF_TXT_T cf_text_signature_file[] =	"Over-rides default path for signature file. Default is ~/.signature";
 
 CONF_TXT_T cf_text_literal_sig[] =	"Contains the actual signature contents as opposed to the signature filename.\n# If defined, this overrides the signature-file. Default is undefined.";
@@ -191,6 +193,8 @@ CONF_TXT_T cf_text_disp_char_set[] =	"Reflects capabilities of the display you h
 CONF_TXT_T cf_text_key_char_set[] =	"Reflects capabilities of the keyboard you have.\n# If unset, the default is to use the same value\n# used for the display-character-set.";
 
 CONF_TXT_T cf_text_post_character_set[] =	"Defaults to UTF-8. This is used for outgoing messages.\n# It is usually correct to leave this unset.";
+
+CONF_TXT_T cf_text_unk_character_set[] =	"Defaults to nothing, which is equivalent to US-ASCII. This is used for\n# unlabeled incoming messages. It is ok to leave this unset but if you receive\n# unlabeled mail that is usually in some known character set, set that here.";
 
 CONF_TXT_T cf_text_editor[] =		"Specifies the program invoked by ^_ in the Composer,\n# or the \"enable-alternate-editor-implicitly\" feature.";
 
@@ -464,6 +468,8 @@ static struct variable variables[] = {
 	NULL,			cf_text_read_message_folder},
 {"form-letter-folder",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
 	NULL,			cf_text_form_letter_folder},
+{"trash-folder",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_trash_folder},
 {"literal-signature",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
 	NULL,			cf_text_literal_sig},
 {"signature-file",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
@@ -522,6 +528,8 @@ static struct variable variables[] = {
 #endif	/* ! _WINDOWS */
 {"posting-character-set",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
 	NULL,			cf_text_post_character_set},
+{"unknown-character-set",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_unk_character_set},
 {"editor",				0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0,
 	NULL,			cf_text_editor},
 {"speller",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
@@ -1528,6 +1536,7 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
     GLO_DEFAULT_FCC		= cpystr(DF_DEFAULT_FCC);
     GLO_DEFAULT_SAVE_FOLDER	= cpystr(DEFAULT_SAVE);
     GLO_POSTPONED_FOLDER	= cpystr(POSTPONED_MSGS);
+    GLO_TRASH_FOLDER		= cpystr(TRASH_FOLDER);
     GLO_USE_ONLY_DOMAIN_NAME	= cpystr(DF_USE_ONLY_DOMAIN_NAME);
     GLO_FEATURE_LEVEL		= cpystr("sappling");
     GLO_OLD_STYLE_REPLY		= cpystr(DF_OLD_STYLE_REPLY);
@@ -1851,57 +1860,8 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
     set_current_val(&vars[V_PERSONAL_PRINT_COMMAND], TRUE, TRUE);
     set_current_val(&vars[V_STANDARD_PRINTER], TRUE, TRUE);
     set_current_val(&vars[V_PRINTER], TRUE, TRUE);
-    /*
-     * We don't want the user to be able to edit their pinerc and set
-     * printer to whatever they want if personal-print-command is fixed.
-     * So make sure printer is set to something legitimate.
-     */
-    if(vars[V_PERSONAL_PRINT_COMMAND].is_fixed && !vars[V_PRINTER].is_fixed){
-	char **tt;
-	char   aname[100], wname[100];
-	int    ok = 0;
-
-	strncpy(aname, ANSI_PRINTER, sizeof(aname));
-	aname[sizeof(aname)-1] = '\0';
-	strncat(aname, "-no-formfeed", sizeof(aname)-strlen(aname)-1);
-	strncpy(wname, WYSE_PRINTER, sizeof(wname));
-	wname[sizeof(wname)-1] = '\0';
-	strncat(wname, "-no-formfeed", sizeof(wname)-strlen(wname)-1);
-	if(strucmp(VAR_PRINTER, ANSI_PRINTER) == 0
-	  || strucmp(VAR_PRINTER, aname) == 0
-	  || strucmp(VAR_PRINTER, WYSE_PRINTER) == 0
-	  || strucmp(VAR_PRINTER, wname) == 0)
-	  ok++;
-	else if(VAR_STANDARD_PRINTER && VAR_STANDARD_PRINTER[0]){
-	    for(tt = VAR_STANDARD_PRINTER; *tt; tt++)
-	      if(strucmp(VAR_PRINTER, *tt) == 0)
-		break;
-	    
-	    if(*tt)
-	      ok++;
-	}
-
-	if(!ok){
-	    char            *val;
-	    struct variable *v;
-
-	    if(VAR_STANDARD_PRINTER && VAR_STANDARD_PRINTER[0])
-	      val = VAR_STANDARD_PRINTER[0];
-	    else
-	      val = ANSI_PRINTER;
-	    
-	    v = &vars[V_PRINTER];
-	    if(v->main_user_val.p)
-	      fs_give((void **)&v->main_user_val.p);
-	    if(v->post_user_val.p)
-	      fs_give((void **)&v->post_user_val.p);
-	    if(v->current_val.p)
-	      fs_give((void **)&v->current_val.p);
-	    
-	    v->main_user_val.p = cpystr(val);
-	    v->current_val.p = cpystr(val);
-	}
-    }
+    if(vars[V_PERSONAL_PRINT_COMMAND].is_fixed && !vars[V_PRINTER].is_fixed)
+      printer_value_check_and_adjust();
 
     set_current_val(&vars[V_LAST_TIME_PRUNE_QUESTION], TRUE, TRUE);
     if(VAR_LAST_TIME_PRUNE_QUESTION != NULL){
@@ -1950,6 +1910,7 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
     set_current_val(&vars[V_ABOOK_FORMATS], TRUE, TRUE);
     set_current_val(&vars[V_KW_BRACES], TRUE, TRUE);
     set_current_val(&vars[V_OPENING_SEP], TRUE, TRUE);
+    set_current_val(&vars[V_UNK_CHAR_SET], TRUE, TRUE);
 
     set_current_val(&vars[V_KEYWORDS], TRUE, TRUE);
     ps_global->keywords = init_keyword_list(VAR_KEYWORDS);
@@ -2778,6 +2739,8 @@ feature_list(int index)
 	 F_SEND_WO_CONFIRM, h_config_send_wo_confirm, PREF_SEND, 0},
 	{"strip-whitespace-before-send", "Strip Whitespace Before Sending",
 	 F_STRIP_WS_BEFORE_SEND, h_config_strip_ws_before_send, PREF_SEND, 0},
+	{"warn-if-blank-fcc", "Warn if Blank Fcc",
+	 F_WARN_ABOUT_NO_FCC, h_config_warn_if_fcc_blank, PREF_SEND, 0},
 	{"warn-if-blank-subject", "Warn if Blank Subject",
 	 F_WARN_ABOUT_NO_SUBJECT, h_config_warn_if_subj_blank, PREF_SEND, 0},
 	{"warn-if-blank-to-and-cc-and-newsgroups", "Warn if Blank To and CC and Newsgroups",
@@ -3106,6 +3069,8 @@ feature_list(int index)
 	 F_QUELL_BEEPS, h_config_quell_beeps, PREF_MISC, 0},
 	{"quell-timezone-comment-when-sending", "Suppress Timezone Comment When Sending",
 	 F_QUELL_TIMEZONE, h_config_quell_tz_comment, PREF_MISC, 0},
+	{"suppress-user-agent-when-sending", NULL,
+	 F_QUELL_USERAGENT, h_config_suppress_user_agent, PREF_MISC, 0},
 	{"tab-checks-recent", "Tab Checks for Recent Messages",
 	 F_TAB_CHK_RECENT, h_config_tab_checks_recent, PREF_MISC, 0},
 	{"termdef-takes-precedence", NULL,
@@ -3120,6 +3085,8 @@ feature_list(int index)
 	 F_USE_FK, h_config_use_fk, PREF_OS_USFK, 0},
 	{"use-regular-startup-rule-for-stayopen-folders", "Use Regular Startup Rule for Stayopen Folders",
 	 F_STARTUP_STAYOPEN, h_config_use_reg_start_for_stayopen, PREF_MISC, 0},
+	{"use-resent-to-in-rules", "Use Resent-To in Rules",
+	 F_USE_RESENTTO, h_config_use_resentto, PREF_MISC, 0},
 	{"use-subshell-for-suspend", "Use Subshell for Suspend",
 	 F_SUSPEND_SPAWNS, h_config_suspend_spawns, PREF_OS_SPWN, 0},
 #ifndef	_WINDOWS
@@ -7452,6 +7419,8 @@ config_help(int var, int feature)
 	return(h_config_fld_sort_rule);
       case V_POST_CHAR_SET :
 	return(h_config_post_char_set);
+      case V_UNK_CHAR_SET :
+	return(h_config_unk_char_set);
 #ifndef	_WINDOWS
       case V_KEY_CHAR_SET :
 	return(h_config_key_char_set);
@@ -7764,6 +7733,67 @@ config_help(int var, int feature)
       default :
 	return(NO_HELP);
     }
+}
+
+
+/*
+ * We don't want the user to be able to edit their pinerc and set
+ * printer to whatever they want if personal-print-command is fixed.
+ * So make sure printer is set to something legitimate. If it isn't,
+ * set it to something standard and return non-zero.
+ */
+int
+printer_value_check_and_adjust(void)
+{
+    char **tt;
+    char   aname[100], wname[100];
+    int    ok = 0;
+    struct variable *vars = ps_global->vars;
+
+    if(vars[V_PERSONAL_PRINT_COMMAND].is_fixed && !vars[V_PRINTER].is_fixed){
+	strncpy(aname, ANSI_PRINTER, sizeof(aname));
+	aname[sizeof(aname)-1] = '\0';
+	strncat(aname, "-no-formfeed", sizeof(aname)-strlen(aname)-1);
+	strncpy(wname, WYSE_PRINTER, sizeof(wname));
+	wname[sizeof(wname)-1] = '\0';
+	strncat(wname, "-no-formfeed", sizeof(wname)-strlen(wname)-1);
+	if(strucmp(VAR_PRINTER, ANSI_PRINTER) == 0
+	  || strucmp(VAR_PRINTER, aname) == 0
+	  || strucmp(VAR_PRINTER, WYSE_PRINTER) == 0
+	  || strucmp(VAR_PRINTER, wname) == 0)
+	  ok++;
+	else if(VAR_STANDARD_PRINTER && VAR_STANDARD_PRINTER[0]){
+	    for(tt = VAR_STANDARD_PRINTER; *tt; tt++)
+	      if(strucmp(VAR_PRINTER, *tt) == 0)
+		break;
+	    
+	    if(*tt)
+	      ok++;
+	}
+
+	if(!ok){
+	    char            *val;
+	    struct variable *v;
+
+	    if(VAR_STANDARD_PRINTER && VAR_STANDARD_PRINTER[0])
+	      val = VAR_STANDARD_PRINTER[0];
+	    else
+	      val = ANSI_PRINTER;
+	    
+	    v = &vars[V_PRINTER];
+	    if(v->main_user_val.p)
+	      fs_give((void **)&v->main_user_val.p);
+	    if(v->post_user_val.p)
+	      fs_give((void **)&v->post_user_val.p);
+	    if(v->current_val.p)
+	      fs_give((void **)&v->current_val.p);
+	    
+	    v->main_user_val.p = cpystr(val);
+	    v->current_val.p = cpystr(val);
+	}
+    }
+
+    return(!ok);
 }
 
 

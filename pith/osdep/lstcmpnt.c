@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: lstcmpnt.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: lstcmpnt.c 897 2008-01-04 22:49:15Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -44,10 +44,10 @@ static char rcsid[] = "$Id: lstcmpnt.c 676 2007-08-20 19:46:37Z hubert@u.washing
 char *
 last_cmpnt(char *filename)
 {
-    register char *p = NULL, *q = filename;
+    char *p = NULL, *q = filename;
 
-    if(!q)
-      return(q);
+    if(filename == NULL)
+      return(filename);
 
     while((q = strchr(q, FILE_SEP)) != NULL)
       if(*++q)

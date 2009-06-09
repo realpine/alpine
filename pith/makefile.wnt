@@ -25,7 +25,7 @@ RC=rc
 CDEBUG= #-Zi -Od
 LDEBUG= /DEBUG /DEBUGTYPE:CV
 
-STDCFLAGS= -I..\include -nologo -MT -DWIN32 -DDOS -D_WINDOWS -DMSC_MALLOC
+STDCFLAGS= -I..\include -I..\regex -nologo -MT -DWIN32 -DDOS -D_WINDOWS -DMSC_MALLOC
 
 CFLAGS=	$(CDEBUG) $(STDCFLAGS) $(NET) $(EXTRACFLAGS)
 
@@ -74,7 +74,7 @@ help_c_gen.exe:
 	link /subsystem:console /out:help_c_gen.exe $(LFLAGS) help_c_gen.obj
 
 .c.obj:
-	$(CC) -c $(CFLAGS) $(MAKEDIR)\$*.c
+	$(CC) -c $(CFLAGS) "$(MAKEDIR)"\$*.c
 
 $(OFILES):	$(HFILES)
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: folder.c 678 2007-08-20 23:05:24Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: folder.c 744 2007-10-10 17:10:59Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -159,7 +159,7 @@ int         folders_for_post(struct pine *, CONTEXT_S **, char *);
 int	    folder_selector(struct pine *, FSTATE_S *, char *, CONTEXT_S **);
 void	    folder_sublist_context(char *, CONTEXT_S *, CONTEXT_S *, FDIR_S **, int);
 CONTEXT_S  *context_screen(CONTEXT_S *, struct key_menu *, int);
-char	   *exit_collection_add(struct headerentry *, void (*)(void), int);
+int	    exit_collection_add(struct headerentry *, void (*)(void), int, char **);
 char	   *cancel_collection_add(void (*)(void));
 char	   *cancel_collection_edit(void (*)(void));
 char	   *cancel_collection_editing(char *, void (*)(void));
@@ -1084,8 +1084,9 @@ context_edit_screen(struct pine *ps, char *func, char *def_nick,
  * Returns: either NULL if the user accepts exit, or string containing
  *	 reason why the user declined.
  */      
-char *
-exit_collection_add(struct headerentry *he, void (*redraw_pico)(void), int allow_flowed)
+int
+exit_collection_add(struct headerentry *he, void (*redraw_pico)(void), int allow_flowed,
+		    char **result)
 {
     char     prompt[256], tmp[MAILTMPLEN], tmpnodel[MAILTMPLEN], *server, *path,
 	     delim = '\0', *rstr = NULL, *p;
@@ -1199,8 +1200,11 @@ exit_collection_add(struct headerentry *he, void (*redraw_pico)(void), int allow
 	  rstr = _("Use ^C to abandon changes you've made");
     }
 
+    if(result)
+      *result = rstr;
+
     ps_global->redrawer = redraw;
-    return(rstr);
+    return((rstr == NULL) ? 0 : 1);
 }
 
 
@@ -1732,7 +1736,7 @@ folder_list_text(struct pine *ps, FPROC_S *fp, gf_io_t pc, HANDLE_S **handlesp, 
 		else{
 		    /* fit as many columns as possible */
 		    slot_cols = 1;
-		    while(((slot_cols+1) * slot_width) + slot_cols-1 <= cols)
+		    while(((slot_cols+1) * slot_width) + slot_cols <= cols)
 		      slot_cols++;
 
 		    switch(slot_cols){
@@ -6171,7 +6175,8 @@ next_folder(MAILSTREAM **streamp, char *next, size_t nextlen, char *current, CON
 	  match = 0;
 	  if((stream = sp_stream_get(context_apply(tmp, cntxt, f->name,
 						   sizeof(tmp)),
-				     SP_MATCH)) != NULL){
+				     SP_MATCH)) != NULL
+	     || (!IS_REMOTE(tmp) && (stream = already_open_stream(tmp, AOS_NONE)) != NULL)){
 	      (void) pine_mail_ping(stream);
 
 	      if(F_ON(F_TAB_USES_UNSEEN, ps_global)){

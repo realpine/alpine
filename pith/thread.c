@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: thread.c 688 2007-08-24 22:14:09Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: thread.c 728 2007-09-26 21:53:10Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -49,7 +49,7 @@ void		   make_thrdflags_consistent(MAILSTREAM *, MSGNO_S *, PINETHRD_S *, int);
 THREADNODE	  *collapse_threadnode_tree(THREADNODE *);
 THREADNODE	  *collapse_threadnode_tree_sorted(THREADNODE *);
 THREADNODE	  *sort_threads_and_collapse(THREADNODE *);
-THREADNODE	  *promote_orphans(THREADNODE *);
+THREADNODE        *insert_tree_in_place(THREADNODE *, THREADNODE *);
 unsigned long      branch_greatest_num(THREADNODE *, int);
 long		   calculate_visible_threads(MAILSTREAM *);
 
@@ -533,7 +533,7 @@ sort_thread_flatten(struct thread_node *node, MAILSTREAM *stream,
  * Make a copy of c-client's THREAD tree while eliminating dummy nodes.
  */
 THREADNODE *
-collapse_threadnode_tree(struct thread_node *tree)
+collapse_threadnode_tree(THREADNODE *tree)
 {
     THREADNODE *newtree = NULL;
 
@@ -584,12 +584,20 @@ collapse_threadnode_tree(struct thread_node *tree)
  * in the thread.
  */
 THREADNODE *
-collapse_threadnode_tree_sorted(struct thread_node *tree)
+collapse_threadnode_tree_sorted(THREADNODE *tree)
 {
     THREADNODE *sorted_tree = NULL;
 
     sorted_tree = sort_threads_and_collapse(tree);
-    promote_orphans(sorted_tree);
+
+    /* 
+     * We used to eliminate top-level dummy nodes here so that
+     * orphans would still get sorted together, but we changed
+     * to sort the orphans themselves as top-level threads.
+     *
+     * It might be a matter of choice how they get sorted, but
+     * we'll try doing it this way and not add another feature.
+     */
 
     return(sorted_tree);
 }
@@ -599,10 +607,9 @@ collapse_threadnode_tree_sorted(struct thread_node *tree)
  * greatest num in the thread.
  */
 THREADNODE *
-sort_threads_and_collapse(struct thread_node *tree)
+sort_threads_and_collapse(THREADNODE *tree)
 {
-    THREADNODE *newtree = NULL, *newbranchtree = NULL, *node = NULL;
-    unsigned long newtree_greatest_num = 0;
+    THREADNODE *newtree = NULL, *newbranchtree = NULL, *newtreefree = NULL;
 
     if(tree){
 	newtree = mail_newthreadnode(NULL);
@@ -610,7 +617,7 @@ sort_threads_and_collapse(struct thread_node *tree)
 
 	/* 
 	 * Only sort at the top level.  Individual threads can
-	 * rely on collapse_threadnode_treee 
+	 * rely on collapse_threadnode_tree 
 	 */
 	if(tree->next)
 	  newtree->next = collapse_threadnode_tree(tree->next);
@@ -623,22 +630,60 @@ sort_threads_and_collapse(struct thread_node *tree)
 	     * caller to inject themselves.
 	     */
 	    newbranchtree = sort_threads_and_collapse(tree->branch);
-	    newtree_greatest_num = branch_greatest_num(newtree, 0);
-	    if(newtree_greatest_num < branch_greatest_num(newbranchtree, 0))
-	      newtree->branch = newbranchtree;
-	    else{
-		for(node = newbranchtree; node->branch; node = node->branch){
-		    if(newtree_greatest_num < branch_greatest_num(node->branch, 0)){
-			newtree->branch = node->branch;
-			node->branch = newtree;
-			break;
-		    }
-		}
-		if(!node->branch)
-		  node->branch = newtree;
+	}
 
-		newtree = newbranchtree;
+	if(newtree->num)
+	  newtree = insert_tree_in_place(newtree, newbranchtree);
+	else{
+	    /*
+	     * If top node is a dummy, here is where we collapse it.
+	     */
+	    newtreefree = newtree;
+	    newtree = insert_tree_in_place(newtree->next, newbranchtree);
+	    newtreefree->next = NULL;
+	    mail_free_threadnode(&newtreefree);
+	}
+    }
+
+    return(newtree);
+}
+
+/*
+ * Recursively insert each of the top-level nodes in newtree in their place
+ * in tree according to which tree has the most recent arrival
+ */
+THREADNODE *
+insert_tree_in_place(THREADNODE *newtree, THREADNODE *tree)
+{
+    THREADNODE *node = NULL;
+    unsigned long newtree_greatest_num = 0;
+    if(newtree->branch){
+	node = newtree->branch;
+	newtree->branch = NULL;
+	tree = insert_tree_in_place(node, tree);
+    }
+
+    newtree_greatest_num = branch_greatest_num(newtree, 0);
+
+    if(tree){
+	/*
+	 * Since tree is already sorted, we can insert when we find something
+	 * newtree is less than
+	 */
+	if(newtree_greatest_num < branch_greatest_num(tree, 0))
+	  newtree->branch = tree;
+	else {
+	    for(node = tree; node->branch; node = node->branch){
+		if(newtree_greatest_num < branch_greatest_num(node->branch, 0)){
+		    newtree->branch = node->branch;
+		    node->branch = newtree;
+		    break;
+		}
 	    }
+	    if(!node->branch)
+	      node->branch = newtree;
+
+	    newtree = tree;
 	}
     }
 
@@ -651,7 +696,7 @@ sort_threads_and_collapse(struct thread_node *tree)
  * we can split the top level into threads.
  */
 unsigned long
-branch_greatest_num(struct thread_node *tree, int is_subthread)
+branch_greatest_num(THREADNODE *tree, int is_subthread)
 {
     unsigned long ret, branch_ret;
 
@@ -664,45 +709,6 @@ branch_greatest_num(struct thread_node *tree, int is_subthread)
       ret = branch_ret;
 
     return ret;
-}
-
-
-/*
- * Loop through the top-level threads and promote parentless children to the
- * top level.  All subthreads will have had this happen by now.  We had
- * to wait at the top level until after we did the arrival sort.
- */
-THREADNODE *
-promote_orphans(struct thread_node *tree)
-{
-    THREADNODE *branch = NULL, *subthread = NULL, *free_node = NULL;
-
-    /* Looping through the top level ... */
-    for(branch = tree; branch; branch = branch->branch){
-	if(!branch->num){
-
-	    /* go to the last branch of the subthread */
-	    for(subthread = branch->next;
-		subthread->branch;
-		subthread = subthread->branch);
-
-	    /* 
-	     * parent becomes child, points to childs sibling,
-	     * and last sibling points to parent's old sibling.
-	     *
-	     * free top child no longer being pointed to.
-	     */
-	    branch->num = branch->next->num;
-	    subthread->branch = branch->branch;
-	    branch->branch = branch->next->branch;
-	    free_node = branch->next;
-	    branch->next = branch->next->next;
-	    free_node->next = NULL;
-	    free_node->branch = NULL;
-	    mail_free_threadnode(&free_node);
-	}
-    }
-    return(tree);
 }
 
 
@@ -1208,6 +1214,7 @@ char
 to_us_symbol_for_thread(MAILSTREAM *stream, PINETHRD_S *thrd, int consider_flagged)
 {
     char        to_us = ' ';
+    char        branch_to_us = ' ';
     PINETHRD_S *nthrd, *bthrd;
     MESSAGECACHE *mc;
 
@@ -1220,13 +1227,28 @@ to_us_symbol_for_thread(MAILSTREAM *stream, PINETHRD_S *thrd, int consider_flagg
 	  to_us = to_us_symbol_for_thread(stream, nthrd, consider_flagged);
     }
 
-    if(to_us == ' ' && thrd->branch){
+    if(((consider_flagged && to_us != '*') || (!consider_flagged && to_us != '+'))
+       && thrd->branch){
 	bthrd = fetch_thread(stream, thrd->branch);
 	if(bthrd)
-	  to_us = to_us_symbol_for_thread(stream, bthrd, consider_flagged);
+	  branch_to_us = to_us_symbol_for_thread(stream, bthrd, consider_flagged);
+
+	/* use branch to_us symbol if it has higher priority than what we have so far */
+	if(to_us == ' '){
+	    if(branch_to_us == '-' || branch_to_us == '+' || branch_to_us == '*')
+	      to_us = branch_to_us;
+	}
+	else if(to_us == '-'){
+	    if(branch_to_us == '+' || branch_to_us == '*')
+	      to_us = branch_to_us;
+	}
+	else if(to_us == '+'){
+	    if(branch_to_us == '*')
+	      to_us = branch_to_us;
+	}
     }
 
-    if(to_us != '*'){
+    if((consider_flagged && to_us != '*') || (!consider_flagged && to_us != '+')){
 	if(consider_flagged && thrd && thrd->rawno > 0L
 	   && stream && thrd->rawno <= stream->nmsgs
 	   && (mc = mail_elt(stream, thrd->rawno))

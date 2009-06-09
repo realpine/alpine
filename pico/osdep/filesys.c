@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: filesys.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: filesys.c 745 2007-10-11 18:03:32Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -712,7 +712,7 @@ tmpname(char *dir, char *name)
 {
     char *t;
 #ifndef _WINDOWS
-    if((t = temp_nam((dir && *dir) ? dir : NULL, "pico.", 0)) != NULL){
+    if((t = temp_nam((dir && *dir) ? dir : NULL, "pico.")) != NULL){
 #else /* _WINDOWS */
     char  tmp[_MAX_PATH];
 
@@ -724,7 +724,7 @@ tmpname(char *dir, char *name)
 	   && fexist(dir, "w", (off_t *) NULL) == FIOSUC))
 	dir = "c:\\";
       
-    if((t = temp_nam_ext(dir, "ae", 0, "txt")) != NULL){
+    if((t = temp_nam_ext(dir, "ae", "txt")) != NULL){
 #endif /* _WINDOWS */
 	strncpy(name, t, NFILEN-1);
 	name[NFILEN-1] = '\0';

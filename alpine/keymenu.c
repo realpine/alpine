@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: keymenu.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: keymenu.c 786 2007-11-02 23:23:04Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1212,7 +1212,7 @@ INST_KEY_MENU(selectable_bold_checkbox_keymenu, selectable_bold_checkbox_keys);
 
 struct key flag_keys[] = 
        {HELP_MENU,
-	NULL_MENU,
+        {"A", N_("Add KW"), {MC_ADD,1,{'a'}}, KS_NONE},
 	/* TRANSLATORS: Exit from the Flags screen */
         {"E", N_("Exit Flags"), {MC_EXIT,1,{'e'}}, KS_EXITMODE},
         TOGGLE_MENU,
@@ -2819,7 +2819,11 @@ output_keymenu(struct key_menu *km, unsigned char *bm, int row, int column)
 					      ? KEY_UP
 					      : (!strucmp(k->name, HISTORY_DOWN_KEYNAME))
 						? KEY_DOWN
-						: k->name[0],
+						: (k->bind.nch)
+						  ? ((isascii((int) k->bind.ch[0]) && islower((int) k->bind.ch[0]))
+						       ? toupper((unsigned char) k->bind.ch[0])
+						       : k->bind.ch[0])
+						  : k->name[0],
 			   keystr, print_inverted_label,
 			   real_row+i, k->column, len, 
 			   name_color, label_color);

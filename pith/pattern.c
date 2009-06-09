@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pattern.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pattern.c 786 2007-11-02 23:23:04Z hubert@u.washington.edu $";
 #endif
 /*
  * ========================================================================
@@ -47,6 +47,7 @@ static char rcsid[] = "$Id: pattern.c 673 2007-08-16 22:25:10Z hubert@u.washingt
 #include "../pith/send.h"
 #include "../pith/icache.h"
 #include "../pith/ablookup.h"
+#include "../pith/keyword.h"
 
 
 /*
@@ -3399,7 +3400,7 @@ write_pattern_file(char **lvalue, PAT_LINE_S *patline)
       return(err);
 
     /* Get a tempfile to write the patterns into */
-    if(((tfile = tempfile_in_same_dir(patline->filepath, ".pt", NULL, 0)) == NULL)
+    if(((tfile = tempfile_in_same_dir(patline->filepath, ".pt", NULL)) == NULL)
        || ((fd = our_open(tfile, O_TRUNC|O_WRONLY|O_CREAT|O_BINARY, 0600)) < 0)
        || ((fp_new = fdopen(fd, "w")) == NULL)){
 	q_status_message1(SM_ORDER | SM_DING, 3, 4,
@@ -3999,7 +4000,7 @@ data_for_patline(PAT_S *pat)
 
 	    len = est_size(action->from);
 	    bufp = (char *) fs_get(len * sizeof(char));
-	    p = addr_string(action->from, bufp, len);
+	    p = addr_string_mult(action->from, bufp, len);
 	    if(p){
 		from_act = add_pat_escapes(p);
 		fs_give((void **)&p);
@@ -4012,7 +4013,7 @@ data_for_patline(PAT_S *pat)
 
 	    len = est_size(action->replyto);
 	    bufp = (char *) fs_get(len * sizeof(char));
-	    p = addr_string(action->replyto, bufp, len);
+	    p = addr_string_mult(action->replyto, bufp, len);
 	    if(p){
 		replyto_act = add_pat_escapes(p);
 		fs_give((void **)&p);
@@ -6724,9 +6725,9 @@ copy_action(ACTION_S *action)
 	newaction->startup_rule = action->startup_rule;
 
 	if(action->from)
-	  newaction->from = copyaddr(action->from);
+	  newaction->from = copyaddrlist(action->from);
 	if(action->replyto)
-	  newaction->replyto = copyaddr(action->replyto);
+	  newaction->replyto = copyaddrlist(action->replyto);
 	if(action->cstm)
 	  newaction->cstm = copy_list_array(action->cstm);
 	if(action->smtp)
@@ -6867,14 +6868,14 @@ combine_inherited_role_guts(ACTION_S *role)
 	}
 
 	if(role->from)
-	  newrole->from = copyaddr(role->from);
+	  newrole->from = copyaddrlist(role->from);
 	else if(inherit_role && inherit_role->from)
-	  newrole->from = copyaddr(inherit_role->from);
+	  newrole->from = copyaddrlist(inherit_role->from);
 
 	if(role->replyto)
-	  newrole->replyto = copyaddr(role->replyto);
+	  newrole->replyto = copyaddrlist(role->replyto);
 	else if(inherit_role && inherit_role->replyto)
-	  newrole->replyto = copyaddr(inherit_role->replyto);
+	  newrole->replyto = copyaddrlist(inherit_role->replyto);
 
 	if(role->fcc)
 	  newrole->fcc = cpystr(role->fcc);
@@ -8089,9 +8090,7 @@ set_some_flags(MAILSTREAM *stream, MSGNO_S *msgmap, long int flagbits,
 		  int some_defined = 0;
 		  static int msg_delivered = 0;
 
-		  for(i = 0; !some_defined && i < NUSERFLAGS; i++)
-		    if(stream->user_flags[i])
-		      some_defined++;
+		  some_defined = some_user_flags_defined(stream);
 		
 		  if(msg_delivered++ < 2){
 		    char b[200], c[200], *p;

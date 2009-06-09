@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mimetype.c 701 2007-08-31 18:52:30Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mimetype.c 771 2007-10-24 19:10:40Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -153,6 +153,7 @@ mt_srch_mime_type(MT_OPERATORPROC mt_operator, MT_MAP_T *mt_map)
 	if(mt_operator == mt_srch_by_ext){
 	    char buf[256];
 
+	    buf[0] = '\0';
 	    if(mime_get_os_mimetype_from_ext(mt_map->from.ext, buf, 256)){
 		if((s = strindex(buf, '/')) != NULL){
 		    *s++ = '\0';

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: ldap.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: ldap.c 789 2007-11-07 00:14:45Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -436,10 +436,16 @@ ldap_lookup(LDAP_SERV_S *info, char *string, CUSTOM_FILT_S *cust,
     if(wp_err->mangled)
       *(wp_err->mangled) = 1;
 
+#ifdef _SOLARIS_SDK
+    if(info->tls || info->tlsmust)
+      ldapssl_client_init(NULL, NULL);
+    if((ld = ldap_init(serv, info->port)) == NULL)
+#else
 #if (LDAPAPI >= 11)
     if((ld = ldap_init(serv, info->port)) == NULL)
 #else
     if((ld = ldap_open(serv, info->port)) == NULL)
+#endif
 #endif
     {
       /* TRANSLATORS: All of the three args together are an error message */
@@ -470,6 +476,11 @@ ldap_lookup(LDAP_SERV_S *info, char *string, CUSTOM_FILT_S *cust,
 #endif
 
       memset(&mb, 0, sizeof(mb));
+
+#ifdef _SOLARIS_SDK
+      if(info->tls || info->tlsmust)
+	rc = ldapssl_install_routines(ld);
+#endif
 
       if(ldap_v3_is_supported(ld) &&
 	 our_ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION, &proto) == 0){
@@ -509,10 +520,14 @@ try_password_again:
 	  if(mb.tlsflag
 	     && (pwdtrial > 0 || 
 #ifndef _WINDOWS
+#ifdef _SOLARIS_SDK
+		 (rc == LDAP_SUCCESS)
+#else /* !_SOLARIS_SDK */
 		 ((rc=ldap_start_tls_s(ld, NULL, NULL)) == LDAP_SUCCESS)
-#else
+#endif /* !_SOLARIS_SDK */
+#else /* _WINDOWS */
 		 0  /* TODO: find a way to do this in Windows */
-#endif
+#endif /* _WINDOWS */
 		 ))
 	    mb.tlsflag = 1;
 	  else

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: send.c 700 2007-08-30 22:33:35Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: send.c 780 2007-10-26 21:28:17Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -65,6 +65,7 @@ PINEFIELD pf_template[] = {
   {"In-Reply-To", FreeText,	0, 1, 1, 0},
   {"Message-ID",  FreeText,	0, 1, 1, 0},
   {PRIORITYNAME,  FreeText,	0, 1, 1, 0},
+  {"User-Agent",  FreeText,	0, 1, 1, 0},
   {"To",          Address,	0, 0, 0, 0},	/* N_NOBODY */
   {"X-Post-Error",FreeText,	0, 0, 0, 0},	/* N_POSTERR */
   {"X-Reply-UID", FreeText,	0, 0, 0, 0},	/* N_RPLUID */
@@ -112,6 +113,7 @@ int	   lmc_body_header_line(char *, int);
 int	   lmc_body_header_finish(void);
 int	   pwbh_finish(int, STORE_S *);
 int	   sent_percent(void);
+unsigned short *setup_avoid_table(void);
 #ifndef	_WINDOWS
 int	   mta_handoff(METAENV *, BODY *, char *, size_t, void (*)(char *, int),
 		       void (*)(PIPE_S *, int, void *));
@@ -199,6 +201,8 @@ static NETDRIVER piped_io = {
  * such that we don't blow up in c-client (see rfc822_address_line()).
  */
 #define	MAX_SINGLE_ADDR	MAILTMPLEN
+
+#define AVOID_2022_JP_FOR_PUNC "AVOID_2022_JP_FOR_PUNC"
 
 
 /*
@@ -843,6 +847,14 @@ redraft_work(MAILSTREAM **streamp, long int cont_msg, ENVELOPE **outgoing,
 		return(redraft_cleanup(streamp, TRUE, flags));
 	    }
 		
+	    if((charset = rfc2231_get_param(part->body.parameter,"charset",NULL,NULL)) != NULL){
+		/* let outgoing routines decide on charset */
+		if(!strucmp(charset, "US-ASCII") || !strucmp(charset, "UTF-8"))
+		  set_parameter(&part->body.parameter, "charset", NULL);
+		  
+		fs_give((void **) &charset);
+	    }
+
 	    ps_global->postpone_no_flow = 1;
 	    get_body_part_text(stream, &b->nested.part->body,
 			       cont_msg, "1", 0L, pc, NULL, NULL, GBPT_NONE);
@@ -857,14 +869,19 @@ redraft_work(MAILSTREAM **streamp, long int cont_msg, ENVELOPE **outgoing,
 	    (*body)->type		 = TYPETEXT;
 
 	    if((charset = rfc2231_get_param(b->parameter,"charset",NULL,NULL)) != NULL){
-		(*body)->parameter	      = mail_newbody_parameter();
-		(*body)->parameter->attribute = cpystr("charset");
-		if(utf8_charset(charset)){
-		    fs_give((void **) &charset);
-		    (*body)->parameter->value = cpystr("UTF-8");
+		/* let outgoing routines decide on charset */
+		if(!strucmp(charset, "US-ASCII") || !strucmp(charset, "UTF-8"))
+		  fs_give((void **) &charset);
+		else{
+		    (*body)->parameter	      = mail_newbody_parameter();
+		    (*body)->parameter->attribute = cpystr("charset");
+		    if(utf8_charset(charset)){
+			fs_give((void **) &charset);
+			(*body)->parameter->value = cpystr("UTF-8");
+		    }
+		    else
+		      (*body)->parameter->value = charset;
 		}
-		else
-		  (*body)->parameter->value = charset;
 	    }
 
 	    (*body)->contents.text.data = (void *)so;
@@ -927,12 +944,18 @@ redraft_cleanup(MAILSTREAM **streamp, int problem, int flags)
 	     * so we do that if possible.
 	     */
 	    if(is_imap_stream(stream) && LEVELUNSELECT(stream)){
-		/* this does the UNSELECT on the stream */
-		mail_open(stream, stream->mailbox,
-			  OP_HALFOPEN | (stream->debug ? OP_DEBUG : NIL));
-		/* now close it so it is put into the stream cache */
-		sp_set_flags(stream, sp_flags(stream) | SP_TEMPUSE);
-		pine_mail_close(stream);
+		/*
+		 * This does the UNSELECT on the stream. A NULL
+		 * return should mean that something went wrong and
+		 * a mail_close already happened, so that should have
+		 * cleaned things up in the callback.
+		 */
+		if((stream=mail_open(stream, stream->mailbox,
+			  OP_HALFOPEN | (stream->debug ? OP_DEBUG : NIL))) != NULL){
+		    /* now close it so it is put into the stream cache */
+		    sp_set_flags(stream, sp_flags(stream) | SP_TEMPUSE);
+		    pine_mail_close(stream);
+		}
 	    }
 	    else
 	      pine_mail_actually_close(stream);
@@ -1212,36 +1235,42 @@ pine_new_env(ENVELOPE *outgoing, char **fccp, char ***tobufpp, PINEFIELD *custom
 		sending_order[NN+12]    = pf;
 		break;
 
-              case N_POSTERR:			/* won't be used here */
-		sending_order[NN+13]	= pf;
-                break;
+	      case N_USERAGENT:
+		pf->text		= &pf->textbuf;
+		pf->textbuf		= generate_user_agent();
+		sending_order[NN+13]    = pf;
+		break;
 
-              case N_RPLUID:			/* won't be used here */
+              case N_POSTERR:			/* won't be used here */
 		sending_order[NN+14]	= pf;
                 break;
 
-              case N_RPLMBOX:			/* won't be used here */
+              case N_RPLUID:			/* won't be used here */
 		sending_order[NN+15]	= pf;
                 break;
 
-              case N_SMTP:			/* won't be used here */
+              case N_RPLMBOX:			/* won't be used here */
 		sending_order[NN+16]	= pf;
                 break;
 
-              case N_NNTP:			/* won't be used here */
+              case N_SMTP:			/* won't be used here */
 		sending_order[NN+17]	= pf;
                 break;
 
-              case N_CURPOS:			/* won't be used here */
+              case N_NNTP:			/* won't be used here */
 		sending_order[NN+18]	= pf;
                 break;
 
-              case N_OURREPLYTO:		/* won't be used here */
+              case N_CURPOS:			/* won't be used here */
 		sending_order[NN+19]	= pf;
                 break;
 
-              case N_OURHDRS:			/* won't be used here */
+              case N_OURREPLYTO:		/* won't be used here */
 		sending_order[NN+20]	= pf;
+                break;
+
+              case N_OURHDRS:			/* won't be used here */
+		sending_order[NN+21]	= pf;
                 break;
 
               default:
@@ -1391,8 +1420,12 @@ pine_free_env(METAENV **menv)
 	for(cnt = 0; pf_template && pf_template[cnt].name; cnt++)
 	  ;
 
-	for(; cnt >= 0; cnt--)
-	  fs_give((void **) &(*menv)->local[cnt].name);
+	for(; cnt >= 0; cnt--){
+	    if((*menv)->local[cnt].textbuf)
+	      fs_give((void **) &(*menv)->local[cnt].textbuf);
+
+	    fs_give((void **) &(*menv)->local[cnt].name);
+	}
 
 	fs_give((void **) &(*menv)->local);
     }
@@ -1818,7 +1851,7 @@ call_mailer(METAENV *header, struct mail_bodystruct *body, char **alt_smtp_serve
 
     TIME_STAMP("smtp open", 1);
     if(sending_stream){
-	unsigned short save_encoding;
+	unsigned short save_encoding, added_encoding;
 
 	dprint((1, "Opened SMTP server \"%s\"\n",
 	       net_host(sending_stream->netstream)
@@ -1826,7 +1859,7 @@ call_mailer(METAENV *header, struct mail_bodystruct *body, char **alt_smtp_serve
 
 	if(flags & CM_VERBOSE){
 	    TIME_STAMP("verbose start", 1);
-	    if((verbose_file = temp_nam(NULL, "sd", TN_TEXT)) != NULL){
+	    if((verbose_file = temp_nam(NULL, "sd")) != NULL){
 		if((verbose_send_output = our_fopen(verbose_file, "w")) != NULL){
 		    if(!smtp_verbose(sending_stream)){
 			snprintf(error_mess = error_buf, sizeof(error_buf),
@@ -1871,9 +1904,10 @@ call_mailer(METAENV *header, struct mail_bodystruct *body, char **alt_smtp_serve
 		bp = NULL;
 	    }
 	    else {
-		body_encodings[i] = body_encodings[ENC8BIT];
+		added_encoding = i;
+		body_encodings[added_encoding] = body_encodings[ENC8BIT];
 		save_encoding = bp->encoding;
-		bp->encoding = (unsigned short) i;
+		bp->encoding = added_encoding;
 	    }
 	}
 
@@ -1946,7 +1980,7 @@ call_mailer(METAENV *header, struct mail_bodystruct *body, char **alt_smtp_serve
 	/* repair modified "body_encodings" array? */
 	if(bp && sending_stream->protocol.esmtp.eightbit.ok
 	      && sending_stream->protocol.esmtp.eightbit.want){
-	    body_encodings[bp->encoding] = NULL;
+	    body_encodings[added_encoding] = NULL;
 	    bp->encoding = save_encoding;
 	}
 
@@ -3534,6 +3568,7 @@ posting_characterset(void *data, char *preferred_charset, MsgPart mp)
 		    "US-ASCII",
 		    "ISO-8859-15",
 		    "ISO-8859-1",
+		    AVOID_2022_JP_FOR_PUNC,
 		    "ISO-2022-JP",
 		    "KOI8-R"};
 
@@ -3548,8 +3583,12 @@ posting_characterset(void *data, char *preferred_charset, MsgPart mp)
 	      return(preferred_charset);
 
 	    for(i = 1; i < sizeof(downgrades)/sizeof(downgrades[0]); i++)
-	      if((*xlatable)(data, downgrades[i]))
-		return(downgrades[i]);
+	      if((*xlatable)(data, downgrades[i])){
+		  if(!strucmp(downgrades[i], AVOID_2022_JP_FOR_PUNC))
+		    return("UTF-8");
+
+		  return(downgrades[i]);
+	      }
 	}
     }
 
@@ -3620,6 +3659,7 @@ text_is_translatable(void *data, char *charset)
     SIZEDTEXT src;
     unsigned short *rmap;
     int iso2022jp;
+    unsigned short *avoid_2022_jp_table = NULL;
 
     if(!(text = (char *) data) || !text[0] || !charset || !charset[0])
       return ret;
@@ -3631,12 +3671,20 @@ text_is_translatable(void *data, char *charset)
     src.size = strlen(text);
     src.data = (unsigned char *) text;
 
-    rmap = utf8_rmap(cs);
+    if(!strucmp(charset, AVOID_2022_JP_FOR_PUNC)){
+	avoid_2022_jp_table = setup_avoid_table();
+	rmap = avoid_2022_jp_table;
+    }
+    else
+      rmap = utf8_rmap(cs);
 
     if(rmap)
       ret = utf8_rmapsize(&src, rmap, 0, iso2022jp);
     else
       ret = 0;
+
+    if(avoid_2022_jp_table)
+      fs_give((void **) &avoid_2022_jp_table);
 
     return ret;
 }
@@ -3650,6 +3698,7 @@ body_is_translatable(void *data, char *charset)
     STORE_S *the_text = NULL;
     LOC_2022_JP ljp;
     struct mail_bodystruct *body = (struct mail_bodystruct *) data;
+    unsigned short *avoid_2022_jp_table = NULL;
 
     if(body->type == TYPEMULTIPART)
       body = &body->nested.part->body;
@@ -3674,6 +3723,11 @@ body_is_translatable(void *data, char *charset)
 	     */
 	    gf_link_filter(gf_line_test, gf_line_test_opt(translate_utf8_to_2022_jp,&ljp));
 	}
+	else if(charset && !strucmp(charset, AVOID_2022_JP_FOR_PUNC)){
+	    avoid_2022_jp_table = setup_avoid_table();
+	    table = avoid_2022_jp_table;
+	    gf_link_filter(gf_convert_utf8_charset, gf_convert_utf8_charset_opt(table,1));
+	}
 	else{
 	    table = utf8_rmap(charset);
 	    if(table)
@@ -3687,6 +3741,63 @@ body_is_translatable(void *data, char *charset)
 
 	gf_clear_so_readc(the_text);
     }
+
+    if(avoid_2022_jp_table)
+      fs_give((void **) &avoid_2022_jp_table);
+
+    return ret;
+}
+
+
+/*
+ * This is a hack so that we will avoid labeling text that contains
+ * smart quotes or similar punctuation but no other non-ascii text
+ * as ISO-2022-JP. Instead, we'd like to call it UTF-8 so that people
+ * who filter out Japanese won't filter this.
+ *
+ * Returns a table like utf8_rmap() returns but one that is only
+ * suitable for checking translatability, not actually translating.
+ *
+ * Caller is responsible for freeing the table.
+ */
+unsigned short *
+setup_avoid_table(void)
+{
+    unsigned short *ret = NULL;
+
+    ret = (unsigned short *) fs_get((0xffff + 1) * sizeof(unsigned short));
+
+    /*
+     * Set up the table so that the U2000 punctuation
+     * characters are translatable but the CJK characters in
+     * U3000 - U9000 are considered untranslatable. That way, we'll
+     * catch the case where there are punctuation marks and
+     * no CJK and call that UTF-8 instead of 2022-JP.
+     *
+     * We don't use this to translate so the actual values don't
+     * have to make sense.
+     */
+
+    /*
+     * Set whole table to NOCHAR. Careful with this, it's a little
+     * dicey because memset sets byte-at-a-time and NOCHAR is
+     * two bytes (0xffff) but the two bytes are the same.
+     */
+#define NOCHARBYTE (NOCHAR & 0xff)
+#if NOCHAR - ((NOCHARBYTE << 8) | NOCHARBYTE)
+    {   int i;
+	for(i = 0; i <= 0xffff); i++)
+	  rmap[i] = NOCHAR;
+    }
+#else
+    memset(ret, NOCHARBYTE, (0xffff + 1) * sizeof(unsigned short));
+#endif
+
+    /* replace ascii with an ok value */
+    memset(ret, 'A', 128 * sizeof(unsigned short));
+
+    /* replace U2000 range with an ok value */
+    memset(ret+0x2000, 'A', (0x3000 - 0x2000) * sizeof(unsigned short));
 
     return ret;
 }
@@ -4794,12 +4905,8 @@ free_customs(PINEFIELD *head)
 	  fs_give((void **)&pf->textbuf);
 
 	/* only true for Address */
-	if(pf->addr){
-	    if(*pf->addr)
-	      mail_free_address(pf->addr);
-
-	    fs_give((void **)&pf->addr);
-	}
+	if(pf->addr && *pf->addr)
+	  mail_free_address(pf->addr);
     }
 
     fs_give((void **)&head);
@@ -4895,7 +5002,7 @@ news_poster(METAENV *header, struct mail_bodystruct *body, char **alt_nntp_serve
 	    ps_global->noshow_error = 0;
 	    
 	    if(sending_stream != NULL) {
-	        unsigned short save_encoding;
+		unsigned short save_encoding, added_encoding;
 
 		/*
 		 * Fake that we've got clearance from the transport agent
@@ -4912,9 +5019,10 @@ news_poster(METAENV *header, struct mail_bodystruct *body, char **alt_nntp_serve
 		        bp = NULL;
 		    }
 		    else {
-		        body_encodings[i] = body_encodings[ENC8BIT];
+			added_encoding = i;
+			body_encodings[added_encoding] = body_encodings[ENC8BIT];
 			save_encoding = bp->encoding;
-			bp->encoding = (unsigned short) i;
+			bp->encoding = added_encoding;
 		    }
 		}
 
@@ -4938,7 +5046,7 @@ news_poster(METAENV *header, struct mail_bodystruct *body, char **alt_nntp_serve
 		ps_global->noshow_error = 0;
 		sending_stream = NULL;
 		if(F_ON(F_ENABLE_8BIT_NNTP, ps_global) && bp){
-		    body_encodings[bp->encoding] = NULL;
+		    body_encodings[added_encoding] = NULL;
 		    bp->encoding = save_encoding;
 		}
 		

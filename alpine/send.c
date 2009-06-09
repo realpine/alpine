@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: send.c 700 2007-08-30 22:33:35Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: send.c 780 2007-10-26 21:28:17Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -96,7 +96,7 @@ BODY_PARTICULARS_S
 void       reset_body_particulars(BODY_PARTICULARS_S *, BODY *);
 void       free_body_particulars(BODY_PARTICULARS_S *);
 long	   message_format_for_pico(long, int (*)(int));
-char	  *send_exit_for_pico(struct headerentry *, void (*)(void), int);
+int	   send_exit_for_pico(struct headerentry *, void (*)(void), int, char **);
 char      *choose_a_priority(char *);
 int        dont_flow_this_time(void);
 int	   mime_type_for_pico(char *);
@@ -1001,6 +1001,9 @@ static struct headerentry he_template[]={
   {"",            "X-Priority",  NO_HELP,               10, 0, NULL,
    NULL,          NULL, NULL, NULL,                 NULL, NULL, NULL,
    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
+  {"",            "User-Agent",  NO_HELP,               10, 0, NULL,
+   NULL,          NULL, NULL, NULL,                 NULL, NULL, NULL,
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"",            "To",          NO_HELP,               10, 0, NULL,
    NULL,          NULL, NULL, NULL,                 NULL, NULL, NULL,
    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
@@ -1127,7 +1130,7 @@ pine_simple_send(ENVELOPE *outgoing,	/* envelope for outgoing message */
 	    if(ps_global->never_allow_changing_from)
 	      q_status_message(SM_ORDER, 3, 3, _("Site policy doesn't allow changing From address so role's From has no effect"));
 	    else
-	      outgoing->from = copyaddr(role->from);
+	      outgoing->from = copyaddrlist(role->from);
 	}
 	else
 	  outgoing->from = generate_from();
@@ -2130,7 +2133,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 	static int news_order[] = {
 	    N_AUTHRCVD,N_FROM, N_REPLYTO, N_NEWS, N_TO, N_CC, N_BCC,
 	    N_FCC, N_LCC, N_ATTCH, N_SUBJ, N_REF, N_DATE, N_INREPLY,
-	    N_MSGID, N_NOBODY, N_POSTERR, N_RPLUID, N_RPLMBOX,
+	    N_MSGID, N_PRIORITY, N_USERAGENT, N_NOBODY, N_POSTERR, N_RPLUID, N_RPLMBOX,
 	    N_SMTP, N_NNTP, N_CURPOS, N_OURREPLYTO, N_OURHDRS
 #if	!(defined(DOS) || defined(OS2)) || defined(NOAUTH)
 	    , N_SENDER
@@ -2257,50 +2260,56 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 		pf->text		= &pf->textbuf;
 		pf->extdata			= NULL;
 	    }
-	    else if(index == N_POSTERR){
+	    else if(index == N_USERAGENT){
 		sending_order[NN+13]	= pf;
+		pf->text		= &pf->textbuf;
+		pf->textbuf		= generate_user_agent();
+		pf->extdata			= NULL;
+	    }
+	    else if(index == N_POSTERR){
+		sending_order[NN+14]	= pf;
 		pf_err			= pf;
 		pf->text		= &pf->textbuf;
 		pf->extdata			= NULL;
 	    }
 	    else if(index == N_RPLUID){
-		sending_order[NN+14]	= pf;
+		sending_order[NN+15]	= pf;
 		pf_uid			= pf;
 		pf->text		= &pf->textbuf;
 		pf->extdata			= NULL;
 	    }
 	    else if(index == N_RPLMBOX){
-  		sending_order[NN+15]	= pf;
+  		sending_order[NN+16]	= pf;
 		pf_mbox			= pf;
 		pf->text		= &pf->textbuf;
 		pf->extdata			= NULL;
 	    }
 	    else if(index == N_SMTP){
-		sending_order[NN+16]	= pf;
+		sending_order[NN+17]	= pf;
 		pf_smtp_server		= pf;
 		pf->text		= &pf->textbuf;
 		pf->extdata			= NULL;
 	    }
 	    else if(index == N_NNTP){
-		sending_order[NN+17]	= pf;
+		sending_order[NN+18]	= pf;
 		pf_nntp_server		= pf;
 		pf->text		= &pf->textbuf;
 		pf->extdata			= NULL;
 	    }
 	    else if(index == N_CURPOS){
-		sending_order[NN+18]	= pf;
+		sending_order[NN+19]	= pf;
 		pf_curpos		= pf;
 		pf->text		= &pf->textbuf;
 		pf->extdata			= NULL;
 	    }
 	    else if(index == N_OURREPLYTO){
-		sending_order[NN+19]	= pf;
+		sending_order[NN+20]	= pf;
 		pf_ourrep		= pf;
 		pf->text		= &pf->textbuf;
 		pf->extdata			= NULL;
 	    }
 	    else if(index == N_OURHDRS){
-		sending_order[NN+20]	= pf;
+		sending_order[NN+21]	= pf;
 		pf_ourhdrs		= pf;
 		pf->text		= &pf->textbuf;
 		pf->extdata			= NULL;
@@ -2335,7 +2344,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 		    if(ps_global->never_allow_changing_from)
 		      q_status_message(SM_ORDER, 3, 3, _("Site policy doesn't allow changing From address so role's From has no effect"));
 		    else{
-			outgoing->from = copyaddr(role->from);
+			outgoing->from = copyaddrlist(role->from);
 			he->display_it  = 1;  /* show it */
 			he->rich_header = 0;
 		    }
@@ -2612,7 +2621,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 			for(tail = pf->addr; *tail; tail = &(*tail)->next)
 			  ;
 			*tail = reply_cp_addr(ps_global, 0, NULL, NULL,
-					      *pf->addr, NULL, a, 1);
+					      *pf->addr, NULL, a, RCA_ALL);
 			q_status_message(SM_ORDER, 3, 3,
 					 "Adding addresses from role");
 			mail_free_address(&a);
@@ -3296,16 +3305,17 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 
 	    if(lmc.so){
 		size_t sz;
+		char *lmq = NULL;
 
 		/* copy fcc line to postponed or interrupted folder */
 	        if(pf_fcc)
 		  pf_fcc->localcopy = 1;
 
 		/* plug error into header for later display to user */
-		if((editor_result & ~0xff) && last_message_queued()){
+		if((editor_result & ~0xff) && (lmq = last_message_queued()) != NULL){
 		    pf_err->writehdr  = 1;
 		    pf_err->localcopy = 1;
-		    pf_err->textbuf   = cpystr(last_message_queued());
+		    pf_err->textbuf   = lmq;
 		}
 
 		/*
@@ -4417,8 +4427,9 @@ Args: dflt -- default answer for confirmation prompt
 Returns: either NULL if the user accepts exit, or string containing
 	 reason why the user declined.
 ----*/      
-char *
-send_exit_for_pico(struct headerentry *he, void (*redraw_pico)(void), int allow_flowed)
+int
+send_exit_for_pico(struct headerentry *he, void (*redraw_pico)(void), int allow_flowed,
+		   char **result)
 {
     int	       i, rv, c, verbose_label = 0, bg_label = 0, old_suspend;
     int        dsn_label = 0, fcc_label = 0, lparen;
@@ -4441,11 +4452,19 @@ send_exit_for_pico(struct headerentry *he, void (*redraw_pico)(void), int allow_
     if(priority_requested)
       fs_give((void **) &priority_requested);
 
-    if(background_posting(FALSE))
-      return("Can't send while background posting. Use postpone.");
+    if(background_posting(FALSE)){
+	if(result)
+	  *result = "Can't send while background posting. Use postpone.";
 
-    if(F_ON(F_SEND_WO_CONFIRM, ps_global))
-      return(NULL);
+	return(1);
+    }
+
+    if(F_ON(F_SEND_WO_CONFIRM, ps_global)){
+	if(result)
+	  *result = NULL;
+
+	return(0);
+    }
 
     ps_global->redrawer = redraw_pico;
 
@@ -4892,8 +4911,12 @@ send_exit_for_pico(struct headerentry *he, void (*redraw_pico)(void), int allow_
     if(old_suspend)
       (void) F_SET(F_CAN_SUSPEND, ps_global, 1);
 
+    if(result)
+      *result = rstr;
+
     ps_global->redrawer = redraw;
-    return(rstr);
+
+    return((rstr == NULL) ? 0 : 1);
 }
 
 
@@ -5026,7 +5049,7 @@ upload_msg_to_pico(char *fname, size_t fnlen, long int *size)
       return(0);
 
     if(!*fname){			/* caller wants temp file */
-	if((fnp = temp_nam(NULL, "pu", 0)) != NULL){
+	if((fnp = temp_nam(NULL, "pu")) != NULL){
 	    strncpy(fname, fnp, fnlen);
 	    fname[fnlen-1] = '\0';
 	    our_unlink(fnp);

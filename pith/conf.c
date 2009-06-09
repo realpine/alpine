@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: conf.c 685 2007-08-23 23:01:00Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: conf.c 796 2007-11-08 01:14:02Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -512,12 +512,14 @@ static struct variable variables[] = {
 	NULL,			cf_text_thread_exp_char},
 {"threading-lastreply-character",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
 	"Threading Last Reply Character",	cf_text_thread_lastreply_char},
+#ifndef	_WINDOWS
 {"display-character-set",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
 	NULL,			cf_text_disp_char_set},
 {"character-set",			1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
 	NULL,			cf_text_old_char_set},
 {"keyboard-character-set",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
 	NULL,			cf_text_key_char_set},
+#endif	/* ! _WINDOWS */
 {"posting-character-set",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
 	NULL,			cf_text_post_character_set},
 {"editor",				0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0,
@@ -1686,6 +1688,7 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
      */
     set_collation(0, 1);
 
+#ifndef	_WINDOWS
 #if (HAVE_LANGINFO_H && defined(CODESET))
 
     if(output_charset_is_supported(nl_langinfo(CODESET)))
@@ -1700,8 +1703,10 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
 
     set_current_val(&vars[V_CHAR_SET], TRUE, TRUE);
     set_current_val(&vars[V_OLD_CHAR_SET], TRUE, TRUE);
-    set_current_val(&vars[V_POST_CHAR_SET], TRUE, TRUE);
     set_current_val(&vars[V_KEY_CHAR_SET], TRUE, TRUE);
+#endif	/* ! _WINDOWS */
+
+    set_current_val(&vars[V_POST_CHAR_SET], TRUE, TRUE);
 
     /*
      * Also set up the feature list because we need the
@@ -1757,9 +1762,11 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
     else if(ps->display_charmap && strucmp(ps->display_charmap, "UTF-8")
        &&  strucmp(ps->display_charmap, "US-ASCII"))
       fromcharset = ps->display_charmap;
+#ifndef	_WINDOWS
     else if(VAR_OLD_CHAR_SET && strucmp(VAR_OLD_CHAR_SET, "UTF-8")
        &&  strucmp(VAR_OLD_CHAR_SET, "US-ASCII"))
       fromcharset = VAR_OLD_CHAR_SET;
+#endif	/* ! _WINDOWS */
 
     convert_configvars_to_utf8(vars, fromcharset);
 
@@ -2721,6 +2728,8 @@ feature_list(int index)
 	 F_ALWAYS_SPELL_CHECK, h_config_always_spell_check, PREF_COMP, 0},
 
 /* Reply Prefs */
+	{"copy-to-address-to-from-if-it-is-us", "Copy To Address to From if it is Us",
+	 F_COPY_TO_TO_FROM, h_config_copy_to_to_from, PREF_RPLY, 0},
 	{"enable-reply-indent-string-editing", NULL,
 	 F_ENABLE_EDIT_REPLY_INDENT, h_config_prefix_editing, PREF_RPLY, 0},
 	{"include-attachments-in-reply", "Include Attachments in Reply",
@@ -2735,6 +2744,8 @@ feature_list(int index)
 	 F_SIG_AT_BOTTOM, h_config_sig_at_bottom, PREF_RPLY, 0},
 	{"strip-from-sigdashes-on-reply", "Strip From Sigdashes on Reply",
 	 F_ENABLE_STRIP_SIGDASHES, h_config_strip_sigdashes, PREF_RPLY, 0},
+	{"forward-as-attachment", "Forward messages as attachments",
+	 F_FORWARD_AS_ATTACHMENT, h_config_forward_as_attachment, PREF_RPLY, 0},
 
 /* Sending Prefs */
 	{"disable-sender", "Do Not Generate Sender Header",
@@ -2971,6 +2982,8 @@ feature_list(int index)
 	{"disable-password-caching", NULL,
 	 F_DISABLE_PASSWORD_CACHING, h_config_disable_password_caching,
 	 PREF_MISC, 0},
+	{"disable-regular-expression-matching-for-alternate-addresses", NULL,
+	 F_DISABLE_REGEX, h_config_disable_regex, PREF_MISC, 0},
 	{"disable-save-input-history", NULL,
 	 F_DISABLE_SAVE_INPUT_HISTORY, h_config_input_history, PREF_MISC, 0},
 	{"disable-take-fullname-in-addresses", "Disable Take Fullname in Addresses",
@@ -5555,7 +5568,7 @@ write_pinerc(struct pine *ps, EditWhich which, int flags)
 	    return(-1);
 	}
 
-	tmp = temp_nam(dir, "rc", 0);
+	tmp = temp_nam(dir, "rc");
 
 	if(*dir && tmp && !in_dir(dir, tmp)){
 	    our_unlink(tmp);
@@ -5569,7 +5582,7 @@ write_pinerc(struct pine *ps, EditWhich which, int flags)
 	  goto io_err;
 
 #else  /* !DOS */
-	tmp = temp_nam((*dir) ? dir : "/", "pinerc", 0);
+	tmp = temp_nam((*dir) ? dir : "/", "pinerc");
 
 	/*
 	 * If temp_nam can't write in dir it puts the temp file in a
@@ -6661,11 +6674,13 @@ varlist_from_spec_colors(SPEC_COLOR_S *hcolors)
 void
 update_posting_charset(struct pine *ps, int revert)
 {
+#ifndef	_WINDOWS
     if(F_ON(F_USE_SYSTEM_TRANS, ps)){
 	if(!revert)
 	  q_status_message(SM_ORDER, 5, 5, _("This change has no effect because feature Use-System-Translation is on"));
     }
     else{
+#endif	/* ! _WINDOWS */
 	if(ps->posting_charmap)
 	  fs_give((void **) &ps->posting_charmap);
 
@@ -6682,7 +6697,9 @@ update_posting_charset(struct pine *ps, int revert)
 	}
 	else
 	  ps->posting_charmap = cpystr("UTF-8");
+#ifndef	_WINDOWS
     }
+#endif	/* ! _WINDOWS */
 }
 
 
@@ -6869,6 +6886,7 @@ toggle_feature(struct pine *ps, struct variable *var, FEATURE_S *f,
 	set_collation(F_OFF(F_DISABLE_SETLOCALE_COLLATE, ps), 1);
 	break;
 
+#ifndef	_WINDOWS
       case F_USE_SYSTEM_TRANS :
 	err = NULL;
 	reset_character_set_stuff(&err);
@@ -6878,6 +6896,7 @@ toggle_feature(struct pine *ps, struct variable *var, FEATURE_S *f,
 	}
 
 	break;
+#endif	/* ! _WINDOWS */
 
       case F_ENABLE_INCOMING_CHECKING :
 	if(!on_before && F_OFF(F_ENABLE_INCOMING, ps))
@@ -6996,6 +7015,9 @@ reset_character_set_stuff(char **err)
     if(ps_global->posting_charmap)
       fs_give((void **) &ps_global->posting_charmap);
 
+#ifdef	_WINDOWS
+    ps_global->display_charmap = cpystr("UTF-8");
+#else	/* UNIX */
     if(ps_global->VAR_CHAR_SET)
       ps_global->display_charmap = cpystr(ps_global->VAR_CHAR_SET);
     else{
@@ -7005,10 +7027,14 @@ reset_character_set_stuff(char **err)
       ps_global->display_charmap = cpystr("UTF-8");
 #endif
     }
+#endif	/* UNIX */
 
     if(!ps_global->display_charmap)
       ps_global->display_charmap = cpystr("US-ASCII");
 
+#ifdef	_WINDOWS
+    ps_global->keyboard_charmap = cpystr("UTF-8");
+#else	/* UNIX */
     if(ps_global->VAR_KEY_CHAR_SET)
       ps_global->keyboard_charmap = cpystr(ps_global->VAR_KEY_CHAR_SET);
     else
@@ -7025,11 +7051,9 @@ reset_character_set_stuff(char **err)
 				  &ps_global->keyboard_charmap,
 				  &ps_global->input_cs, (err && *err) ? NULL : err) == -1)
 	  return -1;
-#elif	_WINDOWS	
-	if(err && !*err)
-	  *err = cpystr(_("Option Use-System-Translation ignored due to missing system functionality"));
 #endif
     }
+#endif	/* UNIX */
 
     if(!use_system){
 	if(setup_for_input_output(use_system, &ps_global->display_charmap,
@@ -7410,10 +7434,12 @@ config_help(int var, int feature)
 	return(h_config_fld_sort_rule);
       case V_POST_CHAR_SET :
 	return(h_config_post_char_set);
+#ifndef	_WINDOWS
       case V_KEY_CHAR_SET :
 	return(h_config_key_char_set);
       case V_CHAR_SET :
 	return(h_config_char_set);
+#endif	/* ! _WINDOWS */
       case V_EDITOR :
 	return(h_config_editor);
       case V_SPELLER :

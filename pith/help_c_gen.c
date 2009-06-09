@@ -39,6 +39,7 @@ main(int argc, char **argv)
 {
     preamble(stdout);
     body(stdin, stdout);
+    exit(0);
 }
 
 
@@ -59,7 +60,6 @@ body(FILE *ifp, FILE *ofp)
     char  rawline[10000];
     char *line;
 #define SPACE ' '
-    char *space = " ";
     char *p, *helpname;
     int   in_text = 0, new_topic = 0, first_one = 1, justtags;
 

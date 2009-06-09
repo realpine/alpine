@@ -1,4 +1,4 @@
-# $Id: pine.hlp 693 2007-08-28 23:11:53Z hubert@u.washington.edu $
+# $Id: pine.hlp 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
 #
 #        T H E   A L P I N E    M E S S A G E   S Y S T E M
 #
@@ -86,6 +86,7 @@ HTML text as well using the special comment:
 Where "variable" is one of either:
 
     ALPINE_VERSION
+    ALPINE_REVISION
     ALPINE_COMPILE_DATE
     ALPINE_TODAYS_DATE
     C_CLIENT_VERSION
@@ -137,6 +138,8 @@ at RCS version number 4.122.  In particular, there were some placeholders
 with help text for the config screen and the composer that didn't have any
 reasonable place to be called from.
 
+============= h_revision =================
+$Id: pine.hlp 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
 ============= h_news =================
 <HTML>
 <HEAD>
@@ -170,6 +173,72 @@ addresses bugs found in previous releases and has a few additions as well.
 
 <P>
 Additions include:
+<P>
+<UL>
+   <LI> Change feature 
+        <A HREF="h_config_thread_sorts_by_arrival"><!--#echo var="FEAT_thread-sorts-by-arrival"--></A>
+	to not preserve the sorting together of top-level threads that have the same subject.
+   <LI> In PC-Alpine, eliminate some configuration options that no longer make sense
+	in the Windows version of Alpine.
+	The eliminated options are
+	<A HREF="h_config_char_set">Display Character Set</A>,
+	<A HREF="h_config_key_char_set">Keyboard Character Set</A>,
+	and <A HREF="h_config_use_system_translation">Use System Translation</A>.
+   <LI> Regular expressions possible in option
+        <A HREF="h_config_alt_addresses"><!--#echo var="VAR_alt-addresses"--></A>
+   <LI> New feature <A HREF="h_config_copy_to_to_from"><!--#echo var="FEAT_copy-to-address-to-from-if-it-is-us"--></A>
+   <LI> Minor enhancements to <A HREF="h_common_flag">Flag command</A> to allow user
+	to see Keywords that exist in a folder but aren't defined in the
+	<A HREF="h_config_keywords"><!--#echo var="VAR_keywords"--> config option</A>,
+	and to allow keywords to be added from the Flag Details screen
+   <LI> Add a User-Agent header to help us identify revision number in bug reports
+</UL>
+
+<P>
+Bugs that have been addressed in this release include:
+<P>
+<UL>
+   <LI> Alpine would hang when invoking a display filter on freebsd
+   <LI> Character over-type in line editor prompt near bottom of screen. When
+	using the status line to enter data that is longer than will fit on
+	the line the fifth character from the right hand edge was overwritten,
+	causing confusion.
+   <LI> An index line color that depends on the message status (for example
+	red for important messages) sometimes didn't update until the cursor was
+	moved away from that line
+   <LI> The Important symbol was sometimes missing when the
+	<A HREF="h_config_thread_index_style"><!--#echo var="VAR_threading-index-style"--></A>
+	was set to one of the separate-index-screen styles
+   <LI> With the option <A HREF="h_config_incoming_checking_total"><!--#echo var="FEAT_incoming-checking-includes-total"--></A>
+	turned on the total would sometimes be higher than what showed up
+	when looking at the folder due to messages that had been filtered
+   <LI> Overly slow performance on Mac OS X due to the use of threads in
+	the busy spinner
+   <LI> If features
+	<A HREF="h_downgrade_multipart_to_text"><!--#echo var="FEAT_downgrade-multipart-to-text"--></A>
+	and
+	<A HREF="h_config_8bit_smtp"><!--#echo var="FEAT_enable-8bit-esmtp-negotiation"--></A>
+	or
+	<A HREF="h_config_8bit_nntp"><!--#echo var="FEAT_enable-8bit-nntp-posting"--></A>
+	were turned on Alpine could forget about the encoding type &quot;7BIT&quot; after
+	sending a message containing Japanese characters
+   <LI> Incorrect end-of-line markers in messages exported from PC-Alpine
+   <LI> Incorrect display in pico for long lines with leading tabs
+   <LI> Maximizing and quitting in Windows Alpine causes the maximized screen size to be
+        stored
+   <LI> Crash when resizing screen to small number of rows in composer
+   <LI> Problem with long MIME subtype names in attachments with PC Alpine
+   <LI> Pipe command viewer did not wrap long lines
+   <LI> Clicking on either FirstPage or LastPage did not work
+   <LI> Don't convert to locale character set when piping or writing to a file
+	from attachments that aren't specifically type TEXT
+</UL>
+
+<P>
+Version 0.9999
+addressed bugs found in previous releases and had a few additions as well.
+<P>
+Additions included:
 <P>
 <UL>
    <LI> New feature 
@@ -207,9 +276,8 @@ Additions include:
 </UL>
 
 <P>
-Bugs that have been addressed in this release include:
+Bugs addressed in the 0.9999 release included:
 <P>
-
 <UL>
    <LI> Alternate editor did not work in PC-Alpine
    <LI> Crash when choosing from several postponed messages if postponed
@@ -309,7 +377,6 @@ Additions included:
 <P>
 Bugs addressed in the 0.999 release included:
 <P>
-
 <UL>
    <LI> INBOX displayed twice in some situations when there was a folder
 	named INBOX
@@ -666,8 +733,9 @@ Some topics of current interest include:
 General Alpine configuration information can be found
 <A HREF="h_news_config">here</A>.
 <P>
+This is revision (<!--#echo var="ALPINE_REVISION"-->) of the Alpine software.
 Alpine mailbox and <A HREF="http://www.washington.edu/imap/">IMAP</A> server
-access is provided by the IMAP Toolkit Environment (c-client libraray)
+access is provided by the IMAP Toolkit Environment (c-client library)
 version <!--#echo var="C_CLIENT_VERSION"-->.
 <P> 
 Alpine was developed by the Office of Computing &amp; Communications at
@@ -2278,11 +2346,14 @@ You may also define your own set of keywords.
 You might know these as user defined flags or as labels.
 These are similar to the Important flag but you choose the names for yourself.
 <P>
-Alpine will only recognize and allow you to manipulate keywords that
-have been configured by you using the Setup/Config option
+Alpine will only display keywords that
+have been added by you in the Flag Details screen or
+that have been configured by you using the Setup/Config option
 <A HREF="h_config_keywords"><!--#echo var="VAR_keywords"--></A>.
 Keywords set by other means (for example, by another email client) will not
 show up in Alpine unless you configure Alpine to know about them.
+They will show up in the Flag Details screen, but will not show up, for example,
+in the index line.
 
 <P>
 The following entries in Alpine's online help provide additional information 
@@ -3303,6 +3374,7 @@ There are also additional details on
 <li><a href="h_config_confirm_role">FEATURE: <!--#echo var="FEAT_confirm-role-even-for-default"--></a>
 <li><a href="h_config_tab_no_prompt">FEATURE: <!--#echo var="FEAT_continue-tab-without-confirm"--></a>
 <li><a href="h_config_dates_to_local">FEATURE: <!--#echo var="FEAT_convert-dates-to-localtime"--></a>
+<li><a href="h_config_copy_to_to_from">FEATURE: <!--#echo var="FEAT_copy-to-address-to-from-if-it-is-us"--></a>
 <li><a href="h_config_del_skips_del">FEATURE: <!--#echo var="FEAT_delete-skips-deleted"--></a>
 <li><a href="h_config_disable_config_cmd">FEATURE: <!--#echo var="FEAT_disable-config-cmd"--></a>
 <li><a href="h_config_disable_index_locale_dates">FEATURE: <!--#echo var="FEAT_disable-index-locale-dates"--></a>
@@ -3312,6 +3384,7 @@ There are also additional details on
 <li><a href="h_config_disable_password_cmd">FEATURE: <!--#echo var="FEAT_disable-password-cmd"--></a>
 <li><a href="h_config_disable_pipes_in_sigs">FEATURE: <!--#echo var="FEAT_disable-pipes-in-sigs"--></a>
 <li><a href="h_config_disable_pipes_in_templates">FEATURE: <!--#echo var="FEAT_disable-pipes-in-templates"--></a>
+<li><a href="h_config_disable_regex">FEATURE: <!--#echo var="FEAT_disable-regular-expression-matching-for-alternate-addresses"--></a>
 <li><a href="h_config_disable_roles_setup">FEATURE: <!--#echo var="FEAT_disable-roles-setup-cmd"--></a>
 <li><a href="h_config_disable_roles_sigedit">FEATURE: <!--#echo var="FEAT_disable-roles-sig-edit"--></a>
 <li><a href="h_config_disable_roles_templateedit">FEATURE: <!--#echo var="FEAT_disable-roles-template-edit"--></a>
@@ -3451,6 +3524,7 @@ There are also additional details on
 <li><a href="h_config_always_spell_check">FEATURE: <!--#echo var="FEAT_spell-check-before-sending"--></a>
 <li><a href="h_config_winpos_in_config">FEATURE: <!--#echo var="FEAT_store-window-position-in-config"--></a>
 <li><a href="h_config_strip_sigdashes">FEATURE: <!--#echo var="FEAT_strip-from-sigdashes-on-reply"--></a>
+<li><a href="h_config_forward_as_attachment">FEATURE: <!--#echo var="FEAT_forward-as-attachment"--></a>
 <li><a href="h_config_strip_ws_before_send">FEATURE: <!--#echo var="FEAT_strip-whitespace-before-send"--></a>
 <li><a href="h_config_quell_attach_ext_warn">FEATURE: <!--#echo var="FEAT_quell-attachment-extension-warn"--></a>
 <li><a href="h_config_quell_attach_extra_prompt">FEATURE: <!--#echo var="FEAT_quell-attachment-extra-prompt"--></a>
@@ -3480,7 +3554,7 @@ There are also additional details on
 <li><a href="h_config_use_reg_start_for_stayopen">FEATURE: <!--#echo var="FEAT_use-regular-startup-rule-for-stayopen-folders"--></a>
 <li><a href="h_config_use_sender_not_x">FEATURE: <!--#echo var="FEAT_use-sender-not-x-sender"--></a>
 <li><a href="h_config_suspend_spawns">FEATURE: <!--#echo var="FEAT_use-subshell-for-suspend"--></a>
-<li><a href="h_config_use_system_translation">FEATURE: <!--#echo var="FEAT_use-system-translation"--></a>
+<li><a href="h_config_use_system_translation">FEATURE: Use System Translation</a>
 <li><a href="h_config_vertical_list">FEATURE: <!--#echo var="FEAT_vertical-folder-list"--></a>
 <li><a href="h_config_warn_if_subj_blank">FEATURE: <!--#echo var="FEAT_warn-if-blank-subject"--></a>
 <li><a href="h_config_warn_if_no_to_or_cc">FEATURE: <!--#echo var="FEAT_warn-if-blank-to-and-cc-and-newsgroups"--></a>
@@ -3557,7 +3631,7 @@ There are also additional details on
 <li><a href="h_config_ab_sort_rule">OPTION: <!--#echo var="VAR_addrbook-sort-rule"--></a></a>
 <li><a href="h_config_alt_addresses">OPTION: <!--#echo var="VAR_alt-addresses"--></a>
 <li><a href="h_config_active_msg_interval">OPTION: <!--#echo var="VAR_busy-cue-rate"--></a>
-<li><a href="h_config_color_style">OPTION: <!--#echo var="VAR_color-style"--></a>
+<li><a href="h_config_color_style">OPTION: Color Style</a>
 <li><a href="h_config_wordseps">OPTION: <!--#echo var="VAR_composer-word-separators"--></a>
 <li><a href="h_config_composer_wrap_column">OPTION: <!--#echo var="VAR_composer-wrap-column"--></a>
 <li><a href="h_config_index_color_style">OPTION: <!--#echo var="VAR_current-indexline-style"--></a>
@@ -3569,7 +3643,7 @@ There are also additional details on
 <li><a href="h_config_def_save_folder">OPTION: <!--#echo var="VAR_default-saved-msg-folder"--></a>
 <li><a href="h_config_disable_auths">OPTION: <!--#echo var="VAR_disable-these-authenticators"--></a>
 <li><a href="h_config_disable_drivers">OPTION: <!--#echo var="VAR_disable-these-drivers"--></a>
-<li><a href="h_config_char_set">OPTION: <!--#echo var="VAR_display-character-set"--></a>
+<li><a href="h_config_char_set">OPTION: Display Character Set</a>
 <li><a href="h_config_display_filters">OPTION: <!--#echo var="VAR_display-filters"--></a>
 <li><a href="h_config_download_cmd">OPTION: <!--#echo var="VAR_download-command"--></a>
 <li><a href="h_config_download_prefix">OPTION: <!--#echo var="VAR_download-command-prefix"--></a>
@@ -3606,7 +3680,7 @@ There are also additional details on
 <li><a href="h_config_index_pri_color">OPTION: Index Priority Symbol Colors</a>
 <li><a href="h_config_index_subject_color">OPTION: Index Subject Color</a>
 <li><a href="h_config_init_cmd_list">OPTION: <!--#echo var="VAR_initial-keystroke-list"--></a>
-<li><a href="h_config_key_char_set">OPTION: <!--#echo var="VAR_keyboard-character-set"--></a>
+<li><a href="h_config_key_char_set">OPTION: Keyboard Character Set</a>
 <li><a href="h_config_keylabel_color">OPTION: KeyLabel Color</a>
 <li><a href="h_config_keyname_color">OPTION: KeyName Color</a>
 <li><a href="h_config_keywords">OPTION: <!--#echo var="VAR_keywords"--></a>
@@ -3623,7 +3697,7 @@ There are also additional details on
 <li><a href="h_config_metamsg_color">OPTION: Meta-Message Color</a>
 <li><a href="h_config_mimetype_path">OPTION: <!--#echo var="VAR_mimetype-search-path"--></a>
 <li><a href="h_config_new_ver_quell">OPTION: <!--#echo var="VAR_new-version-threshold"--></a>
-<li><a href="h_config_fifopath">OPTION: <!--#echo var="VAR_newmail-fifo-path"--></a>
+<li><a href="h_config_fifopath">OPTION: NewMail FIFO Path</a>
 <li><a href="h_config_newmailwidth">OPTION: <!--#echo var="VAR_newmail-window-width"--></a>
 <li><a href="h_config_news_active">OPTION: <!--#echo var="VAR_news-active-file-path"--></a>
 <li><a href="h_config_news_spec">OPTION: <!--#echo var="VAR_news-collections"--></a>
@@ -4786,24 +4860,15 @@ Alpine attempts to stay out of the way so that it won't prevent you from
 viewing mail in any character set.  It will simply send the message to
 your display device.  If the device is capable of displaying the
 message as it was written it will do so.  If not, the display may be
-partially or totally incorrect.  If the message is marked as being in
-a character set other than &quot;US-ASCII&quot; and it is a character
-set that is different from the set you have indicated with the
-<A HREF="h_config_char_set">&quot;<!--#echo var="VAR_display-character-set"-->&quot;</A>
+partially or totally incorrect.
+If the message contains characters that are not representable in your 
+<A HREF="h_config_char_set">&quot;Display Character Set&quot;</A>
 variable in your configuration, then a warning message will be printed
-to your screen at the beginning of the message display.<P>
-
-In all cases Alpine requires that the display device can handle the
-character set.  For example, most X-terminals will display the ISO-8859-1
-character set if the right font is selected.  VT220's and higher also
-display ISO-8859-1.  Displays for other characters sets are less common.
-<P>
-
-Alpine usually suppresses display of control characters in order to avoid
-characters that may change terminal setup parameters.
-If this is a problem for you, the
-&quot;<A HREF="h_config_pass_control"><!--#echo var="FEAT_pass-control-characters-as-is"--></A>&quot;
-feature can be used to turn this behavior off.
+to your screen at the beginning of the message display.
+It is probably best to use UNIX Alpine in a terminal emulator
+capable of displaying UTF-8 characters.
+See <A HREF="h_config_char_set">Display Character Set</A> for a little
+more information about character set settings.
 
 <P><UL>
 <LI><A HREF="h_finding_help">Finding more information and requesting help</A>
@@ -6024,15 +6089,19 @@ appear on the left side of the MESSAGE INDEX screen.  The most common
 use of this is to mark a message as important. This is something of a
 note to yourself to get back to that message.  You may also use the
 flag command to set (or unset) the flags that indicate that a message
-is new, answered, or deleted.<P>
+is new, answered, deleted, or forwarded.<P>
 
 Provided the mail server supports it,
 you may also manipulate user-defined keywords
 for a message using the flag command.
-These keywords will be available if you use the Flag Details screen.
-They will be listed after the Important, New, Answered, and Deleted flags,
+These keywords will be available if you use the Flag Details screen that you
+can get to after typing the
+Flag (<!--chtml if pinemode="function_key"-->F11<!--chtml else-->*<!--chtml endif-->)
+command.
+They will be listed after the Important, New, Answered, Deleted , and Forwarded flags,
 which are always present.
-You may add new keywords by defining them in the <A HREF="h_config_keywords"><!--#echo var="VAR_keywords"--></A> option in the Setup/Config screen.
+You may add new keywords by using the Add KW command from the Flag Details screen
+or by defining them in the <A HREF="h_config_keywords"><!--#echo var="VAR_keywords"--></A> option in the Setup/Config screen.
 
 The availability of the flag command is determined by the
 <A HREF="h_config_enable_flag">&quot;<!--#echo var="FEAT_enable-flag-cmd"-->&quot;</A>
@@ -9557,7 +9626,7 @@ Setup Index Color Commands
 Index Line Color causes lines in the MESSAGE INDEX screen to be colored.
 This action is only available if your terminal is capable of displaying
 color and color display has been enabled with the
-<A HREF="h_config_color_style"><!--#echo var="VAR_color-style"--></A> option within the
+<A HREF="h_config_color_style">Color Style</A> option within the
 Setup Color screen.
 (In PC-Alpine, color is always enabled so there is no option to turn on.)
 This screen lets you add, delete, modify, or change the order of the rules
@@ -18824,6 +18893,12 @@ This token is the same as the SUBJECT token unless keywords are set for
 the message.
 In that case, a list of keywords enclosed in braces will be prepended to
 the subject of the message.
+Only those keywords that you have defined in your
+<A HREF="h_config_keywords"><!--#echo var="VAR_keywords"--></A> option
+in Setup/Config are considered in the list.
+In other words, keywords that have been set by some other means, perhaps
+by another email program, won't show up unless included in
+<A HREF="h_config_keywords"><!--#echo var="VAR_keywords"--></A>.
 Having this set in the <!--#echo var="VAR_index-format"--> will also cause the keywords to be
 prepended to the subject in the MESSAGE TEXT screen.
 If you have given a keyword a nickname
@@ -18850,6 +18925,12 @@ whereas the SUBJKEYINIT token would give
 <P>
 <CENTER><SAMP>{WN} actual subject</SAMP></CENTER>
 <P>
+Only those keywords that you have defined in your
+<A HREF="h_config_keywords"><!--#echo var="VAR_keywords"--></A> option
+in Setup/Config are considered in the list.
+In other words, keywords that have been set by some other means, perhaps
+by another email program, won't show up unless included in
+<A HREF="h_config_keywords"><!--#echo var="VAR_keywords"--></A>.
 The <A HREF="h_config_kw_braces"><!--#echo var="VAR_keyword-surrounding-chars"--></A>
 option may be used to modify this token slightly.
 It is also possible to color keywords in the index using the
@@ -18909,11 +18990,20 @@ Same as SUBJKEYINIT but with the opening message text.
 <DT>KEY</DT>
 <DD>
 This is a space-delimited list of keywords that are set for the message.
+Only those keywords that you have defined in your
+<A HREF="h_config_keywords"><!--#echo var="VAR_keywords"--></A> option
+in Setup/Config are considered in the list.
+In other words, keywords that have been set by some other means, perhaps
+by another email program, won't show up unless included in
+<A HREF="h_config_keywords"><!--#echo var="VAR_keywords"--></A>.
 If you have given a keyword a nickname
 (<A HREF="h_config_keywords"><!--#echo var="VAR_keywords"--></A>), that nickname is displayed
 instead of the actual keyword.
 It is also possible to color keywords in the index using the
 Setup/Kolor screen (<A HREF="h_config_kw_color">Keyword Colors</A>).
+This token defaults to an arbitrary width of 5.
+You should set it to whatever width suits you using something
+like KEY(17) in the <!--#echo var="VAR_index-format"-->.
 </DD>
 
 <DT>KEYINIT</DT>
@@ -18924,6 +19014,9 @@ If you have given a keyword a nickname
 is displayed instead of the initial of the actual keyword.
 It is also possible to color keyword initials in the index using the
 Setup/Kolor screen (<A HREF="h_config_kw_color">Keyword Colors</A>).
+This token defaults to an arbitrary width of 2.
+You should set it to whatever width suits you using something
+like KEYINIT(3) in the <!--#echo var="VAR_index-format"-->.
 </DD>
 
 <DT>PRIORITY</DT>
@@ -22265,7 +22358,8 @@ Take Address command.
 <BODY>
 <H1>OPTION: <!--#echo var="VAR_posting-character-set"--></H1>
 
-The <!--#echo var="VAR_posting-character-set"--> configuration option is used for sending messages.
+The <!--#echo var="VAR_posting-character-set"--> configuration option is used
+when sending messages.
 
 <P>
 
@@ -22277,7 +22371,7 @@ instead;
 
 <P>
 Attachments are labeled with your
-<A HREF="h_config_key_char_set">&quot;<!--#echo var="VAR_keyboard-character-set"-->&quot;</A>.
+<A HREF="h_config_key_char_set">&quot;Keyboard Character Set&quot;</A>.
 
 <P>
 Generally, there should be little need to set this option.
@@ -22302,11 +22396,11 @@ character set.  Lastly, by setting this option explicitly to
 
 <P>
 The options
-<A HREF="h_config_char_set">&quot;<!--#echo var="VAR_display-character-set"-->&quot;</A>
-and <A HREF="h_config_key_char_set">&quot;<!--#echo var="VAR_keyboard-character-set"-->&quot;</A>
+<A HREF="h_config_char_set">&quot;Display Character Set&quot;</A>
+and <A HREF="h_config_key_char_set">&quot;Keyboard Character Set&quot;</A>
 are closely related.
 Setting the feature
-<A HREF="h_config_use_system_translation">&quot;<!--#echo var="FEAT_use-system-translation"-->&quot;</A>
+<A HREF="h_config_use_system_translation">&quot;Use System Translation&quot;</A>
 should cause this option to be ignored.
 
 <P>
@@ -22319,12 +22413,12 @@ should cause this option to be ignored.
 ====== h_config_char_set =====
 <HTML>
 <HEAD>
-<TITLE>OPTION: <!--#echo var="VAR_display-character-set"--></TITLE>
+<TITLE>OPTION: Display Character Set</TITLE>
 </HEAD>
 <BODY>
-<H1>OPTION: <!--#echo var="VAR_display-character-set"--></H1>
+<H1>OPTION: Display Character Set</H1>
 
-The <!--#echo var="VAR_display-character-set"--> configuration option is used when viewing messages.
+The Display Character Set configuration option is used when viewing messages.
 <P>
 Alpine uses Unicode characters internally and 
 it is a goal for Alpine to handle email in many different languages.
@@ -22345,29 +22439,32 @@ sets.
 There are three possible configuration character settings and some
 environment variable settings that can affect how Alpine
 handles international characters.
+The first two of these are only available in UNIX Alpine.
 The three configuration options are
-<!--#echo var="VAR_display-character-set"-->,
-<!--#echo var="VAR_keyboard-character-set"-->, and
+Display Character Set,
+Keyboard Character Set, and
 <!--#echo var="VAR_posting-character-set"-->.
-The <!--#echo var="VAR_keyboard-character-set"--> defaults to being the same value
-as the <!--#echo var="VAR_display-character-set"-->, and that is usually correct, because
+The Keyboard Character Set defaults to being the same value
+as the Display Character Set, and that is usually correct, because
 the keyboard almost always produces characters in the same character set
 as the display displays.
-The <!--#echo var="VAR_display-character-set"--> is the character set that Alpine
+The Display Character Set is the character set that Alpine
 will attempt to use when sending characters to the display.
 <P>
 
-By default, the <!--#echo var="VAR_display-character-set"--> variable is not set and UNIX Alpine
+By default, the Display Character Set variable is not set and UNIX Alpine
 will attempt to get this information from the environment.
 In particular, the <CODE>nl_langinfo(CODESET)</CODE> call is used.
 This usually depends on the setting of the environment variables LANG or LC_CTYPE.
-For PC-Alpine the default for <!--#echo var="VAR_display-character-set"-->
-is simply <CODE>UTF-8</CODE>.
-An explicit configuration setting for <!--#echo var="VAR_display-character-set"--> will,
+An explicit configuration setting for Display Character Set will,
 of course, override any default setting.
 <P>
+For PC-Alpine the Display Character Set
+and the Keyboard Character Set
+are always equivalent to <CODE>UTF-8</CODE> and this is not settable.
+<P>
 
-It is probably best to use Alpine in a terminal emulator
+It is probably best to use UNIX Alpine in a terminal emulator
 capable of displaying UTF-8 characters, since that will allow you to
 view just about any received text that is correctly formatted (note,
 however, the above comments about known index display bugs with certain
@@ -22428,10 +22525,10 @@ Here is a list of many of the possible character sets:
 
 When reading incoming email, Alpine understands many different
 character sets and is able to convert the incoming mail into Unicode.
-The Unicode will be converted to the <!--#echo var="VAR_display-character-set"-->
+The Unicode will be converted to the Display Character Set
 for display on your terminal.
 Characters typed at the keyboard will be converted from the
-<!--#echo var="VAR_keyboard-character-set"--> to Unicode for Alpine's internal
+Keyboard Character Set to Unicode for Alpine's internal
 use.
 <P>
 
@@ -22465,16 +22562,16 @@ messages as UTF-8.
 
 The options
 <A HREF="h_config_post_char_set">&quot;<!--#echo var="VAR_posting-character-set"-->&quot;</A>
-and <A HREF="h_config_key_char_set">&quot;<!--#echo var="VAR_keyboard-character-set"-->&quot;</A>
+and <A HREF="h_config_key_char_set">&quot;Keyboard Character Set&quot;</A>
 are closely related to this option.
 Setting the feature
-<A HREF="h_config_use_system_translation">&quot;<!--#echo var="FEAT_use-system-translation"-->&quot;</A>
+<A HREF="h_config_use_system_translation">&quot;Use System Translation&quot;</A>
 should cause this option to be ignored.
 
 <P>
 When displaying a message, Alpine compares this setting to the character
 set specified in the message.  If not all of the
-characters in the message can be displayed using the <!--#echo var="VAR_display-character-set"-->
+characters in the message can be displayed using the Display Character Set
 then Alpine places an editorial
 comment in the displayed text (enclosed in square-brackets) indicating
 that some characters may not be displayed correctly.
@@ -22491,15 +22588,17 @@ This comment may be eliminated by turning on the option
 ====== h_config_key_char_set =====
 <HTML>
 <HEAD>
-<TITLE>OPTION: <!--#echo var="VAR_keyboard-character-set"--></TITLE>
+<TITLE>OPTION: Keyboard Character Set</TITLE>
 </HEAD>
 <BODY>
-<H1>OPTION: <!--#echo var="VAR_keyboard-character-set"--></H1>
+<H1>OPTION: Keyboard Character Set</H1>
 
-The <!--#echo var="VAR_keyboard-character-set"--> identifies the character set of the characters
+UNIX Alpine only.
+<P>
+The Keyboard Character Set identifies the character set of the characters
 coming from your keyboard.
 It defaults to having the same value as your
-<A HREF="h_config_char_set">&quot;<!--#echo var="VAR_display-character-set"-->&quot;</A>,
+<A HREF="h_config_char_set">&quot;Display Character Set&quot;</A>,
 which in turn defaults to a value obtained from your environment.
 It is unlikely that you will need to use this option, because the keyboard
 almost always produces the same kind of characters as the display displays.
@@ -22512,11 +22611,11 @@ what the keyboard produces, as well as the contents of the files.
 
 <P>
 The options
-<A HREF="h_config_char_set">&quot;<!--#echo var="VAR_display-character-set"-->&quot;</A>
+<A HREF="h_config_char_set">&quot;Display Character Set&quot;</A>
 and <A HREF="h_config_post_char_set">&quot;<!--#echo var="VAR_posting-character-set"-->&quot;</A>
 are closely related.
 Setting the feature
-<A HREF="h_config_use_system_translation">&quot;<!--#echo var="FEAT_use-system-translation"-->&quot;</A>
+<A HREF="h_config_use_system_translation">&quot;Use System Translation&quot;</A>
 should cause this option to be ignored.
 
 <P>
@@ -22852,11 +22951,17 @@ These are similar to the &quot;Important&quot; flag which the user
 may set using the Flag command.
 The difference is that the Important flag is always present for each folder.
 User-defined keywords are chosen by the user.
-You may set up the list of possible keywords here.
-Then you use the <A HREF="h_common_flag">Flag command</A>
+You may set up the list of possible keywords here, or you may add keywords
+from the Flag Details screen that you
+can get to after typing the
+Flag (<!--chtml if pinemode="function_key"-->F11<!--chtml else-->*<!--chtml endif-->)
+command.
+After the keywords have been defined,
+then you use the <A HREF="h_common_flag">Flag command</A>
 to set or clear the keywords in each message.
-(The
-<A HREF="h_config_flag_screen_kw_shortcut"><!--#echo var="FEAT_enable-flag-screen-keyword-shortcut"--></A> option offers a slightly different way of setting keywords.)
+The behavior of the flag command may be modified by using the
+<A HREF="h_config_flag_screen_default">&quot;<!--#echo var="FEAT_enable-flag-screen-implicitly"-->&quot;</A> option or the
+<A HREF="h_config_flag_screen_kw_shortcut">&quot;<!--#echo var="FEAT_enable-flag-screen-keyword-shortcut"-->&quot;</A> option.
 
 <P>
 Keywords may be used when Selecting messages (Select Keyword).
@@ -22953,10 +23058,16 @@ you may have.
 Each address in the list should be the actual email address part of an
 address, without the full name field or the angle brackets.
 For example:
+
 <P>
 <CENTER><SAMP>user@example.com</SAMP></CENTER>
 <P>
 
+The matching is case-insensitive, so this would match any of
+<SAMP>User@example.com</SAMP>, <SAMP>user@Example.Com</SAMP>, or
+<SAMP>USER@EXAMPLE.COM</SAMP> as well.
+
+<P>
 If set, the option affects the behavior of the Reply
 command and the &quot;+&quot; symbol in the MESSAGE INDEX, which denotes that
 a message has been addressed specifically to you.
@@ -22975,6 +23086,96 @@ with the prefix &quot;To: &quot; prepended.
 <P>
 With respect to Reply, the reply-to-all option will exclude addresses
 listed here.
+
+<P>
+The feature
+<A HREF="h_config_copy_to_to_from"><!--#echo var="FEAT_copy-to-address-to-from-if-it-is-us"--></A>
+is somewhat related to this option.
+
+<P>
+In addition to a list of actual addresses,
+you may use regular expressions (as used with egrep with the ignore case flag)
+to describe the addresses you want to match.
+Alpine will somewhat arbitrarily interpret your entry as a regular
+expression if it contains any of the characters
+*, |, +, ?, {, [, ^, $, or &#92;.
+Otherwise, it will be treated literally.
+The feature
+<a href="h_config_disable_regex"><!--#echo var="FEAT_disable-regular-expression-matching-for-alternate-addresses"--></a>
+may be used to turn off regular expression processing regardless of whether or not
+special characters appear in the entry.
+
+<P>
+A description of how regular expressions work is beyond the
+scope of this help text, but some examples follow.
+
+<P>
+The entry
+
+<P>
+<CENTER><SAMP>.*@example.com</SAMP></CENTER>
+<P>
+
+in the <!--#echo var="VAR_alt-addresses"--> list would mean that any
+address with a domain name of <SAMP>example.com</SAMP> (such as
+<SAMP>fred@example.com</SAMP> or <SAMP>wilma@example.com</SAMP>) will be considered
+one of your alternate addresses.
+Strictly speaking, the dot in <SAMP>example.com</SAMP> ought to be escaped with
+a backslash, as in <SAMP>example&#92;.com</SAMP>, and a dollar sign anchor ought
+to come at the end of the expression to prevent a match of <SAMP>example.com.org</SAMP>.
+Complicating things further, the dollar sign
+is special in the Alpine configuration (it signifies environment variable expansion)
+so the dollar sign should be doubled or backslash escaped for Alpine's sake.
+Quotes around the whole expression will not escape the dollar sign successfully.
+So this example should look like
+
+<P>
+<CENTER><SAMP>.*@example&#92;.com$$</SAMP></CENTER>
+<P>
+
+<P>
+The entry
+
+<P>
+<CENTER><SAMP>^fred[0-9]*@example.com$$</SAMP></CENTER>
+<P>
+
+would match
+<SAMP>fred3@example.com</SAMP> or <SAMP>fred17@example.com</SAMP> as well
+as <SAMP>fred@example.com</SAMP>.
+
+<P>
+You could match all addresses that look like
+<SAMP>fred+stuff@example.com</SAMP> for any value of <SAMP>stuff</SAMP> with the
+entry
+
+<P>
+<CENTER><SAMP>^fred&#92;+.*@example.com$$</SAMP></CENTER>
+<P>
+
+Notice that you have to escape the plus sign with a backslash because plus
+is a special character in regular expressions.
+If you wanted to match plain <SAMP>fred</SAMP> as well as <SAMP>fred+stuff</SAMP>
+the expression
+
+<P>
+<CENTER><SAMP>^fred(()|&#92;+.*)@example.com$$</SAMP></CENTER>
+<P>
+
+would do it, but it would be easier to just add fred@example.com as a
+separate entry.
+
+<P>
+One more example, a match of all first-level subdomains, is given by
+
+<P>
+<CENTER><SAMP>^fred@[[:alnum:]_-]*&#92;.example&#92;.com$$</SAMP></CENTER>
+<P>
+
+<P>
+Because the regular expression matching is based on an old library
+(<SAMP>hs_regex</SAMP>) the regular expressions might not work exactly as you expect,
+but they should be close.
 
 <P>
 <UL>   
@@ -23117,7 +23318,7 @@ you're probably better off letting the system pick those widths.  <P>
 The default is equivalent to:
 
 <P>
-<CENTER><SAMP>STATUS MSGNO SMARTDATETIME FROMORTO(33%) SIZENARROW SUBJKEY(67%)</SAMP></CENTER>
+<CENTER><SAMP>STATUS MSGNO SMARTDATETIME24 FROMORTO(33%) SIZENARROW SUBJKEY(67%)</SAMP></CENTER>
 
 <P>
 This means that the four fields without percentages will be allocated
@@ -24919,10 +25120,10 @@ and the related options.
 ====== h_config_fifopath =====
 <HTML>
 <HEADER>
-<TITLE>OPTION: <!--#echo var="VAR_newmail-fifo-path"--></TITLE>
+<TITLE>OPTION: NewMail FIFO Path</TITLE>
 </HEADER>
 <BODY>
-<H1>OPTION: <!--#echo var="VAR_newmail-fifo-path"--></H1>
+<H1>OPTION: NewMail FIFO Path</H1>
 
 This option is only available in UNIX Alpine.
 However, there is a very similar feature built in to PC-Alpine.
@@ -24979,7 +25180,7 @@ writer (Alpine) of the fifo must be running on the same system.
 <H1>OPTION: <!--#echo var="VAR_newmail-window-width"--></H1>
 
 For UNIX Alpine, this option is only useful if you have turned on the
-<A HREF="h_config_fifopath"><!--#echo var="VAR_newmail-fifo-path"--></A> option.
+<A HREF="h_config_fifopath">NewMail FIFO Path</A> option.
 That option causes new mail messages to be sent to a fifo file.
 Those messages will be 80 characters wide by default.
 You can change the width of those messages by changing this option.
@@ -26701,6 +26902,26 @@ will not attempt to reverse the name in this manner.
 <P>
 &lt;End of help on this topic&gt;
 </BODY></HTML>
+====== h_config_disable_regex ======
+<HTML>
+<HEAD>
+<TITLE>FEATURE: <!--#echo var="FEAT_disable-regular-expression-matching-for-alternate-addresses"--></TITLE>
+</HEAD>
+<BODY>
+<H1>FEATURE: <!--#echo var="FEAT_disable-regular-expression-matching-for-alternate-addresses"--></H1>
+
+Normally, the
+<a href="h_config_alt_addresses"><!--#echo var="VAR_alt-addresses"--></a>
+option is interpreted as a regular expression.
+One type of address that might cause trouble is an address that
+contains a plus sign.
+If you want to have an address with a plus as one of your
+<!--#echo var="VAR_alt-addresses"-->
+and you don't want to use regular expressions, then setting this
+feature will cause Alpine to treat the addresses you list literally instead.
+<P>
+&lt;End of help on this topic&gt;
+</BODY></HTML>
 ====== h_config_take_fullname ======
 <HTML>
 <HEAD>
@@ -27333,6 +27554,28 @@ this feature.
 In other words, this is a way to turn on the signature stripping behavior
 without also turning on the dashes-adding behavior.
 <P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_forward_as_attachment =====
+<HTML>
+<HEAD>
+<TITLE>FEATURE: <!--#echo var="FEAT_forward-as-attachment"--></TITLE>
+</HEAD>
+<BODY>
+<H1>FEATURE: <!--#echo var="FEAT_forward-as-attachment"--></H1>
+
+This feature affects the way forwarded message text is handled.  When set, rather than 
+include the text of the forwarded message below any additional text you provide in the
+composer, the forwarded message is attached in its entirety to the message you send.
+<P>
+This is useful in that it keeps the text you provide in the composer distinct from the
+text of the forwarded message.  Similarly, it allows the recipient to 
+conveniently operate on the forwarded message.  For example, they might reply directly to
+the sender of the forwarded message, or process it as part of a spam report.
 <UL>   
 <LI><A HREF="h_finding_help">Finding more information and requesting help</A>
 </UL><P>
@@ -28288,8 +28531,10 @@ That will cause Alpine to think that it is an xterm and to properly interpret th
 escape sequences sent by the mouse.
 <P>
 Note: if this feature is set, the behavior of X terminal cut-and-paste is
-also modified.  It is necessary to hold the shift key down while clicking
+also modified.  It is sometimes possible to hold the shift key down while clicking
 left or middle mouse buttons for the normal xterm cut/paste operations. 
+There is also an Alpine command to toggle this mode on or off.
+The command is Ctrl-&#92; (Control-backslash).
 <P>
 &lt;End of help on this topic&gt;
 </BODY>
@@ -28333,6 +28578,36 @@ feature, this feature is only relevant when run in an xterm environment.
 <P>
 &lt;End of help on this topic&gt;
 </BODY></HTML>
+====== h_config_copy_to_to_from =====
+<HTML>
+<HEAD>
+<TITLE>FEATURE: <!--#echo var="FEAT_copy-to-address-to-from-if-it-is-us"--></TITLE>
+</HEAD>
+<BODY>
+<H1>FEATURE: <!--#echo var="FEAT_copy-to-address-to-from-if-it-is-us"--></H1>
+
+This feature affects the From address used when Replying to a message.
+It is probably only useful if you have some
+<a href="h_config_alt_addresses"><!--#echo var="VAR_alt-addresses"--></a>
+defined.
+When enabled, it checks to see if any of the addresses in the To or Cc
+fields of the message you are replying to is one of your addresses.
+If it is, and there is only one of them, then that address is used as
+the From address in the message you are composing.
+In other words, you will be using a From address that is the same
+as the To address that was used to get the mail to you in the first place.
+
+<P>
+If a role is being used and it has a From address defined, that From address will
+be used rather than the one derived from this feature.
+
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
 ====== h_config_prefix_editing =====
 <HTML>
 <HEAD>
@@ -28659,10 +28934,10 @@ item) functionality is unchanged.
 <BODY>
 <H1>FEATURE: <!--#echo var="FEAT_quell-charset-warning"--></H1>
 
-By default, if your
-<A HREF="h_config_char_set">&quot;<!--#echo var="VAR_display-character-set"-->&quot;</A>
-is different from the character set
-of the message you are viewing, then Alpine will
+By default, if the message you are viewing contains characters that are
+not representable in your
+<A HREF="h_config_char_set">&quot;Display Character Set&quot;</A>
+then Alpine will
 add a warning to the start of the displayed text.
 If this option is set, then that editorial message will be suppressed.
 <P>
@@ -30003,10 +30278,10 @@ connection (e.g, sending a command to your IMAP server).
 ====== h_config_color_style =====
 <HTML>
 <HEAD>
-<TITLE>OPTION: <!--#echo var="VAR_color-style"--></TITLE>
+<TITLE>OPTION: Color Style</TITLE>
 </HEAD>
 <BODY>
-<H1>OPTION: <!--#echo var="VAR_color-style"--></H1>
+<H1>OPTION: Color Style</H1>
 
 UNIX Alpine only.
 <P>
@@ -32154,11 +32429,13 @@ will be preserved.
 ====== h_config_use_system_translation =====
 <HTML>
 <HEAD>
-<TITLE>FEATURE: <!--#echo var="FEAT_use-system-translation"--></TITLE>
+<TITLE>FEATURE: Use System Translation</TITLE>
 </HEAD>
 <BODY>
-<H1>FEATURE: <!--#echo var="FEAT_use-system-translation"--></H1>
+<H1>FEATURE: Use System Translation</H1>
 
+UNIX Alpine only.
+<P>
 Alpine normally uses its own internal software to convert between the multi-byte
 representation of characters and the Unicode representation of those
 same characters.
@@ -33739,6 +34016,12 @@ No spaces, parentheses, braces, percents or asterisks are allowed.
 ========== h_select_keyword ==========
 Enter the keyword you want to match, or use ^T to select a keyword from a list
 of possible keywords for this folder. Use ! to look for non-matches instead.
+========== h_type_keyword ==========
+Enter the keyword you want to add. You may add a nickname in the next step.
+No spaces, parentheses, braces, percents or asterisks are allowed.
+========== h_type_keyword_nickname ==========
+Enter an optional nickname for the keyword you want to add.
+Type Carriage return to use the keyword name instead of a nickname.
 ========== h_convert_sigs ==========
 You will be given the opportunity to convert signature files to remote
 configurations.

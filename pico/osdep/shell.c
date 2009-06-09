@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: shell.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: shell.c 788 2007-11-06 23:51:13Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -49,19 +49,19 @@ RETSIGTYPE rtfrmshell(int);
  *  bktoshell - suspend and wait to be woken up
  */
 int
-bktoshell(void)		/* suspend MicroEMACS and wait to wake up */
+bktoshell(int f, int n)
 {
     UCS z = CTRL | 'Z';
 
     if(!(gmode&MDSSPD)){
 	unknown_command(z);
-	return(0);
+	return(FALSE);
     }
 
     if(Pmaster){
 	if(!Pmaster->suspend){
 	    unknown_command(z);
-	    return(0);
+	    return(FALSE);
 	}
 
 	if((*Pmaster->suspend)() == NO_OP_COMMAND){
@@ -92,7 +92,7 @@ bktoshell(void)		/* suspend MicroEMACS and wait to wake up */
 	    pico_refresh(0, 1);
 	}
 
-	return(1);
+	return(TRUE);
     }
 
     if(gmode&MDSPWN){
@@ -125,30 +125,30 @@ bktoshell(void)		/* suspend MicroEMACS and wait to wake up */
 	kill(0, SIGTSTP);
     }
 
-    return(1);
+    return(TRUE);
 }
 #else
 #ifdef _WINDOWS
 int
-bktoshell(void)
+bktoshell(int f, int n)
 {
     UCS z = CTRL | 'Z';
 
     if(!(gmode&MDSSPD)){
 	unknown_command(z);
-	return(0);
+	return(FALSE);
     }
     if(Pmaster){
         if(!Pmaster->suspend){
 	    unknown_command(z);
-	    return(0);
+	    return(FALSE);
 	}
 	(*Pmaster->suspend)();
-	return(1);
+	return(TRUE);
     }
 			 
     mswin_minimize();
-    return(1);
+    return(TRUE);
 }
 #endif /* _WINDOWS */
 

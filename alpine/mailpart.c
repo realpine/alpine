@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailpart.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailpart.c 783 2007-10-31 16:35:12Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -62,6 +62,7 @@ static char rcsid[] = "$Id: mailpart.c 676 2007-08-20 19:46:37Z hubert@u.washing
 #include "../pith/mimetype.h"
 #include "../pith/icache.h"
 #include "../pith/list.h"
+#include "../pith/ablookup.h"
 
 
 /*
@@ -1374,7 +1375,7 @@ write_attachment(int qline, long int msgno, ATTACH_S *a, char *method)
 	}
 
 	err = NULL;
-	tfp = temp_nam(NULL, "pd", 0);
+	tfp = temp_nam(NULL, "pd");
 	dprint((1, "Download attachment called!\n"));
 	if((store = so_get(FileStar, tfp, WRITE_ACCESS|OWNER_ONLY|WRITE_TO_LOCALE)) != NULL){
 
@@ -1458,7 +1459,7 @@ write_attachment_to_file(MAILSTREAM *stream, long int msgno, ATTACH_S *a, int fl
 	 && stream))
       return 0;
 
-    is_text = a->body->type == TYPETEXT;
+    is_text = (a && a->body && a->body->type == TYPETEXT);
 
     if(flags & GER_APPEND)
       orig_size = name_file_size(file);
@@ -1752,7 +1753,7 @@ export_msg_att(long int msgno, ATTACH_S *a)
     }
 
     /* With name in hand, allocate storage object and save away... */
-    if((store = so_get(FileStar, full_filename, WRITE_ACCESS | WRITE_TO_LOCALE)) != NULL){
+    if((store = so_get(FileStar, full_filename, WRITE_ACCESS)) != NULL){
 	if((err = write_attached_msg(msgno, &ap, store, !(rflags & GER_APPEND))) != NULL)
 	  q_status_message(SM_ORDER | SM_DING, 3, 4, err);
 	else
@@ -1829,7 +1830,7 @@ export_digest_att(long int msgno, ATTACH_S *a)
     }
 
     /* With name in hand, allocate storage object and save away... */
-    if((store = so_get(FileStar, full_filename, WRITE_ACCESS | WRITE_TO_LOCALE)) != NULL){
+    if((store = so_get(FileStar, full_filename, WRITE_ACCESS)) != NULL){
 	count = 0;
 
 	for(ap = a + 1;
@@ -2164,15 +2165,15 @@ display_attachment(long int msgno, ATTACH_S *a, int flags)
 	    }
 	}
 
-	filename = temp_nam_ext(NULL, "im", 0, ext);
+	filename = temp_nam_ext(NULL, "im", ext);
 	if(!filename) /* just try opening it without extension */
-	  filename = temp_nam(NULL, "im", 0);
+	  filename = temp_nam(NULL, "im");
     }
     else{
 	snprintf(prefix, sizeof(prefix), "img-%s", (a->body->subtype)
 		? a->body->subtype : "unk");
 	prefix[sizeof(prefix)-1] = '\0';
-	filename = temp_nam(NULL, prefix, 0);
+	filename = temp_nam(NULL, prefix);
     }
 
     if((store = so_get(FileStar, filename, WRITE_ACCESS|OWNER_ONLY)) == NULL){
@@ -3297,6 +3298,7 @@ reply_msg_att(MAILSTREAM *stream, long int msgno, ATTACH_S *a)
     void          *msgtext;
     char          *tp, *prefix = NULL, *fcc = NULL, *errmsg = NULL;
     int            include_text = 0, flags = RSF_QUERY_REPLY_ALL;
+    int            rolemsg = 0, copytomsg = 0;
     long           rflags;
     PAT_STATE      dummy;
     REDRAFT_POS_S *redraft_pos = NULL;
@@ -3353,12 +3355,99 @@ reply_msg_att(MAILSTREAM *stream, long int msgno, ATTACH_S *a)
 	}
 
 	if(role){
-	    q_status_message1(SM_ORDER, 3, 4,
-			      _("Replying using role \"%s\""), role->nick);
+	    rolemsg++;
 
 	    /* override fcc gotten in reply_seed */
 	    if(role->fcc && fcc)
 	      fs_give((void **) &fcc);
+	}
+
+	if(F_ON(F_COPY_TO_TO_FROM, ps_global) && !(role && role->from)){
+	    ADDRESS *us_in_to_and_cc, *ap;
+
+	    us_in_to_and_cc = (ADDRESS *) NULL;
+	    if(a->body->nested.msg->env && a->body->nested.msg->env->to)
+	      if((ap=reply_cp_addr(ps_global, 0L, NULL,
+				   NULL, us_in_to_and_cc, NULL,
+				   a->body->nested.msg->env->to, RCA_ONLY_US)) != NULL)
+		reply_append_addr(&us_in_to_and_cc, ap);
+
+	    if(a->body->nested.msg->env && a->body->nested.msg->env->cc)
+	      if((ap=reply_cp_addr(ps_global, 0L, NULL,
+				   NULL, us_in_to_and_cc, NULL,
+				   a->body->nested.msg->env->cc, RCA_ONLY_US)) != NULL)
+		reply_append_addr(&us_in_to_and_cc, ap);
+
+	    /*
+	     * A list of all of our addresses that appear in the To
+	     * and cc fields is in us_in_to_and_cc.
+	     * If there is exactly one address in that list then
+	     * use it for the outgoing From.
+	     */
+	    if(us_in_to_and_cc && !us_in_to_and_cc->next){
+		PINEFIELD *custom, *pf;
+		ADDRESS *a = NULL;
+		char *addr = NULL;
+
+		/*
+		 * Check to see if this address is different from what
+		 * we would have used anyway. If it is, notify the user
+		 * with a status message. This is pretty hokey because we're
+		 * mimicking how pine_send would set the From address and
+		 * there is no coordination between the two.
+		 */
+
+		/* in case user has a custom From value */
+		custom = parse_custom_hdrs(ps_global->VAR_CUSTOM_HDRS, UseAsDef);
+
+		pf = (PINEFIELD *) fs_get(sizeof(*pf));
+		memset((void *) pf, 0, sizeof(*pf));
+		pf->name = cpystr("From");
+		pf->addr = &a;
+		if(set_default_hdrval(pf, custom) >= UseAsDef
+		   && pf->textbuf && pf->textbuf[0]){
+		    removing_trailing_white_space(pf->textbuf);
+		    (void)removing_double_quotes(pf->textbuf);
+		    build_address(pf->textbuf, &addr, NULL, NULL, NULL);
+		    rfc822_parse_adrlist(pf->addr, addr, ps_global->maildomain);
+		    if(addr)
+		      fs_give((void **) &addr);
+		}
+
+		if(!*pf->addr)
+		  *pf->addr = generate_from();
+
+		if(*pf->addr && !address_is_same(*pf->addr, us_in_to_and_cc)){
+		    copytomsg++;
+		    if(!role){
+			role = (ACTION_S *) fs_get(sizeof(*role));
+			memset((void *) role, 0, sizeof(*role));
+			role->is_a_role = 1;
+		    }
+
+		    role->from = us_in_to_and_cc;
+		    us_in_to_and_cc = NULL;
+		}
+
+		free_customs(custom);
+		free_customs(pf);
+	    }
+
+	    if(us_in_to_and_cc)
+	      mail_free_address(&us_in_to_and_cc);
+
+	}
+
+	if(role){
+	    if(rolemsg && copytomsg)
+	      q_status_message1(SM_ORDER, 3, 4,
+				_("Replying using role \"%s\" and To as From"), role->nick);
+	    else if(rolemsg)
+	      q_status_message1(SM_ORDER, 3, 4,
+				_("Replying using role \"%s\""), role->nick);
+	    else if(copytomsg)
+	      q_status_message(SM_ORDER, 3, 4,
+			       _("Replying using incoming To as outgoing From"));
 	}
 
 	outgoing->in_reply_to = reply_in_reply_to(a->body->nested.msg->env);
@@ -3611,9 +3700,13 @@ pipe_attachment(long int msgno, ATTACH_S *a)
 	    if((syspipe = open_system_pipe(pipe_command,
 				   (flags&PIPE_RESET) ? NULL : &resultfilename,
 				   NULL, flags, 0, pipe_callback, pipe_report_error)) != NULL){
+		int is_text = 0;
 		gf_io_t  pc;		/* wire up a generic putchar */
+
+		is_text = (a && a->body && a->body->type == TYPETEXT);
+
 		gf_set_writec(&pc, syspipe, 0L, PipeStar,
-			      (flags & PIPE_RAW) ? 0 : WRITE_TO_LOCALE);
+			      (is_text && !raw) ? WRITE_TO_LOCALE : 0);
 
 		/*------ Write the image to a temporary file ------*/
 		if(raw){		/* pipe raw text */

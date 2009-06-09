@@ -95,8 +95,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,9999,0,0
- PRODUCTVERSION 0,9999,0,0
+ FILEVERSION 0,99999,0,0
+ PRODUCTVERSION 0,99999,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x29L
@@ -114,14 +114,14 @@ BEGIN
             VALUE "Comments", "alpine info: http://www.washington.edu/alpine\0"
             VALUE "CompanyName", "University of Washington\0"
             VALUE "FileDescription", "Simple MAPI DLL for Alpine for Windows\0"
-            VALUE "FileVersion", "0.9999\0"
+            VALUE "FileVersion", "0.99999\0"
             VALUE "InternalName", "pmapi32\0"
             VALUE "LegalCopyright", "Copyright © 2006-2007\0"
             VALUE "LegalTrademarks", "Apache License, Version 2.0\0"
             VALUE "OriginalFilename", "pmapi32.dll\0"
             VALUE "PrivateBuild", " \0"
             VALUE "ProductName", "Simple MAPI for Alpine for Windows\0"
-            VALUE "ProductVersion", "0.9999\0"
+            VALUE "ProductVersion", "0.99999\0"
             VALUE "SpecialBuild", " \0"
         END
     END

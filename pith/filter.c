@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: filter.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: filter.c 757 2007-10-23 21:15:48Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -52,6 +52,7 @@ static char rcsid[] = "$Id: filter.c 676 2007-08-20 19:46:37Z hubert@u.washingto
 #include "../pith/util.h"
 #include "../pith/url.h"
 #include "../pith/init.h"
+#include "../pith/help.h"
 #include "../pico/keydefs.h"
 
 #ifdef _WINDOWS
@@ -70,7 +71,6 @@ int	gf_freadc_getchar(unsigned char *, void *);
 int	gf_fwritec(int);
 int	gf_fwritec_locale(int);
 #ifdef _WINDOWS
-int	gf_fwritec_windows(int);
 int	gf_freadc_windows(unsigned char *);
 #endif /* _WINDOWS */
 int	gf_preadc(unsigned char *);
@@ -95,7 +95,7 @@ void	gf_8bit_put(FILTER_S *, int);
 /*
  * System specific options
  */
-#ifdef	_WINDOWS
+#ifdef _WINDOWS
 #define CRLF_NEWLINES
 #endif
 
@@ -317,8 +317,7 @@ gf_set_writec(gf_io_t *pc, void *txt, long unsigned int len, SourceType src, int
     if(src == FileStar){
 	gf_out.file = (FILE *)txt;
 #ifdef _WINDOWS
-	*pc = (flags & WRITE_TO_LOCALE) ? gf_fwritec_windows
-					: gf_fwritec;
+	*pc =                             gf_fwritec;
 #else /* UNIX */
 	*pc = (flags & WRITE_TO_LOCALE) ? gf_fwritec_locale
 					: gf_fwritec;
@@ -513,28 +512,6 @@ gf_fwritec_locale(int c)
 
 
 #ifdef _WINDOWS
-/*
- * The windows version takes UTF-8 and writes it out
- * as UTF-8 in the Windows filesystem. In order to get
- * there it first converts it to Windows wide
- * characters and then back to UTF-8!
- */
-int
-gf_fwritec_windows(int c)
-{
-    int rv = 1;
-    int outchars;
-    UCS ucs;
-
-    /* outchars should be 1 or 0 (if in middle of a UTF-8 char) */
-    if(outchars = utf8_to_ucs4_oneatatime(c, &gf_out.cb, &ucs, NULL))
-      if(write_a_wide_char(ucs, gf_out.file) == EOF)
-	rv = 0;
-
-    return(rv);
-}
-
-
 /*
  * Read unicode characters from windows filesystem and return
  * them as a stream of UTF-8 characters. The stream is assumed
@@ -878,7 +855,7 @@ gf_link_filter(filter_t f, void *data)
 {
     FILTER_S *new, *tail;
 
-#ifdef	CRLF_NEWLINES
+#ifdef CRLF_NEWLINES
     /*
      * If the system's native EOL convention is CRLF, then there's no
      * point in passing data thru a filter that's not doing anything
@@ -2337,6 +2314,7 @@ gf_utf8(FILTER_S *f, int flg)
 	    }
 	}
 
+	f->f1 = state;
 	GF_END(f, f->next);
     }
     else if(flg == GF_EOD){
@@ -2851,6 +2829,7 @@ typedef	struct collector_s {
     unsigned	overrun:1;		/* Overran buf above */
     unsigned	proc_inst:1;		/* XML processing instructions */
     unsigned	empty:1;		/* empty element */
+	char	was_quoted:1;		/* basically to catch null string */
     char	quoted;			/* quoted element param value */
     char       *element;		/* element's collected name */
     PARAMETER  *attribs;		/* element's collected attributes */
@@ -5589,6 +5568,7 @@ html_element_collector(FILTER_S *fd, int ch)
 	}
 	else{
 	    ED(fd)->quoted = (char) ch;
+	    ED(fd)->was_quoted = 1;
 	    return(0);			/* need more data */
 	}
     }
@@ -5596,8 +5576,7 @@ html_element_collector(FILTER_S *fd, int ch)
     ch &= 0xff;			/* strip any "literal" high bits */
     if(ED(fd)->quoted
        || isalnum(ch)
-       || strchr("-.!", ch)
-       || (ED(fd)->hit_equal && !ASCII_ISSPACE((unsigned char) ch))){
+       || strchr("-.!", ch)){
 	if(ED(fd)->len < ((ED(fd)->element || !ED(fd)->hit_equal)
 			       ? HTML_BUF_LEN:MAX_ELEMENT)){
 	    ED(fd)->buf[(ED(fd)->len)++] = ch;
@@ -5606,7 +5585,7 @@ html_element_collector(FILTER_S *fd, int ch)
 	  ED(fd)->overrun = 1;		/* flag it broken */
     }
     else if(ASCII_ISSPACE((unsigned char) ch) || ch == '='){
-	if(html_element_flush(ED(fd))){
+	if((ED(fd)->len || ED(fd)->was_quoted) && html_element_flush(ED(fd))){
 	    ED(fd)->badform = 1;
 	    return(0);		/* else, we ain't done yet */
 	}
@@ -5640,21 +5619,16 @@ html_element_flush(CLCTR_S *el_data)
 						    ? el_data->buf : "");
 	    }
 	    else{
-		dprint((2,
-			   "** element: unexpected value: %.10s...\n",
-			   (el_data->len && el_data->buf) ? el_data->buf : "\"\""));
+		dprint((2, "** element: unexpected value: %.10s...\n",
+			(el_data->len && el_data->buf) ? el_data->buf : "\"\""));
 		rv = 1;
 	    }
 	}
 	else{
-	    dprint((2,
-		       "** element: missing attribute name: %.10s...\n",
-		       (el_data->len && el_data->buf) ? el_data->buf : "\"\""));
+	    dprint((2, "** element: missing attribute name: %.10s...\n",
+		    (el_data->len && el_data->buf) ? el_data->buf : "\"\""));
 	    rv = 2;
 	}
-
-	el_data->len = 0;
-	memset(el_data->buf, 0, HTML_BUF_LEN);
     }
     else if(el_data->len){
 	if(!el_data->element){
@@ -5673,10 +5647,11 @@ html_element_flush(CLCTR_S *el_data)
 	    p->attribute = cpystr(el_data->buf);
 	}
 
-	el_data->len = 0;
-	memset(el_data->buf, 0, HTML_BUF_LEN);
     }
 
+    el_data->was_quoted = 0;	/* reset collector buf and state */
+    el_data->len = 0;
+    memset(el_data->buf, 0, HTML_BUF_LEN);
     return(rv);			/* report whatever happened above */
 }
 
@@ -5788,6 +5763,9 @@ html_element_comment(FILTER_S *f, char *s)
 
 		if(!strcmp(s = removing_quotes(s + 4), "ALPINE_VERSION")){
 		    p = ALPINE_VERSION;
+		}
+		else if(!strcmp(s, "ALPINE_REVISION")){
+		    p = get_alpine_revision_number(buf, sizeof(buf));
 		}
 		else if(!strcmp(s, "C_CLIENT_VERSION")){
 		    p = CCLIENTVERSION;
@@ -6260,22 +6238,38 @@ html_output_normal(FILTER_S *f, int ch, int width)
 	  HD(f)->blanks = 0;		/* reset blank line counter */
 
 	if(ch == TAG_EMBED){	/* takes up no space */
-	    HD(f)->embedded.state = 1;
+	    HD(f)->embedded.state = -5;
 	    HTML_LINEP_PUTC(f, TAG_EMBED);
 	}
 	else if(HD(f)->embedded.state){	/* ditto */
-	    if(ch == TAG_HANDLE)
-	      HD(f)->embedded.state = -1;	/* next ch is length */
-	    else if(ch == TAG_FGCOLOR || ch == TAG_BGCOLOR){
-		if(!HD(f)->color)
-		  HD(f)->color = new_color_pair(NULL, NULL);
+	    if(HD(f)->embedded.state == -5){
+		/* looking for specially handled tags following TAG_EMBED */
+		if(ch == TAG_HANDLE)
+		  HD(f)->embedded.state = -1;	/* next ch is length */
+		else if(ch == TAG_FGCOLOR || ch == TAG_BGCOLOR){
+		    if(!HD(f)->color)
+		      HD(f)->color = new_color_pair(NULL, NULL);
 
-		if(ch == TAG_FGCOLOR)
-		  HD(f)->embedded.color = HD(f)->color->fg;
+		    if(ch == TAG_FGCOLOR)
+		      HD(f)->embedded.color = HD(f)->color->fg;
+		    else
+		      HD(f)->embedded.color = HD(f)->color->bg;
+
+		    HD(f)->embedded.state = RGBLEN;
+		}
 		else
-		  HD(f)->embedded.color = HD(f)->color->bg;
+		  HD(f)->embedded.state = 0;	/* non-special */
+	    }
+	    else if(HD(f)->embedded.state > 0){
+		/* collecting up an RGBLEN color or length, ignore tags */
+		(HD(f)->embedded.state)--;
+		if(HD(f)->embedded.color)
+		  *HD(f)->embedded.color++ = ch;
 
-		HD(f)->embedded.state = 11;
+		if(HD(f)->embedded.state == 0 && HD(f)->embedded.color){
+		    *HD(f)->embedded.color = '\0';
+		    HD(f)->embedded.color = NULL;
+		}
 	    }
 	    else if(HD(f)->embedded.state < 0){
 		HD(f)->embedded.state = ch;	/* number of embedded chars */
@@ -6474,32 +6468,47 @@ html_output_centered(FILTER_S *f, int ch, int width)
 	html_centered_flush(f);
     }
     else if(ch == TAG_EMBED){		/* takes up no space */
-	HD(f)->embedded.state = 1;
+	HD(f)->embedded.state = -5;
 	html_centered_putc(&HD(f)->centered->word, TAG_EMBED);
     }
     else if(HD(f)->embedded.state){
-	if(ch == TAG_HANDLE){
-	    HD(f)->embedded.state = -1; /* next ch is length */
-	}
-	else if(ch == TAG_FGCOLOR || ch == TAG_BGCOLOR){
-	    if(!HD(f)->color)
-	      HD(f)->color = new_color_pair(NULL, NULL);
-	    
-	    if(ch == TAG_FGCOLOR)
-	      HD(f)->embedded.color = HD(f)->color->fg;
-	    else
-	      HD(f)->embedded.color = HD(f)->color->bg;
+	if(HD(f)->embedded.state == -5){
+	    /* looking for specially handled tags following TAG_EMBED */
+	    if(ch == TAG_HANDLE)
+	      HD(f)->embedded.state = -1;	/* next ch is length */
+	    else if(ch == TAG_FGCOLOR || ch == TAG_BGCOLOR){
+		if(!HD(f)->color)
+		  HD(f)->color = new_color_pair(NULL, NULL);
 
-	    HD(f)->embedded.state = 11;
+		if(ch == TAG_FGCOLOR)
+		  HD(f)->embedded.color = HD(f)->color->fg;
+		else
+		  HD(f)->embedded.color = HD(f)->color->bg;
+
+		HD(f)->embedded.state = RGBLEN;
+	    }
+	    else
+		  HD(f)->embedded.state = 0;	/* non-special */
 	}
-	else if(HD(f)->embedded.state < 0){
-	    HD(f)->embedded.state = ch; /* number of embedded chars */
-	}
-	else{
-	    HD(f)->embedded.state--;
+	else if(HD(f)->embedded.state > 0){
+	    /* collecting up an RGBLEN color or length, ignore tags */
+	    (HD(f)->embedded.state)--;
 	    if(HD(f)->embedded.color)
 	      *HD(f)->embedded.color++ = ch;
-	    
+
+	    if(HD(f)->embedded.state == 0 && HD(f)->embedded.color){
+		*HD(f)->embedded.color = '\0';
+		HD(f)->embedded.color = NULL;
+	    }
+	}
+	else if(HD(f)->embedded.state < 0){
+	    HD(f)->embedded.state = ch;	/* number of embedded chars */
+	}
+	else{
+	    (HD(f)->embedded.state)--;
+	    if(HD(f)->embedded.color)
+	      *HD(f)->embedded.color++ = ch;
+
 	    if(HD(f)->embedded.state == 0 && HD(f)->embedded.color){
 		*HD(f)->embedded.color = '\0';
 		HD(f)->embedded.color = NULL;

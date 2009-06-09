@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: folder.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: folder.c 709 2007-09-07 22:31:39Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -2139,6 +2139,7 @@ update_folder_unseen_by_stream(MAILSTREAM *strm, unsigned long flags)
   CONTEXT_S *ctxt;
   int ftotal, i;
   char mailbox_name[MAILTMPLEN];
+  char *cn, tmp[MAILTMPLEN];
   FOLDER_S *f;
 
   /*
@@ -2152,7 +2153,8 @@ update_folder_unseen_by_stream(MAILSTREAM *strm, unsigned long flags)
     for(i = 0; i < ftotal; i++){
       f = folder_entry(i, FOLDERS(ctxt));
       context_apply(mailbox_name, ctxt, f->name, MAILTMPLEN);
-      if(same_stream_and_mailbox(mailbox_name, strm)){
+      if(same_stream_and_mailbox(mailbox_name, strm)
+         || (!IS_REMOTE(mailbox_name) && (cn=mailboxfile(tmp,mailbox_name)) && (*cn) && (!strcmp(cn, strm->mailbox) || !strcmp(cn, strm->original_mailbox)))){
 	/* if we failed earlier on this one, give it another go */
 	if(f->last_unseen_update == LUU_NOMORECHK)
 	  init_incoming_unseen_data(ps_global, f);
@@ -2208,8 +2210,12 @@ get_recent_in_folder(char *mailbox_name, long unsigned int *new,
 
 	    tot = strm->nmsgs - excluded;
 	    if(tot){
-	      if(new)
-		nw = count_flagged(strm, F_RECENT | F_UNSEEN | F_UNDEL);
+	      if(new){
+		  if(sp_recent_since_visited(strm) == 0)
+		    nw = 0;
+		  else
+		    nw = count_flagged(strm, F_RECENT | F_UNSEEN | F_UNDEL);
+	      }
 
 	      if(unseen)
 		uns = count_flagged(strm, F_UNSEEN | F_UNDEL);
@@ -2228,38 +2234,32 @@ get_recent_in_folder(char *mailbox_name, long unsigned int *new,
            || (!IS_REMOTE(mailbox_name)
 	       && (strm = already_open_stream(mailbox_name, AOS_NONE))))){
 	gotit++;
-	if(strm == ps_global->mail_stream){
 
-	    /*
-	     * Unfortunately, we have to worry about excluded
-	     * messages. The user doesn't want to have
-	     * excluded messages count in the totals, especially
-	     * recent excluded messages.
-	     */
+	/*
+	 * Unfortunately, we have to worry about excluded
+	 * messages. The user doesn't want to have
+	 * excluded messages count in the totals, especially
+	 * recent excluded messages.
+	 */
 
-	    msgmap = sp_msgmap(strm);
-	    excluded = any_lflagged(msgmap, MN_EXLD);
+	msgmap = sp_msgmap(strm);
+	excluded = any_lflagged(msgmap, MN_EXLD);
 
-	    tot = strm->nmsgs - excluded;
-	    if(tot){
-	      if(new)
+	tot = strm->nmsgs - excluded;
+	if(tot){
+	  if(new){
+	      if(sp_recent_since_visited(strm) == 0)
+		nw = 0;
+	      else
 		nw = count_flagged(strm, F_RECENT | F_UNSEEN | F_UNDEL);
+	  }
 
-	      if(unseen)
-		uns = count_flagged(strm, F_UNSEEN | F_UNDEL);
-	    }
-	    else{
-	      nw = 0;
-	      uns = 0;
-	    }
+	  if(unseen)
+	    uns = count_flagged(strm, F_UNSEEN | F_UNDEL);
 	}
 	else{
-	    tot = strm->nmsgs;
-	    if(new)
-	      nw = count_flagged(strm, F_RECENT | F_UNSEEN | F_UNDEL);
-
-	    if(unseen)
-	      uns = count_flagged(strm, F_UNSEEN | F_UNDEL);
+	  nw = 0;
+	  uns = 0;
 	}
     }
     /*
@@ -2333,12 +2333,25 @@ get_recent_in_folder(char *mailbox_name, long unsigned int *new,
 
 	if(strm){
 	    gotit++;
-	    tot = strm->nmsgs;
-	    if(new)
-	      nw = count_flagged(strm, F_RECENT | F_UNSEEN | F_UNDEL);
+	    msgmap = sp_msgmap(strm);
+	    excluded = any_lflagged(msgmap, MN_EXLD);
 
-	    if(unseen)
-	      uns = count_flagged(strm, F_UNSEEN | F_UNDEL);
+	    tot = strm->nmsgs - excluded;
+	    if(tot){
+	      if(new){
+		  if(sp_recent_since_visited(strm) == 0)
+		    nw = 0;
+		  else
+		    nw = count_flagged(strm, F_RECENT | F_UNSEEN | F_UNDEL);
+	      }
+
+	      if(unseen)
+		uns = count_flagged(strm, F_UNSEEN | F_UNDEL);
+	    }
+	    else{
+	      nw = 0;
+	      uns = 0;
+	    }
 
 	    pine_mail_close(strm);
 	}

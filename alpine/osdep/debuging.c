@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: debuging.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: debuging.c 785 2007-10-31 22:04:47Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -103,6 +103,7 @@ init_debug(void)
       debugfile = fdopen(fd, "w+");
 
     if(debugfile != NULL){
+	char rev[128];
 	time_t now = time((time_t *)0);
 	if(ps_global->debug_flush)
 	  setvbuf(debugfile, (char *)NULL, _IOLBF, BUFSIZ);
@@ -118,10 +119,11 @@ init_debug(void)
 	    }
 	}
 
-	dprint((0, "Debug output of the Alpine program (debug=%d debug_imap=%d). Version %s (%s)\n%s\n",
+	dprint((0, "Debug output of the Alpine program (debug=%d debug_imap=%d). Version %s (%s %s)\n%s\n",
 	       debug, ps_global->debug_imap,
 	       ALPINE_VERSION,
 	       SYSTYPE ? SYSTYPE : "?",
+	       get_alpine_revision_number(rev, sizeof(rev)),
 	       ctime(&now)));
 
 	dprint((0, "Starting after the reading_pinerc calls, the data in this file should\nbe encoded as UTF-8. Before that it will be in the user's native charset.\n"));

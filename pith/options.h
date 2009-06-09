@@ -40,7 +40,7 @@
  * optional call in mailindx.c:{from,subject}_str to shrink thread 
  * relationship cue if desired
  */
-extern int (*pith_opt_condense_thread_cue)(PINETHRD_S *, ICE_S *, char **, int, int);
+extern int (*pith_opt_condense_thread_cue)(PINETHRD_S *, ICE_S *, char **, size_t *, int, int);
 
 
 /*

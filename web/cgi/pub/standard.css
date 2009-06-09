@@ -5,7 +5,7 @@ DIV.fname	{ font-family: arial, sans-serif; font-size: 10pt }
 .flymenu	{ visibility: hidden; position: absolute; left: 0; top: 0 }
 .flydata	{ font-family: arial, sans-serif ; font-size: 10pt }
 .flydata:hover	{ color: #ff0066 }
-TABLE.flydata	{ xbackground-color: #ffffcc ; background-color: #fefac9 ; border: #006400 2px solid }
+TABLE.flydata	{ background-color: #fefac9 ; border: #006400 2px solid }
 TH.flydata	{ text-align: center ; color: white ; background-color: #006400 }
 HR.flydata	{ color: #006400 }
 A.flydata	{ font-size: 10pt ; text-decoration: none ; color: black }
@@ -16,7 +16,7 @@ A.menubar	{ color:black; text-decoration:none; font-weight:bold ; height: 16px ;
 HR.menubar	{ border-top: solid; color: black }
 .body		{ background-color: white }
 input.body	{ color: white; }
-.indexhdr	{ font-family: geneva, arial, sans-serif ; background-color: #bfbfbf ; font-size: 8pt ; color: black }
+.indexhdr	{ font-family: geneva, arial, sans-serif ; font-size: 8pt ; color: black }
 .indexsort	{ font-family: geneva, arial, sans-serif ; background-color: #999999 ; font-size: 8pt ; color: white }
 .auth		{ font-family: Arial, Sans-Serif ; font-size: 10pt ; font-weight: bold }
 .extrahdrs	{ background-color: white; display: none }
@@ -34,7 +34,7 @@ A.notice	{ color: red }
 .attach		{ visibility: hidden; position: absolute; left: 0; top: 0 }
 .mispell	{ background: #ffcccc ; color: #000000; text-decoration: none }
 .spelltext	{ position: relative }
-.dialog		{ xbackground-color: #ffffcc; background-color: #fefac9 ; font-family: arial, sans-serif ; font-size: 12pt }
+.dialog		{ background-color: #fefac9 ; font-family: arial, sans-serif ; font-size: 12pt }
 .context	{ background-color: #999999 ; color: black ; font-family: Helvetica, sans-serif ; font-size: 9pt }
 .ops		{ background-color: #666666 ; color: white ; font-family: Helvetica, sans-serif }
 .i0		{ background-color: #eeeeee }

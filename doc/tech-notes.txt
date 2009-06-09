@@ -1,7 +1,7 @@
 
                             Alpine Technical Notes
 
-   Version 0.9999, August 2007
+   Version 0.99999, November 2007
 
 Table of Contents
 
@@ -615,10 +615,9 @@ Installing PC-Alpine
    The PC-Alpine distribution comes as a .zip file. To install, unzip the files
    to a directory where you would like the program to reside. Modern Windows
    versions come with the capability of unzipping .zip files. Failing that, you
-   can use one of the many .zip file extractors out there, or the pkunzip.exe
-   program  that  resides  on  our  FTP server. Following current Windows
-   conventions, a common directory into which the files could be extracted
-   would be C:\Program Files\PC-Alpine\.
+   can use one of the many .zip file extractors out there. Following current
+   Windows  conventions, a common directory into which the files could be
+   extracted would be C:\Program Files\PC-Alpine\.
 
    Having extracted PC-Alpine's .zip file to the directory of choice, you can
    now run that directory's alpine.exe, which is the actual PC-Alpine program.
@@ -1371,17 +1370,76 @@ General Configuration Variables
           variable.
    _alt-addresses_
           This  option  provides  a place for you to list alternate email
-          addresses you may have. If set, the option affects the behavior of
-          the _Reply_ command and the _+_ symbol in the "Folder Index", which
-          denotes that a message has been addressed specifically to you.
+          addresses you may have. Each address in the list should be the actual
+          email address part of an address, without the full name field or the
+          angle brackets. For example:
+
+                              user@example.com
+          The  matching  is  case-insensitive, so this would match any of
+          User@example.com, user@Example.Com, or USER@EXAMPLE.COM as well.
+          If set, the option affects the behavior of the Reply command and the
+          "+" symbol in the MESSAGE INDEX, which denotes that a message has
+          been addressed specifically to you.
           In the default INDEX display the personal name (or email address) of
           the person listed in the message's "From:" header field is usually
           displayed except when that address is yours or one of your alternate
           addresses. In that case you will usually see the name of the first
           person specified in the message's "To:" header field with the prefix
           "To: " prepended.
-          With  respect  to  _Reply_,  the _Reply to All_ option will exclude
-          addresses listed here.
+          With respect to Reply, the reply-to-all option will exclude addresses
+          listed here.
+          The feature copy-to-address-to-from-if-it-is-us is somewhat related
+          to this option.
+          In  addition to a list of actual addresses, you may use regular
+          expressions  (as  used with egrep with the ignore case flag) to
+          describe  the addresses you want to match. _Alpine_ will somewhat
+          arbitrarily  interpret your entry as a regular expression if it
+          contains  any  of  the characters *, |, +, ?, {, [, ^, $, or \.
+          Otherwise,   it   will   be   treated  literally.  The  feature
+          disable-regular-expression-matching-for-alternate-addresses may be
+          used to turn off regular expression processing regardless of whether
+          or not special characters appear in the entry.
+          A description of how regular expressions work is beyond the scope of
+          this help text, but some examples follow.
+          The entry
+
+                               .*@example.com
+          in the alt-addresses list would mean that any address with a domain
+          name of example.com (such as fred@example.com or wilma@example.com)
+          will  be  considered  one of your alternate addresses. Strictly
+          speaking,  the  dot  in  example.com ought to be escaped with a
+          backslash, as in example\.com, and a dollar sign anchor ought to come
+          at the end of the expression to prevent a match of example.com.org.
+          Complicating  things further, the dollar sign is special in the
+          _Alpine_ configuration (it signifies environment variable expansion)
+          so  the  dollar sign should be doubled or backslash escaped for
+          _Alpine_'s sake. Quotes around the whole expression will not escape the
+          dollar sign successfully. So this example should look like
+
+                             .*@example\.com$$
+          The entry
+
+                         ^fred[0-9]*@example.com$$
+          would  match fred3@example.com or fred17@example.com as well as
+          fred@example.com.
+          You could match all addresses that look like fred+stuff@example.com
+          for any value of stuff with the entry
+
+                          ^fred\+.*@example.com$$
+          Notice that you have to escape the plus sign with a backslash because
+          plus is a special character in regular expressions. If you wanted to
+          match plain fred as well as fred+stuff the expression
+
+                        ^fred(()|\+.*)@example.com$$
+          would do it, but it would be easier to just add fred@example.com as a
+          separate entry.
+          One more example, a match of all first-level subdomains, is given by
+
+                    ^fred@[[:alnum:]_-]*\.example\.com$$
+          Because the regular expression matching is based on an old library
+          (hs_regex) the regular expressions might not work exactly as you
+          expect, but they should be close.
+          This option is displayed as "Alternate Addresses".
    _bugs-additional-data_
           System-wide configuration files only. Program/Script used by _Report
           Bug_ command. Output from the program/script is captured and attached
@@ -2254,8 +2312,8 @@ General Configuration Variables
           pick those widths.
           The default is equivalent to:
 
-index-format=STATUS MSGNO SMARTDATETIME FROMORTO(33%) SIZENARROW SUBJKEY(67%
-                                     )
+index-format=STATUS MSGNO SMARTDATETIME24 FROMORTO(33%) SIZENARROW SUBJKEY(6
+                                    7%)
           This means that the four fields without percentages will be allocated
           first, and then 33% and 67% of the _remaining_ space will go to the
           from and subject fields. If one of those two fields is specified as a
@@ -2307,9 +2365,12 @@ index-format=STATUS MSGNO SMARTDATETIME FROMORTO(33%) SIZENARROW SUBJKEY(67%
           which the user may set using the Flag command. The difference is that
           the Important flag is always present for each folder. User-defined
           keywords are chosen by the user. You may set up the list of possible
-          keywords here. Then you use the Flag command to set or clear the
-          keywords in each message. (The Enable-Flag-Screen-Keyword-Shortcut
-          option offers a slightly different way of setting keywords.)
+          keywords here, or you may add keywords from the Flag Details screen
+          that you can get to after typing the Flag (*) command. After the
+          keywords have been defined, then you use the Flag command to set or
+          clear the keywords in each message. The behavior of the flag command
+          may be modified by using the Enable-Flag-Screen-Implicitly option or
+          the Enable-Flag-Screen-Keyword-Shortcut option.
           Keywords  may be used when Selecting messages (Select Keyword).
           Keywords  may  also  be used in the Patterns of Rules (Filters,
           Indexcolors,  etc).  Filter  rules  may be used to set keywords
@@ -4161,6 +4222,17 @@ Configuration Features
           feature is set those dates will be converted to your local timezone
           to be displayed. Note that this does not affect the results of Select
           by Date or of anything else other than these displayed dates.
+   _copy-to-address-to-from-if-it-is-us_
+          This  feature  affects the From address used when Replying to a
+          message. It is probably only useful if you have some alt-addresses
+          defined. When enabled, it checks to see if any of the addresses in
+          the To or Cc fields of the message you are replying to is one of your
+          addresses. If it is, and there is only one of them, then that address
+          is used as the From address in the message you are composing. In
+          other words, you will be using a From address that is the same as the
+          To address that was used to get the mail to you in the first place.
+          If a role is being used and it has a From address defined, that From
+          address will be used rather than the one derived from this feature.
    _delete-skips-deleted_
           If set, this feature will cause the _Delete_ command to advance past
           other messages that are marked deleted. In other words, pressing _D_
@@ -4223,6 +4295,13 @@ Configuration Features
           If set it will be an error to append a vertical bar (|) to the name
           of a template file. Appending a vertical bar normally causes the
           signature file to be executed to produce the signature.
+   _disable-regular-expression-matching-for-alternate-addresses_
+          Normally,  the alt-addresses option is interpreted as a regular
+          expression.  One type of address that might cause trouble is an
+          address that contains a plus sign. If you want to have an address
+          with a plus as one of your alternate addresses and you don't want to
+          use regular expressions, then setting this feature will cause _Alpine_
+          to treat the addresses you list literally instead.
    _disable-roles-setup-cmd_
           If  set  the  _Roles_  command  usually available under the _Setup_
           command will not be available.
@@ -4660,11 +4739,24 @@ Configuration Features
           This feature controls whether or not an X terminal mouse can be used
           with _Alpine_. If set, and the $DISPLAY variable indicates that an X
           terminal is being used, the left mouse button on the mouse can be
-          used to select text or commands.
+          used to select text or commands. Clicking on a command at the bottom
+          of the screen will behave as if you had typed that command. Clicking
+          on an index line will move the current message highlight to that
+          line.  Double-clicking  on an index line will view the message.
+          Double-clicking on a link will view the link.
+          This type of mouse support will also work in some terminal emulators
+          which are not actually X terminals, but which have extra code to
+          support the xterm style mouse. For those emulators you not only need
+          to  turn  this feature on but you also have to set the $DISPLAY
+          environment variable even though it isn't needed for your terminal.
+          That will cause _Alpine_ to think that it is an xterm and to properly
+          interpret the escape sequences sent by the mouse.
           Note:  if  this  feature  is  set,  the  behavior of X terminal
-          cut-and-paste is also modified. It is necessary to hold the shift key
-          down while clicking left or middle mouse buttons for the normal xterm
-          cut/paste operations.
+          cut-and-paste is also modified. It is sometimes possible to hold the
+          shift key down while clicking left or middle mouse buttons for the
+          normal xterm cut/paste operations. There is also an _Alpine_ command
+          to   toggle  this  mode  on  or  off.  The  command  is  Ctrl-\
+          (Control-backslash).
    _enable-msg-view-addresses_
           This  feature  modifies the behavior of _Alpine_'s "Message Text"
           screen. Setting this feature causes _Alpine_ to select possible email
@@ -5345,10 +5437,10 @@ John: on a job well done!
           delimiter line.
           This feature is displayed as "Suppress Berkeley Format Timezone".
    _quell-charset-warning_
-          By default, if your Character-Set is different from the character set
-          of the message you are viewing, then _Alpine_ will add a warning to
-          the start of the displayed text. If this option is set, then that
-          editorial message will be suppressed.
+          By default, if the message you are viewing contains characters that
+          are not representable in your display-character-set then _Alpine_
+          will add a warning to the start of the displayed text. If this option
+          is set, then that editorial message will be suppressed.
           Setting this feature also suppresses the comment about the character
           set in header lines. For example, when viewing a message you might
           see
@@ -6117,10 +6209,10 @@ John: on a job well done!
           Unix _fg_ command, but if this feature is set, it will be necessary
           to enter the _exit_ command instead.
    _use-system-translation_
-          _Alpine_ normally uses its own internal software to convert between
-          the  multi-byte  representation  of  characters and the Unicode
-          representation  of  those  same characters ( see the section on
-          International  Character Sets). It converts from the multi-byte
+          UNIX _Alpine_ only. _Alpine_ normally uses its own internal software
+          to convert between the multi-byte representation of characters and
+          the Unicode representation of those same characters ( see the section
+          on International Character Sets). It converts from the multi-byte
           characters your keyboard produces to Unicode, and from Unicode to the
           multi-byte characters your display expects. Alpine also uses its own
           internal software to decide how much space on the screen a particular
@@ -6747,13 +6839,17 @@ Tokens for Index and Replying
    SUBJKEY
           This token is the same as the SUBJECT token unless keywords are set
           for the message. In that case, a list of keywords enclosed in braces
-          will be prepended to the subject of the message. Having this set in
-          the Index-Format will also cause the keywords to be prepended to the
-          subject in the MESSAGE TEXT screen. If you have given a keyword a
-          nickname (keywords), that nickname is displayed instead of the actual
-          keyword. The keyword-surrounding-chars option may be used to modify
-          this token slightly. It is also possible to color keywords in the
-          index using the Setup/Kolor screen.
+          will be prepended to the subject of the message. Only those keywords
+          that you have defined in your Keywords option in Setup/Config are
+          considered in the list. In other words, keywords that have been set
+          by some other means, perhaps by another email program, won't show up
+          unless included in Keywords. Having this set in the Index-Format will
+          also cause the keywords to be prepended to the subject in the MESSAGE
+          TEXT screen. If you have given a keyword a nickname (keywords), that
+          nickname  is  displayed  instead  of  the  actual  keyword. The
+          keyword-surrounding-chars option may be used to modify this token
+          slightly. It is also possible to color keywords in the index using
+          the Setup/Kolor screen.
 
    SUBJKEYINIT
           This token is the same as the SUBJKEY token except that instead of
@@ -6769,7 +6865,11 @@ Tokens for Index and Replying
 
                             {WN} actual subject
 
-          The keyword-surrounding-chars option may be used to modify this token
+          Only those keywords that you have defined in your Keywords option in
+          Setup/Config are considered in the list. In other words, keywords
+          that have been set by some other means, perhaps by another email
+          program,  won't  show  up  unless  included  in  Keywords.  The
+          keyword-surrounding-chars option may be used to modify this token
           slightly. It is also possible to color keywords in the index using
           the Setup/Kolor screen.
 
@@ -6811,16 +6911,24 @@ Tokens for Index and Replying
 
    KEY
           This is a space-delimited list of keywords that are set for the
-          message. If you have given a keyword a nickname that nickname is
-          displayed instead of the actual keyword. It is also possible to color
-          keywords in the index using the Setup/Kolor screen.
+          message. Only those keywords that you have defined in your Keywords
+          option in Setup/Config are considered in the list. In other words,
+          keywords that have been set by some other means, perhaps by another
+          email program, won't show up unless included in Keywords. If you have
+          given a keyword a nickname that nickname is displayed instead of the
+          actual keyword. It is also possible to color keywords in the index
+          using the Setup/Kolor screen. This token defaults to an arbitrary
+          width of 5. You should set it to whatever width suits you using
+          something like KEY(17) in the Index-Format.
 
    KEYINIT
           This is a list of keyword initials that are set for the message. If
           you have given a keyword a nickname the initial of that nickname is
           displayed instead of the initial of the actual keyword. It is also
           possible to color keyword initials in the index using the Setup/Kolor
-          screen.
+          screen. This token defaults to an arbitrary width of 2. You should
+          set it to whatever width suits you using something like KEYINIT(3) in
+          the Index-Format.
 
    PRIORITY
           The X-Priority header is a non-standard header that is used in a
@@ -10770,14 +10878,14 @@ International Character Sets
 
    There  are  three  possible  configuration character settings and some
    environment  variable  settings  which  can  affect how _Alpine_ handles
-   international   characters.   The   three  configuration  options  are
-   _display-character-set_,           _keyboard-character-set_,           and
-   _posting-character-set_. The _keyboard-character-set_ defaults to being the
-   same  value as the _display-character-set_, and that is usually correct,
-   because the keyboard almost always produces characters in the same character
-   set as the display displays. The _display-character-set_ is the character
-   set  that  _Alpine_  will  attempt to use when sending characters to the
-   display.
+   international characters. The first two of these are only available in UNIX
+   _Alpine_.  The  three  configuration  options are _display-character-set_,
+   _keyboard-character-set_,       and      _posting-character-set_.      The
+   _keyboard-character-set_  defaults  to  being  the  same  value  as  the
+   _display-character-set_, and that is usually correct, because the keyboard
+   almost always produces characters in the same character set as the display
+   displays.  The  _display-character-set_ is the character set that _Alpine_
+   will attempt to use when sending characters to the display.
 
    Besides those variables there is also use-system-translation which can be
    used  instead  of  these. That usage is only lightly tested and is not
@@ -10786,12 +10894,14 @@ International Character Sets
    By default, the _display-character-set_ variable is not set and UNIX _Alpine_
    will attempt to get this information from the environment. In particular,
    the nl_langinfo(CODESET) call is used. This usually depends on the setting
-   of the environment variables LANG or LC_CTYPE. For _PC-Alpine_ the default
-   for  _display-character-set_  is simply UTF-8. An explicit configuration
+   of the environment variables LANG or LC_CTYPE. An explicit configuration
    setting for _display-character-set_ will, of course, override any default
    setting.
 
-   It  is  probably  best to use _Alpine_ in a terminal emulator capable of
+   For _PC-Alpine_ the _display-character-set_ and the _keyboard-character-set_
+   are always equivalent to UTF-8 and this is not settable.
+
+   It is probably best to use UNIX _Alpine_ in a terminal emulator capable of
    displaying UTF-8 characters, since that will allow you to view just about
    any received text that is correctly formatted (note, however, the above
    comments about known index display bugs with certain character sets). You'll

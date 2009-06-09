@@ -1,5 +1,5 @@
 /*
- * $Id: keyword.h 653 2007-07-21 00:45:10Z hubert@u.washington.edu $
+ * $Id: keyword.h 786 2007-11-02 23:23:04Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -37,6 +37,8 @@ char       *keyword_to_nick(char *);
 char       *initial_to_keyword(char *);
 int         user_flag_is_set(MAILSTREAM *, unsigned long, char *);
 int         user_flag_index(MAILSTREAM *, char *);
+char       *stream_to_user_flag_name(MAILSTREAM *, int);
+int         some_user_flags_defined(MAILSTREAM *);
 char	   *flag_string(MAILSTREAM *, long, long);
 long        get_msgno_by_msg_id(MAILSTREAM *, char *, MSGNO_S *);
 int         keyword_check(char *, char **);

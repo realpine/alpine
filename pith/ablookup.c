@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: ablookup.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: ablookup.c 801 2007-11-08 20:39:45Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -32,7 +32,7 @@ static char rcsid[] = "$Id: ablookup.c 673 2007-08-16 22:25:10Z hubert@u.washing
 /*
  * Internal prototypes
  */
-int	       addr_is_in_addrbook(PerAddrBook *, ADDRESS *);
+int   addr_is_in_addrbook(PerAddrBook *, ADDRESS *);
 
 
 /*
@@ -723,8 +723,9 @@ address_is_us(struct mail_address *a, struct pine *ps)
 {
     char **t;
     int ret;
+    char addrstr[500];
 
-    if(!a || a->mailbox == NULL)
+    if(!a || a->mailbox == NULL || !ps)
       ret = 0;
 
     /* at least LHS must match, but case-independent */
@@ -760,30 +761,85 @@ address_is_us(struct mail_address *a, struct pine *ps)
 
     else{
 	ret = 0;
-	for(t = ps_global->VAR_ALT_ADDRS; t[0] && t[0][0]; t++){
-	    ADDRESS *alt_addr;
+	if(a && a->host && a->mailbox)
+	  snprintf(addrstr, sizeof(addrstr), "%s@%s", a->mailbox, a->host);
+
+	for(t = ps_global->VAR_ALT_ADDRS; !ret && t[0] && t[0][0]; t++){
 	    char    *alt;
+	    regex_t reg;
+	    int err;
+	    char ebuf[200];
 
-	    alt  = cpystr(*t);
-	    alt_addr = NULL;
-	    rfc822_parse_adrlist(&alt_addr, alt, ps_global->maildomain);
-	    if(alt)
-	      fs_give((void **)&alt);
+	    alt  = (*t);
 
-	    if(address_is_same(a, alt_addr)){
+	    if(F_ON(F_DISABLE_REGEX, ps_global) || !contains_regex_special_chars(alt)){
+		ADDRESS *alt_addr;
+		char    *alt2;
+
+		alt2 = cpystr(alt);
+		alt_addr = NULL;
+		rfc822_parse_adrlist(&alt_addr, alt2, ps_global->maildomain);
+		if(alt2)
+		  fs_give((void **) &alt2);
+
+		if(address_is_same(a, alt_addr))
+		  ret = 1;
+
 		if(alt_addr)
 		  mail_free_address(&alt_addr);
-
-		ret = 1;
-		break;
 	    }
+	    else{
+		/* treat alt as a regular expression */
+		ebuf[0] = '\0';
+		if(!(err=regcomp(&reg, alt, REG_ICASE | REG_NOSUB | REG_EXTENDED))){
+		    err = regexec(&reg, addrstr, 0, NULL, 0);
+		    if(err == 0)
+		      ret = 1;
+		    else if(err != REG_NOMATCH){
+			regerror(err, &reg, ebuf, sizeof(ebuf));
+			if(ebuf[0])
+			  dprint((2, "- address_is_us regexec error: %s (%s)", ebuf, alt));
+		    }
 
-	    if(alt_addr)
-	      mail_free_address(&alt_addr);
+		    regfree(&reg);
+		}
+		else{
+		    regerror(err, &reg, ebuf, sizeof(ebuf));
+		    if(ebuf[0])
+		      dprint((2, "- address_is_us regcomp error: %s (%s)", ebuf, alt));
+		}
+	    }
 	}
     }
 
     return(ret);
+}
+
+
+/*
+ * In an ad hoc way try to decide if str is meant to be a regular
+ * expression or not. Dot doesn't count * as regex stuff because
+ * we're worried about addresses.
+ *
+ * Returns 0 or 1
+ */
+int
+contains_regex_special_chars(char *str)
+{
+    char special_chars[] = {'*', '|',  '+', '?', '{', '[', '^', '$', '\\',  '\0'};
+    char *c;
+
+    if(!str)
+      return 0;
+
+    /*
+     * If any of special_chars are in str consider it a regex expression.
+     */
+    for(c = special_chars; *c; c++)
+      if(strindex(str, *c))
+        return 1;
+
+    return 0;
 }
 
 
@@ -801,7 +857,7 @@ address_is_same(struct mail_address *a, struct mail_address *b)
 {
     return(a && b && a->mailbox && b->mailbox && a->host && b->host
 	   && strucmp(a->mailbox, b->mailbox) == 0
-           && strucmp(a->host, b->host) == 0);
+	   && strucmp(a->host, b->host) == 0);
 }
 
 

@@ -1,5 +1,5 @@
 /*
- * $Id: ablookup.h 406 2007-01-31 00:36:05Z hubert@u.washington.edu $
+ * $Id: ablookup.h 801 2007-11-08 20:39:45Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -39,6 +39,7 @@ char          *addr_lookup(char *, int *, int);
 int            adrbk_nick_complete(char *, char **, unsigned);
 AdrBk_Entry   *adrbk_lookup_with_opens_by_nick(char *, int, int *, int);
 AdrBk_Entry   *address_to_abe(ADDRESS *);
+int            contains_regex_special_chars(char *str);
 
 
 #endif /* PITH_ABLOOKUP_INCLUDED */

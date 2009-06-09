@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------
-  $Id: system.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
+  $Id: system.h 773 2007-10-24 21:05:14Z mikes@u.washington.edu $
   ----------------------------------------------------------------------*/
 
 /* ========================================================================
@@ -232,6 +232,10 @@ struct	sockaddr_un {
 
 #if	HAVE_LANGINFO_H
 # include <langinfo.h>
+#endif
+
+#if	HAVE_REGEX_H
+# include <regex.h>
 #endif
 
 #ifdef	ENABLE_NLS

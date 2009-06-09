@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailview.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailview.c 786 2007-11-02 23:23:04Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -49,6 +49,7 @@ static char rcsid[] = "$Id: mailview.c 673 2007-08-16 22:25:10Z hubert@u.washing
 #include "../pith/string.h"
 #include "../pith/ablookup.h"
 #include "../pith/escapes.h"
+#include "../pith/keyword.h"
 
 
 #define FBUF_LEN	(50)
@@ -2344,14 +2345,9 @@ format_envelope(MAILSTREAM *s, long int n, char *sect, ENVELOPE *e, gf_io_t pc,
 	if(flags & FM_DISPLAY
 	   && (ps_global->display_keywords_in_subject
 	       || ps_global->display_keywordinits_in_subject)){
-	    int i, some_defined = 0;;
 
 	    /* don't bother if no keywords are defined */
-	    for(i = 0; !some_defined && i < NUSERFLAGS; i++)
-	      if(s->user_flags[i])
-		some_defined++;
-
-	    if(some_defined)
+	    if(some_user_flags_defined(s))
 	      p2 = freeme = prepend_keyword_subject(s, n, p2,
 			  ps_global->display_keywords_in_subject ? KW : KWInit,
 			  NULL, ps_global->VAR_KW_BRACES);

@@ -11,7 +11,7 @@
  * ========================================================================
  */
 
-Updated: 28 August 2007
+Updated: 5 September 2007
 
 imap-2006k is a maintenance release, consisting primarily of bugfixes to
 problems discovered in the release that affected a small number of users.
@@ -28,6 +28,8 @@ issues.  There were two major causes of the deadlocks:
 imapd's signal handling logic is rewritten to avoid the mutex issue, and
 the mbx driver is fixed so that mbx-style locks are only applied to mbx
 format mailboxes.
+
+imapd now supports the WITHIN extension.
 
 
 Updated: 14 June 2007

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: adrbkcmd.c 678 2007-08-20 23:05:24Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: adrbkcmd.c 744 2007-10-10 17:10:59Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -66,7 +66,7 @@ int            expand_addrs_for_pico(struct headerentry *, char ***);
 char          *view_message_for_pico(char **);
 int            verify_nick(char *, char **, char **, BUILDER_ARG *, int *);
 int            verify_addr(char *, char **, char **, BUILDER_ARG *, int *);
-char          *pico_sendexit_for_adrbk(struct headerentry *, void(*)(void), int);
+int            pico_sendexit_for_adrbk(struct headerentry *, void(*)(void), int, char **);
 char          *pico_cancelexit_for_adrbk(char *, void (*)(void));
 char          *pico_cancel_for_adrbk_take(void (*)(void));
 char          *pico_cancel_for_adrbk_edit(void (*)(void));
@@ -102,7 +102,7 @@ typedef struct _saved_query {
 } SAVED_QUERY_S;
 
 int            process_ldap_cmd(int, MSGNO_S *, SCROLL_S *);
-char          *pico_simpleexit(struct headerentry *, void (*)(void), int);
+int            pico_simpleexit(struct headerentry *, void (*)(void), int, char **);
 char          *pico_simplecancel(void (*)(void));
 void           save_query_parameters(SAVED_QUERY_S *);
 SAVED_QUERY_S *copy_query_parameters(SAVED_QUERY_S *);
@@ -1510,9 +1510,9 @@ verify_addr(char *to, char **full_to, char **error, BUILDER_ARG *fcc, int *mangl
  * Returns: either NULL if the user accepts exit, or string containing
  *	 reason why the user declined.
  */      
-char *
+int
 pico_sendexit_for_adrbk(struct headerentry *he, void (*redraw_pico)(void),
-			int allow_flowed)
+			int allow_flowed, char **result)
 {
     char *rstr = NULL;
     void (*redraw)(void) = ps_global->redrawer;
@@ -1530,8 +1530,11 @@ pico_sendexit_for_adrbk(struct headerentry *he, void (*redraw_pico)(void),
 	break;
     }
 
+    if(result)
+      *result = rstr;
+
     ps_global->redrawer = redraw;
-    return(rstr);
+    return((rstr == NULL) ? 0 : 1);
 }
 
 
@@ -7371,10 +7374,14 @@ process_ldap_cmd(int cmd, MSGNO_S *msgmap, SCROLL_S *sparms)
 }
 
 
-char *
-pico_simpleexit(struct headerentry *he, void (*redraw_pico)(void), int allow_flowed)
+int
+pico_simpleexit(struct headerentry *he, void (*redraw_pico)(void), int allow_flowed,
+		char **result)
 {
-    return(NULL);
+    if(result)
+      *result = NULL;
+
+    return(0);
 }
 
 char *

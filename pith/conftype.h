@@ -1,5 +1,5 @@
 /*
- * $Id: conftype.h 660 2007-07-31 20:49:58Z mikes@u.washington.edu $
+ * $Id: conftype.h 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -68,9 +68,11 @@ typedef	enum {    V_PERSONAL_NAME = 0
 		, V_THREAD_MORE_CHAR
 		, V_THREAD_EXP_CHAR
 		, V_THREAD_LASTREPLY_CHAR
+#ifndef	_WINDOWS
 		, V_CHAR_SET
 		, V_OLD_CHAR_SET
 		, V_KEY_CHAR_SET
+#endif	/* ! _WINDOWS */
 		, V_POST_CHAR_SET
 		, V_EDITOR
 		, V_SPELLER
@@ -328,6 +330,7 @@ typedef enum {
 	F_AUTO_INCLUDE_IN_REPLY,
 	F_DISABLE_CONFIG_SCREEN,
 	F_DISABLE_PASSWORD_CACHING,
+	F_DISABLE_REGEX,
 	F_DISABLE_PASSWORD_CMD,
 	F_DISABLE_UPDATE_CMD,
 	F_DISABLE_KBLOCK_CMD,
@@ -421,6 +424,7 @@ typedef enum {
 	F_FORCE_ARROWS,
 	F_PREFER_PLAIN_TEXT,
 	F_QUELL_CHARSET_WARNING,
+	F_COPY_TO_TO_FROM,
 	F_ENABLE_EDIT_REPLY_INDENT,
 	F_ENABLE_PRYNT,
 	F_ALLOW_CHANGING_FROM,
@@ -492,7 +496,10 @@ typedef enum {
 	F_SEND_CONFIRM_ON_EXPAND,
 	F_ENABLE_NEWMAIL_SOUND,
 	F_ENABLE_JUMP_CMD,
+	F_FORWARD_AS_ATTACHMENT,
+#ifndef	_WINDOWS
 	F_USE_SYSTEM_TRANS,
+#endif	/* ! _WINDOWS */
 	F_QUELL_HOST_AFTER_URL,
 	F_NNTP_SEARCH_USES_OVERVIEW,
 	F_THREAD_SORTS_BY_ARRIVAL,

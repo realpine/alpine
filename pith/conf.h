@@ -1,5 +1,5 @@
 /*
- * $Id: conf.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
+ * $Id: conf.h 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -52,7 +52,7 @@
 #define DF_THREAD_EXP_CHAR	"."
 #endif
 #ifndef DF_THREAD_LASTREPLY_CHAR
-#define DF_THREAD_LASTREPLY_CHAR "|"
+#define DF_THREAD_LASTREPLY_CHAR "\\"
 #endif
 #ifndef DF_MAILDROPCHECK
 #define DF_MAILDROPCHECK 	"60"
@@ -145,12 +145,14 @@
 #define GLO_AB_SORT_RULE	     vars[V_AB_SORT_RULE].global_val.p
 #define VAR_FLD_SORT_RULE	     vars[V_FLD_SORT_RULE].current_val.p
 #define GLO_FLD_SORT_RULE	     vars[V_FLD_SORT_RULE].global_val.p
+#ifndef	_WINDOWS
 #define VAR_CHAR_SET		     vars[V_CHAR_SET].current_val.p
 #define GLO_CHAR_SET		     vars[V_CHAR_SET].global_val.p
 #define VAR_OLD_CHAR_SET	     vars[V_OLD_CHAR_SET].current_val.p
+#define VAR_KEY_CHAR_SET	     vars[V_KEY_CHAR_SET].current_val.p
+#endif	/* ! _WINDOWS */
 #define VAR_POST_CHAR_SET	     vars[V_POST_CHAR_SET].current_val.p
 #define GLO_POST_CHAR_SET	     vars[V_POST_CHAR_SET].global_val.p
-#define VAR_KEY_CHAR_SET	     vars[V_KEY_CHAR_SET].current_val.p
 #define VAR_EDITOR		     vars[V_EDITOR].current_val.l
 #define GLO_EDITOR		     vars[V_EDITOR].global_val.l
 #define VAR_SPELLER		     vars[V_SPELLER].current_val.p

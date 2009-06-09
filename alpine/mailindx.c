@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailindx.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailindx.c 749 2007-10-15 21:02:56Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -76,7 +76,6 @@ int	 index_gettext_callback(char *, size_t, void **, long *, int *);
 void	 index_popup(IndexType style, MAILSTREAM *, MSGNO_S *, int);
 char	*pcpine_help_index(char *);
 char	*pcpine_help_index_simple(char *);
-int	 pcpine_resize_index(void);
 #endif
 
 
@@ -519,7 +518,6 @@ index_lister(struct pine *state, CONTEXT_S *cntxt, char *folder, MAILSTREAM *str
 				    ? pcpine_help_index
 				    : pcpine_help_index_simple);
 	mswin_setviewinwindcallback(view_in_new_window);
-	mswin_setresizecallback(pcpine_resize_index);
 #endif
 	ch = read_command(&utf8str);
 #ifdef	MOUSE
@@ -529,7 +527,6 @@ index_lister(struct pine *state, CONTEXT_S *cntxt, char *folder, MAILSTREAM *str
 	mswin_setscrollcallback(NULL);
 	mswin_sethelptextcallback(NULL);
 	mswin_setviewinwindcallback(NULL);
-	mswin_clearresizecallback(pcpine_resize_index);
 #endif
 
 	cmd = menu_command(ch, km);
@@ -1504,8 +1501,6 @@ update_index(struct pine *state, struct index_state *screen)
       visible = mn_get_total(screen->msgmap)
 		  - any_lflagged(screen->msgmap, MN_HIDE|MN_CHID);
 
-    we_cancel = busy_cue(_("Fetching index data"), NULL, 1);
-
     /*---- march thru display lines, painting whatever is needed ----*/
     for(i = 0, n = screen->msg_at_top; i < (int) screen->lines_per_page; i++){
 	if(visible == 0L || n < 1 || n > mn_get_total(screen->msgmap)){
@@ -2205,7 +2200,8 @@ setup_index_state(int threaded)
  *				 subject or from text to show condensed thread info
  */
 int
-condensed_thread_cue(PINETHRD_S *thd, ICE_S *ice, char **fieldstr, int width, int collapsed)
+condensed_thread_cue(PINETHRD_S *thd, ICE_S *ice,
+		     char **fieldstr, size_t *strsize, int width, int collapsed)
 {
     if(current_index_state->plus_fld != iNothing && !THRD_INDX() && fieldstr && *fieldstr){
 	/*
@@ -2220,14 +2216,18 @@ condensed_thread_cue(PINETHRD_S *thd, ICE_S *ice, char **fieldstr, int width, in
 				: (thd && thd->next)
 				   ? ps_global->VAR_THREAD_EXP_CHAR[0] : ' ';
 
-	if(width > 0){
+	if(strsize && *strsize > 0 && width != 0){
 	    *(*fieldstr)++ = ' ';
-	    width--;
+	    (*strsize)--;
+	    if(width > 0)
+	      width--;
 	}
 
-	if(width > 0){
+	if(strsize && *strsize > 0 && width != 0){
 	    *(*fieldstr)++ = ' ';
-	    width--;
+	    (*strsize)--;
+	    if(width > 0)
+	      width--;
 	}
     }
 
@@ -3609,26 +3609,6 @@ pcpine_help_index_simple(title)
       strncpy(title, "Alpine SELECT MESSAGE Help", 256);
 
     return(pcpine_help(h_simple_index));
-}
-
-
-int
-pcpine_resize_index()
-{
-    int orig_col = ps_global->ttyo->screen_cols;
-
-    reset_index_border();
-    (void) get_windsize (ps_global->ttyo);
-
-    if(orig_col != ps_global->ttyo->screen_cols)
-      clear_index_cache(ps_global->mail_stream, 0);
-
-    mswin_beginupdate();
-    update_titlebar_message();
-    update_titlebar_status();
-    redraw_index_body();
-    mswin_endupdate();
-    return(0);
 }
 
 

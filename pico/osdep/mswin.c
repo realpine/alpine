@@ -97,7 +97,7 @@
 /* Some string lengths. */
 #define MAXLEN_TEMPSTR		256	/* Max size for temp storage. */
 
-#define WIN_POS_STR_MAX_LEN	20	/* Max length for window-position
+#define WIN_POS_STR_MAX_LEN	21	/* Max length for window-position
 					 * string. */
 
 #define MENU_ITEM_NAME_LEN	32	/* Menu item name lengths. */
@@ -280,6 +280,7 @@ typedef struct tagTTYINFO {
     unsigned	screenDirty:1;	/* TRUE if screen needs update. */
     unsigned	eraseScreen:1;	/* TRUE if need to erase whole screen */
     unsigned	fMinimized:1;	/* True when window is minimized. */
+    unsigned	fMaximized:1;	/* True when window is maximized. */
     unsigned	fFocused:1;	/* True when we have focus. */
     unsigned	fNewLine:1;	/* Auto LF on CR. */
     unsigned	fMassiveUpdate:1;/* True when in Massive screen update. */
@@ -1545,6 +1546,7 @@ CreateTTYInfo (HWND hWnd)
     LOGFONT		newFont;
     int			i, ppi;
     HDC			hDC;
+    HFONT		testFont;
 #ifdef SDEBUG
     if (mswin_debug >= 5)
 	fprintf (mswin_debugfile, "CreateTTYInfo:::  entered\n");
@@ -1564,6 +1566,7 @@ CreateTTYInfo (HWND hWnd)
     /* Shown but not focused. */
     pTTYInfo->cCaretStyle		= CaretBlock;
     pTTYInfo->fMinimized		= FALSE;
+    pTTYInfo->fMaximized		= FALSE;
     pTTYInfo->fFocused			= FALSE;
     pTTYInfo->fNewLine			= FALSE;
     pTTYInfo->fMassiveUpdate		= FALSE;
@@ -1613,7 +1616,12 @@ CreateTTYInfo (HWND hWnd)
     newFont.lfClipPrecision =  CLIP_DEFAULT_PRECIS;
     newFont.lfQuality =        DEFAULT_QUALITY;
     newFont.lfPitchAndFamily = FIXED_PITCH | FF_MODERN;
-    newFont.lfFaceName[0] =    '\0';
+    _sntprintf(newFont.lfFaceName, LF_FACESIZE, TEXT("%s"), TEXT("Courier New"));
+    testFont = CreateFontIndirect(&newFont);
+    if(NULL == testFont)
+      newFont.lfFaceName[0] =    '\0';
+    else
+      DeleteObject(testFont);
 
     /* set TTYInfo handle before any further message processing. */
 
@@ -2383,17 +2391,21 @@ SizeTTY (HWND hWnd, int fwSizeType, CORD wVertSize, CORD wHorzSize)
 
 
     /*
-     * Is the window being minimized?
+     * Is the window being minimized or maximized?
      */
-    if (fwSizeType == SIZE_MINIMIZED) {
+    switch (fwSizeType) {
+    case SIZE_MINIMIZED:
 	pTTYInfo->fMinimized = TRUE;
+	pTTYInfo->fMaximized = FALSE;
 	return (TRUE);
+    case SIZE_MAXIMIZED:
+	pTTYInfo->fMinimized = FALSE;
+	pTTYInfo->fMaximized = TRUE;
+	break;
+    default:
+        pTTYInfo->fMinimized = pTTYInfo->fMaximized = FALSE;
+	break;
     }
-
-
-
-    pTTYInfo->fMinimized = FALSE;
-	
 	
     pTTYInfo->ySize = (CORD) wVertSize;
     newNRow = MAX(MINNROW, MIN(MAXNROW,
@@ -6201,6 +6213,11 @@ mswin_getwindow(char *fontName_utf8, size_t nfontName,
 
 	if(gpTTYInfo->hAccel){
 	    strncat(windowPosition, "a", nwindowPosition-strlen(windowPosition)-1);
+	    windowPosition[nwindowPosition-1] = '\0';
+	}
+
+	if(gpTTYInfo->fMaximized){
+	    strncat(windowPosition, "!", nwindowPosition-strlen(windowPosition)-1);
 	    windowPosition[nwindowPosition-1] = '\0';
 	}
     }
@@ -11131,7 +11148,7 @@ LOCAL BOOL
 MSWRPeek(HKEY hRootKey, LPTSTR subkey, LPTSTR valstr, LPTSTR data_lptstr, DWORD *dlen)
 {
     HKEY   hKey;
-    DWORD  dtype, dlen_bytes = (dlen ? *dlen : 0) * (*dlen)*sizeof(TCHAR);
+    DWORD  dtype, dlen_bytes = (dlen ? *dlen : 0) * sizeof(TCHAR);
     LONG   rv = !ERROR_SUCCESS;
 
     if(RegOpenKeyEx(hRootKey, subkey, 0, KEY_READ, &hKey) == ERROR_SUCCESS){

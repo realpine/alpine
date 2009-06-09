@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: conf_process.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: conf_process.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -17,6 +17,7 @@
 #	     oriented operations
 
 source genvars.tcl
+source filter.tcl
 
 set cfs_vars {
   {cid		"Missing Command ID"}
@@ -42,18 +43,33 @@ set cfs_vars {
 foreach item $cfs_vars {
   if {[catch {cgi_import [lindex $item 0].x}]} {
     if {[catch {eval WPImport $item} result]} {
-      error [list _action "Impart Variable" $result]
+      error [list _action "Import Variable" $result]
     }
   } else {
     set [lindex $item 0] 1
   }
 }
 
-proc wpGetVar {_var} {
+proc wpGetVar {_var {valid ""}} {
   upvar $_var var
 
   if {[catch {cgi_import_as $_var var} result]} {
     error [list _action "Import Var  $_var" $result]
+  }
+
+  if {[string length $valid]} {
+    switch -exact -- $valid {
+      _INTEGER_ {
+	if {[string is integer -strict $var] != 1} {
+	  error [list _action "Invalid Input" "Non-Numeric Value for $_var"]
+	}
+      }
+      default {
+	if {[lsearch -exact $valid $var] < 0} {
+	  error [list _action "Invalid Input" "Unrecognized Value $var for $_var"]
+	}
+      }
+    }
   }
 }
 
@@ -109,6 +125,18 @@ proc fieldPos {fmt field} {
   return -1
 }
 
+proc numberedVar {nvbase nvtotal} {
+  if {[catch {wpGetVarAs $nvtotal nvtot}] == 0} {
+    for {set i 0} {$i < $nvtot} {incr i} {
+      if {[catch {wpGetVar ${nvbase}${i}} nvval] == 0} {
+	return $i
+      }
+    }
+  }
+
+  return -1
+}
+
 set op $cp_op
 if {[catch {WPCmd set conf_page} conftype]} {
   set conftype general
@@ -148,31 +176,34 @@ if {$save == 1 || [string compare $save Save] == 0} {
 }
 
 proc wpGetRulePattern {} {
+    global pattern_fields
+
     set patlist {}
 
-    set patfields {
-	nickname
-	to
-	from
-	sender
-	cc
-	recip
-	partic
-	news
-	subj
-	alltext
-	stat_new
-	stat_del
-	stat_imp
-	stat_ans
-	ftype
-	folder
+    foreach {patvar patfield} $pattern_fields {
+      wpGetVarAs $patvar tval
+
+      switch $patvar {
+	headers {
+	  # collect header fields/values into "headers"
+	  set headers {}
+	  if {[catch {wpGetVarAs header_total hcnt} res] == 0} {
+	    for {set i 0} {$i < $hcnt} {incr i} {
+	      if {[catch {wpGetVarAs hdrfld${i} fld}] == 0
+		  && [catch {wpGetVarAs hdrval${i} val}] == 0} {
+		lappend headers [list $fld $val]
+	      }
+	    }
+	  }
+
+	  lappend patlist [list headers $headers]
+	}
+	default {
+	  lappend patlist [list $patvar $tval]
+	}
+      }
     }
 
-    foreach patfield $patfields {
-	wpGetVarAs $patfield tval
-	lappend patlist [list $patfield $tval]
-    }
 
     return $patlist
 
@@ -232,6 +263,12 @@ proc wpGetRuleAction {tosave} {
 			  WPCmd PEConfig columns $columns
 			}
 		      }
+		      left-column-folders {
+			wpGetVar fcachel
+			if {$fcachel <= $_wp(fldr_cache_max)} {
+			  catch {WPSessionState left_column_folders $fcachel}
+			}
+		      }
 		      signature {
 			wpGetVar signature
 			set cursig [string trimright [join [WPCmd PEConfig rawsig] "\n"]]
@@ -272,6 +309,92 @@ proc wpGetRuleAction {tosave} {
 			      set flt_ret [catch {WPCmd PEConfig ruleset filter shuffup $i} flt_res]
 			    } elseif {[string length $vlsd]} {
 			      set flt_ret [catch {WPCmd PEConfig ruleset filter shuffdown $i} flt_res]
+			    }
+			    if {$flt_ret} {
+			      # error
+			    } elseif {[string length $flt_res]} {
+			      # something wrong here
+			    }
+			  }
+			}
+		      }
+		      scores {
+			wpGetVarAs $varname-sz sz
+			wpGetVarAs vla.$varname.x fltadd
+			wpGetVarAs hlp.$varname.x do_help
+			if {[string length $do_help]} {
+			  set subop varhelp
+			  set varhelpname filtconf
+			} elseif {[string length $fltadd]} {
+			  set script "fr_filtedit.tcl"
+			  set filtedit_add 1
+			  set filtedit_score 1
+			  set filtedit_onfiltcancel conf_process
+			} else {
+			  if {[string length $sz] == 0} {
+			    error [list _action "ERROR" "No size given for scores"]
+			  }
+			  for {set i 0} {$i < $sz} {incr i} {
+			    wpGetVarAs vle.$varname.$i.x vle
+			    wpGetVarAs vld.$varname.$i.x vld
+			    wpGetVarAs vlsu.$varname.$i.x vlsu
+			    wpGetVarAs vlsd.$varname.$i.x vlsd
+			    set flt_ret 0
+			    set flt_res ""
+			    if {[string length $vle]} {
+			      set script "fr_filtedit.tcl"
+			      set filtedit_score 1
+			      set filtedit_fno $i
+			      set filtedit_onfiltcancel conf_process
+			    } elseif {[string length $vld]} {
+			      set flt_ret [catch {WPCmd PEConfig ruleset score delete $i} flt_res]
+			    } elseif {[string length $vlsu]} {
+			      set flt_ret [catch {WPCmd PEConfig ruleset score shuffup $i} flt_res]
+			    } elseif {[string length $vlsd]} {
+			      set flt_ret [catch {WPCmd PEConfig ruleset score shuffdown $i} flt_res]
+			    }
+			    if {$flt_ret} {
+			      # error
+			    } elseif {[string length $flt_res]} {
+			      # something wrong here
+			    }
+			  }
+			}
+		      }
+		      indexcolor {
+			wpGetVarAs $varname-sz sz
+			wpGetVarAs vla.$varname.x fltadd
+			wpGetVarAs hlp.$varname.x do_help
+			if {[string length $do_help]} {
+			  set subop varhelp
+			  set varhelpname filtconf
+			} elseif {[string length $fltadd]} {
+			  set script "fr_filtedit.tcl"
+			  set filtedit_add 1
+			  set filtedit_indexcolor 1
+			  set filtedit_onfiltcancel conf_process
+			} else {
+			  if {[string length $sz] == 0} {
+			    error [list _action "ERROR" "No size given for index colors"]
+			  }
+			  for {set i 0} {$i < $sz} {incr i} {
+			    wpGetVarAs vle.$varname.$i.x vle
+			    wpGetVarAs vld.$varname.$i.x vld
+			    wpGetVarAs vlsu.$varname.$i.x vlsu
+			    wpGetVarAs vlsd.$varname.$i.x vlsd
+			    set flt_ret 0
+			    set flt_res ""
+			    if {[string length $vle]} {
+			      set script "fr_filtedit.tcl"
+			      set filtedit_indexcolor 1
+			      set filtedit_fno $i
+			      set filtedit_onfiltcancel conf_process
+			    } elseif {[string length $vld]} {
+			      set flt_ret [catch {WPCmd PEConfig ruleset indexcolor delete $i} flt_res]
+			    } elseif {[string length $vlsu]} {
+			      set flt_ret [catch {WPCmd PEConfig ruleset indexcolor shuffup $i} flt_res]
+			    } elseif {[string length $vlsd]} {
+			      set flt_ret [catch {WPCmd PEConfig ruleset indexcolor shuffdown $i} flt_res]
 			    }
 			    if {$flt_ret} {
 			      # error
@@ -728,8 +851,129 @@ proc wpGetRuleAction {tosave} {
 	      }
 	    }
 	    filtconfig {
-	      wpGetVar fno
-	      wpGetVar subop
+	      wpGetVar fno [list _INTEGER_]
+	      wpGetVar subop [list edit add]
+
+	      if {[catch {wpGetVar filtcancel}]} {
+		if {[catch {wpGetVar filthelp}] == 0} {
+		  catch {WPCmd PEInfo unset help_context}
+		  catch {WPCmd set oncancel $oncancel}
+
+		  set patlist [wpGetRulePattern]
+		  set actlist [wpGetRuleAction 0]
+		  # we have to save this exactly as it would look when getting it from alpined
+		  set ftsadd [expr {[string compare $subop "add"] == 0 ? 1 : 0}]
+		  set ftsform [list [list "pattern" $patlist] [list "filtaction" $actlist]]
+		  catch {WPCmd set filttmpstate [list $ftsadd $fno $ftsform]}
+
+		  set help_vars [list topic]
+		  set topic filtedit
+		  set _cgi_uservar(topic) filtedit
+
+		  if {[string compare $subop "edit"] == 0} {
+		    set fakeimg "vle.filters.$fno"
+		    set fakesz [expr {$fno + 1}]
+		  } else {
+		    set fakeimg "vla.filters"
+		    set fakesz 1
+		  }
+
+		  set _cgi_uservar(oncancel) [WPPercentQuote "conf_process&wv=rule&filters-sz=${fakesz}&${fakeimg}.x=1&${fakeimg}.y=1&oncancel=main.tcl"]
+		  set script help
+		} elseif {[set nv [numberedVar rmheader header_total]] >= 0} {
+
+		  # load all the rules, process "headers"
+		  foreach pat [wpGetRulePattern] {
+		    set [lindex $pat 0] [lindex $pat 1]
+		    
+		    if {[string compare headers [lindex $pat 0]] == 0} {
+		      if {[llength $headers] > $nv} {
+			set headers [lreplace $headers $nv $nv]
+		      }
+		    }
+		  }
+
+		  # load all the actions
+		  foreach act [wpGetRuleAction 0] {
+		    set [lindex $act 0] [lindex $act 1]
+		  }
+
+		  # load other variables
+		  wpGetVarAs nickname nickname
+		  wpGetVarAs comment comment
+		  wpGetVarAs folder folder
+		  wpGetVarAs ftype ftype
+
+		  set filterrtext 1
+		  set filtedit_fno $fno
+		  set filtedit_add [expr {[string compare $subop add] == 0 ? 1 : 0}]
+		  set filtedit_onfiltcancel conf_process
+		  set script "fr_filtedit.tcl"
+		} elseif {[catch {wpGetVar addheader}] == 0} {
+
+		  # load all the rules, process "headers"
+		  foreach pat [wpGetRulePattern] {
+		    set [lindex $pat 0] [lindex $pat 1]
+		    if {[string compare headers [lindex $pat 0]] == 0} {
+		      foreach h [set headers [lindex $pat 1]] {
+			if {0 == [string length [lindex $h 0]]
+			    && 0 == [string length [lindex $h 1]]} {
+			  set emptyheader 1
+			}
+		      }
+		      
+		      if {![info exists emptyheader]} {
+			lappend headers [list {} {}]
+		      }
+		    }
+		  }
+
+		  # load all the actions
+		  foreach act [wpGetRuleAction 0] {
+		    set [lindex $act 0] [lindex $act 1]
+		  }
+
+		  # load other variables
+		  wpGetVar nickname
+		  wpGetVar comment
+		  wpGetVarAs folder folder
+		  wpGetVarAs ftype ftype
+
+		  set filterrtext 1
+		  set filtedit_fno $fno
+		  set filtedit_add [expr {[string compare $subop add] == 0 ? 1 : 0}]
+		  set filtedit_onfiltcancel conf_process
+		  set script "fr_filtedit.tcl"
+		} else {
+		  # load other variables
+		  wpGetVar nickname
+		  wpGetVar comment
+		  wpGetVarAs folder folder
+		  wpGetVarAs ftype ftype
+
+		  set patlist [wpGetRulePattern]
+		  set actlist [wpGetRuleAction 1]
+
+		  lappend patlist [list nickname $nickname]
+		  lappend patlist [list comment $comment]
+
+		  set ret [catch {WPCmd PEConfig ruleset filter $subop $fno $patlist $actlist} res]
+		  if {$ret} {
+		    error [list _action "Filter Set" $res]
+		  } elseif {[string length $res]} {
+		    WPCmd PEInfo statmsg "Filter setting failed: $res"
+
+		    set filtedit_fno $fno
+		    set filtedit_add [expr {[string compare $subop add] == 0 ? 1 : 0}]
+		    set filtedit_onfiltcancel conf_process
+		    set script "fr_filtedit.tcl"
+		  }
+		}
+	      }
+	    }
+	    scoreconfig {
+	      wpGetVar fno [list _INTEGER_]
+	      wpGetVar subop [list edit add]
 
 	      if {[catch {wpGetVar filtcancel}]} {
 		if {[catch {wpGetVar filthelp}] == 0} {
@@ -737,46 +981,293 @@ proc wpGetRuleAction {tosave} {
 		  catch {WPCmd set oncancel $oncancel}
 		  if {[string compare $subop "edit"] == 0 || [string compare $subop "add"] == 0} {
 		    set patlist [wpGetRulePattern]
-		    set actlist [wpGetRuleAction 0]
+
 		    # we have to save this exactly as it would look when getting it from alpined
 		    set ftsadd [expr {[string compare $subop "add"] == 0 ? 1 : 0}]
 		    set ftsform [list [list "pattern" $patlist] [list "filtaction" $actlist]]
 		    catch {WPCmd set filttmpstate [list $ftsadd $fno $ftsform]}
 		  }
 		  set help_vars [list topic]
-		  set topic filtedit
-		  set _cgi_uservar(topic) filtedit
+		  set topic scoreedit
+		  set _cgi_uservar(topic) scoreedit
 		  switch -- $subop {
 		    edit {
-		      set fakeimg "vle.filters.$fno"
+		      set fakeimg "vle.scores.$fno"
 		      set fakesz [expr {$fno + 1}]
 		    }
 		    add  {
-		      set fakeimg "vla.filters"
+		      set fakeimg "vla.scores"
 		      set fakesz 1
 		    }
 		  }
 
-		  set _cgi_uservar(oncancel) [WPPercentQuote "conf_process&wv=rule&filters-sz=${fakesz}&${fakeimg}.x=1&${fakeimg}.y=1&oncancel=main.tcl"]
+		  set _cgi_uservar(oncancel) [WPPercentQuote "conf_process&wv=rule&scores-sz=${fakesz}&${fakeimg}.x=1&${fakeimg}.y=1&oncancel=main.tcl"]
 		  set script help
-		} elseif {[catch {wpGetVar headers}] == 0} {
-		  WPCmd PEInfo statmsg "Should CREATE HEADER"		  
+		} elseif {[set nv [numberedVar rmheader header_total]] >= 0} {
+
+		  # load all the rules, process "headers"
+		  foreach pat [wpGetRulePattern] {
+		    set [lindex $pat 0] [lindex $pat 1]
+		    
+		    if {[string compare headers [lindex $pat 0]] == 0} {
+		      if {[llength $headers] > $nv} {
+			set headers [lreplace $headers $nv $nv]
+		      }
+		    }
+		  }
+
+		  # load other variables
+		  wpGetVar nickname
+		  wpGetVar comment
+		  wpGetVarAs folder folder
+		  wpGetVarAs ftype ftype
+
+		  set filterrtext 1
+		  set filtedit_score 1
+		  set filtedit_fno $fno
+		  set filtedit_add [expr {[string compare $subop add] == 0 ? 1 : 0}]
+		  set filtedit_onfiltcancel conf_process
+		  set script "fr_filtedit.tcl"
+		} elseif {[catch {wpGetVar addheader}] == 0} {
+
+		  # load all the rules, process "headers"
+		  foreach pat [wpGetRulePattern] {
+		    set [lindex $pat 0] [lindex $pat 1]
+		    if {[string compare headers [lindex $pat 0]] == 0} {
+		      foreach h [set headers [lindex $pat 1]] {
+			if {0 == [string length [lindex $h 0]]
+			    && 0 == [string length [lindex $h 1]]} {
+			  set emptyheader 1
+			}
+		      }
+		      
+		      if {![info exists emptyheader]} {
+			lappend headers [list {} {}]
+		      }
+		    }
+		  }
+
+		  # load other variables
+		  wpGetVar nickname
+		  wpGetVar comment
+		  wpGetVarAs folder folder
+		  wpGetVarAs ftype ftype
+
+		  set filterrtext 1
+		  set filtedit_score 1
+		  set filtedit_fno $fno
+		  set filtedit_add [expr {[string compare $subop add] == 0 ? 1 : 0}]
+		  set filtedit_onfiltcancel conf_process
+		  set script "fr_filtedit.tcl"
 		} else {
 		  switch -- $subop {
 		    edit -
 		    add {
-		      set patlist [wpGetRulePattern]
-		      set actlist [wpGetRuleAction 1]
-		      set ret [catch {WPCmd PEConfig ruleset filter $subop $fno $patlist $actlist} res]
-		      if {$ret} {
-			error [list _action "Filter Set" $res]
-		      } elseif {[string length $res]} {
-			WPCmd PEInfo statmsg "Filter setting failed: $res"
+		      # load other variables
+		      wpGetVar nickname
+		      wpGetVar comment
+		      wpGetVarAs folder folder
+		      wpGetVarAs ftype ftype
 
+		      set patlist [wpGetRulePattern]
+
+		      lappend patlist [list nickname $nickname]
+		      lappend patlist [list comment $comment]
+
+		      wpGetVar scoreval
+		      lappend actlist [list "scoreval" $scoreval]
+
+		      wpGetVar scorehdr
+		      lappend actlist [list "scorehdr" $scorehdr]
+
+		      set ret [catch {WPCmd PEConfig ruleset score $subop $fno $patlist $actlist} res]
+
+		      if {$ret} {
+			error [list _action "Score Set" $res]
+		      } elseif {[string length $res]} {
+			WPCmd PEInfo statmsg "Score setting failed: $res"
+
+			set filtedit_score 1
 			set filtedit_fno $fno
 			set filtedit_add [expr {[string compare $subop add] == 0 ? 1 : 0}]
 			set filtedit_onfiltcancel conf_process
 			set script "fr_filtedit.tcl"
+		      }
+		    }
+		  }
+		}
+	      }
+	    }
+	    indexcolorconfig {
+	      wpGetVar fno [list _INTEGER_]
+	      wpGetVar subop [list edit add]
+
+	      if {[catch {wpGetVar filtcancel}]} {
+		if {[catch {wpGetVar filthelp}] == 0} {
+		  catch {WPCmd PEInfo unset help_context}
+		  catch {WPCmd set oncancel $oncancel}
+		  if {[string compare $subop "edit"] == 0 || [string compare $subop "add"] == 0} {
+		    set patlist [wpGetRulePattern]
+
+		    # we have to save this exactly as it would look when getting it from alpined
+		    set ftsadd [expr {[string compare $subop "add"] == 0 ? 1 : 0}]
+		    set ftsform [list [list "pattern" $patlist] [list "filtaction" $actlist]]
+		    catch {WPCmd set filttmpstate [list $ftsadd $fno $ftsform]}
+		  }
+		  set help_vars [list topic]
+		  set topic indexcoloredit
+		  set _cgi_uservar(topic) indexcoloredit
+		  switch -- $subop {
+		    edit {
+		      set fakeimg "vle.indexcolor.$fno"
+		      set fakesz [expr {$fno + 1}]
+		    }
+		    add  {
+		      set fakeimg "vla.indexcolor"
+		      set fakesz 1
+		    }
+		  }
+
+		  set _cgi_uservar(oncancel) [WPPercentQuote "conf_process&wv=rule&indexcolor-sz=${fakesz}&${fakeimg}.x=1&${fakeimg}.y=1&oncancel=main.tcl"]
+		  set script help
+		} elseif {[set nv [numberedVar rmheader header_total]] >= 0} {
+
+		  # load all the rules, process "headers"
+		  foreach pat [wpGetRulePattern] {
+		    set [lindex $pat 0] [lindex $pat 1]
+		    
+		    if {[string compare headers [lindex $pat 0]] == 0} {
+		      if {[llength $headers] > $nv} {
+			set headers [lreplace $headers $nv $nv]
+		      }
+		    }
+		  }
+
+		  # load other variables
+		  wpGetVar nickname
+		  wpGetVar comment
+		  wpGetVarAs folder folder
+		  wpGetVarAs ftype ftype
+
+		  set filterrtext 1
+		  set filtedit_indexcolor 1
+		  set filtedit_fno $fno
+		  set filtedit_add [expr {[string compare $subop add] == 0 ? 1 : 0}]
+		  set filtedit_onfiltcancel conf_process
+		  set script "fr_filtedit.tcl"
+		} elseif {[catch {wpGetVar addheader}] == 0} {
+		  # load all the rules, process "headers"
+		  foreach pat [wpGetRulePattern] {
+		    set [lindex $pat 0] [lindex $pat 1]
+		    if {[string compare headers [lindex $pat 0]] == 0} {
+		      foreach h [set headers [lindex $pat 1]] {
+			if {0 == [string length [lindex $h 0]]
+			    && 0 == [string length [lindex $h 1]]} {
+			  set emptyheader 1
+			}
+		      }
+		      
+		      if {![info exists emptyheader]} {
+			lappend headers [list {} {}]
+		      }
+		    }
+		  }
+
+		  # load other variables
+		  wpGetVar nickname
+		  wpGetVar comment
+		  wpGetVarAs folder folder
+		  wpGetVarAs ftype ftype
+
+		  set filterrtext 1
+		  set filtedit_indexcolor 1
+		  set filtedit_fno $fno
+		  set filtedit_add [expr {[string compare $subop add] == 0 ? 1 : 0}]
+		  set filtedit_onfiltcancel conf_process
+		  set script "fr_filtedit.tcl"
+		} elseif {[catch {cgi_import_as colormap.x colx}] == 0
+			  && [catch {cgi_import_as colormap.y coly}] == 0} {
+		  set rgbs {"000" "051" "102" "153" "204" "255"}
+		  set xrgbs {"00" "33" "66" "99" "CC" "FF"}
+		  set rgblen [llength $rgbs]
+		  set imappixwidth 10
+
+		  set colx [expr {${colx} / $imappixwidth}]
+		  set coly [expr {${coly} / $imappixwidth}]
+		  if {($coly >= 0 && $coly < $rgblen)
+		      && ($colx >= 0 && $colx < [expr {$rgblen * $rgblen}])} {
+		    set ired $coly
+		    set igreen [expr {($colx / $rgblen) % $rgblen}]
+		    set iblue [expr {$colx % $rgblen}]
+		    set rgb "[lindex $rgbs $ired],[lindex $rgbs ${igreen}],[lindex $rgbs ${iblue}]"
+		    set xrgb "[lindex $xrgbs $ired][lindex $xrgbs ${igreen}][lindex $xrgbs ${iblue}]"
+
+		    if {[catch {wpGetVar fgorbg [list fg bg]}]} {
+		      WPCmd PEInfo statmsg "Invalid fore/back ground input!"
+		      catch {unset xrgb}
+		    }
+		  } else {
+		    WPCmd PEInfo statmsg "Invalid RGB Input!"
+		  }
+
+		  # relay any other config changes
+		  wpGetVar nickname
+		  wpGetVar comment
+		  wpGetVarAs folder folder
+		  wpGetVarAs ftype ftype
+		  foreach pat [wpGetRulePattern] {
+		    set [lindex $pat 0] [lindex $pat 1]
+		  }
+
+		  # import previous settings
+		  wpGetVarAs fg fg
+		  wpGetVarAs bg bg
+
+		  # set new value
+		  if {[info exists xrgb]} {
+		    set $fgorbg $xrgb
+		  }
+
+		  set filterrtext 1
+		  set filtedit_indexcolor 1
+		  set filtedit_fno $fno
+		  set filtedit_add [expr {[string compare $subop add] == 0 ? 1 : 0}]
+		  set filtedit_onfiltcancel conf_process
+		  set script "fr_filtedit.tcl"
+		} else {
+		  switch -- $subop {
+		    edit -
+		    add {
+
+		      wpGetVar nickname
+		      wpGetVar comment
+
+		      set patlist [wpGetRulePattern]
+
+		      lappend patlist [list nickname $nickname]
+		      lappend patlist [list comment $comment]
+
+		      # save config?
+		      set actlist {}
+		      if {[catch {wpGetVar fg}] == 0 && [catch {wpGetVar bg}] == 0} {
+			lappend actlist [list fg $fg]
+			lappend actlist [list bg $bg]
+
+			# save rule
+			set ret [catch {WPCmd PEConfig ruleset indexcolor $subop $fno $patlist $actlist} res]
+			if {$ret} {
+			  error [list _action "Color Set Error" $res]
+			} elseif {[string length $res]} {
+			  WPCmd PEInfo statmsg "Index Color setting failed: $res"
+
+			  set filtedit_indexcolor 1
+			  set filtedit_fno $fno
+			  set filtedit_add [expr {[string compare $subop add] == 0 ? 1 : 0}]
+			  set filtedit_onfiltcancel conf_process
+			  set script "fr_filtedit.tcl"
+			}
+		      } else {
+			error [list _action "Unset FG/BG" "Internal Error: Unset Color Variables"]
 		      }
 		    }
 		  }
@@ -862,6 +1353,5 @@ proc wpGetRuleAction {tosave} {
 		error [list _close "Unknown process operation: $op"]
 	    }
 	}
-
 
 source [WPTFScript $script]

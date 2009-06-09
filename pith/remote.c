@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: remote.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: remote.c 745 2007-10-11 18:03:32Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -488,7 +488,7 @@ rd_read_metadata(REMDATA_S *rd)
 	if(!rd->lf){
 	    rd->flags |= (NO_META_UPDATE | REM_OUTOFDATE);
 	    if(!(rd->flags & NO_FILE)){
-		rd->lf = temp_nam(NULL, "a6", 0);
+		rd->lf = temp_nam(NULL, "a6");
 		rd->flags |= DEL_FILE;
 	    }
 
@@ -575,14 +575,14 @@ rd_read_metadata(REMDATA_S *rd)
 	 * copy of the remote data.
 	 */
 	rab->local_cache_file = tempfile_in_same_dir(ps_global->pinerc,
-						     meta_prefix, NULL, 0);
+						     meta_prefix, NULL);
 	if(rab->local_cache_file){
 	    rd->lf = rab->local_cache_file;
 	    rd_write_metadata(rd, 0);
 	    rab->local_cache_file = NULL;
 	}
 	else
-	  rd->lf = temp_nam(NULL, "a7", 0);
+	  rd->lf = temp_nam(NULL, "a7");
     }
 
     if(rab){
@@ -640,7 +640,7 @@ rd_write_metadata(REMDATA_S *rd, int delete_it)
     if(!(pith_opt_rd_metadata_name && (metafile = (*pith_opt_rd_metadata_name)())))
       goto io_err;
 
-    if(!(tempfile = tempfile_in_same_dir(metafile, "a9", &pinerc_dir, 0)))
+    if(!(tempfile = tempfile_in_same_dir(metafile, "a9", &pinerc_dir)))
       goto io_err;
 
     if((fd = our_open(tempfile, O_TRUNC|O_WRONLY|O_CREAT|O_BINARY, 0600)) >= 0)
@@ -1355,7 +1355,7 @@ rd_init_remote(REMDATA_S *rd, int add_only_first_msg)
 	      err = -1;
 	}
 	else{
-	    if(!(tempfile = tempfile_in_same_dir(rd->lf, "a8", NULL, 0))){
+	    if(!(tempfile = tempfile_in_same_dir(rd->lf, "a8", NULL))){
 		q_status_message1(SM_ORDER | SM_DING, 3, 5,
 				  _("Error opening temporary file: %s"),
 				  error_description(errno));
@@ -1941,7 +1941,7 @@ rd_update_local(REMDATA_S *rd)
 		so_truncate(store, 0L);
 	    }
 	    else{
-		if(!(tempfile = tempfile_in_same_dir(rd->lf, "a8", NULL, 0))){
+		if(!(tempfile = tempfile_in_same_dir(rd->lf, "a8", NULL))){
 		    q_status_message1(SM_ORDER | SM_DING, 3, 5,
 				      _("Error opening temporary file: %s"),
 				      error_description(errno));

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: addrstring.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: addrstring.c 725 2007-09-25 21:03:06Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -55,6 +55,27 @@ addr_string(struct mail_address *addr, char *buf, size_t buflen)
     rfc822_output_address_list(&rbuf, addr, 0L, NULL);
     *rbuf.cur = '\0';
     addr->next = next_addr;
+    return(buf);
+}
+
+
+/*
+ * Same as addr_string only it doesn't have to be a
+ * single address.
+ */
+char *
+addr_string_mult(struct mail_address *addr, char *buf, size_t buflen)
+{
+    RFC822BUFFER rbuf;
+
+    *buf = '\0';
+    rbuf.f   = dummy_soutr;
+    rbuf.s   = NULL;
+    rbuf.beg = buf;
+    rbuf.cur = buf;
+    rbuf.end = buf+buflen-1;
+    rfc822_output_address_list(&rbuf, addr, 0L, NULL);
+    *rbuf.cur = '\0';
     return(buf);
 }
 

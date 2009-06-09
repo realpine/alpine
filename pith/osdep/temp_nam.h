@@ -1,8 +1,8 @@
 /*
- * $Id: temp_nam.h 229 2006-11-13 23:14:48Z hubert@u.washington.edu $
+ * $Id: temp_nam.h 745 2007-10-11 18:03:32Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,16 +17,11 @@
 #define PITH_OSDEP_TEMP_NAM_INCLUDED
 
 
-/* flags for temp_nam() */
-#define TN_BINARY	0x0	/* default */
-#define TN_TEXT		0x1
-
-
 /*
  * Exported Prototypes
  */
-char	*temp_nam(char *, char *, int);
-char	*temp_nam_ext(char *, char *, int, char *);
+char	*temp_nam(char *, char *);
+char	*temp_nam_ext(char *, char *, char *);
 
 
 #endif /* PITH_OSDEP_TEMP_NAM_INCLUDED */

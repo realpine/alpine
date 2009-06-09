@@ -236,26 +236,27 @@ get_windsize(struct ttyo *ttyo)
       set_variable(V_FONT_CHAR_SET, fontCharSet, 1, 0,
 		   ps_global->ew_for_except_vars);
 
-    if(F_ON(F_STORE_WINPOS_IN_CONFIG, ps_global)){
-	if(!ps_global->VAR_WINDOW_POSITION
-	   || strucmp(ps_global->VAR_WINDOW_POSITION, windowPosition))
-	  set_variable(V_WINDOW_POSITION, windowPosition, 1, 0,
-		       ps_global->ew_for_except_vars);
-    }
-    else{
-	/*
-	 * Get the window position stored in the registry.
-	 *
-	 * If current window position is not in the registry or is
-	 * different from what is there, save it.
-	 */
-	if(strnicmp(windowPosition, "MIN0", 4)
-	   && (!mswin_reg(MSWR_OP_GET, MSWR_PINE_POS, windowPositionReg,
-			  sizeof(windowPositionReg)) ||
-	       strucmp(windowPositionReg, windowPosition))
-	   && (ps_global->update_registry != UREG_NEVER_SET))
-	  mswin_reg(MSWR_OP_SET | MSWR_OP_FORCE, MSWR_PINE_POS, windowPosition,
-		    (size_t)NULL);
+    if(strnicmp(windowPosition, "MIN0", 4) && !strchr(windowPosition, '!')){
+	   if(F_ON(F_STORE_WINPOS_IN_CONFIG, ps_global)){
+	       if(!ps_global->VAR_WINDOW_POSITION
+		  || strucmp(ps_global->VAR_WINDOW_POSITION, windowPosition))
+		 set_variable(V_WINDOW_POSITION, windowPosition, 1, 0,
+			      ps_global->ew_for_except_vars);
+	   }
+	   else{
+	       /*
+		* Get the window position stored in the registry.
+		*
+		* If current window position is not in the registry or is
+		* different from what is there, save it.
+		*/
+	       if((!mswin_reg(MSWR_OP_GET, MSWR_PINE_POS, windowPositionReg,
+			      sizeof(windowPositionReg)) ||
+		   strucmp(windowPositionReg, windowPosition))
+		  && (ps_global->update_registry != UREG_NEVER_SET))
+		 mswin_reg(MSWR_OP_SET | MSWR_OP_FORCE, MSWR_PINE_POS, windowPosition,
+			   (size_t)NULL);
+	   }
     }
     
     mswin_getprintfont(fontName, sizeof(fontName),

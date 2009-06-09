@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: queryquit.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: queryquit.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -93,6 +93,14 @@ WPEval $quit_vars {
       cgi_put  "<style type='text/css'>"
       cgi_put  ".expungebox { background-color:AntiqueWhite }"
       cgi_puts "</style>"
+
+      cgi_javascript {
+	cgi_put "function flpchk(eid){"
+	cgi_put " var cb = document.getElementById(eid);"
+	cgi_put " cb.checked = !cb.checked;"
+	cgi_put " return false;"
+	cgi_put "}"
+      }
     }
 
     cgi_body BGCOLOR="$_wp(bordercolor)" {
@@ -106,7 +114,7 @@ WPEval $quit_vars {
 
 	  cgi_table_data align=center valign=top bgcolor="$_wp(dialogcolor)" {
 
-	    cgi_form $_wp(appdir)/do_quit method=get name=quitting target=_top {
+	    cgi_form $_wp(appdir)/do_quit method=get id=quitting target=_top {
 	      cgi_text cid=$cid type=hidden notab
 	      cgi_text sessid=$sessid type=hidden notab
 	      foreach q $qhid {
@@ -151,17 +159,19 @@ WPEval $quit_vars {
 				}
 				if {$numdels && (($askinbox && $inboxflag) || ($askcurrent && $inboxflag == 0))} {
 				  cgi_table_row {
+				    set cbn "cb[expr {$inbhit + $curhit}]"
 				    cgi_table_data align=right valign=top {
 				      if {$inboxflag} {
-					cgi_checkbox "expinbox" class=expungebox checked
+					cgi_checkbox "expinbox" class=expungebox id=$cbn checked
 					incr expiexists
 				      } else {
-					cgi_checkbox "expcurrent" class=expungebox checked
+					cgi_checkbox "expcurrent" class=expungebox id=$cbn checked
 					incr expcexists
 				      }
 				    }
 				    cgi_table_data align=left {
-				      cgi_puts "Expunge ${numdels} deleted message[expr {($numdels > 1) ? "s" : ""}] from ${fname}."
+				      set t "Expunge ${numdels} deleted message[expr {($numdels > 1) ? "s" : ""}] from ${fname}."
+				      cgi_put [cgi_span onclick=\"flpchk('$cbn')\" $t]
 				    }
 				  }
 				}

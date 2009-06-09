@@ -1,4 +1,4 @@
-# $Id: post.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: post.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -58,6 +58,8 @@ proc fieldname {name} {
 }
 
 proc expand_address_field {field _msgdata} {
+  global has_fcc
+
   upvar 1 $_msgdata msgdata
 
   set fn [fieldname $field]
@@ -88,7 +90,9 @@ proc expand_address_field {field _msgdata} {
 
 	    # set fcc?
 	    set fccfn [lindex $expaddr 2]
-	    if {[string compare to [string tolower $fn]] == 0 && [string length $fccfn]} {
+	    set fccdef [WPCmd PECompose fccdefault]
+	    if {[string compare to [string tolower $fn]] == 0 && [string length $fccfn]
+		&& (![info exists has_fcc] || 0 == [string compare [lindex $fccdef 1] [lindex $has_fcc 1]])} {
 	      for {set j 0} {$j < [llength $msgdata]} {incr j} {
 		if {[string compare fcc [fieldname [lindex [lindex $msgdata $j] 0]]] == 0} {
 		  set fcc_index $j
@@ -96,8 +100,7 @@ proc expand_address_field {field _msgdata} {
 		}
 	      }
 
-	      set savedef [WPTFSaveDefault 0]
-	      set colid [lindex $savedef 0]
+	      set colid [lindex $fccdef 0]
 	      if {[info exists fcc_index]} {
 		if {[string compare $fccfn [lindex [lindex [lindex $msgdata $fcc_index] 1] 1]]} {
 		  lappend msgdata [list postoption [list fcc-set-by-addrbook 1]]
@@ -109,7 +112,7 @@ proc expand_address_field {field _msgdata} {
 		lappend msgdata [list postoption [list fcc-set-by-addrbook 1]]
 	      }
 
-	      set has_fcc 1
+	      set has_fcc [list $colid $fccfn]
 	    }
 	  }
 	}
@@ -182,8 +185,8 @@ foreach field $headers {
     fcc {
       if {[string length $val]} {
 	WPLoadCGIVar colid
-	lappend msgdata [list Fcc [list $colid $val]]
-	set has_fcc 1
+	set has_fcc [list $colid $val]
+	lappend msgdata [list Fcc $has_fcc]
       }
     }
     default {
@@ -295,6 +298,7 @@ if {[string compare OK [string trim $action]] == 0 && ($send || [string compare 
   if {[info exists has_to] || [info exists has_cc] || [info exists has_bcc] || [info exists has_fcc]} {
     # expand any nicknames
     if {[catch {
+      set fccdef [WPCmd PECompose fccdefault]
       for {set i 0} {$i < [llength $msgdata]} {incr i} {
 	if {[string length [lindex [lindex $msgdata $i] 1]]} {
 	  set fld [lindex $msgdata $i]
@@ -370,7 +374,8 @@ if {[string compare OK [string trim $action]] == 0 && ($send || [string compare 
       WPCmd PEInfo statmsg "Address problem: $result"
     } else {
       # update fcc?
-      if {[info exists expanded_fcc]} {
+      if {[info exists expanded_fcc]
+	  && (![info exists has_fcc] || 0 == [string compare [lindex $fccdef 1] [lindex $has_fcc 1]])} {
 	for {set j 0} {$j < [llength $msgdata]} {incr j} {
 	  if {[string compare fcc [fieldname [lindex [lindex $msgdata $j] 0]]] == 0} {
 	    set fcc_index $j
@@ -378,8 +383,7 @@ if {[string compare OK [string trim $action]] == 0 && ($send || [string compare 
 	  }
 	}
 
-	set savedef [WPTFSaveDefault 0]
-	set colid [lindex $savedef 0]
+	set colid [lindex $fccdef 0]
 	if {[info exists fcc_index]} {
 	  set msgdata [lreplace $msgdata $fcc_index $fcc_index [list Fcc [list $colid $expanded_fcc]]]
 	} else {

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcap.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailcap.c 771 2007-10-24 19:10:40Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -630,6 +630,7 @@ mc_get_command(int type, char *subtype, struct mail_body_parameter *params,
 	char		     tmp_mime_type[256];
 
 	memset(&fake_mc, 0, sizeof(MailcapEntry));
+	fake_cmd[0] = '\0';
 	fake_mc.command = fake_cmd;
 
 	snprintf(tmp_mime_type, sizeof(tmp_mime_type), "%s/%s", body_types[type], subtype);

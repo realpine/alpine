@@ -23,7 +23,7 @@
  *		Internet: MRC@CAC.Washington.EDU
  *
  * Date:	20 December 1989
- * Last Edited:	30 August 2007
+ * Last Edited:	5 September 2007
  */
 
 
@@ -628,7 +628,7 @@ char *unix_text_work (MAILSTREAM *stream,MESSAGECACHE *elt,
 {
   FDDATA d;
   STRING bs;
-  unsigned char *s,tmp[CHUNKSIZE];
+  unsigned char c,*s,tmp[CHUNKSIZE];
 				/* go to text position */
   lseek (LOCAL->fd,elt->private.special.offset +
 	 elt->private.msg.text.offset,L_SET);
@@ -660,15 +660,15 @@ char *unix_text_work (MAILSTREAM *stream,MESSAGECACHE *elt,
     d.chunk = tmp;		/* initial buffer chunk */
     d.chunksize = CHUNKSIZE;	/* file chunk size */
     INIT (&bs,fd_string,&d,elt->private.msg.text.text.size);
-    for (s = (char *) LOCAL->text.data; SIZE (&bs);) switch (CHR (&bs)) {
+    for (s = (char *) LOCAL->text.data; SIZE (&bs);) switch (c = SNX (&bs)) {
     case '\r':			/* carriage return seen */
-      *s++ = SNX (&bs);		/* copy it and any succeeding LF */
+      *s++ = c;			/* copy it and any succeeding LF */
       if (SIZE (&bs) && (CHR (&bs) == '\n')) *s++ = SNX (&bs);
       break;
     case '\n':
       *s++ = '\r';		/* insert a CR */
     default:
-      *s++ = SNX (&bs);		/* copy characters */
+      *s++ = c;			/* copy characters */
     }
     *s = '\0';			/* tie off buffer */
 				/* calculate length of cached data */

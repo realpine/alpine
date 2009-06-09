@@ -1,7 +1,7 @@
 # $Id: makefile.wnt 14098 2005-10-03 18:54:13Z jpf@u.washington.edu $
 #
 # ========================================================================
-# Copyright 2006 University of Washington
+# Copyright 2006-2007 University of Washington
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ RC=rc
 CDEBUG= #-Zi -Od
 LDEBUG= /DEBUG /DEBUGTYPE:CV
 
-STDCFLAGS= -I..\include -nologo -MT -DWIN32 -DDOS -D_WINDOWS -DMSC_MALLOC
+STDCFLAGS= -I..\include -I..\regex -nologo -MT -DWIN32 -DDOS -D_WINDOWS -DMSC_MALLOC
 
 CFLAGS=	$(CDEBUG) $(STDCFLAGS) $(NET) $(EXTRACFLAGS)
 
@@ -55,7 +55,7 @@ OFILES=	addrbook.obj adrbkcmd.obj after.obj alpine.obj arg.obj busy.obj colorcon
 	send.obj setup.obj signal.obj status.obj takeaddr.obj titlebar.obj
 
 OURLIBS= ../c-client/cclient.lib osdep/libalpineosd.lib osdep/mswin.res \
-	../pith/osdep/libpithosd.lib ../pith/charconv/libpithcc.lib ../pith/libpith.lib \
+	../pith/osdep/libpithosd.lib ../pith/charconv/libpithcc.lib ../regex/libregex.lib ../pith/libpith.lib \
 	../pico/osdep/libpicoosd.lib ../pico/libpico.lib
 
 LIBS= $(STDLIBS) $(LDAPLIBS) $(SPELLLIBS) $(OURLIBS) $(EXTRALIBES)
@@ -63,7 +63,7 @@ LIBS= $(STDLIBS) $(LDAPLIBS) $(SPELLLIBS) $(OURLIBS) $(EXTRALIBES)
 all:	alpine.exe rpload.exe rpdump.exe
 
 .c.obj:
-	$(CC) -c $(CFLAGS) $(MAKEDIR)\$*.c
+	$(CC) -c $(CFLAGS) "$(MAKEDIR)"\$*.c
 
 $(OFILES):	$(HFILES)
 

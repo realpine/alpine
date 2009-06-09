@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: reply.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: reply.c 796 2007-11-08 01:14:02Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -60,13 +60,14 @@ The evolution continues...
 #include "../pith/readfile.h"
 #include "../pith/tempfile.h"
 #include "../pith/busy.h"
+#include "../pith/ablookup.h"
 
 
 /*
  * Internal Prototypes
  */
 int	 reply_poster_followup(ENVELOPE *);
-char	*sigedit_exit_for_pico(struct headerentry *, void (*)(void), int);
+int	 sigedit_exit_for_pico(struct headerentry *, void (*)(void), int, char **);
 long	 new_mail_for_pico(int, int);
 void	 cmd_input_for_pico(void);
 int	 display_message_for_pico(int);
@@ -98,6 +99,7 @@ int
 reply(struct pine *pine_state, ACTION_S *role_arg)
 {
     ADDRESS    *saved_from, *saved_to, *saved_cc, *saved_resent;
+    ADDRESS    *us_in_to_and_cc, *ap;
     ENVELOPE   *env, *outgoing;
     BODY       *body, *orig_body = NULL;
     REPLY_S     reply;
@@ -106,6 +108,7 @@ reply(struct pine *pine_state, ACTION_S *role_arg)
     long        msgno, j, totalm, rflags, *seq = NULL;
     int         i, include_text = 0, times = -1, warned = 0, rv = 0,
 		flags = RSF_QUERY_REPLY_ALL, reply_raw_body = 0;
+    int         rolemsg = 0, copytomsg = 0;
     gf_io_t     pc;
     PAT_STATE   dummy;
     REDRAFT_POS_S *redraft_pos = NULL;
@@ -124,6 +127,9 @@ reply(struct pine *pine_state, ACTION_S *role_arg)
     saved_to		  = (ADDRESS *) NULL;
     saved_cc		  = (ADDRESS *) NULL;
     saved_resent	  = (ADDRESS *) NULL;
+
+    us_in_to_and_cc	  = (ADDRESS *) NULL;
+
     outgoing->subject	  = NULL;
 
     memset((void *)&reply, 0, sizeof(reply));
@@ -254,6 +260,19 @@ reply(struct pine *pine_state, ACTION_S *role_arg)
 	else if(i == 0)
 	  goto done_early;
 
+	/* collect a list of addresses that are us in to and cc fields */
+	if(env->to)
+	  if((ap=reply_cp_addr(pine_state, 0L, NULL,
+			       NULL, us_in_to_and_cc, NULL,
+			       env->to, RCA_ONLY_US)) != NULL)
+	    reply_append_addr(&us_in_to_and_cc, ap);
+
+	if(env->cc)
+	  if((ap=reply_cp_addr(pine_state, 0L, NULL,
+			       NULL, us_in_to_and_cc, NULL,
+			       env->cc, RCA_ONLY_US)) != NULL)
+	    reply_append_addr(&us_in_to_and_cc, ap);
+
 	/*------------ Format the subject line ---------------*/
 	if(outgoing->subject){
 	    /*
@@ -327,13 +346,84 @@ reply(struct pine *pine_state, ACTION_S *role_arg)
     env = pine_mail_fetchstructure(pine_state->mail_stream, seq[times], NULL);
 
     if(role){
-	q_status_message1(SM_ORDER, 3, 4,
-			  _("Replying using role \"%s\""), role->nick);
-
+	rolemsg++;
 	/* override fcc gotten in reply_seed */
 	if(role->fcc && fcc)
 	  fs_give((void **) &fcc);
     }
+
+    if(F_ON(F_COPY_TO_TO_FROM, pine_state) && !(role && role->from)){
+	/*
+	 * A list of all of our addresses that appear in the To
+	 * and cc fields is in us_in_to_and_cc.
+	 * If there is exactly one address in that list then
+	 * use it for the outgoing From.
+	 */
+	if(us_in_to_and_cc && !us_in_to_and_cc->next){
+	    PINEFIELD *custom, *pf;
+	    ADDRESS *a = NULL;
+	    char *addr = NULL;
+
+	    /*
+	     * Check to see if this address is different from what
+	     * we would have used anyway. If it is, notify the user
+	     * with a status message. This is pretty hokey because we're
+	     * mimicking how pine_send would set the From address and
+	     * there is no coordination between the two.
+	     */
+
+	    /* in case user has a custom From value */
+	    custom = parse_custom_hdrs(ps_global->VAR_CUSTOM_HDRS, UseAsDef);
+
+	    pf = (PINEFIELD *) fs_get(sizeof(*pf));
+	    memset((void *) pf, 0, sizeof(*pf));
+	    pf->name = cpystr("From");
+	    pf->addr = &a;
+	    if(set_default_hdrval(pf, custom) >= UseAsDef
+	       && pf->textbuf && pf->textbuf[0]){
+		removing_trailing_white_space(pf->textbuf);
+		(void)removing_double_quotes(pf->textbuf);
+		build_address(pf->textbuf, &addr, NULL, NULL, NULL);
+		rfc822_parse_adrlist(pf->addr, addr, ps_global->maildomain);
+		if(addr)
+		  fs_give((void **) &addr);
+	    }
+
+	    if(!*pf->addr)
+	      *pf->addr = generate_from();
+
+	    if(*pf->addr && !address_is_same(*pf->addr, us_in_to_and_cc)){
+		copytomsg++;
+		if(!role){
+		    role = (ACTION_S *) fs_get(sizeof(*role));
+		    memset((void *) role, 0, sizeof(*role));
+		    role->is_a_role = 1;
+		}
+
+		role->from = us_in_to_and_cc;
+		us_in_to_and_cc = NULL;
+	    }
+
+	    free_customs(custom);
+	    free_customs(pf);
+	}
+    }
+
+    if(role){
+	if(rolemsg && copytomsg)
+	  q_status_message1(SM_ORDER, 3, 4,
+			    _("Replying using role \"%s\" and To as From"), role->nick);
+	else if(rolemsg)
+	  q_status_message1(SM_ORDER, 3, 4,
+			    _("Replying using role \"%s\""), role->nick);
+	else if(copytomsg)
+	  q_status_message(SM_ORDER, 3, 4,
+			   _("Replying using incoming To as outgoing From"));
+    }
+
+    if(us_in_to_and_cc)
+      mail_free_address(&us_in_to_and_cc);
+
 
     seq[++times] = -1L;		/* mark end of sequence list */
 
@@ -1281,13 +1371,13 @@ forward(struct pine *ps, ACTION_S *role_arg)
 	goto clean;
     }
 
-    ret = (totalmsgs > 1L)
-	   ? want_to(_("Forward messages as a MIME digest"), 'y', 'x',
-		     NO_HELP, WT_SEQ_SENSITIVE)
-	   : (ps->full_header == 2)
-	     ? want_to(_("Forward message as an attachment"), 'n', 'x',
-		       NO_HELP, WT_SEQ_SENSITIVE)
-	     : 0;
+    ret = (F_ON(F_FORWARD_AS_ATTACHMENT, ps_global))
+	   ? 'y'
+	   : (totalmsgs > 1L)
+	      ? want_to(_("Forward messages as a MIME digest"), 'y', 'x', NO_HELP, WT_SEQ_SENSITIVE)
+	      : (ps->full_header == 2)
+		 ? want_to(_("Forward message as an attachment"), 'n', 'x', NO_HELP, WT_SEQ_SENSITIVE)
+		 : 0;
 
     if(ret == 'x'){
 	cmd_cancelled("Forward");
@@ -2144,17 +2234,20 @@ signature_edit_lit(char *litsig, char **result, char *title, HelpType composer_h
 
 
 /*
- *
+ * Returns  0  for Save Changes and exit
+ *          1  for Cancel Exit
+ *         -1  exit but Dont Save Changes
  */
-char *
-sigedit_exit_for_pico(struct headerentry *he, void (*redraw_pico)(void), int allow_flowed)
+int
+sigedit_exit_for_pico(struct headerentry *he, void (*redraw_pico)(void), int allow_flowed,
+		      char **result)
 {
     int	      rv;
     char     *rstr = NULL;
     void    (*redraw)(void) = ps_global->redrawer;
     static ESCKEY_S opts[] = {
-	{'y', 'y', "Y", N_("Yes")},
-	{'n', 'n', "N", N_("No")},
+	{'s', 's', "S", N_("Save changes to signature")},
+	{'d', 'd', "D", N_("Don't save changes")},
 	{-1, 0, NULL, NULL}
     };
 
@@ -2162,13 +2255,13 @@ sigedit_exit_for_pico(struct headerentry *he, void (*redraw_pico)(void), int all
     fix_windsize(ps_global);
 
     while(1){
-	rv = radio_buttons(_("Exit editor and apply changes? "),
+	rv = radio_buttons(_("Exit editor? "),
 			   -FOOTER_ROWS(ps_global), opts,
-			   'y', 'x', NO_HELP, RB_NORM);
-	if(rv == 'y'){				/* user ACCEPTS! */
+			   's', 'x', h_folder_prop, RB_NORM);
+	if(rv == 's'){				/* user ACCEPTS! */
 	    break;
 	}
-	else if(rv == 'n'){			/* Declined! */
+	else if(rv == 'd'){			/* Declined! */
 	    rstr = _("No Changes Saved");
 	    break;
 	}
@@ -2178,8 +2271,11 @@ sigedit_exit_for_pico(struct headerentry *he, void (*redraw_pico)(void), int all
 	}
     }
 
+    if(result)
+      *result = rstr;
+
     ps_global->redrawer = redraw;
-    return(rstr);
+    return((rv == 's') ? 0 : (rv == 'd') ? -1 : 1);
 }
 
 

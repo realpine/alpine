@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcmd.c 696 2007-08-29 23:13:02Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailcmd.c 801 2007-11-08 20:39:45Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1593,10 +1593,13 @@ cmd_flag(struct pine *state, MSGNO_S *msgmap, int aopt)
 {
     char	  *flagit, *seq, *screen_text[20], **exp, **p, *answer = NULL;
     char          *keyword_array[2];
+    int            user_defined_flags = 0, mailbox_flags = 0;
+    int            directly_to_maint_screen = 0;
     long	   unflagged, flagged, flags, rawno;
     MESSAGECACHE  *mc = NULL;
     KEYWORD_S     *kw;
     int            i, cnt, is_set, trouble = 0, rv = 0;
+    size_t         len;
     struct flag_table *fp, *ftbl = NULL;
     struct flag_screen flag_screen;
     static char   *flag_screen_text1[] = {
@@ -1634,15 +1637,51 @@ cmd_flag(struct pine *state, MSGNO_S *msgmap, int aopt)
 	return rv;
     }
 
+go_again:
+    answer = NULL;
+    user_defined_flags = 0;
+    mailbox_flags = 0;
+    mc = NULL;
+    trouble = 0;
+    ftbl = NULL;
+
     /* count how large ftbl will be */
     for(cnt = 0; default_ftbl[cnt].name; cnt++)
       ;
     
     /* add user flags */
-    for(kw = ps_global->keywords; kw; kw = kw->next)
-      cnt++;
+    for(kw = ps_global->keywords; kw; kw = kw->next){
+	if(!((kw->nick && !strucmp(FORWARDED_FLAG, kw->nick)) || (kw->kw && !strucmp(FORWARDED_FLAG, kw->kw)))){
+	    user_defined_flags++;
+	    cnt++;
+	}
+    }
+
+    /*
+     * Add mailbox flags that aren't user-defined flags.
+     * Don't consider it if it matches either one of our defined
+     * keywords or one of our defined nicknames for a keyword.
+     */
+    for(i = 0; stream_to_user_flag_name(state->mail_stream, i); i++){
+	char *q;
+
+	q = stream_to_user_flag_name(state->mail_stream, i);
+	if(q && q[0]){
+	    for(kw = ps_global->keywords; kw; kw = kw->next){
+		if((kw->nick && !strucmp(kw->nick, q)) || (kw->kw && !strucmp(kw->kw, q)))
+		  break;
+	    }
+	}
+
+	if(!kw && !(q && !strucmp(FORWARDED_FLAG, q))){
+	    mailbox_flags++;
+	    cnt++;
+	}
+    }
     
-    /* set up ftbl */
+    cnt += (user_defined_flags ? 2 : 0) + (mailbox_flags ? 2 : 0);
+
+    /* set up ftbl, first the system flags */
     ftbl = (struct flag_table *) fs_get((cnt+1) * sizeof(*ftbl));
     memset(ftbl, 0, (cnt+1) * sizeof(*ftbl));
     for(i = 0, fp = ftbl; default_ftbl[i].name; i++, fp++){
@@ -1653,24 +1692,75 @@ cmd_flag(struct pine *state, MSGNO_S *msgmap, int aopt)
 	fp->ukn  = default_ftbl[i].ukn;
     }
 
-    for(kw = ps_global->keywords; kw; kw = kw->next){
-	fp->name = cpystr(kw->nick ? kw->nick : kw->kw ? kw->kw : "");
-	fp->keyword = cpystr(kw->kw ? kw->kw : "");
-	if(kw->nick && kw->kw){
-	    size_t l;
-
-	    l = strlen(kw->kw)+2;
-	    fp->comment = (char *) fs_get((l+1) * sizeof(char));
-	    snprintf(fp->comment, l+1, "(%.*s)", strlen(kw->kw), kw->kw);
-	    fp->comment[l] = '\0';
-	}
-
-	fp->help = h_flag_user_flag;
-	fp->flag = F_KEYWORD;
-	fp->set  = 0;
-	fp->ukn  = 0;
+    if(user_defined_flags){
+	fp->flag = F_COMMENT;
+	fp->name = cpystr("");
+	fp++;
+	fp->flag = F_COMMENT;
+	len = strlen(_("User-defined Keywords from Setup/Config"));
+	fp->name = (char *) fs_get((len+6+6+1) * sizeof(char));
+	snprintf(fp->name, len+6+6+1, "----- %s -----", _("User-defined Keywords from Setup/Config"));
 	fp++;
     }
+
+    /* then the user-defined keywords */
+    if(user_defined_flags)
+      for(kw = ps_global->keywords; kw; kw = kw->next){
+	if(!((kw->nick && !strucmp(FORWARDED_FLAG, kw->nick))
+	     || (kw->kw && !strucmp(FORWARDED_FLAG, kw->kw)))){
+	    fp->name = cpystr(kw->nick ? kw->nick : kw->kw ? kw->kw : "");
+	    fp->keyword = cpystr(kw->kw ? kw->kw : "");
+	    if(kw->nick && kw->kw){
+		size_t l;
+
+		l = strlen(kw->kw)+2;
+		fp->comment = (char *) fs_get((l+1) * sizeof(char));
+		snprintf(fp->comment, l+1, "(%.*s)", strlen(kw->kw), kw->kw);
+		fp->comment[l] = '\0';
+	    }
+
+	    fp->help = h_flag_user_flag;
+	    fp->flag = F_KEYWORD;
+	    fp->set  = 0;
+	    fp->ukn  = 0;
+	    fp++;
+	}
+      }
+
+    if(mailbox_flags){
+	fp->flag = F_COMMENT;
+	fp->name = cpystr("");
+	fp++;
+	fp->flag = F_COMMENT;
+	len = strlen(_("Other keywords in the mailbox that are not user-defined"));
+	fp->name = (char *) fs_get((len+6+6+1) * sizeof(char));
+	snprintf(fp->name, len+6+6+1, "----- %s -----", _("Other keywords in the mailbox that are not user-defined"));
+	fp++;
+    }
+
+    /* then the extra mailbox-defined keywords */
+    if(mailbox_flags)
+      for(i = 0; stream_to_user_flag_name(state->mail_stream, i); i++){
+	char *q;
+
+	q = stream_to_user_flag_name(state->mail_stream, i);
+	if(q && q[0]){
+	    for(kw = ps_global->keywords; kw; kw = kw->next){
+		if((kw->nick && !strucmp(kw->nick, q)) || (kw->kw && !strucmp(kw->kw, q)))
+		  break;
+	    }
+	}
+
+	if(!kw && !(q && !strucmp(FORWARDED_FLAG, q))){
+	    fp->name = cpystr(q);
+	    fp->keyword = cpystr(q);
+	    fp->help = h_flag_user_flag;
+	    fp->flag = F_KEYWORD;
+	    fp->set  = 0;
+	    fp->ukn  = 0;
+	    fp++;
+	}
+      }
 
     flag_screen.flag_table  = &ftbl;
     flag_screen.explanation = screen_text;
@@ -1708,7 +1798,7 @@ cmd_flag(struct pine *state, MSGNO_S *msgmap, int aopt)
 				    rawno, FORWARDED_FLAG))
 		  fp->set = CMD_FLAG_SET;
 	    }
-	    else
+	    else if(fp->flag != F_COMMENT)
 	      fp->set = ((fp->flag == F_SEEN && !mc->seen)
 		         || (fp->flag == F_DEL && mc->deleted)
 		         || (fp->flag == F_FLAG && mc->flagged)
@@ -1722,6 +1812,9 @@ cmd_flag(struct pine *state, MSGNO_S *msgmap, int aopt)
 	free_flag_table(&ftbl);
 	return rv;
     }
+
+    if(directly_to_maint_screen)
+      goto the_maint_screen;
 
 #ifdef _WINDOWS
     if (mswin_usedialog ()) {
@@ -1771,14 +1864,14 @@ cmd_flag(struct pine *state, MSGNO_S *msgmap, int aopt)
 						keyword_shortcut);
 	}
 
+the_maint_screen:
 	if(use_maint_screen){
-	    screen_text[0] = "";
-	    for(p = &screen_text[1]; *exp; p++, exp++)
+	    for(p = &screen_text[0]; *exp; p++, exp++)
 	      *p = *exp;
 
 	    *p = NULL;
 
-	    flag_maintenance_screen(state, &flag_screen);
+	    directly_to_maint_screen = flag_maintenance_screen(state, &flag_screen);
 	}
     }
 
@@ -1937,15 +2030,9 @@ cmd_flag(struct pine *state, MSGNO_S *msgmap, int aopt)
 		if(state->mail_stream->kwd_create)
 		  mail_flag(state->mail_stream, seq, flagit, flags);
 		else{
-		    int some_defined = 0;
-
 		    trouble++;
 		    
-		    for(i = 0; !some_defined && i < NUSERFLAGS; i++)
-		      if(state->mail_stream->user_flags[i])
-			some_defined++;
-		    
-		    if(some_defined)
+		    if(some_user_flags_defined(state->mail_stream))
 		      q_status_message(SM_ORDER, 3, 4,
 			       _("No more keywords allowed in this folder!"));
 		    else
@@ -1976,12 +2063,16 @@ cmd_flag(struct pine *state, MSGNO_S *msgmap, int aopt)
 	}
     }
 
-    if(!answer)
-      q_status_message(SM_ORDER, 0, 2, _("No flags changed."));
-
     free_flag_table(&ftbl);
+
+    if(directly_to_maint_screen)
+      goto go_again;
+
     if(MCMD_ISAGG(aopt))
       restore_selected(msgmap);
+
+    if(!answer)
+      q_status_message(SM_ORDER, 0, 2, _("No flags changed."));
 
     return rv;
 }
@@ -3377,7 +3468,7 @@ cmd_export(struct pine *state, MSGNO_S *msgmap, int qline, int aopt)
 	}
 
 	err = NULL;
-	tfp = temp_nam(NULL, "pd", 0);
+	tfp = temp_nam(NULL, "pd");
 	build_updown_cmd(cmd, sizeof(cmd), ps_global->VAR_DOWNLOAD_CMD_PREFIX,
 			 ps_global->VAR_DOWNLOAD_CMD, tfp);
 	dprint((1, "Download cmd called: \"%s\"\n", cmd));
@@ -7490,17 +7581,20 @@ select_by_date(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct searc
 int
 select_by_text(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct search_set **limitsrch)
 {
-    int          r, ku, type, not = 0, we_cancel = 0, flags, rv, ekeyi = 0;
+    int          r, ku, type, we_cancel = 0, flags, rv, ekeyi = 0;
+    int          not = 0, me = 0;
     char         sstring[80], savedsstring[80], tmp[128];
     char        *p, *sval = NULL;
     char         buftmp[MAILTMPLEN];
-    ESCKEY_S     ekey[6];
+    ESCKEY_S     ekey[8];
     ENVELOPE    *env = NULL;
     HelpType     help;
     unsigned     flagsforhist = 0;
     static HISTORY_S *history = NULL;
     static char *recip = "RECIPIENTS";
     static char *partic = "PARTICIPANTS";
+    static char *match_me = N_("[Match_My_Addresses]");
+    static char *dont_match_me = N_("[Don't_Match_My_Addresses]");
 
     ps_global->mangled_footer = 1;
     savedsstring[0] = '\0';
@@ -7548,14 +7642,25 @@ select_by_text(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct searc
 	ekey[ekeyi].ch    = ctrl('W');
 	ekey[ekeyi].name  = "^W";
 	ekey[ekeyi].rval  = 12;
+	/* TRANSLATORS: use Current Cc Address */
 	ekey[ekeyi++].label = N_("Cur Cc");
+	ekey[ekeyi].ch    = ctrl('Y');
+	ekey[ekeyi].name  = "^Y";
+	ekey[ekeyi].rval  = 13;
+	/* TRANSLATORS: Match Me means match my address */
+	ekey[ekeyi++].label = N_("Match Me");
+	ekey[ekeyi].ch    = 0;
+	ekey[ekeyi].name  = "";
+	ekey[ekeyi].rval  = 0;
+	ekey[ekeyi++].label = "";
 	break;
 
       case 's' :
 	sval          = "SUBJECT";
 	ekey[ekeyi].ch    = ctrl('X');
 	ekey[ekeyi].name  = "^X";
-	ekey[ekeyi].rval  = 13;
+	ekey[ekeyi].rval  = 14;
+	/* TRANSLATORS: use Current Subject */
 	ekey[ekeyi++].label = N_("Cur Subject");
 	break;
 
@@ -7624,6 +7729,9 @@ select_by_text(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct searc
 	    r = optionally_enter(sstring, -FOOTER_ROWS(ps_global), 0,
 				 79, tmp, ekey, help, &flags);
 
+	    if(me && r == 0 && ((!not && strcmp(sstring, _(match_me))) || (not && strcmp(sstring, _(dont_match_me)))))
+	      me = 0;
+
 	    switch(r){
 	      case 3 :
 		help = (help == NO_HELP)
@@ -7678,7 +7786,12 @@ select_by_text(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct searc
 		}
 		continue;
 
-	      case 13 :			/* Subject: default */
+	      case 13 :			/* Match my addresses */
+		me++;
+		snprintf(sstring, sizeof(sstring), not ? _(dont_match_me) : _(match_me));
+		continue;
+
+	      case 14 :			/* Subject: default */
 		if(env && env->subject && env->subject[0]){
 		    char *q = NULL;
 
@@ -7698,13 +7811,14 @@ select_by_text(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct searc
 		continue;
 
 	      case 30 :
-		flagsforhist = (not ? 0x1 : 0);
-		if((p = get_prev_hist(history, sstring, 0, NULL)) != NULL){
+		flagsforhist = (not ? 0x1 : 0) + (me ? 0x2 : 0);
+		if((p = get_prev_hist(history, sstring, flagsforhist, NULL)) != NULL){
 		    strncpy(sstring, p, sizeof(sstring));
 		    sstring[sizeof(sstring)-1] = '\0';
 		    if(history->hist[history->curindex]){
 			flagsforhist = history->hist[history->curindex]->flags;
 			not = (flagsforhist & 0x1) ? 1 : 0;
+			me = (flagsforhist & 0x2) ? 1 : 0;
 		    }
 		}
 		else
@@ -7713,13 +7827,14 @@ select_by_text(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct searc
 		continue;
 
 	      case 31 :
-		flagsforhist = (not ? 0x1 : 0);
-		if((p = get_next_hist(history, sstring, 0, NULL)) != NULL){
+		flagsforhist = (not ? 0x1 : 0) + (me ? 0x2 : 0);
+		if((p = get_next_hist(history, sstring, flagsforhist, NULL)) != NULL){
 		    strncpy(sstring, p, sizeof(sstring));
 		    sstring[sizeof(sstring)-1] = '\0';
 		    if(history->hist[history->curindex]){
 			flagsforhist = history->hist[history->curindex]->flags;
 			not = (flagsforhist & 0x1) ? 1 : 0;
+			me = (flagsforhist & 0x2) ? 1 : 0;
 		    }
 		}
 		else
@@ -7731,7 +7846,7 @@ select_by_text(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct searc
 		break;
 	    }
 
-	    if(r == 1 || sstring[0] == '\0')
+	    if((r == 1 || sstring[0] == '\0') && !me)
 	      r = 'x';
 
 	    break;
@@ -7745,10 +7860,10 @@ select_by_text(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct searc
 
     we_cancel = busy_cue("Busy Selecting", NULL, 1);
 
-    flagsforhist = (not ? 0x1 : 0);
-    save_hist(history, sstring, 0, NULL);
+    flagsforhist = (not ? 0x1 : 0) + (me ? 0x2 : 0);
+    save_hist(history, sstring, flagsforhist, NULL);
 
-    rv = agg_text_select(stream, msgmap, type, not, sstring, "utf-8", limitsrch);
+    rv = agg_text_select(stream, msgmap, type, not, me, sstring, "utf-8", limitsrch);
     if(we_cancel)
       cancel_busy_cue(0);
 

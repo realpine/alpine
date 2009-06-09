@@ -28,6 +28,8 @@
 
 /* alpined-scoped debugging level */
 extern int debug;
+
+void    output_debug_msg(int, char *fmt, ...);
 #endif
 
 

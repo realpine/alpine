@@ -1,5 +1,5 @@
 /*
- * $Id: pico.h 698 2007-08-30 01:12:18Z jpf@u.washington.edu $
+ * $Id: pico.h 797 2007-11-08 18:10:05Z jpf@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -211,7 +211,7 @@ typedef struct pico_struct {
     long  (*msgntext)();		/* callback to get msg n's text */
     int   (*upload)();			/* callback to rcv uplaoded text */
     char *(*ckptdir)();			/* callback for checkpoint file dir */
-    char *(*exittest)();		/* callback to verify exit request */
+    int   (*exittest)();		/* callback to verify exit request */
     char *(*canceltest)();		/* callback to verify cancel request */
     int   (*mimetype)();		/* callback to display mime type */
     int   (*expander)();		/* callback to expand address lists */
@@ -376,7 +376,7 @@ typedef struct  KBSTREE {
  */
 #ifdef	maindef
 PICO	*Pmaster = NULL;		/* composer specific stuff */
-char	*version = "4.97";		/* PICO version number */
+char	*version = "4.98";		/* PICO version number */
 
 #else
 extern	PICO *Pmaster;			/* composer specific stuff */

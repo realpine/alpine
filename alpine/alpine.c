@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: alpine.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: alpine.c 737 2007-10-03 19:40:34Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -57,6 +57,7 @@ static char rcsid[] = "$Id: alpine.c 676 2007-08-20 19:46:37Z hubert@u.washingto
 #include "roleconf.h"
 #include "colorconf.h"
 #include "print.h"
+#include "after.h"
 #ifndef _WINDOWS
 #include "../pico/osdep/raw.h"	/* for STD*_FD */
 #endif
@@ -99,7 +100,6 @@ int	 fkey_mode_callback(int, long);
 void	 imap_telemetry_on(void);
 void	 imap_telemetry_off(void);
 char	*pcpine_help_main(char *);
-int	 pcpine_resize_main(void);
 int	 pcpine_main_cursor(int, long);
 #define  main app_main
 #endif
@@ -184,6 +184,8 @@ main(int argc, char **argv)
 #ifdef	ENABLE_LDAP
     pith_opt_save_ldap_entry	 = save_ldap_entry;
 #endif
+
+    status_message_lock_init();
 
 #if	HAVE_SRANDOM
     /*
@@ -1317,9 +1319,11 @@ convert_args_to_utf8(struct pine *ps, ARGDATA_S *args)
 	else if(ps->display_charmap && strucmp(ps->display_charmap, "UTF-8")
 	   &&  strucmp(ps->display_charmap, "US-ASCII"))
 	  fromcharset = ps->display_charmap;
+#ifndef	_WINDOWS
 	else if(ps->VAR_OLD_CHAR_SET && strucmp(ps->VAR_OLD_CHAR_SET, "UTF-8")
 	   &&  strucmp(ps->VAR_OLD_CHAR_SET, "US-ASCII"))
 	  fromcharset = ps->VAR_OLD_CHAR_SET;
+#endif	/* ! _WINDOWS */
 
 	if(args->action == aaURL && args->url){
 	    conv = convert_to_utf8(args->url, fromcharset, 0);
@@ -1598,7 +1602,6 @@ main_menu_screen(struct pine *pine_state)
 	/* while_waiting = build_header_cache; */
 #ifdef	_WINDOWS
 	mswin_sethelptextcallback(pcpine_help_main);
-	mswin_setresizecallback(pcpine_resize_main);
 	mswin_mousetrackcallback(pcpine_main_cursor);
 #endif
 #endif
@@ -1610,7 +1613,6 @@ main_menu_screen(struct pine *pine_state)
 /*	while_waiting = NULL; */
 #ifdef	_WINDOWS
 	mswin_sethelptextcallback(NULL);
-	mswin_clearresizecallback(pcpine_resize_main);
 	mswin_mousetrackcallback(NULL);
 #endif
 #endif
@@ -3496,15 +3498,6 @@ pcpine_help_main(title)
       strncpy(title, _("PC-Alpine MAIN MENU Help"), 256);
 
     return(pcpine_help(main_menu_tx));
-}
-
-
-int
-pcpine_resize_main()
-{
-    (void) get_windsize (ps_global->ttyo);
-    main_redrawer();
-    return(0);
 }
 
 

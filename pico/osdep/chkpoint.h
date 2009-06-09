@@ -1,5 +1,5 @@
 /*
- * $Id: chkpoint.h 119 2006-09-13 20:47:01Z hubert@u.washington.edu $
+ * $Id: chkpoint.h 775 2007-10-24 22:55:29Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -13,12 +13,12 @@
  * ========================================================================
  */
 
-#ifndef PICO_OSDEP_TTY_INCLUDED
-#define PICO_OSDEP_TTY_INCLUDED
+#ifndef PICO_OSDEP_CHKPOINT_INCLUDED
+#define PICO_OSDEP_CHKPOINT_INCLUDED
 
 
 /* exported prototypes */
 void	chkptinit(char *, size_t);
 
 
-#endif /* PICO_OSDEP_TTY_INCLUDED */
+#endif /* PICO_OSDEP_CHKPOINT_INCLUDED */

@@ -1,8 +1,8 @@
 /*
- * $Id: status.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: status.h 711 2007-09-13 17:58:33Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,7 +47,6 @@ void	q_status_message8(int, int, int, char *, void *, void *,
 void	q_status_message(int, int, int, char *);
 int	status_message_remaining(void);
 int	display_message(UCS);
-int	display_message_soon(void);
 void	flush_status_messages(int);
 
 

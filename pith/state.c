@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: state.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: state.c 745 2007-10-11 18:03:32Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -104,6 +104,9 @@ new_pine_struct(void)
 void
 free_pine_struct(struct pine **pps)
 { 
+    if(!(pps && (*pps)))
+      return;
+
     if((*pps)->hostname != NULL)
       fs_give((void **)&(*pps)->hostname);
 
@@ -152,6 +155,7 @@ free_pine_struct(struct pine **pps)
 
     if((*pps)->aux_files_dir)
       fs_give((void **)&(*pps)->aux_files_dir);
+#endif
 
     if((*pps)->display_charmap)
       fs_give((void **)&(*pps)->display_charmap);
@@ -161,7 +165,6 @@ free_pine_struct(struct pine **pps)
 
     if((*pps)->posting_charmap)
       fs_give((void **)&(*pps)->posting_charmap);
-#endif
 
 #ifdef PASSFILE
     if((*pps)->passfile)
@@ -187,6 +190,9 @@ free_pine_struct(struct pine **pps)
 
 	fs_give((void **) &(*pps)->atmts);
     }
+
+    if((*pps)->msgmap)
+      msgno_give(&(*pps)->msgmap);
     
     free_vars(*pps);
 

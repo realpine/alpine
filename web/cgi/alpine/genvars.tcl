@@ -1,4 +1,4 @@
-# $Id: genvars.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: genvars.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -27,6 +27,7 @@ set general_vars {
     {feat quit-without-confirm "Quit Without Confirming"}
     {feat enable-jump-cmd "Enable Jump Command"}
     {special wp-columns "Display Width"}
+    {special left-column-folders "Message View/List Folder List Count"}
 }
 
 set msglist_vars {
@@ -66,6 +67,7 @@ set composer_vars {
     {feat send-confirms-only-expanded "Confirm Send only if Addresses Expanded"}
     {feat quell-content-id "Prevent Content-ID header in Attachments"}
     {feat quell-format-flowed "Do Not Send Flowed Text"}
+    {feat forward-as-attachment "Forward message as attachment"}
 }
 
 set folder_vars {
@@ -83,6 +85,7 @@ set folder_vars {
     {feat enable-dot-folders "Enable Hidden Folders"}
     {feat enable-lame-list-mode "Enable Lame List Mode"}
     {feat try-alternative-authentication-driver-first "Try Alternative Authentication First"}
+    {feat quell-empty-directories "Do Not Display Empty Directores"}
 }
 
 set address_vars {
@@ -100,8 +103,11 @@ set msgview_vars {
     {feat enable-msg-view-addresses "Enable Address Links"}
     {feat enable-msg-view-attachments "Enable Attachments View"}
     {feat enable-full-header-cmd "Enable Full Headers"}
+    {feat quell-host-after-url "Hide server name display after links in HTML"}
 }
 
 set rule_vars {
     {special filters "Filters"}
+    {special scores "Scoring"}
+    {special indexcolor "Index Colors"}
 }

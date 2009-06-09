@@ -23,7 +23,7 @@
  *		Internet: MRC@CAC.Washington.EDU
  *
  * Date:	15 June 1988
- * Last Edited:	31 July 2007
+ * Last Edited:	9 November 2007
  *
  * This original version of this file is
  * Copyright 1988 Stanford University
@@ -1988,7 +1988,8 @@ long imap_search (MAILSTREAM *stream,char *charset,SEARCHPGM *pgm,long flags)
 	pgm->sentbefore || pgm->senton || pgm->sentsince || pgm->draft ||
 	pgm->undraft || pgm->return_path || pgm->sender || pgm->reply_to ||
 	pgm->message_id || pgm->in_reply_to || pgm->newsgroups ||
-	pgm->followup_to || pgm->references))) {
+	pgm->followup_to || pgm->references)) ||
+      (!LEVELWITHIN (stream) && (pgm->older || pgm->younger))) {
     if ((flags & SE_NOLOCAL) ||
 	!mail_search_default (stream,charset,pgm,flags | SE_NOSERVER))
       return NIL;
@@ -2114,7 +2115,8 @@ unsigned long *imap_sort (MAILSTREAM *stream,char *charset,SEARCHPGM *spg,
   unsigned long *ret = NIL;
   pgm->nmsgs = 0;		/* start off with no messages */
 				/* can use server-based sort? */
-  if (LEVELSORT (stream) && !(flags & SE_NOSERVER)) {
+  if (LEVELSORT (stream) && !(flags & SE_NOSERVER) &&
+      (LEVELWITHIN (stream) && !(spg->older || spg->younger))) {
     char *cmd = (flags & SE_UID) ? "UID SORT" : "SORT";
     IMAPARG *args[4],apgm,achs,aspg;
     IMAPPARSEDREPLY *reply;
@@ -2252,7 +2254,9 @@ THREADNODE *imap_thread (MAILSTREAM *stream,char *type,char *charset,
 			 SEARCHPGM *spg,long flags)
 {
   THREADER *thr;
-  if (!(flags & SE_NOSERVER))	/* does server have this threader type? */
+  if (!(flags & SE_NOSERVER) &&
+      !spg || (LEVELWITHIN (stream) || !(spg->older || spg->younger)))
+				/* does server have this threader type? */
     for (thr = LOCAL->cap.threader; thr; thr = thr->next)
       if (!compare_cstring (thr->name,type)) 
 	return imap_thread_work (stream,type,charset,spg,flags);
@@ -3284,6 +3288,14 @@ IMAPPARSEDREPLY *imap_send_spgm (MAILSTREAM *stream,char *tag,char *base,
   if (pgm->before) imap_send_sdate (s,"BEFORE",pgm->before);
   if (pgm->on) imap_send_sdate (s,"ON",pgm->on);
   if (pgm->since) imap_send_sdate (s,"SINCE",pgm->since);
+  if (pgm->older) {
+    sprintf (*s," OLDER %lu",pgm->older);
+    *s += strlen (*s);
+  }
+  if (pgm->younger) {
+    sprintf (*s," YOUNGER %lu",pgm->younger);
+    *s += strlen (*s);
+  }
 				/* search texts */
   if ((pgm->bcc && (reply = imap_send_slist (stream,tag,base,s," BCC ",
 					     pgm->bcc,limit))) ||

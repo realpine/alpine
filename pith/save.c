@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: save.c 675 2007-08-17 19:46:28Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: save.c 786 2007-11-02 23:23:04Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -497,18 +497,18 @@ save(struct pine *state, MAILSTREAM *stream, CONTEXT_S *context, char *folder,
 	    long dummy_msgno, delete_count;
 	    int expbits, set;
 	    char *flags = NULL;
+	    char *user_flag_name, *duser_flag_name;
 
 	    /* find keywords that need to be defined */
-	    for(k = 0; k < NUSERFLAGS; k++)	/* all the possible source flags */
-	      if(stream->user_flags
-		 && stream->user_flags[k]
-		 && stream->user_flags[k][0]){
+	    for(k = 0; stream_to_user_flag_name(stream, k); k++){
+	      user_flag_name = stream_to_user_flag_name(stream, k);
+	      if(user_flag_name && user_flag_name[0]){
 		  /* is this flag set in any of the save set? */
 		  for(set = 0, i = mn_first_cur(msgmap);
 		      !set && i > 0L;
 		      i = mn_next_cur(msgmap)){
 		      rawno = mn_m2raw(msgmap, i);
-		      if(user_flag_is_set(stream, rawno, stream->user_flags[k]))
+		      if(user_flag_is_set(stream, rawno, user_flag_name))
 			set++;
 		  }
 
@@ -517,34 +517,35 @@ save(struct pine *state, MAILSTREAM *stream, CONTEXT_S *context, char *folder,
 		       * The flag may already be defined in this
 		       * mailbox. Check for that first.
 		       */
-		      for(j = 0; j < NUSERFLAGS; j++)
-			if(dstn_stream->user_flags
-			   && dstn_stream->user_flags[j]
-			   && dstn_stream->user_flags[j][0]
-			   && !strcmp(dstn_stream->user_flags[j], stream->user_flags[k])){
+		      for(j = 0; stream_to_user_flag_name(dstn_stream, j); j++){
+			duser_flag_name = stream_to_user_flag_name(dstn_stream, j);
+		        if(duser_flag_name && duser_flag_name[0]
+			   && !strucmp(duser_flag_name, user_flag_name)){
 			    set = 0;
 			    break;
 			}
+		      }
 		  }
 
 		  if(set){
 		      if(flags == NULL){
-		          len = strlen(stream->user_flags[k]) + 1;
+		          len = strlen(user_flag_name) + 1;
 		          flags = (char *) fs_get((len+1) * sizeof(char));
-			  snprintf(flags, len+1, "%s ", stream->user_flags[k]);
+			  snprintf(flags, len+1, "%s ", user_flag_name);
 		      }
 		      else{
 			  char *p;
 			  size_t newlen;
 
-		          newlen = strlen(stream->user_flags[k]) + 1;
+		          newlen = strlen(user_flag_name) + 1;
 		          len += newlen;
 			  fs_resize((void **) &flags, (len+1) * sizeof(char));
 			  p = flags + strlen(flags);
-			  snprintf(p, newlen+1, "%s ", stream->user_flags[k]);
+			  snprintf(p, newlen+1, "%s ", user_flag_name);
 		      }
 		  }
 	      }
+	    }
 
 	    if(flags){
 		char *p;

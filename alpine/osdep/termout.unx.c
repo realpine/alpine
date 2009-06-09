@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: termout.unx.c 694 2007-08-29 19:51:50Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: termout.unx.c 706 2007-09-05 17:24:59Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -835,8 +835,8 @@ Writewchar(UCS ucs)
      * end of the line.
      */
     if(_col >= ps_global->ttyo->screen_cols) {
-	_col = ps_global->ttyo->screen_cols;
-	moveabsolute(_col-1, _line);
+	_col = ps_global->ttyo->screen_cols-1;
+	moveabsolute(_col, _line);
     }
 }
 

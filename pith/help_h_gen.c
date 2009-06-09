@@ -27,6 +27,7 @@ main(int argc, char **argv)
     preamble(stdout);
     body(stdin, stdout);
     postamble(stdout);
+    exit(0);
 }
 
 

@@ -19,19 +19,11 @@
 
 #define MAX_BM			150  /* max length of busy message */
 
-/* busy_cue_state values */
-#define BUSY_CUE_OFF   0
-#define BUSY_CUE_ON    1
-#define BUSY_CUE_DYING 2
-
 
 /* exported prototypes */
 
 void	    suspend_busy_cue(void);
 void	    resume_busy_cue(unsigned);
-int	    get_busy_cue_state(void);
-int	    set_busy_cue_state(int);
-int	    short_wait_for_busy_thread(void);
 
 
 #endif	/* PINE_BUSY_INCLUDED */

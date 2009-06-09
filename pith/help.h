@@ -1,5 +1,5 @@
 /*
- * $Id: help.h 448 2007-02-23 01:55:41Z hubert@u.washington.edu $
+ * $Id: help.h 757 2007-10-23 21:15:48Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -53,6 +53,7 @@ HelpType    help_name2section(char *, int);
 void        debugjournal_to_file(FILE *);
 void	    add_review_message(char *, int);
 int         gripe_gripe_to(char *);
+char       *get_alpine_revision_number(char *, size_t);
 
 
 #endif /* PITH_HELP_INCLUDED */

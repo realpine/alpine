@@ -44,7 +44,6 @@ static char rcsid[] = "$Id: signal.c 138 2006-09-22 22:12:03Z mikes@u.washington
 
 static int       dotcount;
 static char      busy_message[MAX_BM + 1];
-static int       busy_cue_state;
 static int       busy_cue_pause;
 static int       busy_width;
 static int       final_message;
@@ -76,6 +75,8 @@ static struct _spinner {
     {4, 5, {"....", " ...", ". ..", ".. .", "... "}},
     {4, 5, {"    ", ".   ", " .  ", "  . ", "   ."}},
     {4, 4, {".oOo", "oOo.", "Oo.o", "o.oO"}},
+    {4, 11,{"____", "\\___", "|\\__", "||\\_", "|||\\", "||||", "/|||",
+	    "_/||", "__/|", "___/", "____"}},
     {7, 9, {".     .", " .   . ", "  . .  ",
             "   .   ", "   +   ", "   *   ", "   X   ",
 	    "   #   ", "       "}},
@@ -135,14 +136,7 @@ busy_cue(char *msg, percent_done_t pc_f, int delay)
      * If we're already busy'ing, but a cue is invoked that
      * supplies more useful info, use it...
      */
-    if(busy_cue_state == BUSY_CUE_DYING){
-	/* wait for the death to finish */
-	if(short_wait_for_busy_thread() != BUSY_CUE_OFF){
-	    dprint((9, "busy_cue returns No after waiting\n"));
-	    return(0);
-	}
-    }
-    else if(busy_cue_state == BUSY_CUE_ON){
+    if(after_active){
 	if(msg || pc_f)
 	  stop_after(1);	/* uninstall old handler */
 	else
@@ -261,8 +255,6 @@ busy_cue(char *msg, percent_done_t pc_f, int delay)
     (*ap)->cf	 = done_busy_cue;
     ap		 = &(*ap)->next;
 
-    busy_cue_state = BUSY_CUE_ON;
-
     start_after(a);		/* launch cue handler */
 
 #ifdef _WINDOWS
@@ -283,11 +275,9 @@ cancel_busy_cue(int message_pri)
 {
     dprint((9, "cancel_busy_cue(%d)\n", message_pri));
 
-    if(busy_cue_state == BUSY_CUE_ON){
-	final_message_pri = message_pri;
-	busy_cue_state = BUSY_CUE_DYING;
-	stop_after(0);
-    }
+    final_message_pri = message_pri;
+
+    stop_after(0);
 }
 
 /*
@@ -298,7 +288,7 @@ suspend_busy_cue(void)
 {
     dprint((9, "suspend_busy_cue\n"));
 
-    if(busy_cue_state != BUSY_CUE_OFF)
+    if(after_active)
       busy_cue_pause = 1;
 }
 
@@ -311,7 +301,7 @@ resume_busy_cue(unsigned int pause)
 {
     dprint((9, "resume_busy_cue\n"));
 
-    if(busy_cue_state != BUSY_CUE_OFF)
+    if(after_active)
       busy_cue_pause = 0;
 }
 
@@ -448,49 +438,4 @@ done_busy_cue(void *data)
     }
 
     mark_status_dirty();
-    busy_cue_state = BUSY_CUE_OFF;
-}
-
-
-/*
- * We don't use these to access busy_cue_state from within this
- * file, only from outside.
- */
-int
-get_busy_cue_state(void)
-{
-    return(busy_cue_state);
-}
-
-
-int
-set_busy_cue_state(int newvalue)
-{
-    int oldvalue = busy_cue_state;
-
-    busy_cue_state = newvalue;
-    return(oldvalue);
-}
-
-
-int
-short_wait_for_busy_thread(void)
-{
-#if defined(HAVE_NANOSLEEP)
-    int i = 5;
-    struct timespec ts;
-
-    if(busy_cue_state == BUSY_CUE_DYING){
-	ts.tv_sec = 0;
-	ts.tv_nsec = 10000000;		/* 1/100 of a second */
-	(void) nanosleep(&ts, NULL);
-
-	ts.tv_nsec = 100000000;		/* 1/10 of a second */
-	while(busy_cue_state == BUSY_CUE_DYING && i-- > 0){
-	    (void) nanosleep(&ts, NULL);
-	}
-    }
-#endif
-
-    return(busy_cue_state);
 }

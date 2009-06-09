@@ -1,7 +1,7 @@
 @echo OFF
 rem $Id: build.bat 14098 2005-10-03 18:54:13Z jpf@u.washington.edu $
 rem ========================================================================
-rem Copyright 2006 University of Washington
+rem Copyright 2006-2007 University of Washington
 rem
 rem Licensed under the Apache License, Version 2.0 (the "License");
 rem you may not use this file except in compliance with the License.
@@ -76,6 +76,7 @@ echo Sure you want to delete object, library and executable files?!?!
 echo If NOT, type Ctrl-C to terminate build script NOW.  Type ENTER if you do.
 pause
 echo Cleaning alpine, pico, mailutil, mapi, and c-client directories
+set alpinemake=makefile.wnt
 set extramakecommand=clean
 if NOT exist c-client goto nocclient
 del /Q c-client\*
@@ -85,7 +86,7 @@ if NOT exist c-client-dll goto nocclientdll
 del /Q c-client-dll\*
 rmdir c-client-dll
 :nocclientdll
-set alpinemake=makefile.wnt
+set cclntmake=makefile.w2k
 goto buildmailutil
 
 :buildsetup
@@ -133,7 +134,7 @@ cd ..
 goto buildpithosd
 
 :buildpithosd
-echo Building pith...
+echo Building pith-osdep...
 cd pith\osdep
 nmake -nologo -f %alpinemake% wnt=1 EXTRACFLAGS=%extracflags% EXTRALDFLAGS=%extraldflags% EXTRALIBES=%extralibes% %extramakecommand%
 if errorlevel 1 goto bogus
@@ -141,6 +142,7 @@ cd ..\..
 goto buildpithcc
 
 :buildpithcc
+echo Building pith-charconv...
 cd pith\charconv
 nmake -nologo -f %alpinemake% wnt=1 EXTRACFLAGS=%extracflags% EXTRALDFLAGS=%extraldflags% EXTRALIBES=%extralibes% %extramakecommand%
 if errorlevel 1 goto bogus
@@ -148,14 +150,23 @@ cd ..\..
 goto buildpith
 
 :buildpith
+echo Building pith...
 cd pith
+nmake -nologo -f %alpinemake% wnt=1 EXTRACFLAGS=%extracflags% EXTRALDFLAGS=%extraldflags% EXTRALIBES=%extralibes% %extramakecommand%
+if errorlevel 1 goto bogus
+cd ..
+goto buildregex
+
+:buildregex
+echo Building regex...
+cd regex
 nmake -nologo -f %alpinemake% wnt=1 EXTRACFLAGS=%extracflags% EXTRALDFLAGS=%extraldflags% EXTRALIBES=%extralibes% %extramakecommand%
 if errorlevel 1 goto bogus
 cd ..
 goto buildpicoosd
 
 :buildpicoosd
-echo Building pico...
+echo Building pico-osdep...
 cd pico\osdep
 nmake -nologo -f %alpinemake% wnt=1 EXTRACFLAGS=%extracflags% EXTRALDFLAGS=%extraldflags% EXTRALIBES=%extralibes% %extramakecommand%
 if errorlevel 1 goto bogus
@@ -163,6 +174,7 @@ cd ..\..
 goto buildpico
 
 :buildpico
+echo Building pico...
 cd pico
 nmake -nologo -f %alpinemake% wnt=1 EXTRACFLAGS=%extracflags% EXTRALDFLAGS=%extraldflags% EXTRALIBES=%extralibes% %extramakecommand%
 if errorlevel 1 goto bogus
@@ -170,7 +182,7 @@ cd ..
 goto buildalpineosd
 
 :buildalpineosd
-echo Building alpine...
+echo Building alpine-osdep...
 cd alpine\osdep
 nmake -nologo -f %alpinemake% wnt=1 EXTRACFLAGS=%extracflags% EXTRALDFLAGS=%extraldflags% EXTRALIBES=%extralibes% EXTRARCFLAGS=%extrarcflags% %extramakecommand%
 if errorlevel 1 goto bogus
@@ -178,6 +190,7 @@ cd ..\..
 goto buildalpine
 
 :buildalpine
+echo Building alpine...
 cd alpine
 nmake -nologo -f %alpinemake% wnt=1 EXTRACFLAGS=%extracflags% EXTRALDFLAGS=%extraldflags% EXTRALIBES=%extralibesalpine% EXTRARCFLAGS=%extrarcflags% %extramakecommand%
 if errorlevel 1 goto bogus
@@ -185,6 +198,7 @@ cd ..
 goto buildcclntdll
 
 :buildcclntdll
+if NOT exist c-client-dll goto buildmapi
 echo Building c-client-dll
 cd c-client-dll
 nmake -nologo -f %cclntmake% EXTRACFLAGS=%extradllcflags% %extramakecommand%

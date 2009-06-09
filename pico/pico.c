@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pico.c 672 2007-08-15 23:07:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pico.c 744 2007-10-10 17:10:59Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -704,7 +704,8 @@ wquit(int f, int n)
     register int    s;
 
     if(Pmaster){
-	char *result;
+	char *result = NULL;
+	int   ret;
 
 	/* First, make sure there are no outstanding problems */ 
 	if(AttachError()){
@@ -724,18 +725,26 @@ wquit(int f, int n)
 	packheader();
 	Pmaster->arm_winch_cleanup++;
 	if((!(Pmaster->pine_flags & MDHDRONLY) || any_header_changes())
-	   && (result = (*Pmaster->exittest)(Pmaster->headents,
+	   && (ret = (*Pmaster->exittest)(Pmaster->headents,
 					     redraw_pico_for_callback,
-					     Pmaster->allow_flowed_text))){
+					     Pmaster->allow_flowed_text,
+					     &result))){
 	    Pmaster->arm_winch_cleanup--;
-	    if(sgarbf)
-	      update();
 
-	    lchange(WFHARD);			/* set update flags... */
-	    curwp->w_flag |= WFMODE;		/* and modeline so we  */
-	    sgarbk = TRUE;			/* redraw the keymenu  */
-	    pclear(term.t_nrow - 2, term.t_nrow + 1);
-	    if(*result)
+	    if(ret == -1){
+		pico_all_done = COMP_CANCEL;
+	    }
+	    else{
+		if(sgarbf)
+		  update();
+
+		lchange(WFHARD);			/* set update flags... */
+		curwp->w_flag |= WFMODE;		/* and modeline so we  */
+		sgarbk = TRUE;			/* redraw the keymenu  */
+		pclear(term.t_nrow - 2, term.t_nrow + 1);
+	    }
+
+	    if(result && *result)
 	      emlwrite(result, NULL);
 	}
 	else{

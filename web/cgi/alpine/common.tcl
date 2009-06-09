@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: common.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: common.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -208,42 +208,51 @@ WPEval $ops_vars {
 	cgi_hr "width=75%"
 
 	cgi_division "style=\"padding: 0 0 6px $padleft\"" {
-	  cgi_puts [cgi_span "style=font-weight: bold" "Folders"]
-	  cgi_division "style=\"padding-left: 4px\"" {
-	    # UBIQUITOUS INBOX LINK
-	    if {[string compare inbox [string tolower [WPCmd PEMailbox mailboxname]]]} {
-	      cgi_put [cgi_url INBOX open.tcl?folder=INBOX&colid=0&cid=[WPCmd PEInfo key] target=_top class=navbar]
-	    } else {
-	      cgi_put [cgi_url INBOX fr_index.tcl target=spec class=navbar]
-	    }
 
-	    set n 0
-	    set fc [WPTFGetFolderCache]
-	    for {set i 0} {$i < [llength $fc]} {incr i} {
-	      set f [lindex $fc $i]
+	  if {[catch {WPSessionState left_column_folders} fln]} {
+	    set fln $_wp(fldr_cache_def)
+	  }
 
-	      if {0 == [catch {WPCmd PEFolder exists [lindex $f 0] [lindex $f 1]} result] && $result} {
-		cgi_br
+	  if {$fln > 0} {
+	    cgi_puts [cgi_span "style=font-weight: bold" "Folders"]
+	    cgi_division "style=\"padding-left: 4px\"" {
+	      # UBIQUITOUS INBOX LINK
+	      if {[string compare inbox [string tolower [WPCmd PEMailbox mailboxname]]]} {
+		cgi_put [cgi_url INBOX open.tcl?folder=INBOX&colid=0&cid=[WPCmd PEInfo key] target=_top class=navbar]
+	      } else {
+		cgi_put [cgi_url INBOX fr_index.tcl target=spec class=navbar]
+	      }
 
-		set fn [lindex $f 1]
-		if {[string length $fn] > 15} {
-		  set fn "...[string range $fn end-15 end]"
-		}
+	      set n 0
+	      set fc [WPTFGetFolderCache]
+	      for {set i 0} {$i < [llength $fc] && $i < $fln} {incr i} {
+		set f [lindex $fc $i]
 
-		if {[string compare [lindex $f 1] [WPCmd PEMailbox mailboxname]]} {
-		  cgi_put [cgi_url $fn "open.tcl?folder=[lindex $f 1]&colid=[lindex $f 0]&cid=[WPCmd PEInfo key]" target=_top class=navbar]
-		} else {
-		  cgi_put [cgi_url $fn fr_index.tcl target=spec class=navbar]
-		}
+		if {0 == [catch {WPCmd PEFolder exists [lindex $f 0] [lindex $f 1]} result] && $result} {
+		  cgi_br
 
-		if {[incr n] >= $_wp(fldr_cache_max)} {
-		  break
+		  set fn [lindex $f 1]
+		  if {[string length $fn] > 15} {
+		    set fn "...[string range $fn end-15 end]"
+		  }
+
+		  if {[string compare [lindex $f 1] [WPCmd PEMailbox mailboxname]]} {
+		    cgi_put [cgi_url $fn "open.tcl?folder=[lindex $f 1]&colid=[lindex $f 0]&cid=[WPCmd PEInfo key]" target=_top class=navbar]
+		  } else {
+		    cgi_put [cgi_url $fn fr_index.tcl target=spec class=navbar]
+		  }
+
+		  if {[incr n] >= $fln} {
+		    break
+		  }
 		}
 	      }
-	    }
 
-	    cgi_br
-	    cgi_puts [cgi_url "More Folders..." "wp.tcl?page=folders&cid=[WPCmd PEInfo key]" target=_top class=navbar]
+	      cgi_br
+	      cgi_puts [cgi_url "More Folders..." "wp.tcl?page=folders&cid=[WPCmd PEInfo key]" target=_top class=navbar]
+	    }
+	  } else {
+	    cgi_puts [cgi_url "Folder List" "wp.tcl?page=folders&cid=[WPCmd PEInfo key]" target=_top class=navbar]
 	  }
 	}
 

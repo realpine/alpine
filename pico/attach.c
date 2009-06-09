@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: attach.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: attach.c 734 2007-10-01 18:36:45Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -652,11 +652,12 @@ ParseAttach(struct hdr_line **lp,		/* current header line      */
          lbln  = 0,				/* label'd attachment	    */
 	 hibit = 0,
 	 quoted = 0,
+	 add_quotes = 0,
 	 escaped = 0;
     off_t attsz;				/* attachment length        */
     EML  eml;
     UCS  c, c_lookahead;
-    UCS  tmp[1024], *p, *u;
+    UCS  tmp[1024], *p, *u, quotechar[2];
     char ctmp[1024];
     char *utf8 = NULL;
     char *lblsz = NULL,				/* label'd attchmnt's size  */
@@ -676,6 +677,8 @@ ParseAttach(struct hdr_line **lp,		/* current header line      */
     *fn = *sz = *cmnt = '\0';			/* initialize return strings */
     p   = tmp;
     orig_offset = bod = *off;
+    quotechar[0] = '\"';
+    quotechar[1] = '\0';
 
     level = LWS;				/* start at beginning */
     while(*lp != NULL){
@@ -852,7 +855,7 @@ process_tag:					/* enclosed in []         */
 	       || (lbln && c == ']')
 	       || (quoted && p != tmp && c == '\"')
 	       || (!(lbln || quoted)
-		   && (c <= 0xff && (isspace((unsigned char) c) || strchr(",(\"", c))))){
+		   && (c <= 0xff && ((isspace((unsigned char) c) && c_lookahead == (UCS) '(') || strchr(",(\"", c))))){
 		if(p == tmp){
 		    if(c == '\"')
 		      quoted++;
@@ -905,14 +908,36 @@ process_tag:					/* enclosed in []         */
 			    if(*off >=  p - tmp){	/* room for it? */
 				u = utf8_to_ucs4_cpystr(fn);
 				if(u){
+				    /*
+				     * This whole parsing of the attachment line
+				     * thing is ad hoc and susceptible to problems,
+				     * and this particular part is no exception.
+				     * Quote the filename if it contains spaces.
+				     */
+				    if(add_quotes){
+					sinserts((*lp == NULL) ? &lprev->text[*off - (p-tmp)]
+							       : &(*lp)->text[*off - (p-tmp)],
+						 0, quotechar, 1);
+					(*off)++;
+				    }
+
 				    sinserts((*lp == NULL) ? &lprev->text[*off - (p-tmp)]
 							   : &(*lp)->text[*off - (p-tmp)],
 						 p-tmp, u, j=ucs4_strlen(u));
 
+				    *off += j - (p - tmp);	/* advance offset */
+
+				    if(add_quotes){
+					sinserts((*lp == NULL) ? &lprev->text[*off]
+							       : &(*lp)->text[*off],
+						 0, quotechar, 1);
+					(*off)++;
+					add_quotes = 0;
+				    }
+
 				    fs_give((void **) &u);
 				}
 
-				*off += j - (p - tmp);	/* advance offset */
 				rv = 1;
 			    }
 			    else{
@@ -974,6 +999,18 @@ process_tag:					/* enclosed in []         */
 			}
 		    }
 
+		    if(add_quotes){
+			sinserts((*lp == NULL) ? &lprev->text[*off - (p-tmp)]
+					       : &(*lp)->text[*off - (p-tmp)],
+				 0, quotechar, 1);
+			(*off)++;
+			sinserts((*lp == NULL) ? &lprev->text[*off]
+					       : &(*lp)->text[*off],
+				 0, quotechar, 1);
+			(*off)++;
+			add_quotes = 0;
+		    }
+
 		    p = tmp;			/* reset p in tmp */
 		    level = WST;
 		}
@@ -1002,13 +1039,17 @@ process_tag:					/* enclosed in []         */
 		}
 	    }
 	    else if(!(lbln || quoted)
-		    && (c == ',' || c == ' ' || c == '[' || c == ']')){
+		    && (c == ',' || /** c == ' ' || **/ c == '[' || c == ']')){
 	        eml.s =   c == ',' ? ","
 			    : c == ' ' ? "space"
 			      : c == '[' ? "[" : "]";
 		emlwrite(_("\007Attchmnt: '%s' not allowed in file name"), &eml);
 		rv = -1;			/* bad char in file name */
 		level = TG;			/* gobble garbage */
+	    }
+	    else if(!(lbln || quoted) && (c <= 0xff && isspace((unsigned char) c))){
+		add_quotes++;
+		*p++ = c;			/* add char to name */
 	    }
 	    else
 	      *p++ = c;				/* add char to name */

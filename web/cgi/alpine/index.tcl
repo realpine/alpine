@@ -1,4 +1,4 @@
-# $Id: index.tcl 395 2007-01-25 22:23:41Z mikes@u.washington.edu $
+# $Id: index.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -1130,15 +1130,16 @@ if {![info exists nopage]} {
       }
 
       WPStyleSheets
-      cgi_put  "<style type='text/css'>"
-      cgi_put  ".marked { font-weight: bold ; color: black }"
-      cgi_put  ".marked0 { font-size: 7pt; font-family: arial, sans-serif ; font-weight: bold ; color: black ; background-color: gold ; padding: 1 ; border: 1px solid black }"
-      cgi_put  ".aggop     { font-family: arial, sans-serif ; font-size: 7pt }"
-      cgi_put  "A.aggop { color: white ; font-size: 7pt }"
-      cgi_put  ".navbutton { font-family: arial, sans-serif ; font-size: 7pt; overflow: visible; width: auto; padding: 0 2px; margin-right: 2px }"
-      cgi_put  ".itable { font-family: geneva, arial, sans-serif }"
-      cgi_put  ".icell { white-space: nowrap; padding-right: 8px }"
-      cgi_put  ".icell0 { white-space: nowrap }"
+      cgi_puts  "<style type='text/css'>"
+      cgi_puts  ".marked { font-weight: bold ; color: black }"
+      cgi_puts  ".marked0 { font-size: 7pt; font-family: arial, sans-serif ; font-weight: bold ; color: black ; background-color: gold ; padding: 1 ; border: 1px solid black }"
+      cgi_puts  ".aggop     { font-family: arial, sans-serif ; font-size: 7pt }"
+      cgi_puts  "A.aggop { color: white ; font-size: 7pt }"
+      cgi_puts  ".navbutton { font-family: arial, sans-serif ; font-size: 7pt; overflow: visible; width: auto; padding: 0 2px; margin-right: 2px }"
+      cgi_puts  ".itable { font-family: geneva, arial, sans-serif }"
+      cgi_puts  ".gradient { background-image: url('[WPimg indexhdr]') ; background-repeat: repeat-x }"
+      cgi_puts  ".icell { white-space: nowrap; padding-right: 8px }"
+      cgi_puts  ".icell0 { white-space: nowrap }"
       cgi_puts "</style>"
 
       cgi_script  type="text/javascript" language="JavaScript" {
@@ -1177,6 +1178,12 @@ if {![info exists nopage]} {
 	cgi_put  " elobj.src = (ckd) ? '[WPimg markall3]' : '[WPimg marknone3]';"
 	cgi_put  " return false;"
 	cgi_puts "}"
+
+	cgi_put "function fc(eid){"
+	cgi_put " var cb = document.getElementById(eid);"
+	cgi_put " cb.checked = !cb.checked;"
+	cgi_put " return false;"
+	cgi_put "}"
       }
 
       if {$_wp(keybindings)} {
@@ -1206,17 +1213,15 @@ if {![info exists nopage]} {
 
     cgi_body bgcolor=$_wp(bordercolor) background=[file join $_wp(imagepath) logo $_wp(logodir) back.gif] "style=\"background-repeat: repeat-x\"" $onload $onunload {
 
-      catch {WPCmd PEInfo set help_context index}
+      catch {WPCmd set help_context index}
 
       # check for status msg updates
-      if {[catch {WPCmd PEInfo statmsgs} statmsgs] == 0} {
-	foreach s $statmsgs {
-	  lappend newmail [list $s]
-	}
+      foreach s [WPStatusMsgs] {
+	lappend newmail [list $s]
       }
 
       if {[llength $newmail]} {
-	WPTFStatusTable $newmail 1 "style=\"padding: 6px 0\""
+	WPTFStatusTable $newmail 1 "style=\"padding: 6px 0; color: white\""
 
 	if {!$reload} {
 	  WPCmd PEMailbox newmailreset
@@ -1417,9 +1422,9 @@ if {![info exists nopage]} {
 		cgi_table_data align=center valign=middle nowrap class=aggop width=30% {
 		  cgi_puts "<fieldset>"
 		  cgi_puts "<legend style=color:white>Message Status</legend>"
-		  cgi_submit_button setflag=Set class=aggop style=vertical-align:middle
+		  cgi_submit_button setflag=Set class=aggop "style=\"vertical-align:middle\""
 		  cgi_put "[cgi_nbspace]status to "
-		  cgi_select flags class=aggop style=vertical-align:middle {
+		  cgi_select flags class=aggop "style=\"vertical-align:middle\"" {
 		    #cgi_option Deleted value=delete
 		    #cgi_option Undeleted value=undeleted
 		    cgi_option New value=new selected
@@ -1438,21 +1443,21 @@ if {![info exists nopage]} {
 		  cgi_puts "<legend style=color:white>Save Messages</legend>"
 		  # * * * * Save * * * *
 
-		  cgi_submit_button "save=Save" class=aggop style=vertical-align:middle
+		  cgi_submit_button "save=Save" class=aggop "style=\"vertical-align:middle\""
 		  cgi_put "[cgi_nbspace]to "
 
 		  set savedef [WPTFSaveDefault $uid]
 
 		  cgi_text f_colid=[lindex $savedef 0] type=hidden notab
 
-		  cgi_select f_name class=aggop style=vertical-align:middle "onchange=document.index.save.click(); return false;" {
+		  cgi_select f_name class=aggop "style=\"vertical-align:middle\"" "onchange=document.index.save.click(); return false;" {
 		    foreach {oname oval} [WPTFGetSaveCache [lindex $savedef 1]] {
 		      cgi_option $oname value=$oval
 		    }
 		  }
 
 		  #cgi_put "[cgi_nbspace]"
-		  #cgi_submit_button "save=OK" class=aggop "style=vertical-align:middle;margin-right:2"
+		  #cgi_submit_button "save=OK" class=aggop "style=\"vertical-align:middle;margin-right:2\""
 		  cgi_puts "</fieldset>"
 		}
 	      }
@@ -1546,7 +1551,7 @@ if {![info exists nopage]} {
 	    set linenum 1
 
 	    # paint the index line column headers
-	    cgi_table_row {
+	    cgi_table_row class=\"gradient\" {
 	      if {($aggtabstate & $sortbar) == 0} {
 		if {!([info exists headertab] && [string length $headertab])} {
 		  cgi_table_data class=indexhdr align=left width=48px background=[WPimg baropen_mid] {
@@ -1667,6 +1672,23 @@ if {![info exists nopage]} {
 	      }
 	    }
 
+	    # get ready to map thread images
+	    if {[string compare [string tolower [lindex $currentsort 0]] thread] == 0} {
+	      set barblank [WPThreadImageLink barblank $indexheight]
+	      set barvert [WPThreadImageLink barvert $indexheight]
+	      if {[lindex $currentsort 1]} {
+		set barmsg [WPThreadImageLink ibarmsg $indexheight]
+	      } else {
+		set barmsg [WPThreadImageLink barmsg $indexheight]
+	      }
+
+	      if {[lindex $currentsort 1]} {
+		set barvertmsg [WPThreadImageLink ibarvertmsg $indexheight]
+	      } else {
+		set barvertmsg [WPThreadImageLink barvertmsg $indexheight]
+	      }
+	    }
+
 	    foreach v $miv {
 	      set n [lindex $v 0]
 	      set u [lindex $v 1]
@@ -1701,7 +1723,7 @@ if {![info exists nopage]} {
 			set checked ""
 		      }
 
-		      cgi_checkbox "uidList=$u" $checked class=$class "style=\"$style; margin-left: 16\""
+		      cgi_checkbox "uidList=$u" $checked class=$class id=cb$u "style=\"$style; margin-left: 16\""
 		    }
 		  } else {
 		    cgi_td height=$indexheight width=2% [cgi_nbspace]
@@ -1713,24 +1735,30 @@ if {![info exists nopage]} {
 		  foreach part $msg fmt $iformat {width class} $layout {
 
 		    set align ""
+		    set onclick ""
 
 		    switch -exact -- [lindex $fmt 0] {
 		      Subject {
 			set parttext ""
+			set leading ""
 			foreach p $part {
 			  switch -- [lindex $p 2] {
+			    threadinfo {
+			      append leading [lindex $p 0]
+			      regsub -all {[ ][ ]} $leading $barblank leading
+			      regsub -all {[|][-]} $leading $barvertmsg leading
+			      regsub -all {[\\][-]} $leading $barmsg leading
+			      regsub -all {[|]} $leading $barvert leading
+			    }
 			    xthreadinfo {
+			      set t [lindex $p 0]
+			      append leading "$t"
 			      for {set i 0} {$i < [string length $t]} {incr i} {
 				switch -- [string index $t $i] {
 				  " " {
 				    append leading [WPThreadImageLink barblank $indexheight]
 				  }
 				  ">" {
-				    if {[lindex $currentsort 1]} {
-				      append leading [WPThreadImageLink ibarvertmsg $indexheight]
-				    } else {
-				      append leading [WPThreadImageLink barvertmsg $indexheight]
-				    }
 				  }
 				  "-" {
 				    if {[lindex $currentsort 1]} {
@@ -1762,8 +1790,8 @@ if {![info exists nopage]} {
 			}
 
 			set text [cgi_buffer {
-			  cgi_division "style=\"height: $indexheight; overflow: hidden\"" {
-			    cgi_put $text
+			  cgi_division "style=\"height: $indexheight; overflow: hidden;\"" {
+			    cgi_put "$leading$text"
 			  }
 			}]
 		      }
@@ -1794,14 +1822,15 @@ if {![info exists nopage]} {
 			if {$flagcmd} {
 			  set text [cgi_url $text fr_flags.tcl?uid=$u target=body]
 			}
-
 		      }
 		      Size {
 			set text [index_part_color [index_quote [lindex [lindex $part 0] 0]] [lindex $part 1]]
 			set class isize
+			set onclick "onclick=\"fc('cb$u')\""
 		      }
 		      Number {
 			set text [index_part_color [index_quote [WPcomma [string trim [lindex [lindex $part 0] 0]]]] [lindex $part 1]]
+			set onclick "onclick=\"fc('cb$u')\""
 		      }
 		      From -
 		      To {
@@ -1811,13 +1840,15 @@ if {![info exists nopage]} {
 			}
 
 			set text [cgi_buffer {
-			  cgi_division "style=\"height: $indexheight; overflow: hidden\"" {
+			  cgi_division "style=\"height: $indexheight; overflow: hidden;\"" {
 			    cgi_put [index_part_color $t [lindex $part 1]]
 			  }
 			}]
+			set onclick "onclick=\"fc('cb$u')\""
 		      }
 		      default {
 			set text [index_part_color [index_quote [lindex [lindex $part 0] 0]] [lindex $part 1]]
+			set onclick "onclick=\"fc('cb$u')\""
 		      }
 		    }
 
@@ -1825,12 +1856,7 @@ if {![info exists nopage]} {
 		      set text doh
 		    }
 
-		    if {[info exists leading]} {
-		      set text "${leading}$text"
-		      unset leading
-		    }
-
-		    cgi_td $align class="$class" "$text"
+		    cgi_td nowrap $align class="$class" $onclick "$text"
 		  }
 
 		  if {[info exists use_plus_minus_to_grow_shrink]} {
@@ -1859,11 +1885,11 @@ if {![info exists nopage]} {
 	    cgi_table_row {
 	      cgi_table_data align=center valign=middle colspan=$colspan class=indexhdr {
 		cgi_put "[WPcomma $ppg] messages are in the list above.  Press either "
-		cgi_submit_button growpage=$growverb class=indexhdr style=\"vertical-align:middle\"
+		cgi_submit_button growpage=$growverb class=indexhdr "style=\"vertical-align:middle\""
 		cgi_put " or "
-		cgi_submit_button shrinkpage=$shrinkverb class=indexhdr style=\"vertical-align:middle\"
+		cgi_submit_button shrinkpage=$shrinkverb class=indexhdr "style=\"vertical-align:middle\""
 		cgi_put " to change this by "
-		cgi_select grownum class=indexhdr "style=vertical-align:middle" {
+		cgi_select grownum class=indexhdr "style=\"vertical-align:middle\"" {
 		  set growsizes {1 5 10 25 50}
 
 		  if {[catch {WPCmd PEInfo set grownum} lastsize]} {

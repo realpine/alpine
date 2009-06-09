@@ -23,7 +23,7 @@
  *		Internet: MRC@CAC.Washington.EDU
  *
  * Date:	22 November 1989
- * Last Edited:	30 August 2007
+ * Last Edited:	8 October 2007
  */
 
 /* The Version */
@@ -948,6 +948,8 @@ SEARCHPGM {			/* search program */
   STRINGLIST *to;		/* to recipients */
   unsigned long larger;		/* larger than this size */
   unsigned long smaller;	/* smaller than this size */
+  unsigned long older;		/* older than this interval */
+  unsigned long younger;	/* younger than this interval */
   unsigned short sentbefore;	/* sent before this date */
   unsigned short senton;	/* sent on this date */
   unsigned short sentsince;	/* sent since this date */
@@ -1615,6 +1617,7 @@ long mail_unsubscribe (MAILSTREAM *stream,char *mailbox);
 long mail_create (MAILSTREAM *stream,char *mailbox);
 long mail_delete (MAILSTREAM *stream,char *mailbox);
 long mail_rename (MAILSTREAM *stream,char *old,char *newname);
+char *mail_utf7_valid (char *mailbox);
 long mail_status (MAILSTREAM *stream,char *mbx,long flags);
 long mail_status_default (MAILSTREAM *stream,char *mbx,long flags);
 MAILSTREAM *mail_open (MAILSTREAM *stream,char *name,long options);

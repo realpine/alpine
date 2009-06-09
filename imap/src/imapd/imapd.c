@@ -23,7 +23,7 @@
  *		Internet: MRC@CAC.Washington.EDU
  *
  * Date:	5 November 1990
- * Last Edited:	31 August 2007
+ * Last Edited:	2 November 2007
  */
 
 /* Parameter files */
@@ -205,7 +205,7 @@ char *lasterror (void);
 
 /* Global storage */
 
-char *version = "394";		/* edit number of this server */
+char *version = "398";		/* edit number of this server */
 char *logout = "Logout";	/* syslogreason for logout */
 char *goodbye = NIL;		/* bye reason */
 time_t alerttime = 0;		/* time of last alert */
@@ -292,7 +292,10 @@ int main (int argc,char *argv[])
   logouthook_t lgoh;
   int ret = 0;
   time_t autologouttime = 0;
-  char *pgmname = (argc && argv[0]) ?
+  char *pgmname;
+				/* if case we get borked immediately */
+  if (setjmp (jmpenv)) _exit (1);
+  pgmname = (argc && argv[0]) ?
     (((s = strrchr (argv[0],'/')) || (s = strrchr (argv[0],'\\'))) ?
      (char *) s+1 : argv[0]) : "imapd";
 				/* set service name before linkage */
@@ -375,6 +378,8 @@ int main (int argc,char *argv[])
   }
 
   if (setjmp (jmpenv)) {	/* die if a signal handler say so */
+				/* in case we get borked now */
+    if (setjmp (jmpenv)) _exit (1);
 				/* need to close stream gracefully? */
     if (stream && !stream->lock && (stream->dtb->flags & DR_XPOINT))
       stream = mail_close (stream);
@@ -2247,6 +2252,8 @@ long parse_criterion (SEARCHPGM *pgm,unsigned char **arg,unsigned long maxmsg,
 	  *tail == ' ' && *++tail &&
 	    parse_criterion ((*or)->second,&tail,maxmsg,depth+1);
       }
+      else if (!strcmp (s+1,"LDER") && c == ' ' && *++tail)
+	ret = crit_number (&pgm->older,&tail);
       break;
     case 'R':			/* possible RECENT */
       if (!strcmp (s+1,"ECENT")) ret = pgm->recent = T;
@@ -2290,6 +2297,10 @@ long parse_criterion (SEARCHPGM *pgm,unsigned char **arg,unsigned long maxmsg,
       else if (!strcmp (s+1,"NKEYWORD") && c == ' ' && *++tail)
 	ret = crit_string (&pgm->unkeyword,&tail);
       else if (!strcmp (s+1,"NSEEN")) ret = pgm->unseen = T;
+      break;
+    case 'Y':			/* possible YOUNGER */
+      if (!strcmp (s+1,"OUNGER") && c == ' ' && *++tail)
+	ret = crit_number (&pgm->younger,&tail);
       break;
     default:			/* oh dear */
       break;
@@ -3683,7 +3694,7 @@ void pcapability (long flag)
   PSOUT (" X-NETSCAPE");
 #endif
   if (flag >= 0) {		/* want post-authentication capabilities? */
-    PSOUT (" IDLE UIDPLUS NAMESPACE CHILDREN MAILBOX-REFERRALS BINARY UNSELECT ESEARCH SCAN SORT");
+    PSOUT (" IDLE UIDPLUS NAMESPACE CHILDREN MAILBOX-REFERRALS BINARY UNSELECT ESEARCH WITHIN SCAN SORT");
     while (thr) {		/* threaders */
       PSOUT (" THREAD=");
       PSOUT (thr->name);
@@ -4460,6 +4471,7 @@ void mm_fatal (char *string)
     PSOUT ("* BYE [ALERT] IMAP4rev1 server crashing: ");
     PSOUTR (&msg);
     CRLF;
+    PFLUSH ();
   }
   syslog (LOG_ALERT,"Fatal error user=%.80s host=%.80s mbx=%.80s: %.80s",
 	  user ? (char *) user : "???",tcp_clienthost (),

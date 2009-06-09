@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: stream.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: stream.c 735 2007-10-01 20:46:19Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -933,11 +933,25 @@ pine_mail_append_full(MAILSTREAM *stream, char *mailbox, char *flags, char *date
     long        return_val;
     long openflags = (OP_HALFOPEN | OP_SILENT | SP_USEPOOL | SP_TEMPUSE);
     char        source[MAILTMPLEN], *target = NULL;
+    char        mailbox_nodelim[MAILTMPLEN];
+    int         delim;
     DRIVER     *d;
 
     dprint((7, "pine_mail_append_full: appending to \"%s\"%s\n", 
 	       mailbox ? mailbox : "(NULL)",
 	       stream ? "" : " (stream was NULL)"));
+
+    /* strip delimiter, it has no meaning in an APPEND and could cause trouble */
+    if(mailbox && (delim = get_folder_delimiter(mailbox)) != '\0'){
+	size_t len;
+
+	len = strlen(mailbox);
+	if(mailbox[len-1] == delim){
+	    strncpy(mailbox_nodelim, mailbox, MIN(len-1,sizeof(mailbox_nodelim)-1));
+	    mailbox_nodelim[MIN(len-1,sizeof(mailbox_nodelim)-1)] = '\0';
+	    mailbox = mailbox_nodelim;
+	}
+    }
 
     if(check_for_move_mbox(mailbox, source, sizeof(source), &target)){
 	mailbox = target;
@@ -1079,11 +1093,25 @@ pine_mail_copy_full(MAILSTREAM *stream, char *sequence, char *mailbox, long int 
     long        return_val;
     long openflags = (OP_HALFOPEN | OP_SILENT | SP_USEPOOL | SP_TEMPUSE);
     char        source[MAILTMPLEN], *target = NULL;
+    char        mailbox_nodelim[MAILTMPLEN];
+    int         delim;
     DRIVER     *d;
 
     dprint((7, "pine_mail_copy_full: copying to \"%s\"%s\n", 
 	       mailbox ? mailbox : "(NULL)",
 	       stream ? "" : " (stream was NULL)"));
+
+    /* strip delimiter, it has no meaning in a COPY and could cause trouble */
+    if(mailbox && (delim = get_folder_delimiter(mailbox)) != '\0'){
+	size_t len;
+
+	len = strlen(mailbox);
+	if(mailbox[len-1] == delim){
+	    strncpy(mailbox_nodelim, mailbox, MIN(len-1,sizeof(mailbox_nodelim)-1));
+	    mailbox_nodelim[MIN(len-1,sizeof(mailbox_nodelim)-1)] = '\0';
+	    mailbox = mailbox_nodelim;
+	}
+    }
 
     if(check_for_move_mbox(mailbox, source, sizeof(source), &target)){
 	mailbox = target;

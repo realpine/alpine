@@ -14,7 +14,7 @@ dnl  */
 
 AC_PREREQ([2.57])
 
-AC_REVISION([$Id: configure.ac 680 2007-08-21 22:13:29Z mikes@u.washington.edu $])
+AC_REVISION([$Id: configure.ac 800 2007-11-08 20:07:59Z mikes@u.washington.edu $])
 
 dnl Alpine Version Number is in $srcdir/VERSION
 AC_INIT(alpine, m4_normalize(m4_include([VERSION])), [alpine-contact@cac.washington.edu])
@@ -23,6 +23,8 @@ AC_CONFIG_SRCDIR([include/system.h])
 AC_CONFIG_HEADERS([include/config.h])
 
 AM_INIT_AUTOMAKE([foreign nostdinc])
+
+AM_MAINTAINER_MODE
 
 AC_CANONICAL_HOST
 
@@ -52,6 +54,7 @@ AC_PATH_PROG(MAKE, make)
 
 dnl COMPILE-TIME OPTIONS
 
+AM_GNU_GETTEXT_VERSION([0.16.1])
 AM_GNU_GETTEXT([external])
 
 dnl enable dmalloc per http://dmalloc.com
@@ -93,6 +96,35 @@ AC_ARG_WITH(localedir,
     esac
   ])
 AC_SUBST(localedir, "[$localedir]")
+
+# Setup OS-Specific features
+case "$host" in
+  *darwin*)
+    dnl OS X Universal Binary Support
+    AC_ARG_ENABLE(osx-universal-binaries,
+      AC_HELP_STRING([--enable-osx-universal-binaries],[Produce universal binaries under OS X [[default=no]]]))
+    if test "x$enable_osx_universal_binaries" = "xyes" ; then
+      if test "x$enable_dependency_tracking" != xno ; then
+	AC_MSG_ERROR([--enable-osx-universal-binary requires --disable-dependency-tracking.
+Please re-run configure with these options:
+    --disable-dependency-tracking --enable-osx-universal-binary])
+      fi
+      if [test -d /Developer/SDKs/MacOSX10.5.sdk] ; then
+        alpine_sysroot=/Developer/SDKs/MacOSX10.5.sdk
+      elif [test -d /Developer/SDKs/MacOSX10.4u.sdk] ; then
+        alpine_sysroot=/Developer/SDKs/MacOSX10.4u.sdk
+      else
+	AC_MSG_ERROR([No suitable MacOSX SDK found.  Make sure Xcode tools are installed])
+      fi
+      ub_cflags="-isysroot $alpine_sysroot -arch ppc -arch i386"
+      ub_ldflags="-Wl,-syslibroot,$alpine_sysroot -arch ppc -arch i386"
+      AM_CFLAGS="$AM_CFLAGS $ub_cflags"
+      AM_LDFLAGS="$AM_LDFLAGS $ub_ldflags"
+      alpine_c_client_cflags="$alpine_c_client_cflags $ub_cflags"
+      alpine_c_client_ldflags="$alpine_c_client_ldflags $ub_ldflags"
+    fi
+    ;;
+esac
 
 AC_ARG_WITH(include-path,
   AC_HELP_STRING([--with-include-path=PATHS], [Colon-separated list of directories used for include file search]),
@@ -557,6 +589,10 @@ else
       elif test -f /etc/SuSE-release ; then
         alpine_SSLTYPE="nopwd"
         alpine_SSLDIR="/usr/share/ssl"
+      elif test -d /etc/osso-af-init ; then
+        alpine_SSLTYPE="nopwd"
+        alpine_SSLDIR="/usr"
+        alpine_SSLCERTS="/usr/share/certs"
       else
         alpine_SSLTYPE="nopwd"
         alpine_SSLDIR="/usr"
@@ -565,7 +601,7 @@ else
       ;;
     *-apple-darwin*)
       alpine_SSLTYPE="nopwd"
-      alpine_SSLDIR="/System/Library/OpenSSL"
+      alpine_SSLCERTS="/System/Library/OpenSSL/certs"
       ;;
     *-openbsd*)
       alpine_SSLTYPE="nopwd"
@@ -697,7 +733,7 @@ else
     ])
 
   AC_ARG_WITH(ldap-include-dir,
-    AC_HELP_STRING([--with-ldap-include-dir=DIR], [LDAP include file path]),
+    AC_HELP_STRING([--with-ldap-include-dir=DIR], [Directory containing LDAP include files]),
     [
       if test "x$withval" != "xno" ; then
 	CPPFLAGS="$CPPFLAGS -I$withval"
@@ -723,13 +759,25 @@ if test "x$with_tcl" = "xno" ; then
   AC_MSG_NOTICE([Excluding TCL Support, and thus Web Alpine Support])
 else
   AC_ARG_WITH(tcl-lib,
-    AC_HELP_STRING([--with-tcl-lib=LIBRARY], [Specific TCL Library]),
+    AC_HELP_STRING([--with-tcl-lib=LIBRARY], [Specific TCL Library, like \"tcl8.4\"]),
     [
       if test "x$withval" != "xno" ; then 
 	alpine_TCLLIB=$withval
       fi
     ])
+  AC_ARG_WITH(tcl-include,
+    AC_HELP_STRING([--with-tcl-include=DIR], [Directory containing TCL include files]),
+    [
+      if test "x$withval" != "xno" ; then
+        CPPFLAGS="$CPPFLAGS -I$withval"
+	alpine_TCLINC=$withval
+      fi
+    ])
 fi
+
+AC_ARG_WITH(supplied-regex,
+  AC_HELP_STRING([--with-supplied-regex],[Use regex library supplied with alpine]),
+  [ alpine_REGEX=$withval ])
 
 AC_ARG_WITH(pthread,
   AC_HELP_STRING([--without-pthread],[Do NOT test for nor build with POSIX thread support]),
@@ -823,7 +871,11 @@ esac
 dnl provide LDAP support?
 if test "$alpine_with_ldap" = "yes" ; then
   alpine_has_ldap=
-  AC_SEARCH_LIBS(ldap_init,ldap_init,
+  AC_CHECK_LIB(lber, ber_alloc,
+    [
+      LIBS="$LIBS -llber"
+    ])
+  AC_SEARCH_LIBS(ldap_init,ldap,
     [
       alpine_has_ldap=yes
     ],
@@ -831,9 +883,8 @@ if test "$alpine_with_ldap" = "yes" ; then
       AC_SEARCH_LIBS(ldap_open,ldap,
 	[
 	  alpine_has_ldap=yes
-	],, [-llber])
-    ],
-    [-llber])
+	])
+    ])
 
   if test "$alpine_has_ldap" = "yes" ; then
     AC_MSG_NOTICE([Including LDAP Support])
@@ -905,11 +956,66 @@ if test "x$alpine_GSSTYPE" != "xnone" ; then
   esac
 fi
 
-dnl check for tcl libraries for Web Alpine
-AC_SEARCH_LIBS([Tcl_Eval],[$alpine_TCLLIB tcl],,
-  [
-    WEB_BUILD=
-  ])
+dnl check for tcl libraries for Web Alpine (HACKY)
+if test -n "$WEB_BUILD" ; then
+  AC_SEARCH_LIBS([Tcl_Eval],[$alpine_TCLLIB tcl8.4 tcl8.3 tcl84 tcl83 tcl],,
+    [
+      WEB_BUILD=
+    ])
+
+  dnl look for header file
+  if test -n "$alpine_TCLINC" ; then
+    AC_CHECK_HEADER($alpine_TCLINC,,
+      [
+	WEB_BUILD=
+      ])
+    if test -z "$WEB_BUILD" ; then
+      AC_MSG_NOTICE([Tcl Include file NOT found])
+    fi
+  else
+    AC_CHECK_HEADER(tcl.h,,
+      [
+	for dir in tcl8.4 tcl8.3 tcl84 tcl83 ; do
+	  AC_CHECK_FILE([/usr/include/$dir/tcl.h],
+	    [
+	      found=yes
+	    ])
+	  if test "$found" = "yes" ; then
+	    CPPFLAGS="$CPPFLAGS -I/usr/include/$dir"
+	    break
+	  fi
+	done
+      ])
+  fi
+fi
+
+dnl Local or supplied regex?
+if test x$alpine_REGEX != "xyes" ; then
+  AC_SEARCH_LIBS([regcomp],posix regexp regex re,,
+    [
+      if test x$alpine_REGEX = "xno" ; then
+        AC_ERROR([Unable to find system regex library])
+      else
+	alpine_REGEX=yes
+      fi
+    ])
+fi
+if test x$alpine_REGEX != "xyes" ; then
+  AC_CHECK_HEADER([regex.h],,
+    [
+      if test x$alpine_REGEX = "xno" ; then
+	AC_ERROR([Unable to find system regex include file])
+      else
+	alpine_REGEX=yes
+      fi
+    ])
+fi
+AC_DEFINE(HAVE_REGEX_H,1,[Regular expression header file exists])
+if test x$alpine_REGEX = "xyes" ; then
+  CPPFLAGS="$CPPFLAGS -I\$(top_builddir)/regex"
+  AM_LDFLAGS="$AM_LDFLAGS -L\$(top_builddir)/regex -lregex"
+  REGEX_BUILD=regex
+fi
 
 if test "x$with_pthread" != "xno" ; then
   AC_MSG_CHECKING([for pthread support])
@@ -1154,8 +1260,13 @@ case "$host" in
       fi
       alpine_local_maildir="/var/spool/mail"
     elif test -f /etc/debian_release -o -f /etc/debian_version ; then
-      systype="DEB"
-      alpine_c_client_target="ldb"
+      if test -d /etc/osso-af-init ; then
+        systype="LN8"
+        alpine_c_client_target="ln8"
+      else
+        systype="DEB"
+        alpine_c_client_target="ldb"
+      fi
       alpine_local_maildir="/var/mail"
     elif test -f /etc/SuSE-release ; then
       systype="LSU"
@@ -1206,14 +1317,19 @@ case "$host" in
       ])
     ;;
   *-*-solaris*)
-    systype="SOC"
+    if test "x$CC" = "xgcc" ; then
+      systype="GSO"
+      alpine_c_client_target="gso"
+    else
+      systype="SOC"
+      alpine_c_client_target="soc"
+      AC_DEFINE([__EXTENSIONS__], [1], [Enable extended pthread features on Solaris])
+    fi
     alpine_path_delim="/"
     alpine_local_maildir="/usr/spool/mail"
     alpine_mode_readonly="(0600)"
-    alpine_c_client_target="soc"
     dnl possible other OS's need this.
     dnl Use autoconf 2.61's AC_USE_SYSTEM_EXTENSIONS at some point
-    AC_DEFINE([__EXTENSIONS__], [1], [Enable extended pthread features on Solaris])
     ;;
   *-*-sunos4*)
     systype="SUN"
@@ -1382,6 +1498,10 @@ if test -n "$alpine_c_client_cflags" ; then
   AC_SUBST(C_CLIENT_CFLAGS, EXTRACFLAGS=\"$alpine_c_client_cflags\")
 fi
 
+if test -n "$alpine_c_client_ldflags" ; then
+  AC_SUBST(C_CLIENT_LDFLAGS, EXTRALDFLAGS=\"$alpine_c_client_ldflags\")
+fi
+
 if test -n "$alpine_c_client_gccoptlevel" ; then
   AC_SUBST(C_CLIENT_GCCOPTLEVEL, GCCOPTLEVEL=\"$alpine_c_client_gccoptlevel\")
 fi
@@ -1406,15 +1526,16 @@ else
   fi
 fi
 
+AC_SUBST([REGEX_BUILD])
+
 AC_SUBST([WEB_BUILD])
 AC_SUBST([WEB_PUBCOOKIE_LIB])
 
 AC_SUBST([AM_CFLAGS])
 AC_SUBST([AM_LDFLAGS])
 
-AC_OUTPUT(m4/Makefile po/Makefile.in \
+AC_OUTPUT(m4/Makefile po/Makefile.in regex/Makefile \
 	  pith/osdep/Makefile pith/charconv/Makefile pith/Makefile \
-	  pith/cmplhelp.sh pith/cmplhlp2.sh \
 	  pico/osdep/Makefile pico/Makefile \
 	  alpine/osdep/Makefile alpine/Makefile \
 	  web/src/pubcookie/Makefile web/src/alpined.d/Makefile \

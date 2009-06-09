@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: main.c 672 2007-08-15 23:07:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: main.c 737 2007-10-03 19:40:34Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -117,15 +117,17 @@ N_("\t -o <dir>\tOperation - specify the operating directory"),
 N_("\t -z \t\tSuspend - allow use of ^Z suspension"),
 N_("\t -w \t\tNoWrap - turn off word wrap"),
 N_("\t -W <wordseps> \tSet word separators other than whitespace"),
+#ifndef	_WINDOWS
 N_("\t -dcs <display_character_set> \tdefault uses LANG or LC_CTYPE from environment"),
 N_("\t -kcs <keyboard_character_set> \tdefaults to display_character_set"),
 N_("\t -syscs\t\tuse system-supplied translation routines"),
-#if     defined(DOS) || defined(OS2)
+#endif	/* ! _WINDOWS */
+#ifdef	_WINDOWS
 N_("\t -cnf color \tforeground color"),
 N_("\t -cnb color \tbackground color"),
 N_("\t -crf color \treverse foreground color"),
 N_("\t -crb color \treverse background color"),
-#endif
+#endif	/* _WINDOWS */
 N_("\t +[line#] \tLine - start on line# line, default=1"),
 N_("\t -v \t\tView - view file"),
 N_("\t -no_setlocale_collate\tdo not do setlocale(LC_COLLATE)"),
@@ -210,8 +212,6 @@ main(int argc, char *argv[])
 	    fprintf(stderr, "%s\n", err);
 	    fs_give((void **) &err);
 	}
-#elif	_WINDOWS	
-	fprintf(stderr, "%s\n", _("Option -syscs ignored due to missing system functionality"));
 #endif
     }
 
@@ -504,11 +504,13 @@ Loop:
 	    *setlocale_collate = 0;
 	    goto Loop;
 	}
+#ifndef	_WINDOWS
 	else if(strcmp(*av, "syscs") == 0){
 	    use_system_translation = !use_system_translation;
 	    goto Loop;
 	}
-#if	defined(DOS) || defined(OS2)
+#endif	/* ! _WINDOWS */
+#ifdef	_WINDOWS
 	else if(strcmp(*av, "cnf") == 0
 	   || strcmp(*av, "cnb") == 0
 	   || strcmp(*av, "crf") == 0
@@ -539,6 +541,8 @@ Loop:
 
 	    goto Loop;
 	}
+#endif	/* _WINDOWS */
+#ifndef	_WINDOWS
 	else if(strcmp(*av, "dcs") == 0 || strcmp(*av, "kcs") == 0){
 	    char *cmd = *av;
 
@@ -568,7 +572,7 @@ Loop:
 
 	    goto Loop;
 	}
-#endif
+#endif	/* ! _WINDOWS */
 
 	/*
 	 * Single char options.

@@ -1,4 +1,4 @@
-# $Id: fldrbrowse.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: fldrbrowse.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -36,6 +36,8 @@ set folder_vars {
 # the name of this script
 set me [file tail [info script]]
 
+set indention 18
+
 proc pretty_folder_name {collections folder} {
   set fcolid [lindex $folder 0]
   for {set i 0} {$i < [llength $collections]} {incr i} {
@@ -54,73 +56,69 @@ set key [WPCmd PEInfo key]
 #
 # Display the given folder list in a table (w/ mihodge mods)
 #
-proc blat_folder_list {colid flist shown path baseurl scroll anchorcntref onselect} {
-  global key controls target
+proc blat_folder_list {colid flist shown path baseurl scroll anchorcntref onselect depth} {
+
+  global key border indention _wp target
+
+  set mbox [WPCmd PEMailbox mailboxname]
 
   upvar $anchorcntref anchorcnt
-  cgi_table width="100%" border=0 cellspacing=0 cellpadding=0 {
+
+  set rownum 0
+
+  foreach folder $flist {
+    set t [lindex $folder 0]
+    set f [lindex $folder 1]
+    set ff [linsert $path [llength $path] $f]
+    set index -1
+
+    # initial pad=12, expand/contract control is 9px wide
+    set cellpad [expr {12 + ($depth * $indention)}]
+
+    if {[string first F $t] >= 0} {
+      set delim [WPCmd PEFolder delimiter $colid]
+      set fullpath [join [lrange $ff 1 end] $delim]
+      regsub -all {(')} [lrange $ff 1 end] {\\\\\1} ef
+      set celldata [cgi_url $f wp.tcl?page=[join ${onselect} {&}]&f_colid=${colid}&f_name=[WPPercentQuote [join $ef $delim]]&target=${target}&cid=$key target=${target}]
+    } else {
+      set celldata $f
+    }
+
+    if {[string first D $t] >= 0} {
+
+      if {[set index [lsearch $shown $ff]] < 0} {
+	set control expand
+      } else {
+	set control contract
+      }
+
+      set celldata "[cgi_url [cgi_imglink $control] "${baseurl}${control}=[WPPercentQuote $ff]#f_[WPPercentQuote $ff]" name=f_[WPPercentQuote $ff] "style=\"padding-right:10px\""]$celldata"
+      incr cellpad -19
+    }
+
     cgi_table_row {
-      cgi_table_data width=12 {
+      cgi_table_data {
+	cgi_put [cgi_img [WPimg dot2] height=1]
+      }
+
+      cgi_table_data align=left "style=\"padding-left: ${cellpad}px\"" nowrap {
+	cgi_put $celldata
+      }
+
+      cgi_table_data valign=top nowrap {
 	cgi_puts [cgi_nbspace]
       }
     }
 
-    set delim [WPCmd PEFolder delimiter $colid]
-    set pl [llength $path]
-
-    foreach folder $flist {
-      set t [lindex $folder 0]
-      set f [lindex $folder 1]
-      set ff [linsert $path [llength $path] $f]
-      set index -1;
-
-      cgi_table_row {
-	cgi_table_data width=12 {
-	  cgi_puts [cgi_nbspace]
-	}
-
-	cgi_table_data width=18 valign=top {
-	  if {[string first $t D] >= 0} {
-	    if {[set index [lsearch $shown $ff]] < 0} {
-	      cgi_puts [cgi_url [cgi_imglink expand] "${baseurl}expand=[WPPercentQuote $ff]"]
-	    } else {
-	      cgi_puts [cgi_url [cgi_imglink contract] "${baseurl}contract=[WPPercentQuote $ff]"]
-	    }
-	  } else {
-	    cgi_puts [cgi_nbspace]
-	  }
-	}
-	
-	cgi_table_data {
-	    if {[string first $t D] >= 0} {
-	      cgi_puts "[cgi_anchor_name f_[WPPercentQuote $ff]]$f"
-	      if {$index >= 0} {
-		cgi_br
-		set nflist [eval WPCmd PEFolder list $ff]
-		blat_folder_list $colid $nflist $shown [lappend path $f] $baseurl $scroll anchorcnt $onselect
-	      }
-	    } else {
-	      cgi_put [cgi_nbspace]
-
-	      regsub -all {(')} [lrange $ff 1 end] {\\\\\1} ef
-	      if {[string length $target] == 0} {
-		set target "_top"
-	      }
-
-	      cgi_put [cgi_url $f wp.tcl?page=[join ${onselect} {&}]&f_colid=${colid}&f_name=[WPPercentQuote [join $ef $delim]]&target=${target}&cid=$key target=${target}]
-	    }
-
-	    incr anchorcnt
-	  }
-	}
-      }
-      
-      cgi_table_row {
-	cgi_table_data width=12 {
-	  cgi_puts [cgi_nbspace]
-	}
-      }
+    if {[string first D $t] >= 0 && $index >= 0} {
+      set nflist [eval WPCmd PEFolder list $ff]
+      set newpath $path
+      lappend newpath $f
+      blat_folder_list $colid $nflist $shown $newpath $baseurl $scroll anchorcnt $onselect [expr {$depth + 1}]
     }
+
+    catch {unset control}
+  }
 }
 
 #
@@ -321,7 +319,7 @@ cgi_html {
 			incr anchorcnt
 
 			if {[llength $flist]} {
-			  blat_folder_list $colid $flist $shown $colid $baseurl $scroll anchorcnt $onselect
+			  blat_folder_list $colid $flist $shown $colid $baseurl $scroll anchorcnt $onselect 1
 			}
 		      }
 		    }

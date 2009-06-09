@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: tconfig.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: tconfig.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -244,12 +244,15 @@ cgi_html {
 		switch -- $vtypeinp {
 		  var {
 		    cgi_table_row {
-		      set section [WPCmd PEConfig varget $varname]
-		      set varvals [lindex $section 0]
-		      set vartype [lindex $section 1]
-		      set vtvals [lindex $section 2]
-		      set v_is_default [lindex $section 3]
-		      set v_is_fixed [lindex $section 4]
+		      if {[catch {WPCmd PEConfig varget $varname}  section] == 0} {
+			set varvals [lindex $section 0]
+			set vartype [lindex $section 1]
+			set vtvals [lindex $section 2]
+			set v_is_default [lindex $section 3]
+			set v_is_fixed [lindex $section 4]
+		      } else {
+			error "UNKNOWN VAR: $varname"
+		      }
 
 		      cgi_table_data align=right valign=top nowrap width=50% {
 			if {[info exists varname]} {
@@ -414,6 +417,31 @@ cgi_html {
 			  }
 			}
 		      }
+		      left-column-folders {
+			cgi_table_row {
+			  cgi_table_data align=right valign=top nowrap {
+			    cgi_puts [cgi_font class=cfvn $vardesc]
+			  }
+			  cgi_table_data valign=top {
+			    cgi_puts [cgi_nbspace]
+			  }
+			  cgi_table_data align=left colspan=2 {
+			    if {[catch {WPSessionState left_column_folders} cols]} {
+			      set cols $_wp(fldr_cache_def)
+			    }
+
+			    cgi_select fcachel align=left {
+			      for {set i 0} {$i <= $_wp(fldr_cache_max)} {incr i} {
+				if {$i == $cols} {
+				  cgi_option $i "value=$i" selected
+				} else {
+				  cgi_option $i "value=$i"
+				}
+			      }
+			    }
+			  }
+			}
+		      }
 		      signature {
 			cgi_table_row {
 			  cgi_table_data colspan=4 align=center {
@@ -429,21 +457,39 @@ cgi_html {
 
 		      }
 		      filters -
+		      scores -
+		      indexcolor -
 		      collections {
 			set flt 0
 			set cll 0
-			if {[string compare filters $varname] == 0} {
-			  set flt 1
-			  set descsing "Filter"
-			  set filts [WPCmd PEConfig filters]
-			  set lvals $filts
-			  set varhelp 1
-			  
-			} else {
-			  set cll 1
-			  set descsing "Collection"
-			  set colls [WPCmd PEConfig collections]
-			  set lvals $colls
+			switch $varname {
+			  filters {
+			    set flt 1
+			    set descsing "Filter"
+			    set filts [WPCmd PEConfig filters]
+			    set lvals $filts
+			    set varhelp 1
+			  }
+			  scores {
+			    set flt 1
+			    set descsing "Scores"
+			    set filts [WPCmd PEConfig scores]
+			    set lvals $filts
+			    set varhelp 1
+			  }
+			  indexcolor {
+			    set flt 1
+			    set descsing "Index Colors"
+			    set filts [WPCmd PEConfig indexcolors]
+			    set lvals $filts
+			    set varhelp 1
+			  }
+			  default {
+			    set cll 1
+			    set descsing "Collection"
+			    set colls [WPCmd PEConfig collections]
+			    set lvals $colls
+			  }
 			}
 			set tasize [llength $lvals]
 			cgi_table_row {
@@ -1133,8 +1179,8 @@ cgi_html {
 				      cgi_td rowspan=3 width=3% [cgi_img [WPimg dot2]]
 				      cgi_td valign=top align=left xrowspan=3 class=instr "style=\"padding-right: 4; background-color: #ffcc66; border: 1px solid black\"" [cgi_span "style=padding: 2;" "3"]
 				      cgi_table_data valign=middle class=instr nowrap {
-					cgi_put "Choose a color below, or[cgi_nbspace]"
-					cgi_submit_button "reset=restore default colors"
+					cgi_put "Choose item's color below, or[cgi_nbspace]"
+					cgi_submit_button "reset=restore its default colors"
 				      }
 				    }
 
@@ -1176,6 +1222,13 @@ cgi_html {
 				      }
 				    }
 				  }
+				}
+			      }
+
+			      cgi_table_row {
+				cgi_table_data colspan=2 align=center class=instr nowrap "style=\"padding-top: 16; padding-bottom: 10;\"" {
+				  cgi_puts "Alternatively, you can also "
+				  cgi_submit_button "reset=Restore All Color Defaults"
 				}
 			      }
 

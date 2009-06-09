@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: print.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: print.c 745 2007-10-11 18:03:32Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -334,7 +334,7 @@ open_printer(char *desc)
         /*----------- Print by forking off a UNIX command ------------*/
         dprint((4, "Printing using command \"%s\"\n",
 	       command ? command : "?"));
-	ps_global->print->result = temp_nam(NULL, "pine_prt", 0);
+	ps_global->print->result = temp_nam(NULL, "pine_prt");
 	if(ps_global->print->result &&
 	   (ps_global->print->pipe = open_system_pipe(command,
 						      &ps_global->print->result, NULL,

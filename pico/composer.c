@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: composer.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: composer.c 788 2007-11-06 23:51:13Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -715,12 +715,20 @@ HeaderEditor(int f, int n)
 
 	  case (CTRL|'Z') :			/* Suspend compose */
 	    if(gmode&MDSSPD){			/* is it allowed? */
-		bktoshell();
+		bktoshell(0, 1);
 		PaintBody(0);
 	    }
 	    else
 	      unknown_command(ch);
 
+	    break;
+
+	  case (CTRL|'\\') :
+#if defined MOUSE && !defined(_WINDOWS)
+	    toggle_xterm_mouse(0,1);
+#else
+	    unknown_command(ch);
+#endif
 	    break;
 
 	  case (CTRL|'O') :			/* Suspend message */
@@ -3296,7 +3304,7 @@ NewTop(int showtop)
     e  = ods.cur_e;
     i  = showtop ? FULL_SCR() : HALF_SCR();
 
-    while(lp != NULL && --i){
+    while(lp != NULL && (--i > 0)){
 	ods.top_l = lp;
 	ods.top_e = e;
 	lp = prev_hline(&e, lp);

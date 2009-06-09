@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: remote.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: remote.c 745 2007-10-11 18:03:32Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -287,7 +287,7 @@ rd_metadata_name(void)
      */
     if(!(VAR_REMOTE_ABOOK_METADATA && VAR_REMOTE_ABOOK_METADATA[0])){
 	if(pinerc_dir[0] && (p = tempfile_in_same_dir(ps_global->pinerc,
-						      meta_prefix, NULL, 0))){
+						      meta_prefix, NULL))){
 	    /* fill in the pinerc variable */
 	    q = p + strlen(pinerc_dir) + 1;
 	    set_variable(V_REMOTE_ABOOK_METADATA, q, 1, 0, Main);

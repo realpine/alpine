@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: imap.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: imap.c 745 2007-10-11 18:03:32Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -156,8 +156,7 @@ mm_exists(MAILSTREAM *stream, long unsigned int number)
 	new_this_call = (long) number - mn_get_nmsgs(msgmap);
 	sp_set_new_mail_count(stream,
 			      sp_new_mail_count(stream) + new_this_call);
-	if(ps_global->mail_stream != stream)
-	  sp_set_recent_since_visited(stream,
+	sp_set_recent_since_visited(stream,
 			      sp_recent_since_visited(stream) + new_this_call);
 
 	mn_add_raw(msgmap, new_this_call);
@@ -472,10 +471,12 @@ mm_status(MAILSTREAM *stream, char *mailbox, MAILSTATUS *status)
      * pine_cached_status to point to a local status variable to store the
      * intermediate results.
      */
-    if(pine_cached_status != NULL)
-      *pine_cached_status = *status;
-    else
-      mm_status_result = *status;
+    if(status){
+	if(pine_cached_status != NULL)
+	  *pine_cached_status = *status;
+	else
+	  mm_status_result = *status;
+    }
 
 #ifdef DEBUG
     if(status){

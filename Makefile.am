@@ -14,7 +14,7 @@
 
 EXTRA_DIST = config.rpath  VERSION README LICENSE
 
-SUBDIRS = m4 po pith pico alpine $(WEB_BUILD) $(WEB_PUBCOOKIE_BUILD)
+SUBDIRS = m4 po $(REGEX_BUILD) pith pico alpine $(WEB_BUILD) $(WEB_PUBCOOKIE_BUILD)
 
 BUILT_SOURCES = c-client.d c-client
 
@@ -27,7 +27,7 @@ c-client.d:
 
 c-client:
 	$(C_CLIENT_WITH_IPV6)
-	cd imap && $(MAKE) @C_CLIENT_TARGET@ @C_CLIENT_CFLAGS@ @C_CLIENT_GCCOPTLEVEL@ EXTRASPECIALS="@C_CLIENT_SPECIALS@"
+	cd imap && $(MAKE) $(C_CLIENT_TARGET) $(C_CLIENT_CFLAGS) $(C_CLIENT_LDFLAGS) $(C_CLIENT_GCCOPTLEVEL) EXTRASPECIALS="$(C_CLIENT_SPECIALS)"
 
 clean-local:
 	cd imap && $(MAKE) clean

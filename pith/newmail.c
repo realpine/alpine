@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: newmail.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: newmail.c 796 2007-11-08 01:14:02Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -648,17 +648,6 @@ new_mail_win_mess(MAILSTREAM *stream, long int number)
 
 
 /*----------------------------------------------------------------------
-   Return the count of mail accumulated between
-   commands.
- ----*/
-long
-new_mail_count(void)
-{
-    return(sp_new_mail_count(ps_global->mail_stream));
-}
-
-
-/*----------------------------------------------------------------------
      Format and queue a "new mail" message
 
   Args: stream     -- mailstream on which a mail has arrived
@@ -718,28 +707,29 @@ new_mail_mess(MAILSTREAM *stream, long int number, long int max_num, int for_new
     }
 #endif
 
-    if(F_ON(F_ENABLE_XTERM_NEWMAIL, ps_global)
-       && F_ON(F_ENABLE_NEWMAIL_SHORT_TEXT, ps_global)){
-	long inbox_nm;
-	if(!sp_flagged(stream, SP_INBOX) 
-	   && (inbox_nm = sp_mail_since_cmd(sp_inbox_stream()))){
-	    snprintf(tmp_20k_buf, SIZEOF_20KBUF, "[%ld, %ld] %s",
-		    inbox_nm > 1L ? inbox_nm : 1L,
-		    number > 1L ? number: 1L,
-		    ps_global->pine_name);
+    if(pith_opt_icon_text){
+	if(F_ON(F_ENABLE_XTERM_NEWMAIL, ps_global)
+	   && F_ON(F_ENABLE_NEWMAIL_SHORT_TEXT, ps_global)){
+	    long inbox_nm;
+	    if(!sp_flagged(stream, SP_INBOX) 
+	       && (inbox_nm = sp_mail_since_cmd(sp_inbox_stream()))){
+		snprintf(tmp_20k_buf, SIZEOF_20KBUF, "[%ld, %ld] %s",
+			 inbox_nm > 1L ? inbox_nm : 1L,
+			 number > 1L ? number: 1L,
+			 ps_global->pine_name);
+	    }
+	    else
+	      snprintf(tmp_20k_buf, SIZEOF_20KBUF, "[%ld] %s", number > 1L ? number: 1L,
+		       ps_global->pine_name);
 	}
 	else
-	  snprintf(tmp_20k_buf, SIZEOF_20KBUF, "[%ld] %s", number > 1L ? number: 1L,
-		  ps_global->pine_name);
-    }
-    else
-      snprintf(tmp_20k_buf, SIZEOF_20KBUF, "%s%s%s%.80s", intro,
-	      from ? ((number > 1L) ? " Most recent f" : " F") : "",
-	      from ? "rom " : "",
-	      from ? from : "");
+	  snprintf(tmp_20k_buf, SIZEOF_20KBUF, "%s%s%s%.80s", intro,
+		   from ? ((number > 1L) ? " Most recent f" : " F") : "",
+		   from ? "rom " : "",
+		   from ? from : "");
 
-    if(pith_opt_icon_text)
-      (*pith_opt_icon_text)(tmp_20k_buf, IT_NEWMAIL);
+	(*pith_opt_icon_text)(tmp_20k_buf, IT_NEWMAIL);
+    }
 }
 
 

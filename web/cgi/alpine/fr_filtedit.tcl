@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: fr_filtedit.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: fr_filtedit.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -27,6 +27,7 @@ set frame_vars {
 # inherit global config
 source ./alpine.tcl
 source cmdfunc.tcl
+source filter.tcl
 
   cgi_http_head {
     WPStdHttpHdrs
@@ -38,29 +39,12 @@ source cmdfunc.tcl
     }
 
     cgi_frameset "rows=$_wp(titleheight),*" resize=yes border=0 frameborder=0 framespacing=0 {
-      if {0} {
-	set parms ""
-
-	if {[info exists frame_vars]} {
-	  foreach v $frame_vars {
-	    if {[string length [subst $[lindex $v 0]]]} {
-	      if {[string length $parms]} {
-		append parms "&"
-	      } else {
-		append parms "?"
-	      }
-
-	      append parms "[lindex $v 0]=[subst $[lindex $v 0]]"
-	    }
-	  }
-	}
-      }
-
-      if {[info exists filtedit_add] && $filtedit_add == 1} {
+      if {[info exists filtedit_add] && 1 == $filtedit_add} {
 	set title 153
       } else {
 	set title 154
       }
+
       set parms ""
       if {[info exists filtedit_add]} {
 	set parms "${parms}&add=${filtedit_add}"
@@ -70,6 +54,79 @@ source cmdfunc.tcl
       }
       if {[info exists filtedit_onfiltcancel]} {
 	set parms "${parms}&onfiltcancel=${filtedit_onfiltcancel}"
+      }
+      if {[info exists filtedit_indexcolor]} {
+	set parms "${parms}&filtedit_indexcolor=1"
+	if {[info exists fg] && [string length $fg]} {
+	  set parms "${parms}&fg=$fg"
+	}
+	if {[info exists bg] && [string length $bg]} {
+	  set parms "${parms}&bg=$bg"
+	}
+	if {[info exists fgorbg]} {
+	  set parms "${parms}&fgorbg=$fgorbg"
+	}
+      } elseif {[info exists filtedit_score]} {
+	set parms "${parms}&filtedit_score=1"
+	if {[info exists scoreval] && [string length $scoreval]} {
+	  set parms "${parms}&scoreval=$scoreval"
+	}
+	if {[info exists scorehdr] && [string length $scorehdr]} {
+	  set parms "${parms}&scoreval=$scorehdr"
+	}
+      }
+
+      if {[info exists filterrtext]} {
+	# relay pattern elements
+	set parms "${parms}&filterrtext=${filterrtext}"
+	foreach {pvar pexp} $pattern_id {
+	  if {[info exists $pvar]} {
+	    if {[string length [set pval [subst $$pvar]]]} {
+	      append parms "&${pvar}=${pval}"
+	    }
+	  }
+	}
+
+	foreach {pvar pexp} $pattern_fields {
+	  if {[info exists $pvar]} {
+	    if {[string length [set pval [subst $$pvar]]]} {
+	      append parms "&${pvar}=${pval}"
+	    }
+	  }
+	}
+
+	# relay various pattern actions
+	if {[info exists action] || 0 == [catch {WPImport action}]} {
+	  append parms "&action=$action"
+	}
+
+	if {0 == [catch {WPImport actionfolder}]} {
+	  append parms "&actionfolder=$actionfolder"
+	}
+
+	if {0 == [catch {WPImport moind}] && [string length $moind]} {
+	  append parms "&moind=$moind"
+	}
+
+	if {0 == [catch {WPImport actionfolder}]} {
+	  append parms "&actionfolder=$actionfolder"
+	}
+
+	if {[info exists folder] == 0} {
+	  wpGetVarAs folder folder
+	}
+
+	if {[string length $folder]} {
+	  append parms "&folder=$folder"
+	}
+
+	if {[info exists ftype] == 0} {
+	  wpGetVarAs ftype ftype
+	}
+
+	if {[string length $ftype]} {
+	  append parms "&ftype=$ftype"
+	}
       }
 
       cgi_frame hdr=header.tcl?title=${title}

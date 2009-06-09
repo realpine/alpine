@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: dispfilt.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: dispfilt.c 745 2007-10-11 18:03:32Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -240,7 +240,7 @@ expand_filter_tokens(char *filter, ENVELOPE *env, char **tmpf, char **resultf,
 	}
 	else if(!strcmp(*q, "_TMPFILE_")){
 	    if(!tfn){
-		tfn = temp_nam(NULL, "sf", 0); 	/* send filter file */
+		tfn = temp_nam(NULL, "sf"); 	/* send filter file */
 		if(!tfn)
 		  dprint((1, "FAILED creat of _TMPFILE_\n"));
 	    }
@@ -255,7 +255,7 @@ expand_filter_tokens(char *filter, ENVELOPE *env, char **tmpf, char **resultf,
 	}
 	else if(!strcmp(*q, "_RESULTFILE_")){
 	    if(!rfn){
-		rfn = temp_nam(NULL, "rf", 0);
+		rfn = temp_nam(NULL, "rf");
 		/*
 		 * We don't create the result file, the user does.
 		 * That means we have to remove it after temp_nam creates it.
@@ -276,7 +276,7 @@ expand_filter_tokens(char *filter, ENVELOPE *env, char **tmpf, char **resultf,
 	}
 	else if(!strcmp(*q, "_MIMETYPE_")){
 	    if(!mfn){
-		mfn = temp_nam(NULL, "mt", 0);
+		mfn = temp_nam(NULL, "mt");
 		/*
 		 * We don't create the mimetype file, the user does.
 		 * That means we have to remove it after temp_nam creates it.
@@ -382,7 +382,7 @@ filter_data_file(int create_it)
     static char *fn = NULL;
 
     if(!fn && create_it)
-      fn = temp_nam(NULL, "df", 0);
+      fn = temp_nam(NULL, "df");
     
     return(fn);
 }

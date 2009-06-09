@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: tempfile.c 229 2006-11-13 23:14:48Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: tempfile.c 745 2007-10-11 18:03:32Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ static char rcsid[] = "$Id: tempfile.c 229 2006-11-13 23:14:48Z hubert@u.washing
  * empty file has been created.
  */
 char *
-tempfile_in_same_dir(char *filename, char *prefix, char **ret_dir, int flags)
+tempfile_in_same_dir(char *filename, char *prefix, char **ret_dir)
 {
 #ifndef MAXPATH
 #define MAXPATH 1000    /* Longest file path we can deal with */
@@ -56,7 +56,7 @@ tempfile_in_same_dir(char *filename, char *prefix, char **ret_dir, int flags)
 
 
     /* temp_nam creates ret_file */
-    ret_file = temp_nam(dirp, prefix, flags);
+    ret_file = temp_nam(dirp, prefix);
 
     /*
      * If temp_nam can't write in dirp it puts the file in a temp directory

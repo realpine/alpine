@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: hist.c 572 2007-05-15 22:16:22Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: hist.c 801 2007-11-08 20:39:45Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -142,9 +142,13 @@ save_hist(HISTORY_S *history, char *savethis, unsigned saveflags, void *cntxt)
 
     if(savethis && savethis[0]
        && (!history->hist[history->origindex]->str
-           || strcmp(history->hist[history->origindex]->str, savethis))
+           || strcmp(history->hist[history->origindex]->str, savethis)
+	   || history->hist[history->origindex]->flags != saveflags
+	   || history->hist[history->origindex]->cntxt != cntxt)
        && !(history->hist[plusone] && history->hist[plusone]->str
-	    && !strcmp(history->hist[plusone]->str, savethis))){
+	    && !strcmp(history->hist[plusone]->str, savethis)
+	    && history->hist[history->origindex]->flags == saveflags
+	    && history->hist[history->origindex]->cntxt == cntxt)){
 	if(history->hist[history->origindex]->str){
 	    if(strlen(history->hist[history->origindex]->str) < (l=strlen(savethis)))
 	      fs_resize((void **) &history->hist[history->origindex]->str, l+1);

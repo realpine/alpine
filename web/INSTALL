@@ -134,9 +134,9 @@ in a subdirectory of the server's document root, you can do that, but
 be sure to record that directory in the web/config/alpine.tcl file as
 described below.
 
-You will also likely need to configure the web server's configuration
-to allow for CGI execution in the directory where Web Alpine's CGI
-scripts and such ended up.
+You will also likely need to configure the web server to allow for CGI
+execution in the directory where Web Alpine's CGI scripts and such
+ended up.
 
 Also, be sure to fix the "tclsh" and "alpine.tcl" symbolic links
 if you relocate this directory tree. They should point to the 
@@ -215,6 +215,25 @@ changed, you're ready for the third phase: Web Alpine configuration.
 
 
   7.   Try it!
+
+
+APPENDIX I - An Example
+-----------------------
+
+The above installation explanation is intentionally vague in some
+areas, particulary about how the Web Alpine and web server
+configurations might dovetail.  Certainly, web server configurations
+can vary widely based on the server, the services it offers, and even
+the particular preferences of the system administrator.
+
+On the other hand, often a concrete example assuming simple conditions
+will go a long way toward clarifying configuration.  So, we offer here
+an example of how one might install Web Alpine on a relatively
+prestine Fedora Core 7 system.
+
+
+  [ FILL IN PRIOR TO 1.0 RELEASE ]
+
 
 
 FURTHER INFORMATION ON WEB ALPINE

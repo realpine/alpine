@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: imap.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: imap.c 739 2007-10-04 17:55:10Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -354,6 +354,8 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 	       altuserforcache ? altuserforcache : ""));
     q_line = -(ps_global->ttyo ? ps_global->ttyo->footer_rows : 3);
 
+    ps_global->no_newmail_check_from_optionally_enter = 1;
+
     /* make sure errors are seen */
     if(ps_global->ttyo)
       flush_status_messages(0);
@@ -430,6 +432,7 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 	if(imap_get_passwd(mm_login_list, pwd, user, hostlist,
 	   (mb->sslflag||mb->tlsflag))){
 	    dprint((9, "mm_login: found a password to try\n"));
+	    ps_global->no_newmail_check_from_optionally_enter = 0;
 	    return;
 	}
 
@@ -442,6 +445,7 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 	    update_passfile_hostlist(ps_global->pinerc, user, hostlist,
 				     (mb->sslflag||mb->tlsflag));
 	    dprint((9, "mm_login: found a password in passfile to try\n"));
+	    ps_global->no_newmail_check_from_optionally_enter = 0;
 	    return;
 	}
 #endif	/* LOCAL_PASSWD_CACHE */
@@ -469,6 +473,7 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 		dprint((9,
 		       "mm_login: found a password for user=%s to try\n",
 		       user ? user : "?"));
+		ps_global->no_newmail_check_from_optionally_enter = 0;
 		return;
 	    }
 
@@ -483,6 +488,7 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 		dprint((9,
 		  "mm_login: found a password for user=%s in passfile to try\n",
 		  user ? user : "?"));
+		ps_global->no_newmail_check_from_optionally_enter = 0;
 		return;
 	    }
 #endif	/* LOCAL_PASSWD_CACHE */
@@ -502,6 +508,7 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 	    if(imap_get_passwd(mm_login_list, pwd, user, hostlist,
 	       (mb->sslflag||mb->tlsflag))){
 		dprint((9, "mm_login:ui: found a password to try\n"));
+		ps_global->no_newmail_check_from_optionally_enter = 0;
 		return;
 	    }
 
@@ -514,6 +521,7 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 		update_passfile_hostlist(ps_global->pinerc, user, hostlist,
 					 (mb->sslflag||mb->tlsflag));
 		dprint((9, "mm_login:ui: found a password in passfile to try\n"));
+		ps_global->no_newmail_check_from_optionally_enter = 0;
 		return;
 	    }
 #endif	/* LOCAL_PASSWD_CACHE */
@@ -730,8 +738,10 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
     user[NETMAXUSER-1] = '\0';
     pwd[NETMAXPASSWD-1] = '\0';
 
-    if(!(user[0] || altuserforcache))
-      return;
+    if(!(user[0] || altuserforcache)){
+	ps_global->no_newmail_check_from_optionally_enter = 0;
+	return;
+    }
 
     /*
      * Now that we have a user, we can check in the cache again to see
@@ -740,28 +750,34 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
      */
     if(trial == 0L && !*mb->user && !altuserforcache){
 	if(imap_get_passwd(mm_login_list, pwd, user, hostlist,
-	   (mb->sslflag||mb->tlsflag)))
-	  return;
+	   (mb->sslflag||mb->tlsflag))){
+	    ps_global->no_newmail_check_from_optionally_enter = 0;
+	    return;
+	}
 
 #ifdef	LOCAL_PASSWD_CACHE
 	if(get_passfile_passwd(ps_global->pinerc, pwd,
 			       user, hostlist, (mb->sslflag||mb->tlsflag))){
 	    imap_set_passwd(&mm_login_list, pwd, user,
 			    hostlist, (mb->sslflag||mb->tlsflag), 0, 0);
+	    ps_global->no_newmail_check_from_optionally_enter = 0;
 	    return;
 	}
 #endif	/* LOCAL_PASSWD_CACHE */
     }
     else if(trial == 0 && altuserforcache){
 	if(imap_get_passwd(mm_login_list, pwd, altuserforcache, hostlist,
-	   (mb->sslflag||mb->tlsflag)))
-	  return;
+	   (mb->sslflag||mb->tlsflag))){
+	    ps_global->no_newmail_check_from_optionally_enter = 0;
+	    return;
+	}
 
 #ifdef	LOCAL_PASSWD_CACHE
 	if(get_passfile_passwd(ps_global->pinerc, pwd,
 			       altuserforcache, hostlist, (mb->sslflag||mb->tlsflag))){
 	    imap_set_passwd(&mm_login_list, pwd, altuserforcache,
 			    hostlist, (mb->sslflag||mb->tlsflag), 0, 0);
+	    ps_global->no_newmail_check_from_optionally_enter = 0;
 	    return;
 	}
 #endif	/* LOCAL_PASSWD_CACHE */
@@ -949,6 +965,7 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
     if(rc == 1 || !pwd[0]) {
 	ps_global->user_says_cancel = (rc == 1);
         user[0] = pwd[0] = '\0';
+	ps_global->no_newmail_check_from_optionally_enter = 0;
         return;
     }
 
@@ -968,6 +985,8 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 			(preserve_password == -1 ? 0
 			 : (preserve_password == 0 ? 2 :1)));
 #endif	/* LOCAL_PASSWD_CACHE */
+
+    ps_global->no_newmail_check_from_optionally_enter = 0;
 }
 
 

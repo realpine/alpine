@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: confscroll.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: confscroll.c 750 2007-10-17 18:40:51Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -138,6 +138,7 @@ char    *radio_pretty_value(struct pine *, CONF_S *);
 char    *sigfile_pretty_value(struct pine *, CONF_S *);
 char    *color_pretty_value(struct pine *, CONF_S *);
 char    *sort_pretty_value(struct pine *, CONF_S *);
+int      longest_feature_name(void);
 COLOR_PAIR *sample_color(struct pine *, struct variable *);
 COLOR_PAIR *sampleexc_color(struct pine *, struct variable *);
 void     clear_feature(char ***, char *);
@@ -365,7 +366,9 @@ exclude_config_var(struct pine *ps, struct variable *var, int allow_hard_to_conf
       case V_PRINTER :
       case V_PERSONAL_PRINT_COMMAND :
       case V_PERSONAL_PRINT_CATEGORY :
+#ifndef	_WINDOWS
       case V_OLD_CHAR_SET :
+#endif	/* ! _WINDOWS */
 #if defined(DOS) || defined(OS2)
       case V_UPLOAD_CMD :
       case V_UPLOAD_CMD_PREFIX :
@@ -3995,18 +3998,12 @@ checkbox_pretty_value(struct pine *ps, CONF_S *cl)
 {
     char             tmp[6*MAXPATH];
     char            *comment = NULL;
-    int              i, j, lv, x;
+    int              lv, x;
     FEATURE_S	    *feature;
 
     tmp[0] = '\0';
 
-    /* find longest value's name */
-    for(lv = 0, i = 0; (feature = feature_list(i)); i++)
-      if(feature_list_section(feature)
-	 && lv < (j = utf8_width(pretty_feature_name(feature->name))))
-	lv = j;
-
-    lv = MIN(lv, 100);
+    lv = longest_feature_name();
 
     feature = feature_list(cl->varmem);
 
@@ -4016,6 +4013,26 @@ checkbox_pretty_value(struct pine *ps, CONF_S *cl)
 		  lv, lv, pretty_feature_name(feature->name), comment ? comment : "");
 
     return(cpystr(tmp));
+}
+
+
+int
+longest_feature_name(void)
+{
+    static int lv = -1;
+    int i, j;
+    FEATURE_S	    *feature;
+
+    if(lv < 0){
+	for(lv = 0, i = 0; (feature = feature_list(i)); i++)
+	  if(feature_list_section(feature)
+	     && lv < (j = utf8_width(pretty_feature_name(feature->name))))
+	    lv = j;
+
+	lv = MIN(lv, 100);
+    }
+
+    return(lv);
 }
 
 
@@ -5094,7 +5111,8 @@ fix_side_effects(struct pine *ps, struct variable *var, int revert)
 	init_save_defaults();
     }
     else if(var == &ps->vars[V_KW_BRACES] ||
-	    var == &ps->vars[V_OPENING_SEP]){
+	    var == &ps->vars[V_OPENING_SEP] ||
+	    var == &ps->vars[V_ALT_ADDRS]){
 	clear_index_cache(ps->mail_stream, 0);
     }
     else if(var == &ps->vars[V_KEYWORDS]){
@@ -5151,6 +5169,7 @@ fix_side_effects(struct pine *ps, struct variable *var, int revert)
 	dprint((9, "max_remstream goes to %d\n",
 		ps->s_pool.max_remstream));
     }
+#ifndef	_WINDOWS
     else if(var == &ps->vars[V_CHAR_SET]){
 	char *err = NULL;
 
@@ -5183,6 +5202,7 @@ fix_side_effects(struct pine *ps, struct variable *var, int revert)
 	    }
 	}
     }
+#endif	/* ! _WINDOWS */
     else if(var == &ps->vars[V_POST_CHAR_SET]){
 	update_posting_charset(ps, revert);
     }

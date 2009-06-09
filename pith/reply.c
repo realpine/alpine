@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: reply.c 683 2007-08-23 00:03:36Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: reply.c 796 2007-11-08 01:14:02Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -49,7 +49,6 @@ static char rcsid[] = "$Id: reply.c 683 2007-08-23 00:03:36Z hubert@u.washington
 /*
  * Internal prototypes
  */
-void	 reply_append_addr(ADDRESS **, ADDRESS *);
 void	 bounce_mask_header(char **, char *);
 
 
@@ -109,7 +108,7 @@ reply_harvest(struct pine *ps, long int msgno, char *section, ENVELOPE *env,
     }
 
     ap = reply_cp_addr(ps, msgno, section, rep_field, *saved_from,
-		       (ADDRESS *) NULL, rep_address, 0);
+		       (ADDRESS *) NULL, rep_address, RCA_NOT_US);
 
     if(ret == 'x') {
 	cmd_cancelled("Reply");
@@ -122,11 +121,11 @@ reply_harvest(struct pine *ps, long int msgno, char *section, ENVELOPE *env,
     if(((*flags) & (RSF_FORCE_REPLY_ALL | RSF_QUERY_REPLY_ALL))){
 
 	if((ap = reply_cp_addr(ps, msgno, section, "To", *saved_to,
-			      *saved_from, env->to, 0)) != NULL)
+			      *saved_from, env->to, RCA_NOT_US)) != NULL)
 	  reply_append_addr(saved_to, ap);
 
 	if((ap = reply_cp_addr(ps, msgno, section, "Cc", *saved_cc,
-			      *saved_from, env->cc, 0)) != NULL)
+			      *saved_from, env->cc, RCA_NOT_US)) != NULL)
 	  reply_append_addr(saved_cc, ap);
 
 	/*
@@ -145,7 +144,7 @@ reply_harvest(struct pine *ps, long int msgno, char *section, ENVELOPE *env,
 		 * look for bogus addr entries and replace
 		 */
 		if((ap = reply_cp_addr(ps, 0, NULL, NULL, *saved_resent,
-				      *saved_from, ap2, 0)) != NULL)
+				      *saved_from, ap2, RCA_NOT_US)) != NULL)
 
 		  reply_append_addr(saved_resent, ap);
 
@@ -177,7 +176,7 @@ reply_harvest(struct pine *ps, long int msgno, char *section, ENVELOPE *env,
 	     * look for bogus addr entries and replace
 	     */
 	    if((ap = reply_cp_addr(ps, 0, NULL, NULL, *saved_resent,
-				  *saved_from, ap2, 0)) != NULL)
+				  *saved_from, ap2, RCA_NOT_US)) != NULL)
 	      reply_append_addr(saved_resent, ap);
 
 	    mail_free_address(&ap2);
@@ -196,14 +195,22 @@ Args:  mask1  -- Don't copy if in this list
        mask2  --  or if in this list
        source -- List to be copied
        us_too -- Don't filter out ourself.
+       flags  -- RCA_NOT_US   copy all addrs except for our own
+                 RCA_ALL      copy all addrs, including our own
+                 RCA_ONLY_US  copy only addrs that are our own
 
   ---*/
 ADDRESS *
 reply_cp_addr(struct pine *ps, long int msgno, char *section, char *field,
 	      struct mail_address *mask1, struct mail_address *mask2,
-	      struct mail_address *source, int us_too)
+	      struct mail_address *source, int flags)
 {
     ADDRESS *tmp1, *tmp2, *ret = NULL, **ret_tail;
+
+    /* can only choose one of these flags values */
+    assert(!((flags & RCA_ALL && flags & RCA_ONLY_US)
+	     || (flags & RCA_ALL && flags & RCA_NOT_US)
+	     || (flags & RCA_ONLY_US && flags & RCA_NOT_US)));
 
     for(tmp1 = source; msgno && tmp1; tmp1 = tmp1->next)
       if(tmp1->host && tmp1->host[0] == '.'){
@@ -272,17 +279,21 @@ reply_cp_addr(struct pine *ps, long int msgno, char *section, char *field,
     ret_tail = &ret;
     for(source = first_addr(source); source; source = source->next){
 	for(tmp1 = first_addr(mask1); tmp1; tmp1 = tmp1->next)
-	  if(address_is_same(source, tmp1))
+	  if(address_is_same(source, tmp1))	/* it is in mask1, skip it */
 	    break;
 
 	for(tmp2 = first_addr(mask2); !tmp1 && tmp2; tmp2 = tmp2->next)
-	  if(address_is_same(source, tmp2))
+	  if(address_is_same(source, tmp2))	/* it is in mask2, skip it */
 	    break;
 
 	/*
-	 * If there's no match in masks *and* this address isn't us, copy...
+	 * If there's no match in masks and this address satisfies the
+	 * flags requirement, copy it.
 	 */
-	if(!tmp1 && !tmp2 && (us_too || !ps || !address_is_us(source, ps))){
+	if(!tmp1 && !tmp2		/* no mask match */
+	   && ((flags & RCA_ALL)	/* including everybody */
+	       || (flags & RCA_ONLY_US && address_is_us(source, ps))
+	       || (flags & RCA_NOT_US && !address_is_us(source, ps)))){
 	    tmp1         = source->next;
 	    source->next = NULL;	/* only copy one addr! */
 	    *ret_tail    = rfc822_cpy_adr(source);
@@ -356,48 +367,48 @@ reply_seed(struct pine *ps, ENVELOPE *outgoing, ENVELOPE *env,
     if(saved_from){
 	/* Put Reply-To or From in To. */
 	*to_tail = reply_cp_addr(ps, 0, NULL, NULL, outgoing->to,
-				 (ADDRESS *) NULL, saved_from, 1);
+				 (ADDRESS *) NULL, saved_from, RCA_ALL);
 	/* and the rest in cc */
 	if(replytoall){
 	    *cc_tail = reply_cp_addr(ps, 0, NULL, NULL, outgoing->cc,
-				     outgoing->to, saved_to, 1);
+				     outgoing->to, saved_to, RCA_ALL);
 	    while(*cc_tail)		/* stay on last address */
 	      cc_tail = &(*cc_tail)->next;
 
 	    *cc_tail = reply_cp_addr(ps, 0, NULL, NULL, outgoing->cc,
-				     outgoing->to, saved_cc, 1);
+				     outgoing->to, saved_cc, RCA_ALL);
 	    while(*cc_tail)
 	      cc_tail = &(*cc_tail)->next;
 
 	    *cc_tail = reply_cp_addr(ps, 0, NULL, NULL, outgoing->cc,
-				     outgoing->to, saved_resent, 1);
+				     outgoing->to, saved_resent, RCA_ALL);
 	}
     }
     else if(saved_to){
 	/* No From (maybe from us), put To in To. */
 	*to_tail = reply_cp_addr(ps, 0, NULL, NULL, outgoing->to,
-				 (ADDRESS *)NULL, saved_to, 1);
+				 (ADDRESS *)NULL, saved_to, RCA_ALL);
 	/* and the rest in cc */
 	if(replytoall){
 	    *cc_tail = reply_cp_addr(ps, 0, NULL, NULL, outgoing->cc,
-				     outgoing->to, saved_cc, 1);
+				     outgoing->to, saved_cc, RCA_ALL);
 	    while(*cc_tail)
 	      cc_tail = &(*cc_tail)->next;
 
 	    *cc_tail = reply_cp_addr(ps, 0, NULL, NULL, outgoing->cc,
-				     outgoing->to, saved_resent, 1);
+				     outgoing->to, saved_resent, RCA_ALL);
 	}
     }
     else{
 	/* No From or To, put everything else in To if replytoall, */
 	if(replytoall){
 	    *to_tail = reply_cp_addr(ps, 0, NULL, NULL, outgoing->to,
-				     (ADDRESS *) NULL, saved_cc, 1);
+				     (ADDRESS *) NULL, saved_cc, RCA_ALL);
 	    while(*to_tail)
 	      to_tail = &(*to_tail)->next;
 
 	    *to_tail = reply_cp_addr(ps, 0, NULL, NULL, outgoing->to,
-				     (ADDRESS *) NULL, saved_resent, 1);
+				     (ADDRESS *) NULL, saved_resent, RCA_ALL);
 	}
 	/* else, reply to original From which must be us */
 	else{
@@ -406,7 +417,7 @@ reply_seed(struct pine *ps, ENVELOPE *outgoing, ENVELOPE *env,
 	     */
 	    if(!outgoing->newsgroups)
 	      *to_tail = reply_cp_addr(ps, 0, NULL, NULL, outgoing->to,
-				       (ADDRESS *) NULL, env->from, 1);
+				       (ADDRESS *) NULL, env->from, RCA_ALL);
 	}
     }
 
@@ -1915,12 +1926,13 @@ forward_mime_msg(MAILSTREAM *stream, long int msgno, char *section, ENVELOPE *en
     unsigned long   len;
     BODY	   *b;
 
-    *partp	   = mail_newbody_part();
-    b		   = &(*partp)->body;
-    b->type	   = TYPEMESSAGE;
-    b->id	   = generate_message_id();
-    b->description = forward_subject(env, FS_CONVERT_QUOTES);
-    b->nested.msg  = mail_newmsg();
+    *partp		= mail_newbody_part();
+    b			= &(*partp)->body;
+    b->type		= TYPEMESSAGE;
+    b->id		= generate_message_id();
+    b->description	= cpystr("Forwarded Message");
+    b->nested.msg	= mail_newmsg();
+    b->disposition.type = cpystr("inline");
 
     /*---- Package each message in a storage object ----*/
     if((b->contents.text.data = (void *) so_get(PART_SO_TYPE,NULL,EDIT_ACCESS))
@@ -3078,6 +3090,20 @@ generate_message_id(void)
       fs_give((void **) &hostpart);
 
     return(id);
+}
+
+
+char *
+generate_user_agent(void)
+{
+    char         buf[128];
+    char         rev[128];
+
+    snprintf(buf, sizeof(buf),
+	     "Alpine %s (%s %s)", ALPINE_VERSION, SYSTYPE,
+	     get_alpine_revision_number(rev, sizeof(rev)));
+
+    return(cpystr(buf));
 }
 
 

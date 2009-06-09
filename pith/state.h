@@ -1,5 +1,5 @@
 /*
- * $Id: state.h 596 2007-06-09 00:20:47Z hubert@u.washington.edu $
+ * $Id: state.h 739 2007-10-04 17:55:10Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -226,6 +226,8 @@ struct pine {
     unsigned     dump_supported_options:1;
 
     unsigned	 noexpunge_on_close:1;
+
+    unsigned	 no_newmail_check_from_optionally_enter:1;
 
     unsigned	 post_utf8:1;
 

@@ -1,4 +1,4 @@
-# $Id: folders.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: folders.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -39,7 +39,6 @@ set folder_vars {
   {reload}
 }
 
-set border 0
 set indention 18
 
 #  Output:
@@ -84,57 +83,60 @@ proc blat_folder_list {colid flist shown path baseurl scroll anchorcntref depth}
 
     set bgcolor [linecolor [incr anchorcnt]]
 
-    if {[string first $t D] >= 0} {
+    # initial pad=12, expand/contract control is 9px wide
+    set cellpad [expr {12 + ($depth * $indention)}]
+    set delim [WPCmd PEFolder delimiter $colid]
+    set fullpath [join [lrange $ff 1 end] $delim]
+
+    if {[string first F $t] >= 0} {
+      regsub -all {(')} [lrange $ff 1 end] {\\\\\1} ef
+      set celldata [cgi_url $f open.tcl?colid=${colid}&folder=[WPPercentQuote $fullpath]&oncancel=folders&cid=$key target=_top]
+    } else {
+      set celldata $f
+    }
+
+    if {[string first D $t] >= 0} {
 
       if {[set index [lsearch $shown $ff]] < 0} {
-	set celldata [cgi_url [cgi_imglink expand] "${baseurl}expand=[WPPercentQuote $ff]#f_[WPPercentQuote $ff]" name=f_[WPPercentQuote $ff]]
+	set control expand
       } else {
-	set celldata [cgi_url [cgi_imglink contract] "${baseurl}contract=[WPPercentQuote $ff]#f_[WPPercentQuote $ff]" name=f_[WPPercentQuote $ff]]
+	set control contract
       }
 
-      cgi_table_row bgcolor=$bgcolor {
+      set celldata "[cgi_url [cgi_imglink $control] "${baseurl}${control}=[WPPercentQuote $ff]#f_[WPPercentQuote $ff]" name=f_[WPPercentQuote $ff] "style=\"padding-right:10px\""]$celldata"
+      incr cellpad -19
+    }
 
-	cgi_table_data align=center {
+    cgi_table_row bgcolor=$bgcolor {
+
+      cgi_table_data align=center {
+	if {[string first F $t] >= 0 || ([WPCmd PEFolder isincoming $colid] == 0 && [string compare $mbox $fullpath])} {
 	  cgi_radio_button "fid=f_[WPPercentQuote $ff]"
 	}
+      }
 
-	cgi_table_data align=left "style=\"padding-left: [expr {(($depth - 1) * $indention) + 10}]\"" nowrap {
-	  cgi_put "${celldata}[cgi_span "style=padding-left: 10" $f]"
-	}
+      cgi_table_data align=left "style=\"padding-left: ${cellpad}px\"" nowrap {
+	cgi_put $celldata
+      }
 
-	cgi_table_data valign=top nowrap {
+      cgi_table_data valign=top nowrap {
+	if {[info exists control] && [string compare $control contract] == 0} {
 	  cgi_submit_button "new_[WPPercentQuote $ff]=Create New..."
 	  cgi_submit_button "imp_[WPPercentQuote $ff]=Import..."
-	}
-      }
-
-      if {$index >= 0} {
-	set nflist [eval WPCmd PEFolder list $ff]
-	set newpath $path
-	lappend newpath $f
-	blat_folder_list $colid $nflist $shown $newpath $baseurl $scroll anchorcnt [expr {$depth + 1}]
-      }
-    } else {
-      set delim [WPCmd PEFolder delimiter $colid]
-      set fullpath [join [lrange $ff 1 end] $delim]
-
-      cgi_table_row bgcolor=$bgcolor {
-	cgi_table_data align=center {
-	  if {[WPCmd PEFolder isincoming $colid] == 0 && [string compare $mbox $fullpath]} {
-	    cgi_radio_button "fid=f_[WPPercentQuote $ff]"
-	  }
-	}
-
-	cgi_table_data nowrap {
-	  regsub -all {(')} [lrange $ff 1 end] {\\\\\1} ef
-	  cgi_put [cgi_url $f open.tcl?colid=${colid}&folder=[WPPercentQuote $fullpath]&oncancel=folders&cid=$key target=_top "style=\"padding-left: [expr {($depth * $indention) + 10}]\""]
-	}
-
-	cgi_table_data align=center {
+	} else {
 	  cgi_puts [cgi_nbspace]
 	}
       }
     }
+
+    if {[string first D $t] >= 0 && $index >= 0} {
+      set nflist [eval WPCmd PEFolder list $ff]
+      set newpath $path
+      lappend newpath $f
+      blat_folder_list $colid $nflist $shown $newpath $baseurl $scroll anchorcnt [expr {$depth + 1}]
+    }
+
+    catch {unset control}
   }
 }
 
@@ -368,28 +370,28 @@ if {$delquery == 1 || [string compare $delquery Delete] == 0} {
 } else {
   foreach i [cgi_import_list] {
     switch -regexp -- $i {
-      ^new_[a-zA-Z0-9%]*$ {
+      ^new_[a-zA-Z0-9%_]*$ {
 	set fid [string range $i 4 end]
 	catch {WPCmd PEInfo set fid $fid}
 	catch {WPCmd PEInfo set wp_folder_script fr_querynewdir.tcl}
 	source [file join $_wp(cgipath) $_wp(appdir) fr_querynewfoldir.tcl]
 	set nopage 1
       }
-      ^nd_[a-zA-Z0-9%]*$ {
+      ^nd_[a-zA-Z0-9%_]*$ {
 	set fid [string range $i 3 end]
 	catch {WPCmd PEInfo set fid $fid}
 	catch {WPCmd PEInfo set wp_folder_script fr_querynewdir.tcl}
 	source [file join $_wp(cgipath) $_wp(appdir) fr_querynewdir.tcl]
 	set nopage 1
       }
-      ^nf_[a-zA-Z0-9%]*$ {
+      ^nf_[a-zA-Z0-9%_]*$ {
 	set fid [string range $i 3 end]
 	catch {WPCmd set fid $fid}
 	catch {WPCmd set wp_folder_script fr_querynewfldr.tcl}
 	source [file join $_wp(cgipath) $_wp(appdir) fr_querynewfldr.tcl]
 	set nopage 1
       }
-      ^imp_[a-zA-Z0-9%]*$ {
+      ^imp_[a-zA-Z0-9%_]*$ {
 	set fid [string range $i 4 end]
 	source [file join $_wp(cgipath) $_wp(appdir) fr_queryimport.tcl]
 	set nopage 1
@@ -650,7 +652,7 @@ if {[info exists nopage] == 0} {
 	      cgi_text "cid=$key" type=hidden notab
 	      cgi_text "frestore=1" type=hidden notab
 	      # then the table representing the folders
-	      cgi_table border=$border cellspacing=0 cellpadding=2 align=center {
+	      cgi_table border=0 cellspacing=0 cellpadding=2 align=center {
 		for {set i 0} {$i < [llength $collections]} {incr i} {
 		  set col [lindex $collections $i]
 		  set colid [lindex $col 0]

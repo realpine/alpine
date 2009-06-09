@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: display.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: display.c 747 2007-10-11 18:20:34Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -301,7 +301,7 @@ vtputc(CELL c)
         do {
             vtputc(ac);
 	}
-        while (((vtcol + lbound)&0x07) != 0 && vtcol < term.t_ncol);
+        while (((vtcol + (vtrow==currow ? lbound : 0)) & 0x07) != 0 && vtcol < term.t_ncol);
     }
     else if (ISCONTROL(c.c)){
 	ac.c = '^';
@@ -915,6 +915,8 @@ updateline(int row,			/* row on screen */
     int   nbflag;		/* non-blanks to the right flag? */
     int   cleartoeol = 0;
 
+    if(row < 0 || row > term.t_nrow)
+      return;
 
     /* set up pointers to virtual and physical lines */
     cp1 = &vline[0];
@@ -1250,7 +1252,7 @@ movecursor(int row, int col)
     if (row!=ttrow || col!=ttcol) {
         ttrow = row;
         ttcol = col;
-        (*term.t_move)(row, col);
+        (*term.t_move)(MIN(MAX(row,0),term.t_nrow), MIN(MAX(col,0),term.t_ncol-1));
     }
 }
 
@@ -2709,6 +2711,9 @@ peeol(void)
     int  i, width = 0, ww;
     CELL cl;
 
+    if(ttrow < 0 || ttrow > term.t_nrow)
+      return;
+
     cl.c = ' ';
     cl.a = 0;
 
@@ -2757,6 +2762,9 @@ pclear(int x, int y)
 {
     register int i;
 
+    x = MIN(MAX(0, x), term.t_nrow);
+    y = MIN(MAX(0, y), term.t_nrow);
+
     for(i=x; i < y; i++){
 	movecursor(i, 0);
 	peeol();
@@ -2800,6 +2808,9 @@ pinsert(CELL c)
     int   i, ind = 0, ww;
     CELL *p;
 
+    if(ttrow < 0 || ttrow > term.t_nrow)
+      return(0);
+
     if(o_insert((UCS) c.c)){		/* if we've got it, use it! */
 	p = pscreen[ttrow]->v_text;	/* then clean up physical screen */
 
@@ -2830,6 +2841,9 @@ pdel(void)
 {
     int   i, ind = 0, w;
     CELL *p;
+
+    if(ttrow < 0 || ttrow > term.t_nrow)
+      return(0);
 
     if(TERM_DELCHAR){			/* if we've got it, use it! */
 	p = pscreen[ttrow]->v_text;
@@ -2880,6 +2894,9 @@ wstripe(int line, int column, char *utf8pmt, int key)
     COLOR_PAIR *lastc = NULL;
     COLOR_PAIR *kncp = NULL;
     COLOR_PAIR *klcp = NULL;
+
+    if(line < 0 || line > term.t_nrow)
+      return;
 
     if (Pmaster && Pmaster->colors){
       if(pico_is_good_colorpair(Pmaster->colors->klcp))
@@ -2975,6 +2992,9 @@ wkeyhelp(KEYMENU *keymenu)
 #endif
 
     if(term.t_mrow == 0)
+      return;
+
+    if(term.t_nrow < 1)
       return;
 
     /*
@@ -3113,6 +3133,9 @@ vcellwidth_a_to_b(int row, int a, int b)
     CELL *pstart, *pend;
     VIDEO *vp;
   
+    if(row < 0 || row > term.t_nrow)
+      return 0;
+
     if(a >= b)
       return 0;
 
@@ -3136,6 +3159,9 @@ pcellwidth_a_to_b(int row, int a, int b)
     CELL *pstart, *pend;
     VIDEO *vp;
   
+    if(row < 0 || row > term.t_nrow)
+      return 0;
+
     if(a >= b)
       return 0;
 
@@ -3155,6 +3181,9 @@ index_from_col(int row, int col)
 {
     CELL *p_start, *p_end, *p_limit;
     int   w_consumed = 0, w, done = 0;
+
+    if(row < 0 || row > term.t_nrow)
+      return 0;
 
     p_end = p_start = pscreen[row]->v_text;
     p_limit = p_start + term.t_ncol;

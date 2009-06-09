@@ -1,8 +1,8 @@
 /*
- * $Id: flagmaint.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: flagmaint.h 786 2007-11-02 23:23:04Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ struct flag_screen {
 
 
 /* exported protoypes */
-void	flag_maintenance_screen(struct pine *, struct flag_screen *);
+int	flag_maintenance_screen(struct pine *, struct flag_screen *);
 
 
 #endif /* PINE_FLAGMAINT_INCLUDED */

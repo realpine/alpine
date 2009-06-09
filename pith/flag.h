@@ -1,8 +1,8 @@
 /*
- * $Id: flag.h 660 2007-07-31 20:49:58Z mikes@u.washington.edu $
+ * $Id: flag.h 786 2007-11-02 23:23:04Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -57,6 +57,8 @@
 
 #define	F_KEYWORD	0x10000000
 #define	F_UNKEYWORD	0x20000000
+
+#define	F_COMMENT	0x40000000
 
 
 /*

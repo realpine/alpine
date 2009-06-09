@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: filtedit.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: filtedit.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -14,6 +14,11 @@
 #  filtedit.tcl
 #
 #  Purpose:  CGI script to generate html form editing of a single filter
+
+#
+# include common filter info
+source filter.tcl
+
 #
 #  Input: 
 set filtedit_vars {
@@ -23,6 +28,10 @@ set filtedit_vars {
   {fno     {}  -1}
   {add     {}  0}
   {filterrtext {}  ""}
+  {filtedit_score {}  0}
+  {filtedit_indexcolor {}  0}
+  {fg {}  ""}
+  {bg {}  ""}
 }
 
 #  Output:
@@ -43,15 +52,29 @@ foreach item $filtedit_vars {
   }
 }
 
+if {$filtedit_score} {
+  set filttype score
+  set filttypename Score
+} elseif {$filtedit_indexcolor} {
+  set filttype indexcolor
+  set filttypename "Index Color"
+} else {
+  set filttype filt
+  set filttypename Filter
+}
+
 if {[info exists filtedit_add]} {
   set add $filtedit_add
 }
+
 if {[info exists filtedit_fno]} {
   set fno $filtedit_fno
 }
+
 if {[info exists filtedit_onfiltcancel]} {
   set onfiltcancel $filtedit_onfiltcancel
 }
+
 if {[info exists filtedit_filterrtext]} {
   set filterrtext $filtedit_filterrtext
 }
@@ -68,7 +91,7 @@ set filtedit_menu {
       {
 	# * * * * OK * * * *
 	#cgi_image_button filt_save=[WPimg but_save] border=0 alt="Save Config"
-	cgi_submit_button "filt_save=Save Filter"
+	cgi_submit_button "${filttype}_save=Save"
       }
     }
   }
@@ -86,7 +109,7 @@ set filtedit_menu {
     {
       {
 	# * * * * HELP * * * *
-	cgi_submit_button "filthelp=Get Help"
+	cgi_submit_button "${filttype}help=Get Help"
       }
     }
   }
@@ -111,44 +134,15 @@ proc freetext_cell {intro varname varval} {
 }
 
 
-set patvarnamesl {
-    to {"To" "" freetext}
-    from {"From" "" freetext}
-    sender {"Sender" "" freetext}
-    cc {"Cc" "" freetext}
-    recip {"Recipients" "" freetext}
-    partic {"Participants" "" freetext}
-    news {"Newsgroups" "" freetext}
-    subj {"Subject" "" freetext}
-    alltext {"All Text" "" freetext}
-    bodytext {"Body Text" "" freetext}
-    age {"Age Interval" "" freetext}
-    size {"Size Interval" "" freetext}
-    score {"Score Interval" "" freetext}
-    keyword {"Keyword" "" freetext}
-    charset {"Character Set" "" freetext}
-    headers {"Extra Headers" "" headers}
-    stat_new {"Message is New" "either" status}
-    stat_rec {"Message is Recent" "either" status}
-    stat_del {"Message is Deleted" "either" status}
-    stat_imp {"Message is Important" "either" status}
-    stat_ans {"Message is Answered" "either" status}
-    stat_8bitsubj {"Subject contains raw 8bit characters" "either" status}
-    stat_bom {"Beginning of Month" "either" status}
-    stat_boy {"Beginning of Year" "either" status}
-    addrbook {"Address in address book" "" addrbook}
-}
+array set idvarnames $pattern_id
+array set idvarvals {}
+array set patvarnames $pattern_fields
+array set patvarvals {}
+array set actionvarnames $pattern_actions
+array set colvarnames $pattern_colors
+array set scorevarnames $pattern_scores
 
-array set patvarnames $patvarnamesl
-
-
-set actionvarnamesl {kill folder move_only_if_not_deleted}
-array set actionvarnames {
-    kill {"status" 0}
-    kill {"kill" 0}
-    folder {"Folder" ""}
-    move_only_if_not_deleted {"moind" 0}
-}
+array set actionvals {}
 
 cgi_http_head {
   cgi_content_type
@@ -157,43 +151,79 @@ cgi_http_head {
 
 cgi_html {
   cgi_head {
-    WPStdHtmlHdr "Filter List Configuration"
+    WPStdHtmlHdr "$filttypename List Configuration"
     WPStyleSheets
   }
 
   if {$add == 0} {
-    set fext [WPCmd PEConfig filtextended $fno]
+    if {$filtedit_score} {
+      set actions $pattern_scores
+      set fext [WPCmd PEConfig scoreextended $fno]
+    } elseif {$filtedit_indexcolor} {
+      set actions $pattern_colors
+      set fext [WPCmd PEConfig indexcolorextended $fno]
+    } else {
+      set actions $pattern_actions
+      set fext [WPCmd PEConfig filtextended $fno]
+    }
 
     foreach fvar $fext {
       switch -- [lindex $fvar 0] {
+	id {
+	  foreach idvar [lindex $fvar 1] {
+	    set idname [lindex $idvar 0]
+	    if {[info exists idvarnames($idname)]} {
+	      set idvarvals($idname) [lindex $idvar 1]
+	    }
+	  }
+	}
 	pattern {
-	  set patternvars [lindex $fvar 1]
-	  foreach patternvar $patternvars {
+	  foreach patternvar [lindex $fvar 1] {
 	    set patname [lindex $patternvar 0]
 	    if {[info exists patvarnames($patname)]} {
-	      set oldval $patvarnames($patname)
-	      set patvarnames($patname) [list [lindex $oldval 0] [lindex $patternvar 1]]
+	      set patvarvals($patname) [lindex $patternvar 1]
 	    }
 	  }
 	}
 	filtaction {
-	  set actionvars [lindex $fvar 1]
-	  foreach actionvar $actionvars {
+	  foreach actionvar [lindex $fvar 1] {
 	    set actionname [lindex $actionvar 0]
 	    if {[info exists actionvarnames($actionname)]} {
-	      set oldval $actionvarnames($actionname)
-	      set actionvarnames($actionname) [list [lindex $oldval 0] [lindex $actionvar 1]]
+	      set actionvals($actionname) [lindex $actionvar 1]
 	    }
+	  }
+	}
+	indexcolors {
+	  foreach colvar [lindex $fvar 1] {
+	    set colname [lindex $colvar 0]
+	    if {[info exists colvarnames($colname)]} {
+	      set actionvals($colname) [lindex $colvar 1]
+	    }
+	  }
+	}
+	scores {
+	  foreach colvar [lindex $fvar 1] {
+	    set actionvals([lindex $colvar 0]) [lindex $colvar 1]
 	  }
 	}
       }
     }
+  } else {
+    if {$filtedit_score} {
+      set actions $pattern_scores
+    } elseif {$filtedit_indexcolor} {
+      set actions $pattern_colors
+    } else {
+      set actions $pattern_actions
+    }
   }
 
   cgi_body BGCOLOR="$_wp(bordercolor)" {
-
     cgi_form $_wp(appdir)/wp method=get name=filtconfig target=_top {
       cgi_text "page=conf_process" type=hidden notab
+      cgi_text "cp_op=${filttype}config" type=hidden notab
+      cgi_text "cid=$cid" type=hidden notab
+      cgi_text "oncancel=$oncancel" type=hidden notab
       cgi_table border=0 cellspacing=0 cellpadding=0 width="100%" height="100%" {
 	cgi_table_row {
 	  #
@@ -209,9 +239,6 @@ cgi_html {
 	  # In main body of screen goes confg list
 	  #
 	  cgi_table_data valign=top width="100%" class=dialog {
-	    cgi_text "cp_op=filtconfig" type=hidden notab
-	    cgi_text "cid=$cid" type=hidden notab
-	    cgi_text "oncancel=$oncancel" type=hidden notab
 	    if {[string length $onfiltcancel]} {
 	      cgi_text "onfiltcancel=$onfiltcancel" type=hidden notab
 	    }
@@ -222,15 +249,17 @@ cgi_html {
 	      cgi_table_row {
 		cgi_table_data {
 		  cgi_puts "<fieldset>"
-		  cgi_puts "<legend style=\"font-weight:bold;font-size:bigger\">Filter Identification</legend>"
+		  cgi_puts "<legend style=\"font-weight:bold;font-size:bigger\">$filttypename Identification</legend>"
 		  cgi_table {
-		    cgi_table_row {
-		      wpGetVarAs nickname filtname
-		      freetext_cell "Filter Nickname" nickname $filtname
-		    }
-		    cgi_table_row {
-		      wpGetVarAs comment filtcomment
-		      freetext_cell "Comment" comment $filtcomment
+		    foreach {idname idtype} $pattern_id {
+		      if {[info exists idvarvals($idname)]} {
+			set val $idvarvals($idname)
+		      } else {
+			wpGetVarAs $idname val
+		      }
+		      cgi_table_row {
+			freetext_cell "$filttypename [lindex $idtype 0]" $idname $val
+		      }
 		    }
 		  }
 		  cgi_puts "</fieldset>"
@@ -294,14 +323,19 @@ cgi_html {
 		cgi_table_data {
 		  cgi_puts "<fieldset>"
 		  cgi_puts "<legend style=\"font-weight:bold;font-size:bigger\">Message Conditions</legend>"
-		  cgi_table {
-		    foreach {pvarname parvarval} $patvarnamesl {
-		      set pvarval [lindex $patvarnames($pvarname) 1]
+		  cgi_table border=0 {
+		    foreach {pvarname parvarval} $pattern_fields {
+
 		      if {$filterr} {
 			wpGetVarAs $pvarname pvarval
+		      } elseif {[info exists patvarvals($pvarname)]} {
+			set pvarval $patvarvals($pvarname)
+		      } else {
+			set pvarval ""
 		      }
+
 		      cgi_table_row {
-			switch -- [lindex $patvarnames($pvarname) 2] {
+			switch -- [lindex $patvarnames($pvarname) 1] {
 			  freetext {
 			    freetext_cell [lindex $patvarnames($pvarname) 0] $pvarname $pvarval
 			  }
@@ -311,7 +345,7 @@ cgi_html {
 			    }
 			    cgi_table_data align=left {
 			      cgi_select $pvarname "style=margin:2" {
-				cgi_option "Don't care, always matches" "value=either" [expr {[string compare $pvarval "either"] == 0 ? "selected" : ""}]
+				cgi_option "Don't care, always matches" "value=either"
 				cgi_option "Yes" "value=yes" [expr {[string compare $pvarval "yes"] == 0 ? "selected" : ""}]
 				cgi_option "No" "value=no" [expr {[string compare $pvarval "no"] == 0 ? "selected" : ""}]
 			      }
@@ -367,40 +401,34 @@ cgi_html {
 			    }
 			  }
 			  headers {
-			    cgi_table_data align=right {
+			    cgi_table_data align=right valign=top {
 			      cgi_put "[cgi_bold [lindex $patvarnames($pvarname) 0]] :[cgi_nbspace][cgi_nbspace]"
 			    }
 			    cgi_table_data align=left {
-			      cgi_submit_button "headers=Add Header"
-			    }
+			      cgi_table {
+				set hdrnum 0
 
-			    if {[llength $pvarval] > 0} {
-			      cgi_table_data align=left {
-				for {set n 0} {$n < [llength $pvarval]} {incr n} {
-				  cgi_text "hdrfld$n=[lindex [lindex $pvarval $n] 0]" "style=margin:2"
-				  cgi_put ":"
-				  cgi_text "hdrval$n=[lindex [lindex $pvarval $n] 1]" "style=margin:2"
-				  cgi_br
+				if {[llength $pvarval] > 0} {
+				  for {set n 0} {$n < [llength $pvarval]} {incr n} {
+				    cgi_table_row {
+				      cgi_table_data align=left nowrap {
+					cgi_text "hdrfld${n}=[lindex [lindex $pvarval $n] 0]" "style=margin:2"
+					cgi_put ":"
+					cgi_text "hdrval${n}=[lindex [lindex $pvarval $n] 1]" "style=margin:2"
+					cgi_submit_button "rmheader${n}=Remove"
+				      }
+				    }
+				  }
+
+				  cgi_text "header_total=$n" type=hidden notab
 				}
 
+				cgi_table_row {
+				  cgi_table_data align=left nowrap {
+				    cgi_submit_button "addheader=Add Header"
+				  }
+				}
 			      }
-			    }
-			  }
-			  interval {
-			    cgi_table_data align=right {
-			      cgi_put "[cgi_bold [lindex $patvarnames($pvarname) 0]] :[cgi_nbspace][cgi_nbspace]"
-			    }
-			    cgi_table_data align=left {
-			      for {set n 0} {$n < [llength $pvarval]} {incr n} {
-				cgi_text "hdrfld$n=[lindex [lindex $pvarval $n] 0]" sise=4 "style=margin:2"
-				cgi_put [cgi_span style=margin:4 "to"]
-				cgi_text "hdrval$n=[lindex [lindex $pvarval $n] 1]" sise=4 "style=margin:2"
-			      }
-
-			      cgi_text "hdrfld$n=" size=4 "style=margin:2"
-			      cgi_put [cgi_span style=margin:4 "to"]
-			      cgi_text "hdrval$n=" size=4 "style=margin:2"
-			      cgi_submit_button "interval=Another Interval"
 			    }
 			  }
 			}
@@ -412,13 +440,131 @@ cgi_html {
 	      }
 
 	      cgi_table_row {
-		cgi_table_data {
+		cgi_table_data "style=\"padding-bottom: 40\"" {
 		  cgi_puts "<fieldset>"
 		  cgi_puts "<legend style=\"font-weight:bold;font-size:bigger\">Filter Actions</legend>"
-		  foreach avarname $actionvarnamesl {
+		  foreach {avarname patval} $actions {
 		    switch -- $avarname {
+		      indexcolor {
+			set ih [WPIndexLineHeight]
+			set iformat [WPCmd PEMailbox indexformat]
+			set num 0
+			cgi_division "width=100%" align=center "style=\"font-size: bigger; font-weight: bold; margin: 0 0 12 0 \"" {
+			  cgi_puts "Choose Index Line Colors"
+			}
+
+			cgi_table width=100% align=center cellpadding=0 cellspacing=0 "style=\"font-family: geneva, arial, sans-serif; height: ${ih}pix; width: 90%; background-color: white ; border: 1px solid black\"" {
+			  foreach l [list "Line One" "Sample Message" "Line Three"] {
+			    set iclass [lindex {i0 i1} [expr ([incr num] % 2)]]
+			    set istyle ""
+			    if {$num == 2} {
+			      wpGetVarAs fg fg
+			      if {[string length $fg] == 0} {
+				if {[info exists actionvals($avarname)]} {
+				  set fg [lindex $actionvals($avarname) 0]
+				}
+			      }
+
+			      cgi_text "fg=$fg" type=hidden notab
+			      append istyle "; color: $fg"
+
+			      wpGetVarAs bg bg
+			      if {[string length $bg] == 0} {
+				if {[info exists actionvals($avarname)]} {
+				  set bg [lindex $actionvals($avarname) 1]
+				}
+			      }
+
+			      cgi_text "bg=$bg" type=hidden notab
+			      append istyle "; background-color: $bg"
+			    }
+
+			    cgi_table_row {
+			      if {[WPCmd PEInfo feature enable-aggregate-command-set]} {
+				cgi_table_data height=${ih}pix class=$iclass "style=\"$istyle\"" {
+				  cgi_checkbox bogus
+				}
+			      }
+			      
+			      foreach fmt $iformat {
+				cgi_table_data height=${ih}pix width=[lindex $fmt 1]% nowrap class=$iclass "style=\"$istyle\"" {
+				  switch -regex [string tolower [lindex $fmt 0]] {
+				    number {
+				      cgi_puts "$num"
+				    }
+				    status {
+				      set n [expr {(int((10 * rand()))) % 5}]
+				      cgi_puts [lindex {N D F A { }} $n]
+				    }
+				    .*size.* {
+				      cgi_puts "([expr int((10000 * rand()))])"
+				    }
+				    from.* {
+				      cgi_puts "Some Sender"
+				    }
+				    subject {
+				      cgi_puts $l
+				    }
+				    date {
+				      cgi_puts [clock format [clock seconds] -format "%d %b"]
+				    }
+				    default {
+				      cgi_puts [lindex $fmt 0]
+				    }
+				  }
+				}
+			      }
+			    }
+			  }
+			}
+			cgi_table width=80% align=center {
+			  cgi_table_row {
+			    cgi_table_data align=center {
+			      cgi_table "style=\"background-color: #ffcc66\"" {
+				wpGetVarAs fgorbg fgorbg
+				cgi_table_row {
+				  cgi_table_data {
+				    if {[string length $fgorbg] == 0 || [string compare $fgorbg fg] == 0} {
+				      set checked checked=1
+				    } else {
+				      set checked ""
+				    }
+
+				    cgi_radio_button fgorbg=fg $checked
+				  }
+				  cgi_table_data "style=\"align: left; padding-left: 12\"" {
+				    cgi_puts "Foreground"
+				  }
+				}
+				cgi_table_row {
+				  cgi_table_data {
+				    if {[string length $checked]} {
+				      set checked ""
+				    } else {
+				      set checked checked=1
+				    }
+
+				    cgi_radio_button fgorbg=bg $checked
+				  }
+				  cgi_table_data "style=\"align: left; padding-left: 12\"" {
+				    cgi_puts "Background"
+				  }
+				}
+			      }
+			    }
+			    cgi_table_data align=center {
+			      cgi_image_button "colormap=[WPimg nondither10x10]" alt="Color Pattern" "style=\"border: 1px solid black\""
+			    }
+			  }
+			}
+		      }
 		      folder {
-			set killit [lindex $actionvarnames(kill) 1]
+			if {[info exists actionvals(kill)]} {
+			  set killit $actionvals(kill)
+			} else {
+			  set killit 0
+			}
+
 			if {$filterr} {
 			  wpGetVarAs action tval
 			  set killit [expr {([string compare $tval "delete"] == 0) ? 1 : 0}]
@@ -435,45 +581,36 @@ cgi_html {
 				    cgi_radio_button action=status [expr {$killit ? "checked" : ""}] style="background-color:$_wp(dialogcolor)"
 				  }
 				  cgi_table_data {
-				    cgi_table {
-				      cgi_table_row {
-					cgi_table_data valign=top rowspan=4 {
-					  cgi_puts "Set Message Status:"
-					}
-					cgi_table_data {
-					  cgi_select actsetimp {
-					    cgi_option "Don't change Important Status" "value=leave" [expr {[string compare $pvarval "either"] == 0 ? "selected" : ""}]
-					    cgi_option "Set Important status" "value=set" [expr {[string compare $pvarval "yes"] == 0 ? "selected" : ""}]
-					    cgi_option "Clear Important status" "value=clear" [expr {[string compare $pvarval "no"] == 0 ? "selected" : ""}]
-					  }
-					}
+				    cgi_puts "Set Message Status:"
+				    cgi_division "style=\"margin-left: .5in\"" {
+				      cgi_select actsetimp {
+					cgi_option "Don't change Important Status" "value=leave" [expr {[string compare $pvarval "either"] == 0 ? "selected" : ""}]
+					cgi_option "Set Important status" "value=set" [expr {[string compare $pvarval "yes"] == 0 ? "selected" : ""}]
+					cgi_option "Clear Important status" "value=clear" [expr {[string compare $pvarval "no"] == 0 ? "selected" : ""}]
 				      }
-				      cgi_table_row {
-					cgi_table_data {
-					  cgi_select actsetnew {
-					    cgi_option "Don't change New Status" "value=leave" [expr {[string compare $pvarval "either"] == 0 ? "selected" : ""}]
-					    cgi_option "Set New status" "value=set" [expr {[string compare $pvarval "yes"] == 0 ? "selected" : ""}]
-					    cgi_option "Clear New status" "value=clear" [expr {[string compare $pvarval "no"] == 0 ? "selected" : ""}]
-					  }
-					}
+
+				      cgi_br
+
+				      cgi_select actsetnew {
+					cgi_option "Don't change New Status" "value=leave" [expr {[string compare $pvarval "either"] == 0 ? "selected" : ""}]
+					cgi_option "Set New status" "value=set" [expr {[string compare $pvarval "yes"] == 0 ? "selected" : ""}]
+					cgi_option "Clear New status" "value=clear" [expr {[string compare $pvarval "no"] == 0 ? "selected" : ""}]
 				      }
-				      cgi_table_row {
-					cgi_table_data {
-					  cgi_select actsetdel {
-					    cgi_option "Don't change Deleted Status" "value=leave" [expr {[string compare $pvarval "either"] == 0 ? "selected" : ""}]
-					    cgi_option "Set Deleted status" "value=set" [expr {[string compare $pvarval "yes"] == 0 ? "selected" : ""}]
-					    cgi_option "Clear Deleted status" "value=clear" [expr {[string compare $pvarval "no"] == 0 ? "selected" : ""}]
-					  }
-					}
+
+				      cgi_br
+
+				      cgi_select actsetdel {
+					cgi_option "Don't change Deleted Status" "value=leave" [expr {[string compare $pvarval "either"] == 0 ? "selected" : ""}]
+					cgi_option "Set Deleted status" "value=set" [expr {[string compare $pvarval "yes"] == 0 ? "selected" : ""}]
+					cgi_option "Clear Deleted status" "value=clear" [expr {[string compare $pvarval "no"] == 0 ? "selected" : ""}]
 				      }
-				      cgi_table_row {
-					cgi_table_data {
-					  cgi_select actsetans {
-					    cgi_option "Don't change Answered Status" "value=leave" [expr {[string compare $pvarval "either"] == 0 ? "selected" : ""}]
-					    cgi_option "Set Answered status" "value=set" [expr {[string compare $pvarval "yes"] == 0 ? "selected" : ""}]
-					    cgi_option "Clear Answered status" "value=clear" [expr {[string compare $pvarval "no"] == 0 ? "selected" : ""}]
-					  }
-					}
+
+				      cgi_br
+
+				      cgi_select actsetans {
+					cgi_option "Don't change Answered Status" "value=leave" [expr {[string compare $pvarval "either"] == 0 ? "selected" : ""}]
+					cgi_option "Set Answered status" "value=set" [expr {[string compare $pvarval "yes"] == 0 ? "selected" : ""}]
+					cgi_option "Clear Answered status" "value=clear" [expr {[string compare $pvarval "no"] == 0 ? "selected" : ""}]
 				      }
 				    }
 				  }
@@ -496,13 +633,24 @@ cgi_html {
 				      wpGetVarAs actionfolder tval
 				      cgi_text "actionfolder=$tval"
 				    } else {
-				      cgi_text "actionfolder=[lindex $actionvarnames($avarname) 1]"
+				      if {[info exists actionvals($avarname)]} {
+					set av $actionvals($avarname)
+				      } else {
+					set av 0
+				      }
+
+				      cgi_text "actionfolder=$av"
 				    }
 				    cgi_br
-				    set tval [expr {[lindex $actionvarnames($avarname) 1] == 1 ? "checked" : ""}]
 				    if {$filterr} {
 				      wpGetVarAs moind moinval
 				      set tval [expr {([string compare $moinval on] == 0) ? "checked" : ""}]
+				    } else {
+				      if {[info exists actionvals($avarname)] && $actionvals($avarname) == 1} {
+					set tval checked
+				      } else {
+					set tval ""
+				      }
 				    }
 				    cgi_checkbox moind $tval
 				    cgi_puts "Move only if not deleted."
@@ -518,6 +666,26 @@ cgi_html {
 			  cgi_table_row {
 			    wpGetVarAs clearkeywords clearkeywords
 			    freetext_cell "Clear these Keywoards" clearkeywords $clearkeywords
+			  }
+			}
+		      }
+		      scores {
+			cgi_table border=0 cellpadding=4 cellspacing=0 align=center {
+			  cgi_table_row {
+			    wpGetVarAs scoreval scoreval
+			    if {[string length $scoreval] == 0} {
+			      set scoreval $actionvals(scoreval)
+			    }
+
+			    freetext_cell "Score Value" scoreval $scoreval
+			  }
+			  cgi_table_row {
+			    wpGetVarAs scorehdr scorehdr
+			    if {[string length $scorehdr] == 0} {
+			      set scorehdr $actionvals(scorehdr)
+			    }
+
+			    freetext_cell "Score Header" scorehdr $scorehdr
 			  }
 			}
 		      }

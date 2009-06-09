@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: compose.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: compose.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -60,12 +60,7 @@ set defaultheaders {to cc subject attach}
 set fccname ""
 
 proc sendname {n i} {
-  cgi_noscript {
-    cgi_put [cgi_span class=navtext "style=color:white" "$n"]
-  }
-  cgi_javascript {
-    cgi_put "document.write('<a href=\"\#\" style=\"color: white; text-decoration:none\" onclick=\"return setop($i)\">[cgi_span "style=color: white" class=navtext "$n"]</a>')"
-  }
+  cgi_put [cgi_span class=navtext style=\"color:white\" onclick=\"setop($i)\" "$n"]
 }
 
 proc fieldname {name} {

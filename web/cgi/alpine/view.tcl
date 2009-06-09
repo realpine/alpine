@@ -1,4 +1,4 @@
-# $Id: view.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: view.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -415,7 +415,7 @@ if {[info exists errstr]} {
 
     if {$uid} {
       # preserve any new uid val
-      WPCmd PEInfo set uid $uid
+      WPCmd set uid $uid
     }
 
     if {[catch {WPCmd PEMessage $uid charset} charset]
@@ -435,7 +435,7 @@ if {[info exists errstr]} {
 
 	cgi_http_equiv Content-Type "text/html; charset=$charset"
 
-	set normalreload [cgi_buffer {WPHtmlHdrReload "$_wp(appdir)/wp.tcl?page=body"}]
+	set normalreload [cgi_buffer {WPHtmlHdrReload "$_wp(appdir)/wp.tcl?page=body&uid=$uid"}]
 	if {[info exists _wp(exitonclose)]} {
 	  cgi_puts $closescript
 

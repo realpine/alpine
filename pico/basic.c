@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: basic.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: basic.c 788 2007-11-06 23:51:13Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -932,5 +932,17 @@ mousepress(int f, int n)
     }
 
     return(FALSE);
+}
+
+
+int
+toggle_xterm_mouse(int f, int n)
+{
+#ifndef _WINDOWS
+    mouseexist() ? end_mouse() : init_mouse();
+    mouseexist() ? emlwrite(_("Xterm mouse tracking on!"), NULL)
+		 : emlwrite(_("Xterm mouse tracking off!"), NULL);
+#endif
+    return(TRUE);
 }
 #endif

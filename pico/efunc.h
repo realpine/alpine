@@ -1,5 +1,5 @@
 /*
- * $Id: efunc.h 676 2007-08-20 19:46:37Z hubert@u.washington.edu $
+ * $Id: efunc.h 788 2007-11-06 23:51:13Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -63,6 +63,7 @@ extern	int swapmark(int, int);
 extern	int setimark(int, int);
 extern	int swapimark(int, int);
 extern	int mousepress(int, int);
+extern	int toggle_xterm_mouse(int, int);
 extern	void swap_mark_and_dot_if_mark_comes_first(void);
 extern	int backchar_no_header_editor(int, int);
 extern  int getgoal(struct LINE *);

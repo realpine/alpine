@@ -112,7 +112,8 @@ set _wp(titlesep)	4
 set _wp(config)		remote_pinerc
 set _wp(motd)		motd
 set _wp(save_cache_max)	6
-set _wp(fldr_cache_max)	3
+set _wp(fldr_cache_max)	8
+set _wp(fldr_cache_def)	3
 set _wp(statushelp)	0
 set _wp(imgbuttons)	0
 set _wp(keybindings)	1
@@ -832,12 +833,9 @@ proc WPNewMail {reload {viewpage msgview.tcl}} {
 	lappend newref [list $newtext "" ""]
     }
 
-    set statmsgs [WPCmd PEInfo statmsgs]
-    foreach statmsg $statmsgs {
-	if {[string length $statmsg] > 0} {
-	    lappend newref [list $statmsg "" ""]
-	    WPCmd PEInfo statmsg ""
-	}
+    foreach statmsg [WPStatusMsgs] {
+      lappend newref [list $statmsg "" ""]
+      WPCmd PEInfo statmsg ""
     }
 
     if {!$reload} {
@@ -845,6 +843,26 @@ proc WPNewMail {reload {viewpage msgview.tcl}} {
     }
 
     return $newref
+}
+
+proc WPStatusMsgs {} {
+  set retmsgs ""
+  set lastmsg ""
+  if {[catch {WPCmd PEInfo statmsgs} statmsgs] == 0} {
+    foreach statmsg $statmsgs {
+      if {[string length $statmsg] > 0 && [string compare $statmsg $lastmsg]} {
+	if {[regexp "^Pinerc \(.+\) NOT saved$" $statmsg]} {
+	  lappend retmsgs "Another Pine/WebPine session may be running.  Settings cannot be saved."
+	} else {
+	  lappend retmsgs $statmsg
+	}
+
+	set lastmsg $statmsg
+      }
+    }
+  }
+
+  return $retmsgs
 }
 
 proc WPStatusIcon {uid {extension gif} {statbits ""}} {

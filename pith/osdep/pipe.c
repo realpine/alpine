@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pipe.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pipe.c 745 2007-10-11 18:03:32Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -169,13 +169,13 @@ open_system_pipe(char *command, char **outfile, char **errfile, int mode,
     if(!outfile){
 	syspipe->deloutfile = 1;
 	if(mode & PIPE_READ){
-	    syspipe->outfile = temp_nam(NULL, "po", 0);
+	    syspipe->outfile = temp_nam(NULL, "po");
 	    our_unlink(syspipe->outfile);
 	}
     }
     else{
 	if(!*outfile) /* asked for, but not named? */
-	  *outfile = temp_nam(NULL, "po", 0);
+	  *outfile = temp_nam(NULL, "po");
 
 	our_unlink(*outfile);
 	syspipe->outfile = (char *) malloc((strlen(*outfile)+1)*sizeof(char));
@@ -187,7 +187,7 @@ open_system_pipe(char *command, char **outfile, char **errfile, int mode,
 	 * Create tmp file to write, spawn child in close_pipe
 	 * after tmp file's written...
 	 */
-	syspipe->infile = temp_nam(NULL, "pw", 0);
+	syspipe->infile = temp_nam(NULL, "pw");
 	syspipe->out.f = our_fopen(syspipe->infile, "wb");
 	syspipe->command = (char *) malloc((strlen(cmdbuf)+1)*sizeof(char));
 	snprintf(syspipe->command, strlen(cmdbuf)+1, "%s", cmdbuf);
@@ -311,10 +311,10 @@ open_system_pipe(char *command, char **outfile, char **errfile, int mode,
     /* fill in any output filenames */
     if(!(mode & PIPE_READ)){
 	if(outfile && !*outfile)
-	  *outfile = temp_nam(NULL, "pine_p", 0); /* asked for, but not named? */
+	  *outfile = temp_nam(NULL, "pine_p"); /* asked for, but not named? */
 
 	if(errfile && !*errfile)
-	  *errfile = temp_nam(NULL, "pine_p", 0); /* ditto */
+	  *errfile = temp_nam(NULL, "pine_p"); /* ditto */
     }
 
     /* create pipes */

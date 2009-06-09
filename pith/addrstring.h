@@ -1,5 +1,5 @@
 /*
- * $Id: addrstring.h 671 2007-08-15 20:28:09Z hubert@u.washington.edu $
+ * $Id: addrstring.h 725 2007-09-25 21:03:06Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -22,6 +22,7 @@
 
 /* exported protoypes */
 char	     *addr_string(ADDRESS *, char *, size_t);
+char	     *addr_string_mult(ADDRESS *, char *, size_t);
 char	     *simple_addr_string(ADDRESS *, char *, size_t);
 char         *simple_mult_addr_string(ADDRESS *, char *, size_t, char *);
 char         *encode_fullname_of_addrstring(char *, char *);

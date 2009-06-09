@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: debugtime.c 165 2006-10-04 01:09:47Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: debugtime.c 728 2007-09-26 21:53:10Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -105,6 +105,15 @@ get_time(TIMEVAL_S *our_time_val)
 	our_time_val->usec = tp.tv_usec;
 	return 0;
     }
+#else /* !HAVE_GETTIMEOFDAY */
+#ifdef	_WINDOWS
+    struct _timeb timebuffer;
+
+    _ftime(&timebuffer);
+    our_time_val->sec  = (long)timebuffer.time;
+    our_time_val->usec = 1000L * (long)timebuffer.millitm;
+    return 0;
+#endif
 #endif
 
     return -1;

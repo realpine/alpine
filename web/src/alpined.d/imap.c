@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: imap.c 701 2007-08-31 18:52:30Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: imap.c 796 2007-11-08 01:14:02Z mikes@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -280,9 +280,9 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long trial, char *usethisprompt
     }
 #endif
 
-#if	1
+#if	WEB_REQUIRE_SECURE_IMAP
     /* we *require* secure authentication */
-    if(!(mb->sslflag || mb->tlsflag)){
+    if(!(mb->sslflag || mb->tlsflag) && strcmp("localhost",mb->host)){
 	user[0] = pwd[0] = '\0';
         return;
     }

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailview.c 702 2007-08-31 19:11:47Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailview.c 777 2007-10-25 19:02:22Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -202,7 +202,6 @@ int	    simple_text_popup(SCROLL_S *, int);
 int	    mswin_readscrollbuf(int);
 int	    pcpine_do_scroll(int, long);
 char	   *pcpine_help_scroll(char *);
-int	    pcpine_resize_scroll(void);
 int	    pcpine_view_cursor(int, long);
 #endif
 
@@ -2642,8 +2641,6 @@ scrolltool(SCROLL_S *sparms)
 	if(sparms->help.text != NO_HELP)
 	  mswin_sethelptextcallback(pcpine_help_scroll);
 
-	mswin_setresizecallback(pcpine_resize_scroll);
-
 	if(sparms->text.handles
 	   && sparms->text.handles->type != Folder)
 	  mswin_mousetrackcallback(pcpine_view_cursor);
@@ -2662,7 +2659,6 @@ scrolltool(SCROLL_S *sparms)
 	mswin_allowcopy(NULL);
 	mswin_setscrollcallback(NULL);
 	mswin_sethelptextcallback(NULL);
-	mswin_clearresizecallback(pcpine_resize_scroll);
 	mswin_mousetrackcallback(NULL);
 	mswin_setviewinwindcallback(NULL);
 	cur_top_line = scroll_state(SS_CUR)->top_text_line;
@@ -4226,7 +4222,7 @@ make_file_index(void)
 
     if(!st->findex){
 	if(!st->fname)
-	  st->fname = temp_nam(NULL, "pi", 0);
+	  st->fname = temp_nam(NULL, "pi");
 
 	if(!st->fname || (st->findex = our_fopen(st->fname,"w+b")) == NULL){
 	    if(st->fname){
@@ -5049,6 +5045,11 @@ display_output_file(char *filename, char *title, char *alt_msg, int mode)
 
 	    gf_filter_init();
 
+	    gf_link_filter(gf_wrap,
+			   gf_wrap_filter_opt(ps_global->ttyo->screen_cols - 4,
+					      ps_global->ttyo->screen_cols,
+					      NULL, 0, GFW_NONE));
+
 	    gf_set_so_readc(&gc, in_file);
 	    gf_set_so_writec(&pc, out_store);
 
@@ -5565,28 +5566,6 @@ pcpine_help_scroll(title)
 		      ? st->parms->help.title : "Alpine Help", 256);
 
     return(pcpine_help(st->parms->help.text));
-}
-
-
-int
-pcpine_resize_scroll()
-{
-    int newRows, newCols;
-
-    mswin_getscreensize(&newRows, &newCols);
-    if(newCols == ps_global->ttyo->screen_cols){
-	SCRLCTRL_S   *st = scroll_state(SS_CUR);
-
-	(void) get_windsize (ps_global->ttyo);
-	mswin_beginupdate();
-	update_scroll_titlebar(st->top_text_line, 1);
-	ClearLine(1);
-	(void) scroll_scroll_text(st->top_text_line,
-				  st->parms->text.handles, 1);
-	mswin_endupdate();
-    }
-
-    return(0);
 }
 
 

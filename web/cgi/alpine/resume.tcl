@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: resume.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: resume.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -60,6 +60,9 @@ WPEval $resume_vars {
       cgi_http_equiv Content-Type "text/html; charset=$charset"
       WPStdHtmlHdr "Postoned Messages"
       WPStyleSheets
+      cgi_puts  "<style type='text/css'>"
+      cgi_puts  ".gradient	{ background-image: url('[WPimg indexhdr]') ; background-repeat: repeat-x }"
+      cgi_puts  "</style>"
     }
 
     cgi_body BGCOLOR="$_wp(bordercolor)" {
@@ -88,7 +91,7 @@ WPEval $resume_vars {
 
 		set n 1
 		set fmt {{to Recipient} {date Date} {subj Subject}}
-		cgi_table_row {
+		cgi_table_row class=\"gradient\" {
 		  cgi_table_data class=indexhdr height=$_wp(indexheight) {
 		    cgi_puts [cgi_nbspace]
 		  }

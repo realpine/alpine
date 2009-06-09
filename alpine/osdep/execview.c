@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: execview.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: execview.c 745 2007-10-11 18:03:32Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -221,7 +221,7 @@ exec_mailcap_cmd(MCAP_CMD_S *mc_cmd, char *image_file, int needsterminal)
 	  r_file_h = NULL;
 	else{
 	    mode       |= PIPE_WRITE | PIPE_STDERR;
-	    result_file = temp_nam(NULL, "pine_cmd", 0);
+	    result_file = temp_nam(NULL, "pine_cmd");
 	    r_file_h    = &result_file;
 	}
 
@@ -279,7 +279,7 @@ exec_mailcap_cmd(MCAP_CMD_S *mc_cmd, char *image_file, int needsterminal)
       r_file_h = NULL;
     else{
 	mode       |= PIPE_WRITE | PIPE_STDERR;
-	result_file = temp_nam(NULL, "pine_cmd", 0);
+	result_file = temp_nam(NULL, "pine_cmd");
 	r_file_h    = &result_file;
     }
 

@@ -1,0 +1,58 @@
+# $Id: makefile.wnt 14098 2005-10-03 18:54:13Z jpf@u.washington.edu $
+#
+# ========================================================================
+# Copyright 2006-2007 University of Washington
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# ========================================================================
+
+#
+#
+# Makefile for WIN NT version of libpithrgx.lib
+#
+#
+CC=cl
+RM=del
+CP=copy 
+RC=rc
+
+#includes symbol info for debugging 
+CDEBUG= #-Zi -Od
+LDEBUG= /DEBUG /DEBUGTYPE:CV
+
+STDCFLAGS= -I..\include -nologo -MT -DWIN32 -DDOS -D_WINDOWS -DJOB_CONTROL -DMSC_MALLOC
+
+CFLAGS=	$(CDEBUG) $(STDCFLAGS) $(NET) $(EXTRACFLAGS)
+
+LFLAGS= $(LDEBUG) $(EXTRALDFLAGS)
+
+RCFLAGS =
+
+# switches for library building
+LIBER=lib
+LIBARGS=/nologo /verbose
+
+HFILES=	../include/system.h ../include/general.h \
+	cclass.h cname.h regex2.h regex.h utils.h
+
+OFILES=	regcomp.obj regerror.obj regexec.obj regfree.obj
+
+all:		libregex.lib
+
+.c.obj:
+	$(CC) -c $(CFLAGS) "$(MAKEDIR)"\$*.c
+
+$(OFILES):	$(HFILES)
+
+libregex.lib:	$(OFILES)
+		$(RM) libregex.lib || rem
+		$(LIBER) /out:libregex.lib $(OFILES)
+
+clean:
+	$(RM) *.lib
+	$(RM) *.obj

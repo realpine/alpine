@@ -36,7 +36,7 @@ quote3-background-color=white
 rsh-open-timeout=0
 ssh-open-timeout=0
 
-index-format=MSGNO STATUS DATE FROMORTO SIZE SUBJECT
+#index-format=MSGNO STATUS DATE FROMORTO SIZE SUBJECT
 
 viewer-hdr-colors=/HDR=Subject/FG=black/BG=yellow,
 	/HDR=message-id/FG=black/BG=206\x2C206\x2C206,

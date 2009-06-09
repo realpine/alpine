@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: filesys.c 700 2007-08-30 22:33:35Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: filesys.c 737 2007-10-03 19:40:34Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -386,7 +386,9 @@ our_open(char *path, int flags, mode_t mode)
      * When opening for writing the flag _O_U8TEXT will cause
      * us to put a UTF-8 BOM at the start of the file.
      *
-     * O_TEXT vs O_BINARY will cause the CRLF <-> LF translation.
+     * O_TEXT will cause LF -> CRLF on output, opposite on input
+     * O_BINARY suppresses that.
+     * _O_U8TEXT implies O_TEXT.
      */
 
     p = utf8_to_lptstr((LPSTR) path);

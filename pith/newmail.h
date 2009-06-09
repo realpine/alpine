@@ -1,5 +1,5 @@
 /*
- * $Id: newmail.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: newmail.h 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -40,7 +40,6 @@ typedef enum {GoodTime = 0, BadTime, VeryBadTime, DoItNow} CheckPointTime;
 
 /* exported protoypes */
 long	new_mail(int, CheckPointTime, int);
-long	new_mail_count(void);
 void	format_new_mail_msg(char *, long, ENVELOPE *, char *, char *, char *, char *, size_t);
 void	check_point_change(MAILSTREAM *);
 void	reset_check_point(MAILSTREAM *);

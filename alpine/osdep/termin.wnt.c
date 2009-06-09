@@ -146,14 +146,15 @@ read_char(int tm)
 
     if (DidResize) {
 	 DidResize = FALSE;
-	 RETURN_CH (get_windsize (ps_global->ttyo));
+	 fix_windsize(ps_global);
+	 return(KEY_RESIZE);
     }
 
     mswin_setcursor(MSWIN_CURSOR_ARROW);
 
     if(tm){
 	timein = time(0L);
-	/* mswin_charavail() Yeilds control to other window apps. */
+	/* mswin_charavail() Yields control to other window apps. */
 	while (!mswin_charavail()) {
 	    if(time(0L) >= timein + (time_t) tm){
 		ch = (tm < IDLE_TIMEOUT) ? NO_OP_COMMAND : NO_OP_IDLE;
@@ -161,7 +162,8 @@ read_char(int tm)
 	    }
 	    if (DidResize) {
 		DidResize = FALSE;
-		RETURN_CH( get_windsize (ps_global->ttyo));
+		fix_windsize(ps_global);
+		return(KEY_RESIZE);
 	    }
  	    if(checkmouse(&ch,0,0,0))
 	      goto gotone;
@@ -337,8 +339,6 @@ int
 pine_window_resize_callback (void)
 {
     DidResize = TRUE;
-    mark_status_unknown();
-    mark_titlebar_dirty();
     return(0);
 }
 

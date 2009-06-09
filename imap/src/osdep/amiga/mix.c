@@ -23,7 +23,7 @@
  *		Internet: MRC@CAC.Washington.EDU
  *
  * Date:	1 March 2006
- * Last Edited:	31 July 2007
+ * Last Edited:	1 November 2007
  */
 
 
@@ -1443,7 +1443,7 @@ long mix_copy (MAILSTREAM *stream,char *sequence,char *mailbox,long options)
 				/* finish write if success */
       if (ret && (ret = !fflush (msgf))) {
 	fclose (msgf);		/* all good, close the msg file now */
-	if (!stream->rdonly)	/* write new metadata, index, and status */
+	if (!astream->rdonly)	/* write new metadata, index, and status */
 	  local->metaseq = local->indexseq = local->statusseq = seq;
 	if (ret = (mix_meta_update (astream) &&
 		   mix_index_update (astream,idxf))) {
@@ -1568,7 +1568,7 @@ long mix_append (MAILSTREAM *stream,char *mailbox,append_t af,void *data)
 				/* finish write if success */
 	if (ret && (ret = !fflush (msgf))) {
 	  fclose (msgf);	/* all good, close the msg file now */
-	  if (!stream->rdonly)	/* write new metadata, index, and status */
+	  if (!astream->rdonly)	/* write new metadata, index, and status */
 	    local->metaseq = local->indexseq = local->statusseq = seq;
 	  if ((ret = (mix_meta_update (astream) &&
 		      mix_index_update (astream,idxf) &&

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailindx.c 700 2007-08-30 22:33:35Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailindx.c 749 2007-10-15 21:02:56Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -63,7 +63,7 @@ void	(*pith_opt_save_index_state)(int);
  * hook to allow caller to insert cue that indicates a condensed
  * thread relationship cue
  */
-int	(*pith_opt_condense_thread_cue)(PINETHRD_S *, ICE_S *, char **, int, int);
+int	(*pith_opt_condense_thread_cue)(PINETHRD_S *, ICE_S *, char **, size_t *, int, int);
 int	(*pith_opt_truncate_sfstr)(void);
 
 
@@ -88,11 +88,11 @@ long		fetch_size(INDEXDATA_S *);
 BODY	       *fetch_body(INDEXDATA_S *);
 char           *fetch_firsttext(INDEXDATA_S *idata, int);
 char           *fetch_header(INDEXDATA_S *idata, char *hdrname);
-void		subj_str(INDEXDATA_S *, int, char *, SubjKW, int, ICE_S *);
+void		subj_str(INDEXDATA_S *, char *, size_t, SubjKW, int, ICE_S *);
 void		key_str(INDEXDATA_S *, SubjKW, ICE_S *);
 void		header_str(INDEXDATA_S *, HEADER_TOK_S *, ICE_S *);
 void		prio_str(INDEXDATA_S *, IndexColType, ICE_S *);
-void		from_str(IndexColType, INDEXDATA_S *, int, char *, ICE_S *);
+void		from_str(IndexColType, INDEXDATA_S *, char *, size_t, ICE_S *);
 int             day_of_week(struct date *);
 int             day_of_year(struct date *);
 unsigned long   ice_hash(ICE_S *);
@@ -140,7 +140,7 @@ init_index_format(char *format, INDEX_COL_S **answer)
 	static INDEX_COL_S answer_default[] = {
 	    {iStatus, Fixed, 3},
 	    {iMessNo, WeCalculate},
-	    {iSDateTime, WeCalculate},
+	    {iSDateTime24, WeCalculate},
 	    {iFromTo, Percent, 33}, /* percent of rest */
 	    {iSizeNarrow, WeCalculate},
 	    {iSubjKey, Percent, 67},
@@ -199,6 +199,7 @@ init_index_format(char *format, INDEX_COL_S **answer)
 	      case iDay2Digit:
 	      case iMon2Digit:
 	      case iArrow:
+	      case iKeyInit:
 		(*answer)[column].req_width = 2;
 		break;
 	      case iStatus:
@@ -214,6 +215,7 @@ init_index_format(char *format, INDEX_COL_S **answer)
 	      case iTime24:
 	      case iTimezone:
 	      case iSizeNarrow:
+	      case iKey:
 		(*answer)[column].req_width = 5;
 		break;
 	      case iFStatus:
@@ -1507,7 +1509,7 @@ build_header_work(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
 	     * with MN_CHID2.
 	     */
 	    for(visible = 0L, n = top_msgno;
-		visible < msgcount && n <= msgcount;
+		visible < msgcount && n <= mn_get_total(msgmap);
 		n++){
 
 		if(!get_lflag(stream, msgmap, n, MN_CHID2))
@@ -2392,7 +2394,7 @@ format_index_index_line(INDEXDATA_S *idata)
 	      case iAddress:
 	      case iMailbox:
 		fromfield++;
-		from_str(cdesc->ctype, idata, BIGWIDTH, str, ice);
+		from_str(cdesc->ctype, idata, str, sizeof(str), ice);
 	        break;
 
 	      case iTo:
@@ -2680,27 +2682,27 @@ format_index_index_line(INDEXDATA_S *idata)
 		break;
 
 	      case iSubject:
-		subj_str(idata, BIGWIDTH, str, NoKW, 0, ice);
+		subj_str(idata, str, sizeof(str), NoKW, 0, ice);
 		break;
 
 	      case iSubjectText:
-		subj_str(idata, BIGWIDTH, str, NoKW, 1, ice);
+		subj_str(idata, str, sizeof(str), NoKW, 1, ice);
 		break;
 
 	      case iSubjKey:
-		subj_str(idata, BIGWIDTH, str, KW, 0, ice);
+		subj_str(idata, str, sizeof(str), KW, 0, ice);
 		break;
 
 	      case iSubjKeyText:
-		subj_str(idata, BIGWIDTH, str, KW, 1, ice);
+		subj_str(idata, str, sizeof(str), KW, 1, ice);
 		break;
 
 	      case iSubjKeyInit:
-		subj_str(idata, BIGWIDTH, str, KWInit, 0, ice);
+		subj_str(idata, str, sizeof(str), KWInit, 0, ice);
 		break;
 
 	      case iSubjKeyInitText:
-		subj_str(idata, BIGWIDTH, str, KWInit, 1, ice);
+		subj_str(idata, str, sizeof(str), KWInit, 1, ice);
 		break;
 
 	      case iOpeningText:
@@ -3120,7 +3122,7 @@ format_thread_index_line(INDEXDATA_S *idata)
 	from[0] = '\0';
 	save_sfstr_func = pith_opt_truncate_sfstr;
 	pith_opt_truncate_sfstr = NULL;
-	from_str(iFromTo, idata, BIGWIDTH, from, tice);
+	from_str(iFromTo, idata, from, sizeof(from), tice);
 	pith_opt_truncate_sfstr = save_sfstr_func;
 
 	ifield = new_ifield(&tice->ifield);
@@ -3156,17 +3158,16 @@ format_thread_index_line(INDEXDATA_S *idata)
 	  subj_width--;
 
 	if(subj_width > 0){
-	    p = buffer;
 	    if(idata->bogus){
 		if(idata->bogus < 2)
-		  snprintf(p, sizeof(buffer), "%-.*s", BIGWIDTH,
+		  snprintf(buffer, sizeof(buffer), "%-.*s", BIGWIDTH,
 			  _("[ No Message Text Available ]"));
 	    }
 	    else{
-		*p = '\0';
+		buffer[0] = '\0';
 		save_sfstr_func = pith_opt_truncate_sfstr;
 		pith_opt_truncate_sfstr = NULL;
-		subj_str(idata, BIGWIDTH, p, NoKW, 0, NULL);
+		subj_str(idata, buffer, sizeof(buffer), NoKW, 0, NULL);
 		pith_opt_truncate_sfstr = save_sfstr_func;
 	    }
 
@@ -3175,8 +3176,8 @@ format_thread_index_line(INDEXDATA_S *idata)
 	    ielem  = new_ielem(&ifield->ielem);
 	    ielem->freedata = 1;
 	    ielem->type = eTypeCol;
-	    ielem->data = cpystr(p);
-	    ielem->datalen = strlen(p);
+	    ielem->data = cpystr(buffer);
+	    ielem->datalen = strlen(buffer);
 	    ifield->width = subj_width;
 	    set_print_format(ielem, ifield->width, ifield->leftadj);
 	    ifield->ctype = iSubject;
@@ -3223,7 +3224,7 @@ char *
 simple_index_line(char *buf, size_t buflen, int n, ICE_S *ice, long int msgno)
 {
     char     *p;
-    IFIELD_S *ifield;
+    IFIELD_S *ifield, *previfield = NULL;
     IELEM_S  *ielem;
 
     if(n < 0 || n > 1000)
@@ -3245,7 +3246,9 @@ simple_index_line(char *buf, size_t buflen, int n, ICE_S *ice, long int msgno)
       for(ifield = ice->ifield; ifield && p-buf < n; ifield = ifield->next){
 
 	/* space between fields */
-	if(ifield != ice->ifield && (p-buf) < buflen)
+	if(ifield != ice->ifield
+	   && !(previfield && previfield->ctype == iText)
+	   && (p-buf) < buflen)
 	  *p++ = ' ';
 
 	/* message number string is generated on the fly */
@@ -3268,6 +3271,8 @@ simple_index_line(char *buf, size_t buflen, int n, ICE_S *ice, long int msgno)
 	  buf[MIN(n,buflen-1)] = '\0';
 	  p += strlen(p);
 	}
+
+	previfield = ifield;
       }
     }
 
@@ -5053,25 +5058,29 @@ scorevalfrommsg(MAILSTREAM *stream, MsgNo rawno, HEADER_TOK_S *hdrtok, int no_fe
  * That covers the data in ice ielems and str.
  *
  * Args  idata -- which message?
- *       width -- desired maximum width of resulting string
- *         str -- destination buffer (size >= width+1)
+ *         str -- destination buffer
+ *     strsize -- size of str buffer
  *      kwtype -- prepend keywords or kw initials before the subject
  *     opening -- add first text from body of message if there's room
  *         ice -- index cache entry for message
  */
 void
-subj_str(INDEXDATA_S *idata, int width, char *str, SubjKW kwtype, int opening, ICE_S *ice)
+subj_str(INDEXDATA_S *idata, char *str, size_t strsize, SubjKW kwtype, int opening, ICE_S *ice)
 {
     char          *subject, *origsubj, *origstr, *rawsubj, *sptr = NULL;
     char          *p, *border, *q = NULL, *free_subj = NULL;
     char	  *sp;
     size_t         len;
+    int            width = -1;
     int            depth = 0, mult = 2;
     int            save;
-    int            do_subj = 0;
+    int            do_subj = 0, truncated_tree = 0;
     PINETHRD_S    *thd, *thdorig;
     IELEM_S       *ielem = NULL, *subjielem = NULL;
     IFIELD_S      *ourifield = NULL;
+
+    if(strsize <= 0)
+      return;
 
     /*
      * If we need the data at the start of the message and we're in
@@ -5090,22 +5099,7 @@ subj_str(INDEXDATA_S *idata, int width, char *str, SubjKW kwtype, int opening, I
 	  ;
     }
 
-    /*
-     * Why do we want to truncate the subject and from strs?
-     * It's so we can put the [5] thread count things in below when
-     * we are threading and the thread structure runs off the right
-     * hand edge of the screen. This routine doesn't know that it
-     * is running off the edge unless it knows the actual width
-     * that we have to draw in.
-     */
-    if(pith_opt_truncate_sfstr
-       && (*pith_opt_truncate_sfstr)()
-       && ourifield
-       && ourifield->width > 0
-       && ourifield->width < width)
-      width = ourifield->width;
-
-    memset(str, 0, (width+1) * sizeof(*str));
+    str[0] = str[strsize-1] = '\0';
     origstr = str;
     rawsubj = fetch_subject(idata);
     if(!rawsubj)
@@ -5189,14 +5183,47 @@ subj_str(INDEXDATA_S *idata, int width, char *str, SubjKW kwtype, int opening, I
 	   || ps_global->thread_disp_style == THREAD_MUTTLIKE
 	   || ps_global->thread_disp_style == THREAD_INDENT_SUBJ1
 	   || ps_global->thread_disp_style == THREAD_INDENT_SUBJ2)){
-	thdorig = thd = fetch_thread(idata->stream, idata->rawno);
+
+	/*
+	 * Why do we want to truncate the subject and from strs?
+	 * It's so we can put the [5] thread count things in below when
+	 * we are threading and the thread structure runs off the right
+	 * hand edge of the screen. This routine doesn't know that it
+	 * is running off the edge unless it knows the actual width
+	 * that we have to draw in.
+	 */
+	if(pith_opt_truncate_sfstr
+	   && (*pith_opt_truncate_sfstr)()
+	   && ourifield
+	   && ourifield->width > 0)
+	  width = ourifield->width;
+
+	if(width < 0)
+	  width = strsize-1;
+
+	width = MIN(width, strsize-1);
+
+	/*
+	 * We're counting on the fact that this initial part of the
+	 * string is ascii and we have one octet per character and
+	 * characters are width 1 on the screen.
+	 */
 	border = str + width;
+
+	thdorig = thd = fetch_thread(idata->stream, idata->rawno);
+
 	if(pith_opt_condense_thread_cue)
-	  width = (*pith_opt_condense_thread_cue)(thd, ice, &str, width,
+	  width = (*pith_opt_condense_thread_cue)(thd, ice, &str, &strsize, width,
 						  thd && thd->next
 						  && get_lflag(idata->stream,
 							       NULL,idata->rawno,
 							       MN_COLL));
+
+	/*
+	 * width is < available strsize and
+	 * border points to something less than or equal
+	 * to the end of the buffer.
+	 */
 
 	sptr = str;
 
@@ -5213,7 +5240,7 @@ subj_str(INDEXDATA_S *idata, int width, char *str, SubjKW kwtype, int opening, I
 	    for(thd = thdorig, p = str + mult*depth - mult;
 		thd && thd->parent && p >= str;
 		thd = fetch_thread(idata->stream, thd->parent), p -= mult){
-		if(p + 2 >= border && !q){
+		if(p + mult >= border && !q){
 		    if(width >= 4 && depth < 100){
 			snprintf(str, width+1, "%*s[%2d]", width-4, "", depth);
 			q = str + width-4;
@@ -5228,7 +5255,7 @@ subj_str(INDEXDATA_S *idata, int width, char *str, SubjKW kwtype, int opening, I
 		    }
 
 		    border = q;
-		    sptr = NULL;
+		    truncated_tree++;
 		}
 
 		if(p < border){
@@ -5255,7 +5282,7 @@ subj_str(INDEXDATA_S *idata, int width, char *str, SubjKW kwtype, int opening, I
 	    }
 	}
 
-	if(sptr){
+	if(sptr && !truncated_tree){
 	    /*
 	     * Look to see if the subject is the same as the previous
 	     * message in the thread, if any. If it is the same, don't
@@ -5400,14 +5427,24 @@ subj_str(INDEXDATA_S *idata, int width, char *str, SubjKW kwtype, int opening, I
 	      do_subj++;
 
 	    if(do_subj){
-		width -= (sptr - str);
+		/*
+		 * We don't need to worry about truncating to width
+		 * here. If we go over the right hand edge it will be
+		 * truncated.
+		 */
+		strsize -= (sptr - str);
 
-		strncpy(sptr, subject, width);
-		sptr[width] = '\0';
+		strncpy(sptr, subject, strsize-1);
+		sptr[strsize-1] = '\0';
 	    }
 	    else if(ps_global->thread_disp_style == THREAD_MUTTLIKE){
-		sptr[0] = '>';
-		sptr++;
+		strsize -= (sptr - str);
+
+		if(strsize > 0){
+		    sptr[0] = '>';
+		    sptr++;
+		}
+
 		/*
 		 * We decided we don't need the subject so we'd better
 		 * eliminate subjielem.
@@ -5434,8 +5471,8 @@ subj_str(INDEXDATA_S *idata, int width, char *str, SubjKW kwtype, int opening, I
 	 * Not much to do for the non-threading case. Just copy the
 	 * subject we have so far into str and truncate it.
 	 */
-	strncpy(str, subject, width);
-	str[width] = '\0';
+	strncpy(str, subject, strsize-1);
+	str[strsize-1] = '\0';
     }
 
     if(ourifield){
@@ -5771,36 +5808,43 @@ prepend_keyword_subject(MAILSTREAM *stream, long int rawno, char *subject,
  * That covers the data in ice ielems and str.
  */
 void
-from_str(IndexColType ctype, INDEXDATA_S *idata, int width, char *str, ICE_S *ice)
+from_str(IndexColType ctype, INDEXDATA_S *idata, char *str, size_t strsize, ICE_S *ice)
 {
     char       *field, *newsgroups, *border, *p, *fptr = NULL, *q = NULL;
     ADDRESS    *addr;
+    int         width = -1;
     int         depth = 0, mult = 2;
     PINETHRD_S *thd, *thdorig;
-
-    if(pith_opt_truncate_sfstr && (*pith_opt_truncate_sfstr)()){
-	IFIELD_S   *ourifield = NULL;
-
-	if(ice && ice->ifield){
-	    /* move to last ifield, the one we're working on */
-	    for(ourifield = ice->ifield;
-		ourifield && ourifield->next;
-		ourifield = ourifield->next)
-	      ;
-	}
-
-	if(ourifield && ourifield->width > 0 && ourifield->width < width)
-	  width = ourifield->width;
-    }
 
     if(THREADING()
        && (ps_global->thread_disp_style == THREAD_INDENT_FROM1
            || ps_global->thread_disp_style == THREAD_INDENT_FROM2
            || ps_global->thread_disp_style == THREAD_STRUCT_FROM)){
+
+	if(pith_opt_truncate_sfstr && (*pith_opt_truncate_sfstr)()){
+	    IFIELD_S   *ourifield = NULL;
+
+	    if(ice && ice->ifield){
+		/* move to last ifield, the one we're working on */
+		for(ourifield = ice->ifield;
+		    ourifield && ourifield->next;
+		    ourifield = ourifield->next)
+		  ;
+	    }
+
+	    if(ourifield && ourifield->width > 0)
+	      width = ourifield->width;
+	}
+
+	if(width < 0)
+	  width = strsize-1;
+
+	width = MIN(width, strsize-1);
+
 	thdorig = thd = fetch_thread(idata->stream, idata->rawno);
 	border = str + width;
 	if(pith_opt_condense_thread_cue)
-	  width = (*pith_opt_condense_thread_cue)(thd, ice, &str, width,
+	  width = (*pith_opt_condense_thread_cue)(thd, ice, &str, &strsize, width,
 						  thd && thd->next
 						  && get_lflag(idata->stream,
 							       NULL,idata->rawno,
@@ -5820,7 +5864,7 @@ from_str(IndexColType ctype, INDEXDATA_S *idata, int width, char *str, ICE_S *ic
 	    for(thd = thdorig, p = str + mult*depth - mult;
 		thd && thd->parent && p >= str;
 		thd = fetch_thread(idata->stream, thd->parent), p -= mult){
-		if(p + 2 >= border && !q){
+		if(p + mult >= border && !q){
 		    if(width >= 4 && depth < 100){
 			snprintf(str, width+1, "%*s[%2d]", width-4, "", depth);
 			q = str + width-4;
@@ -5876,14 +5920,14 @@ from_str(IndexColType ctype, INDEXDATA_S *idata, int width, char *str, ICE_S *ic
       fptr = str;
 
     if(fptr){
-	width = (str + width) - fptr;
+	strsize -=  (fptr - str);
 	switch(ctype){
 	  case iFromTo:
 	  case iFromToNotNews:
 	    if(!(addr = fetch_from(idata)) || address_is_us(addr, ps_global)){
-		if(width <= 4){
-		    strncpy(fptr, "To: ", width);
-		    fptr[width] = '\0';
+		if(strsize-1 <= 4){
+		    strncpy(fptr, "To: ", strsize-1);
+		    fptr[strsize-1] = '\0';
 		    break;
 		}
 		else{
@@ -5893,13 +5937,13 @@ from_str(IndexColType ctype, INDEXDATA_S *idata, int width, char *str, ICE_S *ic
 				 ? "Cc"
 				 : NULL))
 		       && set_index_addr(idata, field, addr, "To: ",
-					 width, fptr))
+					 strsize-1, fptr))
 		      break;
 
 		    if(ctype == iFromTo &&
 		       (newsgroups = fetch_newsgroups(idata)) &&
 		       *newsgroups){
-			snprintf(fptr, width, "To: %-*.*s", width-4, width-4,
+			snprintf(fptr, strsize, "To: %-*.*s", strsize-1-4, strsize-1-4,
 				newsgroups);
 			break;
 		    }
@@ -5913,7 +5957,7 @@ from_str(IndexColType ctype, INDEXDATA_S *idata, int width, char *str, ICE_S *ic
 	      break;
 
 	  case iFrom:
-	    set_index_addr(idata, "From", fetch_from(idata), NULL, width, fptr);
+	    set_index_addr(idata, "From", fetch_from(idata), NULL, strsize-1, fptr);
 	    break;
 
 	  case iAddress:
@@ -5930,10 +5974,10 @@ from_str(IndexColType ctype, INDEXDATA_S *idata, int width, char *str, ICE_S *ic
 		}
 
 		len = strlen(mb);
-		if(!at || width <= len)
-		  snprintf(fptr, width+1, "%-*.*s", width, width, mb);
+		if(!at || strsize-1 <= len)
+		  snprintf(fptr, strsize, "%-*.*s", strsize-1, strsize-1, mb);
 		else
-		  snprintf(fptr, width+1, "%s@%-*.*s", mb, width-len-1, width-len-1, hst);
+		  snprintf(fptr, strsize, "%s@%-*.*s", mb, strsize-1-len-1, strsize-1-len-1, hst);
 	    }
 
 	    break;
@@ -6074,22 +6118,24 @@ adjust_cur_to_visible(MAILSTREAM *stream, MSGNO_S *msgmap)
 
 	for(n = cur;
 	    ((dir == 1 && n >= 1L) || (dir == -1 && n <= mn_get_total(msgmap)))
+	    && (n >= 1L && n <= mn_get_total(msgmap))
 	    && msgline_hidden(stream, msgmap, n, 0);
 	    n -= dir)
 	  ;
 	
-	if((dir == 1 && n >= 1L) || (dir == -1 && n <= mn_get_total(msgmap)))
+	if(((dir == 1 && n >= 1L) || (dir == -1 && n <= mn_get_total(msgmap)))
+	   && (n >= 1L && n <= mn_get_total(msgmap)))
 	  mn_reset_cur(msgmap, n);
 	else{				/* no visible in that direction */
 	    for(n = cur;
-		((dir == 1 && n >= 1L)
-		 || (dir == -1 && n <= mn_get_total(msgmap)))
+		((dir == 1 && n >= 1L) || (dir == -1 && n <= mn_get_total(msgmap)))
+		&& (n >= 1L && n <= mn_get_total(msgmap))
 		&& msgline_hidden(stream, msgmap, n, 0);
 		n += dir)
 	      ;
 
-	    if((dir == -1 && n >= 1L)
-	       || (dir == 1 && n <= mn_get_total(msgmap)))
+	    if(((dir == 1 && n >= 1L) || (dir == -1 && n <= mn_get_total(msgmap)))
+	       && (n >= 1L && n <= mn_get_total(msgmap)))
 	      mn_reset_cur(msgmap, n);
 	    /* else trouble! */
 	}

@@ -2,7 +2,7 @@
 ## Use aclocal -I m4; automake
 
 # ========================================================================
-# Copyright 2006 University of Washington
+# Copyright 2006-2007 University of Washington
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,9 +16,9 @@ SUBDIRS = osdep charconv
 
 noinst_LIBRARIES = libpith.a
 
-BUILT_SOURCES = helptext.h
+BUILT_SOURCES = helptext.h helptext.c
 
-noinst_SCRIPTS = cmplhelp.sh cmplhlp2.sh
+noinst_PROGRAMS = help_h_gen help_c_gen
 
 libpith_a_SOURCES = ablookup.c abdlc.c addrbook.c addrstring.c adrbklib.c bldaddr.c charset.c \
 	color.c conf.c context.c copyaddr.c detoken.c detach.c editorial.c escapes.c \
@@ -29,12 +29,19 @@ libpith_a_SOURCES = ablookup.c abdlc.c addrbook.c addrstring.c adrbklib.c bldadd
 	state.c status.c store.c stream.c string.c strlst.c takeaddr.c tempfile.c text.c \
 	thread.c adjtime.c url.c util.c helptext.c
 
-helptext.c: cmplhelp.sh pine.hlp
-	$(SHELL) cmplhelp.sh < pine.hlp > $@
+help_c_gen$(EXEEXT): $(help_c_gen_OBJECTS) $(help_c_gen_DEPENDENCIES) 
+	@rm -f help_c_gen$(EXEEXT)
+	$(LINK) $(help_c_gen_OBJECTS) $(help_c_gen_LDADD)
+help_h_gen$(EXEEXT): $(help_h_gen_OBJECTS) $(help_h_gen_DEPENDENCIES) 
+	@rm -f help_h_gen$(EXEEXT)
+	$(LINK) $(help_h_gen_OBJECTS) $(help_h_gen_LDADD)
 
-helptext.h: cmplhlp2.sh pine.hlp
-	$(SHELL) cmplhlp2.sh < pine.hlp > $@
+helptext.c: help_c_gen pine.hlp
+	./help_c_gen < pine.hlp > $@
+
+helptext.h: help_h_gen pine.hlp
+	./help_h_gen < pine.hlp > $@
 
 AM_CPPFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/include
 
-CLEANFILES = helptext.c helptext.h cmplhelp.sh cmplhlp2.sh
+CLEANFILES = helptext.c helptext.h help_h_gen help_c_gen

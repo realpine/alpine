@@ -2,7 +2,7 @@
  * $Id: after.h 137 2006-09-22 21:34:06Z mikes@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,10 +28,16 @@ typedef struct _after_s {
 } AFTER_S;
 
 
+extern int after_active;
+
+
 /* exported prototypes */
 void	 start_after(AFTER_S *);
 void	 stop_after(int);
 AFTER_S *new_afterstruct(void);
+void     status_message_lock_init(void);
+int      status_message_lock(void);
+int      status_message_unlock(void);
 
 
 #endif	/* PINE_AFTER_INCLUDED */

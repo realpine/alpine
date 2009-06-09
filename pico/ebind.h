@@ -1,5 +1,5 @@
 /*
- * $Id: ebind.h 480 2007-03-09 22:34:47Z hubert@u.washington.edu $
+ * $Id: ebind.h 788 2007-11-06 23:51:13Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -60,6 +60,9 @@ KEYTAB  keytab[NBINDS] = {
 	{KEY_DEL,		forwdel},
 #ifdef	MOUSE
 	{KEY_MOUSE,		mousepress},
+#ifndef _WINDOWS
+	{CTRL|'\\',		toggle_xterm_mouse},
+#endif
 #endif
 	{CTRL|'A',		gotobol},
 	{CTRL|'B',		backchar},
@@ -119,6 +122,9 @@ KEYTAB  pkeytab[NBINDS] = {
 	{KEY_DEL,		forwdel},
 #ifdef	MOUSE
 	{KEY_MOUSE,		mousepress},
+#ifndef _WINDOWS
+	{CTRL|'\\',		toggle_xterm_mouse},
+#endif
 #endif
 	{CTRL|'A',		gotobol},
 	{CTRL|'B',		backchar},

@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: browse.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: browse.c 788 2007-11-06 23:51:13Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1691,9 +1691,17 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 	    BrowserKeys();
 	    break;
 
+	  case (CTRL|'\\') :
+#if defined MOUSE && !defined(_WINDOWS)
+	    toggle_xterm_mouse(0,1);
+#else
+	    unknown_command(c);
+#endif
+	    break;
+
 	  case (CTRL|'Z'):
 	    if(gmode&MDSSPD){
-		bktoshell();
+		bktoshell(0, 1);
 		PaintBrowser(gmp, 0, &crow, &ccol);
 		break;
 	    }					/* fall thru with error! */

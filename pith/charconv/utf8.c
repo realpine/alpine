@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: utf8.c 689 2007-08-24 23:34:55Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: utf8.c 737 2007-10-03 19:40:34Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -278,7 +278,7 @@ convert_to_utf8(char *str, char *fromcharset, int flags)
 /*
  * Convert from UTF-8 to user's locale charset.
  * This actually uses the wtomb routine to do the conversion, and that
- * relies on setup_for_display_charmap having been called.
+ * relies on setup_for_input_output having been called.
  * If no conversion is necessary, NULL is returned, otherwise an allocated
  * string in the locale charset is returned and the caller is responsible
  * for freeing it.

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mimedisp.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mimedisp.c 771 2007-10-24 19:10:40Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -158,13 +158,7 @@ mime_get_os_mimetype_from_ext(char *file_ext, char *mime_type, int mime_type_len
     if(file_ext_lpt){
 	if(mime_type){
 	    mime_type_lpt = (LPTSTR) fs_get(mime_type_len * sizeof(TCHAR));
-	    x = utf8_to_lptstr(mime_type);
 	    mime_type_lpt[0] = '\0';
-	    if(x){
-		_tcsncpy(mime_type_lpt, x, mime_type_len);
-		mime_type_lpt[mime_type_len-1] = '\0';
-		fs_give((void **) &x);
-	    }
 	}
 	else
 	  mime_type_lpt = NULL;
@@ -253,13 +247,7 @@ mime_get_os_ext_from_mimetype(char *mime_type, char *file_ext, int file_ext_len)
     if(mime_type_lpt){
 	if(file_ext){
 	    file_ext_lpt = (LPTSTR) fs_get(file_ext_len * sizeof(TCHAR));
-	    x = utf8_to_lptstr(file_ext);
 	    file_ext_lpt[0] = '\0';
-	    if(x){
-		_tcsncpy(file_ext_lpt, x, file_ext_len);
-		file_ext_lpt[file_ext_len-1] = '\0';
-		fs_give((void **) &x);
-	    }
 	}
 	else
 	  file_ext_lpt = NULL;
@@ -336,7 +324,7 @@ mime_get_os_ext_from_mimetype(char *mime_type, char *file_ext, int file_ext_len)
 int
 mswin_reg_viewer(LPTSTR mime_type, LPTSTR mime_ext, char *cmd, int clen, int chk)
 {
-    TCHAR  tmp[64];
+    TCHAR  tmp[256];
     LPTSTR ext;
 
     tmp[0] = '\0';

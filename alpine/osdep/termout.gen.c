@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: termout.gen.c 694 2007-08-29 19:51:50Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: termout.gen.c 745 2007-10-11 18:03:32Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -287,7 +287,7 @@ PutLine0n8b(int x, int y, register char *line, int length, HANDLE_S *handles)
 		}
 	    }
 
-	    if(ext[0] && (tmp_file = temp_nam_ext(NULL, "im", 0, ext))){
+	    if(ext[0] && (tmp_file = temp_nam_ext(NULL, "im", ext))){
 		FILE *f = our_fopen(tmp_file, "w");
 
 		mswin_registericon(x, h->key, tmp_file);

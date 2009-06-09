@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: cmdfunc.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: cmdfunc.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -98,8 +98,7 @@ proc WPTFStatusTable {msgs {iconlink {0}} {style {}}} {
 	  }
 
 	  if {$iconlink && [string length [lindex $m 2]] && !([info exists _wp(statusicons)] && $_wp(statusicons))} {
-	    set txt [cgi_url [lindex $m 0] wp.tcl?page=view&uid=[lindex $m 2] target=body]
-	    append style "text-decoration: none"
+	    set txt [cgi_url [lindex $m 0] wp.tcl?page=fr_view&uid=[lindex $m 2] target=body "style=text-decoration: none; color: white"]
 	  } else {
 	    set txt [lindex $m 0]
 	  }
@@ -427,7 +426,7 @@ proc WPTFAddSaveCache {f_name} {
 
     set flist [linsert $flist 0 $f_name]
   } else {
-    set flist $f_name
+    set flist [list $f_name]
   }
 
   catch {WPSessionState save_cache $flist}
@@ -453,9 +452,8 @@ proc WPTFGetSaveCache {{def_name ""}} {
       if {[string length $f] && [lsearch -exact $seen $f] < 0} {
 	lappend options $f
 	lappend options $f
+	lappend seen $f
       }
-
-      set save_list 1
     }
   }
 
@@ -464,7 +462,7 @@ proc WPTFGetSaveCache {{def_name ""}} {
     lappend options $def_name
   }
 
-  if {[catch {WPCmd PEInfo set wp_cache_folder} wp_cache_folder]
+  if {[catch {WPCmd set wp_cache_folder} wp_cache_folder]
       || [string compare $wp_cache_folder [WPCmd PEMailbox mailboxname]]} {
     # move default to top on new folder
     switch -- [set x [lsearch -exact $options $def_name]] {
@@ -479,16 +477,7 @@ proc WPTFGetSaveCache {{def_name ""}} {
       }
     }
 
-    catch {WPCmd PEInfo set wp_cache_folder [WPCmd PEMailbox mailboxname]}
-  }
-
-  if {[info exists save_list]} {
-    set flist ""
-    foreach {oname oval} $options {
-      lappend flist $oname
-    }
-
-    catch {WPSessionState save_cache $flist}
+    catch {WPCmd set wp_cache_folder [WPCmd PEMailbox mailboxname]}
   }
 
   lappend options "\[ folder I type in \]"
@@ -506,6 +495,11 @@ proc WPTFAddFolderCache {f_col f_name} {
 
   if {$f_col != 0 || [string compare [string tolower $f_name] inbox]} {
     if {0 == [catch {WPSessionState folder_cache} flist]} {
+
+      if {[catch {WPSessionState left_column_folders} fln]} {
+	set fln $_wp(fldr_cache_def)
+      }
+
       for {set i 0} {$i < [llength $flist]} {incr i} {
 	set f [lindex $flist $i]
 	if {$f_col == [lindex $f 0] && 0 == [string compare [lindex $f 1] $f_name]} {
@@ -514,7 +508,7 @@ proc WPTFAddFolderCache {f_col f_name} {
       }
 
       if {$i >= [llength $flist]} {
-	set flist [lrange $flist 0 $_wp(fldr_cache_max)]
+	set flist [lrange $flist 0 $fln]
       } else {
 	set flist [lreplace $flist $i $i]
       }

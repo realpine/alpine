@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: keyword.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: keyword.c 786 2007-11-02 23:23:04Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -184,7 +184,7 @@ user_flag_is_set(MAILSTREAM *stream, long unsigned int rawno, char *keyword)
     int           j, is_set = 0;
     MESSAGECACHE *mc;
 
-    if(stream){
+    if(stream && keyword && keyword[0]){
 	if(rawno > 0L && stream
 	   && rawno <= stream->nmsgs
 	   && (mc = mail_elt(stream, rawno)) != NULL){
@@ -205,16 +205,41 @@ int
 user_flag_index(MAILSTREAM *stream, char *keyword)
 {
     int i, retval = -1;
+    char *p;
 
-    if(stream && keyword){
+    if(stream && keyword && keyword[0]){
 	for(i = 0; i < NUSERFLAGS; i++)
-	  if(stream->user_flags[i] && !strucmp(keyword, stream->user_flags[i])){
+	  if((p=stream_to_user_flag_name(stream, i)) && !strucmp(keyword, p)){
 	      retval = i;
 	      break;
 	  }
     }
 
     return(retval);
+}
+
+
+char *
+stream_to_user_flag_name(MAILSTREAM *stream, int k)
+{
+    if(stream && stream->user_flags && k >= 0 && k < NUSERFLAGS)
+      return(stream->user_flags[k]);
+
+    return(NULL);
+}
+
+
+int
+some_user_flags_defined(MAILSTREAM *stream)
+{
+    int k;
+
+    if(stream)
+      for(k = 0; k < NUSERFLAGS; k++)
+	if(stream_to_user_flag_name(stream, k))
+	  return 1;
+
+    return 0;
 }
 
 
@@ -229,7 +254,7 @@ char *
 flag_string(MAILSTREAM *stream, long rawno, long int flags)
 {
     MESSAGECACHE *mc;
-    char *p, *returned_flags = NULL;
+    char *p, *q, *returned_flags = NULL;
     size_t len = 0;
     int k;
 
@@ -255,10 +280,9 @@ flag_string(MAILSTREAM *stream, long rawno, long int flags)
 
     if((flags & F_KEYWORD) && stream->user_flags){
 	for(k = 0; k < NUSERFLAGS; k++){
-	    if(stream->user_flags[k]
-	       && stream->user_flags[k][0]
-	       && user_flag_is_set(stream, rawno, stream->user_flags[k])){
-		len += strlen(stream->user_flags[k]) + 1;
+	    if((q=stream_to_user_flag_name(stream, k))
+	       && user_flag_is_set(stream, rawno, q)){
+		len += strlen(q) + 1;
 	    }
 	}
     }
@@ -286,11 +310,11 @@ flag_string(MAILSTREAM *stream, long rawno, long int flags)
 
     if((flags & F_KEYWORD) && stream->user_flags){
 	for(k = 0; k < NUSERFLAGS; k++){
-	    if(stream->user_flags[k]
-	       && stream->user_flags[k][0]
-	       && user_flag_is_set(stream, rawno, stream->user_flags[k])){
-		sstrncpy(&p, stream->user_flags[k], len+1-(p-returned_flags));
+	    if((q=stream_to_user_flag_name(stream, k))
+	       && user_flag_is_set(stream, rawno, q)){
+		sstrncpy(&p, q, len+1-(p-returned_flags));
 		sstrncpy(&p, " ", len+1-(p-returned_flags));
+		len += strlen(p) + 1;
 	    }
 	}
     }
@@ -368,12 +392,20 @@ int
 keyword_check(char *kw, char **error)
 {
     register char *t;
-    char buf[100];
+    char buf[100], *p;
 
     if(!kw || !kw[0])
       return 1;
 
     kw = nick_to_keyword(kw);
+
+    for(p = kw; p && *p; p++)
+      if(!isascii(*p)){
+	if(error)
+	  *error = cpystr("Keywords must be all ASCII characters");
+
+	return 1;
+      }
 
     if((t = strindex(kw, SPACE)) ||
        (t = strindex(kw, '{'))   ||

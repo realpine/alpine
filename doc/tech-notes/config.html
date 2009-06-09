@@ -271,11 +271,26 @@ in the online help for this variable. <P>
 
 <DT> <A NAME="alt-addresses"><EM>alt-addresses</EM></A>
 
-<DD> This option provides a place for you to list alternate email
-addresses you may have.  If set, the option affects the behavior of the
-<EM>Reply</EM> command and the <EM>+</EM> symbol in the "Folder Index", which
-denotes that a message has been addressed specifically to you. <P>
- 
+<DD> This option provides a place for you to list alternate email addresses
+you may have.
+Each address in the list should be the actual email address part of an
+address, without the full name field or the angle brackets.
+For example:
+
+<P>
+<CENTER><SAMP>user@example.com</SAMP></CENTER>
+<P>
+
+The matching is case-insensitive, so this would match any of
+<SAMP>User@example.com</SAMP>, <SAMP>user@Example.Com</SAMP>, or
+<SAMP>USER@EXAMPLE.COM</SAMP> as well.
+
+<P>
+If set, the option affects the behavior of the Reply
+command and the &quot;+&quot; symbol in the MESSAGE INDEX, which denotes that
+a message has been addressed specifically to you.
+
+<P>
 In the default INDEX display
 the personal name (or email address) of
 the person listed in the message's &quot;From:&quot; header
@@ -284,10 +299,104 @@ alternate addresses.
 In that case you will usually see the name of
 the first person specified in the
 message's &quot;To:&quot; header field
-with the prefix &quot;To: &quot; prepended. <P>
+with the prefix &quot;To: &quot; prepended.
 
-With respect to <EM>Reply</EM>, the <EM>Reply to All</EM> option will
-exclude addresses listed here. <P>
+<P>
+With respect to Reply, the reply-to-all option will exclude addresses
+listed here.
+
+<P>
+The feature
+<A HREF="#copy-to-to-from">copy-to-address-to-from-if-it-is-us</A>
+is somewhat related to this option.
+
+<P>
+In addition to a list of actual addresses,
+you may use regular expressions (as used with egrep with the ignore case flag)
+to describe the addresses you want to match.
+<EM>Alpine</EM> will somewhat arbitrarily interpret your entry as a regular
+expression if it contains any of the characters
+*, |, +, ?, {, [, ^, $, or &#92;.
+Otherwise, it will be treated literally.
+The feature
+<A HREF="#disable-regex">disable-regular-expression-matching-for-alternate-addresses</A>
+may be used to turn off regular expression processing regardless of whether or not
+special characters appear in the entry.
+
+<P>
+A description of how regular expressions work is beyond the
+scope of this help text, but some examples follow.
+
+<P>
+The entry
+
+<P>
+<CENTER><SAMP>.*@example.com</SAMP></CENTER>
+<P>
+
+in the alt-addresses list would mean that any
+address with a domain name of <SAMP>example.com</SAMP> (such as
+<SAMP>fred@example.com</SAMP> or <SAMP>wilma@example.com</SAMP>) will be considered
+one of your alternate addresses.
+Strictly speaking, the dot in <SAMP>example.com</SAMP> ought to be escaped with
+a backslash, as in <SAMP>example&#92;.com</SAMP>, and a dollar sign anchor ought
+to come at the end of the expression to prevent a match of <SAMP>example.com.org</SAMP>.
+Complicating things further, the dollar sign
+is special in the <EM>Alpine</EM> configuration (it signifies environment variable expansion)
+so the dollar sign should be doubled or backslash escaped for <EM>Alpine</EM>'s sake.
+Quotes around the whole expression will not escape the dollar sign successfully.
+So this example should look like
+
+<P>
+<CENTER><SAMP>.*@example&#92;.com$$</SAMP></CENTER>
+<P>
+
+<P>
+The entry
+
+<P>
+<CENTER><SAMP>^fred[0-9]*@example.com$$</SAMP></CENTER>
+<P>
+
+would match
+<SAMP>fred3@example.com</SAMP> or <SAMP>fred17@example.com</SAMP> as well
+as <SAMP>fred@example.com</SAMP>.
+
+<P>
+You could match all addresses that look like
+<SAMP>fred+stuff@example.com</SAMP> for any value of <SAMP>stuff</SAMP> with the
+entry
+
+<P>
+<CENTER><SAMP>^fred&#92;+.*@example.com$$</SAMP></CENTER>
+<P>
+
+Notice that you have to escape the plus sign with a backslash because plus
+is a special character in regular expressions.
+If you wanted to match plain <SAMP>fred</SAMP> as well as <SAMP>fred+stuff</SAMP>
+the expression
+
+<P>
+<CENTER><SAMP>^fred(()|&#92;+.*)@example.com$$</SAMP></CENTER>
+<P>
+
+would do it, but it would be easier to just add fred@example.com as a
+separate entry.
+
+<P>
+One more example, a match of all first-level subdomains, is given by
+
+<P>
+<CENTER><SAMP>^fred@[[:alnum:]_-]*&#92;.example&#92;.com$$</SAMP></CENTER>
+<P>
+
+<P>
+Because the regular expression matching is based on an old library
+(<SAMP>hs_regex</SAMP>) the regular expressions might not work exactly as you expect,
+but they should be close.
+
+<P>
+This option is displayed as &quot;Alternate Addresses&quot;.
 
 <DT> <A NAME="bugs-add"><EM>bugs-additional-data</EM></A>
 
@@ -1577,7 +1686,7 @@ you're probably better off letting the system pick those widths.  <P>
 The default is equivalent to:
 
 <P>
-<CENTER><SAMP>index-format=STATUS&nbsp;MSGNO&nbsp;SMARTDATETIME&nbsp;FROMORTO(33%)&nbsp;SIZENARROW&nbsp;SUBJKEY(67%)</SAMP></CENTER>
+<CENTER><SAMP>index-format=STATUS&nbsp;MSGNO&nbsp;SMARTDATETIME24&nbsp;FROMORTO(33%)&nbsp;SIZENARROW&nbsp;SUBJKEY(67%)</SAMP></CENTER>
 
 <P>
 This means that the four fields without percentages will be allocated
@@ -1657,12 +1766,17 @@ These are similar to the &quot;Important&quot; flag which the user
 may set using the Flag command.
 The difference is that the Important flag is always present for each folder.
 User-defined keywords are chosen by the user.
-You may set up the list of possible keywords here.
-Then you use the Flag command
+You may set up the list of possible keywords here, or you may add keywords
+from the Flag Details screen that you
+can get to after typing the
+Flag (*)
+command.
+After the keywords have been defined,
+then you use the Flag command
 to set or clear the keywords in each message.
-(The
-<A HREF="#enable-flag-screen-keyword-shortcut"><EM>Enable-Flag-Screen-Keyword-Shortcut</EM></A>
-option offers a slightly different way of setting keywords.)
+The behavior of the flag command may be modified by using the
+<A HREF="#enable-flag-screen-implicitly">Enable-Flag-Screen-Implicitly</A> option or the
+<A HREF="#enable-flag-screen-keyword-shortcut"><EM>Enable-Flag-Screen-Keyword-Shortcut</EM></A> option.
 
 <P>
 Keywords may be used when Selecting messages (Select Keyword).
@@ -4390,6 +4504,24 @@ Note that this does not affect the results of Select by Date or of
 anything else other than these displayed dates.
 <P>
 
+<DT> <A NAME="copy-to-to-from"><EM>copy-to-address-to-from-if-it-is-us</EM></A>
+
+<DD> This feature affects the From address used when Replying to a message.
+It is probably only useful if you have some
+<A HREF="#alt-addresses">alt-addresses</A>
+defined.
+When enabled, it checks to see if any of the addresses in the To or Cc
+fields of the message you are replying to is one of your addresses.
+If it is, and there is only one of them, then that address is used as
+the From address in the message you are composing.
+In other words, you will be using a From address that is the same
+as the To address that was used to get the mail to you in the first place.
+
+<P>
+If a role is being used and it has a From address defined, that From address will
+be used rather than the one derived from this feature.
+<P>
+
 <DT> <A NAME="delete-skips-deleted"><EM>delete-skips-deleted</EM></A>
 
 <DD> If set, this
@@ -4491,6 +4623,19 @@ to produce the signature.
 of a template file.
 Appending a vertical bar normally causes the signature file to be executed
 to produce the signature.
+<P>
+
+<DT> <A NAME="disable-regex"><EM>disable-regular-expression-matching-for-alternate-addresses</EM></A>
+
+<DD> Normally, the
+<A HREF="#alt-addresses">alt-addresses</A>
+option is interpreted as a regular expression.
+One type of address that might cause trouble is an address that
+contains a plus sign.
+If you want to have an address with a plus as one of your
+alternate addresses
+and you don't want to use regular expressions, then setting this
+feature will cause <EM>Alpine</EM> to treat the addresses you list literally instead.
 <P>
 
 <DT> <A NAME="disable-roles-setup-cmd"><EM>disable-roles-setup-cmd</EM></A>
@@ -5181,15 +5326,32 @@ This feature is displayed as &quot;Enable Mailcap Parameter Substitution&quot;.
 
 <DT> <A NAME="enable-mouse-in-xterm"><EM>enable-mouse-in-xterm</EM></A>
 
-<DD> This feature controls whether or not an X terminal mouse can be used with
-<EM>Alpine</EM>. If set, and the <CODE>$DISPLAY</CODE> variable indicates that an
-X terminal is being used, the left mouse button on the mouse can be
-used to select text or commands.
+<DD>
+This feature controls whether or not an X terminal mouse can be used with
+<EM>Alpine</EM>.  If set, and the $DISPLAY variable indicates that an X terminal is
+being used, the left mouse button on the mouse can be used to select text
+or commands.
+Clicking on a command at the bottom of the screen will behave as if you had
+typed that command.
+Clicking on an index line will move the current message highlight to
+that line.
+Double-clicking on an index line will view the message.
+Double-clicking on a link will view the link.
 <P>
- 
+This type of mouse support will also work in some terminal emulators which are
+not actually X terminals, but which have extra code to support the xterm
+style mouse.
+For those emulators you not only need to turn this feature on but you also
+have to set the $DISPLAY environment variable even though it isn't needed
+for your terminal.
+That will cause <EM>Alpine</EM> to think that it is an xterm and to properly interpret the
+escape sequences sent by the mouse.
+<P>
 Note: if this feature is set, the behavior of X terminal cut-and-paste is
-also modified. It is necessary to hold the shift key down while clicking
-left or middle mouse buttons for the normal xterm cut/paste operations.
+also modified.  It is sometimes possible to hold the shift key down while clicking
+left or middle mouse buttons for the normal xterm cut/paste operations. 
+There is also an <EM>Alpine</EM> command to toggle this mode on or off.
+The command is Ctrl-&#92; (Control-backslash).
 <P>
 
 <DT> <A NAME="enable-msg-view-addresses"><EM>enable-msg-view-addresses</EM></A>
@@ -6248,10 +6410,10 @@ This feature is displayed as &quot;Suppress Berkeley Format Timezone&quot;.
 
 <DT> <A NAME="quell-charset-warning"><EM>quell-charset-warning</EM></A>
 
-<DD> By default, if your
-<A HREF="#char-set">Character-Set</A>
-is different from the character set
-of the message you are viewing, then <EM>Alpine</EM> will
+<DD> By default, if the message you are viewing contains characters that are
+not representable in your
+<A HREF="#disp-char-set"><EM>display-character-set</EM></A>
+then <EM>Alpine</EM> will
 add a warning to the start of the displayed text.
 If this option is set, then that editorial message will be suppressed.
 <P>
@@ -7442,7 +7604,7 @@ the <EM>exit</EM> command instead.
 
 <DT> <A NAME="use-system-translation"><EM>use-system-translation</EM></A>
 
-<DD> <EM>Alpine</EM> normally uses its own internal software to convert between the multi-byte
+<DD> UNIX <EM>Alpine</EM> only. <EM>Alpine</EM> normally uses its own internal software to convert between the multi-byte
 representation of characters and the Unicode representation of those
 same characters
 ( see the section on <A HREF="low-level.html#char-set">International Character Sets</EM></A>).
@@ -8311,6 +8473,12 @@ This token is the same as the SUBJECT token unless keywords are set for
 the message.
 In that case, a list of keywords enclosed in braces will be prepended to
 the subject of the message.
+Only those keywords that you have defined in your
+<A HREF="#keywords">Keywords</A> option
+in Setup/Config are considered in the list.
+In other words, keywords that have been set by some other means, perhaps
+by another email program, won't show up unless included in
+<A HREF="#keywords">Keywords</A>.
 Having this set in the Index-Format will also cause the keywords to be
 prepended to the subject in the MESSAGE TEXT screen.
 If you have given a keyword a nickname
@@ -8337,6 +8505,12 @@ whereas the SUBJKEYINIT token would give
 <P>
 <CENTER><SAMP>{WN} actual subject</SAMP></CENTER>
 <P>
+Only those keywords that you have defined in your
+<A HREF="#keywords">Keywords</A> option
+in Setup/Config are considered in the list.
+In other words, keywords that have been set by some other means, perhaps
+by another email program, won't show up unless included in
+<A HREF="#keywords">Keywords</A>.
 The <A HREF="#keyword-surrounding-chars"><EM>keyword-surrounding-chars</EM></A>
 option may be used to modify this token slightly.
 It is also possible to color keywords in the index using the
@@ -8396,11 +8570,20 @@ is, even though that is really person B talking.
 <DT>KEY</DT>
 <DD>
 This is a space-delimited list of keywords that are set for the message.
+Only those keywords that you have defined in your
+<A HREF="#keywords">Keywords</A> option
+in Setup/Config are considered in the list.
+In other words, keywords that have been set by some other means, perhaps
+by another email program, won't show up unless included in
+<A HREF="#keywords">Keywords</A>.
 If you have given a keyword a nickname
 that nickname is displayed
 instead of the actual keyword.
 It is also possible to color keywords in the index using the
 Setup/Kolor screen.
+This token defaults to an arbitrary width of 5.
+You should set it to whatever width suits you using something
+like KEY(17) in the Index-Format.
 </DD>
 
 <DT>KEYINIT</DT>
@@ -8411,6 +8594,9 @@ the initial of that nickname
 is displayed instead of the initial of the actual keyword.
 It is also possible to color keyword initials in the index using the
 Setup/Kolor screen.
+This token defaults to an arbitrary width of 2.
+You should set it to whatever width suits you using something
+like KEYINIT(3) in the Index-Format.
 </DD>
 
 <DT>PRIORITY</DT>

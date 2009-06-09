@@ -1,5 +1,5 @@
 /*
- * $Id: mailindx.h 649 2007-07-18 23:45:23Z hubert@u.washington.edu $
+ * $Id: mailindx.h 749 2007-10-15 21:02:56Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -97,7 +97,7 @@ void		*stop_threading_temporarily(void);
 void		 restore_threading(void **);
 int		 index_lister(struct pine *, CONTEXT_S *, char *, MAILSTREAM *, MSGNO_S *);
 ICE_S		*build_header_line(struct pine *, MAILSTREAM *, MSGNO_S *, long, int *);
-int		 condensed_thread_cue(PINETHRD_S *, ICE_S *, char **, int, int);
+int		 condensed_thread_cue(PINETHRD_S *, ICE_S *, char **, size_t *, int, int);
 int		 truncate_subj_and_from_strings(void);
 void		 paint_index_hline(MAILSTREAM *, long, ICE_S *);
 void		 setup_index_state(int);

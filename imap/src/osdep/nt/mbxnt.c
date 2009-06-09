@@ -23,7 +23,7 @@
  *		Internet: MRC@CAC.Washington.EDU
  *
  * Date:	3 October 1995
- * Last Edited:	15 August 2007
+ * Last Edited:	28 September 2007
  */
 
 
@@ -226,6 +226,9 @@ int mbx_isvalid (MAILSTREAM **stream,char *name,char *file,int *ld,char *lock,
       if (stream) {		/* lock if making a mini-stream */
 	if (flock (fd,LOCK_SH) ||
 	    (flags && ((*ld = lockname (lock,file,LOCK_EX)) < 0))) ret = -1;
+				/* reread data now that locked */
+	else if (lseek (fd,0,L_SET) ||
+		 (read (fd,hdr+1,HDRSIZE-1) != (HDRSIZE-1))) ret = -1;
 	else {
 	  *stream = (MAILSTREAM *) memset (fs_get (sizeof (MAILSTREAM)),0,
 					   sizeof (MAILSTREAM));
@@ -1048,7 +1051,8 @@ long mbx_append (MAILSTREAM *stream,char *mailbox,append_t af,void *data)
       else internal_date (tmp);	/* get current date in IMAP format */
 				/* write header */
       if (fprintf (df,"%s,%lu;%08lx%04lx-%08lx\015\012",tmp,i = SIZE (message),
-		   uf,(unsigned long) f,++dstream->uid_last) < 0) ret = NIL;
+		   uf,(unsigned long) f,au ? ++dstream->uid_last : 0) < 0)
+	ret = NIL;
       else {			/* write message */
 	size_t j;
 	if (!message->cursize) SETPOS (message,GETPOS (message));
@@ -1073,11 +1077,12 @@ long mbx_append (MAILSTREAM *stream,char *mailbox,append_t af,void *data)
       }
       ret = NIL;
     }
-				/* return sets if doing APPENDUID */
-    if (au && ret) (*au) (mailbox,dstream->uid_validity,dst);
+    if (au && ret) {		/* return sets if doing APPENDUID */
+      (*au) (mailbox,dstream->uid_validity,dst);
+      fseek (df,15,SEEK_SET);	/* update UIDLAST */
+      fprintf (df,"%08lx",dstream->uid_last);
+    }
     else mail_free_searchset (&dst);
-    fseek (df,15,SEEK_SET);	/* update UIDLAST */
-    fprintf (df,"%08lx",dstream->uid_last);
     if (ret) times.actime = time (0) - 1;
 				/* else preserve \Marked status */
     else times.actime = (sbuf.st_ctime > sbuf.st_atime) ?

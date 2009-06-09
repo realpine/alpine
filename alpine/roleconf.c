@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: roleconf.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: roleconf.c 725 2007-09-25 21:03:06Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -3163,7 +3163,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	len = est_size(def->action->from);
 	bufp = (char *) fs_get(len * sizeof(char));
 	apval = APVAL(&from_act_var, ew);
-	*apval = addr_string(def->action->from, bufp, len);
+	*apval = addr_string_mult(def->action->from, bufp, len);
     }
     else{
 	apval = APVAL(&from_act_var, ew);
@@ -3180,7 +3180,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	len = est_size(def->action->replyto);
 	bufp = (char *) fs_get(len * sizeof(char));
 	apval = APVAL(&replyto_act_var, ew);
-	*apval = addr_string(def->action->replyto, bufp, len);
+	*apval = addr_string_mult(def->action->replyto, bufp, len);
     }
     else{
 	apval = APVAL(&replyto_act_var, ew);
@@ -6067,7 +6067,7 @@ calculate_inick_stuff(struct pine *ps)
 
 	    len = est_size(irole->from);
 	    bufp = (char *) fs_get(len * sizeof(char));
-	    v->global_val.p = addr_string(irole->from, bufp, len);
+	    v->global_val.p = addr_string_mult(irole->from, bufp, len);
 	}
 
 	ctmp = inick_confs[INICK_REPLYTO_CONF];
@@ -6079,7 +6079,7 @@ calculate_inick_stuff(struct pine *ps)
 
 	    len = est_size(irole->replyto);
 	    bufp = (char *) fs_get(len * sizeof(char));
-	    v->global_val.p = addr_string(irole->replyto, bufp, len);
+	    v->global_val.p = addr_string_mult(irole->replyto, bufp, len);
 	}
 
 	ctmp = inick_confs[INICK_FCC_CONF];

@@ -1,4 +1,4 @@
-# $Id: fldrsavenew.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: fldrsavenew.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -143,9 +143,9 @@ cgi_html {
 
 	      cgi_table_row {
 		cgi_table_data height=140 align=center valign=middle class=dialog {
-		  cgi_puts "Enter the name of the folder to save to below, and then click [cgi_italic OK].  You may enter either"
-		  cgi_puts "the name of an existing folder, or the name of a new folder name to have it created."
-		  cgi_puts "Click [cgi_italic Cancel] to return without saving (or creating) anything."
+		  cgi_p "Enter the name of the folder to save to below, and then click [cgi_italic OK]."
+		  cgi_p "You may enter either the name of an existing folder, or the name of a new folder name to have it created. You may also specify a directory path in front of the folder name."
+		  cgi_p "Click [cgi_italic Cancel] to return without saving (or creating) anything."
 		}
 	      }
 
@@ -160,9 +160,10 @@ cgi_html {
 		  cgi_put "Folder name : "
 		  cgi_text f_name= type=text size=20 maxlength=256 style=vertical-align:middle onFocus=this.select()
 
-		  cgi_put "within "
-
 		  if {[catch {WPCmd PEFolder collections} collections] == 0 && [llength $collections] > 1} {
+
+		    cgi_put "within "
+
 		    cgi_select f_colid style=vertical-align:middle {
 		      set j 0
 		      foreach i $collections {

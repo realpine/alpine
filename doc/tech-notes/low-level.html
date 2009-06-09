@@ -392,6 +392,7 @@ sets.
 There are three possible configuration character settings and some
 environment variable settings which can affect how <EM>Alpine</EM>
 handles international characters.
+The first two of these are only available in UNIX <EM>Alpine</EM>.
 The three configuration options are
 <EM>display-character-set</EM>,
 <EM>keyboard-character-set</EM>, and
@@ -413,13 +414,15 @@ By default, the <EM>display-character-set</EM> variable is not set and UNIX <EM>
 will attempt to get this information from the environment.
 In particular, the <CODE>nl_langinfo(CODESET)</CODE> call is used.
 This usually depends on the setting of the environment variables LANG or LC_CTYPE.
-For <EM>PC-Alpine</EM> the default for <EM>display-character-set</EM>
-is simply <CODE>UTF-8</CODE>.
 An explicit configuration setting for <EM>display-character-set</EM> will,
 of course, override any default setting.
 <P>
+For <EM>PC-Alpine</EM> the <EM>display-character-set</EM>
+and the <EM>keyboard-character-set</EM>
+are always equivalent to <CODE>UTF-8</CODE> and this is not settable.
+<P>
 
-It is probably best to use <EM>Alpine</EM> in a terminal emulator
+It is probably best to use UNIX <EM>Alpine</EM> in a terminal emulator
 capable of displaying UTF-8 characters, since that will allow you to
 view just about any received text that is correctly formatted (note,
 however, the above comments about known index display bugs with certain

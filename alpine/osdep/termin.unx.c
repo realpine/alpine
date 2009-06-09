@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: termin.unx.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: termin.unx.c 788 2007-11-06 23:51:13Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -38,6 +38,7 @@ static char rcsid[] = "$Id: termin.unx.c 673 2007-08-16 22:25:10Z hubert@u.washi
 #include "../../pith/adrbklib.h"
 #include "../../pith/remote.h"
 #include "../../pith/imap.h"
+#include "../../pith/status.h"
 
 #include "../pico/estruct.h"
 
@@ -522,6 +523,15 @@ read_char(int time_out)
 	    dprint((9, "After do_suspend Read char returns 0x%x %s\n", ch, pretty_command(ch)));
 	    return(ch);
 	}
+#ifdef MOUSE
+	else if(ch == ctrl('\\')){
+	    dprint((9, "Read char got ^\\, toggle xterm mouse\n"));
+	    mouseexist() ? end_mouse() : init_mouse();
+	    q_status_message1(SM_ASYNC, 0, 2, "Xterm mouse tracking %s!",
+	                                       mouseexist() ? "on" : "off");
+	    return(NO_OP_COMMAND);
+	}
+#endif /* MOUSE */
 
 
       done:

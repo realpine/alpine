@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: ldapresult.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: ldapresult.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -143,6 +143,9 @@ WPEval $ldap_vars {
     cgi_head {
       WPStdHtmlHdr "LDAP Query Result"
       WPStyleSheets
+      cgi_puts  "<style type='text/css'>"
+      cgi_puts  ".gradient	{ background-image: url('[WPimg indexhdr]') ; background-repeat: repeat-x }"
+      cgi_puts  "</style>"
 
       if {$_wp(keybindings)} {
 	set kequiv {
@@ -288,7 +291,7 @@ WPEval $ldap_vars {
 			  set onetruebox 1
 			}
 
-			cgi_table_row bgcolor=#bfbfbf {
+			cgi_table_row class=\"gradient\" {
 			  cgi_table_data align=left class=indexhdr colspan=2 {
 			    cgi_put "Full Name"
 			  }

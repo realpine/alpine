@@ -1,5 +1,5 @@
 /*
- * $Id: mailcmd.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
+ * $Id: mailcmd.h 801 2007-11-08 20:39:45Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -65,7 +65,8 @@ char	  *move_read_incoming(MAILSTREAM *, CONTEXT_S *, char *, char **, char *, s
 void	   cross_delete_crossposts(MAILSTREAM *);
 long	   zoom_index(struct pine *, MAILSTREAM *, MSGNO_S *);
 int	   unzoom_index(struct pine *, MAILSTREAM *, MSGNO_S *);
-int	   agg_text_select(MAILSTREAM *, MSGNO_S *, char, int, char *, char *, SEARCHSET **);
+int	   agg_text_select(MAILSTREAM *, MSGNO_S *, char, int, int, char *,
+			   char *, SEARCHSET **);
 int	   agg_flag_select(MAILSTREAM *, int, int, SEARCHSET **);
 char	  *get_uname(char *, char *, int);
 int        expand_foldername(char *, size_t);

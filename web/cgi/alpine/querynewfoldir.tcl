@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: querynewfoldir.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: querynewfoldir.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -62,9 +62,9 @@ WPEval $fldr_vars {
 
       cgi_form $_wp(appdir)/wp method=get name=confirm target=_top {
 	cgi_text "page=folders" type=hidden notab
-	cgi_text "fid=$fid" type=hidden
-	cgi_text "cid=[WPCmd PEInfo key]" type=hidden
-	cgi_text "frestore=1" type=hidden
+	cgi_text "fid=$fid" type=hidden notab
+	cgi_text "cid=[WPCmd PEInfo key]" type=hidden notab
+	cgi_text "frestore=1" type=hidden notab
 
 	cgi_table border=0 cellspacing=0 cellpadding=2 width="100%" height="100%" {
 	  cgi_table_row {
@@ -84,20 +84,7 @@ WPEval $fldr_vars {
 	    
 	    cgi_table_data valign=top align=center class=dialog {
 	      cgi_table border=0 cellspacing=0 cellpadding=2 width="70%" {
-		cgi_table_row {
-		  cgi_table_data align=center {
-		    cgi_puts [cgi_nl][cgi_nl]
-		      cgi_put "This page provides a way for you to create a new folder or ${dirpref}irectory"
-		      if {[llength $fid] > 1} {
-			cgi_put " within the directory [cgi_bold [join [lrange $fid 1 end] /]]"
-		      }
-		      if {[llength $collections] > 1} {
-			cgi_put " in the collection [cgi_bold [lindex [lindex $collections [lindex $fid 0]] 1]]."
-		      } else {
-			cgi_put "."
-		      }
-		  }
-		}
+
 		cgi_table_row {
 		  cgi_table_data align=center {
 		    cgi_br
@@ -108,50 +95,31 @@ WPEval $fldr_vars {
 		      cgi_puts "page."
 		    }
 
-		    cgi_put "To create a new folder, enter the name below and click [cgi_italic "Create New Folder"]."
+		    cgi_put "To create a new folder"
+
+		    if {[llength $fid] > 1} {
+		      cgi_put " within the directory [cgi_bold [join [lrange $fid 1 end] /]]"
+		    }
+		    if {[llength $collections] > 1} {
+		      cgi_put " in the collection [cgi_bold [lindex [lindex $collections [lindex $fid 0]] 1]]"
+		    }
+
+		    cgi_put ", enter the name below and click [cgi_italic "Create New Folder"]."
+		    cgi_br
+		    cgi_br
+
+		    cgi_put "Furthermore, folders can be created within directories.  The directory can either be one that now exists "
+		    cgi_put " or one that you wish to create along with the new folder. "
+		    cgi_put "Simply specify the directory name before the folder name separating the two with a &quot;[WPCmd PEFolder delimiter [lindex $fid 0]]&quot; character."
 		    cgi_br
 		    cgi_br
 		    cgi_put "New folder name: "
 		    cgi_text folder= maxlength=64 size=25%
 		    cgi_br
 		    cgi_br
-		    #cgi_puts "Once you have entered the desired folder name above, click below to create the new folder, or 'Cancel' to return to the Folder List."
-		    #cgi_br
-		    cgi_br
-		    cgi_submit_button "newfolder=Create New Folder"
+		    cgi_submit_button "newfolder=Create New Folder" "style=\"margin-right: 10px\""
 		    cgi_submit_button cancelled=Cancel
 		  }
-		}
-
-		cgi_table_row {
-		  cgi_table_data align=center {
-		    cgi_br
-		    cgi_br
-		    cgi_puts "${Dirpref}irectories are used to contain folders.  It is sometimes helpful to organize folders containing"
-		    cgi_puts "messages sharing common topics or themes in a ${dirpref}irectory."
-		    cgi_puts "To create a new ${dirpref}irectory, enter the name below and click [cgi_italic "Create New ${Dirpref}irectory"]."
-		    cgi_br
-		    cgi_br
-		    cgi_put "New ${dirpref}irectory name: "
-		    cgi_text directory= maxlength=64 size=25%
-		    cgi_br
-		    cgi_br
-		    cgi_submit_button "newdir=Create New ${Dirpref}irectory"
-		    cgi_submit_button cancelled=Cancel
-		  }
-		}
-
-		if {0} {
-		cgi_table_row {
-		  cgi_table_data align=center {
-		    cgi_br
-		    cgi_br
-		    cgi_puts "To return to the Folder List page without creating anything click [cgi_italic Cancel]."
-		    cgi_br
-		    cgi_br
-		    cgi_submit_button cancelled=Cancel
-		  }
-		}
 		}
 	      }
 	    }

@@ -1,5 +1,5 @@
 /*
- * $Id: send.h 700 2007-08-30 22:33:35Z hubert@u.washington.edu $
+ * $Id: send.h 780 2007-10-26 21:28:17Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -166,33 +166,36 @@ struct local_message_copy {
 
 /*
  * Note, these are in the same order in the he_template and pf_template arrays.
+ * The typedef is just a way to get these variables automatically defined in order.
  */
-#define	N_AUTHRCVD	 0
-#define N_FROM		 1
-#define N_REPLYTO	(N_FROM + 1)
-#define N_TO		(N_FROM + 2)
-#define N_CC		(N_FROM + 3)
-#define N_BCC		(N_FROM + 4)
-#define N_NEWS		(N_FROM + 5)
-#define N_FCC		(N_FROM + 6)
-#define N_LCC		(N_FROM + 7)
-#define N_ATTCH		(N_FROM + 8)
-#define N_SUBJ		(N_FROM + 9)
-#define N_REF		(N_FROM + 10)
-#define N_DATE		(N_FROM + 11)
-#define N_INREPLY	(N_FROM + 12)
-#define N_MSGID		(N_FROM + 13)
-#define N_PRIORITY	(N_FROM + 14)
-#define N_NOBODY	(N_FROM + 15)
-#define	N_POSTERR	(N_FROM + 16)
-#define	N_RPLUID	(N_FROM + 17)
-#define	N_RPLMBOX	(N_FROM + 18)
-#define	N_SMTP		(N_FROM + 19)
-#define	N_NNTP		(N_FROM + 20)
-#define	N_CURPOS	(N_FROM + 21)
-#define	N_OURREPLYTO	(N_FROM + 22)
-#define	N_OURHDRS	(N_FROM + 23)
-#define N_SENDER	(N_FROM + 24)
+typedef enum {	  N_AUTHRCVD = 0
+		, N_FROM
+		, N_REPLYTO
+		, N_TO
+		, N_CC
+		, N_BCC
+		, N_NEWS
+		, N_FCC
+		, N_LCC
+		, N_ATTCH
+		, N_SUBJ
+		, N_REF
+		, N_DATE
+		, N_INREPLY
+		, N_MSGID
+		, N_PRIORITY
+		, N_USERAGENT
+		, N_NOBODY
+		, N_POSTERR
+		, N_RPLUID
+		, N_RPLMBOX
+		, N_SMTP
+		, N_NNTP
+		, N_CURPOS
+		, N_OURREPLYTO
+		, N_OURHDRS
+		, N_SENDER
+} dummy_enum;
 
 
 typedef struct {

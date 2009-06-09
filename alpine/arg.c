@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: arg.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: arg.c 785 2007-10-31 22:04:47Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -27,6 +27,7 @@ static char rcsid[] = "$Id: arg.c 676 2007-08-20 19:46:37Z hubert@u.washington.e
 #include "../pith/conf.h"
 #include "../pith/list.h"
 #include "../pith/util.h"
+#include "../pith/help.h"
 
 #include "imap.h"
 
@@ -826,9 +827,13 @@ Loop: while(--ac > 0)
 
     if(do_version){
 	extern char datestamp[], hoststamp[];
+	char rev[128];
 
-	snprintf(tmp_20k_buf, SIZEOF_20KBUF, "Alpine %s built %s on %s",
-		 ALPINE_VERSION, datestamp, hoststamp);
+	snprintf(tmp_20k_buf, SIZEOF_20KBUF, "Alpine %s (%s %s) built %s on %s",
+		 ALPINE_VERSION,
+		 SYSTYPE ? SYSTYPE : "?",
+		 get_alpine_revision_number(rev, sizeof(rev)),
+		 datestamp, hoststamp);
 	tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
 	display_args_err(tmp_20k_buf, NULL, 0);
 	exit(0);

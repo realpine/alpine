@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: adrbklib.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: adrbklib.c 745 2007-10-11 18:03:32Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -329,8 +329,8 @@ bootstrap_nocheck_policy:
 	 * If we can't write in the same directory as filename is in, put
 	 * the copies in /tmp instead.
 	 */
-	if(!(ab->our_filecopy = tempfile_in_same_dir(ab->filename, "a3", NULL, 0)))
-	  ab->our_filecopy = temp_nam(NULL, "a3", 0);
+	if(!(ab->our_filecopy = tempfile_in_same_dir(ab->filename, "a3", NULL)))
+	  ab->our_filecopy = temp_nam(NULL, "a3");
 #endif	/* _WINDOWS */
 
 	/*
@@ -2164,12 +2164,16 @@ adrbk_add(AdrBk *ab, a_c_arg_t old_entry_num, char *nickname, char *fullname,
 
     if(ae == NULL){  /*----- adding a new entry ----*/
 
-        ae            = adrbk_newentry();
-        ae->nickname  = nickname ? cpystr(nickname) : nickname;
-        ae->fullname  = fullname ? cpystr(fullname) : fullname;
-        ae->fcc       = fcc      ? cpystr(fcc)      : fcc;
-        ae->extra     = extra    ? cpystr(extra)    : extra;
+	ae            = adrbk_newentry();
 	ae->tag       = tag;
+	if(nickname)
+	  ae->nickname  = cpystr(nickname);
+	if(fullname)
+	  ae->fullname  = cpystr(fullname);
+	if(fcc)
+	  ae->fcc  = cpystr(fcc);
+	if(extra)
+	  ae->extra  = cpystr(extra);
 
 	if(tag == Single)
           ae->addr.addr = cpystr(address);
@@ -2425,16 +2429,23 @@ adrbk_append(AdrBk *ab, char *nickname, char *fullname, char *address, char *fcc
         return -4;
 
     ae            = adrbk_newentry();
-    ae->nickname  = nickname ? cpystr(nickname) : nickname;
-    ae->fullname  = fullname ? cpystr(fullname) : fullname;
-    ae->fcc       = fcc      ? cpystr(fcc)      : fcc;
-    ae->extra     = extra    ? cpystr(extra)    : extra;
     ae->tag       = tag;
+    if(nickname)
+      ae->nickname  = cpystr(nickname);
+    if(fullname)
+      ae->fullname  = cpystr(fullname);
+    if(fcc)
+      ae->fcc  = cpystr(fcc);
+    if(extra)
+      ae->extra  = cpystr(extra);
 
     if(tag == Single)
       ae->addr.addr = cpystr(address);
     else
       ae->addr.list = (char **)NULL;
+
+    if(new_entry_num)
+      *new_entry_num = ab->count;
 
     insert_ab_entry(ab, (a_c_arg_t) ab->count, ae, 0);
 
@@ -3158,7 +3169,7 @@ adrbk_write(AdrBk *ab, a_c_arg_t current_entry_num, adrbk_cntr_t *new_entry_num,
      * need a temp_filename in the same directory as our_filecopy.
      */
     if(!(ab->our_filecopy && ab->our_filecopy[0])
-       || !(temp_filename = tempfile_in_same_dir(ab->our_filecopy,"a1",NULL, 0))
+       || !(temp_filename = tempfile_in_same_dir(ab->our_filecopy,"a1",NULL))
        || (fd = our_open(temp_filename, OPEN_WRITE_MODE, 0600)) < 0){
 	dprint((1, "adrbk_write(%s): failed opening temp file (%s)\n",
 		ab->filename ? ab->filename : "?",
@@ -3424,7 +3435,7 @@ adrbk_write(AdrBk *ab, a_c_arg_t current_entry_num, adrbk_cntr_t *new_entry_num,
 	char *lc;
 
 	if(!(ab->filename && ab->filename[0])
-	   || !(temp_filename = tempfile_in_same_dir(ab->filename,"a1",NULL, 0))
+	   || !(temp_filename = tempfile_in_same_dir(ab->filename,"a1",NULL))
 	   || (fd = our_open(temp_filename, OPEN_WRITE_MODE, 0600)) < 0){
 	    dprint((1,
 		    "adrbk_write(%s): failed opening temp file (%s)\n",
@@ -3662,7 +3673,7 @@ write_single_abook_entry(AdrBk_Entry *ae, FILE *fp, int *ret_nick_width,
 	 * Long lines are ok as long as they aren't super long.
 	 */
 	if(len > 100 || (len+this_len > 150 && len > 20)){
-	    if(fprintf(fp, "\n%s", INDENTSTR) == EOF){
+	    if(fprintf(fp, "%s%s", NEWLINE, INDENTSTR) == EOF){
 		dprint((1,
 		    "write_single_abook_entry: fputs ind1 failed\n"));
 		return(EOF);
@@ -3695,7 +3706,7 @@ write_single_abook_entry(AdrBk_Entry *ae, FILE *fp, int *ret_nick_width,
 
 
 	if(len > 100 || (len+this_len > 150 && len > 20)){
-	    if(fprintf(fp, "\n%s", INDENTSTR) == EOF){
+	    if(fprintf(fp, "%s%s", NEWLINE, INDENTSTR) == EOF){
 		dprint((1,
 		    "write_single_abook_entry: fputs ind2 failed\n"));
 		return(EOF);
@@ -3737,7 +3748,7 @@ write_single_abook_entry(AdrBk_Entry *ae, FILE *fp, int *ret_nick_width,
 		this_len = strlen(write_this ? write_this : "");
 
 		if(len > 100 || (len+this_len > 150 && len > 20)){
-		    if(fprintf(fp, "\n%s", INDENTSTR) == EOF){
+		    if(fprintf(fp, "%s%s", NEWLINE, INDENTSTR) == EOF){
 			dprint((1,
 			    "write_single_abook_entry: fputs ind3 failed\n"));
 			return(EOF);
@@ -3779,7 +3790,7 @@ write_single_abook_entry(AdrBk_Entry *ae, FILE *fp, int *ret_nick_width,
 		    this_len = strlen(write_this ? write_this : "");
 
 		    if(len > 100 || (len+this_len > 150 && len > 20)){
-			if(fprintf(fp, "\n%s", INDENTSTR) == EOF){
+			if(fprintf(fp, "%s%s", NEWLINE, INDENTSTR) == EOF){
 			    dprint((1,
 				"write_single_abook_entry: fputs ind3 failed\n"));
 			    return(EOF);
@@ -3817,7 +3828,7 @@ write_single_abook_entry(AdrBk_Entry *ae, FILE *fp, int *ret_nick_width,
 	    this_len = strlen(write_this ? write_this : "");
 
 	    if(len > 100 || (len+this_len > 150 && len > 20)){
-		if(fprintf(fp, "\n%s", INDENTSTR) == EOF){
+		if(fprintf(fp, "%s%s", NEWLINE, INDENTSTR) == EOF){
 		    dprint((1,
 			"write_single_abook_entry: fputs ind4 failed\n"));
 		    return(EOF);
@@ -3865,7 +3876,7 @@ write_single_abook_entry(AdrBk_Entry *ae, FILE *fp, int *ret_nick_width,
 	    tmplen = strlen(extra_copy);
 
 	    if(len > 100 || (len+tmplen > 150 && len > 20)){
-		if(fprintf(fp, "\n%s", INDENTSTR) == EOF){
+		if(fprintf(fp, "%s%s", NEWLINE, INDENTSTR) == EOF){
 		    dprint((1,
 			"write_single_abook_entry: fprintf indent failed\n"));
 		    return(EOF);
@@ -3895,7 +3906,7 @@ write_single_abook_entry(AdrBk_Entry *ae, FILE *fp, int *ret_nick_width,
 		    cur += (i+1);
 
 		    if(cur < end){
-			if(fprintf(fp, "\n%s", INDENTXTRA) == EOF){
+			if(fprintf(fp, "%s%s", NEWLINE, INDENTXTRA) == EOF){
 			    dprint((1,
 			"write_single_abook_entry: fprintf indent failed\n"));
 			    return(EOF);
@@ -3922,7 +3933,7 @@ write_single_abook_entry(AdrBk_Entry *ae, FILE *fp, int *ret_nick_width,
     else
       fcc_width = 0;
 
-    putc('\n', fp);
+    fprintf(fp, "%s", NEWLINE);
     
     if(ret_nick_width)
       *ret_nick_width = nick_width;

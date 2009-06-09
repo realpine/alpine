@@ -1,5 +1,5 @@
 /*
- * $Id: reply.h 605 2007-06-20 21:15:13Z hubert@u.washington.edu $
+ * $Id: reply.h 780 2007-10-26 21:28:17Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -29,6 +29,13 @@
 #define GBPT_DELQUOTES	0x04
 
 
+/* flags for reply_cp_addr */
+#define RCA_NONE	0x00
+#define RCA_NOT_US	0x01	/* copy addrs that aren't us    */
+#define RCA_ONLY_US	0x02	/* copy only addrs that are us  */
+#define RCA_ALL		0x04	/* copy all addrs, including us */
+
+
 #include "../pith/repltype.h"
 #include "../pith/filttype.h"
 #include "../pith/indxtype.h"
@@ -42,6 +49,7 @@ int	    reply_harvest(struct pine *, long, char *, ENVELOPE *, ADDRESS **,
 			  ADDRESS **, ADDRESS **, ADDRESS **,int *);
 ADDRESS    *reply_cp_addr(struct pine *, long, char *, char *,
 			  ADDRESS *, ADDRESS *, ADDRESS *, int);
+void        reply_append_addr(ADDRESS **, ADDRESS *);
 ACTION_S   *set_role_from_msg(struct pine *, long, long, char *);
 void	    reply_seed(struct pine *, ENVELOPE *, ENVELOPE *, ADDRESS *, ADDRESS *,
 		       ADDRESS *, ADDRESS *, char **, int, char **);
@@ -83,6 +91,7 @@ PARAMETER  *copy_parameters(PARAMETER *);
 ENVELOPE   *copy_envelope(ENVELOPE *);
 char	   *reply_in_reply_to(ENVELOPE *);
 char	   *generate_message_id(void);
+char	   *generate_user_agent(void);
 char       *rot13(char *);
 ADDRESS    *first_addr(ADDRESS *);
 char       *get_signature_lit(char *, int, int, int, int);

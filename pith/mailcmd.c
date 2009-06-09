@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcmd.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailcmd.c 801 2007-11-08 20:39:45Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -35,6 +35,8 @@ static char rcsid[] = "$Id: mailcmd.c 676 2007-08-20 19:46:37Z hubert@u.washingt
 #include "../pith/options.h"
 #include "../pith/busy.h"
 #include "../pith/icache.h"
+#include "../pith/ablookup.h"
+#include "../pith/search.h"
 #include "../pith/charconv/utf8.h"
 
 #ifdef _WINDOWS
@@ -56,6 +58,8 @@ int	(*pith_opt_expunge_prompt)(MAILSTREAM *, char *, long);
 void	(*pith_opt_begin_closing)(int, char *);
 void	  get_new_message_count(MAILSTREAM *, int, long *, long *);
 char	 *new_messages_string(MAILSTREAM *);
+void      search_for_our_regex_addresses(MAILSTREAM *stream, char type,
+					 int not, struct search_set *searchset);
 
 
 
@@ -2167,22 +2171,154 @@ unzoom_index(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap)
 
 int
 agg_text_select(MAILSTREAM *stream, MSGNO_S *msgmap, char type, int not,
+		int check_for_my_addresses,
 		char *sstring, char *charset, struct search_set **limitsrch)
 {
     int		 old_imap, we_cancel;
+    int          me_with_regex = 0;
     long         searchflags;
     SEARCHPGM   *srchpgm, *pgm, *secondpgm = NULL, *thirdpgm = NULL;
+    SEARCHPGM   *mepgm = NULL;
+
+    if(!stream)
+      return(1);
 
     old_imap = (is_imap_stream(stream) && !modern_imap_stream(stream));
 
-    /* create a search program and fill it in */
-    srchpgm = pgm = mail_newsearchpgm();
-    if(not && !old_imap){
-	srchpgm->not = mail_newsearchpgmlist();
-	srchpgm->not->pgm = mail_newsearchpgm();
-	pgm = srchpgm->not->pgm;
+    /*
+     * Special case code for matching one of the user's addresses.
+     */
+    if(check_for_my_addresses){
+	char **t, *alt;
+
+	if(F_OFF(F_DISABLE_REGEX, ps_global)){
+	    for(t = ps_global->VAR_ALT_ADDRS; !me_with_regex && t && t[0] && t[0][0]; t++){
+		alt = (*t);
+		if(contains_regex_special_chars(alt))
+		  me_with_regex++;
+	    }
+	}
+
+	/*
+	 * In this case we can't use search because it doesn't support
+	 * regex. So we have to manually do the whole thing ourselves.
+	 * The searching is done in the subroutine and the searched bits
+	 * will be set on return.
+	 */
+	if(me_with_regex){
+	    search_for_our_regex_addresses(stream, type, not, limitsrch ? *limitsrch : NULL);
+	    return(0);
+	}
+	else{
+	    PATGRP_S *patgrp = NULL;
+	    PATTERN_S *p = NULL;
+	    PATTERN_S *pattern = NULL, **nextp;
+	    char buf[1000];
+
+	    /*
+	     * We're going to use the pattern matching machinery to generate
+	     * a search program. We build a pattern whose only purpose is
+	     * to generate the program.
+	     */
+	    nextp = &pattern;
+
+	    /* add standard me addresses to list */
+	    if(ps_global->VAR_USER_ID){
+		if(ps_global->userdomain && ps_global->userdomain[0]){
+		    p = (PATTERN_S *) fs_get(sizeof(*p));
+		    memset((void *) p, 0, sizeof(*p));
+		    snprintf(buf, sizeof(buf), "%s@%s", ps_global->VAR_USER_ID,
+			     ps_global->userdomain);
+		    p->substring = cpystr(buf);
+		    *nextp = p;
+		    nextp = &p->next;
+		}
+
+		if(!ps_global->userdomain && ps_global->localdomain && ps_global->localdomain[0]){
+		    p = (PATTERN_S *) fs_get(sizeof(*p));
+		    memset((void *) p, 0, sizeof(*p));
+		    snprintf(buf, sizeof(buf), "%s@%s", ps_global->VAR_USER_ID,
+			     ps_global->localdomain);
+		    p->substring = cpystr(buf);
+		    *nextp = p;
+		    nextp = &p->next;
+		}
+
+		if(!ps_global->userdomain && ps_global->hostname && ps_global->hostname[0]){
+		    p = (PATTERN_S *) fs_get(sizeof(*p));
+		    memset((void *) p, 0, sizeof(*p));
+		    snprintf(buf, sizeof(buf), "%s@%s", ps_global->VAR_USER_ID,
+			     ps_global->hostname);
+		    p->substring = cpystr(buf);
+		    *nextp = p;
+		    nextp = &p->next;
+		}
+	    }
+
+	    /* add user's alternate addresses */
+	    for(t = ps_global->VAR_ALT_ADDRS; t && t[0] && t[0][0]; t++){
+		alt = (*t);
+		if(alt && alt[0]){
+		    p = (PATTERN_S *) fs_get(sizeof(*p));
+		    memset((void *) p, 0, sizeof(*p));
+		    p->substring = cpystr(alt);
+		    *nextp = p;
+		    nextp = &p->next;
+		}
+	    }
+
+	    patgrp = (PATGRP_S *) fs_get(sizeof(*patgrp));
+	    memset((void *) patgrp, 0, sizeof(*patgrp));
+
+	    switch(type){
+	      case 'r' :
+		patgrp->recip = pattern;
+		break;
+	      case 'p' :
+		patgrp->partic = pattern;
+		break;
+	      case 'f' :
+		patgrp->from = pattern;
+		break;
+	      case 'c' :
+		patgrp->cc = pattern;
+		break;
+	      case 't' :
+		patgrp->to = pattern;
+	        break;
+	      default :
+		q_status_message(SM_ORDER, 3, 3, "Unhandled case in agg_text_select");
+	        break;
+	    }
+
+	    mepgm = match_pattern_srchpgm(patgrp, stream, NULL);
+
+	    free_patgrp(&patgrp);
+	}
     }
 
+    if(mepgm){
+	if(not && !old_imap){
+	    srchpgm = mail_newsearchpgm();
+	    srchpgm->not = mail_newsearchpgmlist();
+	    srchpgm->not->pgm = mepgm;
+	}
+	else{
+	    srchpgm = mepgm;
+	}
+
+    }
+    else{
+	/* create a search program and fill it in */
+	srchpgm = pgm = mail_newsearchpgm();
+	if(not && !old_imap){
+	    srchpgm->not = mail_newsearchpgmlist();
+	    srchpgm->not->pgm = mail_newsearchpgm();
+	    pgm = srchpgm->not->pgm;
+	}
+    }
+
+  if(!mepgm)
     switch(type){
       case 'r' :				/* TO or CC */
 	if(old_imap){
@@ -2345,6 +2481,118 @@ agg_text_select(MAILSTREAM *stream, MSGNO_S *msgmap, char type, int not,
       cancel_busy_cue(0);
 
     return(0);
+}
+
+
+void
+search_for_our_regex_addresses(MAILSTREAM *stream, char type, int not,
+			       struct search_set *searchset)
+{
+    char **t, *alt;
+    long rawno;
+    int count = 0;
+    MESSAGECACHE *mc;
+    char *seq;
+    ADDRESS *addr1 = NULL, *addr2 = NULL, *addr3 = NULL;
+    ENVELOPE *env;
+    SEARCHSET *s, *ss = NULL, **sset = NULL;
+    extern MAILSTREAM *mm_search_stream;
+    extern long        mm_search_count;
+
+    mm_search_count = 0L;
+    mm_search_stream = stream;
+
+    if(!stream)
+      return;
+
+    /* set searched bits to zero */
+    for(rawno = 1L; rawno <= stream->nmsgs; rawno++)
+      if((mc=mail_elt(stream, rawno)) != NULL)
+	mc->searched = NIL;
+
+    /* set sequence bits for envelopes we need */
+    for(rawno = 1L; rawno <= stream->nmsgs; rawno++){
+	if((mc = mail_elt(stream, rawno)) != NULL){
+	    if((!searchset || in_searchset(searchset, (unsigned long) rawno))
+	       && !mc->private.msg.env){
+		mc->sequence = 1;
+		count++;
+	    }
+	    else
+	      mc->sequence = 0;
+	}
+    }
+
+    /*
+     * Set up a searchset that will control the fetch ahead.
+     */
+    if(count){
+	ss = build_searchset(stream);
+	if(ss){
+	    /* this resets automatically after the first fetch */
+	    sset = (SEARCHSET **) mail_parameters(stream,
+						  GET_FETCHLOOKAHEAD,
+						  (void *) stream);
+	    if(sset)
+	      *sset = ss;
+	}
+    }
+
+    for(s = searchset; s; s = s->next){
+      for(rawno = s->first; rawno <= s->last; rawno++){
+	env = pine_mail_fetchenvelope(stream, rawno);
+	addr1 = addr2 = addr3 = NULL;
+	switch(type){
+	  case 'r' :
+	    addr1 = env ? env->to : NULL;
+	    addr2 = env ? env->cc : NULL;
+	    break;
+	  case 'p' :
+	    addr1 = env ? env->to : NULL;
+	    addr2 = env ? env->cc : NULL;
+	    addr3 = env ? env->from : NULL;
+	    break;
+	  case 'f' :
+	    addr1 = env ? env->from : NULL;
+	    break;
+	  case 'c' :
+	    addr1 = env ? env->cc : NULL;
+	    break;
+	    break;
+	  case 't' :
+	    addr1 = env ? env->to : NULL;
+	    break;
+	  default :
+	    q_status_message(SM_ORDER, 3, 3, "Unhandled case2 in agg_text_select");
+	    break;
+	}
+
+	if(addr1 && address_is_us(addr1, ps_global)){
+	  if((mc=mail_elt(stream, rawno)) != NULL)
+	    mm_searched(stream, rawno);
+	}
+	else if(addr2 && address_is_us(addr2, ps_global)){
+	  if((mc=mail_elt(stream, rawno)) != NULL)
+	    mm_searched(stream, rawno);
+	}
+	else if(addr3 && address_is_us(addr3, ps_global)){
+	  if((mc=mail_elt(stream, rawno)) != NULL)
+	    mm_searched(stream, rawno);
+	}
+      }
+    }
+
+    if(ss)
+      mail_free_searchset(&ss);
+
+    if(not){
+	for(rawno = 1L; rawno <= stream->nmsgs; rawno++){
+	    if((mc=mail_elt(stream, rawno)) && mc->searched)
+	      mc->searched = NIL;
+	    else
+	      mc->searched = T;
+	}
+    }
 }
 
 

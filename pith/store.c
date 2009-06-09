@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: store.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: store.c 745 2007-10-11 18:03:32Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -50,7 +50,6 @@ int	so_file_puts(STORE_S *, char *);
 int	so_file_puts_locale(STORE_S *, char *);
 int	so_reaquire(STORE_S *);
 #ifdef _WINDOWS
-int	so_file_writec_windows(int, STORE_S *);
 int	so_file_readc_windows(unsigned char *, STORE_S *);
 #endif /* _WINDOWS */
 
@@ -121,20 +120,17 @@ so_get(SourceType source, char *name, int rtype)
 	 * networked environments.
 	 */
 	source   = TmpFileStar;
-	so->name = temp_nam(NULL, "pi", (rtype & WRITE_TO_LOCALE)
-					    ? TN_TEXT : TN_BINARY);
+	so->name = temp_nam(NULL, "pi");
     }
 #else
     else if(source == TmpFileStar)		/* make one up! */
-      so->name = temp_nam(NULL, "pine-tmp", (rtype & WRITE_TO_LOCALE)
-						? TN_TEXT : TN_BINARY);
+      so->name = temp_nam(NULL, "pine-tmp");
 #endif
 
     so->src = source;
     if(so->src == FileStar || so->src == TmpFileStar){
 #ifdef _WINDOWS
-	so->writec = (rtype & WRITE_TO_LOCALE)	? so_file_writec_windows
-						: so_file_writec;
+	so->writec =                              so_file_writec;
 	so->readc  = (rtype & READ_FROM_LOCALE)	? so_file_readc_windows
 						: so_file_readc;
 #else /* UNIX */
@@ -301,13 +297,7 @@ so_file_open(STORE_S *so)
      * not work together.
      */
     if(so->flags & WRITE_ACCESS){
-	flags = O_RDWR | O_CREAT | O_APPEND;
-	if(so->flags & WRITE_TO_LOCALE){
-	    flags |= _O_U8TEXT;
-	}
-	else{
-	    flags |= O_BINARY;
-	}
+	flags = O_RDWR | O_CREAT | O_APPEND | O_BINARY;
     }
     else{
 	flags = O_RDONLY;
@@ -501,27 +491,6 @@ so_file_readc_getchar(unsigned char *c, void *extraarg)
 
 
 #ifdef _WINDOWS
-/*
- * The windows version takes UTF-8 and writes it out
- * as UTF-8 in the Windows filesystem. In order to get
- * there it first converts it to Windows wide
- * characters and then back to UTF-8!
- */
-int
-so_file_writec_windows(int c, STORE_S *so)
-{
-    int rv = 1;
-    UCS ucs;
-
-    /* result should be 1 or 0 (if in middle of a UTF-8 char) */
-    if(utf8_to_ucs4_oneatatime(c, &so->cb, &ucs, NULL))
-      if(write_a_wide_char(ucs, (FILE *) so->txt) == EOF)
-	rv = 0;
-
-    return(rv);
-}
-
-
 /*
  * Read unicode characters from windows filesystem and return
  * them as a stream of UTF-8 characters. The stream is assumed

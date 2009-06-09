@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: temp_nam.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: temp_nam.c 745 2007-10-11 18:03:32Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,7 +45,7 @@ static char rcsid[] = "$Id: temp_nam.c 676 2007-08-20 19:46:37Z hubert@u.washing
 /*
  * Internal Prototypes
  */
-char	*was_nonexistent_tmp_name(char *, size_t, int, char *);
+char	*was_nonexistent_tmp_name(char *, size_t, char *);
 
 
 
@@ -59,7 +59,7 @@ static char sccsid[] = "@(#)mktemp.c	5.7 (Berkeley) 6/27/88";
 #endif /* LIBC_SCCS and not lint */
 
 char *
-was_nonexistent_tmp_name(char *as, size_t aslen, int flags, char *ext)
+was_nonexistent_tmp_name(char *as, size_t aslen, char *ext)
 {
     register char  *start, *trv;
     struct stat     sbuf;
@@ -143,11 +143,7 @@ was_nonexistent_tmp_name(char *as, size_t aslen, int flags, char *ext)
 		 * that they can read or write before we create it
 		 * ourselves.
 		 */
-		f = O_CREAT|O_EXCL|O_WRONLY;
-		if(flags & TN_TEXT)
-		  f |= (O_TEXT | _O_U8TEXT);
-		else
-		  f |= O_BINARY;	/* default */
+		f = O_CREAT|O_EXCL|O_WRONLY|O_BINARY;
 
 		if((fd=our_open(as, f, 0600)) >= 0 && close(fd) == 0)
 		  return(as);
@@ -211,7 +207,7 @@ static char sccsid[] = "@(#)tmpnam.c	4.5 (Berkeley) 6/27/88";
 	 by the caller.  Returns the string on success and NULL on failure.
   ----*/
 char *
-temp_nam(char *dir, char *prefix, int flags)
+temp_nam(char *dir, char *prefix)
 {
     struct stat buf;
     size_t      l, ll;
@@ -319,7 +315,7 @@ done:
 	return((char *)NULL);
     }
 
-    return(was_nonexistent_tmp_name(name, MAXPATH, flags, NULL));
+    return(was_nonexistent_tmp_name(name, MAXPATH, NULL));
 }
 
 /*----------------------------------------------------------------------
@@ -330,14 +326,14 @@ done:
 	 by the caller.  Returns the string on success and NULL on failure.
   ----*/
 char *
-temp_nam_ext(char *dir, char *prefix, int flags, char *ext)
+temp_nam_ext(char *dir, char *prefix, char *ext)
 {
     struct stat buf;
     size_t      l, ll;
     char       *f, *name;
 
     if(ext == NULL || *ext == '\0')
-      return(temp_nam(dir, prefix, flags));
+      return(temp_nam(dir, prefix));
 
     if(!(name = (char *)malloc((unsigned int)MAXPATH)))
         return((char *)NULL);
@@ -438,5 +434,5 @@ done:
 	return((char *)NULL);
     }
 
-    return(was_nonexistent_tmp_name(name, MAXPATH, flags, ext));
+    return(was_nonexistent_tmp_name(name, MAXPATH, ext));
 }

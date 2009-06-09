@@ -1,4 +1,4 @@
-# $Id: addrbook.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: addrbook.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -184,11 +184,13 @@ cgi_html {
     }
 
     WPStyleSheets
+    cgi_puts  "<style type='text/css'>"
     if {$browse} {
-      cgi_put  "<style type='text/css'>"
-      cgi_put  ".navbtn	{ color: white ;  font-family: geneva, arial, sans-serif ; font-size: 9pt ; letter-spacing: 0pt ; text-decoration: underline ; background: transparent; border: 0 ; text-align: left }"
-      cgi_puts "</style>"
+      cgi_puts  ".navbtn	{ color: white ;  font-family: geneva, arial, sans-serif ; font-size: 9pt ; letter-spacing: 0pt ; text-decoration: underline ; background: transparent; border: 0 ; text-align: left }"
+    } elseif {$view} {
+      cgi_puts  ".gradient	{ background-image: url('[WPimg indexhdr]') ; background-repeat: repeat-x }"
     }
+    cgi_puts  "</style>"
 
     if {$_wp(keybindings)} {
       set kequiv {
@@ -384,10 +386,10 @@ cgi_html {
 		    set nfields [llength $format]
 
 		    if {$view} {
-		      cgi_table_row bgcolor=#bfbfbf {
+		      cgi_table_row class=\"gradient\" {
 			foreach f $format {
 			  cgi_table_data {
-			    cgi_put [cgi_img [WPimg dot2] border=0 width=3 height=30]
+			    cgi_put [cgi_img [WPimg dot2] border=0 width=3 height=24]
 			  }
 			  cgi_table_data align=left class=indexhdr {
 			    switch [lindex $f 0] {

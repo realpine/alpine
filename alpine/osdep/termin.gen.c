@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: termin.gen.c 674 2007-08-16 23:09:50Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: termin.gen.c 744 2007-10-10 17:10:59Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -267,7 +267,7 @@ int
 optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 		 char *utf8prompt, ESCKEY_S *escape_list, HelpType help, int *flags)
 {
-    UCS           *string, ucs;
+    UCS           *string = NULL, ucs;
     size_t         string_size;
     UCS           *s2;
     UCS           *saved_original = NULL;
@@ -873,8 +873,20 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 
 
           case NO_OP_IDLE:
-	    /* Keep mail stream alive */
-	    i = new_mail(0, 2, NM_DEFER_SORT);
+	    /*
+	     * Keep mail stream alive by checking for new mail.
+	     * If we're asking for a password in a login prompt
+	     * we don't want to check for new_mail because the
+	     * new mail check might be what got us here in the first
+	     * place (because of a filter trying to save a message).
+	     * If we need to wait for the user to come back then
+	     * the caller will just have to deal with the failure
+	     * to login.
+	     */
+	    i = -1;
+	    if(!ps_global->no_newmail_check_from_optionally_enter)
+	      i = new_mail(0, 2, NM_DEFER_SORT);
+
 	    if(sp_expunge_count(ps_global->mail_stream) &&
 	       flags && ((*flags) & OE_SEQ_SENSITIVE))
 	      goto cancel;
@@ -1004,6 +1016,10 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
      * Change string back into UTF-8.
      */
     candidate = ucs4_to_utf8_cpystr(string);
+
+    if(string) 
+      fs_give((void **) &string);
+
     if(candidate){
 	strncpy(utf8string, candidate, utf8string_size);
 	utf8string[utf8string_size-1] = '\0';

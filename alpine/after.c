@@ -31,9 +31,11 @@ static char rcsid[] = "$Id: after.c 138 2006-09-22 22:12:03Z mikes@u.washington.
 
 
 /* internal state */
+int	 after_active;
+
 #if	defined(HAVE_PTHREAD) && defined(HAVE_NANOSLEEP)
-static int	 after_active;
 static pthread_t after_thread;
+static pthread_mutex_t status_message_mutex;
 #endif
 
 
@@ -78,6 +80,7 @@ start_after(AFTER_S *a)
 	  after_active = 1;
 
 	pthread_attr_destroy(&attr);
+	dprint((9, "start_after() created %x: done", after_thread));
 #else /* !(defined(HAVE_PTHREAD) && defined(HAVE_NANOSLEEP)) */
 	/*
 	 * Just call the first function
@@ -86,6 +89,7 @@ start_after(AFTER_S *a)
 	  (void) (*a->f)(a->data);		/* do the thing */
 
 	cleanup_data = (void *) a;
+	after_active = 1;
 #endif
     }
 }
@@ -100,7 +104,7 @@ stop_after(int join)
 #if	defined(HAVE_PTHREAD) && defined(HAVE_NANOSLEEP)
     int rv;
 
-    dprint((9, "stop_after"));
+    dprint((9, "stop_after(join=%d) tid=%x", join, pthread_self()));
 
     if(after_active){
 	if((rv = pthread_cancel(after_thread)) != 0){	/* tell thread to end */
@@ -124,6 +128,7 @@ stop_after(int join)
 
     cleanup_after((void *) cleanup_data);
     cleanup_data = NULL;
+    after_active = 0;
 
 #endif
 }
@@ -145,7 +150,7 @@ do_after(void *data)
     /* make sure we don't end up with SIGCHLD */
     sigemptyset(&sigs);
     sigaddset(&sigs, SIGCHLD);
-    pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
+    pthread_sigmask(SIG_BLOCK, &sigs, NULL);
 #endif
 
     /* prepare for the finish */
@@ -197,7 +202,9 @@ cleanup_after(void *data)
 {
     AFTER_S *a, *an;
 
-    dprint((9, "cleanup_after"));
+#if	defined(HAVE_PTHREAD) && defined(HAVE_NANOSLEEP)
+    dprint((9, "cleanup_after() tid=%x", pthread_self()));
+#endif
 
     /* free linked list of AFTER_S's */
     a = (AFTER_S *) data;
@@ -226,4 +233,35 @@ new_afterstruct(void)
     memset((void *) a, 0, sizeof(AFTER_S));
 
     return(a);
+}
+
+
+void
+status_message_lock_init(void)
+{
+#if	defined(HAVE_PTHREAD) && defined(HAVE_NANOSLEEP)
+    pthread_mutex_init(&status_message_mutex, NULL);
+#endif
+}
+
+
+int
+status_message_lock(void)
+{
+#if	defined(HAVE_PTHREAD) && defined(HAVE_NANOSLEEP)
+    return(pthread_mutex_lock(&status_message_mutex));
+#else
+    return(0);
+#endif
+}
+
+
+int
+status_message_unlock(void)
+{
+#if	defined(HAVE_PTHREAD) && defined(HAVE_NANOSLEEP)
+    return(pthread_mutex_unlock(&status_message_mutex));
+#else
+    return(0);
+#endif
 }

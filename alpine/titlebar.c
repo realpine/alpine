@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: titlebar.c 550 2007-04-30 18:15:20Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: titlebar.c 582 2007-05-24 19:01:54Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -345,6 +345,24 @@ output_titlebar(TITLE_S *tc)
 }
 
 
+/* caller should free returned color pair */
+COLOR_PAIR *
+current_titlebar_color(void)
+{
+    TITLE_S       *tc;
+    COLOR_PAIR    *col;
+    COLOR_PAIR    *the_color = NULL;
+
+    tc = format_titlebar();
+    col = tc ? &tc->color : NULL;
+
+    if(col && col->fg && col->fg[0] && col->bg && col->bg[0])
+      the_color = new_color_pair(col->fg, col->bg);
+
+    return(the_color);
+}
+
+
 /*----------------------------------------------------------------------
       Redraw or draw the top line, the title bar 
 
@@ -377,6 +395,15 @@ format_titlebar(void)
 
     titlebar_is_dirty = 0;
 
+    if(!as.title)
+      return NULL;
+
+    if(!as.folder_name)
+      as.folder_name = cpystr("");
+
+    if(!as.context_name)
+      as.context_name = cpystr("");
+
     /*
      * Full blown title looks like:
      *
@@ -402,7 +429,7 @@ format_titlebar(void)
     as.percent_column = -1;
     as.page_column    = -1;
 
-    is_context        = strlen(as.context_name);
+    is_context        = as.context_name ? strlen(as.context_name) : 0;
 
     snprintf(version, sizeof(version), "ALPINE %s", ALPINE_VERSION);
     version[sizeof(version)-1] = '\0';

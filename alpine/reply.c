@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: reply.c 537 2007-04-24 23:27:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: reply.c 605 2007-06-20 21:15:13Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -461,7 +461,8 @@ reply(struct pine *pine_state, ACTION_S *role_arg)
 
 		get_body_part_text(pine_state->mail_stream, reply_raw_body ? NULL : orig_body,
 				   mn_m2raw(pine_state->msgmap, msgno),
-				   reply_raw_body ? NULL : "1", 0L, pc, prefix, NULL);
+				   reply_raw_body ? NULL : "1", 0L, pc, prefix,
+				   NULL, GBPT_NONE);
 	    }
 	    else if(orig_body->type == TYPEMULTIPART) {
 		if(!warned++)
@@ -481,7 +482,7 @@ reply(struct pine *pine_state, ACTION_S *role_arg)
 		    get_body_part_text(pine_state->mail_stream,
 				       &orig_body->nested.part->body,
 				       mn_m2raw(pine_state->msgmap, msgno),
-				       "1", 0L, pc, prefix, NULL);
+				       "1", 0L, pc, prefix, NULL, GBPT_NONE);
 		}
 		else{
 		    q_status_message(SM_ORDER,0,3,
@@ -1460,7 +1461,8 @@ forward(struct pine *ps, ACTION_S *role_arg)
 
 		if(!get_body_part_text(ps->mail_stream, forward_raw_body ? NULL : orig_body,
 				       mn_m2raw(ps->msgmap, msgno),
-				       forward_raw_body ? NULL : "1", 0L, pc, NULL, NULL))
+				       forward_raw_body ? NULL : "1", 0L, pc,
+				       NULL, NULL, GBPT_NONE))
 		  goto bomb;
 	    } else if(orig_body->type == TYPEMULTIPART) {
 		if(!warned++)
@@ -1478,7 +1480,8 @@ forward(struct pine *ps, ACTION_S *role_arg)
 		    if(!get_body_part_text(ps->mail_stream,
 					   &orig_body->nested.part->body,
 					   mn_m2raw(ps->msgmap, msgno),
-					   "1", 0L, pc, NULL, NULL))
+					   "1", 0L, pc,
+					   NULL, NULL, GBPT_NONE))
 		      goto bomb;
 		} else {
 		    q_status_message(SM_ORDER,0,3,
@@ -2345,11 +2348,8 @@ colors_for_pico(void)
 
     if (pico_usingcolor()){
       colors = (PCOLORS *)fs_get(sizeof(PCOLORS));
-      if (VAR_TITLE_FORE_COLOR && VAR_TITLE_BACK_COLOR){
-	colors->tbcp = new_color_pair(VAR_TITLE_FORE_COLOR,
-				      VAR_TITLE_BACK_COLOR);
-      }
-      else colors->tbcp = NULL;
+
+      colors->tbcp = current_titlebar_color();
 
       if (VAR_KEYLABEL_FORE_COLOR && VAR_KEYLABEL_BACK_COLOR){
 	colors->klcp = new_color_pair(VAR_KEYLABEL_FORE_COLOR,
@@ -2364,11 +2364,18 @@ colors_for_pico(void)
 				      VAR_KEYNAME_BACK_COLOR);
       }
       else colors->kncp = NULL;
+
       if (VAR_STATUS_FORE_COLOR && VAR_STATUS_BACK_COLOR){
 	colors->stcp = new_color_pair(VAR_STATUS_FORE_COLOR, 
 				      VAR_STATUS_BACK_COLOR);
       }
       else colors->stcp = NULL;
+
+      if (VAR_PROMPT_FORE_COLOR && VAR_PROMPT_BACK_COLOR){
+	colors->prcp = new_color_pair(VAR_PROMPT_FORE_COLOR, 
+				      VAR_PROMPT_BACK_COLOR);
+      }
+      else colors->prcp = NULL;
     }
     
     return colors;
@@ -2387,6 +2394,9 @@ free_pcolors(PCOLORS **colors)
 		free_color_pair(&(*colors)->klcp);
 	  if ((*colors)->stcp)
 		free_color_pair(&(*colors)->stcp);
+	  if ((*colors)->prcp)
+		free_color_pair(&(*colors)->prcp);
+	  fs_give((void **)colors);
 	  fs_give((void **)colors);
 	  *colors = NULL;
 	}

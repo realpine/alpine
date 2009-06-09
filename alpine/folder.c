@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: folder.c 534 2007-04-23 22:20:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: folder.c 609 2007-06-22 23:38:20Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -43,6 +43,7 @@ or search for a folder name.
 #include "imap.h"
 #include "signal.h"
 #include "reply.h"
+#include "setup.h"
 #include "../pith/state.h"
 #include "../pith/conf.h"
 #include "../pith/folder.h"
@@ -302,7 +303,7 @@ folder_screen(struct pine *ps)
 	  && ((n++) ? (cntxt = context_screen(cntxt,&c_mgr_km,1)) != NULL :1)){
 
 	fs.context = cntxt;
-	if(F_ON(F_ENABLE_INCOMING_UNSEEN, ps))
+	if(F_ON(F_ENABLE_INCOMING_CHECKING, ps))
 	  ps->in_folder_screen = 1;
 
 	if(folders = folder_lister(ps, &fs)){
@@ -1522,6 +1523,8 @@ folder_list_text(struct pine *ps, FPROC_S *fp, gf_io_t pc, HANDLE_S **handlesp, 
 	c_list = c_list->prev;
 
     do{
+	ps->user_says_cancel = 0;
+
 	/* If we're displaying folders, fetch the list */
 	if(shown = (c_list == fp->fs->context
 		    || (c_list->dir->status & CNTXT_NOFIND) == 0
@@ -1658,6 +1661,8 @@ folder_list_text(struct pine *ps, FPROC_S *fp, gf_io_t pc, HANDLE_S **handlesp, 
 		for(fcount = i = 0; i < ftotal; i++){
 		    FOLDER_S *f = folder_entry(i, FOLDERS(c_list));
 
+		    ps->user_says_cancel = 0;
+
 		    if((c_list->use & CNTXT_ZOOM) && !f->selected)
 		      continue;
 
@@ -1681,11 +1686,25 @@ folder_list_text(struct pine *ps, FPROC_S *fp, gf_io_t pc, HANDLE_S **handlesp, 
 
 		    if(fp->fs->include_unseen_cnt
 		       && c_list->use & CNTXT_INCMNG
-		       && F_ON(F_ENABLE_INCOMING_UNSEEN, ps_global)){
+		       && F_ON(F_ENABLE_INCOMING_CHECKING, ps_global)){
 
 			update_folder_unseen(f, c_list, UFU_ANNOUNCE);
-			if(f->unseen_valid && f->unseen > 0L)
-			  width += (strlen(comatose(f->unseen)) + 3);
+			if(F_ON(F_INCOMING_CHECKING_RECENT, ps_global)
+			   && f->unseen_valid
+			   && (f->new > 0L
+			       || F_ON(F_INCOMING_CHECKING_TOTAL, ps_global))){
+			    width += (strlen(tose(f->new)) + 3);
+			    if(F_ON(F_INCOMING_CHECKING_TOTAL, ps_global))
+			      width += (strlen(tose(f->total)) + 1);
+			}
+			else if(F_OFF(F_INCOMING_CHECKING_RECENT, ps_global)
+			   && f->unseen_valid
+			   && (f->unseen > 0L
+			       || F_ON(F_INCOMING_CHECKING_TOTAL, ps_global))){
+			    width += (strlen(tose(f->unseen)) + 3);
+			    if(F_ON(F_INCOMING_CHECKING_TOTAL, ps_global))
+			      width += (strlen(tose(f->total)) + 1);
+			}
 			else if(!f->unseen_valid && f->last_unseen_update != LUU_NEVERCHK)
 			  width += 4;			/* " (?)" */
 		    }
@@ -1762,7 +1781,7 @@ folder_list_text(struct pine *ps, FPROC_S *fp, gf_io_t pc, HANDLE_S **handlesp, 
 
 			    if(fp->fs->include_unseen_cnt
 			       && c_list->use & CNTXT_INCMNG
-			       && F_ON(F_ENABLE_INCOMING_UNSEEN, ps_global))
+			       && F_ON(F_ENABLE_INCOMING_CHECKING, ps_global))
 			      flags |= FLW_UNSEEN;
 
 			    width = folder_list_write(pc, handlesp, c_list,
@@ -1902,17 +1921,32 @@ folder_list_write_suffix(FOLDER_S *f, int flags, gf_io_t pc)
     if(flags & FLW_UNSEEN){
 	char buf[100];
 
-	if(f->unseen_valid){
-	    if(f->unseen > 0L){
-		snprintf(buf, sizeof(buf), " (%s)", comatose(f->unseen));
-		rv = strlen(buf);
-		gf_puts(buf, pc);
-	    }
+	buf[0] = '\0';
+	if(F_ON(F_INCOMING_CHECKING_RECENT, ps_global)
+	   && f->unseen_valid
+	   && (f->new > 0L
+	       || F_ON(F_INCOMING_CHECKING_TOTAL, ps_global))){
+	    snprintf(buf, sizeof(buf), " (%s%s%s)",
+		     tose(f->new),
+		     F_ON(F_INCOMING_CHECKING_TOTAL, ps_global) ? "/" : "",
+		     F_ON(F_INCOMING_CHECKING_TOTAL, ps_global) ? tose(f->total) : "");
 	}
-	else if(f->last_unseen_update != LUU_NEVERCHK){
-	    rv = 4;
-	    gf_puts(" (?)", pc);
+	else if(F_OFF(F_INCOMING_CHECKING_RECENT, ps_global)
+	   && f->unseen_valid
+	   && (f->unseen > 0L
+	       || F_ON(F_INCOMING_CHECKING_TOTAL, ps_global))){
+	    snprintf(buf, sizeof(buf), " (%s%s%s)",
+		     tose(f->unseen),
+		     F_ON(F_INCOMING_CHECKING_TOTAL, ps_global) ? "/" : "",
+		     F_ON(F_INCOMING_CHECKING_TOTAL, ps_global) ? tose(f->total) : "");
 	}
+	else if(!f->unseen_valid && f->last_unseen_update != LUU_NEVERCHK){
+	    snprintf(buf, sizeof(buf), " (?)");
+	}
+
+	rv = strlen(buf);
+	if(rv)
+	  gf_puts(buf, pc);
     }
 
     return(rv);
@@ -2148,12 +2182,15 @@ folder_processor(int cmd, MSGNO_S *msgmap, SCROLL_S *sparms)
 
 	    if(NEWS_TEST(cntxt))
 	      r = group_subscription(new_file, sizeof(new_file), cntxt);
-	    else
+	    else{
 	      r = add_new_folder(cntxt, Main, V_INCOMING_FOLDERS, new_file,
 				 sizeof(new_file),
 				 FPROC(sparms)->fs->cache_streamp
 				  ? *FPROC(sparms)->fs->cache_streamp : NULL,
 				 NULL);
+	      if(ps_global->prc && ps_global->prc->outstanding_pinerc_changes)
+	        write_pinerc(ps_global, Main, WRP_NONE);
+	    }
 
 	    if(r && (cntxt->use & CNTXT_INCMNG || context_isambig(new_file))){
 		rv = 1;			/* rebuild display! */
@@ -2636,7 +2673,7 @@ folder_lister_addmanually(SCROLL_S *sparms)
 		else
 		  q_status_message1(SM_ORDER,3,3,
 		   _("Config feature \"%s\" enables names beginning with dot"),
-		   feature_list_name(F_ENABLE_DOT_FOLDERS));
+		   pretty_feature_name(feature_list_name(F_ENABLE_DOT_FOLDERS)));
 
                 display_message(NO_OP_COMMAND);
                 continue;
@@ -2712,6 +2749,7 @@ folder_lister_km_manager(SCROLL_S *sparms, int handle_hidden)
 		menu_add_binding(sparms->keys.menu, 'v', MC_OPENFLDR);
 		menu_add_binding(sparms->keys.menu, ctrl('M'), MC_OPENFLDR);
 		menu_add_binding(sparms->keys.menu, ctrl('J'), MC_OPENFLDR);
+		setbitn(KM_SEL_KEY, sparms->keys.bitmap);
 		setbitn(KM_ALTVIEW_KEY, sparms->keys.bitmap);
 		setbitn(KM_EXPORT_KEY, sparms->keys.bitmap);
 		setbitn(KM_IMPORT_KEY, sparms->keys.bitmap);
@@ -2721,6 +2759,7 @@ folder_lister_km_manager(SCROLL_S *sparms, int handle_hidden)
 		menu_add_binding(sparms->keys.menu, 'v', MC_CHOICE);
 		menu_add_binding(sparms->keys.menu, ctrl('M'), MC_CHOICE);
 		menu_add_binding(sparms->keys.menu, ctrl('J'), MC_CHOICE);
+		setbitn(KM_SEL_KEY, sparms->keys.bitmap);
 		clrbitn(KM_ALTVIEW_KEY, sparms->keys.bitmap);
 		clrbitn(KM_EXPORT_KEY, sparms->keys.bitmap);
 		clrbitn(KM_IMPORT_KEY, sparms->keys.bitmap);
@@ -2731,6 +2770,7 @@ folder_lister_km_manager(SCROLL_S *sparms, int handle_hidden)
 	    menu_add_binding(sparms->keys.menu, 'v', MC_CHOICE);
 	    menu_add_binding(sparms->keys.menu, ctrl('M'), MC_CHOICE);
 	    menu_add_binding(sparms->keys.menu, ctrl('J'), MC_CHOICE);
+	    setbitn(KM_SEL_KEY, sparms->keys.bitmap);
 	    clrbitn(KM_ALTVIEW_KEY, sparms->keys.bitmap);
 	    setbitn(KM_EXPORT_KEY, sparms->keys.bitmap);
 	    setbitn(KM_IMPORT_KEY, sparms->keys.bitmap);
@@ -2743,6 +2783,7 @@ folder_lister_km_manager(SCROLL_S *sparms, int handle_hidden)
 	menu_add_binding(sparms->keys.menu, 'v', MC_CHOICE);
 	menu_add_binding(sparms->keys.menu, ctrl('M'), MC_CHOICE);
 	menu_add_binding(sparms->keys.menu, ctrl('J'), MC_CHOICE);
+	setbitn(KM_SEL_KEY, sparms->keys.bitmap);
 	clrbitn(KM_ALTVIEW_KEY, sparms->keys.bitmap);
 	clrbitn(KM_EXPORT_KEY, sparms->keys.bitmap);
 	clrbitn(KM_IMPORT_KEY, sparms->keys.bitmap);
@@ -3589,7 +3630,7 @@ folder_import(SCROLL_S *sparms, char *add_folder, size_t len)
 	     * Select a folder to save the messages to.
 	     */
 	    if(save_prompt(ps_global, &cntxt, newfolder, sizeof(newfolder),
-			   nmsgs, NULL, 0L, NULL, NULL, &notrealinbox)){
+			   nmsgs, NULL, 0L, NULL, NULL, NULL, &notrealinbox)){
 
 		if((cntxt == ourcntxt) && newfolder[0]){
 		    rv = 1;
@@ -3702,8 +3743,9 @@ add_new_folder(CONTEXT_S *context, EditWhich which, int varnum, char *add_folder
 		*p = NULL, *return_val = NULL, buf[MAILTMPLEN],
 		buf2[MAILTMPLEN], def_in_prompt[MAILTMPLEN];
     HelpType     help;
+    PINERC_S    *prc = NULL;
     int          i, rc, offset, exists, cnt = 0, isdir = 0;
-    int          maildrop = 0, flags = 0, inbox = 0;
+    int          maildrop = 0, flags = 0, inbox = 0, require_a_subfolder = 0;
     char        *maildropfolder = NULL, *maildroplongname = NULL;
     char        *default_mail_drop_host = NULL,
 		*default_mail_drop_folder = NULL,
@@ -3726,7 +3768,6 @@ add_new_folder(CONTEXT_S *context, EditWhich which, int varnum, char *add_folder
     if(inbox || context->use & CNTXT_INCMNG){
 	char inbox_host[MAXPATH], *beg, *end = NULL;
 	int readonly = 0;
-	PINERC_S *prc = NULL;
 	static ESCKEY_S host_key[4];
 
 	if(ps_global->restricted)
@@ -4174,7 +4215,7 @@ get_folder_name:
 		else
 		  q_status_message1(SM_ORDER,3,3,
 		   _("Config feature \"%s\" enables names beginning with dot"),
-		      feature_list_name(F_ENABLE_DOT_FOLDERS));
+		      pretty_feature_name(feature_list_name(F_ENABLE_DOT_FOLDERS)));
 
                 display_message(NO_OP_COMMAND);
                 continue;
@@ -4189,6 +4230,9 @@ get_folder_name:
 		    *++p   = context->dir->delim;
 		    *(p+1) = '\0';
 		}
+
+		if(F_ON(F_QUELL_EMPTY_DIRS, ps_global))
+		  require_a_subfolder++;
 	    }
 	    else if(*p == context->dir->delim){
 		q_status_message(SM_ORDER|SM_DING, 3, 3,
@@ -4239,6 +4283,58 @@ get_folder_name:
     }
 
 skip_over_folder_input:
+
+    if(require_a_subfolder){
+	/* add subfolder name to directory name */
+	offset = strlen(add_folder);
+	tmp[0] = '\0';
+
+	if(offset > 0){		/* it had better be */
+	    char save_delim;
+
+	    save_delim = add_folder[offset-1];
+	    add_folder[offset-1] = '\0';
+	
+	    snprintf(tmp, sizeof(tmp),
+		"Name of subfolder to add in \"%s\" : ",
+		short_str(add_folder, buf, sizeof(buf), 15, FrontDots));
+
+	    tmp[sizeof(tmp)-1] = '\0';
+	    add_folder[offset-1] = save_delim;
+	}
+
+	while(1){
+	    flags = OE_APPEND_CURRENT;
+	    rc = optionally_enter(&add_folder[offset], -FOOTER_ROWS(ps_global), 0, 
+				  add_folderlen - offset, tmp,
+				  NULL, NO_HELP, &flags);
+
+	    removing_leading_and_trailing_white_space(&add_folder[offset]);
+
+	    /* use default */
+	    if(rc == 0 && !add_folder[offset]){
+		q_status_message(SM_ORDER, 4, 4,
+		    _("A subfolder name is required, there is no default subfolder name"));
+		continue;
+	    }
+
+	    if(rc == 0 && add_folder[offset]){
+		break;
+	    }
+
+	    if(rc == 3){
+		helper(h_emptydir_subfolder_name, _("HELP FOR SUBFOLDER NAME "),
+		       HLPD_SIMPLE);
+	    }
+	    else if(rc == 1 || add_folder[0] == '\0') {
+		q_status_message(SM_ORDER,0,2, _("Addition of new folder cancelled"));
+		return(FALSE);
+	    }
+	}
+
+	/* the directory is implicit now */
+	isdir = 0;
+    }
 
     if(context == ps_global->context_list
        && !(context->dir && context->dir->ref)
@@ -4484,15 +4580,35 @@ skip_over_folder_input:
 	}
 
 	set_current_val(&ps_global->vars[varnum], TRUE, FALSE);
-	write_pinerc(ps_global, which, WRP_NONE);
+	if(prc)
+	  prc->outstanding_pinerc_changes = 1;
 
-	/*
-	 * Instead of inserting the new folder in the list of folders,
-	 * and risking bugs associated with that, 
-	 * we re-initialize from the config variable.
-	 */
-	if(context->use & CNTXT_INCMNG)
-	  reinit_incoming_folder_list(ps_global, context);
+	if(context->use & CNTXT_INCMNG){
+	    if(!inbox && add_folder && add_folder[0] && alval && *alval && (*alval)[offset]){
+		/*
+		 * Instead of re-initing we try to insert the
+		 * added folder so that we preserve the last_unseen_update
+		 * information.
+		 */
+		f = new_folder(add_folder, line_hash((*alval)[offset]));
+		f->isfolder = 1;
+		if(nickname && nickname[0]){
+		    f->nickname = cpystr(nickname);
+		    f->name_len = strlen(f->nickname);
+		}
+
+		if(F_ON(F_ENABLE_INCOMING_CHECKING, ps_global)
+		   && !ps_global->VAR_INCCHECKLIST)
+		  f->last_unseen_update = LUU_INIT;
+		else
+		  f->last_unseen_update = LUU_NEVERCHK;
+
+		folder_insert(folder_total(FOLDERS(context)), f, FOLDERS(context));
+	    }
+	    else
+	      /* re-init to make sure we got it right */
+	      reinit_incoming_folder_list(ps_global, context);
+	}
 
 	if(nickname[0]){
 	    strncpy(add_folder, nickname, add_folderlen-1);  /* known by new name */
@@ -4965,7 +5081,7 @@ rename_folder(CONTEXT_S *context, int index, char *new_name, size_t len, MAILSTR
 		else
 		  q_status_message1(SM_ORDER,3,3,
 		      _("Config feature \"s\" enables names beginning with dot"),
-		      feature_list_name(F_ENABLE_DOT_FOLDERS));
+		      pretty_feature_name(feature_list_name(F_ENABLE_DOT_FOLDERS)));
 
                 display_message(NO_OP_COMMAND);
                 continue;

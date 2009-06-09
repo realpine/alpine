@@ -16,8 +16,6 @@ EXTRA_DIST = config.rpath  VERSION README LICENSE
 
 SUBDIRS = m4 po pith pico alpine $(WEB_BUILD) $(WEB_PUBCOOKIE_BUILD)
 
-DIST_SUBDIRS = pith pico alpine web packages po doc include mapi
-
 BUILT_SOURCES = c-client.d c-client
 
 CLEANFILES = c-client
@@ -28,7 +26,8 @@ c-client.d:
 	if test ! -L c-client ; then $(LN_S) imap/c-client c-client ; fi
 
 c-client:
-	cd imap && $(MAKE) @C_CLIENT_TARGET@ "EXTRASPECIALS=@C_CLIENT_SPECIALS@"
+	$(C_CLIENT_WITH_IPV6)
+	cd imap && $(MAKE) @C_CLIENT_TARGET@ EXTRASPECIALS="@C_CLIENT_SPECIALS@"
 
 clean-local:
 	cd imap && $(MAKE) clean

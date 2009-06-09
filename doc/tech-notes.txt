@@ -1,7 +1,7 @@
 
                             Alpine Technical Notes
 
-   Version 0.99, May 2007
+   Version 0.999, June 2007
 
 Table of Contents
 
@@ -56,6 +56,7 @@ Table of Contents
      * Filtering Configuration
      * Scoring Configuration
      * Other Rules Configuration
+     * Search Rules Configuration
      * Patterns
      * Configuring News
        Configuration Notes
@@ -1005,6 +1006,10 @@ Alpine
           Some options may or may not be supported depending on how _Alpine_
           was compiled. This is a way to determine which options are supported
           in the particular copy of _Alpine_ you are using.
+   -install
+          For _PC-Alpine_ only, this option removes references to Alpine in
+          Windows settings. The registry settings are removed and the password
+          cache is cleared.
    -url _url_
           Open the given URL.
    -v
@@ -1331,7 +1336,19 @@ General Configuration Variables
           This variable sets up the default address book sorting. Currently,
           _Alpine_      will      accept      the     values     _dont-sort_,
           _fullname-with-lists-last_, _fullname_, _nickname-with-lists-last_, and
-          _nickname_. The default is to sort by fullname with lists last.
+          _nickname_. The default is to sort by fullname with lists last. If
+          you  use  an address book from more than one computer and those
+          computers sort the address book differently then the sort order will
+          be the order where the last change to the address book was made.
+          There are two reasons the sorting might be different on different
+          systems. First, the addrbook-sort-rule may be set differently in the
+          two places. Second, the collation rules on the two computers may be
+          different. For example, one system might ignore special characters
+          while the other doesn't or one may sort upper and lower case letters
+          together while the other doesn't. In any case, the order you see is
+          the order on the system where the last change was made, for example
+          by an address book edit or a Take Address command.
+          This option is displayed as "Addressbook Sort Rule".
    _address-book_
           A  list of personal address books. Each entry in the list is an
           optional nickname followed by a pathname or file name relative to the
@@ -1483,6 +1500,23 @@ General Configuration Variables
                 terminal to use xterm 256-colour mode" which allows PuTTY to
                 work well with this 256-color setting.
 
+          There are two other possible color values which may be useful in some
+          situations. In the color configuration screens there will sometimes
+          be a color which has the label "NORM" inside its color swatch. If
+          this is selected the corresponding foreground or background Normal
+          Color will be used. Another similar color is the one that has the
+          label "NONE" inside its color swatch. The meaning of this setting is
+          that no color changing will be done. This NONE color is only useful
+          in contexts where _Alpine_ is already coloring the text some color
+          other than the Normal Color. For example, if the Reverse Color is set
+          then the current line in the MESSAGE INDEX will be colored. If one of
+          the index symbols (for example, the Index-to-me Symbol) has the NONE
+          color as its background then the symbol's foreground color will be
+          used to draw the actual text but the background color will be the
+          same as whatever the background color already was. The color values
+          which end up in the configuration file for these special values are
+          the   11-character   words  "norm-padded",  "none-padded",  and
+          "transparent".
           The normal default is "no-color".
           Once you've turned on color you may set the colors of many objects on
           the screen individually. The Color Configuration section has more
@@ -1569,6 +1603,7 @@ General Configuration Variables
           Customized-Headers, it is not possible to have the value of a header
           contain  a  comma. Nor is there currently an "escape" mechanism
           provided to make this work.
+          This option is displayed as "Customized Headers".
    _dead-letter-files_
           This option affects _Alpine_'s behavior when you cancel a message
           being composed. _Alpine_'s usual behavior is to write the canceled
@@ -1599,6 +1634,7 @@ General Configuration Variables
           set. The default set is To:, Cc:, Attchmnt:, and Subject:.
           Note  that  the "Newsgroups:" header will be abbreviated in the
           Composer display, but should be spelled out in full here.
+          This option is displayed as "Default Composer Headers".
    _default-fcc_
           The name of the folder to which all outgoing mail goes is set here.
           The compiled-in default is _sent-mail_ (UNIX) or _sentmail_ (PC). It
@@ -1606,6 +1642,7 @@ General Configuration Variables
           turn  off  saving  copies of outgoing mail. If _default-fcc_ is a
           relative file name, then it is relative to your default collection
           for saves (see folder-collections).
+          This option is displayed as "Default Fcc (File carbon copy)".
    _default-saved-msg-folder_
           This option determines the default folder name for _Saves_... If this
           is not a path name, it will be in the default collection for saves.
@@ -1614,6 +1651,7 @@ General Configuration Variables
           override  it. Unix _Alpine_ default is normally _saved-messages_ in
           the  default  folder  collection. _PC-Alpine_ default is _SAVEMAIL_
           (normally stored as _SAVEMAIL.MTX_).
+          This option is displayed as "Default Saved Message Folder".
    _disable-these-authenticators_
           This variable is a list of SASL (Simple Authentication and Security
           Layer) authenticators which will be disabled. SASL is a mechanism for
@@ -2041,6 +2079,9 @@ General Configuration Variables
 
           NOTE: The default while a newsgroup is open remains the same; the
           last open newsgroup.
+   _header-general-background-color_
+   _header-general-foreground-color_
+          Header Colors.
    _image-viewer_
           This variable names the program to call for displaying parts of a
           MIME message that are of type IMAGE. If your system supports the
@@ -2068,8 +2109,29 @@ General Configuration Variables
           This    option    has    no    effect    unless   the   feature
           enable-incoming-folders-checking is set, which in turn has no effect
           unless incoming-folders is set.
-          This option specifies, in seconds, how often Alpine will check for
-          new mail in Incoming Folders. The default is 3 minutes (180).
+          This option specifies, in seconds, how often _Alpine_ will check for
+          new mail and state changes in Incoming Folders when Incoming Folders
+          Checking is turned on. The default is 3 minutes (180). This value
+          applies only to folders that are local to the system that _Alpine_ is
+          running on or that are accessed using the IMAP protocol. The similar
+          option  incoming-check-interval-secondary  applies to all other
+          monitored folders.
+   _incoming-check-interval-secondary_
+          This    option    has    no    effect    unless   the   feature
+          enable-incoming-folders-checking is set, which in turn has no effect
+          unless incoming-folders is set.
+          This  option  together  with the option incoming-check-interval
+          specifies, in seconds, how often _Alpine_ will check for new mail and
+          state changes in Incoming Folders when Incoming Folders Checking is
+          turned  on. The default for this option is 3 minutes (180). For
+          folders that are local to this system or that are accessed using the
+          IMAP protocol the value of the option incoming-check-interval is
+          used. For all other monitored folders, the value of this option is
+          used.
+          The reason there are two separate options is because it is usually
+          less expensive to check local and IMAP folders than it is to check
+          other types, like POP or NNTP folders. You may want to set this
+          secondary value to a higher number than the primary check interval.
    _incoming-check-list_
           This    option    has    no    effect    unless   the   feature
           enable-incoming-folders-checking is set, which in turn has no effect
@@ -2148,6 +2210,8 @@ General Configuration Variables
    _index-opening-foreground-color_
    _index-recent-background-color_
    _index-recent-foreground-color_
+   _index-subject-background-color_
+   _index-subject-foreground-color_
    _index-to-me-background-color_
    _index-to-me-foreground-color_
    _index-unseen-background-color_
@@ -2237,9 +2301,8 @@ index-format=STATUS MSGNO SMARTDATETIME FROMORTO(33%) SIZENARROW SUBJKEY(67%
           keywords here. Then you use the Flag command to set or clear the
           keywords in each message. (The Enable-Flag-Screen-Keyword-Shortcut
           option offers a slightly different way of setting keywords.)
-          Keywords may be used when Selecting messages (Select Keyword). You
-          will need to enable the enable-aggregate-command-set option to use
-          Select. Keywords may also be used in the Patterns of Rules (Filters,
+          Keywords  may be used when Selecting messages (Select Keyword).
+          Keywords  may  also  be used in the Patterns of Rules (Filters,
           Indexcolors,  etc).  Filter  rules  may be used to set keywords
           automatically. Keywords may be displayed as part of the Subject of a
           message  by  using  the  SUBJKEY  or  SUBJKEYINIT tokens in the
@@ -2304,16 +2367,16 @@ index-format=STATUS MSGNO SMARTDATETIME FROMORTO(33%) SIZENARROW SUBJKEY(67%
           space  characters.  So, for example, the default value could be
           specified explicitly by setting this option to
 
-                     Keyword-Surrounding-chars="{" "} "
+                     Keyword-Surrounding-Chars="{" "} "
           The first part wouldn't need to be quoted (but it doesn't hurt). The
           second  part  does  need the quotes because it includes a space
           character. If you wanted to change the braces to brackets you could
           use
 
-                     Keyword-Surrounding-chars="[" "] "
+                     Keyword-Surrounding-Chars="[" "] "
           Inside the quotes you can use backslash quote to mean quote, so
 
-                    Keyword-Surrounding-chars="\"" "\" "
+                    Keyword-Surrounding-Chars="\"" "\" "
           would produce
 
                          "Work Now" actual subject
@@ -2324,6 +2387,7 @@ index-format=STATUS MSGNO SMARTDATETIME FROMORTO(33%) SIZENARROW SUBJKEY(67%
           message. It is also not possible to change the fact that there are no
           separators between the keyword initials if more than one keyword is
           set.
+          This option is displayed as "Keyword Surrounding Characters".
    _last-time-prune-questioned_
           Personal configuration file only. This variable records the month the
           user  was  last asked if his or her _sent-mail_ folders should be
@@ -2549,6 +2613,7 @@ index-format=STATUS MSGNO SMARTDATETIME FROMORTO(33%) SIZENARROW SUBJKEY(67%
           When twenty five minutes pass without any active use of an IMAP
           connection being saved for possible re-use, that connection will be
           shut down,
+          This option is displayed as "Maximum Remote Connections".
    _meta-message-background-color_
    _meta-message-foreground-color_
           Meta-message Color.
@@ -2701,6 +2766,24 @@ index-format=STATUS MSGNO SMARTDATETIME FROMORTO(33%) SIZENARROW SUBJKEY(67%
    _normal-background-color_
    _normal-foreground-color_
           Normal Color.
+   _opening-text-separator-chars_
+          This  option  controls a minor aspect of _Alpine_'s MESSAGE INDEX
+          screen. With some setups the text of the subject is followed by the
+          opening text of the message if there is any room available in the
+          index  line. If you have configured your Index-Format option to
+          include  one  of  the Subject tokens which causes this behavior
+          (SUBJECTTEXT, SUBJKEYTEXT, or SUBJKEYINITTEXT), then this option may
+          be used to modify what is displayed slightly. By default, the Subject
+          is  separated from the opening text of the message by the three
+          characters space dash space;
+
+                                   " - "
+          Use this option to set it to something different. The value must be
+          quoted if it includes any space characters. For example, the default
+          value could be specified explicitly by setting this option to
+
+                     Opening-Text-Separator-Chars=" - "
+          This option is displayed as "Opening Text Separator Characters".
    _operating-dir_
           System-wide _Alpine_ configuration files only. This names the root of
           the tree to which the user is restricted when reading and writing
@@ -2718,6 +2801,7 @@ index-format=STATUS MSGNO SMARTDATETIME FROMORTO(33%) SIZENARROW SUBJKEY(67%
           to move existing filter patterns into the file. This isn't very
           convenient  but it isn't thought that many users will need this
           functionality. The purpose of filter files is for sharing filters.
+          This option is displayed as "Patterns Filters".
    _patterns-indexcolors_
           Matching patterns and their corresponding actions are stored in this
           variable.  These  patterns are used for Index Line Colors. This
@@ -2768,6 +2852,18 @@ index-format=STATUS MSGNO SMARTDATETIME FROMORTO(33%) SIZENARROW SUBJKEY(67%
           convenient  but it isn't thought that many users will need this
           functionality. The purpose of scoring files is for sharing scoring
           rules.
+          This option is displayed as "Patterns Scores".
+   _patterns-search_
+          Matching patterns for use with the Select command are stored in this
+          variable. These patterns are used with Search Rules configuration.
+          This variable is normally maintained through the Setup/Rules/searCh
+          configuration screen. It is a list variable. Each member of the list
+          is a single pattern, or it can be a file which contains zero or more
+          lines of patterns. The only way to create a rules file is to use the
+          InsertFile command in the Setup/Rules/searCh screen with a filename
+          which  doesn't  yet exist. Then use the Shuffle command to move
+          existing rules into the file. This isn't very convenient but it isn't
+          thought that many users will need this functionality.
    _personal-name_
           Personal configuration file only. User's full personal name. On UNIX
           systems,  the  default  is  taken  from  the accounts data base
@@ -2918,8 +3014,8 @@ index-format=STATUS MSGNO SMARTDATETIME FROMORTO(33%) SIZENARROW SUBJKEY(67%
           second  "H" will also turn on Full Header mode. The presence or
           absence   of   the   HdrMode   command  is  determined  by  the
           "Enable-Full-Header-Cmd"  Feature-List  option  in  your _Alpine_
-          configuration, so you will want to be sure to turn that on if you use
-          quote suppression.
+          configuration, so you will want to be sure that is turned on if you
+          use quote suppression.
           For the purposes of this option, a quote is a line that begins with
           the character ">".
           Quotes are only suppressed when displaying a message on the screen.
@@ -3095,6 +3191,7 @@ index-format=STATUS MSGNO SMARTDATETIME FROMORTO(33%) SIZENARROW SUBJKEY(67%
           nickname will be offered as the default folder. If it is not found
           (or has no nickname) then the default offered will be the same as it
           would be for the "by-from" rule. That is, it would be "flint"
+          This option is displayed as "Saved Message Name Rule".
    _scroll-margin_
           This option controls when _Alpine_'s line-by-line scrolling occurs.
           Typically, when a selected item is at the top or bottom screen edge
@@ -3306,6 +3403,7 @@ index-format=STATUS MSGNO SMARTDATETIME FROMORTO(33%) SIZENARROW SUBJKEY(67%
                          smtpserver.example.com/tls
           See the SMTP Servers section or the Server Name Syntax section for
           some more details.
+          This option is displayed as "SMTP Server (for sending)".
    _sort-key_
           This variable sets up the default Message Index sorting. The default
           is to sort by arrival order (the order the messages arrived in the
@@ -3467,6 +3565,7 @@ index-format=STATUS MSGNO SMARTDATETIME FROMORTO(33%) SIZENARROW SUBJKEY(67%
           turn off this special treatment.
           If the message that was current when you left the folder no longer
           exists, then the regular startup rule will be used instead.
+          This option is displayed as "Stayopen Folders".
    _tcp-open-timeout_
           Sets the time in seconds that _Alpine_ will attempt to open a network
           connection. The default is 30, the minimum is 5, and the maximum is
@@ -3637,7 +3736,7 @@ index-format=STATUS MSGNO SMARTDATETIME FROMORTO(33%) SIZENARROW SUBJKEY(67%
                 "separate-index-screen-except-for-single-messages" setting
                 instead, then that index which contains a single message will
                 be skipped and you will go directly from the THREAD INDEX into
-                the MESSAGE VIEW screen.
+                the MESSAGE TEXT screen.
 
    _threading-indicator-character_
           The Threading-Indicator-Character option has a small effect on the
@@ -3665,6 +3764,7 @@ index-format=STATUS MSGNO SMARTDATETIME FROMORTO(33%) SIZENARROW SUBJKEY(67%
           a backquote (`). By default, the value of this option is the vertical
           bar character (|). This option may not be set to the Empty Value. In
           that case, the default will be used instead.
+          This option is displayed as "Threading Last Reply Character".
    _title-background-color_
    _title-foreground-color_
           Title Color.
@@ -3752,6 +3852,7 @@ index-format=STATUS MSGNO SMARTDATETIME FROMORTO(33%) SIZENARROW SUBJKEY(67%
           special value _all-except_ is included as the first header in the
           _viewer-hdrs_ list, then all headers in the message except those in
           the list will be shown. The values are all case insensitive.
+          This option is displayed as "Viewer Headers".
    _viewer-margin-left_
           This variable controls the left-hand vertical margin's width in
           _Alpine_'s Message Viewing screen. Its value is the number of space
@@ -3818,7 +3919,7 @@ Configuration Features
    System managers should take some care when turning on features by default.
    Some  of the documentation assumes that all of the features are off by
    default, so it could be confusing for a user if some are on by default
-   instead.
+   instead. Feature names are case-independent.
 
    Here is an alphabetical list of possible features.
    _allow-changing-from_
@@ -3878,6 +3979,7 @@ Configuration Features
           option "Fcc-On-Bounce" is turned on, and the "Use SMTP Server" value
           is used for the SMTP server, if set. Other actions of the role are
           ignored when Bouncing.
+          This feature is displayed as "Alternate Role (#) Menu".
    _assume-slow-link_
           This feature affects _Alpine_'s display routines. If set, the normal
           inverse-video cursor (used to highlight the current item in a list)
@@ -3894,6 +3996,7 @@ Configuration Features
           to the designated folder and mark them as deleted in the _INBOX_.
           Messages in the _INBOX_ marked with an _N_ (meaning New, or unseen)
           are not affected.
+          This feature is displayed as "Auto Move Read Messages".
    _auto-open-next-unread_
           This feature controls the behavior of the TAB key when traversing
           folders in the optional incoming-folders collection or in optional
@@ -3918,9 +4021,10 @@ Configuration Features
           selected  messages, the _Apply_ command will do the operation you
           specify, but then will implicitly do an _UnZoom_, so that you will
           automatically be back in the normal Index view after the _Apply_.
+          This feature is set by default.
    _auto-zoom-after-select_
           If  set, the _; select_ command will automatically perform a _Zoom_
-          after the _select_ is complete.
+          after the _select_ is complete. This feature is set by default.
    _busy-cue-spinner-only_
           When  _Alpine_  is  delayed for some reason it usually shows that
           something is happening with a small animated display in the status
@@ -3947,6 +4051,7 @@ Configuration Features
           on the screen plus all of the entries from expanded address books.
           When   this   feature  is  set,  the  setting  of  the  feature
           expanded-view-of-addressbooks has an effect.
+          This feature is displayed as "Combined Addressbook Display".
    _combined-folder-display_
           This feature affects the folder list display screens. Normally, each
           folder list is viewed within its collection only. This command allows
@@ -3988,10 +4093,12 @@ Configuration Features
           If set, the _^K_ command in the composer will cut from the current
           cursor position to the end of the line, rather than cutting the
           entire line.
+          This feature is displayed as "Ctrl-K Cuts From Cursor".
    _compose-maps-delete-key-to-ctrl-d_
           If set, Delete will be equivalent to ^D, and delete the current
           character. Normally _Alpine_ defines the Delete key to be equivalent
           to ^H, which deletes the _previous_ character.
+          This feature is displayed as "Delete Key Maps to Ctrl-D".
    _compose-rejects-unqualified-addrs_
           If set, unqualified names entered as addresses will be treated as
           errors unless they match an addressbook nickname or are looked up
@@ -4002,6 +4109,7 @@ Configuration Features
           followed by an _@_ symbol, followed by a host or domain name (e.g.
           _jsmith@example.com_).  An  unqualified name is one without the _@_
           symbol and host or domain name (e.g. _jsmith_).
+          This feature is displayed as "Compose Rejects Unqualified Addresses".
    _compose-send-offers-first-filter_
           If you have sending-filters configured, setting this feature will
           cause the first filter in the _sending-filters_ list to be offered as
@@ -4012,6 +4120,8 @@ Configuration Features
           to be posted to the current newsgroup or not. If this feature is set,
           _Alpine_ will not prompt you in this situation, and will assume that
           you do indeed wish to post to the newsgroup you are reading.
+          This  feature  is  displayed as "Compose Sets Newsgroup Without
+          Confirming".
    _confirm-role-even-for-default_
           If you have roles, when you Reply to or Forward a message, or Compose
           a new message, _Alpine_ will search through your roles for one which
@@ -4035,27 +4145,31 @@ Configuration Features
           stop the NextNew processing.
           If this feature is set you will not be asked. It will be assumed that
           you want to continue.
+          This feature is displayed as "Continue NextNew Without Confirming".
    _delete-skips-deleted_
           If set, this feature will cause the _Delete_ command to advance past
           other messages that are marked deleted. In other words, pressing _D_
           will both mark the current message deleted and advance to the next
-          message that is not marked deleted.
+          message that is not marked deleted. This feature is set by default.
    _disable-config-cmd_
           If set, the configuration screen _Setup/Config_ will not be available
           at all.
-   _disable-input-history_
+   _disable-save-input-history_
           Many of the prompts that ask for input in the status line near the
           bottom of the screen will respond to Up Arrow and Down Arrow with the
           history of previous entries. For example, in the MESSAGE INDEX screen
           when  you  use the WhereIs command the text you entered will be
-          remembered and can be recalled using the Up Arrow key. Setting this
-          option will disable this.
-          When this option is set the Up and Down arrows will be synonyms for
-          the Previous Collection and Next Collection (^P and ^N) commands in
-          the prompt for the name of a folder to Save to or in the prompt for
-          the name of a folder to GoTo. When it is not set (the default), ^P
-          and ^N will change the collection and the arrow keys will show the
-          history.
+          remembered and can be recalled by using the Up Arrow key. Another
+          example,  when  saving  a  message the folders saved to will be
+          remembered and can be recalled using the arrow keys.
+          In the Save prompt, some users prefer that the Up and Down arrow keys
+          be used for the Previous Collection and Next Collection commands
+          instead of for a history of previous saves. If this option is set the
+          Up  and  Down  arrow keys will become synonyms for the Previous
+          Collection and Next Collection (^P and ^N) commands in the prompt for
+          the name of a folder to Save to or in the prompt for the name of a
+          folder to GoTo. When this feature is not set (the default), ^P and ^N
+          will change the collection and the arrow keys will show the history.
    _disable-keyboard-lock-cmd_
           In  the  Main  _Alpine_  menu there is a Keyboard locking command
           (_KBLock_). If this feature is set, that command won't be available to
@@ -4076,11 +4190,11 @@ Configuration Features
           that  it  can  be  reused. In the event that _Alpine_ crashes and
           produces a core dump, and that core dump is readable by others, the
           loginname and password could possibly be read from the core dump.
-          If this hidden feature is set, then the passwords will not be cached
-          and the user will have to retype the password whenever _Alpine_ needs
-          it. Even with this feature set there is still some chance that the
-          core file will contain a password, so care should be taken to make
-          the core files unreadable.
+          If this feature is set, then the passwords will not be cached and the
+          user will have to retype the password whenever _Alpine_ needs it.
+          Even with this feature set there is still some chance that the core
+          file will contain a password, so care should be taken to make the
+          core files unreadable.
           NOTE: If PASSFILE caching is enabled, this does not disable it. That
           is a separate and independent feature.
    _disable-password-cmd_
@@ -4108,6 +4222,7 @@ Configuration Features
           header. This may be desirable on a system which is virtually hosting
           many  domains, and the sysadmin has other methods available for
           tracking a message to its originator.
+          This feature is displayed as "Do Not Generate Sender Header".
    _disable-setlocale-collate_
           This is a hard to understand feature that should only be used in rare
           cases. Normally, the C function call
@@ -4191,15 +4306,15 @@ Configuration Features
           information.  Of  course,  it will increase the likelihood that
           non-ASCII text you send may appear corrupt to the recipient.
    _enable-8bit-esmtp-negotiation_
-          This feature affects _Alpine_'s behavior when sending mail. Internet
-          standards require that all electronic mail messages traversing the
-          global Internet consist of 7bit ASCII characters unless a pair of
-          cooperating mail transfer agents explicitly agree to allow 8bit
-          messages.  In  general,  then, exchanging messages in non-ASCII
-          characters requires MIME encoding.
+          This  feature  affects  _Alpine_'s behavior when sending mail. By
+          default, this feature is set. Internet standards require that all
+          electronic mail messages traversing the global Internet consist of
+          7bit ASCII characters unless a pair of cooperating mail transfer
+          agents explicitly agree to allow 8bit messages. In general, then,
+          exchanging messages in non-ASCII characters requires MIME encoding.
           However, there are now Internet standards that allow for unencoded
-          8bit exchange of messages between cooperating systems. Setting this
-          feature  tells  _Alpine_  to  try  to  negotiate  unencoded  8bit
+          8bit exchange of messages between cooperating systems. When this
+          feature  is  set  _Alpine_  will  try to negotiate unencoded 8bit
           transmission during the sending process. Should the negotiation fail,
           _Alpine_ will fall back to its ordinary encoding rules.
           Note, this feature relies on your system's mail transport agent or
@@ -4225,15 +4340,15 @@ Configuration Features
           on, but recipients who lack MIME-aware tools are often annoyed when
           they receive MIME-encoded messages.
    _enable-aggregate-command-set_
-          Setting this feature enables the commands and subcommands that relate
-          to performing operations on more than one message at a time. We call
-          these  "aggregate  operations".  In particular, the _; Select_, _A
-          Apply_, and _Z Zoom_ commands are enabled by this feature. _Select_ is
-          used to _tag_ one or more messages meeting the specified criteria.
-          _Apply_ can then be used to apply any message command to all of the
-          selected/tagged messages. Further, the _Zoom_ command allows you to
-          toggle the "Folder Index" view between just those Selected and all
-          messages in the folder.
+          When this feature is set you may use the commands and subcommands
+          that relate to performing operations on more than one message at a
+          time. We call these "aggregate operations". In particular, the _;
+          Select_,  _A  Apply_,  and  _Z  Zoom_  commands  are enabled by this
+          feature. _Select_ is used to _tag_ one or more messages meeting the
+          specified criteria. _Apply_ can then be used to apply any message
+          command to all of the selected/tagged messages. Further, the _Zoom_
+          command allows you to toggle the "Folder Index" view between just
+          those Selected and all messages in the folder.
           This feature also enables the _^X_ subcommand in the "Folder Index"
           _WhereIs_  command which causes all messages matching the _WhereIs_
           argument to become selected.
@@ -4241,14 +4356,16 @@ Configuration Features
           where  you  are operating on address book entries instead of on
           messages.
    _enable-alternate-editor-cmd_
-          If this feature is set, and the editor variable is not set, entering
-          the  _^__ (Control-underscore) key while composing a message will
-          prompt you for the name of the editor you would like to use.
+          If this feature is set (the default), and the editor variable is not
+          set, entering the _^__ (Control-underscore) key while composing a
+          message will prompt you for the name of the editor you would like to
+          use.
           If  the environment variable $EDITOR is set, this value will be
           offered as a default. If the _editor_ variable is set, the _^__ key
           will activate the specified editor without prompting, in which case
           it is not necessary to set the _enable-alternate-editor-cmd_ feature.
           This feature is not available in _PC-Alpine_.
+          This feature is displayed as "Enable Alternate Editor Command".
    _enable-alternate-editor-implicitly_
           If this feature and the editor variable are both set, _Alpine_ will
           automatically activate the specified editor when the cursor is moved
@@ -4261,7 +4378,7 @@ Configuration Features
    _enable-arrow-navigation_
           This feature controls the behavior of the left and right arrow keys.
           If set, the left and right arrow keys will operate like the usual
-          navigation keys _<_ and _>_.
+          navigation keys _<_ and _>_. This feature is set by default.
           If you set this feature, and do not like the changed behavior of the
           up/down arrow keys when navigating through the FOLDER LIST screen --
           _first_ from column to column, if more than one folder is displayed
@@ -4272,17 +4389,15 @@ Configuration Features
    _enable-arrow-navigation-relaxed_
           This feature controls the behavior of the left and right arrow keys
           in the FOLDER LIST screen when the enable-arrow-navigation feature is
-          enabled.
-          Normally, when the "enable-arrow-navigation" feature is set, the left
-          and right arrow keys in the Folder List screen strictly track the
-          commands  bound  to the _<_ and _>_ keys, and the up and down arrow
-          keys  move  the highlite bar to the previous and next folder or
-          directory name.
-          When enabled, this feature returns the left, right, up and down arrow
-          key's functionality in the FOLDER LIST screen to what it was before
-          enabling "enable-arrow-navigation". In other words, left and right
-          arrows move the highlight bar to the left or right, and the up and
-          down arrows move it up or down.
+          set. This feature is set by default.
+          When this feature is set, the left and right arrow keys in the FOLDER
+          LIST screen move the highlight bar to the left or right, and the up
+          and down arrows move it up or down.
+          When the "Enable-Arrow-Navigation" feature is set and this feature is
+          not set; the left and right arrow keys in the Folder List screen
+          strictly track the commands bound to the '<' and '>' keys, and the up
+          and down arrow keys move the highlight bar to the previous and next
+          folder or directory name.
    _enable-background-sending_
           If set, this feature enables a subcommand in the composer's _Send?_
           confirmation prompt. The subcommand allows you to tell _Alpine_ to
@@ -4313,6 +4428,7 @@ Configuration Features
           you have Resent the msg, but the message's From: header will show the
           original author of the message, and replies to it will go back to
           that author, and not to you.
+          This feature is displayed as "Enable Bounce Command".
    _enable-cruise-mode_
           This feature affects _Alpine_'s behavior when you hit the "Space Bar"
           at the end of a displayed message. Typically, _Alpine_ complains that
@@ -4327,6 +4443,7 @@ Configuration Features
           message.
           NOTE:    Beware    when   enabling   this   feature   _and_   the
           expunge-without-confirm feature.
+          This feature is displayed as "Enable Cruise Mode With Deleting".
    _enable-delivery-status-notification_
           If set, this feature enables a subcommand in the composer's "Send?"
           confirmation prompt. The subcommand allows you to tell _Alpine_ to
@@ -4345,10 +4462,11 @@ Configuration Features
           browser to add an attachment to a message.
    _enable-dot-folders_
           If set, folders beginning with dot (".") may be added and viewed.
+          This feature is displayed as "Enable Hidden Folders".
    _enable-exit-via-lessthan-command_
           If set, then on screens where there is an _Exit_ command but no _<_
           command,  the  _<_ key will perform the same function as the _Exit_
-          command.
+          command. This feature is set by default.
    _enable-fast-recent-test_
           This feature controls the behavior of the TAB key when traversing
           folders in the optional Incoming-Folders collection or in optional
@@ -4370,6 +4488,7 @@ Configuration Features
           _Flag_  will set the _Important_ flag, which results in an asterisk
           being  displayed  in  column one of the "Folder Index" for such
           messages.
+          This feature is displayed as "Enable Flag Command".
    _enable-flag-screen-implicitly_
           This feature modifies the behavior of the _* Flag_ command (provided
           it  too  is  enabled).  By  default, when the _* Flag_ command is
@@ -4380,14 +4499,14 @@ Configuration Features
           the simple prompt. The Enable-Flag-Screen-Keyword-Shortcut option
           offers a slightly different way of setting keywords.
    _enable-flag-screen-keyword-shortcut_
-          This feature modifies the behavior of the Flag command (provided it
-          too is enabled). By default, when the "* Flag" command is selected,
-          _Alpine_ offers a prompt to set one of several flags and also offers
-          the option of entering the detailed flag manipulation screen via the
-          "^T" key. If you have keywords defined, then enabling this feature
-          adds a shortcut way to set or unset keywords. You use "*" followed by
-          the first letter of a keyword (or the nickname of a keyword if you've
-          given it a nickname) and that will set the keyword.
+          This feature modifies the behavior of the Flag command. By default,
+          when the "* Flag" command is selected, _Alpine_ offers a prompt to
+          set one of several flags and also offers the option of entering the
+          detailed flag manipulation screen via the "^T" key. If you have
+          keywords defined, then enabling this feature adds a shortcut way to
+          set or unset keywords. You use "*" followed by the first letter of a
+          keyword (or the nickname of a keyword if you've given it a nickname)
+          and that will set the keyword.
           An example is easier to understand than the explanation. The flag
           command can always be used to set the system flags. For example, to
           set the Answered flag you would type
@@ -4425,10 +4544,10 @@ Configuration Features
           headers  are  included  for  _Export_,  _Pipe_, _Print_, _Forward_, and
           _Reply_  functions. (For _Reply_, the _Full Header_ mode will respect
           the _include-headers-in-reply_ feature setting.)
-          If Full Header mode has been turned on and you Forward a message, you
-          will be asked if you'd like to forward the message as an attachment,
-          as opposed to including the text of the message in the body of your
-          new message.
+          If Full Header mode is turned on and you Forward a message, you will
+          be asked if you'd like to forward the message as an attachment, as
+          opposed to including the text of the message in the body of your new
+          message.
           If you have also turned on the "Quote Suppression" option then the
           Full Headers command actually rotates through three states instead of
           just two. The first is the normal view with long quotes suppressed.
@@ -4439,6 +4558,7 @@ Configuration Features
           Normally, the Header Mode will reset to the default behavior when
           moving to a new message. The mode can be made to persist from message
           to message by setting the feature Quell-Full-Header-Auto-Reset.
+          This feature is displayed as "Enable Full Header Command".
    _enable-full-header-and-text_
           This  feature  affects  how the _H Full Headers_ command displays
           message text. If set, the raw message text will be displayed. This
@@ -4448,14 +4568,14 @@ Configuration Features
           functions.
    _enable-goto-in-file-browser_
           Setting  this  causes _Alpine_ to offer the _G Goto_ command in the
-          file browser. This command allows you to explicitly set the displayed
-          directory. _Alpine_'s default behavior requires you to visit each
-          related directory when moving between two distant directories.
+          file browser. The Goto command allows you to explicitly type in the
+          desired directory. That is the default.
    _enable-incoming-folders_
           If  set, this feature defines a pseudo-folder collection called
           _INCOMING MESSAGE FOLDERS_. Initially, the only folder included in
           this collection will be your _INBOX_, which will no longer show up in
           your default saved-message folder collection.
+          This feature is displayed as "Enable Incoming Folders Collection".
    _enable-incoming-folders-checking_
           This feature is only operational if you have enabled the optional
           incoming-folders If you do have Incoming Message Folders and you also
@@ -4466,12 +4586,14 @@ Configuration Features
           no Unseen messages in a folder then only the name is displayed, not a
           set of parentheses with zero inside them. A redraw command, Ctrl-L,
           can  be used in the FOLDER LIST screen for the Incoming Message
-          Folders to cause an immediate new mail check.
+          Folders to cause an immediate update.
           If a check for Unseen messages fails for a particular folder then
           Alpine will no longer attempt to check that folder for the duration
           of the session and this will be indicated by a question mark inside
           the parentheses.
-          The  features incoming-check-interval, incoming-check-list, and
+          The          features         incoming-checking-includes-total,
+          incoming-checking-uses-recent,             incoming-check-list,
+          incoming-check-interval, incoming-check-interval-secondary, and
           incoming-check-timeout all affect how this feature behaves.
    _Disable-Index-Locale-Dates_
           This feature affects the display of dates in the MESSAGE INDEX.
@@ -4484,10 +4606,10 @@ Configuration Features
           If this feature is set, dates are displayed in English and with the
           conventions of the United States.
    _enable-jump-shortcut_
-          Setting this feature will allow you to enter a number (followed by
-          RETURN) and jump to that message number, when in the "Folder Index"
-          or "Message Text" screens. In other words, it obviates the need for
-          typing the _J_ for the _Jump_ command.
+          When this feature is set you may enter a number (followed by RETURN)
+          and jump to that message number, when in the MESSAGE INDEX or MESSAGE
+          TEXT screens. In other words, it obviates the need for typing the _J_
+          for the _Jump_ command.
    _enable-lame-list-mode_
           This  feature  modifies the method _Alpine_ uses to ask your IMAP
           server for folder names to display in the the FOLDER LIST screen. It
@@ -4504,6 +4626,7 @@ Configuration Features
           your  personal  folder  collection without requiring a specific
           collection definition. This behavior will generally not be available
           when this feature is enabled.
+          This feature is displayed as "Compensate for Deficient IMAP servers".
    _enable-mail-check-cue_
           If set, this will cause an asterisk to appear in the upper left-hand
           corner of the screen whenever _Alpine_ checks for new mail, and two
@@ -4515,6 +4638,7 @@ Configuration Features
           security  problems  which may occur with some incorrect mailcap
           configurations. For more information, RFC1524 and look for "named
           parameters" in the text of the RFC.
+          This feature is displayed as "Enable Mailcap Parameter Substitution".
    _enable-mouse-in-xterm_
           This feature controls whether or not an X terminal mouse can be used
           with _Alpine_. If set, and the $DISPLAY variable indicates that an X
@@ -4535,6 +4659,7 @@ Configuration Features
           the selected address.
           Use the up and down arrow keys to change which of the addresses
           displayed in boldface is the current selection.
+          This feature is displayed as "Enable Message View Address Links".
    _enable-msg-view-attachments_
           This  feature  modifies the behavior of _Alpine_'s "Message Text"
           screen. Setting this feature causes _Alpine_ to present attachments
@@ -4551,6 +4676,7 @@ Configuration Features
           key can be used to select the next item in the message independent of
           which portion of the viewed message is currently displayed. The
           Ctrl-B key can be used to select the previous item in the same way.
+          This feature is displayed as "Enable Message View Attachment Links".
    _enable-msg-view-forced-arrows_
           This feature modifies Up and Down arrow key behavior in _Alpine_'s
           "Message  Text"  screen  when selectable Attachments, URL's, or
@@ -4562,10 +4688,12 @@ Configuration Features
           if no selectable items were present in the message.
           Note,  the  _Ctrl-F_  (next selectable item) and _Ctrl-B_ (previous
           selectable item) functionality is unchanged.
+          This feature is displayed as "Enable Message View Forced Arrows".
    _enable-msg-view-urls_
           This  feature  modifies the behavior of _Alpine_'s "Message Text"
-          screen. Setting this feature causes _Alpine_ to select possible URL's
-          from the displayed text and display them in boldface for selection.
+          screen. When this feature is set (the default) _Alpine_ will select
+          possible URLs from the displayed text and display them in boldface
+          for selection.
           The  first  available  URL is displayed in inverse. This is the
           "selected" URL. Pressing _RETURN_ will cause _Alpine_ to display the
           selected URL via either built-in means as with mailto:, imap:, news:,
@@ -4573,17 +4701,20 @@ Configuration Features
           url-viewers variable.
           Use the up and down arrow keys to change which of the URLs displayed
           in boldface is the current selection.
+          This feature is displayed as "Enable Message View URL Links".
    _enable-msg-view-web-hostnames_
           This  feature  modifies the behavior of _Alpine_'s "Message Text"
-          screen. Setting this feature causes _Alpine_ to select possible web
-          hostnames from the displayed text and display them in boldface for
-          selection.
+          screen. When this feature is set (the default) _Alpine_ will select
+          possible web hostnames from the displayed text and display them in
+          boldface for selection.
           The first available hostname is displayed in inverse. This is the
           "selected" hostname. Pressing _RETURN_ will cause _Alpine_ to display
           the selected hostname via an external application as defined by the
           url-viewers variable.
           Use the up and down arrow keys to change which of the hostnames
           displayed in boldface is the current selection.
+          This  feature is displayed as "Enable Message View Web Hostname
+          Links".
    _enable-multiple-newsrcs_
           This feature makes it so _Alpine_ can use multiple newsrcs based on
           the news server being connected to, which allows for separate lists
@@ -4622,7 +4753,8 @@ Configuration Features
           Opening a new folder. If set, the subcommand _^X ListMatches_ will be
           available. This command allows you to type in a substring of the
           folder you are looking for and when you type _^X_ it will display all
-          folders which contain that substring in their names.
+          folders which contain that substring in their names. This feature is
+          set by default.
    _enable-print-via-y-command_
           By default, _Alpine_'s print command is available by pressing the _%_
           key. In older versions of _Pine_, the print command was accessed by
@@ -4655,6 +4787,7 @@ John: on a job well done!
           a new Rule. When this feature is set, you will be given an extra
           prompt which gives you the choice to Take into the Address Book or
           Take into a rule.
+          This feature is displayed as "Enable Take Rules".
    _enable-search-and-replace_
           If  set  _Alpine_'s  composer offers the _R Replace_ command option
           inside the _W WhereIs_ command.
@@ -4674,6 +4807,7 @@ John: on a job well done!
           This feature enables the _TAB_ key when at a prompt for a filename.
           In this case, _TAB_ will cause the partial name already entered to be
           automatically completed, provided the partial name is unambiguous.
+          This feature is set by default.
           Similarly, this feature also enables TAB completion of address book
           nicknames when at a prompt for a nickname, or when typing in an
           address field in the composer.
@@ -4698,6 +4832,7 @@ John: on a job well done!
    _enable-unix-pipe-cmd_
           This  feature enables the _| Pipe_ command that sends the current
           message to the specified Unix command for external processing.
+          This feature is displayed as "Enable Unix Pipe Command".
    _enable-verbose-smtp-posting_
           This feature controls an aspect of _Alpine_'s message sending. When
           enabled, _Alpine_ will send a VERB (i.e., VERBose) command early in
@@ -4758,16 +4893,19 @@ John: on a job well done!
           confirmation  if  the folder is not the _INBOX_ folder or another
           folder   in   the   Incoming   Folders   collection.   See  the
           _expunge-without-confirm-everywhere_ feature which follows.
+          This feature is displayed as "Expunge Without Confirming".
    _expunge-without-confirm-everywhere_
           The regular _expunge-without-confirm_ feature actually only works for
           the _INBOX_ folder and for other folders in the "Incoming Folders"
           collection. If this feature is set then you also won't be prompted to
           confirm expunges for all other folders.
+          This feature is displayed as "Expunge Without Confirming Everywhere".
    _fcc-on-bounce_
           If set, normal Fcc (File Carbon Copy) processing will be done for
           bounced  messages, just as if you had composed a message to the
           address you are bouncing to. If not set, no Fcc of the message will
           be saved.
+          This feature is displayed as "Include Fcc When Bouncing Messages".
    _fcc-only-without-confirm_
           This features controls an aspect of _Alpine_'s composer. The only
           time this feature will be used is if you attempt to send mail which
@@ -4784,6 +4922,7 @@ John: on a job well done!
           also differ. This feature defaults to asking the question and you
           have to turn it off. The warn-if-blank-to-and-cc-and-newsgroups
           feature defaults to not asking unless you turn it on.
+          This feature is displayed as "Send to Fcc Only Without Confirming".
    _fcc-without-attachments_
           This features controls the way FCC's (File Carbon Copies) are made of
           the messages you send.
@@ -4796,6 +4935,7 @@ John: on a job well done!
           that a new "^F Fcc Attchmnts" option becomes available which allows
           you to interactively set whether or not attachments are saved to the
           Fcc'd copy.
+          This feature is displayed as "Fcc Does Not Include Attachments".
    _force-arrow-cursor_
           This feature affects _Alpine_'s MESSAGE INDEX display routine. If
           set, the normal inverse-video cursor will be replaced by a simple
@@ -4831,6 +4971,43 @@ John: on a job well done!
           enable-reply-indent-string-editing is _not_ set, then the original
           message  will  be  included in the reply automatically, without
           prompting.
+   _incoming-checking-includes-total_
+          This    option    has    no    effect    unless   the   feature
+          enable-incoming-folders-checking is set, which in turn has no effect
+          unless incoming-folders is set.
+          When incoming folder checking is turned on the default is to display
+          the number of unseen messages in each folder. More precisely, it is
+          the number of undeleted unseen messages. Using this option you may
+          also display the total number of messages in each folder. Instead of
+          a single number representing the number of unseen messages you will
+          get two numbers separated by a slash character. The first is the
+          number of unseen messages and the second is the total number of
+          messages.
+          You may also use the recent message count instead of the unseen
+          message count by turning on the feature
+          incoming-checking-uses-recent.
+   _incoming-checking-uses-recent_
+          This    option    has    no    effect    unless   the   feature
+          enable-incoming-folders-checking is set, which in turn has no effect
+          unless incoming-folders is set.
+          When incoming folder checking is turned on the default is to display
+          the number of unseen messages in each folder. More precisely, it is
+          the number of undeleted unseen messages. Using this option you may
+          display the number of recent messages instead of the number of unseen
+          messages. A message is only counted as recent if this is the first
+          session to see it, so the recent count might be less than the unseen
+          count. The difference between the two would be accounted for by the
+          unseen messages in the folder which were there previously but have
+          not been looked at yet.
+          If you simultaneously run more than one email client at a time (for
+          example, you run more than one _Alpine_ in parallel) then turning
+          this feature on can cause some confusion. The confusion stems from
+          the fact that each message is only considered to be recent in one
+          session. That means that the counts of new messages may be different
+          in  the two _Alpine_s running side by side, because each incoming
+          message will only be counted as recent in one of the two sessions.
+          You may also display the total number of messages in each folder by
+          using the incoming-checking-includes-total option.
    _ldap-result-to-addrbook-add_
           This is only available if _Alpine_ was linked with an LDAP library
           when  it  was compiled. If both the per-directory-server option
@@ -4838,6 +5015,7 @@ John: on a job well done!
           implicit  directory  lookup  is done from the composer you will
           automatically be prompted to add the result of the directory lookup
           to your address book.
+          This feature is displayed as "LDAP Result to Addressbook Add".
    _maildrops-preserve-state_
           This feature affects the way Mail Drops work. Normally, when mail is
           moved from a Mail Drop folder to a destination folder, the state
@@ -4883,9 +5061,10 @@ John: on a job well done!
           If this feature is not set, then the canonicalized names will be
           used. If this feature is set, then the name you typed in (or put in
           your configuration) will be used.
+          This feature is displayed as "Multiple Newsrc Hostnames as Typed".
    _news-approximates-new-status_
           This feature causes certain messages to be marked as _New_ in the
-          "Folder Index" of newsgroups.
+          MESSAGE INDEX of newsgroups. This feature is set by default.
           When  opening a newsgroup, _Alpine_ will consult your _newsrc_ file
           and determine the last message you have previously disposed of via
           the _D_ key. If this feature is set, any subsequent messages will be
@@ -4954,6 +5133,7 @@ John: on a job well done!
           then view a particular message from that screen and press the Next
           command, you will be sent to the next thread without being asked,
           independent of the setting of this feature.
+          This feature is displayed as "Read Next Thread Without Confirming".
    _offer-expunge-of-inbox_
           The INBOX is normally treated differently from regular folders in
           several ways. One of the differences is that the normal "close"
@@ -5038,6 +5218,7 @@ John: on a job well done!
           the nntp-server variable.
           This feature can be especially handy when used in conjunction with
           enable-multiple-newsrcs.
+          This option is displayed as "NNTP Server (for news)".
    _prefer-plain-text_
           A message being viewed may contain alternate versions of the same
           content. Those alternate versions are ordered by the sending software
@@ -5073,6 +5254,7 @@ John: on a job well done!
           ostensibly "hang" whenever the _Ctrl-S_ key combination is entered as
           the system is now interpreting such input as a "stop output" command.
           To "start output" again, simply type _Ctrl-Q_.
+          This feature is displayed as "Preserve Start/Stop Characters".
    _print-formfeed-between-messages_
           Setting this feature causes a formfeed to be printed between messages
           when printing multiple messages with the _Apply Print_ command.
@@ -5095,6 +5277,7 @@ John: on a job well done!
           opportunity to enter any system print command, instead of being
           restricted to using those that have been previously configured in the
           _Setup/Printer_ screen.
+          This feature is displayed as "Print Offers Custom Command Prompt".
    _prune-uses-yyyy-mm_
           By default, _Alpine_ asks monthly whether or not you would like to
           rename some folders to a new name containing the date. It also asks
@@ -5126,6 +5309,7 @@ John: on a job well done!
           This feature can be used along side quell-attachment-extra-prompt to
           preserve  the behavior exhibited in _Pine_ versions prior to _Pine_
           4.50.
+          This feature is displayed as "Suppress Attachment Extension Warning".
    _quell-attachment-extra-prompt_
           By default, when you attempt to view an attachment externally from
           the "Attachment View" screen, you are asked if you really want to
@@ -5134,12 +5318,14 @@ John: on a job well done!
           selection.  Prior to _Pine_ 4.50, the default behavior was to not
           prompt. This feature was added for those wanting to preserve that
           behavior.
+          This feature is displayed as "Suppress Attachment Extra Prompt".
    _quell-berkeley-format-timezone_
           POSIX mandates a timezone in UNIX mailbox format folder delimiters
           (the line which begins with From ). Some versions of Berkeley mail
           have trouble with this, and don't recognize the line as a message
           delimiter. If this feature is set, the timezone will be left off the
           delimiter line.
+          This feature is displayed as "Suppress Berkeley Format Timezone".
    _quell-charset-warning_
           By default, if your Character-Set is different from the character set
           of the message you are viewing, then _Alpine_ will add a warning to
@@ -5153,6 +5339,7 @@ John: on a job well done!
           in the From header if your Character-Set is something other than
           ISO-8859-2. If you set this feature, the comment about the character
           set will no longer be there.
+          This feature is displayed as "Suppress Character Set Warning".
    _quell-content-id_
           This feature changes the behavior of _Alpine_ when sending messages.
           It is intended to work around a bug in Microsoft's Outlook XP mail
@@ -5178,6 +5365,7 @@ John: on a job well done!
           correct functioning of that attachment, it is possible that _Alpine_
           may remove that header when the attachment is forwarded. However, it
           seems fairly safe at this time.
+          This feature is displayed as "Suppress Content-ID".
    _quell-dead-letter-on-cancel_
           This feature affects _Alpine_'s behavior when you cancel a message
           being composed. _Alpine_'s usual behavior is to write the canceled
@@ -5190,6 +5378,7 @@ John: on a job well done!
           This  feature affects the newer option Dead-Letter-Files, which
           specifies the number of dead letter files to keep around. If this
           feature is set, then the Dead-Letter-Files option has no effect.
+          This feature is displayed as "Do Not Save to Deadletter on Cancel".
    _quell-empty-directories_
           This  feature  causes  _Alpine_  to  remove  from the display any
           directories that do not contain at least one file or directory. This
@@ -5201,16 +5390,20 @@ John: on a job well done!
           immediately enter that directory and create a folder, that newly
           created directory may not be displayed next time you enter the folder
           list.
+          This feature is displayed as "Hide Empty Directories".
    _quell-extra-post-prompt_
           This feature causes _Alpine_ to skip the extra question about posting
           a message which may go to thousands of readers when you are about to
           post to a newsgroup.
+          This feature is displayed as "Suppress Extra Posting Prompt".
    _quell-filtering-done-message_
           This  feature  causes  _Alpine_  to suppress the "filtering done"
           message.
+          This feature is displayed as "Suppress Filtering Done Message".
    _quell-filtering-messages_
           This feature causes _Alpine_ to suppress the messages about moving
           filtered messages and setting flags in messages, due to Filter Rules.
+          This feature is displayed as "Suppress Filtering Messages".
    _quell-flowed-text_
           _Alpine_  generates  flowed  text  where possible. The method for
           generating flowed text is defined by RFC 3676, the benefit of doing
@@ -5249,6 +5442,7 @@ John: on a job well done!
           will still be sent flowed if this feature is unset. In most cases
           this will be fine, but if the editor has a "flowed text" mode, it
           would be best to use that.
+          This feature is displayed as "Do Not Send Flowed Text".
    _quell-folder-internal-msg_
           This feature determines whether or not _Alpine_ will create "pseudo
           messages" in folders that are in standard Unix or MMDF format.
@@ -5268,6 +5462,7 @@ John: on a job well done!
           UW's imapd or ipopd servers.) This feature has no effect on folders
           that are not in standard Unix or MMDF format, as pseudo-messages are
           not needed in the other formats to record mailbox state information.
+          This feature is displayed as "Prevent Folder Internal Message".
    _quell-full-header-auto-reset_
           The  HdrMode  Command normally resets to the default state when
           switching to a new message. For example, if you've used the "H"
@@ -5278,6 +5473,7 @@ John: on a job well done!
           message.
           The presence or absence of the HdrMode command is determined by the
           "Enable-Full-Header-Cmd" Feature-List option.
+          This feature is displayed as "Suppress Full Header Auto Reset".
    _quell-imap-envelope-update_
           In the MESSAGE INDEX screen, if the open folder is being accessed
           using IMAP, _Alpine_ normally tries to paint the index lines on the
@@ -5291,6 +5487,7 @@ John: on a job well done!
           information to be gathered before it paints the index screen. Once it
           collects all of the information, the screen will be painted quickly
           from top to bottom.
+          This feature is displayed as "Suppress IMAP Envelope Update".
    _quell-lock-failure-warnings_
           This feature affects _Alpine_'s behavior when it encounters a problem
           acquiring a mail folder lock. Typically, a secondary file associated
@@ -5305,6 +5502,7 @@ John: on a job well done!
           locking introduce some risk of mail folder corruption when more than
           one program attempts to modify the mail folder. This is most likely
           to occur to one's _INBOX_ or other "Incoming Message Folder".
+          This feature is displayed as "Suppress Lock Failure Warnings".
    _Quell-Mailchecks-Composing-Except-Inbox_
           This option is closely related to the Mail-Check-Interval option, the
           Mail-Check-Interval-Noncurrent            option,           and
@@ -5329,6 +5527,8 @@ John: on a job well done!
           periodically in order to avoid losing those changes when system or
           software problems occur. New-mail checking and checkpointing while
           you are not composing are not affected by this option.
+          This feature is displayed as "Prevent Mailchecks While Composing
+          Except for INBOX".
    _Quell-Mailchecks-Composing-Inbox_
           This option is closely related to the Mail-Check-Interval option, the
           Mail-Check-Interval-Noncurrent            option,           and
@@ -5353,6 +5553,8 @@ John: on a job well done!
           avoid losing those changes when system or software problems occur.
           New-mail checking and checkpointing while you are not composing are
           not affected by this option.
+          This feature is displayed as "Prevent Mailchecks While Composing for
+          INBOX".
    _quell-maildomain-warning_
           When your configuration is set up so that your domain name contains
           no dots, it is usually a configuration error. By default, _Alpine_
@@ -5360,7 +5562,8 @@ John: on a job well done!
           message that looks like
 
                      Incomplete maildomain "<domain>".
-          If this feature is set, the warning is turned off.
+          If this feature is set, the warning is turned off. This feature is
+          displayed as "Suppress Maildomain Warning".
    _quell-news-envelope-update_
           In the MESSAGE INDEX screen, if the open folder is being accessed
           using NNTP (News), _Alpine_ normally tries to paint the index lines
@@ -5374,6 +5577,7 @@ John: on a job well done!
           information to be gathered before it paints the index screen. Once it
           collects all of the information, the screen will be painted quickly
           from top to bottom.
+          This feature is displayed as "Suppress News Envelope Update".
    _quell-partial-fetching_
           Partial fetching is a feature of the IMAP protocol. By default,
           _Alpine_ will use partial fetching when copying the contents of a
@@ -5385,6 +5589,7 @@ John: on a job well done!
           so that the fetching of data takes significantly longer when partial
           fetching is used. Turning on this feature will turn off partial
           fetching.
+          This feature is displayed as "Prevent Partial Fetching".
    _quell-personal-name-prompt_
           _PC-Alpine_  only.  This  feature  quells  the  prompting  for  a
           personal-name.  This prompt normally happens before composing a
@@ -5397,6 +5602,7 @@ John: on a job well done!
           destination.
           Setting this feature will prevent the server name from being appended
           to the displayed text.
+          This feature is displayed as "Suppress Server After Link in HTML".
    _quell-ssl-largeblocks_
           This  feature (_PC-Alpine_ only) changes the behavior of fetching
           messages and attachments so that the message data is fetched in
@@ -5409,8 +5615,10 @@ John: on a job well done!
           Microsoft is aware of the problem and has developed a hotfix for it,
           but as of this writing the hotfix has not yet been added to the
           Knowledge Base.
+          This feature is displayed as "Prevent SSL Largeblocks".
    _quell-status-message-beeping_
           If set status messages will never emit a beep.
+          This feature is displayed as "Suppress Status Message Beeping".
    _quell-timezone-comment-when-sending_
           Normally, when _Alpine_ generates a Date header for outgoing mail, it
           will try to include the symbolic timezone at the end of the header
@@ -5422,6 +5630,8 @@ John: on a job well done!
           generated by _Alpine_ will not be included. You probably don't need
           to worry about this feature unless you run into the problem described
           above.
+          This  feature  is  displayed as "Suppress Timezone Comment When
+          Sending".
    _quell-user-id-prompt_
           _PC-Alpine_ only. This feature quells the prompting for a user-id if
           the information can be obtained from the login name used to open the
@@ -5455,9 +5665,11 @@ John: on a job well done!
           If you are seeing this behavior, enabling this feature will prevent
           Unix _Alpine_ from looking up names in the password file to find the
           Full Name for incomplete addresses you enter.
+          This feature is displayed as "Prevent User Lookup in Password File".
    _quit-without-confirm_
           This  feature  controls  whether  or  not  _Alpine_  will ask for
           confirmation when a _Quit_ command is received.
+          This feature is displayed as "Quit Without Confirming".
    _quote-replace-nonflowed_
           This feature, which is only active when Quote-Replace-String is also
           set, enables quote-replacement on non-flowed messages. It is off by
@@ -5476,16 +5688,18 @@ John: on a job well done!
           or newsgroups to visit, you are asked if you want to return to the
           INBOX. If this feature is set you will not be asked. It will be
           assumed that you do want to return to the INBOX.
+          This feature is displayed as "Return to INBOX Without Confirming".
    _save-aggregates-copy-sequence_
           This feature will optimize an aggregate copy operation, if possible,
           by issuing a single IMAP _COPY_ command with a list of the messages
-          to be copied. This may save network traffic when the source and
-          destination folders are on the same IMAP server. _However, many IMAP
-          servers (including the UW IMAP server) do not preserve the order of
-          messages when this optimization is applied._ If this feature is not
-          enabled, or if the folders are on different IMAP servers, or the
-          folders are local and in different formats, _Alpine_ will copy each
-          message individually.
+          to be copied. This feature is set by default. This may reduce network
+          traffic and elapsed time for the Save. _However, many IMAP servers
+          (including the UW IMAP server) do not preserve the order of messages
+          when  this optimization is applied._ If this feature is not set,
+          _Alpine_ will copy each message individually and the order of the
+          messages will be preserved.
+          This feature is displayed as "Save Combines Copies (may be out of
+          order)".
    _save-partial-msg-without-confirm_
           This  feature  controls  an aspect of _Alpine_'s Save command. By
           default, when you Save a message that has some deleted parts, you
@@ -5494,6 +5708,8 @@ John: on a job well done!
 
            Saved copy will NOT include entire message! Continue?
           If this feature is set, you will not be asked.
+          This  feature  is  displayed  as  "Save Partial Message Without
+          Confirming".
    _save-will-advance_
           If set, _Save_ will (in addition to copying the current message to
           the designated folder) also advance to the next message.
@@ -5538,12 +5754,15 @@ John: on a job well done!
           under  Settings -> Control Panel -> System and look for Network
           Identification or Computer Name or something similar. How to set it
           is beyond the scope of _Alpine_.
+          This feature is displayed as "Scramble the Message-ID When Sending".
    _select-without-confirm_
           This  feature  controls an aspect of _Alpine_'s _Save_, _Export_, and
           _Goto_ commands. These commands all take text input to specify the
           name of the folder or file to be used, but allow you to press _^T_
           for a list of possible names. If set, the selected name will be used
           immediately, without further opportunity to confirm or edit the name.
+          This  feature is displayed as "Select Ctrl-T Foldername Without
+          Confirming".
    _send-without-confirm_
           By default, when you send or post a message you will be asked to
           confirm with a question that looks something like:
@@ -5560,6 +5779,7 @@ John: on a job well done!
           A somewhat related feature is quell-extra-post-prompt. which may be
           used to eliminate the extra confirmation question when posting to a
           newsgroup.
+          This feature is displayed as "Send Without Confirming".
    _separate-folder-and-directory-display_
           This  feature  affects  folder collections wherein a folder and
           directory can have the same name. By default, _Alpine_ displays them
@@ -5631,6 +5851,7 @@ John: on a job well done!
           an "R" is shown.
 
                                     [R]
+          This feature is displayed as "Show Sort in Titlebar".
    _signature-at-bottom_
           If this feature is set, and a message being _Repl_ied to is being
           included in the reply, then the contents of the signature file (if
@@ -5648,11 +5869,15 @@ John: on a job well done!
           This feature controls an aspect of _Alpine_'s FOLDER LIST screen. If
           set, the default FCC folder will be sorted alphabetically with the
           other folders instead of appearing right after the INBOX.
+          This   feature   is  displayed  as  "Sort  Default  Fcc  Folder
+          Alphabetically".
    _sort-default-save-alpha_
           This feature controls an aspect of _Alpine_'s FOLDER LIST screen. If
           set, the default save folder will be sorted alphabetically with the
           other folders instead of appearing right after the INBOX (and default
           FCC folder).
+          This   feature  is  displayed  as  "Sort  Default  Save  Folder
+          Alphabetically".
    _spell-check-before-sending_
           When  this  feature  is  set,  every  composed  message will be
           spell-checked before being sent.
@@ -5682,11 +5907,13 @@ John: on a job well done!
           which  are  generated  by default but can be turned off via the
           quell-flowed-text feature. strip-whitespace-before-send also has the
           effect of turning off sending of flowed text.
+          This feature is displayed as "Strip Whitespace Before Sending".
    _tab-checks-recent_
           In a FOLDER LIST screen, the TAB key usually just changes which
           folder is highlighted. If this feature is set, then the TAB key will
           cause the number of recent messages and the total number of messages
           in the highlighted folder to be displayed instead.
+          This feature is displayed as "Tab Checks for Recent Messages".
    _tab-uses-unseen-for-next-folder_
           This feature affects _Alpine_'s behavior when using the TAB NextNew
           Command  to  move  from  one folder to the next. _Alpine_'s usual
@@ -5817,6 +6044,7 @@ John: on a job well done!
             screens
           + _^R_ file inclusion in the Composer
           + _^J_ file attachment in the Composer
+          This feature is displayed as "Use Current Directory".
    _use-function-keys_
           This feature specifies that _Alpine_ will respond to function keys
           instead of the normal single-letter commands. In this mode, the key
@@ -5852,6 +6080,7 @@ John: on a job well done!
           Note, _PC-Alpine_ always adds either an _X-X-Sender_ line if there is
           an  open, remote mailbox, or an _X-Warning: UNAuthenticated User_
           otherwise
+          This feature is displayed as "Use Sender Instead of X-X-Sender".
    _use-subshell-for-suspend_
           This feature affects _Alpine_'s behavior when process suspension is
           enabled  and  then  activated via the _^Z_ key. _Alpine_ suspension
@@ -5902,6 +6131,7 @@ John: on a job well done!
           This feature controls an aspect of _Alpine_'s FOLDER LIST screen. If
           set, the folders will be listed alphabetically down the columns
           rather than across the columns as is the default.
+          This feature is displayed as "Use Vertical Folder List".
    _warn-if-blank-subject_
           This  feature affects _Alpine_'s behavior when you send a message
           being composed. If this option is set, _Alpine_ will check to see if
@@ -5978,7 +6208,6 @@ Hidden Config Variables and Features
      * rsh-command
      * rsh-open-timeout
      * rsh-path
-     * save-aggregates-copy-sequence
      * sendmail-path
      * ssh-command
      * ssh-open-timeout
@@ -6002,10 +6231,8 @@ Hidden Config Variables and Features
    feature  added  to  the _feature-list_ variable. You may set the feature
    expose-hidden-config  to cause these hidden features to show up in the
    Setup/Config screen. They will be at the bottom of the screen.
-     * allow-changing-from
      * disable-config-cmd
      * disable-keyboard-lock-cmd
-     * disable-password-caching
      * disable-password-cmd
      * disable-pipes-in-sigs
      * disable-pipes-in-templates
@@ -6015,13 +6242,6 @@ Hidden Config Variables and Features
      * disable-setlocale-collate
      * disable-shared-namespaces
      * disable-signature-edit-cmd
-     * enable-mailcap-param-substitution
-     * quell-berkeley-format-timezone
-     * quell-imap-envelope-update
-     * quell-news-envelope-update
-     * quell-partial-fetching
-     * save-aggregates-copy-sequence
-     * termdef-takes-precedence
 
 Retired Variables and Features
 
@@ -6070,12 +6290,17 @@ Tokens for Index and Replying
    SUBJECT
           This  token represents the Subject the sender gave the message.
           Alternatives for use in the index screen are SUBJKEY, SUBJKEYINIT,
-          SUBJECTTEXT, SUBJKEYTEXT, and SUBJKEYINITTEXT.
+          SUBJECTTEXT, SUBJKEYTEXT, and SUBJKEYINITTEXT. You may color the
+          subject text in the MESSAGE INDEX screen differently by using the
+          Index Subject Color and the Index Opening Color. options available
+          from the Setup Kolor screen.
 
    FROM
           This token represents the personal name (or email address if the name
           is unavailable) of the person specified in the message's "From:"
-          header field.
+          header field. You may color the from text in the MESSAGE INDEX screen
+          differently by using the Index From Color option available from the
+          Setup Kolor screen.
 
    ADDRESS
           This is similar to the "FROM" token, only it is always the email
@@ -6438,6 +6663,10 @@ Tokens for Index and Replying
           seen and recent; else 'r' if some of the messages in the thread are
           seen and recent; else blank.
 
+   SHORTIMAPSTATUS
+          This  is  the  same  as  the last four of the six characters of
+          IMAPSTATUS, so the '+' To Me information will be missing.
+
    SIZE
           This token represents the total size, in bytes, of the message. If a
           "K" (Kilobyte) follows the number, the size is approximately 1,000
@@ -6494,7 +6723,7 @@ Tokens for Index and Replying
           for the message. In that case, a list of keywords enclosed in braces
           will be prepended to the subject of the message. Having this set in
           the Index-Format will also cause the keywords to be prepended to the
-          subject in the MESSAGE VIEW screen. If you have given a keyword a
+          subject in the MESSAGE TEXT screen. If you have given a keyword a
           nickname (keywords), that nickname is displayed instead of the actual
           keyword. The keyword-surrounding-chars option may be used to modify
           this token slightly. It is also possible to color keywords in the
@@ -6525,13 +6754,34 @@ Tokens for Index and Replying
           performance problem which can, of course, be avoided by using the
           SUBJECT version of the Subject instead. You may color this opening
           text differently by using the Index Opening Color option available
-          from the Setup Kolor screen.
+          from the Setup Kolor screen. You may adjust the characters that are
+          displayed between the Subject and the opening text with the option
+          Opening-Text-Separator-Chars.
 
    SUBJKEYTEXT
           Same as SUBJKEY but with the opening message text.
 
    SUBJKEYINITTEXT
           Same as SUBJKEYINIT but with the opening message text.
+
+   OPENINGTEXT
+          This is similar to SUBJECTTEXT. Instead of combining the Subject and
+          the opening text in a single field in the index screen this token
+          allows you to allocate a separate column just for the opening text of
+          the  message.  The  time  needed to fetch this text may cause a
+          performance problem. You may color this opening text differently by
+          using the Index Opening Color option available from the Setup Kolor
+          screen.
+
+   OPENINGTEXTDQ
+          This is very similar to OPENINGTEXT. The DQ stands for Delete Quotes.
+          The only difference is that quoted text (lines beginning with >) is
+          deleted. For some messages this may be confusing. For example, a
+          message might have a line preceding some quoted text that reads
+          something like "On May 8th person A said." That no longer makes sense
+          after the quoted text is deleted and it will appear that person A
+          said whatever the text after the quote is, even though that is really
+          person B talking.
 
    KEY
           This is a space-delimited list of keywords that are set for the
@@ -7124,10 +7374,10 @@ Color Configuration
    (see  color-style  option),  or if you are using _PC-Alpine_, then it is
    possible to set up _Alpine_ so that various parts of the display will be
    shown in colors you configure. This is done using the Setup Color screen.
-   The Setup Color screen is divided into four broad sections: Options, General
-   Colors,  Index  Colors,  and  Header Colors. In addition to these four
-   categories  you  may  also  color lines in the MESSAGE INDEX screen by
-   configuring the Index Line Color.
+   The Setup Color screen is divided into five broad sections: Options, General
+   Colors, Index Colors, Header Colors, and Keyword Colors. In addition to
+   these five categories you may also color lines in the MESSAGE INDEX screen
+   by configuring the Index Line Color.
 
    Each color is defined as a foreground color (the color of the actual text)
    and a background color (the color of the area behind the text).
@@ -7290,9 +7540,9 @@ Color Configuration
           URLs. By default, the Selectable-item Color is the same as the Normal
           Color, except it is also Bold.
    _Meta-message Color_
-          The color _Alpine_ uses in the MESSAGE VIEW for messages to you that
-          aren't part of the message itself. By default, the Meta-Message Color
-          is black characters on a yellow background.
+          The color _Alpine_ uses in the MESSAGE TEXT screen for messages to
+          you  that  aren't  part  of the message itself. By default, the
+          Meta-Message Color is black characters on a yellow background.
    _Quote Colors_
           The colors _Alpine_ uses for coloring quoted text in the MESSAGE TEXT
           screen. If a line begins with a > character (or space followed by >)
@@ -7338,7 +7588,8 @@ Color Configuration
    Besides coloring the message status symbols, you may also color the entire
    index line. This is done by using the Index Line Color configuration screen.
    It is also possible to color (keywords in the index using the Setup/Kolor
-   screen (Keyword Colors).
+   screen (Keyword Colors); the ARROW cursor; the Subject using Index Subject
+   Color; the From using Index From Color; and the Index Opening text.
 
    _Index-to-me Symbol Color_
           The color used for drawing the "+" symbol which signifies a message
@@ -7357,15 +7608,29 @@ Color Configuration
           is New.
    _Index-recent Symbol Color_
           The color used for drawing the "R" symbol which signifies a message
-          is Recent (only visible if the "IMAPSTATUS" token is part of the
-          index-format option).
+          is Recent (only visible if the "IMAPSTATUS" or "SHORTIMAPSTATUS"
+          token is part of the index-format option).
    _Index-unseen Symbol Color_
           The color used for drawing the "U" symbol which signifies a message
-          is Unseen (only visible if the "IMAPSTATUS" token is part of the
-          Index-Format option).
+          is Unseen (only visible if the "IMAPSTATUS" or "SHORTIMAPSTATUS"
+          token is part of the Index-Format option).
    _Index-arrow Symbol Color_
           The color used for drawing the "ARROW" token when it is configured as
           part of the Index-Format option.
+   _Index-subject Symbol Color_
+          You may set the color used to draw the Subject part of the index
+          line. This coloring takes place for all but the current index line,
+          and the Subject Color appears to be in front of any color from an
+          Index Color Rule.
+          If you don't set this color it will be colored in the same color as
+          the bulk of the index line.
+   _Index-from Symbol Color_
+          You may set the color used to draw the From part of the index line.
+          This coloring takes place for all but the current index line, and the
+          From Color appears to be in front of any color from an Index Color
+          Rule.
+          If you don't set this color it will be colored in the same color as
+          the bulk of the index line.
    _Index-opening Symbol Color_
           It  is possible to configure the Index-Format option so that it
           includes the subject followed by the "opening" text of the message if
@@ -7389,9 +7654,13 @@ Color Configuration
 
   Header Colors
 
-   You may add color to the header fields in the MESSAGE TEXT screen. For
-   example, you may set the color of the contents of the Subject field or the
-   From field.
+   You may add color to the header fields in the MESSAGE TEXT screen. The
+
+   _Header-general Color_
+          may be used to color all of the headers of the message.
+
+   It  is also possible to set the colors for specific header fields, for
+   example for the Subject or From fields, using the viewer-hdr-colors option.
 
    For Header Colors, there is an additional line on the configuration screen
    labeled "Pattern to match". If you leave that blank, then the whole field
@@ -7405,11 +7674,6 @@ Color Configuration
 
    If  the  pattern you enter is a comma-separated list of patterns, then
    coloring happens if any of those patterns matches.
-
-   There is a default setting for Viewer Header Colors which colors Subject
-   lines with black characters on a green background. If you define any Viewer
-   Header Colors of your own they will replace that default, so if you still
-   wanted the Subject colored you would have to define it yourself.
 
   Keyword Colors
 
@@ -7445,8 +7709,8 @@ Index Line Color Configuration
 
    In order to determine whether or not a message matches a rule the message is
    compared with the rule's Pattern. These Patterns are the same for use with
-   Roles, Filtering, Index Coloring, and Scoring, so are described in only one
-   place, "here".
+   Roles, Filtering, Index Coloring, Scoring, Other Rules, and Search Rules, so
+   are described in only one place, "here".
 
   Index Line Color
 
@@ -7505,8 +7769,8 @@ Role Configuration
 
    In order to determine whether or not a message matches a role the message is
    compared with the Role Pattern. These Patterns are the same for use with
-   Roles, Filtering, Index Coloring, and Scoring, so are described in only one
-   place, "here".
+   Roles, Filtering, Index Coloring, Scoring, Other Rules, and Search Rules, so
+   are described in only one place, "here".
 
    Since header patterns, AllText patterns, and BodyText patterns which are
    unset are ignored, a role which has all header patterns unset, the AllText
@@ -7829,8 +8093,8 @@ Filtering Configuration
 
    In order to determine whether or not a message matches a filter the message
    is compared with the Filter's Pattern. These Patterns are the same for use
-   with Roles, Filtering, Index Coloring, Scoring, and Other Rules, so are
-   described in only one place, "here".
+   with Roles, Filtering, Index Coloring, Scoring, Other Rules, and Search
+   Rules, so are described in only one place, "here".
 
    Since filtering is a potentially destructive action, if you have a filtering
    Pattern with nothing other than Current Folder Type set, that filtering rule
@@ -7933,8 +8197,8 @@ Scoring Configuration
 
    In order to determine whether or not a message matches a scoring rule the
    message is compared with the rule's Pattern. These Patterns are the same for
-   use with Roles, Filtering, Index Coloring, and Scoring, so are described in
-   only one place, "here".
+   use with Roles, Filtering, Index Coloring, Scoring, Other Rules, and Search
+   Rules, so are described in only one place, "here".
 
    Actually, Scoring rule Patterns are slightly different from the other types
    of Patterns because Scoring rule Patterns don't contain a Score Interval. In
@@ -8009,24 +8273,50 @@ Other Rules Configuration
    incoming collection, except that the folder can be any specific folder or
    any folder type.
 
+Search Rules Configuration
+
+   One of the commands that becomes available when that feature is turned on is
+   the "; Select" command, which is used in the MESSAGE INDEX screen to select
+   a set of messages. One way of selecting messages is to use a Rule. All of
+   the messages which match (or don't match if you wish) a Rule's Pattern will
+   be selected.
+
+   Any of your Rules may be used for this purpose. You might already have Rules
+   set up for filtering, index line color, scores, or roles; and you may use
+   any of those Rules with the Select command. However, you might find it more
+   convenient to set up a separate set of Rules just for this purpose without
+   having to worry about what other effects they may cause. That is the purpose
+   of these Select Rules.
+
+  Rule Patterns
+
+   In order to determine whether or not a message is selected by a rule the
+   message is compared with the rule's Pattern. These Patterns are the same for
+   use with Roles, Filtering, Index Coloring, Scoring, Other Rules, and Search
+   Rules, so are described in only one place, "here".
+
+   There is no action associated with these Search Rules. Only their Patterns
+   are used.
+
 Patterns
 
-   Patterns are used with Roles, Filtering, Index Coloring, Scoring, and Other
-   Rules. Patterns are compared with a message to see if there is a match. For
-   Filtering, the messages being checked are all the messages in the folder,
-   one at a time. For Index Line Coloring, each message that is visible on the
-   screen is checked for matches with the Index Coloring Patterns. Roles are
-   used with the Reply, Forward, and Compose commands. For Reply, the message
-   used  to compare the Pattern with is the message being replied to; for
-   Forward, the message used to compare the Pattern with is the message being
-   forwarded; and for Compose, there is no message, so the parts of the Pattern
-   which depend on a message (everything other than Current Folder Type and the
-   Beginning of Month and Year) are not used. Only the Current Folder Type
-   matters for Compose (plus the Beginning of Month or Year, which you wouldn't
-   usually use for a Role). For Scoring, the message being scored is compared
-   with all of the Score Patterns, and the Score Values from the ones that
-   match are added together to get the message's score. For Other Rules, there
-   is no message. Only the Current Folder Type is checked for Other Rules.
+   Patterns are used with Roles, Filtering, Index Coloring, Scoring, Other
+   Rules, and Search Rules. Patterns are compared with a message to see if
+   there is a match. For Filtering, the messages being checked are all the
+   messages in the folder, one at a time. For Index Line Coloring, each message
+   that is visible on the screen is checked for matches with the Index Coloring
+   Patterns. Roles are used with the Reply, Forward, and Compose commands. For
+   Reply, the message used to compare the Pattern with is the message being
+   replied to; for Forward, the message used to compare the Pattern with is the
+   message being forwarded; and for Compose, there is no message, so the parts
+   of the Pattern which depend on a message (everything other than Current
+   Folder Type and the Beginning of Month and Year) are not used. Only the
+   Current Folder Type matters for Compose (plus the Beginning of Month or
+   Year, which you wouldn't usually use for a Role). For Scoring, the message
+   being scored is compared with all of the Score Patterns, and the Score
+   Values from the ones that match are added together to get the message's
+   score. For Other Rules, there is no message. Only the Current Folder Type is
+   checked for Other Rules.
 
    Each Pattern has several possible parts, all of which are optional. In order
    for  there to be a match, _ALL_ of the _defined_ parts of the Pattern must

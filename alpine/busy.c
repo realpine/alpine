@@ -58,12 +58,13 @@ static struct _spinner {
 	char *bars[MAX_SPINNER_ELEMENTS];
 	unsigned used_this_round:1;
 } spinners[] = {
+    {4, 4, {"<|> ", "</> ", "<-> ", "<\\> "}},
     {11, 4, {"--|-(o)-|--", "--/-(o)-\\--", "----(o)----", "--\\-(o)-/--"}},
     {6, 7, {"\\____/", "_\\__/_", "__\\/__", "__/\\__",
 	    "_/__\\_", "/____\\", "|____|"}},
-    {4, 4, {"<|> ", "</> ", "<-> ", "<\\> "}},
     {4, 4, {"<|> ", "<\\> ", "<-> ", "</> "}},
-    {4, 8, {"|   ", " /  ", " _  ", "  \\ ", "  | ", "  \\ ", " _  ", "/   "}},
+    {4, 10,{"|   ", " /  ", " _  ", "  \\ ", "  | ", "  | ", "  \\ ",
+	    " _  ", " /  ", "|   "}},
     {4, 8, {"_ _ ", "\\ \\ ", " | |", " / /", " _ _", " / /", " | |", "\\ \\ "}},
     {4, 8, {"_   ", "\\   ", " |  ", "  / ", "  _ ", "  \\ ", " |  ", "/   "}},
     {4, 8, {"_   ", "\\   ", " |  ", "  / ", "  _ ", "  / ", " |  ", "\\   "}},
@@ -267,7 +268,7 @@ busy_cue(char *msg, percent_done_t pc_f, int delay)
 void
 cancel_busy_cue(int message_pri)
 {
-    dprint((9, "cancel_cue_cue(%d)\n", message_pri));
+    dprint((9, "cancel_busy_cue(%d)\n", message_pri));
 
     final_message_pri = message_pri;
 
@@ -421,8 +422,12 @@ done_busy_cue(void *data)
 			     final_message_pri+2, progress);
 	}
 	else{
-	    snprintf(progress, sizeof(progress), "%s%*sDONE", busy_message,
-		     spinners[spinner].width - 4 + 1, "");
+	    int padding;
+
+	    padding = MAX(0, MIN(space_left-5, spinners[spinner].width-4));
+
+	    snprintf(progress, sizeof(progress), "%s %*sDONE", busy_message,
+		     padding, "");
 	    progress[sizeof(progress)-1] = '\0';
 	    q_status_message(SM_ORDER,
 			     final_message_pri>=2 ? MAX(final_message_pri,3) : 0,

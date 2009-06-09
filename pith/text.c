@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: text.c 547 2007-04-26 20:01:39Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: text.c 605 2007-06-20 21:15:13Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -41,29 +41,11 @@ static char rcsid[] = "$Id: text.c 547 2007-04-26 20:01:39Z mikes@u.washington.e
 
 /* internal prototypes */
 int	 charset_editorial(char *, long, HANDLE_S **, int, int, int, gf_io_t);
-int	 delete_quotes(long, char *, LT_INS_S **, void *);
 int	 replace_quotes(long, char *, LT_INS_S **, void *);
 void     mark_handles_in_line(char *, HANDLE_S **, int);
 void	 clear_html_risk(void);
 void	 set_html_risk(void);
 int	 get_html_risk(void);
-
-
-/*
- * If the number of lines in the quote is equal to lines or less, then
- * we show the quote. If the number of lines in the quote is more than lines,
- * then we show lines-1 of the quote followed by one line of editorial
- * comment.
- */
-typedef struct del_q_s {
-    int        lines;		/* show this many lines (counting editorial) */
-    int        indent_length;	/* skip over this indent                     */
-    int        is_flowed;	/* message is labelled flowed                */
-    int        do_color;
-    HANDLE_S **handlesp;
-    int        in_quote;	/* dynamic data */
-    char     **saved_line;	/*   "          */
-} DELQ_S;
 
 
 #define	CHARSET_DISCLAIMER_1	\
@@ -116,6 +98,7 @@ decode_text(ATTACH_S	    *att,
     char       *free_this = NULL;
     STORE_S    *warn_so = NULL;
     DELQ_S      dq;
+    URL_HILITE_S uh;
 
     column = (flags & FM_DISPLAY) ? ps_global->ttyo->screen_cols : 80;
 
@@ -185,7 +168,8 @@ decode_text(ATTACH_S	    *att,
               filters[filtcnt++].filter = gf_preflow;
 
 	    filters[filtcnt].filter = gf_line_test;
-	    filters[filtcnt++].data = gf_line_test_opt(url_hilite, handlesp);
+	    filters[filtcnt++].data = gf_line_test_opt(url_hilite,
+						       gf_url_hilite_opt(&uh,handlesp,0));
 	}
 
 	/*
@@ -535,7 +519,7 @@ charset_editorial(char *charset, long int msgno, HANDLE_S **handlesp, int flags,
 	  *p++ = TAG_INVOFF;
 	}
 
-	if(scroll_handle_end_color(color, sizeof(color), &n)){
+	if(scroll_handle_end_color(color, sizeof(color), &n, 0)){
 	    for(i = 0; i < n; i++)
 	      if(p-buf < sizeof(buf))
 	        *p++ = color[i];
@@ -646,7 +630,7 @@ delete_quotes(long int linenum, char *line, LT_INS_S **ins, void *local)
 	  not_a_quote++;
 
 	if(not_a_quote){
-	    if(dq->in_quote > lines+1){
+	    if(dq->in_quote > lines+1 && !dq->delete_all){
 	      char tmp[500];
 	      COLOR_PAIR *col = NULL;
 	      char cestart[2 * RGBLEN + 5];
@@ -742,7 +726,7 @@ delete_quotes(long int linenum, char *line, LT_INS_S **ins, void *local)
 		/*
 		 * If the hidden part is a single line we'll show it instead.
 		 */
-		if(dq->in_quote == lines+1){
+		if(dq->in_quote == lines+1 && !dq->delete_all){
 		    if(dq->saved_line && *dq->saved_line)
 		      fs_give((void **) dq->saved_line);
 		    

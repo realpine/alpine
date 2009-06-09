@@ -140,6 +140,7 @@ CXXFLAGS = @CXXFLAGS@
 CYGPATH_W = @CYGPATH_W@
 C_CLIENT_SPECIALS = @C_CLIENT_SPECIALS@
 C_CLIENT_TARGET = @C_CLIENT_TARGET@
+C_CLIENT_WITH_IPV6 = @C_CLIENT_WITH_IPV6@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
 ECHO = @ECHO@
@@ -266,7 +267,7 @@ LDADD = local.o \
 loclib_LTLIBRARIES = libwpcomm.la
 libwpcomm_la_SOURCES = wpcomm.c
 libwpcomm_la_LDFLAGS = -rpath '$(loclibdir)' -version-info 1:0:0
-AM_CPPFLAGS = -I$(top_srcdir)/include
+AM_CPPFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/include
 CLEANFILES = local.c
 all: all-am
 

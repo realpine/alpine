@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailview.c 540 2007-04-25 17:58:55Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailview.c 589 2007-06-04 22:35:52Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -2231,7 +2231,7 @@ rfc2369_editorial(long int msgno, HANDLE_S **handlesp, int flags, int width, gf_
 		h->h.func.args.msgno  = msgno;
 
 		if(!(flags & FM_NOCOLOR)
-		   && handle_start_color(color, sizeof(color), &n)){
+		   && handle_start_color(color, sizeof(color), &n, 0)){
 		    if((p-buf)+n < sizeof(buf))
 		      for(i = 0; i < n; i++)
 		        *p++ = color[i];
@@ -2793,14 +2793,13 @@ scrolltool(SCROLL_S *sparms)
 		q_status_message1(SM_INFO, 0, 1, "START of %s",
 				  STYLE_NAME(sparms));
 	    }
-	    else{
-		next_handle = NULL;
-		if(sparms->text.handles){
-		    HANDLE_S *h = sparms->text.handles;
 
-		    while(h = scroll_handle_prev_sel(h))
-		      next_handle = h;
-		}
+	    next_handle = NULL;
+	    if(sparms->text.handles){
+		HANDLE_S *h = sparms->text.handles;
+
+		while(h = scroll_handle_prev_sel(h))
+		  next_handle = h;
 	    }
 	    break;
 
@@ -2811,13 +2810,12 @@ scrolltool(SCROLL_S *sparms)
 		q_status_message1(SM_INFO, 0, 1, "END of %s",
 				  STYLE_NAME(sparms));
 	    }
-	    else {
-		if(sparms->text.handles){
-		    HANDLE_S *h = sparms->text.handles;
 
-		    while(h = scroll_handle_next_sel(h))
-		      next_handle = h;
-		}
+	    if(sparms->text.handles){
+		HANDLE_S *h = sparms->text.handles;
+
+		while(h = scroll_handle_next_sel(h))
+		  next_handle = h;
 	    }
 	    break;
 
@@ -3639,11 +3637,15 @@ search_text(int q_line, long int start_line, int start_index, char **report,
 	 */
 	if(items_in_hist(history) > 2){
 	    word_search_key[KU_ST].name  = HISTORY_UP_KEYNAME;
-	    word_search_key[KU_ST].label = HISTORY_UP_KEYLABEL;
+	    word_search_key[KU_ST].label = HISTORY_KEYLABEL;
+	    word_search_key[KU_ST+1].name  = HISTORY_DOWN_KEYNAME;
+	    word_search_key[KU_ST+1].label = HISTORY_KEYLABEL;
 	}
 	else{
 	    word_search_key[KU_ST].name  = "";
 	    word_search_key[KU_ST].label = "";
+	    word_search_key[KU_ST+1].name  = "";
+	    word_search_key[KU_ST+1].label = "";
 	}
 	
         rc = optionally_enter(nsearch_string, q_line, 0, sizeof(nsearch_string),
@@ -4148,35 +4150,6 @@ format_scroll_text(void)
 #endif
 
     *tl = NULL;
-}
-
-
-/*
- * Helper routine that is useful only here.
- * We need to tally up the screen width of
- * a UTF-8 string as we go through the string.
- * We just want the width of the character starting
- * at str (and no longer than remaining_octets).
- * If we're plopped into the middle of a UTF-8
- * character we just want to return width zero.
- */
-int
-width_at_this_position(unsigned char *str, long unsigned int n)
-{
-    unsigned char *inputp = str;
-    unsigned long  remaining_octets = n;
-    UCS            ucs;
-    int            width = 0;
-
-    ucs = (UCS) utf8_get(&inputp, &remaining_octets);
-    if(!(ucs & U8G_ERROR || ucs == UBOGON)){
-	width = wcellwidth(ucs);
-	/* Writechar will print a '?' */
-	if(width < 0)
-	  width = 1;
-    }
-
-    return(width);
 }
 
 

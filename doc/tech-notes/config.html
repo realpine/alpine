@@ -222,7 +222,25 @@ are in a separate section.
 <EM>Alpine</EM> will accept the values <EM>dont-sort</EM>,
 <EM>fullname-with-lists-last</EM>, <EM>fullname</EM>,
 <EM>nickname-with-lists-last</EM>, and <EM>nickname</EM>.  The default is
-to sort by fullname with lists last.  <P>
+to sort by fullname with lists last.
+If you use an address book from more than one computer and those
+computers sort the address book differently then the sort order
+will be the order where the last change to the address book was
+made.
+There are two reasons the sorting might be different on different
+systems.
+First, the addrbook-sort-rule may be set differently in the two
+places.
+Second, the collation rules on the two computers may be different.
+For example, one system might ignore special characters while the other
+doesn't or one may sort upper and lower case letters together while
+the other doesn't.
+In any case, the order you see is the order on the system where the
+last change was made, for example by an address book edit or a
+Take Address command.
+<P>
+This option is displayed as &quot;Addressbook Sort Rule&quot;.
+<P>
 
 <DT> <A NAME="pers-abook"><EM>address-book</EM></A>
 
@@ -426,6 +444,30 @@ this 256-color setting.
 </DL>
 
 <P>
+There are two other possible color values which may be useful in some
+situations.
+In the color configuration screens there will sometimes be a color which has
+the label &quot;NORM&quot; inside its color swatch.
+If this is selected the corresponding foreground or background
+<A HREF="#normal-color"><EM>Normal Color</EM></A>
+will be used.
+Another similar color is the one that has the
+label &quot;NONE&quot; inside its color swatch.
+The meaning of this setting is that no color changing will be done.
+This NONE color is only useful in contexts where <EM>Alpine</EM> is already
+coloring the text some color other than the Normal Color.
+For example, if the
+<A HREF="#reverse-color"><EM>Reverse Color</EM></A> is set then the current
+line in the MESSAGE INDEX will be colored.
+If one of the index symbols (for example, the Index-to-me Symbol) has the NONE
+color as its background then the symbol's foreground color will be used
+to draw the actual text but the background color will be the same as whatever
+the background color already was.
+The color values which end up in the configuration file for these special
+values are the 11-character words &quot;norm-padded&quot;, &quot;none-padded&quot;,
+and &quot;transparent&quot;.
+
+<P>
 The normal default is &quot;no-color&quot;.
 <P>
 Once you've turned on color you may set the
@@ -549,6 +591,8 @@ header contain a comma.
 Nor is there currently an &quot;escape&quot; mechanism provided
 to make this work.
 <P>
+This option is displayed as &quot;Customized Headers&quot;.
+<P>
 
 <DT> <A NAME="dead-letter-files"><EM>dead-letter-files</EM></A>
 
@@ -604,6 +648,8 @@ The default set is To:, Cc:, Attchmnt:, and Subject:.
 Note that the "Newsgroups:" header will be abbreviated in the Composer
 display, but should be spelled out in full here.
 <P>
+This option is displayed as &quot;Default Composer Headers&quot;.
+<P>
 
 <DT> <A NAME="def-fcc"><EM>default-fcc</EM></A>	
 
@@ -613,6 +659,8 @@ The compiled-in default is <EM>sent-mail</EM> (UNIX) or <EM>sentmail</EM>
 to turn off saving copies of outgoing mail.  If <EM>default-fcc</EM> is a
 relative file name, then it is relative to your default collection for
 saves (see <A HREF="#fold-coll"><EM>folder-collections</EM></A>).  <P>
+This option is displayed as &quot;Default Fcc (File carbon copy)&quot;.
+<P>
 
 <DT> <A NAME="def-save"><EM>default-saved-msg-folder</EM></A>
 
@@ -626,6 +674,8 @@ Unix <EM>Alpine</EM> default is normally
 <EM>saved-messages</EM> in the default folder collection.
 <EM>PC-Alpine</EM> default is <EM>SAVEMAIL</EM>
 (normally stored as <EM>SAVEMAIL.MTX</EM>). <P>
+This option is displayed as &quot;Default Saved Message Folder&quot;.
+<P>
 
 <DT> <A NAME="disable-these-auths"><EM>disable-these-authenticators</EM></A>
 
@@ -1262,6 +1312,12 @@ folder.
 NOTE: The default while a newsgroup is open remains the same; the last
 open newsgroup. <P>
 
+<DT> <A NAME="header-general-background-color"><EM>header-general-background-color</EM></A>
+<DT> <A NAME="header-general-foreground-color"><EM>header-general-foreground-color</EM></A>
+
+<DD> <A HREF="#header-colors"><EM>Header Colors</EM></A>.
+<P>
+
 <DT> <A NAME="image-viewer"><EM>image-viewer</EM></A>
 
 <DD> This variable names the program to call for displaying parts of a
@@ -1303,9 +1359,43 @@ is set, which in turn has no effect unless
 <A HREF="#inc-fold"><EM>incoming-folders</EM></A>
 is set.
 <P>
-This option specifies, in seconds, how often Alpine will check
-for new mail in Incoming Folders.
+This option specifies, in seconds, how often <EM>Alpine</EM> will check
+for new mail and state changes in Incoming Folders when Incoming Folders
+Checking is turned on.
 The default is 3 minutes (180).
+This value applies only to folders that are local to the system that
+<EM>Alpine</EM> is running on or that are accessed using the IMAP protocol.
+The similar option
+<A HREF="#incoming-check-interval-secondary"><EM>incoming-check-interval-secondary</EM></A>
+applies to all other monitored folders.
+<P>
+
+<DT> <A NAME="incoming-check-interval-secondary"><EM>incoming-check-interval-secondary</EM></A>
+
+<DD> This option has no effect unless the feature
+<A HREF="#enable-incoming-folders-checking"><EM>enable-incoming-folders-checking</EM></A>
+is set, which in turn has no effect unless
+<A HREF="#inc-fold"><EM>incoming-folders</EM></A>
+is set.
+<P>
+This option together with the option
+<A HREF="#incoming-check-interval"><EM>incoming-check-interval</EM></A>
+specifies, in seconds, how often <EM>Alpine</EM> will check
+for new mail and state changes in Incoming Folders when Incoming Folders
+Checking is turned on.
+The default for this option is 3 minutes (180).
+For folders that are local to this system or
+that are accessed using the IMAP protocol
+the value of the option
+<A HREF="#incoming-check-interval"><EM>incoming-check-interval</EM></A>
+is used.
+For all other monitored folders, the value of this option is used.
+<P>
+The reason there are two separate options is because it is usually
+less expensive to check local and IMAP folders than it is to check
+other types, like POP or NNTP folders.
+You may want to set this secondary value to a higher number than
+the primary check interval.
 <P>
 
 <DT> <A NAME="incoming-check-list"><EM>incoming-check-list</EM></A>
@@ -1423,6 +1513,8 @@ are deleted. In that case set it to the last message.
 <DT> <A NAME="index-opening-foreground-color"><EM>index-opening-foreground-color</EM></A>
 <DT> <A NAME="index-recent-background-color"><EM>index-recent-background-color</EM></A>
 <DT> <A NAME="index-recent-foreground-color"><EM>index-recent-foreground-color</EM></A>
+<DT> <A NAME="index-subject-background-color"><EM>index-subject-background-color</EM></A>
+<DT> <A NAME="index-subject-foreground-color"><EM>index-subject-foreground-color</EM></A>
 <DT> <A NAME="index-to-me-background-color"><EM>index-to-me-background-color</EM></A>
 <DT> <A NAME="index-to-me-foreground-color"><EM>index-to-me-foreground-color</EM></A>
 <DT> <A NAME="index-unseen-background-color"><EM>index-unseen-background-color</EM></A>
@@ -1562,9 +1654,6 @@ option offers a slightly different way of setting keywords.)
 
 <P>
 Keywords may be used when Selecting messages (Select Keyword).
-You will need to enable the
-<A HREF="#enable-aggregate-command-set">enable-aggregate-command-set</A>
-option to use Select.
 Keywords may also be used in the Patterns of Rules (Filters, Indexcolors, etc).
 Filter rules may be used to set keywords automatically.
 Keywords may be displayed as part of the Subject of a message by using
@@ -1652,17 +1741,17 @@ The values may be quoted if they include space characters.
 So, for example, the default value could be specified explicitly by setting this
 option to
 <P>
-<CENTER><SAMP>Keyword-Surrounding-chars="{" "} "</SAMP></CENTER>
+<CENTER><SAMP>Keyword-Surrounding-Chars="{" "} "</SAMP></CENTER>
 <P>
 The first part wouldn't need to be quoted (but it doesn't hurt).
 The second part does need the quotes because it includes a space character.
 If you wanted to change the braces to brackets you could use
 <P>
-<CENTER><SAMP>Keyword-Surrounding-chars="[" "] "</SAMP></CENTER>
+<CENTER><SAMP>Keyword-Surrounding-Chars="[" "] "</SAMP></CENTER>
 <P>
 Inside the quotes you can use backslash quote to mean quote, so
 <P>
-<CENTER><SAMP>Keyword-Surrounding-chars="&#92;"" "&#92;" "</SAMP></CENTER>
+<CENTER><SAMP>Keyword-Surrounding-Chars="&#92;"" "&#92;" "</SAMP></CENTER>
 <P>
 would produce
 <P>
@@ -1676,6 +1765,8 @@ It is not possible to change the fact that a space character is used to
 separate the keywords if more than one keyword is set for a message.
 It is also not possible to change the fact that there are no separators
 between the keyword initials if more than one keyword is set.
+<P>
+This option is displayed as &quot;Keyword Surrounding Characters&quot;.
 <P>
 
 <DT> <A NAME="last-time"><EM>last-time-prune-questioned</EM></A>
@@ -2001,6 +2092,8 @@ avoiding those costs as well.
 When twenty five minutes pass without any active use of an IMAP connection
 being saved for possible re-use, that connection will be shut down,
 <P>
+This option is displayed as &quot;Maximum Remote Connections&quot;.
+<P>
 
 <DT> <A NAME="meta-message-background-color"><EM>meta-message-background-color</EM></A>
 <DT> <A NAME="meta-message-foreground-color"><EM>meta-message-foreground-color</EM></A>
@@ -2212,6 +2305,30 @@ For more details about the server name possibilities see
 <DD> <A HREF="#normal-color"><EM>Normal Color</EM></A>.
 <P>
 
+<DT> <A NAME="opening-text-separator-chars"><EM>opening-text-separator-chars</EM></A>
+<DD> This option controls a minor aspect of <EM>Alpine</EM>'s MESSAGE INDEX screen.
+With some setups the text of the subject is followed
+by the opening text of the message if there is any room available in the index line.
+If you have configured your
+<A HREF="#index-format"><EM>Index-Format</EM></A> option
+to include one of the Subject tokens which causes this behavior
+(SUBJECTTEXT, SUBJKEYTEXT, or SUBJKEYINITTEXT), then this option may be used
+to modify what is displayed slightly.
+By default, the Subject is separated from the opening text of the message by
+the three characters space dash space;
+<P>
+<CENTER><SAMP>&quot;&nbsp;-&nbsp;&quot;</SAMP></CENTER>
+<P>
+Use this option to set it to something different.
+The value must be quoted if it includes any space characters.
+For example, the default value could be specified explicitly by setting this
+option to
+<P>
+<CENTER><SAMP>Opening-Text-Separator-Chars="&nbsp;-&nbsp;"</SAMP></CENTER>
+<P>
+This option is displayed as &quot;Opening Text Separator Characters&quot;.
+<P>
+
 <DT> <A NAME="operating-dir"><EM>operating-dir</EM></A>
 
 <DD> System-wide <EM>Alpine</EM> configuration files only.
@@ -2236,6 +2353,8 @@ Then use the Shuffle command to move existing filter patterns into the file.
 This isn't very convenient but it isn't thought that many users will
 need this functionality.
 The purpose of filter files is for sharing filters.
+<P>
+This option is displayed as &quot;Patterns Filters&quot;.
 <P>
 
 <DT> <A NAME="patterns-indexcolors"><EM>patterns-indexcolors</EM></A>
@@ -2311,6 +2430,26 @@ Then use the Shuffle command to move existing scoring patterns into the file.
 This isn't very convenient but it isn't thought that many users will
 need this functionality.
 The purpose of scoring files is for sharing scoring rules.
+<P>
+This option is displayed as &quot;Patterns Scores&quot;.
+<P>
+
+<DT> <A NAME="patterns-search"><EM>patterns-search</EM></A>
+
+<DD> Matching patterns for use with the Select command are stored in
+this variable.
+These patterns are used with
+<A HREF="#search-rules-config"><EM>Search Rules</EM></A> configuration.
+This variable is normally maintained through the Setup/Rules/searCh
+configuration screen.
+It is a list variable.
+Each member of the list is a single pattern, or it can be
+a file which contains zero or more lines of patterns.
+The only way to create a rules file is to use the InsertFile command in
+the Setup/Rules/searCh screen with a filename which doesn't yet exist. Then use
+the Shuffle command to move existing rules into the file.
+This isn't very convenient but it isn't thought that many users will
+need this functionality.
 <P>
 
 <DT> <A NAME="personal-name"><EM>personal-name</EM></A>
@@ -2545,7 +2684,7 @@ Typing a second &quot;H&quot; will also turn on Full Header mode.
 The presence or absence of the HdrMode command is determined by the
 <A HREF="#enable-full-header-cmd">&quot;Enable-Full-Header-Cmd&quot;</A>
 Feature-List option in your <EM>Alpine</EM> configuration, so you will want to
-be sure to turn that on if you use quote suppression.
+be sure that is turned on if you use quote suppression.
 <P>
 For the purposes of this option, a quote is a line that begins with the
 character &quot;&gt;&quot;.
@@ -2813,6 +2952,8 @@ will be offered as the default folder.
 If it is not found (or has no nickname) then the default offered will be
 the same as it would be for the &quot;by-from&quot; rule.
 That is, it would be &quot;flint&quot;
+<P>
+This option is displayed as &quot;Saved Message Name Rule&quot;.
 <P>
 
 <DT> <A NAME="scroll-margin"><EM>scroll-margin</EM></A>
@@ -3119,6 +3260,8 @@ section or the
 <A HREF="config-notes.html#server-name-syntax">Server Name Syntax</A>
 section for some more details.
 <P>
+This option is displayed as &quot;SMTP Server (for sending)&quot;.
+<P>
 
 <DT> <A NAME="sort-key"><EM>sort-key</EM></A>
 
@@ -3345,6 +3488,8 @@ may be used to turn off this special treatment.
 If the message that was current when you left the folder no longer exists,
 then the regular startup rule will be used instead.
 <P>
+This option is displayed as &quot;Stayopen Folders&quot;.
+<P>
 
 <DT> <A NAME="tcp-open-timeout"><EM>tcp-open-timeout</EM></A>
 
@@ -3559,7 +3704,7 @@ will be an index with only one message in it.
 If you use this &quot;separate-index-screen-except-for-single-messages&quot;
 setting instead, then that index which contains a single message
 will be skipped and you will go directly from the THREAD INDEX into the
-MESSAGE VIEW screen.
+MESSAGE TEXT screen.
 </DD>
 
 </DL>
@@ -3606,7 +3751,8 @@ a backquote (&#96;).
 By default, the value of this option is the vertical bar character (|).
 This option may not be set to the Empty Value.
 In that case, the default will be used instead.
-
+<P>
+This option is displayed as &quot;Threading Last Reply Character&quot;.
 <P>
 
 <DT> <A NAME="title-background-color"><EM>title-background-color</EM></A>
@@ -3749,6 +3895,8 @@ value <EM>all-except</EM>
 is included as the first header in the <EM>viewer-hdrs</EM> list, then all
 headers in the message except those in the list will be shown. The values
 are all case insensitive.<P>
+This option is displayed as &quot;Viewer Headers&quot;.
+<P>
  
 <DT> <A NAME="viewer-margin-left"><EM>viewer-margin-left</EM></A>
 
@@ -3847,6 +3995,7 @@ by <EM>Alpine</EM> when the user turns an option on or off from inside the
 System managers should take some care when turning on features by default.
 Some of the documentation assumes that all of the features are off by
 default, so it could be confusing for a user if some are on by default instead.
+Feature names are case-independent.
 <P>
 
 Here is an alphabetical list of possible features. 
@@ -3940,8 +4089,10 @@ provided that the option
 and the &quot;Use SMTP Server&quot; value is used for the SMTP server, if
 set.
 Other actions of the role are ignored when Bouncing.
-
 <P>
+This feature is displayed as &quot;Alternate Role (#) Menu&quot;.
+<P>
+
 
 <DT> <A NAME="assume-slow-link"><EM>assume-slow-link</EM></A>
 
@@ -3965,6 +4116,8 @@ automatically transfer all read messages from the <EM>INBOX</EM> to
 the designated folder and mark
 them as deleted in the <EM>INBOX</EM>.  Messages in the <EM>INBOX</EM> marked
 with an <EM>N</EM> (meaning New, or unseen) are not affected.
+<P>
+This feature is displayed as &quot;Auto Move Read Messages&quot;.
 <P>
 
 <DT> <A NAME="auto-open-next-unread"><EM>auto-open-next-unread</EM></A>
@@ -4004,12 +4157,14 @@ you are currently looking at a Zoomed Index view of selected messages,
 the <EM>Apply</EM> command will do the operation you specify, but then will
 implicitly do an <EM>UnZoom</EM>, so that you will automatically be back in
 the normal Index view after the <EM>Apply</EM>.
+This feature is set by default.
 <P>
 
 <DT> <A NAME="auto-zoom-after-select"><EM>auto-zoom-after-select</EM></A>
 
 <DD> If set, the <EM>; select</EM> command will automatically
 perform a <EM>Zoom</EM> after the <EM>select</EM> is complete.
+This feature is set by default.
 <P>
 
 <DT> <A NAME="busy-cue-spinner-only"><EM>busy-cue-spinner-only</EM></A>
@@ -4053,6 +4208,8 @@ from expanded address books.
 When this feature is set, the setting of the feature
 <A HREF="#expanded-view-of-addressbooks"><EM>expanded-view-of-addressbooks</EM></A>
 has an effect.
+<P>
+This feature is displayed as &quot;Combined Addressbook Display&quot;.
 <P>
 
 <DT> <A NAME="combined-folder-display"><EM>combined-folder-display</EM></A>
@@ -4124,6 +4281,8 @@ instead of a &quot;<EM>C</EM>onfirm&quot; response.
 current cursor position to the end of the line,
 rather than cutting the entire line.
 <P>
+This feature is displayed as &quot;Ctrl-K Cuts From Cursor&quot;.
+<P>
 
 <DT> <A NAME="compose-maps-delete-key-to-ctrl-d"><EM>compose-maps-delete-key-to-ctrl-d</EM></A>
 
@@ -4131,6 +4290,8 @@ rather than cutting the entire line.
 the current character. Normally <EM>Alpine</EM> defines the Delete key
 to be equivalent to ^H, which deletes the <EM>previous</EM>
 character.
+<P>
+This feature is displayed as &quot;Delete Key Maps to Ctrl-D&quot;.
 <P>
 
 <DT> <A NAME="compose-rejects-unqualified-addrs"><EM>compose-rejects-unqualified-addrs</EM></A>
@@ -4147,6 +4308,8 @@ followed by an <EM>@</EM> symbol, followed by a host or domain name (e.g.
 <EM>jsmith@example.com</EM>). An unqualified name is one without the
 <EM>@</EM> symbol
 and host or domain name (e.g. <EM>jsmith</EM>).
+<P>
+This feature is displayed as &quot;Compose Rejects Unqualified Addresses&quot;.
 <P>
 
 <DT> <A NAME="compose-send-offers-first-filter"><EM>compose-send-offers-first-filter</EM></A>
@@ -4165,6 +4328,8 @@ determine whether you intend the new message to be posted to the current
 newsgroup or not.  If this feature is set, <EM>Alpine</EM> will not prompt you
 in this situation, and will assume that you do indeed wish to post
 to the newsgroup you are reading.
+<P>
+This feature is displayed as &quot;Compose Sets Newsgroup Without Confirming&quot;.
 <P>
 
 <DT> <A NAME="confirm-role-even-for-default"><EM>confirm-role-even-for-default</EM></A>
@@ -4200,6 +4365,8 @@ This gives you a chance to stop the NextNew processing.
 If this feature is set you will not be asked.
 It will be assumed that you want to continue.
 <P>
+This feature is displayed as &quot;Continue NextNew Without Confirming&quot;.
+<P>
 
 <DT> <A NAME="delete-skips-deleted"><EM>delete-skips-deleted</EM></A>
 
@@ -4209,6 +4376,7 @@ advance past other messages that
 are marked deleted.  In other words, pressing <EM>D</EM> will both mark the
 current message deleted and advance to the next message that is not marked
 deleted.
+This feature is set by default.
 <P>
 
 <DT> <A NAME="disable-config-cmd"><EM>disable-config-cmd</EM></A>
@@ -4217,22 +4385,26 @@ deleted.
 screen <EM>Setup/Config</EM> will not be available at all.
 <P>
 
-<DT> <A NAME="disable-input-history"><EM>disable-input-history</EM></A>
+<DT> <A NAME="disable-save-input-history"><EM>disable-save-input-history</EM></A>
 
 <DD> Many of the prompts that ask for input in the status line near the
 bottom of the screen will respond to Up Arrow and Down Arrow
 with the history of previous entries.
 For example, in the MESSAGE INDEX screen when you use the WhereIs
 command the text you entered will be remembered and can be recalled
-using the Up Arrow key.
-Setting this option will disable this.
+by using the Up Arrow key.
+Another example, when saving a message the folders saved to will
+be remembered and can be recalled using the arrow keys.
 <P>
-When this option is set the Up and Down arrows will be synonyms for the
+In the Save prompt, some users prefer that the Up and Down arrow keys
+be used for the Previous Collection and Next Collection commands
+instead of for a history of previous saves.
+If this option is set the Up and Down arrow keys will become synonyms for the
 Previous Collection and Next Collection (^P and ^N) commands in the
 prompt for the name of a folder to Save to or in the prompt for the
 name of a folder to GoTo.
-When it is not set (the default), ^P and ^N will change the collection and
-the arrow keys will show the history.
+When this feature is not set (the default), ^P and ^N will change the
+collection and the arrow keys will show the history.
 <P>
 
 <DT> <A NAME="disable-kblock"><EM>disable-keyboard-lock-cmd</EM></A>
@@ -4267,7 +4439,7 @@ In the event that <EM>Alpine</EM> crashes and produces a core dump, and that cor
 dump is readable by others, the loginname and password could possibly be read
 from the core dump.
 <P>
-If this hidden feature is set, then the passwords will not be cached and
+If this feature is set, then the passwords will not be cached and
 the user will have to retype the password whenever <EM>Alpine</EM> needs it.
 Even with this feature set there is still some chance that the core
 file will contain a password, so care should be taken to make the
@@ -4323,6 +4495,8 @@ editing of template files with the F subcommand.
 This may be desirable on a system which is virtually hosting many domains,
 and the sysadmin has other methods available for tracking a message to
 its originator.
+<P>
+This feature is displayed as &quot;Do Not Generate Sender Header&quot;.
 <P>
 
 <DT> <A NAME="disable-setlocale-collate"><EM>disable-setlocale-collate</EM></A>
@@ -4453,7 +4627,9 @@ that non-ASCII text you send may appear corrupt to the recipient.
 
 <DT> <A NAME="enable-8bit-esmtp-negotiation"><EM>enable-8bit-esmtp-negotiation</EM></A>
 
-<DD> This feature affects <EM>Alpine</EM>'s behavior when sending mail.  Internet standards
+<DD> This feature affects <EM>Alpine</EM>'s behavior when sending mail.
+By default, this feature is set.
+Internet standards
 require that all electronic mail messages traversing the global Internet
 consist of 7bit ASCII characters unless a pair of cooperating mail 
 transfer agents explicitly agree to allow 8bit messages.  In general, 
@@ -4461,8 +4637,8 @@ then, exchanging messages in non-ASCII characters requires MIME encoding.
 <P>
  
 However, there are now Internet standards that allow for unencoded 8bit
-exchange of messages between cooperating systems.  Setting this feature
-tells <EM>Alpine</EM> to try to negotiate unencoded 8bit transmission during the
+exchange of messages between cooperating systems.  When this feature is set
+<EM>Alpine</EM> will try to negotiate unencoded 8bit transmission during the
 sending process.  Should the negotiation fail, <EM>Alpine</EM> will fall back to its
 ordinary encoding rules. 
 <P>
@@ -4500,7 +4676,7 @@ messages.
 
 <DT> <A NAME="enable-aggregate-command-set"><EM>enable-aggregate-command-set</EM></A>
 
-<DD> Setting this feature enables the commands and subcommands that relate to
+<DD> When this feature is set you may use the commands and subcommands that relate to
 performing operations on more than one message at a time.
 We call these "aggregate operations".
 In particular, the <EM>; Select</EM>, <EM>A Apply</EM>, and
@@ -4525,7 +4701,7 @@ you are operating on address book entries instead of on messages.
 
 <DT> <A NAME="enable-alt-ed"><EM>enable-alternate-editor-cmd</EM></A>
 
-<DD> If this feature is set, and the <A HREF="#editor"><EM>editor</EM></A>
+<DD> If this feature is set (the default), and the <A HREF="#editor"><EM>editor</EM></A>
 variable is not set, entering
 the <EM>^_</EM> (Control-underscore) key while
 composing a message will prompt you
@@ -4539,6 +4715,8 @@ If the <EM>editor</EM> variable is set, the <EM>^_</EM> key will activate
 the specified editor without prompting, in which case it is not necessary to
 set the <EM>enable-alternate-editor-cmd</EM> feature.
 This feature is not available in <EM>PC-Alpine</EM>.
+<P>
+This feature is displayed as &quot;Enable Alternate Editor Command&quot;.
 <P>
 
 <DT> <A NAME="enable-alt-imp"><EM>enable-alternate-editor-implicitly</EM></A>
@@ -4560,6 +4738,7 @@ This feature is not available in <EM>PC-Alpine</EM>.
 <DD> This feature controls the behavior of the left and right arrow keys.
 If set, the left and right arrow keys will operate like the usual
 navigation keys <EM>&lt;</EM> and <EM>&gt;</EM>.
+This feature is set by default.
 
 <P>
 If you set this feature, and do not like the changed behavior of the up/down 
@@ -4578,23 +4757,23 @@ folders in each column.
 <DD> This feature controls the behavior of the left and right arrow keys
 in the FOLDER LIST screen when the 
 <A HREF="#enable-arrow-navigation"><EM>enable-arrow-navigation</EM></A>
-feature is enabled.
+feature is set.
+This feature is set by default.
 <P>
 
-Normally, when the &quot;enable-arrow-navigation&quot; feature is set,
-the left and
-right arrow keys in the Folder List screen strictly track the commands
-bound to the <EM>&lt;</EM> and <EM>&gt;</EM> keys,
-and the up and down arrow keys move the
-highlite bar to the previous and next folder or directory name.
-<P>
+When this feature is set, the left and right
+arrow keys in the FOLDER LIST screen
+move the highlight bar to the left or right, and the up and
+down arrows move it up or down.
 
-When enabled, this feature returns the left, right, up and down arrow
-key's functionality in the FOLDER LIST screen to what it was before
-enabling &quot;enable-arrow-navigation&quot;.
-In other words, left and right arrows
-move the highlight bar to the left or right, and the up and down arrows
-move it up or down.
+<P>
+When the &quot;Enable-Arrow-Navigation&quot; feature is set and this
+feature is not set;
+the left and right arrow keys in the Folder List screen strictly
+track the commands bound to the '&lt;' and '&gt;' keys, and the up
+and down arrow keys move the highlight bar to the previous and next
+folder or directory name.
+
 <P>
 
 <DT> <A NAME="enable-background-sending"><EM>enable-background-sending</EM></A>
@@ -4639,6 +4818,8 @@ recipient will see a header indicating that you have Resent the msg, but
 the message's From: header will show the original author of the message,
 and replies to it will go back to that author, and not to you.
 <P>
+This feature is displayed as &quot;Enable Bounce Command&quot;.
+<P>
 
 <DT> <A NAME="enable-cruise-mode"><EM>enable-cruise-mode</EM></A>
 
@@ -4659,6 +4840,8 @@ messages when it moves on to display the next <EM>interesting</EM> message.
 
 NOTE: Beware when enabling this feature <B>and</B> the
 <A HREF="#expunge-wo-confirm"><EM>expunge-without-confirm</EM></A> feature.
+<P>
+This feature is displayed as &quot;Enable Cruise Mode With Deleting&quot;.
 <P>
 
 <DT> <A NAME="enable-delivery-status-notification"><EM>enable-delivery-status-notification</EM></A>
@@ -4691,6 +4874,7 @@ when using the browser to add an attachment to a message.
 
 <DD> If set, folders beginning with dot (".") may be added
 and viewed.
+This feature is displayed as &quot;Enable Hidden Folders&quot;.
 <P>
 
 <DT> <A NAME="enable-exit-via-lessthan-command"><EM>enable-exit-via-lessthan-command</EM></A>
@@ -4698,6 +4882,7 @@ and viewed.
 <DD> If set, then on screens where there is an <EM>Exit</EM> command
 but no <EM>&lt;</EM> command, the <EM>&lt;</EM> key will perform
 the same function as the <EM>Exit</EM> command.
+This feature is set by default.
 <P>
 
 <DT> <A NAME="enable-fast-recent-test"><EM>enable-fast-recent-test</EM></A>
@@ -4735,6 +4920,8 @@ By default, <EM>Flag</EM>
 will set the <EM>Important</EM> flag, which results in an asterisk being
 displayed in column one of the "Folder Index" for such messages.
 <P>
+This feature is displayed as &quot;Enable Flag Command&quot;.
+<P>
 
 <DT> <A NAME="enable-flag-screen-implicitly"><EM>enable-flag-screen-implicitly</EM></A>
 
@@ -4752,8 +4939,7 @@ The
 <DT> <A NAME="enable-flag-screen-keyword-shortcut"><EM>enable-flag-screen-keyword-shortcut</EM></A>
 
 <DD> This feature modifies the behavior of the
-Flag command (provided it too is
-<A HREF="#enable-flag-cmd">enabled</A>).
+Flag command.
 By default, when the "* Flag" command is selected,
 <EM>Alpine</EM> offers a prompt to set one of several flags and also offers the
 option of entering the detailed flag manipulation screen via the "^T"
@@ -4820,7 +5006,7 @@ and <EM>Reply</EM> functions. (For <EM>Reply</EM>, the
 <EM>Full Header</EM> mode will respect
 the <EM>include-headers-in-reply</EM> feature setting.)
 <P>
-If Full Header mode has been turned on and you Forward a message, you will
+If Full Header mode is turned on and you Forward a message, you will
 be asked if you'd like to forward the message as an attachment, as opposed
 to including the text of the message in the body of your new message.
 <P>
@@ -4839,6 +5025,8 @@ to the default behavior when moving to a new message.
 The mode can be made to persist from message to message by setting the feature
 <A HREF="#quell-full-header-auto-reset">Quell-Full-Header-Auto-Reset</A>.
 <P>
+This feature is displayed as &quot;Enable Full Header Command&quot;.
+<P>
 
 <DT> <A NAME="enable-full-header-and-text"><EM>enable-full-header-and-text</EM></A>
 
@@ -4853,9 +5041,9 @@ and <EM>Reply</EM> functions.
 <DT> <A NAME="enable-goto-in-file-browser"><EM>enable-goto-in-file-browser</EM></A>
 
 <DD> Setting this causes <EM>Alpine</EM> to offer the <EM>G Goto</EM> command in
-the file browser. This command allows you to explicitly set the
-displayed directory. <EM>Alpine</EM>'s default behavior requires you to visit
-each related directory when moving between two distant directories.
+the file browser. The Goto command allows you to explicitly type in the
+desired directory.
+That is the default.
 <P>
 
 <DT> <A NAME="enable-incoming-folders"><EM>enable-incoming-folders</EM></A>
@@ -4865,6 +5053,8 @@ each related directory when moving between two distant directories.
 Initially, the only folder included in this collection
 will be your <EM>INBOX</EM>, which will no longer show up in your default
 saved-message folder collection.
+<P>
+This feature is displayed as &quot;Enable Incoming Folders Collection&quot;.
 <P>
 
 <DT> <A NAME="enable-incoming-folders-checking"><EM>enable-incoming-folders-checking</EM></A>
@@ -4879,7 +5069,7 @@ to the right of the name of each folder.
 If there are no Unseen messages in a folder then only the name
 is displayed, not a set of parentheses with zero inside them.
 A redraw command, Ctrl-L, can be used in the FOLDER LIST screen for
-the Incoming Message Folders to cause an immediate new mail check.
+the Incoming Message Folders to cause an immediate update.
 <P>
 If a check for Unseen messages fails for a particular folder then Alpine
 will no longer attempt to check that folder for the duration of the
@@ -4887,8 +5077,11 @@ session and this will be indicated by a question mark inside the
 parentheses.
 <P>
 The features
+<A HREF="#incoming-checking-includes-total"><EM>incoming-checking-includes-total</EM></A>,
+<A HREF="#incoming-checking-uses-recent"><EM>incoming-checking-uses-recent</EM></A>,
+<A HREF="#incoming-check-list"><EM>incoming-check-list</EM></A>,
 <A HREF="#incoming-check-interval"><EM>incoming-check-interval</EM></A>,
-<A HREF="#incoming-check-list"><EM>incoming-check-list</EM></A>, and
+<A HREF="#incoming-check-interval-secondary"><EM>incoming-check-interval-secondary</EM></A>, and
 <A HREF="#incoming-check-timeout"><EM>incoming-check-timeout</EM></A>
 all affect how this feature behaves.
 <P>
@@ -4910,8 +5103,8 @@ with the conventions of the United States.
 
 <DT> <A NAME="enable-jump-shortcut"><EM>enable-jump-shortcut</EM></A>
 
-<DD> Setting this feature will allow you to enter a number (followed by RETURN)
-and jump to that message number, when in the "Folder Index" or "Message Text"
+<DD> When this feature is set you may enter a number (followed by RETURN)
+and jump to that message number, when in the MESSAGE INDEX or MESSAGE TEXT
 screens. In other words, it obviates the need for typing the <EM>J</EM> for the
 <EM>Jump</EM> command.
 <P>
@@ -4938,6 +5131,8 @@ outside your personal folder collection without requiring a specific
 collection definition.  This behavior will generally not be available
 when this feature is enabled.
 <P>
+This feature is displayed as &quot;Compensate for Deficient IMAP servers&quot;.
+<P>
 
 <DT> <A NAME="enable-mail-check-cue"><EM>enable-mail-check-cue</EM></A>
 
@@ -4955,6 +5150,8 @@ By default, this is turned off to prevent security problems which may occur
 with some incorrect mailcap configurations.
 For more information, RFC1524 and look for "named parameters" in the
 text of the RFC.
+<P>
+This feature is displayed as &quot;Enable Mailcap Parameter Substitution&quot;.
 <P>
 
 <DT> <A NAME="enable-mouse-in-xterm"><EM>enable-mouse-in-xterm</EM></A>
@@ -4986,6 +5183,8 @@ composition screen with the To field filled in with the selected address.
 Use the up and down arrow keys to change which of the addresses
 displayed in boldface is the current selection.
 <P>
+This feature is displayed as &quot;Enable Message View Address Links&quot;.
+<P>
 
 <DT> <A NAME="enable-msg-view-attachments"><EM>enable-msg-view-attachments</EM></A>
 
@@ -5007,6 +5206,8 @@ key can be used to select the next item in the message independent
 of which portion of the viewed message is currently displayed. The
 Ctrl-B key can be used to select the previous item in the same way.
 <P>
+This feature is displayed as &quot;Enable Message View Attachment Links&quot;.
+<P>
 
 <DT> <A NAME="enable-msg-view-forced-arrows"><EM>enable-msg-view-forced-arrows</EM></A>
 
@@ -5025,11 +5226,13 @@ if no selectable items were present in the message.
 Note, the <EM>Ctrl-F</EM> (next selectable item) and
 <EM>Ctrl-B</EM> (previous selectable item) functionality is unchanged.
 <P>
+This feature is displayed as &quot;Enable Message View Forced Arrows&quot;.
+<P>
 
 <DT> <A NAME="enable-msg-view-urls"><EM>enable-msg-view-urls</EM></A>
 
 <DD> This feature modifies the behavior of <EM>Alpine</EM>'s "Message Text" screen.
-Setting this feature causes <EM>Alpine</EM> to select possible URL's from the
+When this feature is set (the default) <EM>Alpine</EM> will select possible URLs from the
 displayed text and display them in boldface for selection.
 <P>
 
@@ -5044,11 +5247,13 @@ by the <A HREF="#url-viewers"><EM>url-viewers</EM></A> variable.
 Use the up and down arrow keys to change which of the URLs displayed in boldface
 is the current selection.
 <P>
+This feature is displayed as &quot;Enable Message View URL Links&quot;.
+<P>
 
 <DT> <A NAME="enable-msg-view-web-hostnames"><EM>enable-msg-view-web-hostnames</EM></A>
 
 <DD> This feature modifies the behavior of <EM>Alpine</EM>'s "Message Text" screen.
-Setting this feature causes <EM>Alpine</EM> to select possible web hostnames
+When this feature is set (the default) <EM>Alpine</EM> will select possible web hostnames
 from the displayed text and display them in boldface for selection.
 <P>
 
@@ -5060,6 +5265,8 @@ by the <A HREF="#url-viewers"><EM>url-viewers</EM></A> variable.
 
 Use the up and down arrow keys to change which of the hostnames displayed in
 boldface is the current selection.
+<P>
+This feature is displayed as &quot;Enable Message View Web Hostname Links&quot;.
 <P>
 
 <DT> <A NAME="enable-multiple-newsrcs"><EM>enable-multiple-newsrcs</EM></A>
@@ -5115,6 +5322,7 @@ or Opening a new folder. If set, the subcommand <EM>^X ListMatches</EM> will be
 available. This command allows you to type in a substring of the folder
 you are looking for and when you type <EM>^X</EM> it will display all folders
 which contain that substring in their names.
+This feature is set by default.
 <P>
 
 <DT> <A NAME="enable-print-via-y-command"><EM>enable-print-via-y-command</EM></A>
@@ -5166,6 +5374,8 @@ a new Rule.
 When this feature is set, you will be given an extra prompt which gives
 you the choice to Take into the Address Book or Take into a rule.
 <P>
+This feature is displayed as &quot;Enable Take Rules&quot;.
+<P>
 
 <DT> <A NAME="enable-search-and-replace"><EM>enable-search-and-replace</EM></A>
 
@@ -5199,6 +5409,7 @@ at a prompt for a filename. In this
 case, <EM>TAB</EM> will cause the
 partial name already entered to be automatically
 completed, provided the partial name is unambiguous.
+This feature is set by default.
 <P>
 Similarly, this feature also enables TAB completion of address book
 nicknames when at a prompt for a nickname,
@@ -5235,6 +5446,8 @@ Title).  This feature is only provided for backwards compatibility.
 <DD> This feature enables the <EM>| Pipe</EM> command
 that sends the current message
 to the specified Unix command for external processing.
+<P>
+This feature is displayed as &quot;Enable Unix Pipe Command&quot;.
 <P>
 
 <DT> <A NAME="enable-verbose-smtp-posting"><EM>enable-verbose-smtp-posting</EM></A>
@@ -5328,6 +5541,8 @@ if the folder is not the <EM>INBOX</EM> folder or another folder in the
 Incoming Folders collection. See the <EM>expunge-without-confirm-everywhere</EM>
 feature which follows.
 <P>
+This feature is displayed as &quot;Expunge Without Confirming&quot;.
+<P>
 
 <DT> <A NAME="expunge-without-confirm-everywhere"><EM>expunge-without-confirm-everywhere</EM></A>
 
@@ -5336,6 +5551,8 @@ works for the <EM>INBOX</EM> folder and for other folders in the "Incoming
 Folders" collection. If this feature is set then you also won't be prompted
 to confirm expunges for all other folders.
 <P>
+This feature is displayed as &quot;Expunge Without Confirming Everywhere&quot;.
+<P>
 
 <DT> <A NAME="fcc-on-bounce"><EM>fcc-on-bounce</EM></A>
 
@@ -5343,6 +5560,8 @@ to confirm expunges for all other folders.
 done for bounced messages,
 just as if you had composed a message to the address you are
 bouncing to. If not set, no Fcc of the message will be saved.
+<P>
+This feature is displayed as &quot;Include Fcc When Bouncing Messages&quot;.
 <P>
 
 <DT> <A NAME="fcc-only-without-confirm"><EM>fcc-only-without-confirm</EM></A>
@@ -5367,6 +5586,8 @@ and you have to turn it off.
 The warn-if-blank-to-and-cc-and-newsgroups feature defaults to not asking
 unless you turn it on.
 <P>
+This feature is displayed as &quot;Send to Fcc Only Without Confirming&quot;.
+<P>
 
 <DT> <A NAME="fcc-without-attachments"><EM>fcc-without-attachments</EM></A>
 
@@ -5385,6 +5606,8 @@ This feature also affects <EM>Alpine</EM>'s &quot;Send ?&quot; confirmation prom
 in that a new &quot;^F Fcc Attchmnts&quot; option becomes available which
 allows you to interactively set whether or not attachments are saved
 to the Fcc'd copy.
+<P>
+This feature is displayed as &quot;Fcc Does Not Include Attachments&quot;.
 <P>
 
 <DT> <A NAME="force-arrow-cursor"><EM>force-arrow-cursor</EM></A>
@@ -5448,6 +5671,62 @@ is <EM>not</EM> set, then the original message will be included in the reply
 automatically, without prompting.
 <P>
 
+<DT> <A NAME="incoming-checking-includes-total"><EM>incoming-checking-includes-total</EM></A>
+
+<DD> This option has no effect unless the feature
+<A HREF="#enable-incoming-folders-checking"><EM>enable-incoming-folders-checking</EM></A>
+is set, which in turn has no effect unless
+<A HREF="#inc-fold"><EM>incoming-folders</EM></A>
+is set.
+<P>
+When incoming folder checking is turned on the default is to display
+the number of unseen messages in each folder.
+More precisely, it is the number of undeleted unseen messages.
+Using this option you may also display the total number of messages
+in each folder.
+Instead of a single number representing the number of unseen messages
+you will get two numbers separated by a slash character.
+The first is the number of unseen messages and the second is the
+total number of messages.
+<P>
+You may also use the recent message count instead of the unseen message
+count by turning on the feature
+<A HREF="#incoming-checking-uses-recent"><EM>incoming-checking-uses-recent</EM></A>.
+<P>
+
+<DT> <A NAME="incoming-checking-uses-recent"><EM>incoming-checking-uses-recent</EM></A>
+
+<DD> This option has no effect unless the feature
+<A HREF="#enable-incoming-folders-checking"><EM>enable-incoming-folders-checking</EM></A>
+is set, which in turn has no effect unless
+<A HREF="#inc-fold"><EM>incoming-folders</EM></A>
+is set.
+<P>
+When incoming folder checking is turned on the default is to display
+the number of unseen messages in each folder.
+More precisely, it is the number of undeleted unseen messages.
+Using this option you may display the number of recent messages instead
+of the number of unseen messages.
+A message is only counted as recent if this is the first session to
+see it, so the recent count might be less than the unseen count.
+The difference between the two would be accounted for by the unseen messages
+in the folder which were there previously but have not been looked at yet.
+<P>
+If you simultaneously run more than one email client at a time
+(for example, you run more than one <EM>Alpine</EM> in parallel) then turning
+this feature on can cause some confusion.
+The confusion stems from the fact that each message is only considered to be
+recent in one session.
+That means that the counts of new messages may be different in the two
+<EM>Alpine</EM>s running side by side, because each incoming message will only be
+counted as recent in one of the two sessions.
+<P>
+You may also display the total number of messages
+in each folder by using the
+<A HREF="#incoming-checking-includes-total"><EM>incoming-checking-includes-total</EM></A>
+option.
+<P>
+
 <DT> <A NAME="ldap-result-to-addrbook-add"><EM>ldap-result-to-addrbook-add</EM></A>
 
 <DD> This is only available if <EM>Alpine</EM> was linked with an LDAP library
@@ -5458,6 +5737,8 @@ and this feature are set,
 then when an implicit directory lookup is done from the
 composer you will automatically be prompted to add the result of the
 directory lookup to your address book.
+<P>
+This feature is displayed as &quot;LDAP Result to Addressbook Add&quot;.
 <P>
 
 <DT> <A NAME="maildrops-preserve-state"><EM>maildrops-preserve-state</EM></A>
@@ -5541,11 +5822,14 @@ If this feature is not set, then the canonicalized names will be used.
 If this feature is set, then the name you typed in (or put in your
 configuration) will be used.
 <P>
+This feature is displayed as &quot;Multiple Newsrc Hostnames as Typed&quot;.
+<P>
 
 <DT> <A NAME="news-approximates-new-status"><EM>news-approximates-new-status</EM></A>
 
 <DD> This feature causes certain messages to be marked as <EM>New</EM> in the
-"Folder Index" of newsgroups.
+MESSAGE INDEX of newsgroups.
+This feature is set by default.
 <P>
 
 When opening a newsgroup, <EM>Alpine</EM> will consult
@@ -5643,6 +5927,8 @@ This feature only has an effect in the MESSAGE INDEX screen.
 If you then view a particular message from that screen and press the
 Next command, you will be sent to the next thread without being asked,
 independent of the setting of this feature.
+<P>
+This feature is displayed as &quot;Read Next Thread Without Confirming&quot;.
 <P>
 
 <DT> <A NAME="offer-expunge-of-inbox"><EM>offer-expunge-of-inbox</EM></A>
@@ -5762,6 +6048,8 @@ the nntp-server variable.
 This feature can be especially handy when used in conjunction with
 <a href="#enable-multiple-newsrcs">enable-multiple-newsrcs</a>.
 <P>
+This option is displayed as &quot;NNTP Server (for news)&quot;.
+<P>
 
 <DT> <A NAME="prefer-plain-text"><EM>prefer-plain-text</EM></A>
 
@@ -5814,6 +6102,8 @@ whenever the <EM>Ctrl-S</EM> key combination is entered as the system is now
 interpreting such input as a "stop output" command.  To "start
 output"  again, simply type <EM>Ctrl-Q</EM>.
 <P>
+This feature is displayed as &quot;Preserve Start/Stop Characters&quot;.
+<P>
 
 <DT> <A NAME="print-formfeed-between-messages"><EM>print-formfeed-between-messages</EM></A>
 
@@ -5852,6 +6142,8 @@ If selected, you will have
 the opportunity to enter any system print command, instead of being 
 restricted to using those that have been previously configured in the 
 <EM>Setup/Printer</EM> screen.
+<P>
+This feature is displayed as &quot;Print Offers Custom Command Prompt&quot;.
 <P>
 
 <DT> <A NAME="prune-uses-yyyy-mm"><EM>prune-uses-yyyy-mm</EM></A>
@@ -5898,6 +6190,8 @@ This feature can be used along side
 <A HREF="#quell-attachment-extra-prompt"><EM>quell-attachment-extra-prompt</EM></A>
 to preserve the behavior exhibited in <EM>Pine</EM> versions prior to <EM>Pine</EM> 4.50.
 <P>
+This feature is displayed as &quot;Suppress Attachment Extension Warning&quot;.
+<P>
 
 <DT> <A NAME="quell-attachment-extra-prompt"><EM>quell-attachment-extra-prompt</EM></A>
 <DD> By default, when you attempt to view an attachment externally
@@ -5909,6 +6203,8 @@ your selection.  Prior to <EM>Pine</EM> 4.50, the default behavior was to not
 prompt. This feature was added for those wanting to preserve that
 behavior.
 <P>
+This feature is displayed as &quot;Suppress Attachment Extra Prompt&quot;.
+<P>
 
 <DT> <A NAME="quell-berkeley-format-timezone"><EM>quell-berkeley-format-timezone</EM></A>
 
@@ -5917,6 +6213,8 @@ behavior.
 Some versions of Berkeley mail have trouble with this, and don't recognize
 the line as a message delimiter.
 If this feature is set, the timezone will be left off the delimiter line.
+<P>
+This feature is displayed as &quot;Suppress Berkeley Format Timezone&quot;.
 <P>
 
 <DT> <A NAME="quell-charset-warning"><EM>quell-charset-warning</EM></A>
@@ -5937,6 +6235,8 @@ For example, when viewing a message you might see
 in the From header if your Character-Set is something other than ISO-8859-2.
 If you set this feature, the comment about the character set will
 no longer be there.
+<P>
+This feature is displayed as &quot;Suppress Character Set Warning&quot;.
 <P>
 
 <DT> <A NAME="quell-content-id"><EM>quell-content-id</EM></A>
@@ -5972,6 +6272,8 @@ for the correct functioning of that attachment, it is possible that <EM>Alpine</
 may remove that header when the attachment is forwarded.
 However, it seems fairly safe at this time.
 <P>
+This feature is displayed as &quot;Suppress Content-ID&quot;.
+<P>
 
 <DT> <A NAME="quell-dead-letter-on-cancel"><EM>quell-dead-letter-on-cancel</EM></A>
 
@@ -5990,6 +6292,8 @@ This feature affects the newer option
 number of dead letter files to keep around.
 If this feature is set, then the Dead-Letter-Files option has no effect.
 <P>
+This feature is displayed as &quot;Do Not Save to Deadletter on Cancel&quot;.
+<P>
 
 <DT> <A NAME="quell-empty-directories"><EM>quell-empty-directories</EM></A>
 
@@ -6005,6 +6309,8 @@ enter that directory and create a folder, that newly created directory
 may not be displayed next time you enter the folder list.
 
 <P>
+This feature is displayed as &quot;Hide Empty Directories&quot;.
+<P>
 
 <DT> <A NAME="quell-extra-post-prompt"><EM>quell-extra-post-prompt</EM></A>
 
@@ -6013,11 +6319,15 @@ posting a message which may go to thousands of readers when you
 are about to post to a newsgroup.
 
 <P>
+This feature is displayed as &quot;Suppress Extra Posting Prompt&quot;.
+<P>
 
 <DT> <A NAME="quell-filtering-done-message"><EM>quell-filtering-done-message</EM></A>
 
 <DD> This feature causes <EM>Alpine</EM> to suppress the &quot;filtering done&quot; message.
 
+<P>
+This feature is displayed as &quot;Suppress Filtering Done Message&quot;.
 <P>
 
 <DT> <A NAME="quell-filtering-messages"><EM>quell-filtering-messages</EM></A>
@@ -6025,6 +6335,8 @@ are about to post to a newsgroup.
 <DD> This feature causes <EM>Alpine</EM> to suppress the messages about
 moving filtered messages and setting flags in messages, due to Filter Rules.
 
+<P>
+This feature is displayed as &quot;Suppress Filtering Messages&quot;.
 <P>
 
 <DT> <A NAME="quell-flowed-text"><EM>quell-flowed-text</EM></A>
@@ -6077,6 +6389,8 @@ be sent flowed if this feature is unset.  In most cases this will be fine,
 but if the editor has a &quot;flowed text&quot; mode, it would be best to
 use that.
 <P>
+This feature is displayed as &quot;Do Not Send Flowed Text&quot;.
+<P>
 
 <DT> <A NAME="quell-folder-internal-msg"><EM>quell-folder-internal-msg</EM></A>
 
@@ -6109,6 +6423,8 @@ This feature has no effect on folders that are not in
 standard Unix or MMDF format, as pseudo-messages are not needed in the
 other formats to record mailbox state information.
 <P>
+This feature is displayed as &quot;Prevent Folder Internal Message&quot;.
+<P>
 
 <DT> <A NAME="quell-full-header-auto-reset"><EM>quell-full-header-auto-reset</EM></A>
 
@@ -6124,6 +6440,8 @@ Instead, the Header Mode remains the same from message to message.
 The presence or absence of the HdrMode command is determined by the
 <A HREF="#enable-full-header-cmd">&quot;Enable-Full-Header-Cmd&quot;</A>
 Feature-List option.
+<P>
+This feature is displayed as &quot;Suppress Full Header Auto Reset&quot;.
 <P>
 
 <DT> <A NAME="quell-imap-envelope-update"><EM>quell-imap-envelope-update</EM></A>
@@ -6144,6 +6462,8 @@ to be gathered before it paints the index screen.
 Once it collects all of the information, the screen will be painted quickly
 from top to bottom.
 <P>
+This feature is displayed as &quot;Suppress IMAP Envelope Update&quot;.
+<P>
 
 <DT> <A NAME="quell-lock-failure-warnings"><EM>quell-lock-failure-warnings</EM></A>
 
@@ -6163,6 +6483,8 @@ WARNING: systems that have been configured in a way that precludes locking
 introduce some risk of mail folder corruption when more than one program
 attempts to modify the mail folder.  This is most likely to occur to one's
 <EM>INBOX</EM> or other "Incoming Message Folder".
+<P>
+This feature is displayed as &quot;Suppress Lock Failure Warnings&quot;.
 <P>
 
 <DT> <A NAME="quell-mailchecks-composing-except"><EM>Quell-Mailchecks-Composing-Except-Inbox</EM></A>
@@ -6198,6 +6520,8 @@ software problems occur.
 New-mail checking and checkpointing while you are not composing are not
 affected by this option.
 <P>
+This feature is displayed as &quot;Prevent Mailchecks While Composing Except for INBOX&quot;.
+<P>
 
 <DT> <A NAME="quell-mailchecks-composing-inbox"><EM>Quell-Mailchecks-Composing-Inbox</EM></A>
 
@@ -6232,6 +6556,8 @@ software problems occur.
 New-mail checking and checkpointing while you are not composing are not
 affected by this option.
 <P>
+This feature is displayed as &quot;Prevent Mailchecks While Composing for INBOX&quot;.
+<P>
 
 <DT> <A NAME="quell-maildomain-warning"><EM>quell-maildomain-warning</EM></A>
 
@@ -6244,6 +6570,7 @@ You will see a warning message that looks like
 
 <P>
 If this feature is set, the warning is turned off.
+This feature is displayed as &quot;Suppress Maildomain Warning&quot;.
 <P>
 
 <DT> <A NAME="quell-news-envelope-update"><EM>quell-news-envelope-update</EM></A>
@@ -6264,6 +6591,8 @@ to be gathered before it paints the index screen.
 Once it collects all of the information, the screen will be painted quickly
 from top to bottom.
 <P>
+This feature is displayed as &quot;Suppress News Envelope Update&quot;.
+<P>
 
 <DT> <A NAME="quell-partial-fetching"><EM>quell-partial-fetching</EM></A>
 
@@ -6277,6 +6606,8 @@ that the fetch becomes interruptible. That is, the user can type <EM>^C</EM>
 to stop the fetch early. In some cases partial fetching may cause a performance
 problem so that the fetching of data takes significantly longer when partial
 fetching is used. Turning on this feature will turn off partial fetching.
+<P>
+This feature is displayed as &quot;Prevent Partial Fetching&quot;.
 <P>
 
 <DT> <A NAME="quell-personal-name-prompt"><EM>quell-personal-name-prompt</EM></A>
@@ -6298,6 +6629,8 @@ the link text might suggest a different destination.
 Setting this feature will prevent the server name from being appended
 to the displayed text.
 <P>
+This feature is displayed as &quot;Suppress Server After Link in HTML&quot;.
+<P>
 
 <DT> <A NAME="quell-ssl-largeblocks"><EM>quell-ssl-largeblocks</EM></A>
 
@@ -6317,10 +6650,14 @@ cause <EM>PC-Alpine</EM> to crash with the error
 Microsoft is aware of the problem and has developed a hotfix for it, but as of
 this writing the hotfix has not yet been added to the Knowledge Base.
 <P>
+This feature is displayed as &quot;Prevent SSL Largeblocks&quot;.
+<P>
 
 <DT> <A NAME="quell-status-message-beeping"><EM>quell-status-message-beeping</EM></A>
 
 <DD> If set status messages will never emit a beep.
+<P>
+This feature is displayed as &quot;Suppress Status Message Beeping&quot;.
 <P>
 
 <DT> <A NAME="quell-timezone-comment-when-sending"><EM>quell-timezone-comment-when-sending</EM></A>
@@ -6336,6 +6673,8 @@ If this feature is set, the symbolic timezone normally generated by
 <EM>Alpine</EM> will not be included.
 You probably don't need to worry about this feature unless you run into
 the problem described above.
+<P>
+This feature is displayed as &quot;Suppress Timezone Comment When Sending&quot;.
 <P>
 
 <DT> <A NAME="quell-user-id-prompt"><EM>quell-user-id-prompt</EM></A>
@@ -6386,11 +6725,15 @@ If you are seeing this behavior, enabling this feature will prevent Unix
 <EM>Alpine</EM> from looking up names in the password file to find the Full Name
 for incomplete addresses you enter.
 <P>
+This feature is displayed as &quot;Prevent User Lookup in Password File&quot;.
+<P>
 
 <DT> <A NAME="quit-without-confirm"><EM>quit-without-confirm</EM></A>
 
 <DD> This feature controls whether or not <EM>Alpine</EM> will ask for confirmation when a
 <EM>Quit</EM> command is received.
+<P>
+This feature is displayed as &quot;Quit Without Confirming&quot;.
 <P>
 
 <DT> <A NAME="quote-replace-nonflowed"><EM>quote-replace-nonflowed</EM></A>
@@ -6425,20 +6768,23 @@ if you want to return to the INBOX.
 If this feature is set you will not be asked.
 It will be assumed that you do want to return to the INBOX.
 <P>
-</DD>
+This feature is displayed as &quot;Return to INBOX Without Confirming&quot;.
+<P>
 
 <DT> <A NAME="save-aggregates-copy-sequence"><EM>save-aggregates-copy-sequence</EM></A>
 
 <DD> This feature will optimize an aggregate copy operation, if
 possible, by issuing a single IMAP <EM>COPY</EM> command with a
 list of the messages to be copied.
-This may save network traffic when the source and destination
-folders are on the same IMAP server.
+This feature is set by default.
+This may reduce network traffic and elapsed time for the Save.
 <EM>However, many IMAP servers (including the UW IMAP server) do
 not preserve the order of messages when this optimization is applied.</EM>
-If this feature is not enabled, or if
-the folders are on different IMAP servers, or the folders are local and in
-different formats, <EM>Alpine</EM> will copy each message individually.
+If this feature is not set,
+<EM>Alpine</EM> will copy each message individually and the order of the
+messages will be preserved.
+<P>
+This feature is displayed as &quot;Save Combines Copies (may be out of order)&quot;.
 <P>
 
 <DT> <A NAME="save-partial-wo-confirm"><EM>save-partial-msg-without-confirm</EM></A>
@@ -6450,6 +6796,8 @@ be asked to confirm that you want to Save with a prompt that looks like:
 <CENTER><SAMP>Saved copy will NOT include entire message!  Continue?</SAMP></CENTER>
 <P>
 If this feature is set, you will not be asked.
+<P>
+This feature is displayed as &quot;Save Partial Message Without Confirming&quot;.
 <P>
 
 <DT> <A NAME="save-will-advance"><EM>save-will-advance</EM></A>
@@ -6514,6 +6862,8 @@ check under Settings -> Control Panel -> System and
 look for Network Identification or Computer Name or something similar.
 How to set it is beyond the scope of <EM>Alpine</EM>.
 <P>
+This feature is displayed as &quot;Scramble the Message-ID When Sending&quot;.
+<P>
 
 <DT> <A NAME="select-without-confirm"><EM>select-without-confirm</EM></A>
 
@@ -6524,6 +6874,8 @@ file to be used, but allow you to press <EM>^T</EM> for a
 list of possible names.
 If set, the selected name will be used immediately, without further
 opportunity to confirm or edit the name.
+<P>
+This feature is displayed as &quot;Select Ctrl-T Foldername Without Confirming&quot;.
 <P>
 
 <DT> <A NAME="send-without-confirm"><EM>send-without-confirm</EM></A>
@@ -6555,6 +6907,8 @@ A somewhat related feature is
 <A HREF="#quell-extra-post-prompt">quell-extra-post-prompt</A>.
 which may be used to eliminate the extra confirmation
 question when posting to a newsgroup.
+<P>
+This feature is displayed as &quot;Send Without Confirming&quot;.
 <P>
 
 <DT> <A NAME="separate-folder-and-directory-display"><EM>separate-folder-and-directory-display</EM></A>
@@ -6661,6 +7015,8 @@ left out, and just an &quot;R&quot; is shown.
 
 <P><CENTER>[R]</CENTER>
 <P>
+This feature is displayed as &quot;Show Sort in Titlebar&quot;.
+<P>
 
 <DT> <A NAME="sig-at-bot"><EM>signature-at-bottom</EM></A>
 
@@ -6692,12 +7048,16 @@ If this feature is set, then the slash command Collapses or Expands the
 If set, the default FCC folder will be sorted alphabetically with the other
 folders instead of appearing right after the INBOX.
 <P>
+This feature is displayed as &quot;Sort Default Fcc Folder Alphabetically&quot;.
+<P>
 
 <DT> <A NAME="sort-default-save-alpha"><EM>sort-default-save-alpha</EM></A>
 
 <DD> This feature controls an aspect of <EM>Alpine</EM>'s FOLDER LIST screen.
 If set, the default save folder will be sorted alphabetically with the other
 folders instead of appearing right after the INBOX (and default FCC folder).
+<P>
+This feature is displayed as &quot;Sort Default Save Folder Alphabetically&quot;.
 <P>
 
 <DT> <A NAME="spell-check-before-sending"><EM>spell-check-before-sending</EM></A>
@@ -6748,6 +7108,8 @@ generated by default but can be turned off via the
 strip-whitespace-before-send also has the effect of turning off sending
 of flowed text.
 <P>
+This feature is displayed as &quot;Strip Whitespace Before Sending&quot;.
+<P>
 
 <DT> <A NAME="tab-checks-recent"><EM>tab-checks-recent</EM></A>
 
@@ -6756,6 +7118,8 @@ folder is highlighted.
 If this feature is set, then the TAB key will cause the number of
 recent messages and the total number of messages in the highlighted folder
 to be displayed instead.
+<P>
+This feature is displayed as &quot;Tab Checks for Recent Messages&quot;.
 <P>
 
 <DT> <A NAME="tab-uses-unseen-for-next-folder"><EM>tab-uses-unseen-for-next-folder</EM></A>
@@ -6962,6 +7326,8 @@ for all of the following operations:
 <LI> <EM>^J</EM> file attachment in the Composer
 </UL>
 <P>
+This feature is displayed as &quot;Use Current Directory&quot;.
+<P>
 
 <DT> <A NAME="use-function-keys"><EM>use-function-keys</EM></A>
 
@@ -7014,6 +7380,8 @@ Note, <EM>PC-Alpine</EM> always adds
 either an <EM>X-X-Sender</EM> line if there is an open, remote mailbox, or an
 <EM>X-Warning: UNAuthenticated User</EM> otherwise
 
+<P>
+This feature is displayed as &quot;Use Sender Instead of X-X-Sender&quot;.
 <P>
 
 <DT> <A NAME="use-subshell-for-suspend"><EM>use-subshell-for-suspend</EM></A>
@@ -7097,6 +7465,8 @@ need to be set.
 the folders will be listed alphabetically down the columns rather
 than across the columns as is the default.
 
+<P>
+This feature is displayed as &quot;Use Vertical Folder List&quot;.
 <P>
 
 <DT> <A NAME="warn-if-blank-subject"><EM>warn-if-blank-subject</EM></A>
@@ -7199,7 +7569,6 @@ users in special cases.
 <LI> <A HREF="#rsh-command">rsh-command</A>
 <LI> <A HREF="#rsh-open-timeout">rsh-open-timeout</A>
 <LI> <A HREF="#rsh-path">rsh-path</A>
-<LI> <A HREF="#save-aggregates-copy-sequence">save-aggregates-copy-sequence</A>
 <LI> <A HREF="#sendmail-path">sendmail-path</A>
 <LI> <A HREF="#ssh-command">ssh-command</A>
 <LI> <A HREF="#ssh-open-timeout">ssh-open-timeout</A>
@@ -7232,10 +7601,8 @@ to cause these hidden features to show up in the Setup/Config screen.
 They will be at the bottom of the screen.
 
 <UL>
-<LI> <A HREF="#allow-from">allow-changing-from</A>
 <LI> <A HREF="#disable-config-cmd">disable-config-cmd</A>
 <LI> <A HREF="#disable-kblock">disable-keyboard-lock-cmd</A>
-<LI> <A HREF="#disable-password-caching">disable-password-caching</A>
 <LI> <A HREF="#disable-password-cmd">disable-password-cmd</A>
 <LI> <A HREF="#disable-pipes-in-sigs">disable-pipes-in-sigs</A>
 <LI> <A HREF="#disable-pipes-in-templates">disable-pipes-in-templates</A>
@@ -7245,13 +7612,6 @@ They will be at the bottom of the screen.
 <LI> <A HREF="#disable-setlocale-collate">disable-setlocale-collate</A>
 <LI> <A HREF="#disable-shared-namespaces">disable-shared-namespaces</A>
 <LI> <A HREF="#disable-signature-edit-cmd">disable-signature-edit-cmd</A>
-<LI> <A HREF="#enable-mailcap-param-substitution">enable-mailcap-param-substitution</A>
-<LI> <A HREF="#quell-berkeley-format-timezone">quell-berkeley-format-timezone</A>
-<LI> <A HREF="#quell-imap-envelope-update">quell-imap-envelope-update</A>
-<LI> <A HREF="#quell-news-envelope-update">quell-news-envelope-update</A>
-<LI> <A HREF="#quell-partial-fetching">quell-partial-fetching</A>
-<LI> <A HREF="#save-aggregates-copy-sequence">save-aggregates-copy-sequence</A>
-<LI> <A HREF="#termdef-takes-precedence">termdef-takes-precedence</A>
 </UL>
 <P>
 
@@ -7344,6 +7704,12 @@ and in the target of Filter Rules.
 This token represents the Subject the sender gave the message.
 Alternatives for use in the index screen are
 SUBJKEY, SUBJKEYINIT, SUBJECTTEXT, SUBJKEYTEXT, and SUBJKEYINITTEXT.
+You may color the subject text in the MESSAGE INDEX screen differently by using the
+<A HREF="#index-subject-color">Index Subject Color</A>
+and the
+<A HREF="#index-opening-color">Index Opening Color</A>.
+options available from
+the Setup Kolor screen.
 </DD>
 
 <DT>FROM</DT>
@@ -7351,6 +7717,9 @@ SUBJKEY, SUBJKEYINIT, SUBJECTTEXT, SUBJKEYTEXT, and SUBJKEYINITTEXT.
 This token represents the personal name (or email address if the name
 is unavailable) of the person specified in the message's &quot;From:&quot;
 header field.
+You may color the from text in the MESSAGE INDEX screen differently by using the
+<A HREF="#index-from-color">Index From Color</A>
+option available from the Setup Kolor screen.
 </DD>
 
 <DT>ADDRESS</DT>
@@ -7810,6 +8179,12 @@ else 'r' if some of the messages in the thread are seen and recent;
 else blank.
 </DD>
 
+<DT>SHORTIMAPSTATUS</DT>
+<DD>
+This is the same as the last four of the six characters of IMAPSTATUS,
+so the '+' To Me information will be missing.
+</DD>
+
 <DT>SIZE</DT>
 <DD>
 This token represents the total size, in bytes, of the message.
@@ -7894,7 +8269,7 @@ the message.
 In that case, a list of keywords enclosed in braces will be prepended to
 the subject of the message.
 Having this set in the Index-Format will also cause the keywords to be
-prepended to the subject in the MESSAGE VIEW screen.
+prepended to the subject in the MESSAGE TEXT screen.
 If you have given a keyword a nickname
 (<A HREF="#keywords"><EM>keywords</EM></A>), that nickname is displayed
 instead of the actual keyword.
@@ -7935,6 +8310,9 @@ the Subject instead.
 You may color this opening text differently by using the
 <A HREF="#index-opening-color"><EM>Index Opening Color</EM></A> option available from
 the Setup Kolor screen.
+You may adjust the characters that are displayed between the Subject and the
+opening text with the option
+<A HREF="#opening-text-separator-chars"><EM>Opening-Text-Separator-Chars</EM></A>.
 </DD>
 
 <DT>SUBJKEYTEXT</DT>
@@ -7945,6 +8323,31 @@ Same as SUBJKEY but with the opening message text.
 <DT>SUBJKEYINITTEXT</DT>
 <DD>
 Same as SUBJKEYINIT but with the opening message text.
+</DD>
+
+<DT>OPENINGTEXT</DT>
+<DD>
+This is similar to SUBJECTTEXT.
+Instead of combining the Subject and the opening text in a single
+field in the index screen this token allows you to allocate a
+separate column just for the opening text of the message.
+The time needed to fetch this text may cause a performance problem.
+You may color this opening text differently by using the
+<A HREF="#index-opening-color"><EM>Index Opening Color</EM></A> option available from
+the Setup Kolor screen.
+</DD>
+
+<DT>OPENINGTEXTDQ</DT>
+<DD>
+This is very similar to OPENINGTEXT.
+The DQ stands for Delete Quotes.
+The only difference is that quoted text (lines beginning with &gt;) is deleted.
+For some messages this may be confusing.
+For example, a message might have a line preceding some quoted
+text that reads something like &quot;On May 8th person A said.&quot;
+That no longer makes sense after the quoted text is deleted and it
+will appear that person A said whatever the text after the quote
+is, even though that is really person B talking.
 </DD>
 
 <DT>KEY</DT>
@@ -8822,9 +9225,9 @@ or if you are using <EM>PC-Alpine</EM>, then it is possible to
 set up <EM>Alpine</EM> so that various parts of the display will be
 shown in colors you configure.
 This is done using the Setup Color screen.
-The Setup Color screen is divided into four broad sections: Options,
-General Colors, Index Colors, and Header Colors.
-In addition to these four categories you may also color lines in the
+The Setup Color screen is divided into five broad sections: Options,
+General Colors, Index Colors, Header Colors, and Keyword Colors.
+In addition to these five categories you may also color lines in the
 MESSAGE INDEX screen by configuring the
 <A HREF="#index-color-config">Index Line Color</A>.
 <P>
@@ -9052,7 +9455,7 @@ it is also Bold.
 
 <DT> <A NAME="meta-message-color"><EM>Meta-message Color</EM></A>
 
-<DD> The color <EM>Alpine</EM> uses in the MESSAGE VIEW for messages to you
+<DD> The color <EM>Alpine</EM> uses in the MESSAGE TEXT screen for messages to you
 that aren't part of the message itself.
 By default, the Meta-Message Color is black characters on a yellow background.
 <P>
@@ -9120,7 +9523,14 @@ This is done by using the
 It is also possible to color
 (<A HREF="#keywords">keywords</A>
 in the index using the
-Setup/Kolor screen (<A HREF="h_config_kw_color">Keyword Colors</A>).
+Setup/Kolor screen (<A HREF="h_config_kw_color">Keyword Colors</A>);
+the <A HREF="#index-arrow-color">ARROW</A> cursor;
+the Subject using
+<A HREF="#index-subject-color">Index Subject Color</A>;
+the From using
+<A HREF="#index-from-color">Index From Color</A>;
+and the
+<A HREF="#index-opening-color">Index Opening</A> text.
 <P>
 
 <DL COMPACT>
@@ -9158,7 +9568,7 @@ message is New.
 <DT> <A NAME="index-recent-color"><EM>Index-recent Symbol Color</EM></A>
 
 <DD> The color used for drawing the &quot;R&quot; symbol which signifies a
-message is Recent (only visible if the &quot;IMAPSTATUS&quot; token is
+message is Recent (only visible if the &quot;IMAPSTATUS&quot; or &quot;SHORTIMAPSTATUS&quot; token is
 part of the
 <A HREF="#index-format"><EM>index-format</EM></A> option).
 <P>
@@ -9166,7 +9576,7 @@ part of the
 <DT> <A NAME="index-unseen-color"><EM>Index-unseen Symbol Color</EM></A>
 
 <DD> The color used for drawing the &quot;U&quot; symbol which signifies a
-message is Unseen (only visible if the &quot;IMAPSTATUS&quot; token is
+message is Unseen (only visible if the &quot;IMAPSTATUS&quot; or &quot;SHORTIMAPSTATUS&quot; token is
 part of the
 <A HREF="#index-format"><EM>Index-Format</EM></A> option).
 <P>
@@ -9176,6 +9586,26 @@ part of the
 <DD> The color used for drawing the &quot;ARROW&quot; token when it is
 configured as part of the
 <A HREF="#index-format"><EM>Index-Format</EM></A> option.
+<P>
+
+<DT> <A NAME="index-subject-color"><EM>Index-subject Symbol Color</EM></A>
+
+<DD> You may set the color used to draw the Subject part of the index line.
+This coloring takes place for all but the current index line, and the Subject
+Color appears to be in front of any color from an Index Color Rule.
+<P>
+If you don't set this color it will be colored in the same color as
+the bulk of the index line.
+<P>
+
+<DT> <A NAME="index-from-color"><EM>Index-from Symbol Color</EM></A>
+
+<DD> You may set the color used to draw the From part of the index line.
+This coloring takes place for all but the current index line, and the From
+Color appears to be in front of any color from an Index Color Rule.
+<P>
+If you don't set this color it will be colored in the same color as
+the bulk of the index line.
 <P>
 
 <DT> <A NAME="index-opening-color"><EM>Index-opening Symbol Color</EM></A>
@@ -9209,8 +9639,19 @@ The default colors for these symbols are:
 <H3><A NAME="header-colors"></A>Header Colors</H3>
 
 You may add color to the header fields in the MESSAGE TEXT screen.
-For example, you may set the color of the contents of the Subject field
-or the From field.
+The
+<P>
+<DL COMPACT>
+<DT> <A NAME="header-general-color"><EM>Header-general Color</EM></A>
+
+<DD> may be used to color all of the headers of
+the message.
+</DL>
+<P>
+It is also possible to set the colors for specific header fields,
+for example for the Subject or From fields, using the
+<A HREF="#viewer-hdr-colors"><EM>viewer-hdr-colors</EM></A>
+option.
 <P>
 For Header Colors,
 there is an additional line on the configuration
@@ -9227,12 +9668,6 @@ addresses which match the pattern to be colored.
 <P>
 If the pattern you enter is a comma-separated list of patterns, then coloring
 happens if any of those patterns matches.
-<P>
-There is a default setting for Viewer Header Colors which colors Subject
-lines with black characters on a green background.
-If you define any Viewer Header Colors of your own they will replace that
-default, so if you still wanted the Subject colored you would have to
-define it yourself.
 <P>
 
 <H3><A NAME="keyword-colors"></A>Keyword Colors</H3>
@@ -9277,7 +9712,7 @@ is used if the Pattern matches a particular message.
 In order to determine whether or not a message matches a rule the message is
 compared with the rule's Pattern.
 These Patterns are the same for use with Roles, Filtering, Index Coloring,
-and Scoring, so are described in only one place,
+Scoring, Other Rules, and Search Rules, so are described in only one place,
 &quot;<A HREF="#patterns-section">here</A>&quot;.
 
 <H3>Index Line Color</H3>
@@ -9352,7 +9787,7 @@ change the role to any one of your other roles (with the ^T command).
 In order to determine whether or not a message matches a role the message is
 compared with the Role Pattern.
 These Patterns are the same for use with Roles, Filtering, Index Coloring,
-and Scoring, so are described in only one place,
+Scoring, Other Rules, and Search Rules, so are described in only one place,
 &quot;<A HREF="#patterns-section">here</A>&quot;.
 <P>
 Since header patterns, AllText patterns, and BodyText patterns which are unset are ignored,
@@ -9731,7 +10166,7 @@ next Expunge command or once the folder being filtered has been closed.
 In order to determine whether or not a message matches a filter the message is
 compared with the Filter's Pattern.
 These Patterns are the same for use with Roles, Filtering, Index Coloring,
-Scoring, and Other Rules, so are described in only one place,
+Scoring, Other Rules, and Search Rules, so are described in only one place,
 &quot;<A HREF="#patterns-section">here</A>&quot;.
 <P>
 Since filtering is a potentially destructive action, if you have a filtering
@@ -9854,7 +10289,7 @@ the interval are a match.
 In order to determine whether or not a message matches a scoring rule
 the message is compared with the rule's Pattern.
 These Patterns are the same for use with Roles, Filtering, Index Coloring,
-and Scoring, so are described in only one place,
+Scoring, Other Rules, and Search Rules, so are described in only one place,
 &quot;<A HREF="#patterns-section">here</A>&quot;.
 
 <P>
@@ -9942,10 +10377,39 @@ The various startup rule possibilities work the same here as they do in
 the incoming collection, except that the folder can be any specific
 folder or any folder type.
 
+<H2><A NAME="search-rules-config"></A>Search Rules Configuration</H2>
+
+One of the commands that becomes available when that feature is turned on
+is the &quot;; Select&quot; command, which is used in the MESSAGE INDEX
+screen to select a set of messages.
+One way of selecting messages is to use a Rule.
+All of the messages which match (or don't match if you wish)
+a Rule's Pattern will be selected.
+<P>
+Any of your Rules may be used for this purpose.
+You might already have Rules set up for filtering, index line color, scores, or roles;
+and you may use any of those Rules with the Select command.
+However, you might find it more convenient to set up a separate set of Rules
+just for this purpose without having to worry about what other effects
+they may cause.
+That is the purpose of these Select Rules.
+
+<H3>Rule Patterns</H3>
+
+In order to determine whether or not a message is selected by a rule the
+message is 
+compared with the rule's Pattern.
+These Patterns are the same for use with Roles, Filtering, Index Coloring,
+Scoring, Other Rules, and Search Rules, so are described in only one place,
+&quot;<A HREF="#patterns-section">here</A>&quot;.
+<P>
+There is no action associated with these Search Rules.
+Only their Patterns are used.
+
 <H2><A NAME="patterns-section"></A>Patterns</H2>
 
 Patterns are used with Roles, Filtering, Index Coloring,
-Scoring, and Other Rules.
+Scoring, Other Rules, and Search Rules.
 Patterns are compared with a message to see if there is a match.
 For Filtering, the messages being checked are all the messages in the
 folder, one at a time.

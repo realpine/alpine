@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: print.c 203 2006-10-26 17:23:46Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: print.c 584 2007-05-30 18:05:14Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,6 +54,7 @@ select_printer(struct pine *ps, int edit_exceptions)
     struct        variable  *vtmp;
     CONF_S       *ctmpa = NULL, *ctmpb = NULL, *heading = NULL,
 		 *start_line = NULL;
+    PINERC_S     *prc = NULL;
     int i, saved_printer_cat, readonly_warning = 0, no_ex;
     SAVED_CONFIG_S *vsave;
     char *saved_printer, **lval;
@@ -76,8 +77,6 @@ select_printer(struct pine *ps, int edit_exceptions)
     if(ps->restricted)
       readonly_warning = 1;
     else{
-	PINERC_S *prc = NULL;
-
 	switch(ew){
 	  case Main:
 	    prc = ps->prc;
@@ -508,6 +507,9 @@ select_printer(struct pine *ps, int edit_exceptions)
 	set_variable(V_PRINTER, saved_printer, 1, 0, ew);
 	set_variable(V_PERSONAL_PRINT_CATEGORY, comatose(ps->printer_category),
 		     1, 0, ew);
+	if(prc)
+	  prc->outstanding_pinerc_changes = 0;
+
 	break;
     }
 
@@ -578,7 +580,7 @@ print_select_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 		lval = (no_ex || !vtmp->is_user) ? vtmp->current_val.l
 						 : LVAL(vtmp, ew);
 		rc = set_variable(V_PRINTER, lval ? lval[(*cl)->varmem] : NULL,
-				  1, 1, ew);
+				  1, 0, ew);
 		if(rc == 0){
 		    if(vtmp == &ps->vars[V_STANDARD_PRINTER])
 		      ps->printer_category = 2;
@@ -596,7 +598,7 @@ print_select_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 		retval = 1;
 	    }
 	    else if(!strcmp((*cl)->value,ANSI_PRINTER)){
-		rc = set_variable(V_PRINTER, ANSI_PRINTER, 1, 1, ew);
+		rc = set_variable(V_PRINTER, ANSI_PRINTER, 1, 0, ew);
 		if(rc == 0){
 		    ps->printer_category = 1;
 		    set_variable(V_PERSONAL_PRINT_CATEGORY, 
@@ -609,7 +611,7 @@ print_select_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 		retval = 1;
 	    }
 	    else if(!strcmp((*cl)->value,aname)){
-		rc = set_variable(V_PRINTER, aname, 1, 1, ew);
+		rc = set_variable(V_PRINTER, aname, 1, 0, ew);
 		if(rc == 0){
 		    ps->printer_category = 1;
 		    set_variable(V_PERSONAL_PRINT_CATEGORY, 
@@ -622,7 +624,7 @@ print_select_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 		retval = 1;
 	    }
 	    else if(!strcmp((*cl)->value,WYSE_PRINTER)){
-		rc = set_variable(V_PRINTER, WYSE_PRINTER, 1, 1, ew);
+		rc = set_variable(V_PRINTER, WYSE_PRINTER, 1, 0, ew);
 		if(rc == 0){
 		    ps->printer_category = 1;
 		    set_variable(V_PERSONAL_PRINT_CATEGORY, 
@@ -635,7 +637,7 @@ print_select_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 		retval = 1;
 	    }
 	    else if(!strcmp((*cl)->value,wname)){
-		rc = set_variable(V_PRINTER, wname, 1, 1, ew);
+		rc = set_variable(V_PRINTER, wname, 1, 0, ew);
 		if(rc == 0){
 		    ps->printer_category = 1;
 		    set_variable(V_PERSONAL_PRINT_CATEGORY, 

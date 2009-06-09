@@ -1,8 +1,8 @@
 /*
- * $Id: foldertype.h 394 2007-01-25 20:29:45Z hubert@u.washington.edu $
+ * $Id: foldertype.h 583 2007-05-29 23:10:02Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,16 +50,17 @@ typedef struct folder {
     imapuid_t       uidnext;			/* only for #move folder      */
     char	   *nickname;			/* folder's short name        */
     unsigned long   unseen;			/* for monitoring unseen      */
-    unsigned long   recent;			/* for monitoring unseen      */
+    unsigned long   new;			/* for monitoring unseen      */
+    unsigned long   total;			/* for monitoring unseen      */
     time_t          last_unseen_update;		/* see LUU_ constants below   */
     char	    name[1];			/* folder's name              */
 } FOLDER_S;
 
 
 /* special values stored in last_unseen_update */
-#define LUU_INIT	((time_t) 0)
-#define LUU_NEVERCHK	((time_t) 1)
-#define LUU_NOMORECHK	((time_t) 2)
+#define LUU_INIT	((time_t) 0)	/* before first check is done */
+#define LUU_NEVERCHK	((time_t) 1)	/* don't check this folder */
+#define LUU_NOMORECHK	((time_t) 2)	/* check failed so stop checking */
 
 /* this value is eligible for checking */
 #define LUU_YES(luu)	(((luu) != LUU_NEVERCHK) && ((luu) != LUU_NOMORECHK))

@@ -1,8 +1,8 @@
 /*
- * $Id: keyword.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: keyword.h 600 2007-06-15 23:23:02Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,8 +36,7 @@ char       *nick_to_keyword(char *);
 char       *keyword_to_nick(char *);
 int         user_flag_is_set(MAILSTREAM *, unsigned long, char *);
 int         user_flag_index(MAILSTREAM *, char *);
-void	    flag_string(MESSAGECACHE *, long, char *, size_t);
-void        set_keywords_in_msgid_msg(MAILSTREAM *, MESSAGECACHE *, MAILSTREAM *, char *, long);
+char	   *flag_string(MAILSTREAM *, long, long);
 long        get_msgno_by_msg_id(MAILSTREAM *, char *, MSGNO_S *);
 int         keyword_check(char *, char **);
 

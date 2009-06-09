@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: setup.c 529 2007-04-18 22:41:05Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: setup.c 607 2007-06-22 17:47:59Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -61,6 +61,7 @@ option_screen(struct pine *ps, int edit_exceptions)
     struct	    variable  *vtmp;
     CONF_S	   *ctmpa = NULL, *ctmpb, *first_line = NULL;
     FEATURE_S	   *feature;
+    PINERC_S       *prc = NULL;
     SAVED_CONFIG_S *vsave;
     OPT_SCREEN_S    screen;
     int             expose_hidden_config, add_hidden_vars_title = 0;
@@ -75,8 +76,6 @@ option_screen(struct pine *ps, int edit_exceptions)
     if(ps->restricted)
       readonly_warning = 1;
     else{
-	PINERC_S *prc = NULL;
-
 	switch(ew){
 	  case Main:
 	    prc = ps->prc;
@@ -108,7 +107,7 @@ option_screen(struct pine *ps, int edit_exceptions)
 	if(exclude_config_var(ps, vtmp, expose_hidden_config))
 	  continue;
 
-	if((i = utf8_width(vtmp->name)) > ln)
+	if((i = utf8_width(pretty_var_name(vtmp->name))) > ln)
 	  ln = i;
     }
 
@@ -164,7 +163,7 @@ option_screen(struct pine *ps, int edit_exceptions)
 	ctmpa->help	 = config_help(vtmp - ps->vars, 0);
 	ctmpa->tool	 = text_tool;
 
-	utf8_snprintf(tmp, sizeof(tmp), "%-*.100w =", ln, vtmp->name);
+	utf8_snprintf(tmp, sizeof(tmp), "%-*.100w =", ln, pretty_var_name(vtmp->name));
 	tmp[sizeof(tmp)-1] = '\0';
 	ctmpa->varname  = cpystr(tmp);
 	ctmpa->varnamep = ctmpb = ctmpa;
@@ -339,6 +338,7 @@ option_screen(struct pine *ps, int edit_exceptions)
 	       || vtmp == &ps->vars[V_SSHOPENTIMEO]
 	       || vtmp == &ps->vars[V_INCCHECKTIMEO]
 	       || vtmp == &ps->vars[V_INCCHECKINTERVAL]
+	       || vtmp == &ps->vars[V_INC2NDCHECKINTERVAL]
 	       || vtmp == &ps->vars[V_USERINPUTTIMEO]
 	       || vtmp == &ps->vars[V_REMOTE_ABOOK_VALIDITY]
 	       || vtmp == &ps->vars[V_REMOTE_ABOOK_HISTORY])
@@ -427,6 +427,9 @@ option_screen(struct pine *ps, int edit_exceptions)
     
       case 10:
 	revert_to_saved_config(ps, vsave, expose_hidden_config);
+	if(prc)
+	  prc->outstanding_pinerc_changes = 0;
+
 	break;
       
       default:
@@ -657,6 +660,7 @@ incoming_monitoring_list_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned in
     CONF_S     *ctmp;
     char      **newval = NULL;
     char     ***alval;
+    OPT_SCREEN_S *saved_screen;
 
     if(cmd != MC_EXIT && fixed_var((*cl)->var, NULL, NULL))
       return(rv);
@@ -666,9 +670,11 @@ incoming_monitoring_list_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned in
       case MC_EDIT:
 	cntxt = ps->context_list;
 	if(!(cntxt && cntxt->use & CNTXT_INCMNG)){
-	    q_status_message1(SM_ORDER, 3, 3, _("Turn on incoming folders with Config feature \"%s\""), feature_list_name(F_ENABLE_INCOMING));
+	    q_status_message1(SM_ORDER, 3, 3, _("Turn on incoming folders with Config feature \"%s\""), pretty_feature_name(feature_list_name(F_ENABLE_INCOMING)));
 	    return(rv);
 	}
+
+	saved_screen = opt_screen;
 
 	the_list = adjust_list_of_monitored_incoming(cntxt, ew, V_INCCHECKLIST);
 
@@ -695,6 +701,7 @@ incoming_monitoring_list_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned in
 	      q_status_message(SM_ORDER, 0, 3, _("Using default, monitor all incoming folders"));
 	}
 
+	opt_screen = saved_screen;
 	ps->mangled_screen = 1;
         break;
 
@@ -798,7 +805,7 @@ adjust_list_of_monitored_incoming(CONTEXT_S *cntxt, EditWhich which, int varnum)
     }
 
     if(!listhead){
-	q_status_message1(SM_ORDER, 3, 3, _("Turn on incoming folders with Config feature \"%s\""), feature_list_name(F_ENABLE_INCOMING));
+	q_status_message1(SM_ORDER, 3, 3, _("Turn on incoming folders with Config feature \"%s\""), pretty_feature_name(feature_list_name(F_ENABLE_INCOMING)));
 	return(the_list);
     }
 
@@ -911,3 +918,80 @@ stayopen_list_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
     return(rv);
 }
 
+
+/*
+ * pretty_var_name - return a pleasantly displayable form
+ *                   of variable name variable
+ */
+char *
+pretty_var_name(char *varname)
+{
+    struct variable *v;
+    int		i, upper = 1;
+    static char vbuf[100];
+
+    vbuf[0] = '\0';
+    v = var_from_name(varname);
+
+    if(!v)
+      return(vbuf);
+
+    if(v->dname && v->dname[0])
+      return(v->dname);
+
+    if(!(v->name && v->name[0]))
+      return(vbuf);
+
+    /* default: uppercase first letters, dashes to spaces */
+    for(i = 0; i < sizeof(vbuf)-1 && v->name[i]; i++)
+      if(upper){
+	  vbuf[i] = (islower((unsigned char) v->name[i]))
+		     ? toupper((unsigned char) v->name[i])
+		    : v->name[i];
+	  upper = 0;
+      }
+      else if(v->name[i] == '-'){
+	  vbuf[i] = SPACE;
+	  upper++;
+      }
+      else
+	vbuf[i] = v->name[i];
+
+    vbuf[i] = '\0';
+    return(vbuf);
+}
+
+
+/*
+ * pretty_feature_name - return a pleasantly displayable form
+ *                       of feature name variable
+ */
+char *
+pretty_feature_name(char *feat)
+{
+    FEATURE_S  *f;
+    int		i, upper = 1;
+    static char fbuf[100];
+
+    f = feature_list(feature_list_index(feature_list_id(feat)));
+    if(f && f->dname && f->dname[0])
+      return(f->dname);
+
+    /* default: uppercase first letters, dashes become spaces */
+    for(i = 0; i < sizeof(fbuf)-1 && feat[i]; i++)
+      if(upper){
+	  fbuf[i] = (islower((unsigned char) feat[i]))
+		     ? toupper((unsigned char) feat[i])
+		    : feat[i];
+	  upper = 0;
+      }
+      else if(feat[i] == '-'){
+	  fbuf[i] = SPACE;
+	  upper++;
+      }
+      else
+	fbuf[i] = feat[i];
+
+    fbuf[i] = '\0';
+    return(fbuf);
+}

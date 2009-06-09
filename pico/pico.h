@@ -1,5 +1,5 @@
 /*
- * $Id: pico.h 537 2007-04-24 23:27:18Z hubert@u.washington.edu $
+ * $Id: pico.h 618 2007-06-28 21:23:25Z jpf@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -161,6 +161,7 @@ typedef struct pico_colors {
     COLOR_PAIR *klcp;                   /* key label color pair */
     COLOR_PAIR *kncp;                   /* key name color pair  */
     COLOR_PAIR *stcp;                   /* status color pair    */
+    COLOR_PAIR *prcp;                   /* prompt color pair    */
 } PCOLORS;
 
 /*
@@ -374,7 +375,7 @@ typedef struct  KBSTREE {
  */
 #ifdef	maindef
 PICO	*Pmaster = NULL;		/* composer specific stuff */
-char	*version = "4.95";		/* PICO version number */
+char	*version = "4.96";		/* PICO version number */
 
 #else
 extern	PICO *Pmaster;			/* composer specific stuff */

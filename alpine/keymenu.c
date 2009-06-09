@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: keymenu.c 529 2007-04-18 22:41:05Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: keymenu.c 597 2007-06-12 00:02:51Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -127,8 +127,8 @@ struct key abook_select_keys[] =
 	{"N", N_("Next"), {MC_NEXTITEM, 2, {'n', TAB}}, KS_NONE},
 	PREVPAGE_MENU,
 	NEXTPAGE_MENU,
-	NULL_MENU,
-	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU,
 	NULL_MENU,
 	WHEREIS_MENU};
 INST_KEY_MENU(abook_select_km, abook_select_keys);
@@ -211,8 +211,8 @@ struct key ldap_view_keys[] =
 	NULL_MENU,
 	NULL_MENU,
 	NULL_MENU,
-	NULL_MENU,
-	NULL_MENU};
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(ldap_view_keymenu, ldap_view_keys);
 
 
@@ -242,8 +242,8 @@ struct key context_mgr_keys[] =
 	COMPOSE_MENU,
 	PRYNTTXT_MENU,
 	RCOMPOSE_MENU,
-	NULL_MENU,
-	NULL_MENU};
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(c_mgr_km, context_mgr_keys);
 
 
@@ -273,8 +273,8 @@ struct key context_cfg_keys[] =
 	NULL_MENU,
 	PRYNTTXT_MENU,
 	NULL_MENU,
-	NULL_MENU,
-	NULL_MENU};
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(c_cfg_km, context_cfg_keys);
 
 
@@ -289,8 +289,8 @@ struct key context_select_keys[] =
 	NEXTC_MENU,
 	PREVPAGE_MENU,
 	NEXTPAGE_MENU,
-	NULL_MENU,
-	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU,
 	NULL_MENU,
 	WHEREIS_MENU};
 INST_KEY_MENU(c_sel_km, context_select_keys);
@@ -306,8 +306,8 @@ struct key context_fcc_keys[] =
 	NEXTC_MENU,
 	PREVPAGE_MENU,
 	NEXTPAGE_MENU,
-	NULL_MENU,
-	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU,
 	NULL_MENU,
 	WHEREIS_MENU};
 INST_KEY_MENU(c_fcc_km, context_fcc_keys);
@@ -356,8 +356,8 @@ struct key folder_keys[] =
 	/* TRANSLATORS: Import refers to bringing something in from
 	   outside of alpine's normal world */
 	{"U", N_("Import"), {MC_IMPORT,1,{'u'}},KS_NONE},
-	NULL_MENU,
-	NULL_MENU};
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(folder_km, folder_keys);
 
 
@@ -373,7 +373,20 @@ struct key folder_sel_keys[] =
 	{"S", N_("Select"), {MC_OPENFLDR,1,{'s'}}, KS_NONE},
 	NULL_MENU,
 	NULL_MENU,
-	WHEREIS_MENU};
+	WHEREIS_MENU,
+
+	HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(folder_sel_km, folder_sel_keys);
 
 
@@ -389,7 +402,20 @@ struct key folder_sela_keys[] =
 	{"S", N_("Select"), {MC_OPENFLDR,1,{'s'}}, KS_NONE},
 	NULL_MENU,
 	{"A", N_("AddNew"), {MC_ADD,1,{'a'}}, KS_NONE},
-	WHEREIS_MENU};
+	WHEREIS_MENU,
+
+	HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(folder_sela_km, folder_sela_keys);
 
 
@@ -410,7 +436,20 @@ struct key folder_sub_keys[] =
 	{"L", N_("List Mode"), {MC_LISTMODE, 1, {'l'}}, KS_NONE},
 	NULL_MENU,
 	NULL_MENU,
-	WHEREIS_MENU};
+	WHEREIS_MENU,
+
+	HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(folder_sub_km, folder_sub_keys);
 
 
@@ -423,8 +462,8 @@ struct key folder_post_keys[] =
 	NEXTF_MENU,
 	PREVPAGE_MENU,
 	NEXTPAGE_MENU,
-	NULL_MENU,
-	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU,
 	NULL_MENU,
 	WHEREIS_MENU};
 INST_KEY_MENU(folder_post_km, folder_post_keys);
@@ -442,13 +481,26 @@ struct key help_keys[] =
 	PRYNTMSG_MENU,
 	{"Z",N_("Print All"),{MC_PRINTALL,1,{'z'}},KS_NONE},
 	NULL_MENU,
-	WHEREIS_MENU};
+	WHEREIS_MENU,
+
+	HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(help_keymenu, help_keys);
 
 
 struct key rev_msg_keys[] =
        {HELP_MENU,
-	NULL_MENU,
+	OTHER_MENU,
 	{"E",N_("Exit Viewer"),{MC_EXIT,1,{'e'}},KS_EXITMODE},
 	NULL_MENU,
 	{"T",NULL,{MC_TOGGLE,1,{'t'}},KS_NONE},
@@ -458,7 +510,20 @@ struct key rev_msg_keys[] =
 	PRYNTTXT_MENU,
 	WHEREIS_MENU,
 	FWDEMAIL_MENU,
-	{"S", N_("Save"), {MC_SAVETEXT,1,{'s'}}, KS_SAVE}};
+	{"S", N_("Save"), {MC_SAVETEXT,1,{'s'}}, KS_SAVE},
+
+	HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(rev_msg_keymenu, rev_msg_keys);
 
 
@@ -527,8 +592,8 @@ struct key listmgr_keys[] =
 	NEXTPAGE_MENU,
 	PRYNTTXT_MENU,
 	WHEREIS_MENU,
-	NULL_MENU,
-	NULL_MENU};
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(listmgr_keymenu, listmgr_keys);
 
 
@@ -814,7 +879,7 @@ INST_KEY_MENU(view_keymenu, view_keys);
 
 struct key simple_text_keys[] =
        {HELP_MENU,
-	NULL_MENU,
+	OTHER_MENU,
 	{"E",N_("Exit Viewer"),{MC_EXIT,1,{'e'}},KS_EXITMODE},
 	NULL_MENU,
 	NULL_MENU,
@@ -824,7 +889,20 @@ struct key simple_text_keys[] =
 	PRYNTTXT_MENU,
 	WHEREIS_MENU,
 	FWDEMAIL_MENU,
-	{"S", N_("Save"), {MC_SAVETEXT,1,{'s'}}, KS_SAVE}};
+	{"S", N_("Save"), {MC_SAVETEXT,1,{'s'}}, KS_SAVE},
+
+	HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(simple_text_keymenu, simple_text_keys);
 
 
@@ -869,7 +947,6 @@ struct key choose_setup_keys[] =
 	/* TRANSLATORS: configure color */
 	{"K",N_("Kolor"),{MC_KOLOR,1,{'k'}},KS_NONE},
 
-
 	HELP_MENU,
 	OTHER_MENU,
 	NULL_MENU,
@@ -881,8 +958,8 @@ struct key choose_setup_keys[] =
 	NEXTPAGE_MENU,
 	NULL_MENU,
 	NULL_MENU,
-	NULL_MENU,
-	NULL_MENU};
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(choose_setup_keymenu, choose_setup_keys);
 
 
@@ -924,7 +1001,7 @@ INST_KEY_MENU(main_keymenu, main_keys);
 
 struct key simple_file_keys[] =
        {HELP_MENU,
-	NULL_MENU,
+	OTHER_MENU,
 	{"Q",N_("Quit Viewer"),{MC_EXIT,1,{'q'}},KS_NONE},
 	NULL_MENU,
 	NULL_MENU,
@@ -934,13 +1011,26 @@ struct key simple_file_keys[] =
 	PRYNTTXT_MENU,
 	WHEREIS_MENU,
 	FWDEMAIL_MENU,
-	{"S", N_("Save"), {MC_SAVETEXT,1,{'s'}}, KS_SAVE}};
+	{"S", N_("Save"), {MC_SAVETEXT,1,{'s'}}, KS_SAVE},
+
+	HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(simple_file_keymenu, simple_file_keys);
 
 
 struct key nuov_keys[] =
        {HELP_MENU,
-	NULL_MENU,
+	OTHER_MENU,
 	{"E",NULL,{MC_EXIT,1,{'e',ctrl('M'),ctrl('J')}},KS_NONE},
 	/* TRANSLATORS: Alpine asks the user to be counted when they
 	   first start using alpine. */
@@ -953,7 +1043,20 @@ struct key nuov_keys[] =
 	NULL_MENU,
 	/* TRANSLATORS: show release notes */
 	{"R",N_("RelNotes"),{MC_RELNOTES,1,{'r'}},KS_NONE},
-	NULL_MENU};
+	NULL_MENU,
+
+	HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(nuov_keymenu, nuov_keys);
 
 
@@ -968,8 +1071,8 @@ struct key modal_message_keys[] =
 	NEXTPAGE_MENU,
 	NULL_MENU,
 	NULL_MENU,
-	NULL_MENU,
-	NULL_MENU};
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(modal_message_keymenu, modal_message_keys);
 
 
@@ -1028,7 +1131,7 @@ INST_KEY_MENU(pipe_cancel_keymenu, pipe_cancel_keys);
 
 struct key color_pattern_keys[] = 
        {HELP_MENU,
-	NULL_MENU,
+	OTHER_MENU,
 	EXIT_SETUP_MENU,
 	/* TRANSLATORS: Change Value */
 	{"C", "[" N_("Change Val") "]", {MC_EDIT,3,{'c',ctrl('M'),ctrl('J')}}, KS_NONE},
@@ -1040,7 +1143,20 @@ struct key color_pattern_keys[] =
 	/* TRANSLATORS: Delete Value */
 	{"D", N_("Delete Val"), {MC_DELETE,1,{'d'}}, KS_NONE},
 	PRYNTTXT_MENU,
-	WHEREIS_MENU};
+	WHEREIS_MENU,
+
+	HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(color_pattern_keymenu, color_pattern_keys);
 
 
@@ -1053,8 +1169,8 @@ struct key hdr_color_checkbox_keys[] =
 	NEXT_MENU,
 	PREVPAGE_MENU,
 	NEXTPAGE_MENU,
-	NULL_MENU,
-	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU,
 	PRYNTTXT_MENU,
 	WHEREIS_MENU};
 INST_KEY_MENU(hdr_color_checkbox_keymenu, hdr_color_checkbox_keys);
@@ -1069,8 +1185,8 @@ struct key kw_color_checkbox_keys[] =
 	NEXT_MENU,
 	PREVPAGE_MENU,
 	NEXTPAGE_MENU,
-	NULL_MENU,
-	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU,
 	PRYNTTXT_MENU,
 	WHEREIS_MENU};
 INST_KEY_MENU(kw_color_checkbox_keymenu, kw_color_checkbox_keys);
@@ -1085,8 +1201,8 @@ struct key selectable_bold_checkbox_keys[] =
 	NEXT_MENU,
 	PREVPAGE_MENU,
 	NEXTPAGE_MENU,
-	NULL_MENU,
-	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU,
 	PRYNTTXT_MENU,
 	WHEREIS_MENU};
 INST_KEY_MENU(selectable_bold_checkbox_keymenu, selectable_bold_checkbox_keys);
@@ -1102,8 +1218,8 @@ struct key flag_keys[] =
 	NEXT_MENU,
 	PREVPAGE_MENU,
 	NEXTPAGE_MENU,
-	NULL_MENU,
-	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU,
 	PRYNTTXT_MENU,
 	WHEREIS_MENU};
 INST_KEY_MENU(flag_keymenu, flag_keys);
@@ -1118,8 +1234,8 @@ struct key addr_select_keys[] =
 	NEXT_MENU,
 	PREVPAGE_MENU,
 	NEXTPAGE_MENU,
-	NULL_MENU,
-	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU,
 	NULL_MENU,
 	WHEREIS_MENU};
 INST_KEY_MENU(addr_s_km, addr_select_keys);
@@ -1135,8 +1251,8 @@ struct key addr_select_with_goback_keys[] =
 	NEXT_MENU,
 	PREVPAGE_MENU,
 	NEXTPAGE_MENU,
-	NULL_MENU,
-	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU,
         {"E", N_("ExitSelect"), {MC_EXIT,1,{'e'}}, KS_EXITMODE},
 	WHEREIS_MENU};
 INST_KEY_MENU(addr_s_km_with_goback, addr_select_with_goback_keys);
@@ -1155,7 +1271,20 @@ static struct key addr_select_with_view_keys[] =
         {"C", N_("ComposeTo"), {MC_COMPOSE,1,{'c'}}, KS_COMPOSER},
 	FWDEMAIL_MENU,
 	SAVE_MENU,
-	WHEREIS_MENU};
+	WHEREIS_MENU,
+
+	HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(addr_s_km_with_view, addr_select_with_view_keys);
 
 
@@ -1172,7 +1301,20 @@ struct key addr_select_for_url_keys[] =
         {"C", N_("ComposeTo"), {MC_COMPOSE,1,{'c'}}, KS_COMPOSER},
 	FWDEMAIL_MENU,
 	SAVE_MENU,
-	WHEREIS_MENU};
+	WHEREIS_MENU,
+
+	HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(addr_s_km_for_url, addr_select_for_url_keys);
 
 
@@ -1212,7 +1354,7 @@ INST_KEY_MENU(addr_s_km_goback, addr_select_goback_keys);
 
 struct key config_text_keys[] = 
        {HELP_MENU,
-	NULL_MENU,
+	OTHER_MENU,
 	EXIT_SETUP_MENU,
 	{"C", "[" N_("Change Val") "]", {MC_EDIT,3,{'c',ctrl('M'),ctrl('J')}}, KS_NONE},
 	PREV_MENU,
@@ -1222,7 +1364,20 @@ struct key config_text_keys[] =
 	{"A", N_("Add Value"), {MC_ADD,1,{'a'}}, KS_NONE},
 	{"D", N_("Delete Val"), {MC_DELETE,1,{'d'}}, KS_NONE},
 	PRYNTTXT_MENU,
-	WHEREIS_MENU};
+	WHEREIS_MENU,
+
+	HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(config_text_keymenu, config_text_keys);
 
 
@@ -1241,7 +1396,20 @@ struct key direct_config_keys[] =
 	/* TRANSLATORS: delete a directory */
 	{"D", N_("Del Dir"), {MC_DELETE,1,{'d'}}, KS_NONE},
 	{"$", N_("Shuffle"), {MC_SHUFFLE,1,{'$'}}, KS_NONE},
-	WHEREIS_MENU};
+	WHEREIS_MENU,
+
+	HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(dir_conf_km, direct_config_keys);
 
 
@@ -1254,8 +1422,8 @@ struct key sel_from_list_keys[] =
 	{"N", N_("Next"), {MC_NEXTITEM, 2, {'n', TAB}}, KS_NONE},
 	PREVPAGE_MENU,
 	NEXTPAGE_MENU,
-	NULL_MENU,
-	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU,
 	PRYNTTXT_MENU,
 	WHEREIS_MENU};
 INST_KEY_MENU(sel_from_list, sel_from_list_keys);
@@ -1263,7 +1431,7 @@ INST_KEY_MENU(sel_from_list, sel_from_list_keys);
 
 struct key sel_from_list_keys_sm[] = 
        {HELP_MENU,
-	NULL_MENU,
+	OTHER_MENU,
         {"E", N_("Exit"),     {MC_EXIT,1,{'e'}}, KS_EXITMODE},
         {"S", "[" N_("Select") "]", {MC_SELECT,3,{'s',ctrl('J'),ctrl('M')}}, KS_NONE},
 	{"P", N_("Prev"), {MC_PREVITEM, 1, {'p'}}, KS_NONE},
@@ -1273,13 +1441,26 @@ struct key sel_from_list_keys_sm[] =
 	NULL_MENU,
 	{"L",N_("ListMode"),{MC_LISTMODE,1,{'l'}},KS_NONE},
 	PRYNTTXT_MENU,
-	WHEREIS_MENU};
+	WHEREIS_MENU,
+
+	HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(sel_from_list_sm, sel_from_list_keys_sm);
 
 
 struct key sel_from_list_keys_lm[] = 
        {HELP_MENU,
-	NULL_MENU,
+	OTHER_MENU,
         {"E", N_("Exit"),     {MC_EXIT,1,{'e'}}, KS_EXITMODE},
         {"S", N_("Select"), {MC_SELECT,1,{'s'}}, KS_NONE},
 	{"P", N_("Prev"), {MC_PREVITEM, 1, {'p'}}, KS_NONE},
@@ -1289,13 +1470,26 @@ struct key sel_from_list_keys_lm[] =
 	{"X","[" N_("Set/Unset") "]", {MC_TOGGLE,3,{'x',ctrl('M'),ctrl('J')}}, KS_NONE},
 	{"1",N_("SinglMode"),{MC_LISTMODE,1,{'1'}},KS_NONE},
 	PRYNTTXT_MENU,
-	WHEREIS_MENU};
+	WHEREIS_MENU,
+
+	HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(sel_from_list_lm, sel_from_list_keys_lm);
 
 
 struct key sel_from_list_keys_olm[] = 
        {HELP_MENU,
-	NULL_MENU,
+	OTHER_MENU,
         {"E", N_("Exit"),     {MC_EXIT,1,{'e'}}, KS_EXITMODE},
         {"S", N_("Select"), {MC_SELECT,1,{'s'}}, KS_NONE},
 	{"P", N_("Prev"), {MC_PREVITEM, 1, {'p'}}, KS_NONE},
@@ -1305,7 +1499,20 @@ struct key sel_from_list_keys_olm[] =
 	{"X","[" N_("Set/Unset") "]", {MC_TOGGLE,3,{'x',ctrl('M'),ctrl('J')}}, KS_NONE},
 	NULL_MENU,
 	PRYNTTXT_MENU,
-	WHEREIS_MENU};
+	WHEREIS_MENU,
+
+	HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(sel_from_list_olm, sel_from_list_keys_olm);
 
 
@@ -1325,7 +1532,20 @@ struct key printer_edit_keys[] =
 	/* TRANSLATORS: delete a printer from configuration */
 	{"D", N_("DeletePrint"), {MC_DELETE,1,{'d'}}, KS_NONE},
 	{"C", N_("Change"), {MC_EDIT,1,{'c'}}, KS_NONE},
-	WHEREIS_MENU};
+	WHEREIS_MENU,
+
+	HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(printer_edit_keymenu, printer_edit_keys);
 
 
@@ -1338,8 +1558,8 @@ struct key printer_select_keys[] =
 	NEXT_MENU,
 	PREVPAGE_MENU,
 	NEXTPAGE_MENU,
-	NULL_MENU,
-	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU,
 	NULL_MENU,
 	WHEREIS_MENU};
 INST_KEY_MENU(printer_select_keymenu, printer_select_keys);
@@ -1357,8 +1577,8 @@ struct key role_select_keys[] =
 	{"N", N_("NextRole"), {MC_NEXTITEM, 2, {'n', TAB}}, KS_NONE},
 	PREVPAGE_MENU,
 	NEXTPAGE_MENU,
-	NULL_MENU,
-	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU,
 	NULL_MENU,
 	WHEREIS_MENU};
 INST_KEY_MENU(role_select_km, role_select_keys);
@@ -1390,8 +1610,8 @@ struct key role_config_keys[] =
         NULL_MENU,
 	{"R", N_("Replicate"), {MC_COPY,1,{'r'}}, KS_NONE},
         NULL_MENU,
-        NULL_MENU,
-	NULL_MENU};
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(role_conf_km, role_config_keys);
 
 
@@ -1419,8 +1639,8 @@ struct key config_text_wshuf_keys[] =
 	NULL_MENU,
 	NULL_MENU,
 	NULL_MENU,
-	NULL_MENU,
-	NULL_MENU};
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(config_text_wshuf_keymenu, config_text_wshuf_keys);
 
 
@@ -1448,8 +1668,8 @@ struct key config_text_wshufandfldr_keys[] =
 	NULL_MENU,
 	NULL_MENU,
 	NULL_MENU,
-	NULL_MENU,
-	NULL_MENU};
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(config_text_wshufandfldr_keymenu, config_text_wshufandfldr_keys);
 
 
@@ -1479,8 +1699,8 @@ struct key config_role_file_keys[] =
 	NULL_MENU,
 	NULL_MENU,
 	NULL_MENU,
-	NULL_MENU,
-	NULL_MENU};
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(config_role_file_keymenu, config_role_file_keys);
 
 
@@ -1508,8 +1728,8 @@ struct key config_role_file_res_keys[] =
 	NULL_MENU,
 	NULL_MENU,
 	NULL_MENU,
-	NULL_MENU,
-	NULL_MENU};
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(config_role_file_res_keymenu, config_role_file_res_keys);
 
 
@@ -1538,8 +1758,8 @@ struct key config_role_keyword_keys[] =
 	NULL_MENU,
 	NULL_MENU,
 	NULL_MENU,
-	NULL_MENU,
-	NULL_MENU};
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(config_role_keyword_keymenu, config_role_keyword_keys);
 
 
@@ -1568,8 +1788,8 @@ struct key config_role_keyword_keys_not[] =
 	NULL_MENU,
 	NULL_MENU,
 	NULL_MENU,
-	NULL_MENU,
-	NULL_MENU};
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(config_role_keyword_keymenu_not, config_role_keyword_keys_not);
 
 
@@ -1598,14 +1818,14 @@ struct key config_role_charset_keys_not[] =
 	NULL_MENU,
 	NULL_MENU,
 	NULL_MENU,
-	NULL_MENU,
-	NULL_MENU};
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(config_role_charset_keymenu_not, config_role_charset_keys_not);
 
 
 struct key config_role_keys[] = 
        {HELP_MENU,
-	NULL_MENU,
+	OTHER_MENU,
 	EXIT_SETUP_MENU,
 	{"C", "[" N_("Change Val") "]", {MC_EDIT,3,{'c',ctrl('M'),ctrl('J')}}, KS_NONE},
 	PREV_MENU,
@@ -1615,7 +1835,20 @@ struct key config_role_keys[] =
 	{"A", N_("Add Value"), {MC_ADD,1,{'a'}}, KS_NONE},
 	{"D", N_("Delete Val"), {MC_DELETE,1,{'d'}}, KS_NONE},
 	PRYNTTXT_MENU,
-	WHEREIS_MENU};
+	WHEREIS_MENU,
+
+	HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(config_role_keymenu, config_role_keys);
 
 
@@ -1644,8 +1877,8 @@ struct key config_role_keys_not[] =
 	NULL_MENU,
 	NULL_MENU,
 	NULL_MENU,
-	NULL_MENU,
-	NULL_MENU};
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(config_role_keymenu_not, config_role_keys_not);
 
 
@@ -1658,8 +1891,8 @@ struct key config_role_keys_extra[] =
 	NEXT_MENU,
 	PREVPAGE_MENU,
 	NEXTPAGE_MENU,
-	NULL_MENU,
-	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU,
 	PRYNTTXT_MENU,
 	WHEREIS_MENU};
 INST_KEY_MENU(config_role_keymenu_extra, config_role_keys_extra);
@@ -1690,8 +1923,8 @@ struct key config_role_addr_pat_keys[] =
 	NULL_MENU,
 	NULL_MENU,
 	NULL_MENU,
-	NULL_MENU,
-	NULL_MENU};
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(config_role_addr_pat_keymenu, config_role_addr_pat_keys);
 
 
@@ -1720,8 +1953,8 @@ struct key config_role_xtrahdr_keys[] =
 	/* TRANSLATORS: remove a header we previously added */
 	{"R", N_("RemoveHdr"), {MC_DELHDR, 1, {'r'}}, KS_NONE},
 	NULL_MENU,
-	NULL_MENU,
-	NULL_MENU};
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(config_role_xtrahdr_keymenu, config_role_xtrahdr_keys);
 
 
@@ -1749,8 +1982,8 @@ struct key config_role_addr_act_keys[] =
 	NULL_MENU,
 	NULL_MENU,
 	NULL_MENU,
-	NULL_MENU,
-	NULL_MENU};
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(config_role_addr_act_keymenu, config_role_addr_act_keys);
 
 
@@ -1779,8 +2012,8 @@ struct key config_role_patfolder_keys[] =
 	NULL_MENU,
 	NULL_MENU,
 	NULL_MENU,
-	NULL_MENU,
-	NULL_MENU};
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(config_role_patfolder_keymenu, config_role_patfolder_keys);
 
 
@@ -1808,8 +2041,8 @@ struct key config_role_actionfolder_keys[] =
 	NULL_MENU,
 	NULL_MENU,
 	NULL_MENU,
-	NULL_MENU,
-	NULL_MENU};
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(config_role_actionfolder_keymenu, config_role_actionfolder_keys);
 
 
@@ -1838,8 +2071,8 @@ struct key config_role_inick_keys[] =
 	NULL_MENU,
 	NULL_MENU,
 	NULL_MENU,
-	NULL_MENU,
-	NULL_MENU};
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(config_role_inick_keymenu, config_role_inick_keys);
 
 
@@ -1868,8 +2101,8 @@ struct key config_role_afrom_keys[] =
 	NULL_MENU,
 	NULL_MENU,
 	NULL_MENU,
-	NULL_MENU,
-	NULL_MENU};
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(config_role_afrom_keymenu, config_role_afrom_keys);
 
 
@@ -1882,8 +2115,8 @@ struct key config_checkbox_keys[] =
 	NEXT_MENU,
 	PREVPAGE_MENU,
 	NEXTPAGE_MENU,
-	NULL_MENU,
-	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU,
 	PRYNTTXT_MENU,
 	WHEREIS_MENU};
 INST_KEY_MENU(config_checkbox_keymenu, config_checkbox_keys);
@@ -1898,8 +2131,8 @@ struct key config_radiobutton_keys[] =
 	NEXT_MENU,
 	PREVPAGE_MENU,
 	NEXTPAGE_MENU,
-	NULL_MENU,
-	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU,
 	PRYNTTXT_MENU,
 	WHEREIS_MENU};
 INST_KEY_MENU(config_radiobutton_keymenu, config_radiobutton_keys);
@@ -1914,8 +2147,8 @@ struct key config_yesno_keys[] =
 	NEXT_MENU,
 	PREVPAGE_MENU,
 	NEXTPAGE_MENU,
-	NULL_MENU,
-	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU,
 	PRYNTTXT_MENU,
 	WHEREIS_MENU};
 INST_KEY_MENU(config_yesno_keymenu, config_yesno_keys);
@@ -1930,8 +2163,8 @@ struct key color_changing_keys[] =
 	NEXT_MENU,
 	PREVPAGE_MENU,
 	NEXTPAGE_MENU,
-	NULL_MENU,
-	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU,
 	PRYNTTXT_MENU,
 	WHEREIS_MENU};
 INST_KEY_MENU(color_changing_keymenu, color_changing_keys);
@@ -1947,8 +2180,8 @@ struct key custom_color_changing_keys[] =
 	NEXT_MENU,
 	PREVPAGE_MENU,
 	NEXTPAGE_MENU,
-	NULL_MENU,
-	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU,
 	PRYNTTXT_MENU,
 	WHEREIS_MENU};
 INST_KEY_MENU(custom_color_changing_keymenu, custom_color_changing_keys);
@@ -1963,8 +2196,8 @@ struct key kw_color_changing_keys[] =
 	NEXT_MENU,
 	PREVPAGE_MENU,
 	NEXTPAGE_MENU,
-	NULL_MENU,
-	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU,
 	PRYNTTXT_MENU,
 	WHEREIS_MENU};
 INST_KEY_MENU(kw_color_changing_keymenu, kw_color_changing_keys);
@@ -1974,7 +2207,7 @@ INST_KEY_MENU(kw_color_changing_keymenu, kw_color_changing_keys);
 
 struct key color_rgb_changing_keys[] = 
        {HELP_MENU,
-	NULL_MENU,
+	OTHER_MENU,
 	{"E", N_("To Colors"), {MC_EXIT,1,{'e'}}, KS_EXITMODE},
 	{"*", "[" N_("Select") "]", {MC_CHOICE,3,{'*',ctrl('M'),ctrl('J')}}, KS_NONE},
 	PREV_MENU,
@@ -1984,13 +2217,26 @@ struct key color_rgb_changing_keys[] =
 	{"C", N_("Customize"), {MC_RGB1,1,{'c'}},KS_NONE},
 	NULL_MENU,
 	PRYNTTXT_MENU,
-	WHEREIS_MENU};
+	WHEREIS_MENU,
+
+	HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(color_rgb_keymenu, color_rgb_changing_keys);
 
 
 struct key custom_rgb_changing_keys[] = 
        {HELP_MENU,
-	NULL_MENU,
+	OTHER_MENU,
 	{"E", N_("To Colors"), {MC_EXIT,1,{'e'}}, KS_EXITMODE},
 	{"*", "[" N_("Select") "]", {MC_CHOICEB,3,{'*',ctrl('M'),ctrl('J')}}, KS_NONE},
 	PREV_MENU,
@@ -2000,13 +2246,26 @@ struct key custom_rgb_changing_keys[] =
 	{"C", N_("Customize"), {MC_RGB2,1,{'c'}},KS_NONE},
 	NULL_MENU,
 	PRYNTTXT_MENU,
-	WHEREIS_MENU};
+	WHEREIS_MENU,
+
+	HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(custom_rgb_keymenu, custom_rgb_changing_keys);
 
 
 struct key kw_rgb_changing_keys[] = 
        {HELP_MENU,
-	NULL_MENU,
+	OTHER_MENU,
 	{"E", N_("To Colors"), {MC_EXIT,1,{'e'}}, KS_EXITMODE},
 	{"*", "[" N_("Select") "]", {MC_CHOICEC,3,{'*',ctrl('M'),ctrl('J')}}, KS_NONE},
 	PREV_MENU,
@@ -2016,7 +2275,20 @@ struct key kw_rgb_changing_keys[] =
 	{"C", N_("Customize"), {MC_RGB3,1,{'c'}},KS_NONE},
 	NULL_MENU,
 	PRYNTTXT_MENU,
-	WHEREIS_MENU};
+	WHEREIS_MENU,
+
+	HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(kw_rgb_keymenu, kw_rgb_changing_keys);
 
 #endif
@@ -2024,7 +2296,7 @@ INST_KEY_MENU(kw_rgb_keymenu, kw_rgb_changing_keys);
 
 struct key color_setting_keys[] = 
        {HELP_MENU,
-	NULL_MENU,
+	OTHER_MENU,
 	EXIT_SETUP_MENU,
 	{"C", "[" N_("Change") "]", {MC_EDIT,3,{'c',ctrl('M'),ctrl('J')}}, KS_NONE},
 	PREV_MENU,
@@ -2035,7 +2307,20 @@ struct key color_setting_keys[] =
 	/* TRANSLATORS: restore defaults */
 	{"R", N_("RestoreDefs"), {MC_DEFAULT,1,{'r'}}, KS_NONE},
 	PRYNTTXT_MENU,
-	WHEREIS_MENU};
+	WHEREIS_MENU,
+
+	HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(color_setting_keymenu, color_setting_keys);
 
 
@@ -2064,8 +2349,8 @@ struct key custom_color_setting_keys[] =
 	NULL_MENU,
 	NULL_MENU,
 	NULL_MENU,
-	NULL_MENU,
-	NULL_MENU};
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(custom_color_setting_keymenu, custom_color_setting_keys);
 
 
@@ -2078,8 +2363,8 @@ struct key role_color_setting_keys[] =
 	NEXT_MENU,
 	PREVPAGE_MENU,
 	NEXTPAGE_MENU,
-	NULL_MENU,
-	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU,
 	PRYNTTXT_MENU,
 	WHEREIS_MENU};
 INST_KEY_MENU(role_color_setting_keymenu, role_color_setting_keys);
@@ -2087,7 +2372,7 @@ INST_KEY_MENU(role_color_setting_keymenu, role_color_setting_keys);
 
 struct key kw_color_setting_keys[] = 
        {HELP_MENU,
-	NULL_MENU,
+	OTHER_MENU,
 	EXIT_SETUP_MENU,
 	{"C", "[" N_("Change") "]", {MC_EDIT,3,{'c',ctrl('M'),ctrl('J')}}, KS_NONE},
 	PREV_MENU,
@@ -2097,7 +2382,20 @@ struct key kw_color_setting_keys[] =
 	{"A", N_("AddHeader"), {MC_ADD,1,{'a'}}, KS_NONE},
 	{"R", N_("RestoreDefs"), {MC_DEFAULT,1,{'r'}}, KS_NONE},
 	PRYNTTXT_MENU,
-	WHEREIS_MENU};
+	WHEREIS_MENU,
+
+	HELP_MENU,
+	OTHER_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
 INST_KEY_MENU(kw_color_setting_keymenu, kw_color_setting_keys);
 
 
@@ -2495,7 +2793,6 @@ output_keymenu(struct key_menu *km, unsigned char *bm, int row, int column)
 	    else if(!empty)
 	      /* fill in what register_key needs from cached data */
 	      snprintf(keystr, sizeof(keystr), "%s %s", last_time->name, last_time->label);
-	      keystr[sizeof(keystr)-1] = '\0';
 
 	    if(!empty){
 	      int len;
@@ -2509,16 +2806,20 @@ output_keymenu(struct key_menu *km, unsigned char *bm, int row, int column)
 		len--;
 		len--;
 
-	      register_key(j, (ufk) ? PF1 + fkey - 1
-				    : (k->name[0] == '^')
-					? ctrl(k->name[1])
-					: (!strucmp(k->name, "ret"))
-					    ? ctrl('M')
-					    : (!strucmp(k->name, "tab"))
-						? '\t'
-						: (!strucmp(k->name, "spc"))
-						    ? SPACE
-						    : k->name[0],
+	      register_key(j, ufk ? PF1 + fkey - 1
+				  : (k->name[0] == '^')
+				    ? ctrl(k->name[1])
+				    : (!strucmp(k->name, "ret"))
+				      ? ctrl('M')
+				      : (!strucmp(k->name, "tab"))
+					? '\t'
+					: (!strucmp(k->name, "spc"))
+					  ? SPACE
+					    : (!strucmp(k->name, HISTORY_UP_KEYNAME))
+					      ? KEY_UP
+					      : (!strucmp(k->name, HISTORY_DOWN_KEYNAME))
+						? KEY_DOWN
+						: k->name[0],
 			   keystr, print_inverted_label,
 			   real_row+i, k->column, len, 
 			   name_color, label_color);
@@ -3231,8 +3532,7 @@ menu_binding_index(struct key_menu *menu, int cmd)
  * print_inverted_label - highlight the label of the given menu item.
  * (callback from pico mouse routines)
  *
- * This stuff's a little strange because the row range is inclusive but
- * the column range excludes the right hand edge. So far, this is only
+ * So far, this is only
  * ever called with the top left row equal to the bottom right row.
  * If you change that you probably need to fix it.
  */
@@ -3359,7 +3659,7 @@ print_inverted_label(int state, MENUITEM *m)
         namepart[k] = '\0';
 
       /* collect label part */
-      for(k=0; j < m->br.c; j++){
+      for(k=0; j <= m->br.c; j++){
 	  c = (i == m->lbl.r &&
 	       j - m->lbl.c < len) ? label[j - m->lbl.c] : ' ';
 	  if(k < sizeof(labelpart))

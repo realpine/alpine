@@ -1,5 +1,5 @@
 /*
- * $Id: pattern.h 529 2007-04-18 22:41:05Z hubert@u.washington.edu $
+ * $Id: pattern.h 596 2007-06-09 00:20:47Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -170,6 +170,7 @@ typedef struct action_s {
     unsigned	 is_a_score:1;	/* this is a score setting action	*/
     unsigned	 is_a_filter:1;	/* this is a filter action		*/
     unsigned	 is_a_other:1;	/* this is a miscellaneous action	*/
+    unsigned	 is_a_srch:1;	/* this is for Select cmd, no action	*/
     unsigned	 bogus:1;	/* action contains unknown stuff	*/
     unsigned	 been_here_before:1;  /* inheritance loop prevention	*/
 	    /* --- These are for roles --- */
@@ -229,10 +230,11 @@ typedef struct action_s {
 #define ROLE_DO_SCORES	0x00040000	/* set score patterns		    */
 #define	ROLE_DO_FILTER	0x00080000	/* filter patterns		    */
 #define	ROLE_DO_OTHER	0x00100000	/* miscellaneous patterns	    */
-#define	ROLE_OLD_PAT	0x00200000	/* old patterns variable            */
-#define	ROLE_OLD_FILT	0x00400000	/* old patterns-filters variable    */
-#define	ROLE_OLD_SCORE	0x00800000	/* old patterns-scores variable     */
-#define ROLE_CHANGES	0x01000000	/* start editing with changes
+#define ROLE_DO_SRCH	0x00200000	/* index line color patterns	    */
+#define	ROLE_OLD_PAT	0x00400000	/* old patterns variable            */
+#define	ROLE_OLD_FILT	0x00800000	/* old patterns-filters variable    */
+#define	ROLE_OLD_SCORE	0x01000000	/* old patterns-scores variable     */
+#define ROLE_CHANGES	0x02000000	/* start editing with changes
 					   already registered */
 
 #define PAT_OPEN_MASK	0x0000000f

@@ -1,5 +1,5 @@
 /*
- * $Id: mailview.h 442 2007-02-16 23:01:28Z hubert@u.washington.edu $
+ * $Id: mailview.h 577 2007-05-22 22:16:43Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -129,7 +129,8 @@ char	   *display_parameters(PARAMETER *);
 char	   *pine_fetch_header(MAILSTREAM *, long, char *, char **, long);
 int         color_signature(long, char *, LT_INS_S **, void *);
 int	    scroll_handle_start_color(char *, size_t, int *);
-int	    scroll_handle_end_color(char *, size_t, int *);
+int	    scroll_handle_end_color(char *, size_t, int *, int);
+int         width_at_this_position(unsigned char *, unsigned long);
 
 /* currently mandatory to implement stubs */
 

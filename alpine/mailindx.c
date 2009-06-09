@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailindx.c 540 2007-04-25 17:58:55Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailindx.c 605 2007-06-20 21:15:13Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1842,8 +1842,16 @@ paint_index_line(ICE_S *argice, int line, long int msgno, IndexColType sfld,
 	}
 	else{
 	  inverse_hack++;
-	  if(uc)
-	    base_color = lastc;
+	  if(uc){
+	      COLOR_PAIR *rev;
+
+	      if(rev = pico_get_rev_color()){
+		  base_color = new_color_pair(rev->fg, rev->bg);
+		  (void)pico_set_colorp(base_color, PSC_NONE);
+	      }
+	      else
+		base_color = lastc;
+	  }
 	}
       }
       else if(uc && ice->linecolor && ice->linecolor->fg[0]
@@ -1956,12 +1964,12 @@ paint_index_line(ICE_S *argice, int line, long int msgno, IndexColType sfld,
 	   * switch if this is the ARROW field and this is not
 	   * the current message. ARROW field is only colored for
 	   * the current message.
-	   * And don't switch if current line and type eOpening.
+	   * And don't switch if current line and type eTypeCol.
 	   */
 	  if(ielem->color && pico_is_good_colorpair(ielem->color)
 	     && !(do_arrow && ifield->ctype == afld && !cur)
 	     && (!drew_X || ielem != ifield->ielem)
-	     && !(cur && ielem->type == eOpening)){
+	     && !(cur && ielem->type == eTypeCol)){
 	    need_inverse_hack = 0;
 	    (void) pico_set_colorp(ielem->color, PSC_NORM);
 	  }
@@ -2218,6 +2226,13 @@ condensed_thread_cue(PINETHRD_S *thd, ICE_S *ice, char **fieldstr, int width, in
     }
 
     return(width);
+}
+
+
+int
+truncate_subj_and_from_strings(void)
+{
+    return 1;
 }
 
 
@@ -2972,11 +2987,15 @@ index_search(struct pine *state, MAILSTREAM *stream, int command_line, MSGNO_S *
 	 */
 	if(items_in_hist(history) > 2){
 	    header_search_key[KU_IS].name  = HISTORY_UP_KEYNAME;
-	    header_search_key[KU_IS].label = HISTORY_UP_KEYLABEL;
+	    header_search_key[KU_IS].label = HISTORY_KEYLABEL;
+	    header_search_key[KU_IS+1].name  = HISTORY_DOWN_KEYNAME;
+	    header_search_key[KU_IS+1].label = HISTORY_KEYLABEL;
 	}
 	else{
 	    header_search_key[KU_IS].name  = "";
 	    header_search_key[KU_IS].label = "";
+	    header_search_key[KU_IS+1].name  = "";
+	    header_search_key[KU_IS+1].label = "";
 	}
 	
 	flags = OE_APPEND_CURRENT | OE_KEEP_TRAILING_SPACE;

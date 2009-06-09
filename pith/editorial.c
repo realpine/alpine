@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: editorial.c 527 2007-04-17 20:11:23Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: editorial.c 577 2007-05-22 22:16:43Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ static char rcsid[] = "$Id: editorial.c 527 2007-04-17 20:11:23Z hubert@u.washin
 #include "../pith/conf.h"
 #include "../pith/state.h"
 #include "../pith/margin.h"
-#include "../pith/filttype.h"
+#include "../pith/filter.h"
 #include "../pith/handle.h"
 #include "../pith/mailview.h"
 #include "../pith/editorial.h"
@@ -56,6 +56,7 @@ format_editorial(char *s, int width, int flags, HANDLE_S **handlesp, gf_io_t pc)
     gf_io_t	 gc;
     int		*margin;
     EDITORIAL_S  es;
+    URL_HILITE_S uh;
 
     /* ASSUMPTION #2,341: All MIME-decoding is done by now */
     gf_set_readc(&gc, s, strlen(s), CharStar, 0);
@@ -110,7 +111,9 @@ format_editorial(char *s, int width, int flags, HANDLE_S **handlesp, gf_io_t pc)
 	|| F_ON(F_VIEW_SEL_URL_HOST, ps_global)
 	|| F_ON(F_SCAN_ADDR, ps_global))
        && handlesp){
-	gf_link_filter(gf_line_test, gf_line_test_opt(url_hilite, handlesp));
+	gf_link_filter(gf_line_test,
+		       gf_line_test_opt(url_hilite,
+				        gf_url_hilite_opt(&uh,handlesp,0)));
     }
       
     gf_link_filter(gf_wrap, gf_wrap_filter_opt(width, width, NULL, 0,

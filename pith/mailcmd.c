@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcmd.c 550 2007-04-30 18:15:20Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailcmd.c 583 2007-05-29 23:10:02Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -33,6 +33,7 @@ static char rcsid[] = "$Id: mailcmd.c 550 2007-04-30 18:15:20Z hubert@u.washingt
 #include "../pith/ldap.h"
 #include "../pith/options.h"
 #include "../pith/busy.h"
+#include "../pith/charconv/utf8.h"
 
 
 /*
@@ -47,6 +48,8 @@ int	(*pith_opt_read_msg_prompt)(long, char *);
 int	(*pith_opt_reopen_folder)(struct pine *, int *);
 int	(*pith_opt_expunge_prompt)(MAILSTREAM *, char *, long);
 void	(*pith_opt_begin_closing)(int, char *);
+void	  get_new_message_count(MAILSTREAM *, int, unsigned long *, unsigned long *);
+char	 *new_messages_string(MAILSTREAM *);
 
 
 
@@ -62,7 +65,7 @@ int
 any_messages(MSGNO_S *map, char *type, char *cmd)
 {
     if(mn_get_total(map) <= 0L){
-	q_status_message5(SM_ORDER, 0, 2, "No %.200s%.200s%.200s%.200s%.200s",
+	q_status_message5(SM_ORDER, 0, 2, "No %s%s%s%s%s",
 			  type ? type : "",
 			  type ? " " : "",
 			  THRD_INDX() ? "threads" : "messages",
@@ -93,7 +96,7 @@ can_set_flag(struct pine *state, char *cmd, int permflag)
 	q_status_message2(SM_ORDER | (sp_dead_stream(state->mail_stream)
 				        ? SM_DING : 0),
 			  0, 3,
-			  "Can't %.200s message.  Folder is %.200s.", cmd,
+			  "Can't %s message.  Folder is %s.", cmd,
 			  (sp_dead_stream(state->mail_stream)) ? "closed" : "read-only");
 	return(FALSE);
     }
@@ -113,7 +116,7 @@ void
 cmd_cancelled(char *cmd)
 {
     /* TRANSLATORS: Arg is replaced with the command name or the word Command */
-    q_status_message1(SM_INFO, 0, 2, _("%.200s cancelled"), cmd ? cmd : _("Command"));
+    q_status_message1(SM_INFO, 0, 2, _("%s cancelled"), cmd ? cmd : _("Command"));
 }
 
 
@@ -253,7 +256,7 @@ cmd_undelete(struct pine *state, MSGNO_S *msgmap, int copts)
 	}
 	else
 	  q_status_message2(SM_ORDER, 0, 3,
-			    _("Deletion mark removed from %.200s message%.200s"),
+			    _("Deletion mark removed from %s message%s"),
 			    comatose(del_count), plural(del_count));
     }
 
@@ -386,7 +389,7 @@ do_broach_folder(char *newfolder, CONTEXT_S *new_context, MAILSTREAM **streamp,
     int         open_inbox, rv, old_tros, we_cancel = 0,
                 do_reopen = 0, n, was_dead = 0, cur_already_set = 0;
     char        expanded_file[MAX(MAXPATH,MAILTMPLEN)+1],
-	       *old_folder, *old_path, *p;
+	       *old_folder, *old_path, *p, *report;
     long        openmode, rflags = 0L, pc = 0L, cur, raw;
     ENVELOPE   *env = NULL;
     char        status_msg[81];
@@ -551,7 +554,7 @@ do_broach_folder(char *newfolder, CONTEXT_S *new_context, MAILSTREAM **streamp,
 		&& (folder_index(newfolder, new_context, FI_FOLDER) < 0)
 		&& !is_absolute_path(newfolder)){
 	    q_status_message1(SM_ORDER, 3, 4,
-			    _("Can't find Incoming Folder %.200s."), newfolder);
+			    _("Can't find Incoming Folder %s."), newfolder);
 	    if(stream)
 	      pine_mail_close(stream);
 
@@ -659,12 +662,17 @@ do_broach_folder(char *newfolder, CONTEXT_S *new_context, MAILSTREAM **streamp,
 	clear_index_cache(ps_global->mail_stream, 0);
         /* MUST sort before restoring msgno! */
 	refresh_sort(ps_global->mail_stream, ps_global->msgmap, SRT_NON);
-        q_status_message2(SM_ORDER, 0, 3,
+	report = new_messages_string(ps_global->mail_stream);
+	q_status_message3(SM_ORDER, 0, 3,
 			  (mn_get_total(ps_global->msgmap) > 1)
-			    ? _("Opened folder \"%s\" with %s messages")
-			    : _("Opened folder \"%s\" with %s message"),
+			    ? _("Opened folder \"%s\" with %s messages%s")
+			    : _("Opened folder \"%s\" with %s message%s"),
 			  ps_global->inbox_name, 
-                          long2string(mn_get_total(ps_global->msgmap)));
+                          long2string(mn_get_total(ps_global->msgmap)),
+			  report ? report : "");
+	if(report)
+	   fs_give((void **)&report);
+
 #ifdef	_WINDOWS
 	mswin_settitle(ps_global->inbox_name);
 #endif
@@ -768,6 +776,12 @@ do_broach_folder(char *newfolder, CONTEXT_S *new_context, MAILSTREAM **streamp,
 		     openmode | (open_inbox ? SP_INBOX : 0),
 		     &rflags);
 
+    /*
+     * We aren't in a situation where we want a single cancel to
+     * apply to multiple opens.
+     */
+    ps_global->user_says_cancel = 0;
+
     if(streamp)
       *streamp = m;
 
@@ -850,7 +864,7 @@ do_broach_folder(char *newfolder, CONTEXT_S *new_context, MAILSTREAM **streamp,
 		    }
 
                     q_status_message1(SM_ORDER, 0, 3,
-				      "Folder \"%.200s\" reopened", old_folder);
+				      "Folder \"%s\" reopened", old_folder);
                 }
             }
 
@@ -890,6 +904,8 @@ do_broach_folder(char *newfolder, CONTEXT_S *new_context, MAILSTREAM **streamp,
             fs_give((void **)&old_path);
         }
     }
+
+    update_folder_unseen_by_stream(m, UFU_FORCE);
 
     /*----- success in opening the new folder ----*/
     dprint((2, "Opened folder \"%s\" with %ld messages\n",
@@ -991,8 +1007,16 @@ do_broach_folder(char *newfolder, CONTEXT_S *new_context, MAILSTREAM **streamp,
     if(we_cancel && F_ON(F_QUELL_FILTER_MSGS, ps_global))
       cancel_busy_cue(0);
 
-    q_status_message6(SM_ORDER, 0, 4,
-		    "%.20s \"%.200s\" opened with %.20s message%.20s%.20s%.20s",
+    if(!(rflags & SP_MATCH) || !(rflags & SP_LOCKED))
+      reset_sort_order(SRT_VRB);
+    else if(sp_new_mail_count(ps_global->mail_stream) > 0L
+          || sp_unsorted_newmail(ps_global->mail_stream)
+          || sp_need_to_rethread(ps_global->mail_stream))
+      refresh_sort(ps_global->mail_stream, ps_global->msgmap, SRT_NON);
+
+    report = new_messages_string(ps_global->mail_stream);
+    q_status_message7(SM_ORDER, 0, 4,
+		    "%s \"%s\" opened with %s message%s%s%s%s",
 			IS_NEWS(ps_global->mail_stream)
 			  ? "News group" : "Folder",
 			open_inbox ? pretty_fn(newfolder) : newfolder,
@@ -1002,20 +1026,15 @@ do_broach_folder(char *newfolder, CONTEXT_S *new_context, MAILSTREAM **streamp,
 			 && sp_flagged(ps_global->mail_stream, SP_PERMLOCKED))
 			    ? " (StayOpen)" : "",
 			READONLY_FOLDER(ps_global->mail_stream)
-						? " READONLY" : "");
+						? " READONLY" : "",
+			report ? report : "");
+
+   if(report)
+     fs_give((void **)&report);
 
 #ifdef	_WINDOWS
     mswin_settitle(pretty_fn(newfolder));
 #endif
-
-    if(!(rflags & SP_MATCH) || !(rflags & SP_LOCKED))
-      reset_sort_order(SRT_VRB);
-    else if(sp_new_mail_count(ps_global->mail_stream) > 0L
-	    || sp_unsorted_newmail(ps_global->mail_stream)
-	    || sp_need_to_rethread(ps_global->mail_stream))
-      refresh_sort(ps_global->mail_stream, ps_global->msgmap, SRT_NON);
-
-
     /*
      * Set current message number when re-opening Stay-Open or
      * cached folders.
@@ -1880,6 +1899,78 @@ cross_delete_crossposts(MAILSTREAM *stream)
 
 	if(we_cancel)
 	  cancel_busy_cue(0);
+    }
+}
+
+
+/*
+ * Original version from Eduardo Chappa.
+ *
+ * Returns a string describing the number of new/unseen messages
+ * for use in the status line. Can return NULL. Caller must free the memory.
+ */
+char *
+new_messages_string(MAILSTREAM *stream)
+{
+    char message[80] = {'\0'};
+    unsigned long new = 0L, uns = 0L;
+    int i, imapstatus = 0;
+
+    for (i = 0; ps_global->index_disp_format[i].ctype != iNothing
+		&& ps_global->index_disp_format[i].ctype != iIStatus; i++)
+      ;
+
+    imapstatus = ps_global->index_disp_format[i].ctype == iIStatus;
+
+    get_new_message_count(stream, imapstatus, &new, &uns);
+
+    if(imapstatus && (new > 0L || uns > 0L))
+      snprintf(message, sizeof(message), " - %s%s%s%s%s%s%s",
+	       new > 0L ? comatose((long) new) : "",
+	       new > 0L ? " " : "",
+	       new > 0L ? _("new") : "",
+	       new > 0L && uns > 0L ? ", " : "",
+	       uns > 0L ? comatose((long) uns) : "",
+	       uns > 0L ? " " : "",
+	       uns > 0L ? _("unseen") : "");
+    else if(!imapstatus && new > 0L)
+      snprintf(message, sizeof(message), " - %s %s",
+	       comatose((long) new), _("new"));
+
+    return(*message ? cpystr(message) : NULL);
+}
+
+
+void
+get_new_message_count(MAILSTREAM *stream, int imapstatus,
+		      unsigned long *new, unsigned long *unseen)
+{
+    if(new)
+      *new = 0L;
+
+    if(unseen)
+      *unseen = 0L;
+
+    if(imapstatus){
+	if(new)
+	  *new = count_flagged(stream, F_RECENT | F_UNSEEN | F_UNDEL);
+
+	if(!IS_NEWS(stream)){
+	    if(unseen)
+	      *unseen = count_flagged(stream, F_UNSEEN | F_UNDEL);
+	}
+    }
+    else{
+	if(IS_NEWS(stream)){
+	    if(F_ON(F_FAKE_NEW_IN_NEWS, ps_global)){
+		if(new)
+		  *new = count_flagged(stream, F_RECENT | F_UNSEEN | F_UNDEL);
+	    }
+	}
+	else{
+	    if(new)
+	      *new = count_flagged(stream, F_UNSEEN | F_UNDEL | F_UNANS);
+	}
     }
 }
 

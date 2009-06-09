@@ -1,5 +1,5 @@
 /*
- * $Id: titlebar.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: titlebar.h 567 2007-05-14 21:14:56Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -19,6 +19,7 @@
 
 #include "../pith/context.h"
 #include "../pith/msgno.h"
+#include "../pith/osdep/color.h"
 
 
 typedef struct titlebarcontainer {
@@ -41,6 +42,7 @@ char	   *set_titlebar(char *, MAILSTREAM *, CONTEXT_S *, char *, MSGNO_S *, int,
 			 TitleBarType, long, long, COLOR_PAIR *);
 void	    redraw_titlebar(void);
 TITLE_S	   *format_titlebar(void);
+COLOR_PAIR *current_titlebar_color(void);
 void	    update_titlebar_message(void);
 void	    update_titlebar_percent(long);
 void	    update_titlebar_lpercent(long);

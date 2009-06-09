@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: color.c 548 2007-04-27 19:21:20Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: color.c 577 2007-05-22 22:16:43Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -322,14 +322,21 @@ char *
 color_to_asciirgb(char *colorName)
 {
     int		i;
-    static char c_to_a_buf[RGBLEN+1];
+    static char c_to_a_buf[3][RGBLEN+1];
+    static int  whichbuf = 0;
+
+    whichbuf = (whichbuf + 1) % 3;
 
     for(i = 0; i < sizeof(webcoltab) / sizeof(struct color_table); i++)
       if(!strucmp(webcoltab[i].name.s, colorName))
 	return(webcoltab[i].rgb);
 	  
     /*
-     * If we didn't find the color we're in a bit of trouble. This
+     * If we didn't find the color it could be that it is the
+     * normal color (MATCH_NORM_COLOR) or the none color
+     * (MATCH_NONE_COLOR). If that is the case, this strncpy thing
+     * will work out correctly because those two strings are
+     * RGBLEN long. Otherwise we're in a bit of trouble. This
      * most likely means that the user is using the same pinerc on
      * two terminals, one with more colors than the other. We didn't
      * find a match because this color isn't present on this terminal.
@@ -339,11 +346,11 @@ color_to_asciirgb(char *colorName)
      * but at least the embedded colors in filter.c will get properly
      * sucked up when they're encountered.
      */
-    strncpy(c_to_a_buf, "xxxxxxxxxxx", RGBLEN);  /* RGBLEN is 11 */
+    strncpy(c_to_a_buf[whichbuf], "xxxxxxxxxxx", RGBLEN);  /* RGBLEN is 11 */
     i = strlen(colorName);
-    strncpy(c_to_a_buf, colorName, (i < RGBLEN) ? i : RGBLEN);
-    c_to_a_buf[RGBLEN] = '\0';
-    return(c_to_a_buf);
+    strncpy(c_to_a_buf[whichbuf], colorName, (i < RGBLEN) ? i : RGBLEN);
+    c_to_a_buf[whichbuf][RGBLEN] = '\0';
+    return(c_to_a_buf[whichbuf]);
 }
 
 
@@ -392,7 +399,9 @@ alpine_color_name(char *s)
     if(s){
 	int i;
 
-	if(*s == ' ' || isdigit(*s)){
+	if(!struncmp(s, MATCH_NORM_COLOR, RGBLEN) || !struncmp(s, MATCH_NONE_COLOR, RGBLEN))
+	  return(s);
+	else if(*s == ' ' || isdigit(*s)){
 	    /* check for rgb string instead of name */
 	    for(i = 0; i < sizeof(webcoltab) / sizeof(struct color_table); i++)
 	      if(!strncmp(webcoltab[i].rgb, s, RGBLEN))
@@ -578,6 +587,11 @@ int
 pico_set_fg_color(char *s)
 {
     if(pico_is_good_color(s)){
+	if(!struncmp(s, MATCH_NORM_COLOR, RGBLEN))
+	  s = _nfcolor;
+        else if(!struncmp(s, MATCH_NONE_COLOR, RGBLEN))
+	  return(TRUE);
+
 	/* already set correctly */
 	if(!_force_fg_color_change
 	   && _last_fg_color
@@ -602,6 +616,11 @@ int
 pico_set_bg_color(char *s)
 {
     if(pico_is_good_color(s)){
+	if(!struncmp(s, MATCH_NORM_COLOR, RGBLEN))
+	  s = _nbcolor;
+        else if(!struncmp(s, MATCH_NONE_COLOR, RGBLEN))
+	  return(TRUE);
+
 	/* already set correctly */
 	if(!_force_bg_color_change
 	   && _last_bg_color

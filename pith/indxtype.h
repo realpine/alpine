@@ -1,5 +1,5 @@
 /*
- * $Id: indxtype.h 483 2007-03-15 18:43:40Z hubert@u.washington.edu $
+ * $Id: indxtype.h 605 2007-06-20 21:15:13Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -49,7 +49,7 @@
 #define MH_ANYTHD	0x2
 
 
-typedef enum {iNothing, iStatus, iFStatus, iIStatus,
+typedef enum {iNothing, iStatus, iFStatus, iIStatus, iSIStatus,
 	      iDate, iLDate, iS1Date, iS2Date, iS3Date, iS4Date, iSDate,
 	      iDateIso, iDateIsoS,
 	      iSDateIso, iSDateIsoS, iSDateS1, iSDateS2, iSDateS3, iSDateS4,
@@ -71,6 +71,7 @@ typedef enum {iNothing, iStatus, iFStatus, iIStatus,
 	      iMessNo, iAtt, iMsgID,
 	      iSubject, iSubjKey, iSubjKeyInit,
 	      iSubjectText, iSubjKeyText, iSubjKeyInitText,
+	      iOpeningText, iOpeningTextNQ,
 	      iKey, iKeyInit,
 	      iSize, iSizeComma, iSizeNarrow, iDescripSize,
 	      iNewsAndTo, iToAndNews, iNewsAndRecips, iRecipsAndNews,
@@ -86,7 +87,7 @@ typedef enum {iNothing, iStatus, iFStatus, iIStatus,
 
 typedef enum {AllAuto, Fixed, Percent, WeCalculate, Special} WidthType;
 
-typedef enum {eText = 0, eKeyWord, eThreadCount, eThreadInfo, eOpening} ElemType;
+typedef enum {eText = 0, eKeyWord, eThreadCount, eThreadInfo, eTypeCol} ElemType;
 
 typedef enum {Left, Right} ColAdj;
 

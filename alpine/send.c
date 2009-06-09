@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: send.c 540 2007-04-25 17:58:55Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: send.c 589 2007-06-04 22:35:52Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1166,11 +1166,15 @@ pine_simple_send(ENVELOPE *outgoing,	/* envelope for outgoing message */
 
 	    if(items_in_hist(history) > 0){
 		ekey[ku].name  = HISTORY_UP_KEYNAME;
-		ekey[ku].label = HISTORY_UP_KEYLABEL;
+		ekey[ku].label = HISTORY_KEYLABEL;
+		ekey[ku+1].name  = HISTORY_DOWN_KEYNAME;
+		ekey[ku+1].label = HISTORY_KEYLABEL;
 	    }
 	    else{
 		ekey[ku].name  = "";
 		ekey[ku].label = "";
+		ekey[ku+1].name  = "";
+		ekey[ku+1].label = "";
 	    }
 
 	    flags = OE_APPEND_CURRENT;
@@ -5221,14 +5225,9 @@ phone_home(char *addr)
     ENVELOPE *outgoing;
     BODY     *body;
 
-#if defined(DOS) || defined(OS2)
-    if(!dos_valid_from())
-      return;
-#endif
-
     outgoing = mail_newenvelope();
     if(!addr || !strindex(addr, '@')){
-	snprintf(addr = tmp, sizeof(tmp), "pine%s@%s", PHONE_HOME_VERSION, PHONE_HOME_HOST);
+	snprintf(addr = tmp, sizeof(tmp), "alpine%s@%s", PHONE_HOME_VERSION, PHONE_HOME_HOST);
 	tmp[sizeof(tmp)-1] = '\0';
     }
 
@@ -5243,7 +5242,7 @@ phone_home(char *addr)
 
     if(body->contents.text.data = (void *)so_get(PicoText,NULL,EDIT_ACCESS)){
 	so_puts((STORE_S *)body->contents.text.data, "Document request: ");
-	so_puts((STORE_S *)body->contents.text.data, "Pine-");
+	so_puts((STORE_S *)body->contents.text.data, "Alpine-");
 	so_puts((STORE_S *)body->contents.text.data, ALPINE_VERSION);
 	if(ps_global->first_time_user)
 	  so_puts((STORE_S *)body->contents.text.data, " for New Users");
@@ -5257,7 +5256,7 @@ phone_home(char *addr)
 
 	(void)pine_simple_send(outgoing, &body, NULL,NULL,NULL,NULL, SS_NULLRP);
 
-	q_status_message(SM_ORDER, 0, 3, "Thanks for being counted!");
+	q_status_message(SM_ORDER, 1, 3, "Thanks for being counted!");
     }
     else
       q_status_message(SM_ORDER | SM_DING, 3, 4,

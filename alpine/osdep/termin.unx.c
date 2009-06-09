@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: termin.unx.c 480 2007-03-09 22:34:47Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: termin.unx.c 564 2007-05-11 00:09:05Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -69,7 +69,7 @@ static char rcsid[] = "$Id: termin.unx.c 480 2007-03-09 22:34:47Z hubert@u.washi
  * t_getchar whenever we use it so we're avoiding the trouble of initializing
  * the TERM struct and calling ttgetc directly.
  */
-#define READ_A_CHAR()	ttgetc(NO_OP_COMMAND, key_recorder, read_bail)
+#define READ_A_CHAR()	ttgetc(NO_OP_COMMAND, key_rec, read_bail)
 
 
 /*
@@ -307,6 +307,11 @@ UCS
 read_char(int time_out)
 {
     UCS status, cc, ch;
+    int (*key_rec)(int);
+
+    key_rec = key_recorder;
+    if(ps_global->conceal_sensitive_debugging)
+      key_rec = NULL;
 
     /* Get input from initial-keystrokes */
     if(process_config_input(&cc)){
@@ -317,7 +322,7 @@ read_char(int time_out)
     if((ch = check_for_timeout(time_out)) != READY_TO_READ)
       goto done;
     
-    switch(status = kbseq(pine_simple_ttgetc, key_recorder, read_bail,
+    switch(status = kbseq(pine_simple_ttgetc, key_rec, read_bail,
 			  ps_global->input_cs, &ch)){
       case KEY_DOUBLE_ESC:
 	/*

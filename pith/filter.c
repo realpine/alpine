@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: filter.c 546 2007-04-26 19:14:23Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: filter.c 588 2007-06-01 22:42:27Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -94,6 +94,13 @@ void	gf_8bit_put(FILTER_S *, int);
 #ifdef	_WINDOWS
 #define CRLF_NEWLINES
 #endif
+
+
+/*
+ * Hooks for callers to adjust behavior
+ */
+char *(*pith_opt_pretty_var_name)(char *);
+char *(*pith_opt_pretty_feature_name)(char *);
 
 
 /*
@@ -193,14 +200,19 @@ static	jmp_buf   gf_error_state;
 
 #define GF_COLOR_PUTC(F, C) {                                            \
                               char *p;                                   \
+                              char cb[RGBLEN+1];                         \
                               GF_PUTC_GLO((F)->next, TAG_EMBED);         \
                               GF_PUTC_GLO((F)->next, TAG_FGCOLOR);       \
-                              p = color_to_asciirgb((C)->fg);            \
+			      strncpy(cb, color_to_asciirgb((C)->fg), sizeof(cb)); \
+                              cb[sizeof(cb)-1] = '\0';                   \
+			      p = cb;                                    \
                               for(; *p; p++)                             \
                                 GF_PUTC_GLO((F)->next, *p);              \
                               GF_PUTC_GLO((F)->next, TAG_EMBED);         \
                               GF_PUTC_GLO((F)->next, TAG_BGCOLOR);       \
-                              p = color_to_asciirgb((C)->bg);            \
+			      strncpy(cb, color_to_asciirgb((C)->bg), sizeof(cb)); \
+                              cb[sizeof(cb)-1] = '\0';                   \
+			      p = cb;                                    \
                               for(; *p; p++)                             \
                                 GF_PUTC_GLO((F)->next, *p);              \
                             }
@@ -2829,6 +2841,8 @@ typedef	struct collector_s {
     unsigned	hyphen:1;		/* markup hyphen read */
     unsigned	badform:1;		/* malformed markup element */
     unsigned	overrun:1;		/* Overran buf above */
+    unsigned	proc_inst:1;		/* XML processing instructions */
+    unsigned	empty:1;		/* empty element */
     char	quoted;			/* quoted element param value */
     char       *element;		/* element's collected name */
     PARAMETER  *attribs;		/* element's collected attributes */
@@ -3152,7 +3166,7 @@ int	html_script(HANDLER_S *, int, int);
  * Proto's for support routines
  */
 void	html_pop(FILTER_S *, html_f);
-void	html_push(FILTER_S *, html_f);
+int	html_push(FILTER_S *, html_f);
 int	html_element_collector(FILTER_S *, int);
 int	html_element_flush(CLCTR_S *);
 void	html_element_comment(FILTER_S *, char *);
@@ -3535,8 +3549,11 @@ static struct element_table {
 /*
  * Initialize the given handler, and add it to the stack if it
  * requests it.
+ *
+ * Returns: 1 if handler chose to get pushed on stack
+ *          0 if handler declined
  */
-void
+int
 html_push(FILTER_S *fd, html_f hf)
 {
     HANDLER_S *new;
@@ -3548,9 +3565,11 @@ html_push(FILTER_S *fd, html_f hf)
     if((*hf)(new, 0, GF_RESET)){	/* stack the handler? */
 	 new->below   = HANDLERS(fd);
 	 HANDLERS(fd) = new;		/* push */
+	 return(1);
     }
-    else
-      fs_give((void **) &new);
+
+    fs_give((void **) &new);
+    return(0);
 }
 
 
@@ -4293,13 +4312,13 @@ void
 html_a_output_info(HANDLER_S *hd)
 {
     int	      l, risky = 0, hl = 0, tl;
-    char     *hn = NULL, *txt;
+    char     *url = NULL, *hn = NULL, *txt;
     HANDLE_S *h;
 
     /* find host anchor references */
     if((h = get_handle(*HANDLESP(hd->html_data), (int) hd->x)) != NULL
        && h->h.url.path != NULL
-       && (hn = rfc1738_scan(h->h.url.path, &l)) != NULL
+       && (hn = rfc1738_scan(rfc1738_str(url = cpystr(h->h.url.path)), &l)) != NULL
        && (hn = srchstr(hn,"://")) != NULL){
 
 	for(hn += 3, hl = 0; hn[hl] && hn[hl] != '/' && hn[hl] != '?'; hl++)
@@ -4340,7 +4359,7 @@ html_a_output_info(HANDLER_S *hd)
 
 	/* look for literal IP, anything possibly encoded or auth specifier */
 	if(!risky){
-	    int dots = 0, digits = 1;
+	    int digits = 1;
 
 	    for(l = 0; l < hl; l++){
 		if(hn[l] == '@' || hn[l] == '%'){
@@ -4406,8 +4425,37 @@ html_a_output_info(HANDLER_S *hd)
 	}
     }
 
+    /*
+     * if things look OK so far, make sure nothing within
+     * the url looks too fishy...
+     */
+    while(!risky && hn
+	  && (hn = rfc1738_scan(hn, &l)) != NULL
+	  && (hn = srchstr(hn,"://")) != NULL){
+	int digits = 1;
+
+	for(hn += 3, hl = 0; hn[hl] && hn[hl] != '/' && hn[hl] != '?'; hl++){
+	    /*
+	     * auth spec, encoded characters, or possibly non-standard port
+	     * should raise a red flag
+	     */
+	    if(hn[hl] == '@' || hn[hl] == '%' || hn[hl] == ':'){
+		risky++;	
+		break;
+	    }
+	    else if(!(hn[hl] == '.' || isdigit((unsigned char) hn[hl])))
+	      digits = 0;
+	}
+
+	/* dotted-dec/raw-int address should cause suspicion as well */
+	if(digits)
+	  risky++;
+    }
+
     if(risky && ((HTML_OPT_S *) hd->html_data->opt)->warnrisk_f)
       (*((HTML_OPT_S *) hd->html_data->opt)->warnrisk_f)();
+
+    fs_give((void **) &url);
 }
 
 
@@ -5409,6 +5457,9 @@ html_element_collector(FILTER_S *fd, int ch)
 		/* else keep collecting comment below */
 	    }
 	}
+	else if(ED(fd)->proc_inst){
+	    return(1);			/* return without display... */
+	}
 	else if(!ED(fd)->quoted || ED(fd)->badform){
 	    html_f f;
 
@@ -5429,10 +5480,14 @@ html_element_collector(FILTER_S *fd, int ch)
 	     */
 	    if(ED(fd)->element && (f = html_element_func(ED(fd)->element))){
 		/* dispatch the element's handler */
-		if(ED(fd)->end_tag)
-		  html_pop(fd, f);	/* remove it's handler */
-		else
-		  html_push(fd, f);	/* add it's handler */
+		if(ED(fd)->end_tag){
+		    html_pop(fd, f);		/* remove it's handler */
+		}
+		else if(html_push(fd, f)){	/* add it's handler */
+		    if(ED(fd)->empty){
+			html_pop(fd, f);	/* remove empty element */
+		    }
+		}
 
 		HTML_DEBUG_EL(ED(fd)->end_tag ? "POP" : "PUSH", ED(fd));
 	    }
@@ -5443,6 +5498,11 @@ html_element_collector(FILTER_S *fd, int ch)
 	    return(1);			/* all done! see, that didn't hurt */
 	}
     }
+    else if(ch == '/' && ED(fd)->element && ED(fd)->len){
+	ED(fd)->empty = 1;
+    }
+    else
+      ED(fd)->empty = 0;
 
     if(ED(fd)->mkup_decl){
 	if((ch &= 0xff) == '-'){
@@ -5496,6 +5556,10 @@ html_element_collector(FILTER_S *fd, int ch)
 	}
 	else if(ch == '!'){
 	    ED(fd)->mkup_decl = 1;
+	    return(0);
+	}
+	else if(ch == '?'){
+	    ED(fd)->proc_inst = 1;
 	    return(0);
 	}
 	else if(!isalpha((unsigned char) ch))
@@ -5716,6 +5780,9 @@ html_element_comment(FILTER_S *f, char *s)
 		if(!strcmp(s = removing_quotes(s + 4), "ALPINE_VERSION")){
 		    p = ALPINE_VERSION;
 		}
+		else if(!strcmp(s, "C_CLIENT_VERSION")){
+		    p = CCLIENTVERSION;
+		}
 		else if(!strcmp(s, "ALPINE_COMPILE_DATE")){
 		    p = datestamp;
 		}
@@ -5792,6 +5859,16 @@ html_element_comment(FILTER_S *f, char *s)
 			buf[j++] = '\0';
 			p = buf;
 		    }
+		}
+		else if(!struncmp(s, "VAR_", 4)){
+		    p = s+4;
+		    if(pith_opt_pretty_var_name)
+		      p = (*pith_opt_pretty_var_name)(p);
+		}
+		else if(!struncmp(s, "FEAT_", 5)){
+		    p = s+5;
+		    if(pith_opt_pretty_feature_name)
+		      p = (*pith_opt_pretty_feature_name)(p);
 		}
 		else
 		  p = NULL;
@@ -7035,6 +7112,7 @@ typedef struct wrap_col_s {
     unsigned	hard_nl:1;
     unsigned	leave_flowed:1;
     unsigned    use_color:1;
+    unsigned    hdr_color:1;
     unsigned    for_compose:1;
     unsigned char  utf8buf[7];
     unsigned char *utf8bufp;
@@ -7073,6 +7151,7 @@ typedef struct wrap_col_s {
 #define	WRAP_HARD(F)	(((WRAP_S *)(F)->opt)->hard_nl)
 #define	WRAP_LV_FLD(F)	(((WRAP_S *)(F)->opt)->leave_flowed)
 #define	WRAP_USE_CLR(F)	(((WRAP_S *)(F)->opt)->use_color)
+#define	WRAP_HDR_CLR(F)	(((WRAP_S *)(F)->opt)->hdr_color)
 #define	WRAP_FOR_CMPS(F) (((WRAP_S *)(F)->opt)->for_compose)
 #define	WRAP_UTF8BUF(F, C) (((WRAP_S *)(F)->opt)->utf8buf[C])
 #define	WRAP_UTF8BUFP(F)   (((WRAP_S *)(F)->opt)->utf8bufp)
@@ -8124,14 +8203,19 @@ wrap_eol(FILTER_S *f, int c, unsigned char **ipp, unsigned char **eibp,
 
     if(WRAP_COLOR_SET(f)){
 	char *p;
+	char  cb[RGBLEN+1];
 	GF_PUTC_GLO(f->next, TAG_EMBED);
 	GF_PUTC_GLO(f->next, TAG_FGCOLOR);
-	p = color_to_asciirgb(ps_global->VAR_NORM_FORE_COLOR);
+	strncpy(cb, color_to_asciirgb(ps_global->VAR_NORM_FORE_COLOR), sizeof(cb));
+	cb[sizeof(cb)-1] = '\0';
+	p = cb;
 	for(; *p; p++)
 	  GF_PUTC_GLO(f->next, *p);
 	GF_PUTC_GLO(f->next, TAG_EMBED);
 	GF_PUTC_GLO(f->next, TAG_BGCOLOR);
-	p = color_to_asciirgb(ps_global->VAR_NORM_BACK_COLOR);
+	strncpy(cb, color_to_asciirgb(ps_global->VAR_NORM_BACK_COLOR), sizeof(cb));
+	cb[sizeof(cb)-1] = '\0';
+	p = cb;
 	for(; *p; p++)
 	  GF_PUTC_GLO(f->next, *p);
     }
@@ -8150,6 +8234,38 @@ wrap_bol(FILTER_S *f, int ivar, int q, unsigned char **ipp, unsigned char **eibp
 	 unsigned char **opp, unsigned char **eobp)
 {
     int n = WRAP_MARG_L(f) + (ivar ? WRAP_INDENT(f) : 0);
+
+    if(WRAP_HDR_CLR(f)){
+	char *p;
+	char cbuf[RGBLEN+1];
+	int k;
+
+	if((k = WRAP_MARG_L(f)) > 0)
+	  while(k-- > 0){
+	      n--;
+	      f->n++;
+	      GF_PUTC_GLO(f->next, ' ');
+	  }
+
+	GF_PUTC_GLO(f->next, TAG_EMBED);
+	GF_PUTC_GLO(f->next, TAG_FGCOLOR);
+	strncpy(cbuf,
+		color_to_asciirgb(ps_global->VAR_HEADER_GENERAL_FORE_COLOR),
+		sizeof(cbuf));
+	cbuf[sizeof(cbuf)-1] = '\0';
+	p = cbuf;
+	for(; *p; p++)
+	  GF_PUTC_GLO(f->next, *p);
+	GF_PUTC_GLO(f->next, TAG_EMBED);
+	GF_PUTC_GLO(f->next, TAG_BGCOLOR);
+	strncpy(cbuf,
+		color_to_asciirgb(ps_global->VAR_HEADER_GENERAL_BACK_COLOR),
+		sizeof(cbuf));
+	cbuf[sizeof(cbuf)-1] = '\0';
+	p = cbuf;
+	for(; *p; p++)
+	  GF_PUTC_GLO(f->next, *p);
+    }
 
     while(n-- > 0){
 	f->n++;
@@ -8176,16 +8292,22 @@ wrap_bol(FILTER_S *f, int ivar, int q, unsigned char **ipp, unsigned char **eibp
     if(WRAP_COLOR_SET(f)){
 	char *p;
 	if(WRAP_COLOR(f)->fg[0]){
+	    char cb[RGBLEN+1];
 	    GF_PUTC_GLO(f->next, TAG_EMBED);
 	    GF_PUTC_GLO(f->next, TAG_FGCOLOR);
-	    p = color_to_asciirgb(WRAP_COLOR(f)->fg);
+	    strncpy(cb, color_to_asciirgb(WRAP_COLOR(f)->fg), sizeof(cb));
+	    cb[sizeof(cb)-1] = '\0';
+	    p = cb;
 	    for(; *p; p++)
 	      GF_PUTC_GLO(f->next, *p);
 	}
 	if(WRAP_COLOR(f)->bg[0]){
+	    char cb[RGBLEN+1];
 	    GF_PUTC_GLO(f->next, TAG_EMBED);
 	    GF_PUTC_GLO(f->next, TAG_BGCOLOR);
-	    p = color_to_asciirgb(WRAP_COLOR(f)->bg);
+	    strncpy(cb, color_to_asciirgb(WRAP_COLOR(f)->bg), sizeof(cb));
+	    cb[sizeof(cb)-1] = '\0';
+	    p = cb;
 	    for(; *p; p++)
 	      GF_PUTC_GLO(f->next, *p);
 	}
@@ -8316,9 +8438,23 @@ gf_wrap_filter_opt(int width, int width_max, int *margin, int indent, int flags)
     wrap->leave_flowed = (GFW_FLOW_RESULT & flags) == GFW_FLOW_RESULT;
     wrap->delsp	       = (GFW_DELSP & flags) == GFW_DELSP;
     wrap->use_color    = (GFW_USECOLOR & flags) == GFW_USECOLOR;
+    wrap->hdr_color    = (GFW_HDRCOLOR & flags) == GFW_HDRCOLOR;
     wrap->for_compose  = (GFW_FORCOMPOSE & flags) == GFW_FORCOMPOSE;
 
     return((void *) wrap);
+}
+
+
+void *
+gf_url_hilite_opt(URL_HILITE_S *uh, HANDLE_S **handlesp, int flags)
+{
+    if(uh){
+	memset(uh, 0, sizeof(URL_HILITE_S));
+	uh->handlesp  = handlesp;
+	uh->hdr_color = (URH_HDRCOLOR & flags) == URH_HDRCOLOR;
+    }
+
+    return((void *) uh);
 }
 
 

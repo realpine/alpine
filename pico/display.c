@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: display.c 486 2007-03-22 18:38:38Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: display.c 582 2007-05-24 19:01:54Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1326,6 +1326,7 @@ mlyesno(UCS *prompt, int dflt)
     int     rv;
     UCS     buf[NLINE], lbuf[10];
     KEYMENU menu_yesno[12];
+    COLOR_PAIR *lastc = NULL;
 
 #ifdef _WINDOWS
     if (mswin_usedialog ()) 
@@ -1359,7 +1360,14 @@ mlyesno(UCS *prompt, int dflt)
     ucs4_strncat(buf, lbuf, NLINE - ucs4_strlen(buf));
     buf[NLINE-1] = '\0';
     mlwrite(buf, NULL);
-    (*term.t_rev)(1);
+    if(Pmaster && Pmaster->colors && Pmaster->colors->prcp
+       && pico_is_good_colorpair(Pmaster->colors->prcp)){
+	lastc = pico_get_cur_color();
+	(void) pico_set_colorp(Pmaster->colors->prcp, PSC_NONE);
+    }
+    else
+      (*term.t_rev)(1);
+
     rv = -1;
     while(1){
 	switch(GetKey()){
@@ -1398,10 +1406,23 @@ mlyesno(UCS *prompt, int dflt)
 		movecursor(term.t_nrow-2, 0);
 		peeol();
 		term.t_mrow = 2;
-		(*term.t_rev)(0);
+		if(lastc){
+		    (void) pico_set_colorp(lastc, PSC_NONE);
+		    free_color_pair(&lastc);
+		}
+		else
+		  (*term.t_rev)(0);
+
 		wkeyhelp(menu_yesno);		/* paint generic menu */
 		mlwrite(buf, NULL);
-		(*term.t_rev)(1);
+		if(Pmaster && Pmaster->colors && Pmaster->colors->prcp
+		   && pico_is_good_colorpair(Pmaster->colors->prcp)){
+		    lastc = pico_get_cur_color();
+		    (void) pico_set_colorp(Pmaster->colors->prcp, PSC_NONE);
+		}
+		else
+		  (*term.t_rev)(1);
+
 		sgarbk = TRUE;			/* mark menu dirty */
 		km_popped++;
 		break;
@@ -1416,7 +1437,13 @@ mlyesno(UCS *prompt, int dflt)
 
 	(*term.t_flush)();
 	if(rv != -1){
-	    (*term.t_rev)(0);
+	    if(lastc){
+		(void) pico_set_colorp(lastc, PSC_NONE);
+		free_color_pair(&lastc);
+	    }
+	    else
+	      (*term.t_rev)(0);
+
 	    if(km_popped){
 		term.t_mrow = 0;
 		movecursor(term.t_nrow, 0);
@@ -1533,6 +1560,7 @@ mlreplyd(UCS *prompt, UCS *buf, int nbuf, int flg, EXTRAKEYS *extras)
     KEYMENU  menu_mlreply[12];
     UCS	     extra_v[12];
     struct   display_line dline;
+    COLOR_PAIR *lastc = NULL;
 
 #ifdef _WINDOWS
     if(mswin_usedialog()){
@@ -1625,8 +1653,6 @@ mlreplyd(UCS *prompt, UCS *buf, int nbuf, int flg, EXTRAKEYS *extras)
     if(!(flg&QDEFLT))
       *buf = '\0';
 
-    (*term.t_rev)(1);
-
     dline.vused = ucs4_strlen(buf);
     dline.dwid  = term.t_ncol - plen;
     dline.row   = term.t_nrow - term.t_mrow;
@@ -1648,10 +1674,17 @@ mlreplyd(UCS *prompt, UCS *buf, int nbuf, int flg, EXTRAKEYS *extras)
 
     b = &buf[(flg & QBOBUF) ? 0 : ucs4_strlen(buf)];
     
-    (*term.t_rev)(0);
     wkeyhelp(menu_mlreply);		/* paint generic menu */
+
     sgarbk = 1;				/* mark menu dirty */
-    (*term.t_rev)(1);
+
+    if(Pmaster && Pmaster->colors && Pmaster->colors->prcp
+       && pico_is_good_colorpair(Pmaster->colors->prcp)){
+	lastc = pico_get_cur_color();
+	(void) pico_set_colorp(Pmaster->colors->prcp, PSC_NONE);
+    }
+    else
+      (*term.t_rev)(1);
 
     for(;;){
 
@@ -1695,8 +1728,6 @@ mlreplyd(UCS *prompt, UCS *buf, int nbuf, int flg, EXTRAKEYS *extras)
 	  case (CTRL|'C') :			/* CTRL-C abort		*/
 	    pputs_utf8(_("ABORT"), 1);
 	    ctrlg(FALSE, 0);
-	    (*term.t_rev)(0);
-	    (*term.t_flush)();
 	    return_val = ABORT;
 	    goto ret;
 
@@ -1721,17 +1752,28 @@ mlreplyd(UCS *prompt, UCS *buf, int nbuf, int flg, EXTRAKEYS *extras)
 		sgarbk = 1;			/* mark menu dirty */
 		km_popped++;
 		term.t_mrow = 2;
-		(*term.t_rev)(0);
+		if(lastc){
+		    (void) pico_set_colorp(lastc, PSC_NONE);
+		    free_color_pair(&lastc);
+		}
+		else
+		  (*term.t_rev)(0);
+
 		wkeyhelp(menu_mlreply);		/* paint generic menu */
 		plen = mlwrite(prompt, NULL);		/* paint prompt */
-		(*term.t_rev)(1);
+		if(Pmaster && Pmaster->colors && Pmaster->colors->prcp
+		   && pico_is_good_colorpair(Pmaster->colors->prcp)){
+		    lastc = pico_get_cur_color();
+		    (void) pico_set_colorp(Pmaster->colors->prcp, PSC_NONE);
+		}
+		else
+		  (*term.t_rev)(1);
+
 		pputs(buf, 1);
 		break;
 	    }
 
 	    pputs_utf8(_("HELP"), 1);
-	    (*term.t_rev)(0);
-	    (*term.t_flush)();
 	    return_val = HELPCH;
 	    goto ret;
 
@@ -1760,7 +1802,6 @@ mlreplyd(UCS *prompt, UCS *buf, int nbuf, int flg, EXTRAKEYS *extras)
 	    break;
 
 	  case (CTRL|'L') :			/* CTRL-L redraw	*/
-	    (*term.t_rev)(0);
 	    return_val = (CTRL|'L');
 	    goto ret;
 
@@ -1772,14 +1813,10 @@ mlreplyd(UCS *prompt, UCS *buf, int nbuf, int flg, EXTRAKEYS *extras)
 	    break;
 
 	  case F1 :				/* sort of same thing */
-	    (*term.t_rev)(0);
-	    (*term.t_flush)();
 	    return_val = HELPCH;
 	    goto ret;
 
 	  case (CTRL|'M') :			/*        newline       */
-	    (*term.t_rev)(0);
-	    (*term.t_flush)();
 	    return_val = changed;
 	    goto ret;
 
@@ -1821,7 +1858,6 @@ mlreplyd(UCS *prompt, UCS *buf, int nbuf, int flg, EXTRAKEYS *extras)
 	    /* look for match in extra_v */
 	    for(i = 0; i < 12; i++)
 	      if(c && c == extra_v[i]){
-		  (*term.t_rev)(0);
 		  return_val = c;
 		  goto ret;
 	      }
@@ -1856,6 +1892,15 @@ mlreplyd(UCS *prompt, UCS *buf, int nbuf, int flg, EXTRAKEYS *extras)
     }
 
 ret:
+    if(lastc){
+	(void) pico_set_colorp(lastc, PSC_NONE);
+	free_color_pair(&lastc);
+    }
+    else
+      (*term.t_rev)(0);
+
+    (*term.t_flush)();
+
     if(km_popped){
 	term.t_mrow = 0;
 	movecursor(term.t_nrow, 0);
@@ -1899,6 +1944,7 @@ emlwrite_ucs4(UCS *message, EML *eml)
 {
     UCS  *bufp, *ap;
     int   width;
+    COLOR_PAIR *lastc = NULL;
 
     mlerase();
 
@@ -1943,7 +1989,14 @@ emlwrite_ucs4(UCS *message, EML *eml)
     else
       movecursor(term.t_nrow-term.t_mrow, 0);
 
-    (*term.t_rev)(1);
+    if(Pmaster && Pmaster->colors && Pmaster->colors->stcp
+       && pico_is_good_colorpair(Pmaster->colors->stcp)){
+	lastc = pico_get_cur_color();
+	(void) pico_set_colorp(Pmaster->colors->stcp, PSC_NONE);
+    }
+    else
+      (*term.t_rev)(1);
+
     pputs_utf8("[ ", 1);
     while (*bufp != '\0' && ttcol < term.t_ncol-2){
 	if(*bufp == '\007')
@@ -1984,8 +2037,16 @@ emlwrite_ucs4(UCS *message, EML *eml)
     }
 
     pputs_utf8(" ]", 1);
-    (*term.t_rev)(0);
+
+    if(lastc){
+	(void) pico_set_colorp(lastc, PSC_NONE);
+	free_color_pair(&lastc);
+    }
+    else
+      (*term.t_rev)(0);
+
     (*term.t_flush)();
+
     mpresf = TRUE;
 }
 
@@ -2017,6 +2078,7 @@ mlwrite(UCS *fmt, void *arg)
     int   ret, ww;
     UCS   c;
     char *ap;
+    COLOR_PAIR *lastc = NULL;
 
     /*
      * the idea is to only highlight if there is something to show
@@ -2024,7 +2086,14 @@ mlwrite(UCS *fmt, void *arg)
     mlerase();
     movecursor(ttrow, 0);
 
-    (*term.t_rev)(1);
+    if(Pmaster && Pmaster->colors && Pmaster->colors->prcp
+       && pico_is_good_colorpair(Pmaster->colors->prcp)){
+	lastc = pico_get_cur_color();
+	(void) pico_set_colorp(Pmaster->colors->prcp, PSC_NONE);
+    }
+    else
+      (*term.t_rev)(1);
+
     ap = (char *) &arg;
 
     while ((c = *fmt++) != 0) {
@@ -2072,7 +2141,14 @@ mlwrite(UCS *fmt, void *arg)
       pputc(' ', 0);
 
     movecursor(term.t_nrow - term.t_mrow, ret);
-    (*term.t_rev)(0);
+
+    if(lastc){
+	(void) pico_set_colorp(lastc, PSC_NONE);
+	free_color_pair(&lastc);
+    }
+    else
+      (*term.t_rev)(0);
+
     (*term.t_flush)();
     mpresf = TRUE;
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: imap.c 543 2007-04-26 04:06:02Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: imap.c 617 2007-06-28 20:58:19Z jpf@u.washington.edu $";
 #endif
 
 /*
@@ -2434,6 +2434,11 @@ erase_windows_credentials(void)
     LPCTSTR lfilter = TEXT(TNAMESTAR);
     DWORD count, k;
     PCREDENTIAL *pcred;
+
+    if(!g_CredInited){
+	if(init_wincred_funcs() != 1)
+	  return;
+    }
 
     if(g_CredEnumerateW(lfilter, 0, &count, &pcred)){
 	if(pcred){

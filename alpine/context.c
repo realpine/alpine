@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: context.c 220 2006-11-06 19:58:04Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: context.c 587 2007-06-01 17:00:28Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -375,7 +375,7 @@ context_select_screen(struct pine *ps, CONT_SCR_S *cs, int ro_warn)
 {
     CONTEXT_S	 *cp;
     CONF_S	 *ctmpa = NULL, *first_line = NULL, *heading;
-    OPT_SCREEN_S  screen;
+    OPT_SCREEN_S  screen, *saved_screen;
     int           readonly_warning = 0;
 
     /* restrict to normal config */
@@ -461,10 +461,12 @@ context_select_screen(struct pine *ps, CONT_SCR_S *cs, int ro_warn)
     while(cp = cp->next);
 
 
+    saved_screen = opt_screen;
     memset(&screen, 0, sizeof(screen));
     screen.ro_warning = readonly_warning;
     (void) conf_scroll_screen(ps, &screen, first_line, cs->title,
 			      cs->print_string, 0);
+    opt_screen = saved_screen;
     ps->mangled_screen = 1;
     return(cs->selected);
 }

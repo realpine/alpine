@@ -1,8 +1,8 @@
 /*
- * $Id: state.h 550 2007-04-30 18:15:20Z hubert@u.washington.edu $
+ * $Id: state.h 596 2007-06-09 00:20:47Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -99,6 +99,7 @@ struct pine {
 
     char         inbox_name[MAXFOLDER+1];
     char         pine_pre_vers[10];	/* highest version previously run */
+    char         vers_internal[10];
     
     MAILSTREAM  *mail_stream;		/* ptr to current folder stream */
     MSGNO_S	*msgmap;		/* ptr to current message map   */
@@ -162,7 +163,6 @@ struct pine {
 				      /* and don't reflow when we resume.  */
     unsigned     mm_log_error:1;
     unsigned     show_new_version:1;
-    unsigned     pre390:1;
     unsigned     pre441:1;
     unsigned     first_time_user:1;
     unsigned	 intr_pending:1;	/* received SIGINT and haven't acted */
@@ -274,6 +274,7 @@ struct pine {
     EditWhich	 ew_for_filter_take;
     EditWhich	 ew_for_incol_take;
     EditWhich	 ew_for_other_take;
+    EditWhich	 ew_for_srch_take;
 
     SortOrder    def_sort,	/* Default sort type */
 		 sort_types[22];
@@ -295,7 +296,8 @@ struct pine {
     int          tcp_query_timeout;
 
     int          inc_check_timeout;
-    int          inc_check_interval;
+    int          inc_check_interval;		/* for local and IMAP */
+    int          inc_second_check_interval;	/* for other */
 
     time_t       check_interval_for_noncurr;
 

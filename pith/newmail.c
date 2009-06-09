@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: newmail.c 409 2007-02-01 22:44:01Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: newmail.c 583 2007-05-29 23:10:02Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -28,6 +28,7 @@ static char rcsid[] = "$Id: newmail.c 409 2007-02-01 22:44:01Z mikes@u.washingto
 #include "../pith/util.h"
 #include "../pith/thread.h"
 #include "../pith/options.h"
+#include "../pith/folder.h"
 
 
 /*
@@ -82,6 +83,7 @@ new_mail(int force_arg, CheckPointTime time_for_check_point, int flags)
     long          n, rv = 0, t_nm_count = 0, exp_count;
     MAILSTREAM   *m;
     int           checknow = 0, force, i, started_on, cp;
+    int           new_mail_was_announced = 0;
     int           have_pinged_non_special = 0;
     int		  timeo;
 
@@ -103,7 +105,7 @@ new_mail(int force_arg, CheckPointTime time_for_check_point, int flags)
       adrbk_maintenance();
 
     if(time_for_check_point == GoodTime || force_arg)
-      folder_unseen_count_updater(force_arg);
+      folder_unseen_count_updater(UFU_ANNOUNCE | (force_arg ? UFU_FORCE : 0));
 
     if(sp_need_to_rethread(ps_global->mail_stream))
       force = 1;
@@ -457,6 +459,7 @@ new_mail(int force_arg, CheckPointTime time_for_check_point, int flags)
 		   sp_expunge_count(m),
 		   mn_get_total(sp_msgmap(m))));
 
+	new_mail_was_announced = 0;
 	if(sp_mail_box_changed(m))
 	  fixup_flags(m, sp_msgmap(m));
 
@@ -490,10 +493,14 @@ new_mail(int force_arg, CheckPointTime time_for_check_point, int flags)
 		if(ps_global->VAR_FIFOPATH)
 		  new_mail_win_mess(m, t_nm_count);
 #endif
-		if(n)
-		  new_mail_mess(m, sp_mail_since_cmd(m), n, 0);
+		if(n){
+		    new_mail_mess(m, sp_mail_since_cmd(m), n, 0);
+		    new_mail_was_announced++;
+		}
 	    }
         }
+
+	update_folder_unseen_by_stream(m, new_mail_was_announced ? 0 : UFU_ANNOUNCE);
 
 	if(flags & NM_STATUS_MSG)
 	  sp_set_mail_box_changed(m, 0);
@@ -514,6 +521,7 @@ new_mail(int force_arg, CheckPointTime time_for_check_point, int flags)
 		       sp_expunge_count(m),
 		       mn_get_total(sp_msgmap(m))));
 
+	    new_mail_was_announced = 0;
 	    fixup_flags(m, sp_msgmap(m));
 
 	    if(sp_new_mail_count(m))
@@ -541,10 +549,14 @@ new_mail(int force_arg, CheckPointTime time_for_check_point, int flags)
 		    if(ps_global->VAR_FIFOPATH)
 		      new_mail_win_mess(m, t_nm_count);
 #endif
-		    if(n)
-		      new_mail_mess(m, sp_mail_since_cmd(m), n, 0);
+		    if(n){
+			new_mail_mess(m, sp_mail_since_cmd(m), n, 0);
+			new_mail_was_announced++;
+		    }
 		}
 	    }
+
+	    update_folder_unseen_by_stream(m, new_mail_was_announced ? 0 : UFU_ANNOUNCE);
 
 	    if(flags & NM_STATUS_MSG)
 	      sp_set_mail_box_changed(m, 0);

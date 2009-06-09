@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailindx.c 526 2007-04-16 19:52:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailindx.c 605 2007-06-20 21:15:13Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -63,6 +63,7 @@ void	(*pith_opt_save_index_state)(int);
  * thread relationship cue
  */
 int	(*pith_opt_condense_thread_cue)(PINETHRD_S *, ICE_S *, char **, int, int);
+int	(*pith_opt_truncate_sfstr)(void);
 
 
 /*
@@ -84,7 +85,7 @@ char	       *fetch_subject(INDEXDATA_S *);
 char	       *fetch_date(INDEXDATA_S *);
 long		fetch_size(INDEXDATA_S *);
 BODY	       *fetch_body(INDEXDATA_S *);
-char           *fetch_firsttext(INDEXDATA_S *idata);
+char           *fetch_firsttext(INDEXDATA_S *idata, int);
 char           *fetch_header(INDEXDATA_S *idata, char *hdrname);
 void		subj_str(INDEXDATA_S *, int, char *, SubjKW, int, ICE_S *);
 void		key_str(INDEXDATA_S *, SubjKW, ICE_S *);
@@ -202,6 +203,7 @@ init_index_format(char *format, INDEX_COL_S **answer)
 		break;
 	      case iYear:
 	      case iDayOrdinal:
+	      case iSIStatus:
 		(*answer)[column].req_width = 4;
 		break;
 	      case iTime24:
@@ -426,11 +428,14 @@ static INDEX_PARSE_T itokens[] = {
     {"SUBJECT",		iSubject,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"FULLSTATUS",	iFStatus,	FOR_INDEX},
     {"IMAPSTATUS",	iIStatus,	FOR_INDEX},
+    {"SHORTIMAPSTATUS",	iSIStatus,	FOR_INDEX},
     {"SUBJKEY",		iSubjKey,	FOR_INDEX},
     {"SUBJKEYINIT",	iSubjKeyInit,	FOR_INDEX},
     {"SUBJECTTEXT",	iSubjectText,	FOR_INDEX},
     {"SUBJKEYTEXT",	iSubjKeyText,	FOR_INDEX},
     {"SUBJKEYINITTEXT", iSubjKeyInitText, FOR_INDEX},
+    {"OPENINGTEXT",	iOpeningText,	FOR_INDEX},
+    {"OPENINGTEXTNQ",	iOpeningTextNQ,	FOR_INDEX},
     {"KEY",		iKey,		FOR_INDEX},
     {"KEYINIT",		iKeyInit,	FOR_INDEX},
     {"DESCRIPSIZE",	iDescripSize,	FOR_INDEX},
@@ -878,7 +883,8 @@ parse_index_format(char *format_str, INDEX_COL_S **answer)
  * list get space allocated sooner than the ones at the end of the list.
  */
 static IndexColType fixed_ctypes[] = {
-    iMessNo, iStatus, iFStatus, iIStatus, iDate, iSDate, iSDateTime, iSDateTime24,
+    iMessNo, iStatus, iFStatus, iIStatus, iSIStatus,
+    iDate, iSDate, iSDateTime, iSDateTime24,
     iSTime, iLDate,
     iS1Date, iS2Date, iS3Date, iS4Date, iDateIso, iDateIsoS,
     iSDateIso, iSDateIsoS,
@@ -1030,6 +1036,7 @@ setup_index_header_widths(MAILSTREAM *stream)
 		    break;
 
 		  case iYear:
+		  case iSIStatus:
 		    cdesc->actual_length = 4;
 		    cdesc->adjustment = Left;
 		    break;
@@ -1905,8 +1912,8 @@ format_index_index_line(INDEXDATA_S *idata)
 {
     char          str[BIGWIDTH+1], to_us, status, *field,
 		 *buffer, *s_tmp, *p, *newsgroups;
-    int		  i, j, smallest, collapsed = 0,
-		  noff = 0;
+    int		  i, j, smallest, collapsed = 0, start,
+		  fromfield, noff = 0;
     long	  l, score;
     BODY	 *body = NULL;
     MESSAGECACHE *mc;
@@ -1941,6 +1948,7 @@ format_index_index_line(INDEXDATA_S *idata)
 	  ifield        = new_ifield(&ice->ifield);
 	  ifield->ctype = cdesc->ctype;
 	  ifield->width = cdesc->width;
+	  fromfield   = 0;
 
 	  if(idata->bogus){
 	      if(cdesc->ctype == iMessNo)
@@ -2062,6 +2070,7 @@ format_index_index_line(INDEXDATA_S *idata)
 
 	      case iFStatus:
 	      case iIStatus:
+	      case iSIStatus:
 	      {
 		  char new, answered, deleted, flagged;
 
@@ -2149,12 +2158,16 @@ format_index_index_line(INDEXDATA_S *idata)
 		      }
 		  }
 
-		  
 		  snprintf(str, sizeof(str), "%c %c%c%c%c", to_us, flagged, new,
 			  answered, deleted);
 
+		  if(cdesc->ctype == iSIStatus)
+		    start = 2;
+		  else
+		    start = 0;
+
 		  ifield->leftadj = 1;
-		  for(i = 0; i < 6; i++){
+		  for(i = start; i < 6; i++){
 		    ielem  = new_ielem(&ifield->ielem);
 		    ielem->freedata = 1;
 		    ielem->data = (char *) fs_get(2 * sizeof(char));
@@ -2167,7 +2180,8 @@ format_index_index_line(INDEXDATA_S *idata)
 		  if(pico_usingcolor()){
 
 		      if(str[0] == '+' || str[0] == '-'){
-			  if(VAR_IND_PLUS_FORE_COLOR
+			  if(start == 0
+			     && VAR_IND_PLUS_FORE_COLOR
 			     && VAR_IND_PLUS_BACK_COLOR){
 			      ielem = ifield->ielem;
 			      ielem->freecolor = 1;
@@ -2177,7 +2191,11 @@ format_index_index_line(INDEXDATA_S *idata)
 
 		      if(str[2] == '*'){
 			  if(VAR_IND_IMP_FORE_COLOR && VAR_IND_IMP_BACK_COLOR){
-			      ielem = ifield->ielem->next->next;
+			      if(start == 2)
+			        ielem = ifield->ielem;
+			      else
+			        ielem = ifield->ielem->next->next;
+
 			      ielem->freecolor = 1;
 			      ielem->color = new_color_pair(VAR_IND_IMP_FORE_COLOR, VAR_IND_IMP_BACK_COLOR);
 			  }
@@ -2185,21 +2203,33 @@ format_index_index_line(INDEXDATA_S *idata)
 
 		      if(str[3] == 'N' || str[3] == 'n'){
 			  if(VAR_IND_NEW_FORE_COLOR && VAR_IND_NEW_BACK_COLOR){
-			      ielem = ifield->ielem->next->next->next;
+			      if(start == 2)
+			        ielem = ifield->ielem->next;
+			      else
+			        ielem = ifield->ielem->next->next->next;
+
 			      ielem->freecolor = 1;
 			      ielem->color = new_color_pair(VAR_IND_NEW_FORE_COLOR, VAR_IND_NEW_BACK_COLOR);
 			  }
 		      }
 		      else if(str[3] == 'R' || str[3] == 'r'){
 			  if(VAR_IND_REC_FORE_COLOR && VAR_IND_REC_BACK_COLOR){
-			      ielem = ifield->ielem->next->next->next;
+			      if(start == 2)
+			        ielem = ifield->ielem->next;
+			      else
+			        ielem = ifield->ielem->next->next->next;
+
 			      ielem->freecolor = 1;
 			      ielem->color = new_color_pair(VAR_IND_REC_FORE_COLOR, VAR_IND_REC_BACK_COLOR);
 			  }
 		      }
 		      else if(str[3] == 'U' || str[3] == 'u'){
 			  if(VAR_IND_UNS_FORE_COLOR && VAR_IND_UNS_BACK_COLOR){
-			      ielem = ifield->ielem->next->next->next;
+			      if(start == 2)
+			        ielem = ifield->ielem->next;
+			      else
+			        ielem = ifield->ielem->next->next->next;
+
 			      ielem->freecolor = 1;
 			      ielem->color = new_color_pair(VAR_IND_UNS_FORE_COLOR, VAR_IND_UNS_BACK_COLOR);
 			  }
@@ -2207,7 +2237,11 @@ format_index_index_line(INDEXDATA_S *idata)
 
 		      if(str[4] == 'A' || str[4] == 'a'){
 			  if(VAR_IND_ANS_FORE_COLOR && VAR_IND_ANS_BACK_COLOR){
-			      ielem = ifield->ielem->next->next->next->next;
+			      if(start == 2)
+			        ielem = ifield->ielem->next->next;
+			      else
+			        ielem = ifield->ielem->next->next->next->next;
+
 			      ielem->freecolor = 1;
 			      ielem->color = new_color_pair(VAR_IND_ANS_FORE_COLOR, VAR_IND_ANS_BACK_COLOR);
 			  }
@@ -2215,7 +2249,11 @@ format_index_index_line(INDEXDATA_S *idata)
 
 		      if(str[5] == 'D' || str[5] == 'd'){
 			  if(VAR_IND_DEL_FORE_COLOR && VAR_IND_DEL_BACK_COLOR){
-			      ielem = ifield->ielem->next->next->next->next->next;
+			      if(start == 2)
+			        ielem = ifield->ielem->next->next->next;
+			      else
+			        ielem = ifield->ielem->next->next->next->next->next;
+
 			      ielem->freecolor = 1;
 			      ielem->color = new_color_pair(VAR_IND_DEL_FORE_COLOR, VAR_IND_DEL_BACK_COLOR);
 			  }
@@ -2318,6 +2356,7 @@ format_index_index_line(INDEXDATA_S *idata)
 	      case iFrom:
 	      case iAddress:
 	      case iMailbox:
+		fromfield++;
 		from_str(cdesc->ctype, idata, BIGWIDTH, str, ice);
 	        break;
 
@@ -2358,6 +2397,7 @@ format_index_index_line(INDEXDATA_S *idata)
 		break;
 
 	      case iSender:
+		fromfield++;
 		if(addr = fetch_sender(idata))
 		  set_index_addr(idata, "Sender", addr, NULL, BIGWIDTH, str);
 
@@ -2628,6 +2668,24 @@ format_index_index_line(INDEXDATA_S *idata)
 		subj_str(idata, BIGWIDTH, str, KWInit, 1, ice);
 		break;
 
+	      case iOpeningText:
+	      case iOpeningTextNQ:
+		if(idata->no_fetch)
+		  idata->bogus = 1;
+		else{
+		    char *first_text;
+
+		    first_text = fetch_firsttext(idata, cdesc->ctype == iOpeningTextNQ);
+
+		    if(first_text){
+			strncpy(str, first_text, BIGWIDTH);
+			str[BIGWIDTH] = '\0';
+			fs_give((void **) &first_text);
+		    }
+		}
+
+		break;
+
 	      case iKey:
 		key_str(idata, KW, ice);
 		break;
@@ -2777,8 +2835,46 @@ format_index_index_line(INDEXDATA_S *idata)
 	      ielem->data = cpystr(str);
 	      ielem->datalen = strlen(str);
 
+	      if(fromfield && pico_usingcolor()
+		 && ps_global->VAR_IND_FROM_FORE_COLOR
+		 && ps_global->VAR_IND_FROM_BACK_COLOR){
+		  ielem->type = eTypeCol;
+		  ielem->freecolor = 1;
+		  ielem->color = new_color_pair(ps_global->VAR_IND_FROM_FORE_COLOR,
+						ps_global->VAR_IND_FROM_BACK_COLOR);
+		  /*
+		   * This space is here so that if the text does
+		   * not extend all the way to the end of the field then
+		   * we'll switch the color back and paint the rest of the
+		   * field in the Normal color or the index line color.
+		   */
+		  ielem = new_ielem(&ielem);
+		  ielem->freedata = 1;
+		  ielem->data = cpystr(" ");
+		  ielem->datalen = 1;
+	      }
+	      else if((cdesc->ctype == iOpeningText || cdesc->ctype == iOpeningTextNQ)
+		      && pico_usingcolor()
+		      && ps_global->VAR_IND_OP_FORE_COLOR
+		      && ps_global->VAR_IND_OP_BACK_COLOR){
+		  ielem->type = eTypeCol;
+		  ielem->freecolor = 1;
+		  ielem->color = new_color_pair(ps_global->VAR_IND_OP_FORE_COLOR,
+						ps_global->VAR_IND_OP_BACK_COLOR);
+		  /*
+		   * This space is here so that if the text does
+		   * not extend all the way to the end of the field then
+		   * we'll switch the color back and paint the rest of the
+		   * field in the Normal color or the index line color.
+		   */
+		  ielem = new_ielem(&ielem);
+		  ielem->freedata = 1;
+		  ielem->data = cpystr(" ");
+		  ielem->datalen = 1;
+	      }
+
 	      ifield->leftadj = (cdesc->adjustment == Left) ? 1 : 0;
-	      set_print_format(ielem, ifield->width, ifield->leftadj);
+	      set_ielem_widths_in_field(ifield);
 	  }
       }
 
@@ -2798,6 +2894,7 @@ format_thread_index_line(INDEXDATA_S *idata)
     ICE_S        *ice, *tice = NULL;
     IFIELD_S     *ifield;
     IELEM_S      *ielem;
+    int         (*save_sfstr_func)(void);
 
     dprint((8, "=== format_thread_index_line(%ld,%ld) ===\n",
 	       idata ? idata->msgno : -1, idata ? idata->rawno : -1));
@@ -2975,7 +3072,10 @@ format_thread_index_line(INDEXDATA_S *idata)
 	  tcnt[subj_width] = '\0';
 
 	from[0] = '\0';
+	save_sfstr_func = pith_opt_truncate_sfstr;
+	pith_opt_truncate_sfstr = NULL;
 	from_str(iFromTo, idata, BIGWIDTH, from, tice);
+	pith_opt_truncate_sfstr = save_sfstr_func;
 
 	ifield = new_ifield(&tice->ifield);
 	ifield->leftadj = 1;
@@ -3011,7 +3111,10 @@ format_thread_index_line(INDEXDATA_S *idata)
 	    }
 	    else{
 		*p = '\0';
+		save_sfstr_func = pith_opt_truncate_sfstr;
+		pith_opt_truncate_sfstr = NULL;
 		subj_str(idata, BIGWIDTH, p, NoKW, 0, NULL);
+		pith_opt_truncate_sfstr = save_sfstr_func;
 	    }
 
 	    ifield = new_ifield(&tice->ifield);
@@ -3439,19 +3542,27 @@ fetch_subject(INDEXDATA_S *idata)
 /*
  * Return an allocated copy of the first few characters from the body
  * of the message for possible use in the index screen.
+ *
+ * Maybe we could figure out some way to do aggregate calls to get
+ * this info for all the lines in view instead of all the one at a
+ * time calls we're doing now.
  */
 char *
-fetch_firsttext(INDEXDATA_S *idata)
+fetch_firsttext(INDEXDATA_S *idata, int delete_quotes)
 {
     ENVELOPE *env;
     BODY *body = NULL;
     char *firsttext = NULL;
     STORE_S *so;
     gf_io_t pc;
+    long partial_fetch_len = 0L;
+
+try_again:
 
     if(env = pine_mail_fetchstructure(idata->stream, idata->rawno, &body)){
 	if(body){
 	    char *subtype = NULL;
+	    char *partno;
 
 	    if((body->type == TYPETEXT
 		&& (subtype=body->subtype) && ALLOWED_SUBTYPE(subtype))
@@ -3459,46 +3570,65 @@ fetch_firsttext(INDEXDATA_S *idata)
 	       (body->type == TYPEMULTIPART && body->nested.part
 		&& body->nested.part->body.type == TYPETEXT
 		&& (subtype=body->nested.part->body.subtype)
+		&& ALLOWED_SUBTYPE(subtype))
+		    ||
+	       (body->type == TYPEMULTIPART && body->nested.part
+		&& body->nested.part->body.type == TYPEMULTIPART
+		&& body->nested.part->body.nested.part
+		&& body->nested.part->body.nested.part->body.type == TYPETEXT
+		&& (subtype=body->nested.part->body.nested.part->body.subtype)
 		&& ALLOWED_SUBTYPE(subtype))){
 
 		if((so = so_get(CharStar, NULL, EDIT_ACCESS)) != NULL){
 		    char buf[1025], *p;
 		    unsigned char c;
 		    int success;
-		    int was_space_for_eol = 0;
-		    long partial_fetch_len;
+		    int one_space_done = 0;
 
-		    if(subtype && !strucmp(subtype, "html"))
-		      partial_fetch_len = 1024;
-		    else if(subtype && !strucmp(subtype, "plain"))
-		      partial_fetch_len = 128;
+		    if(partial_fetch_len == 0L){
+			if(subtype && !strucmp(subtype, "html"))
+			  partial_fetch_len = 1024L;
+			else if(subtype && !strucmp(subtype, "plain"))
+			  partial_fetch_len = delete_quotes ? 128L : 64L;
+			else
+			  partial_fetch_len = 256L;
+		    }
+
+		    if((body->type == TYPETEXT
+			&& (subtype=body->subtype) && ALLOWED_SUBTYPE(subtype))
+			    ||
+		       (body->type == TYPEMULTIPART && body->nested.part
+			&& body->nested.part->body.type == TYPETEXT
+			&& (subtype=body->nested.part->body.subtype)
+			&& ALLOWED_SUBTYPE(subtype)))
+		      partno = "1";
 		    else
-		      partial_fetch_len = 256;
+		      partno = "1.1";
 
 		    gf_set_so_writec(&pc, so);
 		    success = get_body_part_text(idata->stream, body, idata->rawno,
-						 "1", partial_fetch_len,
-						 pc, NULL, NULL);
+						 partno, partial_fetch_len, pc,
+						 NULL, NULL,
+						 GBPT_NOINTR | GBPT_PEEK |
+						 (delete_quotes ? GBPT_DELQUOTES : 0));
 		    gf_clear_so_writec(so);
 
 		    if(success){
 			so_seek(so, 0L, 0);
 			p = buf;
 			while(p-buf < sizeof(buf)-1 && so_readc(&c, so)){
+			    /* delete leading whitespace */
 			    if(p == buf && isspace(c))
 			      ;
-			    else if(c == '\r' || c == '\n'){
-				if(!was_space_for_eol){
-				    *p++ = ' ';
-				    was_space_for_eol++;
+			    /* and include just one space per run of whitespace */
+			    else if(isspace(c)){
+				if(!one_space_done){
+				    *p++ = SPACE;
+				    one_space_done++;
 				}
 			    }
-			    else if(c == '\t'){
-				if(!was_space_for_eol)
-				  *p++ = SPACE;
-			    }
 			    else{
-				was_space_for_eol = 0;
+				one_space_done = 0;
 				*p++ = c;
 			    }
 			}
@@ -3514,10 +3644,23 @@ fetch_firsttext(INDEXDATA_S *idata)
 			    firsttext[0] = '\0';
 			    iutf8ncpy(firsttext, buf, l);
 			    firsttext[l] = '\0';
+			    removing_trailing_white_space(firsttext);
 			}
 		    }
 
 		    so_give(&so);
+
+		    /* first if means we didn't fetch all of the data */
+		    if(!(success > 1 && success < partial_fetch_len)){
+			if(partial_fetch_len < 4096L
+			   && (!firsttext || utf8_width(firsttext) < 50)){
+			    if(firsttext)
+			      fs_give((void **) &firsttext);
+
+			    partial_fetch_len = 4096L;
+			    goto try_again;
+			}
+		    }
 		}
 	    }	
 	}
@@ -4763,6 +4906,21 @@ subj_str(INDEXDATA_S *idata, int width, char *str, SubjKW kwtype, int opening, I
 	  ;
     }
 
+    /*
+     * Why do we want to truncate the subject and from strs?
+     * It's so we can put the [5] thread count things in below when
+     * we are threading and the thread structure runs off the right
+     * hand edge of the screen. This routine doesn't know that it
+     * is running off the edge unless it knows the actual width
+     * that we have to draw in.
+     */
+    if(pith_opt_truncate_sfstr
+       && (*pith_opt_truncate_sfstr)()
+       && ourifield
+       && ourifield->width > 0
+       && ourifield->width < width)
+      width = ourifield->width;
+
     memset(str, 0, (width+1) * sizeof(*str));
     origstr = str;
     rawsubj = fetch_subject(idata);
@@ -4784,6 +4942,7 @@ subj_str(INDEXDATA_S *idata, int width, char *str, SubjKW kwtype, int opening, I
     iutf8ncpy(origsubj, sp, len);
 
     origsubj[len] = '\0';
+    removing_trailing_white_space(origsubj);
 
     /*
      * origsubj is the original subject but it has been decoded. We need
@@ -4812,10 +4971,30 @@ subj_str(INDEXDATA_S *idata, int width, char *str, SubjKW kwtype, int opening, I
 	subject = origsubj;
 	if(ourifield){
 	    subjielem = new_ielem(&subjielem);
+	    subjielem->type = eTypeCol;
 	    subjielem->freedata = 1;
 	    subjielem->data = cpystr(subject);
 	    subjielem->datalen = strlen(subject);
+	    if(pico_usingcolor()
+	       && ps_global->VAR_IND_SUBJ_FORE_COLOR
+	       && ps_global->VAR_IND_SUBJ_BACK_COLOR){
+		subjielem->freecolor = 1;
+		subjielem->color = new_color_pair(ps_global->VAR_IND_SUBJ_FORE_COLOR, ps_global->VAR_IND_SUBJ_BACK_COLOR);
+	    }
 	}
+    }
+
+    /*
+     * This space is here so that if the subject does
+     * not extend all the way to the end of the field then
+     * we'll switch the color back and paint the rest of the
+     * field in the Normal color or the index line color.
+     */
+    if(!opening){
+	ielem = new_ielem(&subjielem);
+	ielem->freedata = 1;
+	ielem->data = cpystr(" ");
+	ielem->datalen = 1;
     }
 
     if(!subject)
@@ -5053,6 +5232,8 @@ subj_str(INDEXDATA_S *idata, int width, char *str, SubjKW kwtype, int opening, I
 		free_ielem(&subjielem);
 	    }
 	}
+	else
+	  free_ielem(&subjielem);	/* no room for actual subject */
 
 	if(ourifield && sptr && sptr > origstr){
 	    ielem = new_ielem(&ourifield->ielem);
@@ -5098,17 +5279,28 @@ subj_str(INDEXDATA_S *idata, int width, char *str, SubjKW kwtype, int opening, I
 	size_t len;
 	char *first_text;
 
-	first_text = fetch_firsttext(idata);
+	first_text = fetch_firsttext(idata, 0);
 
 	if(first_text){
+	    char sep[200];
+	    int   seplen;
+
+	    strncpy(sep, ps_global->VAR_OPENING_SEP ? ps_global->VAR_OPENING_SEP : " - ",
+		    sizeof(sep));
+	    sep[sizeof(sep)-1] = '\0';
+	    removing_double_quotes(sep);
+	    seplen = strlen(sep);
+
 	    ftielem = new_ielem(&ftielem);
-	    ftielem->type = eOpening;
+	    ftielem->type = eTypeCol;
 	    ftielem->freedata = 1;
-	    len = strlen(first_text) + 3;
+	    len = strlen(first_text) + seplen;
 	    ftielem->data = (char *) fs_get((len + 1) * sizeof(char));
-	    strncpy(ftielem->data, " - ", 4);
-	    strncpy(ftielem->data+3, first_text, len+1-3);
+
+	    strncpy(ftielem->data, sep, seplen);
+	    strncpy(ftielem->data+seplen, first_text, len+1-seplen);
 	    ftielem->data[len] = '\0';
+
 	    ftielem->datalen = strlen(ftielem->data);
 	    if(first_text)
 	      fs_give((void **) &first_text);
@@ -5120,6 +5312,12 @@ subj_str(INDEXDATA_S *idata, int width, char *str, SubjKW kwtype, int opening, I
 		    ftielem->freecolor = 1;
 		    ftielem->color = new_color_pair(ps_global->VAR_IND_OP_FORE_COLOR, ps_global->VAR_IND_OP_BACK_COLOR);
 
+		    /*
+		     * This space is here so that if the opening text does
+		     * not extend all the way to the end of the field then
+		     * we'll switch the color back and paint the rest of the
+		     * field in the Normal color or the index line color.
+		     */
 		    ielem = new_ielem(&ftielem);
 		    ielem->freedata = 1;
 		    ielem->data = cpystr(" ");
@@ -5323,9 +5521,6 @@ prepend_keyword_subject(MAILSTREAM *stream, long int rawno, char *subject,
 	if(len-(p-retsubj) > 0 && right_brace)
 	  sstrncpy(&p, right_brace, len-(p-retsubj));
 
-	if(len-(p-retsubj) > 0 && subject)
-	  sstrncpy(&p, subject, len-(p-retsubj));
-
 	if(ielemp && p > next_piece){
 	    save = *p;
 	    *p = '\0';
@@ -5337,14 +5532,42 @@ prepend_keyword_subject(MAILSTREAM *stream, long int rawno, char *subject,
 	    next_piece = p;
 	}
 
+	if(len-(p-retsubj) > 0 && subject)
+	  sstrncpy(&p, subject, len-(p-retsubj));
+
+	if(ielemp && p > next_piece){
+	    save = *p;
+	    *p = '\0';
+	    ielem = new_ielem(ielemp);
+	    ielem->type = eTypeCol;
+	    ielem->freedata = 1;
+	    ielem->data = cpystr(next_piece);
+	    ielem->datalen = strlen(next_piece);
+	    *p = save;
+	    next_piece = p;
+	    if(pico_usingcolor()
+	       && ps_global->VAR_IND_SUBJ_FORE_COLOR
+	       && ps_global->VAR_IND_SUBJ_BACK_COLOR){
+		ielem->freecolor = 1;
+		ielem->color = new_color_pair(ps_global->VAR_IND_SUBJ_FORE_COLOR, ps_global->VAR_IND_SUBJ_BACK_COLOR);
+	    }
+	}
+
 	retsubj[len] = '\0';		/* just making sure */
     }
     else{
 	if(ielemp){
 	    ielem = new_ielem(ielemp);
+	    ielem->type = eTypeCol;
 	    ielem->freedata = 1;
 	    ielem->data = cpystr(subject);
 	    ielem->datalen = strlen(subject);
+	    if(pico_usingcolor()
+	       && ps_global->VAR_IND_SUBJ_FORE_COLOR
+	       && ps_global->VAR_IND_SUBJ_BACK_COLOR){
+		ielem->freecolor = 1;
+		ielem->color = new_color_pair(ps_global->VAR_IND_SUBJ_FORE_COLOR, ps_global->VAR_IND_SUBJ_BACK_COLOR);
+	    }
 	}
 
 	retsubj = cpystr(subject);
@@ -5373,6 +5596,21 @@ from_str(IndexColType ctype, INDEXDATA_S *idata, int width, char *str, ICE_S *ic
     ADDRESS    *addr;
     int         depth = 0, mult = 2;
     PINETHRD_S *thd, *thdorig;
+
+    if(pith_opt_truncate_sfstr && (*pith_opt_truncate_sfstr)()){
+	IFIELD_S   *ourifield = NULL;
+
+	if(ice && ice->ifield){
+	    /* move to last ifield, the one we're working on */
+	    for(ourifield = ice->ifield;
+		ourifield && ourifield->next;
+		ourifield = ourifield->next)
+	      ;
+	}
+
+	if(ourifield && ourifield->width > 0 && ourifield->width < width)
+	  width = ourifield->width;
+    }
 
     if(THREADING()
        && (ps_global->thread_disp_style == THREAD_INDENT_FROM1

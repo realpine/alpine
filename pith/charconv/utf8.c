@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: utf8.c 520 2007-04-11 16:28:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: utf8.c 583 2007-05-29 23:10:02Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -2196,6 +2196,21 @@ comatose(long int number)
 
     if(b-buf[whichbuf] < sizeof(buf[0]))
       *b = '\0';
+
+    return(buf[whichbuf]);
+}
+
+
+/* leave out the commas */
+char *
+tose(long int number)
+{
+    static char buf[3][50];
+    static int whichbuf = 0;
+
+    whichbuf = (whichbuf + 1) % 3;
+
+    snprintf(buf[whichbuf], sizeof(buf[0]), "%ld", number);
 
     return(buf[whichbuf]);
 }

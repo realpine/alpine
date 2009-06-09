@@ -112,6 +112,7 @@ CXXFLAGS = @CXXFLAGS@
 CYGPATH_W = @CYGPATH_W@
 C_CLIENT_SPECIALS = @C_CLIENT_SPECIALS@
 C_CLIENT_TARGET = @C_CLIENT_TARGET@
+C_CLIENT_WITH_IPV6 = @C_CLIENT_WITH_IPV6@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
 ECHO = @ECHO@
@@ -219,7 +220,7 @@ noinst_LIBRARIES = libpicoosd.a
 libpicoosd_a_SOURCES = altedit.c chkpoint.c color.c filesys.c fsync.c getkey.c mouse.c \
 	newmail.c popen.c raw.c read.c shell.c signals.c spell.c terminal.c truncate.c tty.c
 
-AM_CPPFLAGS = -I$(top_srcdir)/include
+AM_CPPFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/include
 all: all-am
 
 .SUFFIXES:

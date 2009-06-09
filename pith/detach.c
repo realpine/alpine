@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: detach.c 442 2007-02-16 23:01:28Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: detach.c 602 2007-06-18 18:25:20Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -146,7 +146,7 @@ detach(MAILSTREAM *stream,		/* c-client stream to use         */
 {
     unsigned long  rv;
     unsigned long  size;
-   long            fetch_flags;
+    long           fetch_flags;
     int            we_cancel = 0, is_text;
     char          *status, trigger[MAILTMPLEN];
     char          *charset = NULL;
@@ -549,6 +549,11 @@ void
 fetch_readc_init(FETCH_READC_S *frd, MAILSTREAM *stream, long int msgno,
 		 char *section, unsigned long size, long partial, long int flags)
 {
+    int nointr = 0;
+
+    nointr = flags & DT_NOINTR;
+    flags &= ~DT_NOINTR;
+
     memset(g_fr_desc = frd, 0, sizeof(FETCH_READC_S));
     frd->stream  = stream;
     frd->msgno   = msgno;
@@ -556,6 +561,7 @@ fetch_readc_init(FETCH_READC_S *frd, MAILSTREAM *stream, long int msgno,
     frd->flags   = flags;
     frd->size    = size;
     frd->readc	 = fetch_readc;
+
     if(modern_imap_stream(stream)
        && !imap_cache(stream, msgno, section, NULL, NULL)
        && (size > INIT_FETCH_CHUNK || (partial > 0L && partial < size))
@@ -579,7 +585,9 @@ fetch_readc_init(FETCH_READC_S *frd, MAILSTREAM *stream, long int msgno,
 	frd->endp  = frd->chunk;
 	frd->free_me++;
 
-	intr_handling_on();
+	if(!nointr)
+	  intr_handling_on();
+
 	if(!(partial > 0L && partial < size)){
 	    frd->cache = so_get(CharStar, NULL, EDIT_ACCESS);
 	    so_truncate(frd->cache, size);		/* pre-allocate */

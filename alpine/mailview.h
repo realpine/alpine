@@ -1,8 +1,8 @@
 /*
- * $Id: mailview.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: mailview.h 577 2007-05-22 22:16:43Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -118,7 +118,6 @@ int	    scrolltool(SCROLL_S *);
 int         ng_scroll_edit(CONTEXT_S *, int);
 int         folder_select_update(CONTEXT_S *, int);
 int         scroll_add_listmode(CONTEXT_S *, int);
-int         width_at_this_position(unsigned char *, unsigned long);
 void	    display_output_file(char *, char *, char *, int);
 int	    rfc2369_editorial(long, HANDLE_S **, int, int, gf_io_t);
 

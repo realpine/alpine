@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: altedit.c 444 2007-02-22 19:48:09Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: altedit.c 602 2007-06-18 18:25:20Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -494,7 +494,7 @@ alt_editor(int f, int n)
 	 */
     case -1:
 	/* Failed to map return from WinExec to a HTASK. */
-	emlwrite("Problem finding alternet editor task handle.", NULL);
+	emlwrite("Problem finding alternate editor task handle.", NULL);
 	return (-1);
 	
     case -2:

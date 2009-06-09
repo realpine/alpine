@@ -41,14 +41,14 @@ LIBSEXE = libcmt.lib $(LIBS)
 # Update the object files if necessary
 
 pmapi.obj: pmapi.c ..\c-client-dll\mail.h pmapi.h
-    $(CC) $(CFLAGS) $(CVARSDLL) pmapi.c
+	$(CC) $(CFLAGS) $(CVARSDLL) pmapi.c
 smapi.obj: smapi.c ..\c-client-dll\mail.h pmapi.h
-    $(CC) $(CFLAGS) $(CVARSDLL) smapi.c
+	$(CC) $(CFLAGS) $(CVARSDLL) smapi.c
 rfc1522.obj: rfc1522.c ..\c-client-dll\mail.h pmapi.h
-    $(CC) $(CFLAGS) $(CVARSDLL) rfc1522.c
+	$(CC) $(CFLAGS) $(CVARSDLL) rfc1522.c
 
 instmapi.obj: instmapi.c
-    $(CC) $(CFLAGS) instmapi.c
+	$(CC) $(CFLAGS) instmapi.c
 
 # Update the import library
 
@@ -58,13 +58,15 @@ pmapi.res: pmapi.rc
 # Update the dynamic link library
 
 pmapi32.dll: pmapi.obj smapi.obj rfc1522.obj pmapi.def pmapi.res
-    ..\pico\blddate > bdate.c
-    $(CC) /c $(CFLAGS) bdate.c
-    $(LINK) $(LFLAGS) $(DLLLFLAGS)\
-    -base:0x1C000000  \
-    -out:pmapi32.dll   \
-    /DEF:pmapi.def   \
-    pmapi.obj smapi.obj rfc1522.obj bdate.obj pmapi.res $(STDLIBS) $(LIBSDLL)
+	..\pico\blddate > bdate.c
+	$(CC) /c $(CFLAGS) bdate.c
+	$(LINK) $(LFLAGS) $(DLLLFLAGS)\
+	-base:0x1C000000  \
+	-out:pmapi32.dll   \
+	/DEF:pmapi.def   \
+	pmapi.obj smapi.obj rfc1522.obj bdate.obj pmapi.res $(STDLIBS) $(LIBSDLL)
 
 instmapi.exe: instmapi.obj
-    $(LINK) $(LFLAGS) $(GUIFLAGS) -out:instmapi.exe instmapi.obj $(LIBSEXE)
+	$(LINK) $(LFLAGS) $(GUIFLAGS) -out:instmapi.exe instmapi.obj $(LIBSEXE)
+
+distclean:

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mimedesc.c 409 2007-02-01 22:44:01Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: mimedesc.c 579 2007-05-23 18:06:55Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -28,7 +28,7 @@ static char rcsid[] = "$Id: mimedesc.c 409 2007-02-01 22:44:01Z mikes@u.washingt
 /* internal prototypes */
 int         mime_known_text_subtype(char *);
 ATTACH_S   *next_attachment(void);
-void	    format_mime_size(char *, size_t, BODY *);
+void	    format_mime_size(char *, size_t, BODY *, int);
 int	    mime_show(BODY *);
 
 
@@ -40,6 +40,11 @@ int	    mime_show(BODY *);
 #define	SHOW_ALL_EXT	2
 #define	SHOW_ALL	3
 
+/*
+ * Def's to control format_mime_size output
+ */
+#define	FMS_NONE	0x00
+#define	FMS_SPACE	0x01
 
 
 /*----------------------------------------------------------------------
@@ -156,7 +161,7 @@ describe_mime(struct mail_bodystruct *body, char *prefix, int num,
 	     */
 	    describe_mime(&(part->body),
 			  (part->body.type == TYPEMULTIPART) ? numx : prefix,
-			  n, (n == alt_to_show || !alt_to_show),
+			  n, should_show && (n == alt_to_show || !alt_to_show),
 			  alt_to_show != 0, flags);
 	}
     }
@@ -165,7 +170,7 @@ describe_mime(struct mail_bodystruct *body, char *prefix, int num,
 	size_t ll;
 
 	a = next_attachment();
-	format_mime_size(a->size, sizeof(a->size), body);
+	format_mime_size(a->size, sizeof(a->size), body, FMS_SPACE);
 
 	a->suppress_editorial = (multalt != 0);
 
@@ -497,7 +502,7 @@ type_desc(int type, char *subtype, struct mail_body_parameter *params,
 
 
 void
-format_mime_size(char *string, size_t stringlen, struct mail_bodystruct *b)
+format_mime_size(char *string, size_t stringlen, struct mail_bodystruct *b, int flags)
 {
     char tmp[10], *p = NULL;
     char *origstring;
@@ -508,19 +513,26 @@ format_mime_size(char *string, size_t stringlen, struct mail_bodystruct *b)
 
     origstring = string;
 
-    *string++ = ' ';
+    if(flags & FMS_SPACE)
+      *string++ = ' ';
 
     switch(b->encoding){
       case ENCBASE64 :
 	if(b->type == TYPETEXT)
-	  *(string-1) = '~';
+	  if(flags & FMS_SPACE)
+	    *(string-1) = '~';
+	  else
+	    *string++ = '~';
 
 	strncpy(p = string, byte_string((3 * b->size.bytes) / 4), stringlen-(string-origstring));
 	break;
 
       default :
       case ENCQUOTEDPRINTABLE :
-	*(string-1) = '~';
+	if(flags & FMS_SPACE)
+	  *(string-1) = '~';
+	else
+	  *string++ = '~';
 
       case ENC8BIT :
       case ENC7BIT :
@@ -539,7 +551,7 @@ format_mime_size(char *string, size_t stringlen, struct mail_bodystruct *b)
 		     || ispunct((unsigned char) *p))); p++)
 	  ;
 
-	snprintf(tmp, sizeof(tmp), " %-5.5s", p);
+	snprintf(tmp, sizeof(tmp), (flags & FMS_SPACE) ? " %-5.5s" : " %s", p);
 	tmp[sizeof(tmp)-1] = '\0';
 	strncpy(p, tmp, stringlen-(p-origstring));
     }
@@ -653,23 +665,23 @@ char *
 part_desc(char *number, BODY *body, int type, int width, int flags, gf_io_t pc)
 {
     char *t;
-    char buftmp[MAILTMPLEN];
+    char buftmp[MAILTMPLEN], sizebuf[256];
 
     if(!gf_puts(NEWLINE, pc))
       return("No space for description");
 
+    format_mime_size(sizebuf, 256, body, FMS_NONE);
+
     snprintf(buftmp, sizeof(buftmp), "%s", body->description ? body->description : "");
     buftmp[sizeof(buftmp)-1] = '\0';
-    snprintf(tmp_20k_buf+10000, SIZEOF_20KBUF-10000, "Part %s, %s%.2048s%s%s  %s%s.",
+    snprintf(tmp_20k_buf+10000, SIZEOF_20KBUF-10000, "Part %s, %s%.2048s%s%s %s.",
             number,
             body->description == NULL ? "" : "\"",
             body->description == NULL ? ""
 	      : (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf, 10000, buftmp),
             body->description == NULL ? "" : "\"  ",
             type_desc(body->type, body->subtype, body->parameter, NULL, 1),
-            body->type == TYPETEXT ? comatose(body->size.lines) :
-                                     byte_string(body->size.bytes),
-            body->type == TYPETEXT ? " lines" : "");
+	    sizebuf);
     tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
 
     iutf8ncpy((char *)tmp_20k_buf, (char *)(tmp_20k_buf+10000), 10000);

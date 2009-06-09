@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: conf.c 551 2007-05-01 17:44:08Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: conf.c 615 2007-06-28 17:39:01Z jpf@u.washington.edu $";
 #endif
 
 /*
@@ -293,6 +293,8 @@ CONF_TXT_T cf_text_kw_colors[] =	"Colors used to display keywords in the index";
 
 CONF_TXT_T cf_text_kw_braces[] =	"Characters which surround keywords in SUBJKEY token.\n# Default is \"{\" \"} \"";
 
+CONF_TXT_T cf_text_opening_sep[] =	"Characters between subject and opening text in SUBJECTTEXT token.\n# Default is \" - \"";
+
 CONF_TXT_T cf_text_abook_formats[] =	"This is a list of formats for address books.  Each entry in the list is made\n# up of space-delimited tokens telling which fields are displayed and in\n# which order.  See help text";
 
 CONF_TXT_T cf_text_index_format[] =	"This gives a format for displaying the index.  It is made\n# up of space-delimited tokens telling which fields are displayed and in\n# which order.  See help text";
@@ -363,6 +365,8 @@ CONF_TXT_T cf_text_inc_check_timeo[] =	"Sets the time in seconds that Alpine wil
 
 CONF_TXT_T cf_text_inc_check_interval[] = "Sets the approximate number of seconds between checks for unseen messages\n# in incoming folders. The default is 180.";
 
+CONF_TXT_T cf_text_inc_second_check_interval[] = "Sets the approximate number of seconds between checks for unseen messages\n# for other than local or IMAP folders. The default is 180.";
+
 CONF_TXT_T cf_text_inc_check_list[] =	"List of incoming folders to check for unseen messages. The default if left\n# blank is to check all incoming folders.";
 
 CONF_TXT_T cf_text_ssh_path[] =		"Sets the name of the command used to open a UNIX secure shell connection.\n# Typically this is /usr/bin/ssh.";
@@ -427,401 +431,427 @@ The current value is the one that is actually in use.
                                 |       |  |  |  |  |  |  |  |  |  |  |
                                 |       |  |  |  |  |  |  |  |  |  |  |  */
 static struct variable variables[] = {
-    {"Personal-Name",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_personal_name},
+{"personal-name",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_personal_name},
+{
 #if defined(DOS) || defined(OS2)
                         /* Have to have this on DOS, PC's, Macs, etc... */
-{"User-ID",				0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
+ "user-id",				0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
 #else			/* Don't allow on UNIX machines for some security */
-{"User-ID",				0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0,
+ "user-id",				0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0,
 #endif
-				cf_text_user_id},
-{"User-Domain",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_user_domain},
-{"SMTP-Server",				0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0,
-				cf_text_smtp_server},
-{"NNTP-Server",				0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0,
-				cf_text_nntp_server},
-{"Inbox-Path",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_inbox_path},
-{"Incoming-Archive-Folders",		0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_archived_folders},
-{"Pruned-Folders",			0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0,
-				cf_text_pruned_folders},
-{"Default-Fcc",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_default_fcc},
-{"Default-Saved-Msg-Folder",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_default_saved},
-{"Postponed-Folder",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_postponed_folder},
-{"Read-Message-Folder",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_read_message_folder},
-{"Form-Letter-Folder",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_form_letter_folder},
-{"Literal-Signature",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_literal_sig},
-{"Signature-File",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_signature_file},
-{"Feature-List",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_feature_list},
-{"Initial-Keystroke-List",		0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_initial_keystroke_list},
-{"Default-Composer-Hdrs",		0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_default_composer_hdrs},
-{"Customized-Hdrs",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_customized_hdrs},
-{"Viewer-Hdrs",				0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_view_headers},
-{"Viewer-Margin-Left",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_view_margin_left},
-{"Viewer-Margin-Right",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_view_margin_right},
-{"Quote-Suppression-Threshold",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_quote_suppression},
-{"Saved-Msg-Name-Rule",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_save_msg_name_rule},
-{"Fcc-Name-Rule",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_fcc_name_rule},
-{"Sort-Key",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_sort_key},
-{"Addrbook-Sort-Rule",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_addrbook_sort_rule},
-{"Folder-Sort-Rule",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_folder_sort_rule},
-{"Goto-Default-Rule",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_goto_default},
-{"Incoming-Startup-Rule",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_inc_startup},
-{"Pruning-Rule",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_pruning_rule},
-{"Folder-Reopen-Rule",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_reopen_rule},
-{"Threading-Display-Style",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_thread_disp_style},
-{"Threading-Index-Style",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_thread_index_style},
-{"Threading-Indicator-Character",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_thread_more_char},
-{"Threading-Expanded-Character",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_thread_exp_char},
-{"Threading-Lastreply-Character",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_thread_lastreply_char},
-{"Display-Character-Set",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_disp_char_set},
-{"Character-Set",			1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_old_char_set},
-{"Keyboard-Character-Set",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_key_char_set},
-{"Posting-Character-Set",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_post_character_set},
-{"Editor",				0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0,
-				cf_text_editor},
-{"Speller",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_speller},
-{"Composer-Wrap-Column",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_fillcol},
-{"Reply-Indent-String",			0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0,
-				cf_text_replystr},
-{"Reply-Leadin",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_replyintro},
-{"Quote-Replace-String",		0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0,
-				cf_text_quotereplstr},
-{"Composer-Word-Separators",		0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0,
-				cf_text_wordsep},
-{"Empty-Header-Message",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_emptyhdr},
-{"Image-Viewer",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_image_viewer},
-{"Use-Only-Domain-Name",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_use_only_domain_name},
-{"Bugs-Fullname",			0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_bugs_fullname},
-{"Bugs-Address",			0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_bugs_address},
-{"Bugs-Additional-Data",		0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_bugs_extras},
-{"Suggest-Fullname",			0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_suggest_fullname},
-{"Suggest-Address",			0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_suggest_address},
-{"Local-Fullname",			0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_local_fullname},
-{"Local-Address",			0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_local_address},
-{"Forced-Abook-Entry",			0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_forced_abook},
-{"Kblock-Passwd-Count",			0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_kblock_passwd},
-{"Display-Filters",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_in_fltr},
-{"Sending-Filters",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_out_fltr},
-{"Alt-Addresses",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_alt_addrs},
-{"Keywords",				0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_keywords},
-{"Keyword-Surrounding-Chars",		0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0,
-				cf_text_kw_braces},
-{"Addressbook-Formats",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_abook_formats},
-{"Index-Format",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_index_format},
-{"Viewer-Overlap",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_overlap},
-{"Scroll-Margin",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_margin},
-{"Status-Message-Delay",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_stat_msg_delay},
-{"Busy-Cue-Rate",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_busy_cue_rate},
-{"Mail-Check-Interval",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_mailcheck},
-{"Mail-Check-Interval-Noncurrent",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_mailchecknoncurr},
-{"Maildrop-Check-Minimum",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_maildropcheck},
-{"NNTP-Range",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_nntprange},
-{"Newsrc-Path",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_newsrc_path},
-{"News-Active-File-Path",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_news_active},
-{"News-Spool-Directory",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_news_spooldir},
-{"Upload-Command",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_upload_cmd},
-{"Upload-Command-Prefix",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_upload_prefix},
-{"Download-Command",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_download_cmd},
-{"Download-Command-Prefix",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_download_prefix},
-{"Mailcap-Search-Path",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_mailcap_path},
-{"Mimetype-Search-Path",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_mimetype_path},
-{"URL-Viewers",				0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_browser},
-{"Max-Remote-Connections",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_maxremstreams},
-{"Stay-Open-Folders",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_permlocked},
-{"Incoming-Check-Timeout",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_inc_check_timeo},
-{"Incoming-Check-Interval",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_inc_check_interval},
-{"Incoming-Check-List",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_inc_check_list},
-{"Dead-Letter-Files",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_deadlets},
+	"User ID",		cf_text_user_id},
+{"user-domain",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_user_domain},
+{"smtp-server",				0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0,
+	"SMTP Server (for sending)",	cf_text_smtp_server},
+{"nntp-server",				0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0,
+	"NNTP Server (for news)",	cf_text_nntp_server},
+{"inbox-path",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_inbox_path},
+{"incoming-archive-folders",		0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	NULL,			cf_text_archived_folders},
+{"pruned-folders",			0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0,
+	NULL,			cf_text_pruned_folders},
+{"default-fcc",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	"Default Fcc (File carbon copy)",	cf_text_default_fcc},
+{"default-saved-msg-folder",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	"Default Saved Message Folder",	cf_text_default_saved},
+{"postponed-folder",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_postponed_folder},
+{"read-message-folder",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_read_message_folder},
+{"form-letter-folder",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_form_letter_folder},
+{"literal-signature",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_literal_sig},
+{"signature-file",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_signature_file},
+{"feature-list",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	NULL,			cf_text_feature_list},
+{"initial-keystroke-list",		0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	NULL,			cf_text_initial_keystroke_list},
+{"default-composer-hdrs",		0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	"Default Composer Headers",	cf_text_default_composer_hdrs},
+{"customized-hdrs",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	"Customized Headers",	cf_text_customized_hdrs},
+{"viewer-hdrs",				0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	"Viewer Headers",	cf_text_view_headers},
+{"viewer-margin-left",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_view_margin_left},
+{"viewer-margin-right",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_view_margin_right},
+{"quote-suppression-threshold",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_quote_suppression},
+{"saved-msg-name-rule",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	"Saved Message Name Rule",	cf_text_save_msg_name_rule},
+{"fcc-name-rule",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_fcc_name_rule},
+{"sort-key",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_sort_key},
+{"addrbook-sort-rule",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	"Address Book Sort Rule",	cf_text_addrbook_sort_rule},
+{"folder-sort-rule",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_folder_sort_rule},
+{"goto-default-rule",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_goto_default},
+{"incoming-startup-rule",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_inc_startup},
+{"pruning-rule",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_pruning_rule},
+{"folder-reopen-rule",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_reopen_rule},
+{"threading-display-style",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_thread_disp_style},
+{"threading-index-style",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_thread_index_style},
+{"threading-indicator-character",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_thread_more_char},
+{"threading-expanded-character",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_thread_exp_char},
+{"threading-lastreply-character",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	"Threading Last Reply Character",	cf_text_thread_lastreply_char},
+{"display-character-set",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_disp_char_set},
+{"character-set",			1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_old_char_set},
+{"keyboard-character-set",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_key_char_set},
+{"posting-character-set",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_post_character_set},
+{"editor",				0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0,
+	NULL,			cf_text_editor},
+{"speller",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_speller},
+{"composer-wrap-column",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_fillcol},
+{"reply-indent-string",			0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0,
+	NULL,			cf_text_replystr},
+{"reply-leadin",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_replyintro},
+{"quote-replace-string",		0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0,
+	NULL,			cf_text_quotereplstr},
+{"composer-word-separators",		0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0,
+	NULL,			cf_text_wordsep},
+{"empty-header-message",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_emptyhdr},
+{"image-viewer",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_image_viewer},
+{"use-only-domain-name",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_use_only_domain_name},
+{"bugs-fullname",			0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_bugs_fullname},
+{"bugs-address",			0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_bugs_address},
+{"bugs-additional-data",		0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_bugs_extras},
+{"suggest-fullname",			0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_suggest_fullname},
+{"suggest-address",			0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_suggest_address},
+{"local-fullname",			0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_local_fullname},
+{"local-address",			0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_local_address},
+{"forced-abook-entry",			0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0,
+	NULL,			cf_text_forced_abook},
+{"kblock-passwd-count",			0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_kblock_passwd},
+{"display-filters",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	NULL,			cf_text_in_fltr},
+{"sending-filters",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	NULL,			cf_text_out_fltr},
+{"alt-addresses",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	"Alternate Addresses",	cf_text_alt_addrs},
+{"keywords",				0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	NULL,			cf_text_keywords},
+{"keyword-surrounding-chars",		0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0,
+	"Keyword Surrounding Characters",	cf_text_kw_braces},
+{"opening-text-separator-chars",	0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0,
+	"Opening Text Separator Characters",	cf_text_opening_sep},
+{"addressbook-formats",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	"Address Book Formats",			cf_text_abook_formats},
+{"index-format",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_index_format},
+{"viewer-overlap",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_overlap},
+{"scroll-margin",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_margin},
+{"status-message-delay",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_stat_msg_delay},
+{"busy-cue-rate",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_busy_cue_rate},
+{"mail-check-interval",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_mailcheck},
+{"mail-check-interval-noncurrent",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_mailchecknoncurr},
+{"maildrop-check-minimum",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_maildropcheck},
+{"nntp-range",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	"NNTP Range",		cf_text_nntprange},
+{"newsrc-path",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_newsrc_path},
+{"news-active-file-path",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_news_active},
+{"news-spool-directory",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_news_spooldir},
+{"upload-command",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_upload_cmd},
+{"upload-command-prefix",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_upload_prefix},
+{"download-command",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_download_cmd},
+{"download-command-prefix",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_download_prefix},
+{"mailcap-search-path",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_mailcap_path},
+{"mimetype-search-path",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_mimetype_path},
+{"url-viewers",				0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	"URL-Viewers",		cf_text_browser},
+{"max-remote-connections",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	"Maximum Remote Connections",	cf_text_maxremstreams},
+{"stay-open-folders",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	"Stayopen Folders",	cf_text_permlocked},
+{"incoming-check-timeout",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_inc_check_timeo},
+{"incoming-check-interval",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_inc_check_interval},
+{"incoming-check-interval-secondary",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_inc_second_check_interval},
+{"incoming-check-list",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	NULL,			cf_text_inc_check_list},
+{"dead-letter-files",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_deadlets},
 #if !defined(DOS) && !defined(OS2) && !defined(LEAVEOUTFIFO)
-{"Newmail-FIFO-Path",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_newmail_fifo_path},
+{"newmail-fifo-path",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	"NewMail FIFO Path",	cf_text_newmail_fifo_path},
 #endif
-{"Newmail-Window-Width",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_nmw_width},
+{"newmail-window-width",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	"NewMail Window Width",	cf_text_nmw_width},
 /*
  * Starting here, the variables are hidden in the Setup/Config screen.
  * They are exposed if feature expose-hidden-config is set.
  */
-{"Incoming-Folders",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_incoming_folders},
-{"Mail-Directory",			0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_mail_directory},
-{"Folder-Collections",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_folder_collections},
-{"News-Collections",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_news_collections},
-{"Address-Book",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_address_book},
-{"Global-Address-Book",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_global_address_book},
-{"Standard-Printer",			0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_standard_printer},
-{"Last-Time-Prune-Questioned",		0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0,
-				cf_text_last_time_prune_quest},
-{"Last-Version-Used",			0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0,
-				cf_text_last_version_used},
-{"Sendmail-Path",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_sendmail_path},
-{"Operating-Dir",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_oper_dir},
-{"User-Input-Timeout",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_user_input_timeo},
+{"incoming-folders",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	NULL,			cf_text_incoming_folders},
+{"mail-directory",			0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_mail_directory},
+{"folder-collections",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	NULL,			cf_text_folder_collections},
+{"news-collections",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	NULL,			cf_text_news_collections},
+{"address-book",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	NULL,			cf_text_address_book},
+{"global-address-book",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	NULL,			cf_text_global_address_book},
+{"standard-printer",			0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0,
+	NULL,			cf_text_standard_printer},
+{"last-time-prune-questioned",		0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0,
+	NULL,			cf_text_last_time_prune_quest},
+{"last-version-used",			0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0,
+	NULL,			cf_text_last_version_used},
+{"sendmail-path",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_sendmail_path},
+{"operating-dir",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_oper_dir},
+{"user-input-timeout",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_user_input_timeo},
 /* OBSOLETE */
 #ifdef DEBUGJOURNAL
-{"Debug-Memory",			1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_debug_mem},
+{"debug-memory",			1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_debug_mem},
 #endif
-
-{"TCP-Open-Timeout",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_tcp_open_timeo},
-{"TCP-Read-Warning-Timeout",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_tcp_read_timeo},
-{"TCP-Write-Warning-Timeout",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_tcp_write_timeo},
-{"TCP-Query-Timeout",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_tcp_query_timeo},
-{"Rsh-Command",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_rsh_command},
-{"Rsh-Path",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_rsh_path},
-{"Rsh-Open-Timeout",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_rsh_open_timeo},
-{"Ssh-Command",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_ssh_command},
-{"Ssh-Path",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_ssh_path},
-{"Ssh-Open-Timeout",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_ssh_open_timeo},
-{"New-Version-Threshold",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_version_threshold},
-{"Disable-These-Drivers",		0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0,
-				cf_text_disable_drivers},
-{"Disable-These-Authenticators",	0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0,
-				cf_text_disable_auths},
-{"Remote-Abook-Metafile",		0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0,
-				cf_text_remote_abook_metafile},
-{"Remote-Abook-History",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_remote_abook_history},
-{"Remote-Abook-Validity",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_remote_abook_validity},
-{"Printer",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_printer},
-{"Personal-Print-Command",		0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_personal_print_command},
-{"Personal-Print-Category",		0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
-				cf_text_personal_print_cat},
-{"Patterns",				1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_old_patterns},
-{"Patterns-Roles",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_patterns},
-{"Patterns-Filters2",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_patterns},
-{"Patterns-Filters",			1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_old_filters},
-{"Patterns-Scores2",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_patterns},
-{"Patterns-Scores",			1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_old_scores},
-{"Patterns-Indexcolors",		0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_patterns},
-{"Patterns-Other",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_patterns},
-
+{"tcp-open-timeout",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	"TCP Open Timeout",	cf_text_tcp_open_timeo},
+{"tcp-read-warning-timeout",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	"TCP Read Warning Timeout",	cf_text_tcp_read_timeo},
+{"tcp-write-warning-timeout",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	"TCP Write Warning Timeout",	cf_text_tcp_write_timeo},
+{"tcp-query-timeout",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	"TCP Query Timeout",	cf_text_tcp_query_timeo},
+{"rsh-command",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_rsh_command},
+{"rsh-path",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_rsh_path},
+{"rsh-open-timeout",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_rsh_open_timeo},
+{"ssh-command",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_ssh_command},
+{"ssh-path",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_ssh_path},
+{"ssh-open-timeout",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_ssh_open_timeo},
+{"new-version-threshold",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_version_threshold},
+{"disable-these-drivers",		0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0,
+	NULL,			cf_text_disable_drivers},
+{"disable-these-authenticators",	0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0,
+	NULL,			cf_text_disable_auths},
+{"remote-abook-metafile",		0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0,
+	NULL,			cf_text_remote_abook_metafile},
+{"remote-abook-history",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_remote_abook_history},
+{"remote-abook-validity",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_remote_abook_validity},
+{"printer",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_printer},
+{"personal-print-command",		0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	NULL,			cf_text_personal_print_command},
+{"personal-print-category",		0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_personal_print_cat},
+{"patterns",				1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	NULL,			cf_text_old_patterns},
+{"patterns-roles",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	NULL,			cf_text_patterns},
+{"patterns-filters2",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	"Patterns Filters",	cf_text_patterns},
+{"patterns-filters",			1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	NULL,			cf_text_old_filters},
+{"patterns-scores2",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	"Patterns Scores",	cf_text_patterns},
+{"patterns-scores",			1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	NULL,			cf_text_old_scores},
+{"patterns-indexcolors",		0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	NULL,			cf_text_patterns},
+{"patterns-other",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	NULL,			cf_text_patterns},
+{"patterns-search",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	NULL,			cf_text_patterns},
 /* OBSOLETE VARS */
-{"Elm-Style-Save",			1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_elm_style_save},
-{"Header-in-Reply",			1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_header_in_reply},
-{"Feature-Level",			1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_feature_level},
-{"Old-Style-Reply",			1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_old_style_reply},
-{"Compose-Mime",			1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_compose_mime},
-{"Show-All-Characters",			1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_show_all_characters},
-{"Save-By-Sender",			1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_save_by_sender},
+{"elm-style-save",			1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_elm_style_save},
+{"header-in-reply",			1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_header_in_reply},
+{"feature-level",			1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_feature_level},
+{"old-style-reply",			1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_old_style_reply},
+{"compose-mime",			1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_compose_mime},
+{"show-all-characters",			1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_show_all_characters},
+{"save-by-sender",			1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_save_by_sender},
 #if defined(DOS) || defined(OS2)
-{"File-Directory",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_file_dir},
-{"Folder-Extension",			1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_folder_extension},
+{"file-directory",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_file_dir},
+{"folder-extension",			1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_folder_extension},
 #endif
 #ifndef	_WINDOWS
-{"Color-Style",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_color_style},
+{"color-style",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_color_style},
 #endif
-{"Current-Indexline-Style",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_current_indexline_style},
-{"Titlebar-Color-Style",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_titlebar_color_style},
-{"Normal-Foreground-Color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_normal_foreground_color},
-{"Normal-Background-Color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Reverse-Foreground-Color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Reverse-Background-Color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Title-Foreground-Color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Title-Background-Color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Title-closed-Foreground-Color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Title-closed-Background-Color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Status-Foreground-Color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Status-Background-Color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Keylabel-Foreground-Color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Keylabel-Background-Color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Keyname-Foreground-Color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Keyname-Background-Color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Selectable-Item-Foreground-Color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Selectable-Item-Background-Color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Meta-Message-Foreground-Color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Meta-Message-Background-Color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Quote1-Foreground-Color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Quote1-Background-Color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Quote2-Foreground-Color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Quote2-Background-Color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Quote3-Foreground-Color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Quote3-Background-Color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Signature-Foreground-Color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Signature-Background-Color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Prompt-Foreground-Color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Prompt-Background-Color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Index-to-me-Foreground-Color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Index-to-me-Background-Color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Index-important-Foreground-Color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Index-important-Background-Color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Index-deleted-Foreground-Color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Index-deleted-Background-Color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Index-answered-Foreground-Color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Index-answered-Background-Color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Index-new-Foreground-Color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Index-new-Background-Color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Index-recent-Foreground-Color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Index-recent-Background-Color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Index-unseen-Foreground-Color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Index-unseen-Background-Color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Index-arrow-Foreground-Color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Index-arrow-Background-Color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Index-opening-Foreground-Color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Index-opening-Background-Color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Viewer-Hdr-Colors",			0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0,
-				cf_text_view_hdr_color},
-{"Keyword-Colors",			0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0,
-				cf_text_kw_colors},
-#if defined(DOS) || defined(OS2)
+{"current-indexline-style",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_current_indexline_style},
+{"titlebar-color-style",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_titlebar_color_style},
+{"normal-foreground-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			cf_text_normal_foreground_color},
+{"normal-background-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"reverse-foreground-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"reverse-background-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"title-foreground-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"title-background-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"title-closed-foreground-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"title-closed-background-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"status-foreground-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"status-background-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"keylabel-foreground-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"keylabel-background-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"keyname-foreground-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"keyname-background-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"selectable-item-foreground-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"selectable-item-background-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"meta-message-foreground-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"meta-message-background-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"quote1-foreground-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"quote1-background-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"quote2-foreground-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"quote2-background-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"quote3-foreground-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"quote3-background-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"signature-foreground-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"signature-background-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"prompt-foreground-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"prompt-background-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"header-general-foreground-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"header-general-background-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-to-me-foreground-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-to-me-background-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-important-foreground-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-important-background-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-deleted-foreground-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-deleted-background-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-answered-foreground-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-answered-background-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-new-foreground-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-new-background-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-recent-foreground-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-recent-background-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-unseen-foreground-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-unseen-background-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-arrow-foreground-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-arrow-background-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-subject-foreground-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-subject-background-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-from-foreground-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-from-background-color",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-opening-foreground-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"index-opening-background-color",	0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0},
+{"viewer-hdr-colors",			0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0,
+	"Viewer Header Colors",	cf_text_view_hdr_color},
+{"keyword-colors",			0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0,
+	NULL,			cf_text_kw_colors},
 #ifdef _WINDOWS
-{"Font-Name",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				"Name and size of font."},
-{"Font-Size",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Font-Style",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Font-Char-Set",      			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Print-Font-Name",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				"Name and size of printer font."},
-{"Print-Font-Size",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Print-Font-Style",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Print-Font-Char-Set",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
-{"Window-Position",			0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0,
-				cf_text_window_position},
-{"Cursor-Style",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
+{"font-name",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			"name and size of font."},
+{"font-size",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
+{"font-style",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
+{"font-char-set",      			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
+{"print-font-name",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	NULL,			"name and size of printer font."},
+{"print-font-size",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
+{"print-font-style",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
+{"print-font-char-set",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
+{"window-position",			0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0,
+	NULL,			cf_text_window_position},
+{"cursor-style",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
 #endif	/* _WINDOWS */
-#endif	/* DOS */
 #ifdef	ENABLE_LDAP
-{"LDAP-Servers",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-				cf_text_ldap_server},
+{"ldap-servers",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	"LDAP Servers",		cf_text_ldap_server},
 #endif	/* ENABLE_LDAP */
 {"wp-indexheight", 			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_wp_indexheight},
+	NULL,			cf_text_wp_indexheight},
 {"wp-indexlines",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_wp_indexlines},
+	NULL,			cf_text_wp_indexlines},
 {"wp-aggstate",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_wp_aggstate},
+	NULL,			cf_text_wp_aggstate},
 {"wp-state",				0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-				cf_text_wp_state},
+	NULL,			cf_text_wp_state},
 {"wp-columns",				0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
-				cf_text_wp_columns},
-{NULL,					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NULL}
+	NULL,			cf_text_wp_columns},
+{NULL,					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NULL,NULL}
 };
+
+
+struct variable *
+var_from_name(char *name)
+{
+    struct variable *v;
+    int	             i;
+
+    if(!(name && name[0]))
+      return(NULL);
+
+    for(i = 0; (v = &variables[i]) && v->name; i++)
+      if(!strucmp(v->name,name))
+	return(v);
+
+    return(NULL);
+}
 
 
 void
@@ -1528,6 +1558,7 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
     GLO_USERINPUTTIMEO		= cpystr("0");
     GLO_INCCHECKTIMEO		= cpystr("5");
     GLO_INCCHECKINTERVAL	= cpystr("180");
+    GLO_INC2NDCHECKINTERVAL	= cpystr("180");
     GLO_MAILCHECK		= cpystr(DF_MAILCHECK);
     GLO_MAILCHECKNONCURR	= cpystr("0");
     GLO_MAILDROPCHECK		= cpystr(DF_MAILDROPCHECK);
@@ -1572,12 +1603,11 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
     GLO_IND_NEW_BACK_COLOR	= cpystr(DEFAULT_IND_NEW_BACK_RGB);
     GLO_IND_OP_FORE_COLOR	= cpystr(DEFAULT_IND_OP_FORE_RGB);
     GLO_IND_OP_BACK_COLOR	= cpystr(DEFAULT_IND_OP_BACK_RGB);
-    if(!GLO_VIEW_HDR_COLORS)
-      GLO_VIEW_HDR_COLORS = parse_list(DEFAULT_VIEW_HDR_COLORS, 1, PL_REMSURRQUOT, NULL);
     GLO_VIEW_MARGIN_LEFT	= cpystr("0");
     GLO_VIEW_MARGIN_RIGHT	= cpystr(DF_VIEW_MARGIN_RIGHT);
     GLO_QUOTE_SUPPRESSION	= cpystr(DF_QUOTE_SUPPRESSION);
     GLO_KW_BRACES		= cpystr("\"{\" \"} \"");
+    GLO_OPENING_SEP		= cpystr(" - ");
     GLO_WP_INDEXHEIGHT          = cpystr("24");
     GLO_WP_AGGSTATE		= cpystr("1");
     GLO_WP_STATE		= cpystr("");
@@ -1896,6 +1926,7 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
     set_current_val(&vars[V_ALT_ADDRS], TRUE, TRUE);
     set_current_val(&vars[V_ABOOK_FORMATS], TRUE, TRUE);
     set_current_val(&vars[V_KW_BRACES], TRUE, TRUE);
+    set_current_val(&vars[V_OPENING_SEP], TRUE, TRUE);
 
     set_current_val(&vars[V_KEYWORDS], TRUE, TRUE);
     ps_global->keywords = init_keyword_list(VAR_KEYWORDS);
@@ -2104,6 +2135,13 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
     else
       ps->inc_check_interval = i;
 
+    set_current_val(&vars[V_INC2NDCHECKINTERVAL], TRUE, TRUE);
+    ps->inc_second_check_interval = i = 180;
+    if(SVAR_INC_2NDCHECK_INTERV(ps, i, tmp_20k_buf, SIZEOF_20KBUF))
+      init_error(ps, SM_ORDER | SM_DING, 3, 5, tmp_20k_buf);
+    else
+      ps->inc_second_check_interval = i;
+
     rvl = 60L;
     set_current_val(&vars[V_MAILDROPCHECK], TRUE, TRUE);
     /* this is just for the error, we don't save the result */
@@ -2272,33 +2310,36 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
 #endif	/* _WINDOWS */
 #endif	/* DOS */
 
+    /*
+     * We want the version number to start out as 1.0 for Alpine, but
+     * we also want to use the same old config file that was used
+     * with Pine. The Pine version numbers made it up to 4.64 and we
+     * want Alpine's 1.0 to be larger than 4.64 so we keep a separate
+     * internal version number which is the real version number
+     * plus 4. That's what gets written in LAST_VERS_USED.
+     */
+    strncpy(ps->vers_internal, ALPINE_VERSION, sizeof(ps->vers_internal));
+    ps->vers_internal[sizeof(ps->vers_internal)-1] = '\0';
+    if(isdigit(ps->vers_internal[0]) && ps->vers_internal[0] < '6')
+      ps->vers_internal[0] = ps->vers_internal[0] + 4;
+
     set_current_val(&vars[V_LAST_VERS_USED], TRUE, TRUE);
     /* Check for special cases first */
     if(VAR_LAST_VERS_USED
-          /* Special Case #1: 3.92 use is effectively the same as 3.92 */
-       && (strcmp(VAR_LAST_VERS_USED, "3.92") == 0
-	   /*
-	    * Special Case #2:  We're not really a new version if our
-	    * version number looks like: <number><dot><number><number><alpha>
-	    * The <alpha> on the end is key meaning its just a bug-fix patch.
-	    */
-	   || (isdigit(ALPINE_VERSION[0])
-	       && ALPINE_VERSION[1] == '.'
-	       && isdigit((unsigned char)ALPINE_VERSION[2])
-	       && isdigit((unsigned char)ALPINE_VERSION[3])
-	       && isalpha((unsigned char)ALPINE_VERSION[4])
-	       && strncmp(VAR_LAST_VERS_USED, ALPINE_VERSION, 4) >= 0))){
+       && (isdigit(ps->vers_internal[0])
+	   && ps->vers_internal[1] == '.'
+	   && isdigit((unsigned char)ps->vers_internal[2])
+	   && isdigit((unsigned char)ps->vers_internal[3])
+	   && isalpha((unsigned char)ps->vers_internal[4])
+	   && strncmp(VAR_LAST_VERS_USED, ps->vers_internal, 4) >= 0)){
 	ps->show_new_version = 0;
     }
     /* Otherwise just do lexicographic comparision... */
     else if(VAR_LAST_VERS_USED
-	    && strcmp(VAR_LAST_VERS_USED, ALPINE_VERSION) >= 0){
+	    && strcmp(VAR_LAST_VERS_USED, ps->vers_internal) >= 0){
 	ps->show_new_version = 0;
     }
     else{
-        ps->pre390 = !(VAR_LAST_VERS_USED
-		       && strcmp(VAR_LAST_VERS_USED, "3.90") >= 0);
-
 #ifdef	_WINDOWS
 	/*
 	 * If this is the first time we've run a version > 4.40, and there
@@ -2318,7 +2359,7 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
 	 */
 	set_current_val(&vars[V_NEW_VER_QUELL], TRUE, TRUE);
 	ps->show_new_version = !(VAR_NEW_VER_QUELL
-			         && strcmp(ALPINE_VERSION,
+			         && strcmp(ps->vers_internal,
 					   VAR_NEW_VER_QUELL) < 0);
 
 #ifdef _WINDOWS
@@ -2331,7 +2372,7 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
 	    ps_global->pine_pre_vers[sizeof(ps_global->pine_pre_vers)-1] = '\0';
 	}
 
-	set_variable(V_LAST_VERS_USED, ALPINE_VERSION, 1, 1,
+	set_variable(V_LAST_VERS_USED, ps->vers_internal, 1, 1,
 		     ps_global->ew_for_except_vars);
 	}
     }
@@ -2459,16 +2500,6 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
 
 #ifdef	_WINDOWS
     mswin_set_quit_confirm (F_OFF(F_QUIT_WO_CONFIRM, ps_global));
-    if(ps_global->update_registry != UREG_NEVER_SET){
-	mswin_reg(MSWR_OP_SET
-		  | ((ps_global->update_registry == UREG_ALWAYS_SET)
-		   ? MSWR_OP_FORCE : 0),
-		  MSWR_PINE_DIR, ps_global->pine_dir, (size_t)NULL);
-	mswin_reg(MSWR_OP_SET
-		  | ((ps_global->update_registry == UREG_ALWAYS_SET)
-		     ? MSWR_OP_FORCE : 0),
-		  MSWR_PINE_EXE, ps_global->pine_name, (size_t)NULL);
-    }
 #endif	/* _WINDOWS */
 
 #ifdef DEBUG
@@ -2634,464 +2665,468 @@ feature_list(int index)
      */
     static FEATURE_S feat_list[] = {
 /* Composer prefs */
-	{"Alternate-Compose-Menu",
-	 F_ALT_COMPOSE_MENU, h_config_alt_compose_menu, PREF_COMP},
-	{"Alternate-Role-Menu",
-	 F_ALT_ROLE_MENU, h_config_alt_role_menu, PREF_COMP},
-	{"Compose-Cancel-Confirm-Uses-Yes",
-	 F_CANCEL_CONFIRM, h_config_cancel_confirm, PREF_COMP},
-	{"Compose-Cut-From-Cursor",
-	 F_DEL_FROM_DOT, h_config_del_from_dot, PREF_COMP},
-	{"Compose-Maps-Delete-Key-To-Ctrl-D",
-	 F_COMPOSE_MAPS_DEL, h_config_compose_maps_del, PREF_COMP},
-	{"Compose-Rejects-Unqualified-Addrs",
-	 F_COMPOSE_REJECTS_UNQUAL, h_config_compose_rejects_unqual, PREF_COMP},
-	{"Compose-Send-Offers-First-Filter",
-	 F_FIRST_SEND_FILTER_DFLT, h_config_send_filter_dflt, PREF_COMP},
-	{"Downgrade-Multipart-To-Text",
-	 F_COMPOSE_ALWAYS_DOWNGRADE, h_downgrade_multipart_to_text, PREF_COMP},
-	{"Enable-Alternate-Editor-Cmd",
-	 F_ENABLE_ALT_ED, h_config_enable_alt_ed, PREF_COMP},
-	{"Enable-Alternate-Editor-Implicitly",
-	 F_ALT_ED_NOW, h_config_alt_ed_now, PREF_COMP},
-	{"Enable-Search-And-Replace",
-	 F_ENABLE_SEARCH_AND_REPL, h_config_enable_search_and_repl, PREF_COMP},
-	{"Enable-Sigdashes",
-	 F_ENABLE_SIGDASHES, h_config_sigdashes, PREF_COMP},
-	{"Quell-Dead-Letter-On-Cancel",
-	 F_QUELL_DEAD_LETTER, h_config_quell_dead_letter, PREF_COMP},
-	{"Quell-Flowed-Text",
-	 F_QUELL_FLOWED_TEXT, h_config_quell_flowed_text, PREF_COMP},
-	{"Quell-Mailchecks-Composing-Except-Inbox",
-	 F_QUELL_PINGS_COMPOSING, h_config_quell_checks_comp, PREF_COMP},
-	{"Quell-Mailchecks-Composing-Inbox",
-	 F_QUELL_PINGS_COMPOSING_INBOX, h_config_quell_checks_comp_inbox, PREF_COMP},
-	{"Quell-User-Lookup-In-Passwd-File",
-	 F_QUELL_LOCAL_LOOKUP, h_config_quell_local_lookup, PREF_OS_LCLK},
-	{"Spell-Check-Before-Sending",
-	 F_ALWAYS_SPELL_CHECK, h_config_always_spell_check, PREF_COMP},
-	{"Strip-Whitespace-Before-Send",
-	 F_STRIP_WS_BEFORE_SEND, h_config_strip_ws_before_send, PREF_COMP},
+	{"allow-changing-from", NULL,
+	 F_ALLOW_CHANGING_FROM, h_config_allow_chg_from, PREF_COMP, 1},
+	{"alternate-compose-menu", NULL,
+	 F_ALT_COMPOSE_MENU, h_config_alt_compose_menu, PREF_COMP, 0},
+	{"alternate-role-menu", "Alternate Role (#) Menu",
+	 F_ALT_ROLE_MENU, h_config_alt_role_menu, PREF_COMP, 0},
+	{"compose-cancel-confirm-uses-yes", NULL,
+	 F_CANCEL_CONFIRM, h_config_cancel_confirm, PREF_COMP, 0},
+	{"compose-rejects-unqualified-addrs", "Compose Rejects Unqualified Addresses",
+	 F_COMPOSE_REJECTS_UNQUAL, h_config_compose_rejects_unqual, PREF_COMP, 0},
+	{"compose-send-offers-first-filter", NULL,
+	 F_FIRST_SEND_FILTER_DFLT, h_config_send_filter_dflt, PREF_COMP, 0},
+	{"compose-cut-from-cursor", "Ctrl-K Cuts From Cursor",
+	 F_DEL_FROM_DOT, h_config_del_from_dot, PREF_COMP, 0},
+	{"compose-maps-delete-key-to-ctrl-d", "Delete Key Maps to Ctrl-D",
+	 F_COMPOSE_MAPS_DEL, h_config_compose_maps_del, PREF_COMP, 0},
+	{"quell-dead-letter-on-cancel", "Do Not Save to Deadletter on Cancel",
+	 F_QUELL_DEAD_LETTER, h_config_quell_dead_letter, PREF_COMP, 0},
+	{"enable-alternate-editor-cmd", "Enable Alternate Editor Command",
+	 F_ENABLE_ALT_ED, h_config_enable_alt_ed, PREF_COMP, 1},
+	{"enable-alternate-editor-implicitly", NULL,
+	 F_ALT_ED_NOW, h_config_alt_ed_now, PREF_COMP, 0},
+	{"enable-search-and-replace", "Enable Search and Replace",
+	 F_ENABLE_SEARCH_AND_REPL, h_config_enable_search_and_repl, PREF_COMP, 1},
+	{"enable-sigdashes", NULL,
+	 F_ENABLE_SIGDASHES, h_config_sigdashes, PREF_COMP, 0},
+	{"quell-mailchecks-composing-except-inbox", "Prevent Mailchecks While Composing Except for INBOX",
+	 F_QUELL_PINGS_COMPOSING, h_config_quell_checks_comp, PREF_COMP, 0},
+	{"quell-mailchecks-composing-inbox", "Prevent Mailchecks While Composing for INBOX",
+	 F_QUELL_PINGS_COMPOSING_INBOX, h_config_quell_checks_comp_inbox, PREF_COMP, 0},
+	{"quell-user-lookup-in-passwd-file", "Prevent User Lookup in Password File",
+	 F_QUELL_LOCAL_LOOKUP, h_config_quell_local_lookup, PREF_OS_LCLK, 0},
+	{"spell-check-before-sending", NULL,
+	 F_ALWAYS_SPELL_CHECK, h_config_always_spell_check, PREF_COMP, 0},
 
 /* Reply Prefs */
-	{"Enable-Reply-Indent-String-Editing",
-	 F_ENABLE_EDIT_REPLY_INDENT, h_config_prefix_editing, PREF_RPLY},
-	{"Include-Attachments-In-Reply",
-	 F_ATTACHMENTS_IN_REPLY, h_config_attach_in_reply, PREF_RPLY},
-	{"Include-Header-In-Reply",
-	 F_INCLUDE_HEADER, h_config_include_header, PREF_RPLY},
-	{"Include-Text-In-Reply",
-	 F_AUTO_INCLUDE_IN_REPLY, h_config_auto_include_reply, PREF_RPLY},
-	{"Reply-Always-Uses-Reply-To",
-	 F_AUTO_REPLY_TO, h_config_auto_reply_to, PREF_RPLY},
-	{"Signature-At-Bottom",
-	 F_SIG_AT_BOTTOM, h_config_sig_at_bottom, PREF_RPLY},
-	{"Strip-From-Sigdashes-On-Reply",
-	 F_ENABLE_STRIP_SIGDASHES, h_config_strip_sigdashes, PREF_RPLY},
+	{"enable-reply-indent-string-editing", NULL,
+	 F_ENABLE_EDIT_REPLY_INDENT, h_config_prefix_editing, PREF_RPLY, 0},
+	{"include-attachments-in-reply", "Include Attachments in Reply",
+	 F_ATTACHMENTS_IN_REPLY, h_config_attach_in_reply, PREF_RPLY, 0},
+	{"include-header-in-reply", "Include Header in Reply",
+	 F_INCLUDE_HEADER, h_config_include_header, PREF_RPLY, 0},
+	{"include-text-in-reply", "Include Text in Reply",
+	 F_AUTO_INCLUDE_IN_REPLY, h_config_auto_include_reply, PREF_RPLY, 0},
+	{"reply-always-uses-reply-to", "Reply Always Uses Reply-To",
+	 F_AUTO_REPLY_TO, h_config_auto_reply_to, PREF_RPLY, 0},
+	{"signature-at-bottom", "Signature at Bottom",
+	 F_SIG_AT_BOTTOM, h_config_sig_at_bottom, PREF_RPLY, 0},
+	{"strip-from-sigdashes-on-reply", "Strip From Sigdashes on Reply",
+	 F_ENABLE_STRIP_SIGDASHES, h_config_strip_sigdashes, PREF_RPLY, 0},
 
 /* Sending Prefs */
-	{"Disable-Sender",
-	 F_DISABLE_SENDER, h_config_disable_sender, PREF_SEND},
-	{"Enable-8bit-ESMTP-Negotiation",
-	 F_ENABLE_8BIT, h_config_8bit_smtp, PREF_SEND},
+	{"disable-sender", "Do Not Generate Sender Header",
+	 F_DISABLE_SENDER, h_config_disable_sender, PREF_SEND, 0},
+	{"use-sender-not-x-sender", "Use Sender Instead of X-X-Sender",
+	 F_USE_SENDER_NOT_X, h_config_use_sender_not_x, PREF_SEND, 0},
+	{"quell-flowed-text", "Do Not Send Flowed Text",
+	 F_QUELL_FLOWED_TEXT, h_config_quell_flowed_text, PREF_SEND, 0},
+	{"downgrade-multipart-to-text", "Downgrade Multipart to Text",
+	 F_COMPOSE_ALWAYS_DOWNGRADE, h_downgrade_multipart_to_text, PREF_SEND, 0},
+	{"enable-8bit-esmtp-negotiation", "Enable 8bit ESMTP Negotiation",
+	 F_ENABLE_8BIT, h_config_8bit_smtp, PREF_SEND, 1},
 #ifdef	BACKGROUND_POST
-	{"Enable-Background-Sending",
-	 F_BACKGROUND_POST, h_config_compose_bg_post, PREF_SEND},
+	{"enable-background-sending", NULL,
+	 F_BACKGROUND_POST, h_config_compose_bg_post, PREF_SEND, 0},
 #endif
-	{"Enable-Delivery-Status-Notification",
-	 F_DSN, h_config_compose_dsn, PREF_SEND},
-	{"Enable-Verbose-SMTP-Posting",
-	 F_VERBOSE_POST, h_config_verbose_post, PREF_SEND},
-	{"Fcc-On-Bounce",
-	 F_FCC_ON_BOUNCE, h_config_fcc_on_bounce, PREF_SEND},
-	{"Fcc-Only-Without-Confirm",
-	 F_AUTO_FCC_ONLY, h_config_auto_fcc_only, PREF_SEND},
-	{"Fcc-Without-Attachments",
-	 F_NO_FCC_ATTACH, h_config_no_fcc_attach, PREF_SEND},
-	{"Mark-Fcc-Seen",
-	 F_MARK_FCC_SEEN, h_config_mark_fcc_seen, PREF_SEND},
-	{"Send-Without-Confirm",
-	 F_SEND_WO_CONFIRM, h_config_send_wo_confirm, PREF_SEND},
-	{"Use-Sender-Not-X-Sender",
-	 F_USE_SENDER_NOT_X, h_config_use_sender_not_x, PREF_SEND},
-	{"Warn-If-Blank-To-and-Cc-and-Newsgroups",
-	 F_WARN_ABOUT_NO_TO_OR_CC, h_config_warn_if_no_to_or_cc, PREF_SEND},
-	{"Warn-If-Blank-Subject",
-	 F_WARN_ABOUT_NO_SUBJECT, h_config_warn_if_subj_blank, PREF_SEND},
+	{"enable-delivery-status-notification", NULL,
+	 F_DSN, h_config_compose_dsn, PREF_SEND, 0},
+	{"enable-verbose-smtp-posting", "Enable Verbose SMTP Posting",
+	 F_VERBOSE_POST, h_config_verbose_post, PREF_SEND, 0},
+	{"fcc-without-attachments", "Fcc Does Not Include Attachments",
+	 F_NO_FCC_ATTACH, h_config_no_fcc_attach, PREF_SEND, 0},
+	{"fcc-on-bounce", "Include Fcc When Bouncing Messages",
+	 F_FCC_ON_BOUNCE, h_config_fcc_on_bounce, PREF_SEND, 0},
+	{"mark-fcc-seen", NULL,
+	 F_MARK_FCC_SEEN, h_config_mark_fcc_seen, PREF_SEND, 0},
+	{"fcc-only-without-confirm", "Send to Fcc Only Without Confirming",
+	 F_AUTO_FCC_ONLY, h_config_auto_fcc_only, PREF_SEND, 0},
+	{"send-without-confirm", "Send Without Confirming",
+	 F_SEND_WO_CONFIRM, h_config_send_wo_confirm, PREF_SEND, 0},
+	{"strip-whitespace-before-send", "Strip Whitespace Before Sending",
+	 F_STRIP_WS_BEFORE_SEND, h_config_strip_ws_before_send, PREF_SEND, 0},
+	{"warn-if-blank-subject", "Warn if Blank Subject",
+	 F_WARN_ABOUT_NO_SUBJECT, h_config_warn_if_subj_blank, PREF_SEND, 0},
+	{"warn-if-blank-to-and-cc-and-newsgroups", "Warn if Blank To and CC and Newsgroups",
+	 F_WARN_ABOUT_NO_TO_OR_CC, h_config_warn_if_no_to_or_cc, PREF_SEND, 0},
 
 /* Folder */
-	{"Combined-Subdirectory-Display",
-	 F_CMBND_SUBDIR_DISP, h_config_combined_subdir_display, PREF_FLDR},
-	{"Combined-Folder-Display",
-	 F_CMBND_FOLDER_DISP, h_config_combined_folder_display, PREF_FLDR},
-	{"Enable-Dot-Folders",
-	 F_ENABLE_DOT_FOLDERS, h_config_enable_dot_folders, PREF_FLDR},
-	{"Enable-Incoming-Folders",
-	 F_ENABLE_INCOMING, h_config_enable_incoming, PREF_FLDR},
-	{"Enable-Incoming-Folders-Checking",
-	 F_ENABLE_INCOMING_UNSEEN, h_config_enable_incoming_checking, PREF_FLDR},
-	{"Enable-Lame-List-Mode",
-	 F_FIX_BROKEN_LIST, h_config_lame_list_mode, PREF_FLDR},
-	{"Expanded-View-Of-Folders",
-	 F_EXPANDED_FOLDERS, h_config_expanded_folders, PREF_FLDR},
-	{"Quell-Empty-Directories",
-	 F_QUELL_EMPTY_DIRS, h_config_quell_empty_dirs, PREF_FLDR},
-	{"Separate-Folder-and-Directory-Entries",
-	 F_SEPARATE_FLDR_AS_DIR, h_config_separate_fold_dir_view, PREF_FLDR},
-	{"Single-Column-Folder-List",
-	 F_SINGLE_FOLDER_LIST, h_config_single_list, PREF_FLDR},
-	{"Sort-Default-Fcc-Alpha",
-	 F_SORT_DEFAULT_FCC_ALPHA, h_config_sort_fcc_alpha, PREF_FLDR},
-	{"Sort-Default-Save-Alpha",
-	 F_SORT_DEFAULT_SAVE_ALPHA, h_config_sort_save_alpha, PREF_FLDR},
-	{"Vertical-Folder-List",
-	 F_VERTICAL_FOLDER_LIST, h_config_vertical_list, PREF_FLDR},
+	{"combined-folder-display", NULL,
+	 F_CMBND_FOLDER_DISP, h_config_combined_folder_display, PREF_FLDR, 0},
+	{"combined-subdirectory-display", NULL,
+	 F_CMBND_SUBDIR_DISP, h_config_combined_subdir_display, PREF_FLDR, 0},
+	{"enable-lame-list-mode", "Compensate for Deficient IMAP servers",
+	 F_FIX_BROKEN_LIST, h_config_lame_list_mode, PREF_FLDR, 0},
+	{"enable-dot-folders", "Enable Hidden Folders",
+	 F_ENABLE_DOT_FOLDERS, h_config_enable_dot_folders, PREF_FLDR, 0},
+	{"enable-incoming-folders", "Enable Incoming Folders Collection",
+	 F_ENABLE_INCOMING, h_config_enable_incoming, PREF_FLDR, 0},
+	{"enable-incoming-folders-checking", NULL,
+	 F_ENABLE_INCOMING_CHECKING, h_config_enable_incoming_checking, PREF_FLDR, 0},
+	{"incoming-checking-includes-total", NULL,
+	 F_INCOMING_CHECKING_TOTAL, h_config_incoming_checking_total, PREF_FLDR, 0},
+	{"incoming-checking-uses-recent", NULL,
+	 F_INCOMING_CHECKING_RECENT, h_config_incoming_checking_recent, PREF_FLDR, 0},
+	{"expanded-view-of-folders", "Expanded View of Folders",
+	 F_EXPANDED_FOLDERS, h_config_expanded_folders, PREF_FLDR, 0},
+	{"quell-empty-directories", "Hide Empty Directories",
+	 F_QUELL_EMPTY_DIRS, h_config_quell_empty_dirs, PREF_FLDR, 0},
+	{"separate-folder-and-directory-entries", "Separate Folder and Directory Entries",
+	 F_SEPARATE_FLDR_AS_DIR, h_config_separate_fold_dir_view, PREF_FLDR, 0},
+	{"single-column-folder-list", NULL,
+	 F_SINGLE_FOLDER_LIST, h_config_single_list, PREF_FLDR, 0},
+	{"sort-default-fcc-alpha", "Sort Default Fcc Folder Alphabetically",
+	 F_SORT_DEFAULT_FCC_ALPHA, h_config_sort_fcc_alpha, PREF_FLDR, 0},
+	{"sort-default-save-alpha", "Sort Default Save Folder Alphabetically",
+	 F_SORT_DEFAULT_SAVE_ALPHA, h_config_sort_save_alpha, PREF_FLDR, 0},
+	{"vertical-folder-list", "Use Vertical Folder List",
+	 F_VERTICAL_FOLDER_LIST, h_config_vertical_list, PREF_FLDR, 0},
 
 /* Addr book */
-	{"Combined-Addrbook-Display",
-	 F_CMBND_ABOOK_DISP, h_config_combined_abook_display, PREF_ADDR},
-	{"Expanded-View-of-Addressbooks",
-	 F_EXPANDED_ADDRBOOKS, h_config_expanded_addrbooks, PREF_ADDR},
-	{"Expanded-View-of-Distribution-Lists",
-	 F_EXPANDED_DISTLISTS, h_config_expanded_distlists, PREF_ADDR},
+	{"combined-addrbook-display", "Combined Address Book Display",
+	 F_CMBND_ABOOK_DISP, h_config_combined_abook_display, PREF_ADDR, 0},
+	{"expanded-view-of-addressbooks", "Expanded View of Address Books",
+	 F_EXPANDED_ADDRBOOKS, h_config_expanded_addrbooks, PREF_ADDR, 0},
+	{"expanded-view-of-distribution-lists", "Expanded View of Distribution Lists",
+	 F_EXPANDED_DISTLISTS, h_config_expanded_distlists, PREF_ADDR, 0},
 #ifdef	ENABLE_LDAP
-	{"LDAP-Result-to-Addrbook-Add",
-	 F_ADD_LDAP_TO_ABOOK, h_config_add_ldap, PREF_ADDR},
+	{"ldap-result-to-addrbook-add", "LDAP Result to Addressbook Add",
+	 F_ADD_LDAP_TO_ABOOK, h_config_add_ldap, PREF_ADDR, 0},
 #endif
 
 /* Index prefs */
-	{"Auto-Open-Next-Unread",
-	 F_AUTO_OPEN_NEXT_UNREAD, h_config_auto_open_unread, PREF_INDX},
-	{"Continue-Tab-Without-Confirm",
-	 F_TAB_NO_CONFIRM, h_config_tab_no_prompt, PREF_INDX},
-	{"Delete-Skips-Deleted",
-	 F_DEL_SKIPS_DEL, h_config_del_skips_del, PREF_INDX},
-	{"Disable-Index-Locale-Dates",
-	 F_DISABLE_INDEX_LOCALE_DATES, h_config_disable_index_locale_dates, PREF_INDX},
-	{"Enable-Cruise-Mode",
-	 F_ENABLE_SPACE_AS_TAB, h_config_cruise_mode, PREF_INDX},
-	{"Enable-Cruise-Mode-Delete",
-	 F_ENABLE_TAB_DELETES, h_config_cruise_mode_delete, PREF_INDX},
-	{"Mark-For-Cc",
-	 F_MARK_FOR_CC, h_config_mark_for_cc, PREF_INDX},
-	{"Next-Thread-Without-Confirm",
-	 F_NEXT_THRD_WO_CONFIRM, h_config_next_thrd_wo_confirm, PREF_INDX},
-	{"Return-to-Inbox-Without-Confirm",
-	 F_RET_INBOX_NO_CONFIRM, h_config_inbox_no_confirm, PREF_INDX},
-	{"Show-Sort",
-	 F_SHOW_SORT, h_config_show_sort, PREF_INDX},
-	{"Tab-Uses-Unseen-For-Next-Folder",
-	 F_TAB_USES_UNSEEN, h_config_tab_uses_unseen, PREF_INDX},
-	{"Tab-Visits-Next-New-Message-Only",
-	 F_TAB_TO_NEW, h_config_tab_new_only, PREF_INDX},
-	{"Thread-Index-Shows-Important-Color",
-	 F_COLOR_LINE_IMPORTANT, h_config_color_thrd_import, PREF_INDX},
+	{"auto-open-next-unread", NULL,
+	 F_AUTO_OPEN_NEXT_UNREAD, h_config_auto_open_unread, PREF_INDX, 0},
+	{"continue-tab-without-confirm", "Continue NextNew Without Confirming",
+	 F_TAB_NO_CONFIRM, h_config_tab_no_prompt, PREF_INDX, 0},
+	{"delete-skips-deleted", NULL,
+	 F_DEL_SKIPS_DEL, h_config_del_skips_del, PREF_INDX, 1},
+	{"disable-index-locale-dates", NULL,
+	 F_DISABLE_INDEX_LOCALE_DATES, h_config_disable_index_locale_dates, PREF_INDX, 0},
+	{"enable-cruise-mode", NULL,
+	 F_ENABLE_SPACE_AS_TAB, h_config_cruise_mode, PREF_INDX, 0},
+	{"enable-cruise-mode-delete", "Enable Cruise Mode With Deleting",
+	 F_ENABLE_TAB_DELETES, h_config_cruise_mode_delete, PREF_INDX, 0},
+	{"mark-for-cc", "Mark for CC",
+	 F_MARK_FOR_CC, h_config_mark_for_cc, PREF_INDX, 1},
+	{"next-thread-without-confirm", "Read Next Thread Without Confirming",
+	 F_NEXT_THRD_WO_CONFIRM, h_config_next_thrd_wo_confirm, PREF_INDX, 0},
+	{"return-to-inbox-without-confirm", "Return to INBOX Without Confirming",
+	 F_RET_INBOX_NO_CONFIRM, h_config_inbox_no_confirm, PREF_INDX, 0},
+	{"show-sort", "Show Sort in Titlebar",
+	 F_SHOW_SORT, h_config_show_sort, PREF_INDX, 0},
+	{"tab-uses-unseen-for-next-folder", "Tab Uses Unseen for Next Folder",
+	 F_TAB_USES_UNSEEN, h_config_tab_uses_unseen, PREF_INDX, 0},
+	{"tab-visits-next-new-message-only", NULL,
+	 F_TAB_TO_NEW, h_config_tab_new_only, PREF_INDX, 0},
+	{"thread-index-shows-important-color", NULL,
+	 F_COLOR_LINE_IMPORTANT, h_config_color_thrd_import, PREF_INDX, 0},
 
 /* Viewer prefs */
-	{"Enable-Msg-View-Addresses",
-	 F_SCAN_ADDR, h_config_enable_view_addresses, PREF_VIEW},
-	{"Enable-Msg-View-Attachments",
-	 F_VIEW_SEL_ATTACH, h_config_enable_view_attach, PREF_VIEW},
-	{"Enable-Msg-View-Forced-Arrows",
-	 F_FORCE_ARROWS, h_config_enable_view_arrows, PREF_VIEW},
-	{"Enable-Msg-View-URLs",
-	 F_VIEW_SEL_URL, h_config_enable_view_url, PREF_VIEW},
-	{"Enable-Msg-View-Web-Hostnames",
-	 F_VIEW_SEL_URL_HOST, h_config_enable_view_web_host, PREF_VIEW},
-	{"Prefer-Plain-Text",
-	 F_PREFER_PLAIN_TEXT, h_config_prefer_plain_text, PREF_VIEW},
+	{"enable-msg-view-addresses", "Enable Message View Address Links",
+	 F_SCAN_ADDR, h_config_enable_view_addresses, PREF_VIEW, 0},
+	{"enable-msg-view-attachments", "Enable Message View Attachment Links",
+	 F_VIEW_SEL_ATTACH, h_config_enable_view_attach, PREF_VIEW, 0},
+	{"enable-msg-view-urls", "Enable Message View URL Links",
+	 F_VIEW_SEL_URL, h_config_enable_view_url, PREF_VIEW, 1},
+	{"enable-msg-view-web-hostnames", "Enable Message View Web Hostname Links",
+	 F_VIEW_SEL_URL_HOST, h_config_enable_view_web_host, PREF_VIEW, 1},
+	{"enable-msg-view-forced-arrows", "Enable Message View Forced Arrows",
+	 F_FORCE_ARROWS, h_config_enable_view_arrows, PREF_VIEW, 0},
 	/* set to TRUE for windows */
-	{"Pass-C1-Control-Characters-as-is",
-	 F_PASS_C1_CONTROL_CHARS, h_config_pass_c1_control, PREF_VIEW},
-	{"Pass-Control-Characters-as-is",
-	 F_PASS_CONTROL_CHARS, h_config_pass_control, PREF_VIEW},
-	{"Quell-Charset-Warning",
-	 F_QUELL_CHARSET_WARNING, h_config_quell_charset_warning, PREF_VIEW},
-	{"Quell-Server-After-Link-in-HTML",
-	 F_QUELL_HOST_AFTER_URL, h_config_quell_host_after_url, PREF_VIEW},
+	{"pass-c1-control-characters-as-is", NULL,
+	 F_PASS_C1_CONTROL_CHARS, h_config_pass_c1_control, PREF_VIEW, 0},
+	{"pass-control-characters-as-is", NULL,
+	 F_PASS_CONTROL_CHARS, h_config_pass_control, PREF_VIEW, 0},
+	{"prefer-plain-text", NULL,
+	 F_PREFER_PLAIN_TEXT, h_config_prefer_plain_text, PREF_VIEW, 0},
+	{"quell-charset-warning", "Suppress Character Set Warning",
+	 F_QUELL_CHARSET_WARNING, h_config_quell_charset_warning, PREF_VIEW, 0},
+	{"quell-server-after-link-in-html", "Suppress Server After Link in HTML",
+	 F_QUELL_HOST_AFTER_URL, h_config_quell_host_after_url, PREF_VIEW, 0},
 
 /* News */
-	{"Compose-Sets-Newsgroup-Without-Confirm",
-	 F_COMPOSE_TO_NEWSGRP, h_config_compose_news_wo_conf, PREF_NEWS},
-	{"Enable-8bit-NNTP-Posting",
-	 F_ENABLE_8BIT_NNTP, h_config_8bit_nntp, PREF_NEWS},
-	{"Enable-Multiple-Newsrcs",
-	 F_ENABLE_MULNEWSRCS, h_config_enable_mulnewsrcs, PREF_NEWS},
-	{"Hide-NNTP-Path",
-	 F_HIDE_NNTP_PATH, h_config_hide_nntp_path, PREF_NEWS},
-	{"Mult-Newsrc-Hostnames-as-Typed",
-	 F_MULNEWSRC_HOSTNAMES_AS_TYPED, h_config_mulnews_as_typed, PREF_NEWS},
-	{"News-Approximates-New-Status",
-	 F_FAKE_NEW_IN_NEWS, h_config_news_uses_recent, PREF_NEWS},
-	{"News-Deletes-Across-Groups",
-	 F_NEWS_CROSS_DELETE, h_config_news_cross_deletes, PREF_NEWS},
-	{"News-Offers-Catchup-on-Close",
-	 F_NEWS_CATCHUP, h_config_news_catchup, PREF_NEWS},
-	{"News-Post-Without-Validation",
-	 F_NO_NEWS_VALIDATION, h_config_post_wo_validation, PREF_NEWS},
-	{"News-Read-in-Newsrc-Order",
-	 F_READ_IN_NEWSRC_ORDER, h_config_read_in_newsrc_order, PREF_NEWS},
-	{"Predict-NNTP-Server",
-	 F_PREDICT_NNTP_SERVER, h_config_predict_nntp_server, PREF_NEWS},
-	{"Quell-Extra-Post-Prompt",
-	 F_QUELL_EXTRA_POST_PROMPT, h_config_quell_post_prompt, PREF_NEWS},
+	{"compose-sets-newsgroup-without-confirm", "Compose Sets Newsgroup Without Confirming",
+	 F_COMPOSE_TO_NEWSGRP, h_config_compose_news_wo_conf, PREF_NEWS, 0},
+	{"enable-8bit-nntp-posting", "Enable 8bit NNTP Posting",
+	 F_ENABLE_8BIT_NNTP, h_config_8bit_nntp, PREF_NEWS, 0},
+	{"enable-multiple-newsrcs", NULL,
+	 F_ENABLE_MULNEWSRCS, h_config_enable_mulnewsrcs, PREF_NEWS, 0},
+	{"mult-newsrc-hostnames-as-typed", "Multiple Newsrc Hostnames as Typed",
+	 F_MULNEWSRC_HOSTNAMES_AS_TYPED, h_config_mulnews_as_typed, PREF_NEWS, 0},
+	{"hide-nntp-path", "Hide NNTP Path",
+	 F_HIDE_NNTP_PATH, h_config_hide_nntp_path, PREF_NEWS, 0},
+	{"news-approximates-new-status", NULL,
+	 F_FAKE_NEW_IN_NEWS, h_config_news_uses_recent, PREF_NEWS, 1},
+	{"news-deletes-across-groups", NULL,
+	 F_NEWS_CROSS_DELETE, h_config_news_cross_deletes, PREF_NEWS, 0},
+	{"news-offers-catchup-on-close", "News Offers Catchup on Close",
+	 F_NEWS_CATCHUP, h_config_news_catchup, PREF_NEWS, 0},
+	{"news-post-without-validation", NULL,
+	 F_NO_NEWS_VALIDATION, h_config_post_wo_validation, PREF_NEWS, 0},
+	{"news-read-in-newsrc-order", "News Read in Newsrc Order",
+	 F_READ_IN_NEWSRC_ORDER, h_config_read_in_newsrc_order, PREF_NEWS, 0},
+	{"predict-nntp-server", "Predict NNTP Server",
+	 F_PREDICT_NNTP_SERVER, h_config_predict_nntp_server, PREF_NEWS, 0},
+	{"quell-extra-post-prompt", "Suppress Extra Posting Prompt",
+	 F_QUELL_EXTRA_POST_PROMPT, h_config_quell_post_prompt, PREF_NEWS, 0},
 
 /* Print */
-	{"Enable-Print-Via-Y-Command",
-	 F_ENABLE_PRYNT, h_config_enable_y_print, PREF_PRNT},
-	{"Print-Formfeed-Between-Messages",
-	 F_AGG_PRINT_FF, h_config_ff_between_msgs, PREF_PRNT},
-	{"Print-Includes-From-Line",
-	 F_FROM_DELIM_IN_PRINT, h_config_print_from, PREF_PRNT},
-	{"Print-Index-Enabled",
-	 F_PRINT_INDEX, h_config_print_index, PREF_PRNT},
-	{"Print-Offers-Custom-Cmd-Prompt",
-	 F_CUSTOM_PRINT, h_config_custom_print, PREF_PRNT},
+	{"enable-print-via-y-command", NULL,
+	 F_ENABLE_PRYNT, h_config_enable_y_print, PREF_PRNT, 0},
+	{"print-formfeed-between-messages", NULL,
+	 F_AGG_PRINT_FF, h_config_ff_between_msgs, PREF_PRNT, 0},
+	{"print-includes-from-line", NULL,
+	 F_FROM_DELIM_IN_PRINT, h_config_print_from, PREF_PRNT, 0},
+	{"print-index-enabled", NULL,
+	 F_PRINT_INDEX, h_config_print_index, PREF_PRNT, 0},
+	{"print-offers-custom-cmd-prompt", "Print Offers Custom Command Prompt",
+	 F_CUSTOM_PRINT, h_config_custom_print, PREF_PRNT, 0},
 
 /* adv cmd prefs */
-	{"Enable-Aggregate-Command-Set",
-	 F_ENABLE_AGG_OPS, h_config_enable_agg_ops, PREF_ACMD},
-	{"Enable-Arrow-Navigation",
-	 F_ARROW_NAV, h_config_arrow_nav, PREF_ACMD},
-	{"Enable-Arrow-Navigation-Relaxed",
-	 F_RELAXED_ARROW_NAV, h_config_relaxed_arrow_nav, PREF_ACMD},
-	{"Enable-Bounce-Cmd",
-	 F_ENABLE_BOUNCE, h_config_enable_bounce, PREF_ACMD},
-	{"Enable-Exit-Via-Lessthan-Command",
-	 F_ENABLE_LESSTHAN_EXIT, h_config_enable_lessthan_exit, PREF_ACMD},
-	{"Enable-Flag-Cmd",
-	 F_ENABLE_FLAG, h_config_enable_flag, PREF_ACMD},
-	{"Enable-Flag-Screen-Implicitly",
-	 F_FLAG_SCREEN_DFLT, h_config_flag_screen_default, PREF_ACMD},
-	{"Enable-Flag-Screen-Keyword-Shortcut",
-	 F_FLAG_SCREEN_KW_SHORTCUT, h_config_flag_screen_kw_shortcut,PREF_ACMD},
-	{"Enable-Full-Header-and-Text",
-	 F_ENABLE_FULL_HDR_AND_TEXT, h_config_enable_full_hdr_and_text, PREF_ACMD},
-	{"Enable-Full-Header-Cmd",
-	 F_ENABLE_FULL_HDR, h_config_enable_full_hdr, PREF_ACMD},
-	{"Enable-Goto-in-File-Browser",
-	 F_ALLOW_GOTO, h_config_allow_goto, PREF_ACMD},
-	{"Enable-Jump-Shortcut",
-	 F_ENABLE_JUMP, h_config_enable_jump, PREF_ACMD},
-	{"Enable-Partial-Match-Lists",
-	 F_ENABLE_SUB_LISTS, h_config_sub_lists, PREF_ACMD},
-	{"Enable-Tab-Completion",
-	 F_ENABLE_TAB_COMPLETE, h_config_enable_tab_complete, PREF_ACMD},
-	{"Enable-Unix-Pipe-Cmd",
-	 F_ENABLE_PIPE, h_config_enable_pipe, PREF_ACMD},
-	{"Quell-Full-Header-Auto-Reset",
-	 F_QUELL_FULL_HDR_RESET, h_config_quell_full_hdr_reset, PREF_ACMD},
+	{"enable-aggregate-command-set", NULL,
+	 F_ENABLE_AGG_OPS, h_config_enable_agg_ops, PREF_ACMD, 1},
+	{"enable-arrow-navigation", NULL,
+	 F_ARROW_NAV, h_config_arrow_nav, PREF_ACMD, 1},
+	{"enable-arrow-navigation-relaxed", NULL,
+	 F_RELAXED_ARROW_NAV, h_config_relaxed_arrow_nav, PREF_ACMD, 1},
+	{"enable-bounce-cmd", "Enable Bounce Command",
+	 F_ENABLE_BOUNCE, h_config_enable_bounce, PREF_ACMD, 1},
+	{"enable-exit-via-lessthan-command", NULL,
+	 F_ENABLE_LESSTHAN_EXIT, h_config_enable_lessthan_exit, PREF_ACMD, 1},
+	{"enable-flag-cmd", "Enable Flag Command",
+	 F_ENABLE_FLAG, h_config_enable_flag, PREF_ACMD, 1},
+	{"enable-flag-screen-implicitly", NULL,
+	 F_FLAG_SCREEN_DFLT, h_config_flag_screen_default, PREF_ACMD, 0},
+	{"enable-flag-screen-keyword-shortcut", NULL,
+	 F_FLAG_SCREEN_KW_SHORTCUT, h_config_flag_screen_kw_shortcut,PREF_ACMD, 1},
+	{"enable-full-header-and-text", "Enable Full Header and Text",
+	 F_ENABLE_FULL_HDR_AND_TEXT, h_config_enable_full_hdr_and_text, PREF_ACMD, 0},
+	{"enable-full-header-cmd", "Enable Full Header Command",
+	 F_ENABLE_FULL_HDR, h_config_enable_full_hdr, PREF_ACMD, 1},
+	{"enable-goto-in-file-browser", "Enable Goto in File Browser",
+	 F_ALLOW_GOTO, h_config_allow_goto, PREF_ACMD, 1},
+	{"enable-jump-shortcut", NULL,
+	 F_ENABLE_JUMP, h_config_enable_jump, PREF_ACMD, 1},
+	{"enable-partial-match-lists", NULL,
+	 F_ENABLE_SUB_LISTS, h_config_sub_lists, PREF_ACMD, 1},
+	{"enable-tab-completion", NULL,
+	 F_ENABLE_TAB_COMPLETE, h_config_enable_tab_complete, PREF_ACMD, 1},
+	{"enable-unix-pipe-cmd", "Enable Unix Pipe Command",
+	 F_ENABLE_PIPE, h_config_enable_pipe, PREF_ACMD, 1},
+	{"quell-full-header-auto-reset", "Suppress Full Header Auto Reset",
+	 F_QUELL_FULL_HDR_RESET, h_config_quell_full_hdr_reset, PREF_ACMD, 0},
 
 /* Adv user prefs */
 #if !defined(DOS) && !defined(OS2)
-	{"Allow-Talk",
-	 F_ALLOW_TALK, h_config_allow_talk, PREF_MISC},
+	{"allow-talk", NULL,
+	 F_ALLOW_TALK, h_config_allow_talk, PREF_MISC, 0},
 #endif
-	{"Assume-Slow-Link",
-	 F_FORCE_LOW_SPEED, h_config_force_low_speed, PREF_OS_LWSD},
-	{"Auto-Move-Read-Msgs",
-	 F_AUTO_READ_MSGS, h_config_auto_read_msgs, PREF_MISC},
-	{"Auto-Unselect-After-Apply",
-	 F_AUTO_UNSELECT, h_config_auto_unselect, PREF_MISC},
-	{"Auto-Unzoom-After-Apply",
-	 F_AUTO_UNZOOM, h_config_auto_unzoom, PREF_MISC},
-	{"Auto-Zoom-After-Select",
-	 F_AUTO_ZOOM, h_config_auto_zoom, PREF_MISC},
-	{"Busy-Cue-Spinner-Only",
-	 F_USE_BORING_SPINNER, h_config_use_boring_spinner, PREF_MISC},
-	{"Check-Newmail-When-Quitting",
-	 F_CHECK_MAIL_ONQUIT, h_config_check_mail_onquit, PREF_MISC},
-	{"Confirm-Role-Even-For-Default",
-	 F_ROLE_CONFIRM_DEFAULT, h_config_confirm_role, PREF_MISC},
-	{"Disable-Input-History",
-	 F_DISABLE_INPUT_HISTORY, h_config_input_history, PREF_MISC},
-	{"Disable-Keymenu",
-	 F_BLANK_KEYMENU, h_config_blank_keymenu, PREF_MISC},
-	{"Disable-Take-Fullname-in-Addresses",
-	 F_DISABLE_TAKE_FULLNAMES, h_config_take_fullname, PREF_MISC},
-	{"Disable-Take-Last-Comma-First",
-	 F_DISABLE_TAKE_LASTFIRST, h_config_take_lastfirst, PREF_MISC},
-	{"Disable-Terminal-Reset-For-Display-Filters",
-	 F_DISABLE_TERM_RESET_DISP, h_config_disable_reset_disp, PREF_MISC},
-	{"Enable-Dot-Files",
-	 F_ENABLE_DOT_FILES, h_config_enable_dot_files, PREF_MISC},
-	{"Enable-Fast-Recent-Test",
-	 F_ENABLE_FAST_RECENT, h_config_fast_recent, PREF_MISC},
-	{"Enable-Mail-Check-Cue",
-	 F_SHOW_DELAY_CUE, h_config_show_delay_cue, PREF_MISC},
-	{"Enable-Mouse-in-Xterm",
-	 F_ENABLE_MOUSE, h_config_enable_mouse, PREF_OS_MOUSE},
-	{"Enable-Newmail-in-Xterm-Icon",
-	 F_ENABLE_XTERM_NEWMAIL, h_config_enable_xterm_newmail, PREF_OS_XNML},
-	{"Enable-Newmail-Short-Text-in-Icon",
-	 F_ENABLE_NEWMAIL_SHORT_TEXT, h_config_enable_newmail_short_text, PREF_OS_XNML},
-	{"Enable-Rules-Under-Take",
-	 F_ENABLE_ROLE_TAKE, h_config_enable_role_take, PREF_MISC},
-	{"Enable-Suspend",
-	 F_CAN_SUSPEND, h_config_can_suspend, PREF_MISC},
-	{"Enable-Take-Export",
-	 F_ENABLE_TAKE_EXPORT, h_config_enable_take_export, PREF_MISC},
+	{"assume-slow-link", NULL,
+	 F_FORCE_LOW_SPEED, h_config_force_low_speed, PREF_OS_LWSD, 0},
+	{"auto-move-read-msgs", "Auto Move Read Messages",
+	 F_AUTO_READ_MSGS, h_config_auto_read_msgs, PREF_MISC, 0},
+	{"auto-unselect-after-apply", NULL,
+	 F_AUTO_UNSELECT, h_config_auto_unselect, PREF_MISC, 0},
+	{"auto-unzoom-after-apply", NULL,
+	 F_AUTO_UNZOOM, h_config_auto_unzoom, PREF_MISC, 1},
+	{"auto-zoom-after-select", NULL,
+	 F_AUTO_ZOOM, h_config_auto_zoom, PREF_MISC, 1},
+	{"busy-cue-spinner-only", NULL,
+	 F_USE_BORING_SPINNER, h_config_use_boring_spinner, PREF_MISC, 0},
+	{"check-newmail-when-quitting", NULL,
+	 F_CHECK_MAIL_ONQUIT, h_config_check_mail_onquit, PREF_MISC, 0},
+	{"confirm-role-even-for-default", "Confirm Role Even for Default",
+	 F_ROLE_CONFIRM_DEFAULT, h_config_confirm_role, PREF_MISC, 0},
+	{"disable-keymenu", NULL,
+	 F_BLANK_KEYMENU, h_config_blank_keymenu, PREF_MISC, 0},
+	{"disable-password-caching", NULL,
+	 F_DISABLE_PASSWORD_CACHING, h_config_disable_password_caching,
+	 PREF_MISC, 0},
+	{"disable-save-input-history", NULL,
+	 F_DISABLE_SAVE_INPUT_HISTORY, h_config_input_history, PREF_MISC, 0},
+	{"disable-take-fullname-in-addresses", "Disable Take Fullname in Addresses",
+	 F_DISABLE_TAKE_FULLNAMES, h_config_take_fullname, PREF_MISC, 0},
+	{"disable-take-last-comma-first", NULL,
+	 F_DISABLE_TAKE_LASTFIRST, h_config_take_lastfirst, PREF_MISC, 0},
+	{"disable-terminal-reset-for-display-filters", "Disable Terminal Reset for Display Filters",
+	 F_DISABLE_TERM_RESET_DISP, h_config_disable_reset_disp, PREF_MISC, 0},
+	{"enable-dot-files", NULL,
+	 F_ENABLE_DOT_FILES, h_config_enable_dot_files, PREF_MISC, 0},
+	{"enable-fast-recent-test", NULL,
+	 F_ENABLE_FAST_RECENT, h_config_fast_recent, PREF_MISC, 0},
+	{"enable-mail-check-cue", NULL,
+	 F_SHOW_DELAY_CUE, h_config_show_delay_cue, PREF_MISC, 0},
+	{"enable-mailcap-param-substitution", "Enable Mailcap Parameter Substitution",
+	 F_DO_MAILCAP_PARAM_SUBST, h_config_mailcap_params, PREF_MISC, 0},
+	{"enable-mouse-in-xterm", "Enable Mouse in Xterm",
+	 F_ENABLE_MOUSE, h_config_enable_mouse, PREF_OS_MOUSE, 0},
+	{"enable-newmail-in-xterm-icon", "Enable Newmail in Xterm Icon",
+	 F_ENABLE_XTERM_NEWMAIL, h_config_enable_xterm_newmail, PREF_OS_XNML, 0},
+	{"enable-newmail-short-text-in-icon", "Enable Newmail Short Text in Icon",
+	 F_ENABLE_NEWMAIL_SHORT_TEXT, h_config_enable_newmail_short_text, PREF_OS_XNML, 0},
+	{"enable-suspend", NULL,
+	 F_CAN_SUSPEND, h_config_can_suspend, PREF_MISC, 0},
+	{"enable-take-export", NULL,
+	 F_ENABLE_TAKE_EXPORT, h_config_enable_take_export, PREF_MISC, 0},
+	{"enable-rules-under-take", "Enable Take Rules",
+	 F_ENABLE_ROLE_TAKE, h_config_enable_role_take, PREF_MISC, 0},
 #ifdef	_WINDOWS
-	{"Enable-Tray-Icon",
-	 F_ENABLE_TRAYICON, h_config_tray_icon, PREF_MISC},
+	{"enable-tray-icon", NULL,
+	 F_ENABLE_TRAYICON, h_config_tray_icon, PREF_MISC, 0},
 #endif
-	{"Expose-Hidden-Config",
-	 F_EXPOSE_HIDDEN_CONFIG, h_config_expose_hidden_config, PREF_MISC},
-	{"Expunge-Only-Manually",
-	 F_EXPUNGE_MANUALLY, h_config_expunge_manually, PREF_MISC},
-	{"Expunge-Without-Confirm",
-	 F_AUTO_EXPUNGE, h_config_auto_expunge, PREF_MISC},
-	{"Expunge-Without-Confirm-Everywhere",
-	 F_FULL_AUTO_EXPUNGE, h_config_full_auto_expunge, PREF_MISC},
-	{"Force-Arrow-Cursor",
-	 F_FORCE_ARROW, h_config_force_arrow, PREF_MISC},
-	{"Maildrops-Preserve-State",
+	{"expose-hidden-config", NULL,
+	 F_EXPOSE_HIDDEN_CONFIG, h_config_expose_hidden_config, PREF_MISC, 0},
+	{"expunge-only-manually", NULL,
+	 F_EXPUNGE_MANUALLY, h_config_expunge_manually, PREF_MISC, 0},
+	{"expunge-without-confirm", "Expunge Without Confirming",
+	 F_AUTO_EXPUNGE, h_config_auto_expunge, PREF_MISC, 0},
+	{"expunge-without-confirm-everywhere", "Expunge Without Confirming Everywhere",
+	 F_FULL_AUTO_EXPUNGE, h_config_full_auto_expunge, PREF_MISC, 0},
+	{"force-arrow-cursor", NULL,
+	 F_FORCE_ARROW, h_config_force_arrow, PREF_MISC, 0},
+	{"maildrops-preserve-state", NULL,
 	 F_MAILDROPS_PRESERVE_STATE, h_config_maildrops_preserve_state,
-	 PREF_MISC},
-	{"Offer-Expunge-of-Inbox",
-	 F_EXPUNGE_INBOX, h_config_expunge_inbox, PREF_MISC},
-	{"Offer-Expunge-of-Stayopen-Folders",
-	 F_EXPUNGE_STAYOPENS, h_config_expunge_stayopens, PREF_MISC},
-	{"Preopen-Stayopen-Folders",
-	 F_PREOPEN_STAYOPENS, h_config_preopen_stayopens, PREF_MISC},
-	{"Preserve-Start-Stop-Characters",
-	 F_PRESERVE_START_STOP, h_config_preserve_start_stop, PREF_OS_STSP},
-	{"Prune-Uses-YYYY-MM",
-	 F_PRUNE_USES_ISO, h_config_prune_uses_iso, PREF_MISC},
-	{"Quell-Attachment-Extension-Warn",
+	 PREF_MISC, 0},
+	{"offer-expunge-of-inbox", "Offer Expunge of INBOX",
+	 F_EXPUNGE_INBOX, h_config_expunge_inbox, PREF_MISC, 0},
+	{"offer-expunge-of-stayopen-folders", "Offer Expunge of Stayopen Folders",
+	 F_EXPUNGE_STAYOPENS, h_config_expunge_stayopens, PREF_MISC, 0},
+	{"preopen-stayopen-folders", NULL,
+	 F_PREOPEN_STAYOPENS, h_config_preopen_stayopens, PREF_MISC, 0},
+	{"preserve-start-stop-characters", "Preserve Start/Stop Characters",
+	 F_PRESERVE_START_STOP, h_config_preserve_start_stop, PREF_OS_STSP, 0},
+	{"quell-folder-internal-msg", "Prevent Folder Internal Message",
+	 F_QUELL_INTERNAL_MSG, h_config_quell_folder_internal_msg, PREF_MISC, 0},
+	{"quell-partial-fetching", "Prevent Partial Fetching",
+	 F_QUELL_PARTIAL_FETCH, h_config_quell_partial, PREF_MISC, 0},
+	{"prune-uses-yyyy-mm", "Prune Uses YYYY-MM",
+	 F_PRUNE_USES_ISO, h_config_prune_uses_iso, PREF_MISC, 0},
+	{"quit-without-confirm", "Quit Without Confirming",
+	 F_QUIT_WO_CONFIRM, h_config_quit_wo_confirm, PREF_MISC, 0},
+	{"quote-replace-nonflowed", NULL,
+	 F_QUOTE_REPLACE_NOFLOW, h_config_quote_replace_noflow, PREF_MISC, 0},
+	{"save-aggregates-copy-sequence", "Save Combines Copies (may be out of order)",
+	 F_AGG_SEQ_COPY, h_config_save_aggregates, PREF_MISC, 1},
+	{"save-partial-msg-without-confirm", "Save Partial Message Without Confirming",
+	 F_SAVE_PARTIAL_WO_CONFIRM, h_config_save_part_wo_confirm, PREF_MISC, 0},
+	{"save-will-advance", NULL,
+	 F_SAVE_ADVANCES, h_config_save_advances, PREF_MISC, 0},
+	{"save-will-not-delete", NULL,
+	 F_SAVE_WONT_DELETE, h_config_save_wont_delete, PREF_MISC, 0},
+	{"save-will-quote-leading-froms", NULL,
+	 F_QUOTE_ALL_FROMS, h_config_quote_all_froms, PREF_MISC, 0},
+	{"scramble-message-id", "Scramble the Message-ID When Sending",
+	 F_ROT13_MESSAGE_ID, h_config_scramble_message_id, PREF_MISC, 0},
+	{"select-without-confirm", "Select Ctrl-T Foldername Without Confirming",
+	 F_SELECT_WO_CONFIRM, h_config_select_wo_confirm, PREF_MISC, 0},
+	{"show-cursor", NULL,
+	 F_SHOW_CURSOR, h_config_show_cursor, PREF_MISC, 0},
+	{"show-plain-text-internally", NULL,
+	 F_SHOW_TEXTPLAIN_INT, h_config_textplain_int, PREF_MISC, 0},
+	{"show-selected-in-boldface", "Show Selected in Boldface",
+	 F_SELECTED_SHOWN_BOLD, h_config_select_in_bold, PREF_MISC, 0},
+	{"slash-collapses-entire-thread", NULL,
+	 F_SLASH_COLL_ENTIRE, h_config_slash_coll_entire, PREF_MISC, 0},
+#ifdef	_WINDOWS
+	{"store-window-position-in-config", "Store Window Position in Config",
+	 F_STORE_WINPOS_IN_CONFIG, h_config_winpos_in_config, PREF_MISC, 0},
+#endif
+	{"quell-attachment-extension-warn", "Suppress Attachment Extension Warning",
 	 F_QUELL_ATTACH_EXT_WARN, h_config_quell_attach_ext_warn,
-	 PREF_MISC},
-	{"Quell-Attachment-Extra-Prompt",
+	 PREF_MISC, 0},
+	{"quell-attachment-extra-prompt", "Suppress Attachment Extra Prompt",
 	 F_QUELL_ATTACH_EXTRA_PROMPT, h_config_quell_attach_extra_prompt,
-	 PREF_MISC},
-	{"Quell-Content-ID",
-	 F_QUELL_CONTENT_ID, h_config_quell_content_id, PREF_MISC},
-	{"Quell-Filtering-Done-Message",
+	 PREF_MISC, 0},
+	{"quell-berkeley-format-timezone", "Suppress Berkeley Format Timezone",
+	 F_QUELL_BEZERK_TIMEZONE, h_config_no_bezerk_zone, PREF_MISC, 0},
+	{"quell-content-id", "Suppress Content-ID",
+	 F_QUELL_CONTENT_ID, h_config_quell_content_id, PREF_MISC, 0},
+	{"quell-filtering-done-message", "Suppress Filtering Done Message",
 	 F_QUELL_FILTER_DONE_MSG, h_config_quell_filtering_done_message,
-	 PREF_MISC},
-	{"Quell-Filtering-Messages",
+	 PREF_MISC, 0},
+	{"quell-filtering-messages", "Suppress Filtering Messages",
 	 F_QUELL_FILTER_MSGS, h_config_quell_filtering_messages,
-	 PREF_MISC},
-	{"Quell-Timezone-Comment-When-Sending",
-	 F_QUELL_TIMEZONE, h_config_quell_tz_comment, PREF_MISC},
-	{"Quell-Folder-Internal-Msg",
-	 F_QUELL_INTERNAL_MSG, h_config_quell_folder_internal_msg, PREF_MISC},
-	{"Quell-Lock-Failure-Warnings",
+	 PREF_MISC, 0},
+	{"quell-imap-envelope-update", "Suppress IMAP Envelope Update",
+	 F_QUELL_IMAP_ENV_CB, h_config_quell_imap_env, PREF_MISC, 0},
+	{"quell-lock-failure-warnings", "Suppress Lock Failure Warnings",
 	 F_QUELL_LOCK_FAILURE_MSGS, h_config_quell_lock_failure_warnings,
-	 PREF_MISC},
+	 PREF_MISC, 0},
+	{"quell-maildomain-warning", "Suppress Maildomain Warning",
+	 F_QUELL_MAILDOMAIN_WARNING, h_config_quell_domain_warn, PREF_MISC, 0},
+	{"quell-news-envelope-update", "Suppress News Envelope Update",
+	 F_QUELL_NEWS_ENV_CB, h_config_quell_news_env, PREF_MISC, 0},
 #ifdef	_WINDOWS
-	{"Quell-SSL-Largeblocks",
-	 F_QUELL_SSL_LARGEBLOCKS, h_config_quell_ssl_largeblocks, PREF_MISC},
+	{"quell-ssl-largeblocks", "Prevent SSL Largeblocks",
+	 F_QUELL_SSL_LARGEBLOCKS, h_config_quell_ssl_largeblocks, PREF_MISC, 0},
 #endif
-	{"Quell-Status-Message-Beeping",
-	 F_QUELL_BEEPS, h_config_quell_beeps, PREF_MISC},
-	{"Quit-Without-Confirm",
-	 F_QUIT_WO_CONFIRM, h_config_quit_wo_confirm, PREF_MISC},
-	{"Quote-Replace-Nonflowed",
-	 F_QUOTE_REPLACE_NOFLOW, h_config_quote_replace_noflow, PREF_MISC},
-	{"Save-Partial-Msg-Without-Confirm",
-	 F_SAVE_PARTIAL_WO_CONFIRM, h_config_save_part_wo_confirm, PREF_MISC},
-	{"Save-Will-Advance",
-	 F_SAVE_ADVANCES, h_config_save_advances, PREF_MISC},
-	{"Save-Will-Not-Delete",
-	 F_SAVE_WONT_DELETE, h_config_save_wont_delete, PREF_MISC},
-	{"Save-Will-Quote-Leading-Froms",
-	 F_QUOTE_ALL_FROMS, h_config_quote_all_froms, PREF_MISC},
-	{"Scramble-Message-ID",
-	 F_ROT13_MESSAGE_ID, h_config_scramble_message_id, PREF_MISC},
-	{"Select-Without-Confirm",
-	 F_SELECT_WO_CONFIRM, h_config_select_wo_confirm, PREF_MISC},
-	{"Show-Cursor",
-	 F_SHOW_CURSOR, h_config_show_cursor, PREF_MISC},
-	{"Show-Plain-Text-Internally",
-	 F_SHOW_TEXTPLAIN_INT, h_config_textplain_int, PREF_MISC},
-	{"Show-Selected-in-Boldface",
-	 F_SELECTED_SHOWN_BOLD, h_config_select_in_bold, PREF_MISC},
-	{"Slash-Collapses-Entire-Thread",
-	 F_SLASH_COLL_ENTIRE, h_config_slash_coll_entire, PREF_MISC},
-#ifdef	_WINDOWS
-	{"Store-Window-Position-in-Config",
-	 F_STORE_WINPOS_IN_CONFIG, h_config_winpos_in_config, PREF_MISC},
-#endif
-	{"Tab-Checks-Recent",
-	 F_TAB_CHK_RECENT, h_config_tab_checks_recent, PREF_MISC},
-	{"Try-Alternative-Authentication-Driver-First",
-	 F_PREFER_ALT_AUTH, h_config_alt_auth, PREF_MISC},
-	{"Unselect-Will-Not-Advance",
-	 F_UNSELECT_WONT_ADVANCE, h_config_unsel_wont_advance, PREF_MISC},
-	{"Use-Current-Dir",
-	 F_USE_CURRENT_DIR, h_config_use_current_dir, PREF_MISC},
-	{"Use-Function-Keys",
-	 F_USE_FK, h_config_use_fk, PREF_OS_USFK},
-	{"Use-Regular-Startup-Rule-For-Stayopen-Folders",
-	 F_STARTUP_STAYOPEN, h_config_use_reg_start_for_stayopen, PREF_MISC},
-	{"Use-Subshell-For-Suspend",
-	 F_SUSPEND_SPAWNS, h_config_suspend_spawns, PREF_OS_SPWN},
+	{"quell-status-message-beeping", "Suppress Status Message Beeping",
+	 F_QUELL_BEEPS, h_config_quell_beeps, PREF_MISC, 0},
+	{"quell-timezone-comment-when-sending", "Suppress Timezone Comment When Sending",
+	 F_QUELL_TIMEZONE, h_config_quell_tz_comment, PREF_MISC, 0},
+	{"tab-checks-recent", "Tab Checks for Recent Messages",
+	 F_TAB_CHK_RECENT, h_config_tab_checks_recent, PREF_MISC, 0},
+	{"termdef-takes-precedence", NULL,
+	 F_TCAP_WINS, h_config_termcap_wins, PREF_MISC, 0},
+	{"try-alternative-authentication-driver-first", NULL,
+	 F_PREFER_ALT_AUTH, h_config_alt_auth, PREF_MISC, 0},
+	{"unselect-will-not-advance", NULL,
+	 F_UNSELECT_WONT_ADVANCE, h_config_unsel_wont_advance, PREF_MISC, 0},
+	{"use-current-dir", "Use Current Directory",
+	 F_USE_CURRENT_DIR, h_config_use_current_dir, PREF_MISC, 0},
+	{"use-function-keys", NULL,
+	 F_USE_FK, h_config_use_fk, PREF_OS_USFK, 0},
+	{"use-regular-startup-rule-for-stayopen-folders", "Use Regular Startup Rule for Stayopen Folders",
+	 F_STARTUP_STAYOPEN, h_config_use_reg_start_for_stayopen, PREF_MISC, 0},
+	{"use-subshell-for-suspend", "Use Subshell for Suspend",
+	 F_SUSPEND_SPAWNS, h_config_suspend_spawns, PREF_OS_SPWN, 0},
 #ifndef	_WINDOWS
-	{"Use-System-Translation",
-	 F_USE_SYSTEM_TRANS, h_config_use_system_translation, PREF_MISC},
+	{"use-system-translation", NULL,
+	 F_USE_SYSTEM_TRANS, h_config_use_system_translation, PREF_MISC, 0},
 #endif
 
 /* Hidden Features */
-	{"Old-Growth",
-	 F_OLD_GROWTH, NO_HELP, PREF_NONE},
-	{"Allow-Changing-From",
-	 F_ALLOW_CHANGING_FROM, h_config_allow_chg_from, PREF_HIDDEN},
-	{"Disable-Config-Cmd",
-	 F_DISABLE_CONFIG_SCREEN, h_config_disable_config_cmd, PREF_HIDDEN},
-	{"Disable-Keyboard-Lock-Cmd",
-	 F_DISABLE_KBLOCK_CMD, h_config_disable_kb_lock, PREF_HIDDEN},
-	{"Disable-Password-Caching",
-	 F_DISABLE_PASSWORD_CACHING, h_config_disable_password_caching,
-	 PREF_HIDDEN},
-	{"Disable-Password-Cmd",
-	 F_DISABLE_PASSWORD_CMD, h_config_disable_password_cmd, PREF_HIDDEN},
-	{"Disable-Pipes-in-Sigs",
-	 F_DISABLE_PIPES_IN_SIGS, h_config_disable_pipes_in_sigs, PREF_HIDDEN},
-	{"Disable-Pipes-in-Templates",
+	{"old-growth", NULL,
+	 F_OLD_GROWTH, NO_HELP, PREF_NONE, 0},
+	{"disable-config-cmd", NULL,
+	 F_DISABLE_CONFIG_SCREEN, h_config_disable_config_cmd, PREF_HIDDEN, 0},
+	{"disable-keyboard-lock-cmd", NULL,
+	 F_DISABLE_KBLOCK_CMD, h_config_disable_kb_lock, PREF_HIDDEN, 0},
+	{"disable-password-cmd", NULL,
+	 F_DISABLE_PASSWORD_CMD, h_config_disable_password_cmd, PREF_HIDDEN, 0},
+	{"disable-pipes-in-sigs", NULL,
+	 F_DISABLE_PIPES_IN_SIGS, h_config_disable_pipes_in_sigs, PREF_HIDDEN, 0},
+	{"disable-pipes-in-templates", NULL,
 	 F_DISABLE_PIPES_IN_TEMPLATES, h_config_disable_pipes_in_templates,
-	 PREF_HIDDEN},
-	{"Disable-Roles-Setup-Cmd",
-	 F_DISABLE_ROLES_SETUP, h_config_disable_roles_setup, PREF_HIDDEN},
-	{"Disable-Roles-Sig-Edit",
-	 F_DISABLE_ROLES_SIGEDIT, h_config_disable_roles_sigedit, PREF_HIDDEN},
-	{"Disable-Roles-Template-Edit",
+	 PREF_HIDDEN, 0},
+	{"disable-roles-setup-cmd", NULL,
+	 F_DISABLE_ROLES_SETUP, h_config_disable_roles_setup, PREF_HIDDEN, 0},
+	{"disable-roles-sig-edit", NULL,
+	 F_DISABLE_ROLES_SIGEDIT, h_config_disable_roles_sigedit, PREF_HIDDEN, 0},
+	{"disable-roles-template-edit", NULL,
 	 F_DISABLE_ROLES_TEMPLEDIT, h_config_disable_roles_templateedit,
-	 PREF_HIDDEN},
-	{"Disable-Setlocale-Collate",
-	 F_DISABLE_SETLOCALE_COLLATE, h_config_disable_collate, PREF_HIDDEN},
-	{"Disable-Shared-Namespaces",
-	 F_DISABLE_SHARED_NAMESPACES, h_config_disable_shared, PREF_HIDDEN},
-	{"Disable-Signature-Edit-Cmd",
-	 F_DISABLE_SIGEDIT_CMD, h_config_disable_signature_edit, PREF_HIDDEN},
-	{"Enable-Mailcap-Param-Substitution",
-	 F_DO_MAILCAP_PARAM_SUBST, h_config_mailcap_params, PREF_HIDDEN},
-	{"Quell-Berkeley-Format-Timezone",
-	 F_QUELL_BEZERK_TIMEZONE, h_config_no_bezerk_zone, PREF_HIDDEN},
-	{"Quell-IMAP-Envelope-Update",
-	 F_QUELL_IMAP_ENV_CB, h_config_quell_imap_env, PREF_HIDDEN},
-	{"Quell-Maildomain-Warning",
-	 F_QUELL_MAILDOMAIN_WARNING, h_config_quell_domain_warn, PREF_HIDDEN},
-	{"Quell-News-Envelope-Update",
-	 F_QUELL_NEWS_ENV_CB, h_config_quell_news_env, PREF_HIDDEN},
-	{"Quell-Partial-Fetching",
-	 F_QUELL_PARTIAL_FETCH, h_config_quell_partial, PREF_HIDDEN},
-	{"Quell-Personal-Name-Prompt",
-	 F_QUELL_PERSONAL_NAME_PROMPT, h_config_quell_personal_name_prompt, PREF_HIDDEN},
-	{"Quell-User-ID-Prompt",
-	 F_QUELL_USER_ID_PROMPT, h_config_quell_user_id_prompt, PREF_HIDDEN},
-	{"Save-Aggregates-Copy-Sequence",
-	 F_AGG_SEQ_COPY, h_config_save_aggregates, PREF_HIDDEN},
-	{"Selectable-Item-Nobold",
-	 F_SLCTBL_ITEM_NOBOLD, NO_HELP, PREF_NONE},
-	{"Termdef-Takes-Precedence",
-	 F_TCAP_WINS, h_config_termcap_wins, PREF_HIDDEN},
-	{"Send-Confirms-Only-Expanded",
-	 F_SEND_CONFIRM_ON_EXPAND, 0, PREF_HIDDEN},	/* exposed in Web Alpine */
-	{"Enable-Jump-Cmd",
-	 F_ENABLE_JUMP_CMD, 0, PREF_HIDDEN},		/* exposed in Web Alpine */
-	{"Enable-Newmail-Sound",
-	 F_ENABLE_NEWMAIL_SOUND, 0, PREF_HIDDEN}	/* exposed in Web Alpine */
+	 PREF_HIDDEN, 0},
+	{"disable-setlocale-collate", NULL,
+	 F_DISABLE_SETLOCALE_COLLATE, h_config_disable_collate, PREF_HIDDEN, 0},
+	{"disable-shared-namespaces", NULL,
+	 F_DISABLE_SHARED_NAMESPACES, h_config_disable_shared, PREF_HIDDEN, 0},
+	{"disable-signature-edit-cmd", NULL,
+	 F_DISABLE_SIGEDIT_CMD, h_config_disable_signature_edit, PREF_HIDDEN, 0},
+	{"quell-personal-name-prompt", NULL,
+	 F_QUELL_PERSONAL_NAME_PROMPT, h_config_quell_personal_name_prompt, PREF_HIDDEN, 0},
+	{"quell-user-id-prompt", "Quell User ID Prompt",
+	 F_QUELL_USER_ID_PROMPT, h_config_quell_user_id_prompt, PREF_HIDDEN, 0},
+	{"selectable-item-nobold", NULL,
+	 F_SLCTBL_ITEM_NOBOLD, NO_HELP, PREF_NONE, 0},
+	{"send-confirms-only-expanded", NULL,
+	 F_SEND_CONFIRM_ON_EXPAND, 0, PREF_HIDDEN, 0},	/* exposed in Web Alpine */
+	{"enable-jump-cmd", NULL,
+	 F_ENABLE_JUMP_CMD, 0, PREF_HIDDEN, 0},		/* exposed in Web Alpine */
+	{"enable-newmail-sound", NULL,
+	 F_ENABLE_NEWMAIL_SOUND, 0, PREF_HIDDEN, 0}	/* exposed in Web Alpine */
     };
 
     return((index >= 0 && index < (sizeof(feat_list)/sizeof(feat_list[0])))
@@ -3129,6 +3164,20 @@ feature_list_name(int id)
 }
 
 
+int
+feature_list_id(char *name)
+{
+    FEATURE_S *f;
+    int i;
+
+    for(i = 0; f = feature_list(i); i++)
+      if(!strucmp(f->name, name))
+        return(f->id);
+
+    return(-1);
+}
+
+
 /*
  * feature_list_help -- return the given feature id's corresponding help
  */
@@ -3156,10 +3205,9 @@ process_feature_list(struct pine *ps, char **list, int old_growth, int hir, int 
     FEATURE_S		     *feat;
 
 
-    /* clear all previous settings and then reset them */
+    /* clear all previous settings and reset them to default */
     for(i = 0; (feat = feature_list(i)) != NULL; i++)
-      F_SET(feat->id, ps, 0);
-
+      F_SET(feat->id, ps, feat->defval);
 
     /* backwards compatibility */
     if(hir)
@@ -3193,6 +3241,7 @@ process_feature_list(struct pine *ps, char **list, int old_growth, int hir, int 
 	    break;
 	  }
 	}
+
 	/* if it wasn't in that list */
 	if(feat == NULL)
           dprint((1,"Unrecognized feature in feature-list (%s%s)\n",
@@ -3287,6 +3336,7 @@ set_current_pattern_vals(struct pine *ps)
     set_current_val(&vars[V_PAT_SCORES_OLD], TRUE, TRUE);
     set_current_val(&vars[V_PAT_INCOLS], TRUE, TRUE);
     set_current_val(&vars[V_PAT_OTHER], TRUE, TRUE);
+    set_current_val(&vars[V_PAT_SRCH], TRUE, TRUE);
 
     /*
      * If old pattern variable (V_PATTERNS) is set and the new ones aren't
@@ -3382,6 +3432,11 @@ set_current_pattern_vals(struct pine *ps)
       ps_global->ew_for_other_take = Post;
     else
       ps_global->ew_for_other_take = Main;
+
+    if(vars[V_PAT_SRCH].post_user_val.l)
+      ps_global->ew_for_srch_take = Post;
+    else
+      ps_global->ew_for_srch_take = Main;
 }
 
 
@@ -3416,7 +3471,7 @@ convert_scores_pattern_data(void)
 /*
  * Foreach of the four variables, transfer the data for this config file
  * from the old patterns variable. We don't have to convert OTHER patterns
- * because they didn't exist in pines without patterns-other.
+ * or SRCH patterns because they didn't exist in pines without patterns-other.
  *
  * If the original variable had patlines with type File then we convert
  * all of the individual patterns to type Lit, because each pattern can
@@ -4498,11 +4553,9 @@ set_feature_list_current_val(struct variable *var)
 {
     char **list;
     char **list_fixed;
-    char   no_allow[110], *allow;
+    char   no_allow[50];
     int    i, j, k, m,
 	   elems = 0;
-
-    elems++;	/* for default F_ALLOW_CHANGING_FROM */
 
     /* count the lists so we can allocate */
     for(m = 0; m < 6; m++){
@@ -4534,11 +4587,9 @@ set_feature_list_current_val(struct variable *var)
      */
 
     j = 0;
-    /* everything defaults to off except for allow-changing-from */
-    allow = no_allow+3;
     strncpy(no_allow, "no-", 3);
-    strncpy(allow, feature_list_name(F_ALLOW_CHANGING_FROM), 100);
-    var->current_val.l[j++] = cpystr(allow);
+    strncpy(no_allow+3, feature_list_name(F_ALLOW_CHANGING_FROM), sizeof(no_allow)-3-1);
+    no_allow[sizeof(no_allow)-1] = '\0';
 
     for(m = 0; m < 6; m++){
 	list = m==0 ? var->global_val.l :
@@ -4550,6 +4601,8 @@ set_feature_list_current_val(struct variable *var)
 	if(list)
 	  for(i = 0; list[i]; i++){
 	      var->current_val.l[j++] = cpystr(list[i]);
+
+	      /* this is the warning section */
 	      if(m >= 1 && m <= 4){
 		  for(k = 0; list_fixed && list_fixed[k]; k++){
 		      char *p, *q;
@@ -6129,7 +6182,7 @@ set_variable(int var, char *value, int expand, int commit, EditWhich which)
     if(prc)
       prc->outstanding_pinerc_changes = 1;
 
-    return(commit ? write_pinerc(ps_global, which, WRP_NONE) : 1);
+    return(commit ? write_pinerc(ps_global, which, WRP_NONE) : 0);
 }
 
 
@@ -6220,6 +6273,7 @@ set_current_color_vals(struct pine *ps)
     set_color_val(&vars[V_SLCTBL_FORE_COLOR], 1);
     set_color_val(&vars[V_METAMSG_FORE_COLOR], 1);
     set_color_val(&vars[V_PROMPT_FORE_COLOR], 1);
+    set_color_val(&vars[V_HEADER_GENERAL_FORE_COLOR], 1);
     set_color_val(&vars[V_IND_PLUS_FORE_COLOR], 0);
     set_color_val(&vars[V_IND_IMP_FORE_COLOR], 0);
     set_color_val(&vars[V_IND_DEL_FORE_COLOR], 0);
@@ -6228,6 +6282,8 @@ set_current_color_vals(struct pine *ps)
     set_color_val(&vars[V_IND_REC_FORE_COLOR], 0);
     set_color_val(&vars[V_IND_UNS_FORE_COLOR], 0);
     set_color_val(&vars[V_IND_ARR_FORE_COLOR], 0);
+    set_color_val(&vars[V_IND_SUBJ_FORE_COLOR], 0);
+    set_color_val(&vars[V_IND_FROM_FORE_COLOR], 0);
     set_color_val(&vars[V_IND_OP_FORE_COLOR], 0);
     set_color_val(&vars[V_SIGNATURE_FORE_COLOR], 0);
 
@@ -6646,17 +6702,8 @@ feature_gets_an_x(struct pine *ps, struct variable *var, FEATURE_S *feature,
 	  *comment = def;
     }
 
-    /*
-     * Feature allow-changing-from is on by default.
-     * Tests say it is not in the list we're editing, and,
-     * is not in the global_val list, and,
-     * if we're editing an except which is not the normal then it is also
-     * not in the normal list.
-     * So it isn't set anywhere which means it is on because of the special
-     * default value for this feature.
-     */
     if(!done &&
-       feature->id == F_ALLOW_CHANGING_FROM &&
+       feature->defval &&
        !feature_in_list(lval, feature->name) &&
        !feature_in_list(var->global_val.l, feature->name) &&
        (ps_global->ew_for_except_vars == Main ||
@@ -6742,13 +6789,6 @@ toggle_feature(struct pine *ps, struct variable *var, FEATURE_S *f,
 	clear_index_cache(ps->mail_stream, 0);
 	break;
 
-      case F_DISABLE_INPUT_HISTORY :
-	if(F_ON(f->id,ps)){
-	    free_histlist();
-	}
-
-	break;
-
       case F_MARK_FOR_CC :
 	clear_index_cache(ps->mail_stream, 0);
 	if(THREADING() && sp_viewing_a_thread(ps->mail_stream))
@@ -6800,9 +6840,19 @@ toggle_feature(struct pine *ps, struct variable *var, FEATURE_S *f,
 
 	break;
 
-      case F_ENABLE_INCOMING_UNSEEN :
+      case F_ENABLE_INCOMING_CHECKING :
 	if(!on_before && F_OFF(F_ENABLE_INCOMING, ps))
 	  q_status_message(SM_ORDER, 0, 3, _("This option has no effect without Enable-Incoming-Folders"));
+
+	clear_incoming_valid_bits();
+	break;
+
+      case F_INCOMING_CHECKING_TOTAL :
+      case F_INCOMING_CHECKING_RECENT :
+	if(!on_before && F_OFF(F_ENABLE_INCOMING_CHECKING, ps))
+	  q_status_message(SM_ORDER, 0, 3, _("This option has no effect without Enable-Incoming-Folders-Checking"));
+
+	clear_incoming_valid_bits();
 	break;
 
       default :
@@ -7334,6 +7384,8 @@ config_help(int var, int feature)
 	return(h_config_keywords);
       case V_KW_BRACES :
 	return(h_config_kw_braces);
+      case V_OPENING_SEP :
+	return(h_config_opening_sep);
       case V_KW_COLORS :
 	return(h_config_kw_color);
       case V_ABOOK_FORMATS :
@@ -7344,6 +7396,8 @@ config_help(int var, int feature)
 	return(h_config_incoming_timeo);
       case V_INCCHECKINTERVAL :
 	return(h_config_incoming_interv);
+      case V_INC2NDCHECKINTERVAL :
+	return(h_config_incoming_second_interv);
       case V_INCCHECKLIST :
 	return(h_config_incoming_list);
       case V_OVERLAP :
@@ -7515,6 +7569,9 @@ config_help(int var, int feature)
       case V_PROMPT_FORE_COLOR :
       case V_PROMPT_BACK_COLOR :
 	return(h_config_prompt_color);
+      case V_HEADER_GENERAL_FORE_COLOR :
+      case V_HEADER_GENERAL_BACK_COLOR :
+	return(h_config_header_general_color);
       case V_IND_PLUS_FORE_COLOR :
       case V_IND_IMP_FORE_COLOR :
       case V_IND_DEL_FORE_COLOR :
@@ -7533,6 +7590,12 @@ config_help(int var, int feature)
       case V_IND_OP_FORE_COLOR :
       case V_IND_OP_BACK_COLOR :
 	return(h_config_index_opening_color);
+      case V_IND_SUBJ_FORE_COLOR :
+      case V_IND_SUBJ_BACK_COLOR :
+	return(h_config_index_subject_color);
+      case V_IND_FROM_FORE_COLOR :
+      case V_IND_FROM_BACK_COLOR :
+	return(h_config_index_from_color);
       case V_IND_ARR_FORE_COLOR :
       case V_IND_ARR_BACK_COLOR :
 	return(h_config_index_arrow_color);
@@ -7563,6 +7626,8 @@ config_help(int var, int feature)
 	return(h_config_pat_incols);
       case V_PAT_OTHER :
 	return(h_config_pat_other);
+      case V_PAT_SRCH :
+	return(h_config_pat_srch);
       case V_INDEX_COLOR_STYLE :
 	return(h_config_index_color_style);
       case V_TITLEBAR_COLOR_STYLE :

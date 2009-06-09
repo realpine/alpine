@@ -529,10 +529,10 @@
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
 
-/* Default configuration value */
+/* System pinerc */
 #undef SYSTEM_PINERC
 
-/* Default configuration value */
+/* System fixed pinerc */
 #undef SYSTEM_PINERC_FIXED
 
 /* Pine-Centric Host Specifier */

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: addrbook.c 540 2007-04-25 17:58:55Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: addrbook.c 592 2007-06-07 17:46:58Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -274,7 +274,6 @@ void
 restore_state(SAVE_STATE_S *state)
 {
     int i;
-    int selected_is_history = as.selected_is_history;
 
     dprint((9, "- restore_state -\n"));
 
@@ -290,8 +289,7 @@ restore_state(SAVE_STATE_S *state)
 	/*
 	 * jump cache back to where we were
 	 */
-	if(!selected_is_history)
-	  warp_to_dlc(state->dlc_to_warp_to, as.top_ent+as.cur_row);
+	warp_to_dlc(state->dlc_to_warp_to, as.top_ent+as.cur_row);
 
 	fs_give((void **)&state->dlc_to_warp_to);
 	fs_give((void **)&state->stp);
@@ -299,14 +297,6 @@ restore_state(SAVE_STATE_S *state)
 
     if(state->savep)
       fs_give((void **)&state->savep);
-
-    if(selected_is_history){
-	erase_selections();
-	if(as.zoomed)
-	  ab_unzoom(NULL);
-    }
-
-    as.selected_is_history = 0;
 }
 
 
@@ -6336,11 +6326,15 @@ search_book(long int cur_line, int command_line, long int *new_line, int *wrappe
 	 */
 	if(items_in_hist(history) > 2){
 	    ekey[ku].name  = HISTORY_UP_KEYNAME;
-	    ekey[ku].label = HISTORY_UP_KEYLABEL;
+	    ekey[ku].label = HISTORY_KEYLABEL;
+	    ekey[ku+1].name  = HISTORY_DOWN_KEYNAME;
+	    ekey[ku+1].label = HISTORY_KEYLABEL;
 	}
 	else{
 	    ekey[ku].name  = "";
 	    ekey[ku].label = "";
+	    ekey[ku+1].name  = "";
+	    ekey[ku+1].label = "";
 	}
 
         rc = optionally_enter(nsearch_string, command_line, 0,

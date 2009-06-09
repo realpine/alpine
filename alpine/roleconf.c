@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: roleconf.c 529 2007-04-18 22:41:05Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: roleconf.c 596 2007-06-09 00:20:47Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -280,6 +280,8 @@ role_config_screen(struct pine *ps, long int rflags, int edit_exceptions)
       v = &ps_global->vars[V_PAT_SCORES];
     else if(rflags & ROLE_DO_FILTER)
       v = &ps_global->vars[V_PAT_FILTS];
+    else if(rflags & ROLE_DO_SRCH)
+      v = &ps_global->vars[V_PAT_SRCH];
 
     if((ps_global->ew_for_except_vars != Main) && (ew == Main)){
 	char           **lval;
@@ -446,6 +448,10 @@ role_take(struct pine *ps, MSGNO_S *msgmap, int rtype)
       case 'o':
 	rflags = ROLE_DO_OTHER;
 	ew = ps_global->ew_for_other_take;
+	break;
+      case 'c':
+	rflags = ROLE_DO_SRCH;
+	ew = ps_global->ew_for_srch_take;
 	break;
 
       default:
@@ -846,6 +852,7 @@ add_patline_to_display(struct pine *ps, CONF_S **ctmp, int before, CONF_S **firs
 	   (pat->action &&
 	    ((rflags & ROLE_DO_ROLES)  && pat->action->is_a_role  ||
 	     (rflags & ROLE_DO_INCOLS) && pat->action->is_a_incol ||
+	     (rflags & ROLE_DO_SRCH)   && pat->action->is_a_srch  ||
 	     (rflags & ROLE_DO_OTHER)  && pat->action->is_a_other ||
 	     (rflags & ROLE_DO_SCORES) && pat->action->is_a_score ||
 	     (rflags & ROLE_DO_FILTER) && pat->action->is_a_filter))){
@@ -940,11 +947,12 @@ add_role_to_display(CONF_S **ctmp, PAT_LINE_S *patline, PAT_S *pat, int before, 
     (*ctmp)->d.r.pat     = pat;
     (*ctmp)->keymenu     = &role_conf_km;
     (*ctmp)->help        = (rflags & ROLE_DO_INCOLS) ? h_rules_incols :
-			    (rflags & ROLE_DO_OTHER) ? h_rules_other :
+			    (rflags & ROLE_DO_OTHER)  ? h_rules_other :
 			     (rflags & ROLE_DO_FILTER) ? h_rules_filter :
 			      (rflags & ROLE_DO_SCORES) ? h_rules_score :
 			       (rflags & ROLE_DO_ROLES)  ? h_rules_roles :
-			       NO_HELP;
+			        (rflags & ROLE_DO_SRCH)   ? h_rules_srch :
+			        NO_HELP;
     (*ctmp)->help_title  = title;
     (*ctmp)->tool        = role_config_tool;
     (*ctmp)->valoffset   = 4;
@@ -993,11 +1001,12 @@ add_fake_first_role(CONF_S **ctmp, int before, long int rflags)
     (*ctmp)->value      = cpystr(add);
     (*ctmp)->keymenu    = &role_conf_km;
     (*ctmp)->help        = (rflags & ROLE_DO_INCOLS) ? h_rules_incols :
-			    (rflags & ROLE_DO_OTHER) ? h_rules_other :
+			    (rflags & ROLE_DO_OTHER)  ? h_rules_other :
 			     (rflags & ROLE_DO_FILTER) ? h_rules_filter :
 			      (rflags & ROLE_DO_SCORES) ? h_rules_score :
 			       (rflags & ROLE_DO_ROLES)  ? h_rules_roles :
-			       NO_HELP;
+			        (rflags & ROLE_DO_SRCH)   ? h_rules_srch :
+			        NO_HELP;
     (*ctmp)->help_title = title;
     (*ctmp)->tool       = role_config_tool;
     (*ctmp)->flags     |= CF_STARTITEM;
@@ -2731,7 +2740,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
     EARB_S          *earb = NULL, *ea;
     int              rv, i, j, lv, pindent, maxpindent, rindent,
 		     scoreval = 0, edit_role, wid,
-		     edit_incol, edit_score, edit_filter, edit_other,
+		     edit_incol, edit_score, edit_filter, edit_other, edit_srch,
 		     dval, ival, nval, aval, fval, noselect,
 		     per_folder_only, need_uses, need_options;
     int	        (*radio_tool)(struct pine *, int, CONF_S **, unsigned);
@@ -2745,9 +2754,10 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
     edit_score	= rflags & ROLE_DO_SCORES;
     edit_filter	= rflags & ROLE_DO_FILTER;
     edit_other	= rflags & ROLE_DO_OTHER;
+    edit_srch	= rflags & ROLE_DO_SRCH;
 
     per_folder_only = (edit_other &&
-		       !(edit_role || edit_incol || edit_score || edit_filter));
+		       !(edit_role || edit_incol || edit_score || edit_filter || edit_srch));
     need_uses       = edit_role;
     need_options    = !per_folder_only;
 
@@ -3957,6 +3967,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
     ctmp->flags    |= CF_NUMBER;
   }
 
+  if(!edit_srch){		/* sorry about that indent */
     /* Actions */
 
     /* Blank line */
@@ -4499,6 +4510,7 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 				   : PVAL(&rolecolor_vars[1], ew),
 			       def);
     }
+  }
 
     if(need_options){
 	/* Options */
@@ -5176,11 +5188,12 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 
 	(*result)->action->nick = cpystr((*result)->patgrp->nick);
 
-	(*result)->action->is_a_role   = edit_role  ? 1 : 0;
-	(*result)->action->is_a_incol  = edit_incol ? 1 : 0;
-	(*result)->action->is_a_score  = edit_score ? 1 : 0;
+	(*result)->action->is_a_role   = edit_role   ? 1 : 0;
+	(*result)->action->is_a_incol  = edit_incol  ? 1 : 0;
+	(*result)->action->is_a_score  = edit_score  ? 1 : 0;
 	(*result)->action->is_a_filter = edit_filter ? 1 : 0;
-	(*result)->action->is_a_other  = edit_other ? 1 : 0;
+	(*result)->action->is_a_other  = edit_other  ? 1 : 0;
+	(*result)->action->is_a_srch   = edit_srch   ? 1 : 0;
 
 	(*result)->patgrp->to      = editlist_to_pattern(to_pat);
 	if((*result)->patgrp->to && !strncmp(to_pat_var.name, NOT, NOTLEN))
@@ -7962,19 +7975,22 @@ role_type_print(char *buf, size_t buflen, char *fmt, long int rflags)
 	   (rflags & ROLE_DO_FILTER) ? "FILTERING " :
 	    (rflags & ROLE_DO_SCORES) ? "SCORING " :
 	     (rflags & ROLE_DO_OTHER)  ? "OTHER " :
-	      (rflags & ROLE_DO_ROLES)  ? "ROLE " : "";
+	      (rflags & ROLE_DO_SRCH)   ? "SEARCH " :
+	       (rflags & ROLE_DO_ROLES)  ? "ROLE " : "";
     else if(cas == CASE_LOWER)
       q = (rflags & ROLE_DO_INCOLS) ? "index color " :
 	   (rflags & ROLE_DO_FILTER) ? "filtering " :
 	    (rflags & ROLE_DO_SCORES) ? "scoring " :
-	     (rflags & ROLE_DO_OTHER) ? "other " :
-	      (rflags & ROLE_DO_ROLES)  ? "role " : "";
+	     (rflags & ROLE_DO_OTHER)  ? "other " :
+	      (rflags & ROLE_DO_OTHER)  ? "search " :
+	       (rflags & ROLE_DO_ROLES)  ? "role " : "";
     else
       q = (rflags & ROLE_DO_INCOLS) ? "Index Color " :
 	   (rflags & ROLE_DO_FILTER) ? "Filtering " :
 	    (rflags & ROLE_DO_SCORES) ? "Scoring " :
-	     (rflags & ROLE_DO_OTHER) ? "Other " :
-	      (rflags & ROLE_DO_ROLES)  ? "Role " : "";
+	     (rflags & ROLE_DO_OTHER)  ? "Other " :
+	      (rflags & ROLE_DO_OTHER)  ? "Search " :
+	       (rflags & ROLE_DO_ROLES)  ? "Role " : "";
     
     /* it ain't right to say "a index" */
     if(prev_word_is_a && !struncmp(q, "index", 5))

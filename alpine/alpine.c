@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: alpine.c 550 2007-04-30 18:15:20Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: alpine.c 615 2007-06-28 17:39:01Z jpf@u.washington.edu $";
 #endif
 
 /*
@@ -45,6 +45,8 @@ static char rcsid[] = "$Id: alpine.c 550 2007-04-30 18:15:20Z hubert@u.washingto
 #include "init.h"
 #include "remote.h"
 #include "pattern.h"
+#include "newuser.h"
+#include "setup.h"
 #ifndef _WINDOWS
 #include "../pico/osdep/raw.h"	/* for STD*_FD */
 #endif
@@ -146,6 +148,7 @@ main(int argc, char **argv)
     pith_opt_paint_index_hline	   = paint_index_hline;
     pith_opt_rfc2369_editorial	   = rfc2369_editorial;
     pith_opt_condense_thread_cue   = condensed_thread_cue;
+    pith_opt_truncate_sfstr        = truncate_subj_and_from_strings;
     pith_opt_save_and_restore	   = save_and_restore;
     pith_opt_newmail_check_cue	   = newmail_check_cue;
     pith_opt_checkpoint_cue	   = newmail_check_point_cue;
@@ -162,6 +165,8 @@ main(int argc, char **argv)
     pith_opt_save_index_state	   = setup_index_state;
     pith_opt_filter_pattern_cmd	   = pattern_filter_command;
     pith_opt_get_signature_file	   = get_signature_file;
+    pith_opt_pretty_var_name	   = pretty_var_name;
+    pith_opt_pretty_feature_name   = pretty_feature_name;
 #ifdef	ENABLE_LDAP
     pith_opt_save_ldap_entry	 = save_ldap_entry;
 #endif
@@ -241,7 +246,23 @@ main(int argc, char **argv)
 	  exit(-1);
 	}
     }
-#endif
+
+#else /* _WINDOWS */
+    /*
+     * We now have enough information to do some of the basic registry settings.
+     */
+    if(ps_global->update_registry != UREG_NEVER_SET){
+	mswin_reg(MSWR_OP_SET
+		  | ((ps_global->update_registry == UREG_ALWAYS_SET)
+		     ? MSWR_OP_FORCE : 0),
+		  MSWR_PINE_DIR, ps_global->pine_dir, (size_t)NULL);
+	mswin_reg(MSWR_OP_SET
+		  | ((ps_global->update_registry == UREG_ALWAYS_SET)
+		     ? MSWR_OP_FORCE : 0),
+		  MSWR_PINE_EXE, ps_global->pine_name, (size_t)NULL);
+    }
+
+#endif /* _WINDOWS */
 
     if(ps_global->convert_sigs &&
        (!ps_global->pinerc || !ps_global->pinerc[0])){
@@ -657,6 +678,9 @@ main(int argc, char **argv)
     pine_state->dont_use_init_cmds = 1;	/* don't use up initial_commands yet */
     ClearScreen();
 
+    /* initialize titlebar in case we use it */
+    set_titlebar("", NULL, NULL, NULL, NULL, 0, FolderName, 0, 0, NULL);
+
     /*
      * Prep storage object driver for PicoText 
      */
@@ -699,6 +723,15 @@ main(int argc, char **argv)
 	goodnight_gracey(pine_state, exit_val);
     }
 
+    if(args.action == aaFolder
+       && (pine_state->first_time_user || pine_state->show_new_version)){
+	pine_state->mangled_header = 1;
+	show_main_screen(pine_state, 0, FirstMenu, &main_keymenu, 0,
+			 (Pos *) NULL);
+	new_user_or_version(pine_state);
+	ClearScreen();
+    }
+    
     /* put back in case we need to suppress output */
     pine_state->in_init_seq = pine_state->save_in_init_seq;
 
@@ -957,8 +990,8 @@ main(int argc, char **argv)
 		  char buf2[6*MAX_SCREEN_COLS+1];
 		  int  wid;
 
-		  /* TRANSLATORS: Initial-Keystroke-List is the literal name of an option */
-		  strncpy(buf1, _("Executing Initial-Keystroke-List......"), sizeof(buf1));
+		  /* TRANSLATORS: Initial Keystroke List is the literal name of an option */
+		  strncpy(buf1, _("Executing Initial Keystroke List......"), sizeof(buf1));
 		  buf1[sizeof(buf1)-1] = '\0';
 		  wid = utf8_width(buf1);
 		  if(wid > ps_global->ttyo->screen_cols){
@@ -2314,8 +2347,8 @@ setup_menu(struct pine *ps)
     if(config){
 	so_puts(store, "\n");
 	so_puts(store, _("(C) Config:\n"));
-	so_puts(store, _("    Allows you to set many features which are not turned on by default.\n"));
-	so_puts(store, _("    You may also set the values of many options with that command.\n"));
+	so_puts(store, _("    Allows you to set or unset many features of Alpine.\n"));
+	so_puts(store, _("    You may also set the values of many options with this command.\n"));
     }
 
     if(sig){
@@ -2335,9 +2368,9 @@ setup_menu(struct pine *ps)
 
     so_puts(store, "\n");
     so_puts(store, _("(R) Rules:\n"));
-    so_puts(store, _("    This has up to five sub-categories: Roles, Index Colors, Filters,\n"));
-    so_puts(store, _("    SetScores, and Other. If the Index Colors option is missing\n"));
-    so_puts(store, _("    you may turn it on (if possible) with Setup/Kolor.\n"));
+    so_puts(store, _("    This has up to six sub-categories: Roles, Index Colors, Filters,\n"));
+    so_puts(store, _("    SetScores, Search, and Other. If the Index Colors option is\n"));
+    so_puts(store, _("    missing you may turn it on (if possible) with Setup/Kolor.\n"));
     so_puts(store, _("    If Roles is missing it has probably been administratively disabled.\n"));
 
     if(dir){
@@ -2591,11 +2624,13 @@ do_setup_task(int command)
 	  case 'i':
 	  case 'f':
 	  case 'o':
+	  case 'c':
 	    role_config_screen(ps_global, (rtype == 'r') ? ROLE_DO_ROLES :
 					   (rtype == 's') ? ROLE_DO_SCORES :
 					    (rtype == 'o') ? ROLE_DO_OTHER :
 					     (rtype == 'f') ? ROLE_DO_FILTER :
-							       ROLE_DO_INCOLS,
+					      (rtype == 'c') ? ROLE_DO_SRCH :
+							        ROLE_DO_INCOLS,
 			       edit_exceptions);
 	    break;
 
@@ -2663,7 +2698,7 @@ do_setup_task(int command)
 int
 rule_setup_type(struct pine *ps, int flags, char *prompt)
 {
-    ESCKEY_S opts[8];
+    ESCKEY_S opts[9];
     int ekey_num = 0, deefault = 0;
 
     if(flags & RS_INCADDR){
@@ -2722,6 +2757,11 @@ rule_setup_type(struct pine *ps, int flags, char *prompt)
     opts[ekey_num].rval    = 'o';
     opts[ekey_num].name    = "O";
     opts[ekey_num++].label = "Other";
+
+    opts[ekey_num].ch      = 'c';
+    opts[ekey_num].rval    = 'c';
+    opts[ekey_num].name    = "C";
+    opts[ekey_num++].label = "searCh";
 
   }
 

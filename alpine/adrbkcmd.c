@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: adrbkcmd.c 534 2007-04-23 22:20:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: adrbkcmd.c 596 2007-06-09 00:20:47Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -127,6 +127,7 @@ view_abook_entry(struct pine *ps, long int cur_line)
     char       *string, *errstr;
     SCROLL_S	sargs;
     HANDLE_S   *handles = NULL;
+    URL_HILITE_S uh;
     gf_io_t	pc, gc;
     int         cmd, abook_indent;
     long	offset = 0L;
@@ -247,7 +248,8 @@ repaint_view:
 	   || F_ON(F_VIEW_SEL_URL_HOST, ps_global)
 	   || F_ON(F_SCAN_ADDR, ps_global))
 	  gf_link_filter(gf_line_test,
-			 gf_line_test_opt(url_hilite_abook, &handles));
+			 gf_line_test_opt(url_hilite_abook,
+					  gf_url_hilite_opt(&uh,&handles,0)));
 
 	gf_link_filter(gf_wrap, gf_wrap_filter_opt(ps->ttyo->screen_cols - 4,
 						   ps->ttyo->screen_cols,
@@ -1245,7 +1247,8 @@ _("\n to use single quotation marks; for example: George 'Husky' Washington."));
     }
     
     if(rc == 0 && new_tag == List && new_addrarray)
-      rc = adrbk_nlistadd(abook, (a_c_arg_t) new_entry_num, new_addrarray, 1, 0, 1);
+      rc = adrbk_nlistadd(abook, (a_c_arg_t) new_entry_num, &new_entry_num,
+			  &resort_happened, new_addrarray, 1, 0, 1);
 
     restore_state(&state);
 
@@ -2335,7 +2338,7 @@ any_rule_files_to_warn_about(struct pine *ps)
     PAT_S      *pat;
 
     rflags = (ROLE_DO_ROLES | ROLE_DO_INCOLS | ROLE_DO_SCORES |
-	      ROLE_DO_FILTER | ROLE_DO_OTHER | PAT_USE_MAIN);
+	      ROLE_DO_FILTER | ROLE_DO_OTHER | ROLE_DO_SRCH | PAT_USE_MAIN);
     if(any_patterns(rflags, &pstate)){
 	for(pat = first_pattern(&pstate);
 	    pat;
@@ -5558,7 +5561,7 @@ ab_save(struct pine *ps, AdrBk *abook, long int cur_line, int command_line, int 
 	    pab_dst->address_book->sort_rule = AB_SORT_RULE_NONE;
 
 	    rc = adrbk_nlistadd(pab_dst->address_book,
-				(a_c_arg_t)new_entry_num,
+				(a_c_arg_t)new_entry_num, NULL, NULL,
 				abe->addr.list,
 				0, 0, 0);
 
@@ -5579,21 +5582,15 @@ ab_save(struct pine *ps, AdrBk *abook, long int cur_line, int command_line, int 
 
     if(need_write){
 	long old_size;
+	int sort_happened = 0;
 
-	if(adrbk_write(pab_dst->address_book, 0, 1, total_to_copy <= 1)){
+	if(adrbk_write(pab_dst->address_book, 0, NULL, &sort_happened, 0, 1)){
 	    err++;
 	    goto get_out;
 	}
 
-	if(total_to_copy > 1){
-	    exp_free(pab_dst->address_book->exp);
-
-	    /*
-	     * Sort the results since they were appended.
-	     */
-	    (void)adrbk_sort(pab_dst->address_book,
-			     (a_c_arg_t)0, (adrbk_cntr_t *)NULL, 0);
-	}
+	if(sort_happened)
+	  ps_global->mangled_screen = 1;
     }
 
 get_out:
@@ -6209,8 +6206,13 @@ ab_agg_delete(struct pine *ps, int agg)
 		    }
 		}
 
-		if(rc == 0 && orig_selected > 0)
-		  rc = adrbk_write(pab->address_book, 1, 0, 1);
+		if(rc == 0 && orig_selected > 0){
+		    int sort_happened = 0;
+
+		    rc = adrbk_write(pab->address_book, 0, NULL, &sort_happened, 1, 0);
+		    if(sort_happened)
+		      ps_global->mangled_screen = 1;
+		}
 
 		if(rc && rc != -5){
 		    q_status_message2(SM_ORDER | SM_DING, 3, 5,
@@ -6236,17 +6238,6 @@ ab_agg_delete(struct pine *ps, int agg)
 	    if(!top_level_display){
 		int lost = 0;
 		long new_ent;
-
-		/*
-		 * We ought to be able to optimize some of this by flushing
-		 * instead of warping. We can figure out where the first
-		 * good cache entry is. If we didn't delete any before the
-		 * current entry {(newelnum == dlc_save.dlcelnum)} then we
-		 * know that we can flush back to flushelnum and the cache
-		 * should be ok. We could also optimize the screen redraw
-		 * by figuring out where we have to start redrawing. We
-		 * don't do any of this yet, we just do a warp.
-		 */
 
 		if(flushelnum != dlc_save.dlcelnum){
 		    /*

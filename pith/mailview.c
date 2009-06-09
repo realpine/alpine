@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailview.c 459 2007-02-28 23:46:02Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: mailview.c 577 2007-05-22 22:16:43Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -45,6 +45,7 @@ static char rcsid[] = "$Id: mailview.c 459 2007-02-28 23:46:02Z mikes@u.washingt
 #include "../pith/list.h"
 #include "../pith/stream.h"
 #include "../pith/send.h"
+#include "../pith/filter.h"
 
 
 #define FBUF_LEN	(50)
@@ -97,11 +98,12 @@ int         is_an_addr_hdr(char *);
 void	    format_env_hdr(MAILSTREAM *, long, char *, ENVELOPE *,
 			   gf_io_t, char *, char *, int);
 int	    delineate_this_header(char *, char *, char **, char **);
-int	    handle_start_color(char *, size_t, int *);
+int	    handle_start_color(char *, size_t, int *, int);
 int	    handle_end_color(char *, size_t, int *);
 char	   *url_embed(int);
 int         color_headers(long, char *, LT_INS_S **, void *);
 int	    url_hilite_hdr(long, char *, LT_INS_S **, void *);
+int	    pad_to_right_edge(long, char *, LT_INS_S **, void *);
 int	    url_bogus_imap(char **, char *, char *);
 int	    format_raw_header(MAILSTREAM *, long, char *, gf_io_t);
 void	    format_envelope(MAILSTREAM *, long, char *, ENVELOPE *,
@@ -153,6 +155,7 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
     int       show_parts, error_found = 0, width;
     int       is_in_sig = OUT_SIG_BLOCK;
     int       filt_only_c0 = 0, wrapflags;
+    URL_HILITE_S uh;
     gf_io_t   gc;
 
     clear_cur_embedded_color();
@@ -244,7 +247,9 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 		|| F_ON(F_VIEW_SEL_URL_HOST, ps_global)
 		|| F_ON(F_SCAN_ADDR, ps_global))
 	       && handlesp){
-		gf_link_filter(gf_line_test, gf_line_test_opt(url_hilite, handlesp));
+		gf_link_filter(gf_line_test,
+			       gf_line_test_opt(url_hilite,
+					        gf_url_hilite_opt(&uh,handlesp,0)));
 	    }
 
 	    if((flgs & FM_DISPLAY)
@@ -435,7 +440,7 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 		buf[sizeof(buf)-1] = '\0';
 
 		if(!(flgs & FM_NOCOLOR)
-		   && handle_start_color(color, sizeof(color), &l)){
+		   && handle_start_color(color, sizeof(color), &l, 0)){
 		    lastc = get_cur_embedded_color();
 		    if(!gf_nputs(color, (long) l, pc))
 		       goto write_error;
@@ -859,21 +864,25 @@ delineate_this_header(char *field, char *begin, char **start, char **end)
 
 
 int
-handle_start_color(char *colorstring, size_t buflen, int *len)
+handle_start_color(char *colorstring, size_t buflen, int *len, int use_hdr_color)
 {
     *len = 0;
 
     if(pico_usingcolor()){
 	char *fg = NULL, *bg = NULL, *s;
+	char *basefg = NULL, *basebg = NULL;
+
+	basefg = use_hdr_color	? ps_global->VAR_HEADER_GENERAL_FORE_COLOR
+				: ps_global->VAR_NORM_FORE_COLOR;
+	basebg = use_hdr_color	? ps_global->VAR_HEADER_GENERAL_BACK_COLOR
+				: ps_global->VAR_NORM_BACK_COLOR;
 
 	if(ps_global->VAR_SLCTBL_FORE_COLOR
-	   && colorcmp(ps_global->VAR_SLCTBL_FORE_COLOR,
-		       ps_global->VAR_NORM_FORE_COLOR))
+	   && colorcmp(ps_global->VAR_SLCTBL_FORE_COLOR, basefg))
 	  fg = ps_global->VAR_SLCTBL_FORE_COLOR;
 
 	if(ps_global->VAR_SLCTBL_BACK_COLOR
-	   && colorcmp(ps_global->VAR_SLCTBL_BACK_COLOR,
-		       ps_global->VAR_NORM_BACK_COLOR))
+	   && colorcmp(ps_global->VAR_SLCTBL_BACK_COLOR, basebg))
 	  bg = ps_global->VAR_SLCTBL_BACK_COLOR;
 
 	if(bg || fg){
@@ -1061,8 +1070,6 @@ color_signature(long int linenum, char *line, LT_INS_S **ins, void *is_in_sig)
 }
 
 
-
-
 /*
  * Line filter to add color to displayed headers.
  */
@@ -1091,9 +1098,9 @@ color_headers(long int linenum, char *line, LT_INS_S **ins, void *local)
     for(value++; isspace((unsigned char)*value); value++)
       ;
 
-    strncpy(fg, color_to_asciirgb(VAR_NORM_FORE_COLOR), sizeof(fg));
+    strncpy(fg, color_to_asciirgb(VAR_HEADER_GENERAL_FORE_COLOR), sizeof(fg));
     fg[sizeof(fg)-1] = '\0';
-    strncpy(bg, color_to_asciirgb(VAR_NORM_BACK_COLOR), sizeof(bg));
+    strncpy(bg, color_to_asciirgb(VAR_HEADER_GENERAL_BACK_COLOR), sizeof(bg));
     bg[sizeof(bg)-1] = '\0';
 
     /*
@@ -1217,7 +1224,7 @@ color_headers(long int linenum, char *line, LT_INS_S **ins, void *local)
 		    rgbbuf[sizeof(rgbbuf)-1] = '\0';
 		    p += RGBLEN;	/* advance past color value */
 		  
-		    if(!colorcmp(rgbbuf, VAR_NORM_FORE_COLOR))
+		    if(!colorcmp(rgbbuf, VAR_HEADER_GENERAL_FORE_COLOR))
 		      ins = gf_line_test_new_ins(ins, p,
 					         color_embed(color->fg,NULL),
 					         RGBLEN + 2);
@@ -1229,7 +1236,7 @@ color_headers(long int linenum, char *line, LT_INS_S **ins, void *local)
 		    rgbbuf[sizeof(rgbbuf)-1] = '\0';
 		    p += RGBLEN;	/* advance past color value */
 		  
-		    if(!colorcmp(rgbbuf, VAR_NORM_BACK_COLOR))
+		    if(!colorcmp(rgbbuf, VAR_HEADER_GENERAL_BACK_COLOR))
 		      ins = gf_line_test_new_ins(ins, p,
 					         color_embed(NULL,color->bg),
 					         RGBLEN + 2);
@@ -1280,8 +1287,8 @@ color_headers(long int linenum, char *line, LT_INS_S **ins, void *local)
 
 	if(did_color)
 	  ins = gf_line_test_new_ins(ins, line + strlen(line),
-				     color_embed(VAR_NORM_FORE_COLOR,
-					         VAR_NORM_BACK_COLOR),
+				     color_embed(VAR_HEADER_GENERAL_FORE_COLOR,
+					         VAR_HEADER_GENERAL_BACK_COLOR),
 				     (2 * RGBLEN) + 4);
     }
     else{
@@ -1313,8 +1320,8 @@ color_headers(long int linenum, char *line, LT_INS_S **ins, void *local)
 			  rgbbuf[sizeof(rgbbuf)-1] = '\0';
 			  p += RGBLEN;	/* advance past color value */
 			  
-			  if(!colorcmp(rgbbuf, VAR_NORM_FORE_COLOR)
-			     && !colorcmp(bg, VAR_NORM_BACK_COLOR))
+			  if(!colorcmp(rgbbuf, VAR_HEADER_GENERAL_FORE_COLOR)
+			     && !colorcmp(bg, VAR_HEADER_GENERAL_BACK_COLOR))
 			    ins = gf_line_test_new_ins(ins, p,
 						       color_embed(color->fg,NULL),
 						       RGBLEN + 2);
@@ -1325,8 +1332,8 @@ color_headers(long int linenum, char *line, LT_INS_S **ins, void *local)
 			  rgbbuf[sizeof(rgbbuf)-1] = '\0';
 			  p += RGBLEN;	/* advance past color value */
 			  
-			  if(!colorcmp(rgbbuf, VAR_NORM_BACK_COLOR)
-			     && !colorcmp(fg, VAR_NORM_FORE_COLOR))
+			  if(!colorcmp(rgbbuf, VAR_HEADER_GENERAL_BACK_COLOR)
+			     && !colorcmp(fg, VAR_HEADER_GENERAL_FORE_COLOR))
 			    ins = gf_line_test_new_ins(ins, p,
 						       color_embed(NULL,color->bg),
 						       RGBLEN + 2);
@@ -1339,15 +1346,14 @@ color_headers(long int linenum, char *line, LT_INS_S **ins, void *local)
 		  }
 
 		ins = gf_line_test_new_ins(ins, line + strlen(line),
-					   color_embed(VAR_NORM_FORE_COLOR,
-						       VAR_NORM_BACK_COLOR),
+					   color_embed(VAR_HEADER_GENERAL_FORE_COLOR,
+						       VAR_HEADER_GENERAL_BACK_COLOR),
 					   (2 * RGBLEN) + 4);
 	    }
 
 	    free_color_pair(&color);
 	}
     }
-
 
     return(0);
 }
@@ -1361,6 +1367,7 @@ url_hilite(long int linenum, char *line, LT_INS_S **ins, void *local)
     int		   n, n1, n2, n3, l;
     char	   buf[256], color[256];
     HANDLE_S	  *h;
+    URL_HILITE_S  *uh;
 
     for(lp = line; ; lp = up + n){
 	/* scan for all of them so we can choose the first */
@@ -1395,14 +1402,16 @@ url_hilite(long int linenum, char *line, LT_INS_S **ins, void *local)
 	else
 	  break;
 
-	h	      = new_handle((HANDLE_S **)local);
+	uh = (URL_HILITE_S *) local;
+
+	h	      = new_handle(uh->handlesp);
 	h->type	      = URL;
 	h->h.url.path = (char *) fs_get((n + 10) * sizeof(char));
 	snprintf(h->h.url.path, n+10, "%s%.*s",
 		weburlp ? "http://" : (mailurlp ? "mailto:" : ""), n, up);
 	h->h.url.path[n+10-1] = '\0';
 
-	if(handle_start_color(color, sizeof(color), &l))
+	if(handle_start_color(color, sizeof(color), &l, uh->hdr_color))
 	  ins = gf_line_test_new_ins(ins, up, color, l);
 	else if(F_OFF(F_SLCTBL_ITEM_NOBOLD, ps_global))
 	  ins = gf_line_test_new_ins(ins, up, url_embed(TAG_BOLDON), 2);
@@ -1417,7 +1426,7 @@ url_hilite(long int linenum, char *line, LT_INS_S **ins, void *local)
 	/* in case it was the current selection */
 	ins = gf_line_test_new_ins(ins, up + n, url_embed(TAG_INVOFF), 2);
 
-	if(scroll_handle_end_color(color, sizeof(color), &l))
+	if(scroll_handle_end_color(color, sizeof(color), &l, uh->hdr_color))
 	  ins = gf_line_test_new_ins(ins, up + n, color, l);
 	else
 	  ins = gf_line_test_new_ins(ins, up + n, url_embed(TAG_BOLDOFF), 2);
@@ -1427,7 +1436,6 @@ url_hilite(long int linenum, char *line, LT_INS_S **ins, void *local)
 
     return(0);
 }
-
 
 
 int
@@ -1464,6 +1472,83 @@ url_hilite_hdr(long int linenum, char *line, LT_INS_S **ins, void *local)
 
     if(check_for_urls)
       (void) url_hilite(linenum, lp + 1, ins, local);
+
+    return(0);
+}
+
+
+int
+pad_to_right_edge(long int linenum, char *line, LT_INS_S **ins, void *local)
+{
+    char *p;
+    int wid = 0;
+    int total_wid;
+    struct variable *vars = ps_global->vars;
+
+    if(!line[0])
+      return 0;
+
+    total_wid = *((int *) local);
+
+    /* calculate width of line */
+    p = line;
+    while(*p){
+
+	switch(*p){
+	  case TAG_EMBED:
+	    p++;
+	    switch(*p){
+	      case TAG_HANDLE:
+		p++;
+		p += *p + 1;  /* skip handle key */
+		break;
+
+	      case TAG_FGCOLOR :
+	      case TAG_BGCOLOR :
+		p += (RGBLEN + 1);	/* 1 for TAG, RGBLEN for color */
+		break;
+
+	      case TAG_INVON:
+	      case TAG_INVOFF:
+	      case TAG_BOLDON:
+	      case TAG_BOLDOFF:
+	      case TAG_ULINEON:
+	      case TAG_ULINEOFF:
+		p++;
+		break;
+	    
+	      default:	/* literal embed char */
+		break;
+	    }
+
+	    break;
+
+	  case TAB:
+	    p++;
+	    while(((++wid) &  0x07) != 0) /* add tab's spaces */
+	      ;
+
+	    break;
+
+	  default:
+	    wid += width_at_this_position(p, strlen(p));
+	    p++;
+	    break;
+	}
+    }
+
+    if(total_wid > wid){
+	ins = gf_line_test_new_ins(ins, line + strlen(line),
+				   color_embed(VAR_HEADER_GENERAL_FORE_COLOR,
+					       VAR_HEADER_GENERAL_BACK_COLOR),
+				   (2 * RGBLEN) + 4);
+	ins = gf_line_test_new_ins(ins, line+strlen(line),
+				   repeat_char(total_wid-wid, ' '), total_wid-wid);
+	ins = gf_line_test_new_ins(ins, line + strlen(line),
+				   color_embed(VAR_NORM_FORE_COLOR,
+					       VAR_NORM_BACK_COLOR),
+				   (2 * RGBLEN) + 4);
+    }
 
     return(0);
 }
@@ -1743,7 +1828,9 @@ format_header(MAILSTREAM *stream, long int msgno, char *section, ENVELOPE *env,
     char    *h = NULL, **fields = NULL, **v, *q, *start,
 	    *finish, *current;
     STORE_S *tmp_store;
+    URL_HILITE_S uh;
     gf_io_t  tmp_pc, tmp_gc;
+    struct variable *vars = ps_global->vars;
 
     if(tmp_store = so_get(CharStar, NULL, EDIT_ACCESS))
       gf_set_so_writec(&tmp_pc, tmp_store);
@@ -1957,18 +2044,32 @@ format_header(MAILSTREAM *stream, long int msgno, char *section, ENVELOPE *env,
 	}
 
 	if(!rv){
-	    int margin = 0, wrapflags = GFW_ONCOMMA;
+	    int *margin, wrapflags = GFW_ONCOMMA;
 
 	    gf_filter_init();
 	    gf_link_filter(gf_local_nvtnl, NULL);
+
 	    if((F_ON(F_VIEW_SEL_URL, ps_global)
 		|| F_ON(F_VIEW_SEL_URL_HOST, ps_global)
 		|| F_ON(F_SCAN_ADDR, ps_global))
 	       && handlesp){
 		gf_link_filter(gf_line_test,
-			       gf_line_test_opt(url_hilite_hdr, handlesp));
+			       gf_line_test_opt(url_hilite_hdr,
+					        gf_url_hilite_opt(&uh,handlesp,1)));
 		wrapflags |= GFW_HANDLES;
 	    }
+
+	    if((flags & FM_DISPLAY)
+	       && !(flags & FM_NOCOLOR)
+	       && pico_usingcolor()
+	       && ((VAR_NORM_FORE_COLOR
+		    && VAR_HEADER_GENERAL_FORE_COLOR
+		    && colorcmp(VAR_NORM_FORE_COLOR, VAR_HEADER_GENERAL_FORE_COLOR))
+	          ||
+	           (VAR_NORM_BACK_COLOR
+		    && VAR_HEADER_GENERAL_BACK_COLOR
+		    && colorcmp(VAR_NORM_BACK_COLOR, VAR_HEADER_GENERAL_BACK_COLOR))))
+	      wrapflags |= GFW_HDRCOLOR;
 
 	    if((flags & FM_DISPLAY)
 	       && !(flags & FM_NOCOLOR)
@@ -1976,20 +2077,43 @@ format_header(MAILSTREAM *stream, long int msgno, char *section, ENVELOPE *env,
 	       && ps_global->hdr_colors){
 		gf_link_filter(gf_line_test,
 			       gf_line_test_opt(color_headers, NULL));
-		wrapflags |= GFW_HANDLES;
+		wrapflags |= (GFW_HANDLES | GFW_HDRCOLOR);
 	    }
 
 	    if(prefix && *prefix)
 	      column = MAX(column-strlen(prefix), 50);
 
+	    margin = format_view_margin();
+
 	    if(!(flags & FM_NOWRAP))
 	      gf_link_filter(gf_wrap,
 			     gf_wrap_filter_opt(column, column,
-					        (flags & FM_NOINDENT) ? NULL : format_view_margin(),
+					        (flags & FM_NOINDENT) ? NULL : margin,
 						4, wrapflags));
 
 	    if(prefix && *prefix)
 	      gf_link_filter(gf_prefix, gf_prefix_opt(prefix));
+
+	    if((flags & FM_DISPLAY)
+	       && !(flags & FM_NOCOLOR)
+	       && pico_usingcolor()
+	       && ((VAR_NORM_FORE_COLOR
+		    && VAR_HEADER_GENERAL_FORE_COLOR
+		    && colorcmp(VAR_NORM_FORE_COLOR, VAR_HEADER_GENERAL_FORE_COLOR))
+	          ||
+	           (VAR_NORM_BACK_COLOR
+		    && VAR_HEADER_GENERAL_BACK_COLOR
+		    && colorcmp(VAR_NORM_BACK_COLOR, VAR_HEADER_GENERAL_BACK_COLOR)))){
+		int right_margin;
+		int total_wid;
+
+		right_margin = margin ? margin[1] : 0;
+		total_wid = column - right_margin;
+
+		gf_link_filter(gf_line_test,
+			       gf_line_test_opt(pad_to_right_edge, (void *) &total_wid));
+		wrapflags |= GFW_HANDLES;
+	    }
 
 	    gf_link_filter(gf_nvtnl_local, NULL);
 
@@ -2935,11 +3059,17 @@ scroll_handle_start_color(char *colorstring, size_t buflen, int *len)
 
 
 int
-scroll_handle_end_color(char *colorstring, size_t buflen, int *len)
+scroll_handle_end_color(char *colorstring, size_t buflen, int *len, int use_hdr_color)
 {
     *len = 0;
     if(pico_usingcolor()){
 	char *fg = NULL, *bg = NULL, *s;
+	char *basefg = NULL, *basebg = NULL;
+
+	basefg = use_hdr_color	? ps_global->VAR_HEADER_GENERAL_FORE_COLOR
+				: ps_global->VAR_NORM_FORE_COLOR;
+	basebg = use_hdr_color	? ps_global->VAR_HEADER_GENERAL_BACK_COLOR
+				: ps_global->VAR_NORM_BACK_COLOR;
 
 	/*
 	 * We need to change the fg and bg colors back even if they
@@ -2954,10 +3084,10 @@ scroll_handle_end_color(char *colorstring, size_t buflen, int *len)
 	 * letting the quote background color flow into the selectable text.
 	 */
 	if(ps_global->VAR_SLCTBL_FORE_COLOR)
-	  fg = ps_global->VAR_NORM_FORE_COLOR;
+	  fg = basefg;
 
 	if(ps_global->VAR_SLCTBL_BACK_COLOR)
-	  bg = ps_global->VAR_NORM_BACK_COLOR;
+	  bg = basebg;
 
 	if(F_OFF(F_SLCTBL_ITEM_NOBOLD, ps_global)){
 	    strncpy(colorstring, url_embed(TAG_BOLDOFF), MIN(3,buflen));
@@ -2972,4 +3102,33 @@ scroll_handle_end_color(char *colorstring, size_t buflen, int *len)
     colorstring[buflen-1] = '\0';
 
     return(*len != 0);
+}
+
+
+/*
+ * Helper routine that is of limited use.
+ * We need to tally up the screen width of
+ * a UTF-8 string as we go through the string.
+ * We just want the width of the character starting
+ * at str (and no longer than remaining_octets).
+ * If we're plopped into the middle of a UTF-8
+ * character we just want to return width zero.
+ */
+int
+width_at_this_position(unsigned char *str, long unsigned int n)
+{
+    unsigned char *inputp = str;
+    unsigned long  remaining_octets = n;
+    UCS            ucs;
+    int            width = 0;
+
+    ucs = (UCS) utf8_get(&inputp, &remaining_octets);
+    if(!(ucs & U8G_ERROR || ucs == UBOGON)){
+	width = wcellwidth(ucs);
+	/* Writechar will print a '?' */
+	if(width < 0)
+	  width = 1;
+    }
+
+    return(width);
 }

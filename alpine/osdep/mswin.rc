@@ -244,8 +244,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,99,0,0
- PRODUCTVERSION 0,99,0,0
+ FILEVERSION 0,999,0,0
+ PRODUCTVERSION 0,999,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -267,12 +267,12 @@ BEGIN
 #else
             VALUE "FileDescription", "Alpine\0"
 #endif
-            VALUE "FileVersion", "0.99\0"
+            VALUE "FileVersion", "0.999\0"
             VALUE "InternalName", "alpine\0"
             VALUE "LegalCopyright", "Copyright 2006-2007\0"
             VALUE "OriginalFilename", "alpine.exe\0"
             VALUE "ProductName", "alpine\0"
-            VALUE "ProductVersion", "0.99\0"
+            VALUE "ProductVersion", "0.999\0"
         END
     END
     BLOCK "VarFileInfo"

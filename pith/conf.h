@@ -1,5 +1,5 @@
 /*
- * $Id: conf.h 548 2007-04-27 19:21:20Z hubert@u.washington.edu $
+ * $Id: conf.h 607 2007-06-22 17:47:59Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -217,8 +217,10 @@
 #define VAR_ALT_ADDRS		     vars[V_ALT_ADDRS].current_val.l
 #define VAR_KEYWORDS		     vars[V_KEYWORDS].current_val.l
 #define VAR_KW_COLORS		     vars[V_KW_COLORS].current_val.l
-#define GLO_KW_BRACES		     vars[V_KW_BRACES].global_val.p
 #define VAR_KW_BRACES		     vars[V_KW_BRACES].current_val.p
+#define GLO_KW_BRACES		     vars[V_KW_BRACES].global_val.p
+#define VAR_OPENING_SEP		     vars[V_OPENING_SEP].current_val.p
+#define GLO_OPENING_SEP		     vars[V_OPENING_SEP].global_val.p
 #define VAR_ABOOK_FORMATS	     vars[V_ABOOK_FORMATS].current_val.l
 #define VAR_INDEX_FORMAT	     vars[V_INDEX_FORMAT].current_val.p
 #define VAR_OVERLAP		     vars[V_OVERLAP].current_val.p
@@ -302,6 +304,8 @@
 #define GLO_INCCHECKTIMEO     	     vars[V_INCCHECKTIMEO].global_val.p
 #define VAR_INCCHECKINTERVAL   	     vars[V_INCCHECKINTERVAL].current_val.p
 #define GLO_INCCHECKINTERVAL   	     vars[V_INCCHECKINTERVAL].global_val.p
+#define VAR_INC2NDCHECKINTERVAL      vars[V_INC2NDCHECKINTERVAL].current_val.p
+#define GLO_INC2NDCHECKINTERVAL      vars[V_INC2NDCHECKINTERVAL].global_val.p
 #define VAR_INCCHECKLIST     	     vars[V_INCCHECKLIST].current_val.l
 #define VAR_SSHPATH		     vars[V_SSHPATH].current_val.p
 #define GLO_SSHPATH		     vars[V_SSHPATH].global_val.p
@@ -364,6 +368,8 @@
 #define GLO_TITLECLOSED_BACK_COLOR   vars[V_TITLECLOSED_BACK_COLOR].global_val.p
 #define VAR_STATUS_FORE_COLOR	     vars[V_STATUS_FORE_COLOR].current_val.p
 #define VAR_STATUS_BACK_COLOR	     vars[V_STATUS_BACK_COLOR].current_val.p
+#define VAR_HEADER_GENERAL_FORE_COLOR vars[V_HEADER_GENERAL_FORE_COLOR].current_val.p
+#define VAR_HEADER_GENERAL_BACK_COLOR vars[V_HEADER_GENERAL_BACK_COLOR].current_val.p
 #define VAR_IND_PLUS_FORE_COLOR	     vars[V_IND_PLUS_FORE_COLOR].current_val.p
 #define GLO_IND_PLUS_FORE_COLOR	     vars[V_IND_PLUS_FORE_COLOR].global_val.p
 #define VAR_IND_PLUS_BACK_COLOR	     vars[V_IND_PLUS_BACK_COLOR].current_val.p
@@ -390,6 +396,10 @@
 #define GLO_IND_OP_FORE_COLOR	     vars[V_IND_OP_FORE_COLOR].global_val.p
 #define VAR_IND_OP_BACK_COLOR	     vars[V_IND_OP_BACK_COLOR].current_val.p
 #define GLO_IND_OP_BACK_COLOR	     vars[V_IND_OP_BACK_COLOR].global_val.p
+#define VAR_IND_SUBJ_FORE_COLOR	     vars[V_IND_SUBJ_FORE_COLOR].current_val.p
+#define VAR_IND_SUBJ_BACK_COLOR	     vars[V_IND_SUBJ_BACK_COLOR].current_val.p
+#define VAR_IND_FROM_FORE_COLOR	     vars[V_IND_FROM_FORE_COLOR].current_val.p
+#define VAR_IND_FROM_BACK_COLOR	     vars[V_IND_FROM_BACK_COLOR].current_val.p
 #define VAR_IND_ARR_FORE_COLOR	     vars[V_IND_ARR_FORE_COLOR].current_val.p
 #define VAR_IND_ARR_BACK_COLOR	     vars[V_IND_ARR_BACK_COLOR].current_val.p
 #define VAR_KEYLABEL_FORE_COLOR	     vars[V_KEYLABEL_FORE_COLOR].current_val.p
@@ -421,7 +431,6 @@
 #define VAR_PROMPT_FORE_COLOR	     vars[V_PROMPT_FORE_COLOR].current_val.p
 #define VAR_PROMPT_BACK_COLOR	     vars[V_PROMPT_BACK_COLOR].current_val.p
 #define VAR_VIEW_HDR_COLORS	     vars[V_VIEW_HDR_COLORS].current_val.l
-#define GLO_VIEW_HDR_COLORS	     vars[V_VIEW_HDR_COLORS].global_val.l
 
 
 /*
@@ -708,6 +717,11 @@
 					  (el), 			  \
 					"Incoming-Check-Interval")
 
+#define	SVAR_INC_2NDCHECK_INTERV(ps,n,e,el) strtoval((ps)->VAR_INC2NDCHECKINTERVAL, \
+					 &(n), 15, 30000, 0, (e),	  \
+					  (el), 			  \
+					"Incoming-Secondary-Check-Interval")
+
 #define	SVAR_NNTPRANGE(ps,n,e,el) strtolval((ps)->VAR_NNTPRANGE,	  \
 					  &(n), 0L, 30000L, 0L, (e),	  \
 					  (el), 			  \
@@ -770,7 +784,9 @@ void       init_vars(struct pine *, void (*)(struct pine *, char **));
 char      *feature_list_section(FEATURE_S *);
 FEATURE_S *feature_list(int);
 int        feature_list_index(int);
+int        feature_list_id(char *);
 char      *feature_list_name(int);
+struct variable *var_from_name(char *);
 HelpType   feature_list_help(int);
 void       process_feature_list(struct pine *, char **, int , int, int);
 void       cur_rule_value(struct variable *, int, int);

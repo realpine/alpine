@@ -1,5 +1,5 @@
 /*
- * $Id: conftype.h 543 2007-04-26 04:06:02Z mikes@u.washington.edu $
+ * $Id: conftype.h 607 2007-06-22 17:47:59Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -96,6 +96,7 @@ typedef	enum {    V_PERSONAL_NAME = 0
 		, V_ALT_ADDRS
 		, V_KEYWORDS
 		, V_KW_BRACES
+		, V_OPENING_SEP
 		, V_ABOOK_FORMATS
 		, V_INDEX_FORMAT
 		, V_OVERLAP
@@ -120,6 +121,7 @@ typedef	enum {    V_PERSONAL_NAME = 0
 		, V_PERMLOCKED
 		, V_INCCHECKTIMEO
 		, V_INCCHECKINTERVAL
+		, V_INC2NDCHECKINTERVAL
 		, V_INCCHECKLIST
 		, V_DEADLETS
 #if !defined(DOS) && !defined(OS2) && !defined(LEAVEOUTFIFO)
@@ -172,6 +174,7 @@ typedef	enum {    V_PERSONAL_NAME = 0
 		, V_PAT_SCORES_OLD	/* obsolete */
 		, V_PAT_INCOLS
 		, V_PAT_OTHER
+		, V_PAT_SRCH
 		, V_ELM_STYLE_SAVE	/* obsolete */
 		, V_HEADER_IN_REPLY	/* obsolete */
 		, V_FEATURE_LEVEL	/* obsolete */
@@ -216,6 +219,8 @@ typedef	enum {    V_PERSONAL_NAME = 0
 		, V_SIGNATURE_BACK_COLOR
 		, V_PROMPT_FORE_COLOR
 		, V_PROMPT_BACK_COLOR
+		, V_HEADER_GENERAL_FORE_COLOR
+		, V_HEADER_GENERAL_BACK_COLOR
 		, V_IND_PLUS_FORE_COLOR
 		, V_IND_PLUS_BACK_COLOR
 		, V_IND_IMP_FORE_COLOR
@@ -232,6 +237,10 @@ typedef	enum {    V_PERSONAL_NAME = 0
 		, V_IND_UNS_BACK_COLOR
 		, V_IND_ARR_FORE_COLOR
 		, V_IND_ARR_BACK_COLOR
+		, V_IND_SUBJ_FORE_COLOR
+		, V_IND_SUBJ_BACK_COLOR
+		, V_IND_FROM_FORE_COLOR
+		, V_IND_FROM_BACK_COLOR
 		, V_IND_OP_FORE_COLOR
 		, V_IND_OP_BACK_COLOR
 		, V_VIEW_HDR_COLORS
@@ -322,7 +331,9 @@ typedef enum {
 	F_DISABLE_PIPES_IN_TEMPLATES,
 	F_ATTACHMENTS_IN_REPLY,
 	F_ENABLE_INCOMING,
-	F_ENABLE_INCOMING_UNSEEN,
+	F_ENABLE_INCOMING_CHECKING,
+	F_INCOMING_CHECKING_TOTAL,
+	F_INCOMING_CHECKING_RECENT,
 	F_NO_NEWS_VALIDATION,
 	F_QUELL_EXTRA_POST_PROMPT,
 	F_DISABLE_TAKE_LASTFIRST,
@@ -352,7 +363,7 @@ typedef enum {
 	F_SEND_WO_CONFIRM,
 	F_USE_SENDER_NOT_X,
 	F_BLANK_KEYMENU,
-	F_DISABLE_INPUT_HISTORY,
+	F_DISABLE_SAVE_INPUT_HISTORY,
 	F_CUSTOM_PRINT,
 	F_DEL_FROM_DOT,
 	F_AUTO_ZOOM,
@@ -493,7 +504,7 @@ typedef struct init_err {
 
 
 struct variable {
-    char *name;
+    char     *name;
     unsigned  is_obsolete:1;	/* variable read in, not written unless set */
     unsigned  is_used:1;	/* Some variables are disabled              */
     unsigned  been_written:1;
@@ -505,6 +516,7 @@ struct variable {
     unsigned  is_outermost:1;	/* read and written from outermost pinerc   */
     unsigned  del_quotes:1;	/* remove double quotes                     */
     unsigned  is_changed_val:1; /* WP: use the changed val instead of cur val */
+    char     *dname;		/* display name                             */
     char     *descrip;		/* description                              */
     union {
 	char *p;		/* pointer to single string value           */
@@ -539,9 +551,11 @@ struct variable {
 
 typedef struct feature_entry {
     char       *name;
+    char       *dname;		/* display name, same as name if NULL */
     int		id;
     HelpType	help;
-    int		section;
+    int		section;	/* for grouping in config screen */
+    int         defval;		/* default value, 0 or 1 */
 } FEATURE_S;
 
 

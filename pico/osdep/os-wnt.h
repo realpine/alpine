@@ -1,4 +1,3 @@
-#line 2 "osdep/os-wnt.h"
 #ifndef _PICO_OS_INCLUDED
 #define _PICO_OS_INCLUDED
 

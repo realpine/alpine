@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: confscroll.c 540 2007-04-25 17:58:55Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: confscroll.c 604 2007-06-19 22:46:32Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -30,6 +30,7 @@ static char rcsid[] = "$Id: confscroll.c 540 2007-04-25 17:58:55Z hubert@u.washi
 #include "mailcmd.h"
 #include "mailindx.h"
 #include "talk.h"
+#include "setup.h"
 #include "../pith/state.h"
 #include "../pith/flag.h"
 #include "../pith/list.h"
@@ -356,6 +357,7 @@ exclude_config_var(struct pine *ps, struct variable *var, int allow_hard_to_conf
       case V_PAT_SCORES :
       case V_PAT_INCOLS :
       case V_PAT_OTHER :
+      case V_PAT_SRCH :
       case V_PRINTER :
       case V_PERSONAL_PRINT_COMMAND :
       case V_PERSONAL_PRINT_CATEGORY :
@@ -1067,11 +1069,15 @@ no_down:
 		 */
 		if(items_in_hist(history) > 2){
 		    ekey[KU_WI].name  = HISTORY_UP_KEYNAME;
-		    ekey[KU_WI].label = HISTORY_UP_KEYLABEL;
+		    ekey[KU_WI].label = HISTORY_KEYLABEL;
+		    ekey[KU_WI+1].name  = HISTORY_DOWN_KEYNAME;
+		    ekey[KU_WI+1].label = HISTORY_KEYLABEL;
 		}
 		else{
 		    ekey[KU_WI].name  = "";
 		    ekey[KU_WI].label = "";
+		    ekey[KU_WI+1].name  = "";
+		    ekey[KU_WI+1].label = "";
 		}
 
 		 rc = optionally_enter(buf,-FOOTER_ROWS(ps),0,sizeof(buf),
@@ -1256,6 +1262,36 @@ no_down:
 	     q_status_message(SM_ORDER,0,3,result ? result : _("Word not found"));
 	    }
 
+	    break;
+
+	  case MC_HOMEKEY:
+	    screen->current = first_confline(screen->current);
+	    if(screen->current && screen->current->flags & CF_NOSELECT){
+		for(ctmpa = next_confline(screen->current);
+		    ctmpa && (ctmpa->flags & CF_NOSELECT);
+		    ctmpa = next_confline(ctmpa))
+		  ;
+		
+		if(ctmpa)
+		  screen->current = ctmpa;
+	    }
+
+	    q_status_message(SM_ORDER,0,3, _("Moved to top"));
+	    break;
+
+	  case MC_ENDKEY:
+	    screen->current = last_confline(screen->current);
+	    if(screen->current && screen->current->flags & CF_NOSELECT){
+		for(ctmpa = prev_confline(screen->current);
+		    ctmpa && (ctmpa->flags & CF_NOSELECT);
+		    ctmpa = prev_confline(ctmpa))
+		  ;
+		
+		if(ctmpa)
+		  screen->current = ctmpa;
+	    }
+
+	    q_status_message(SM_ORDER,0,3, _("Moved to bottom"));
 	    break;
 
 	  case MC_REPAINT:			/* redraw the display */
@@ -1520,6 +1556,7 @@ text_toolit(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags, int look_
 	}
 	else if((*cl)->var == &ps->vars[V_MAILCHECK] ||
 	        (*cl)->var == &ps->vars[V_INCCHECKINTERVAL] ||
+	        (*cl)->var == &ps->vars[V_INC2NDCHECKINTERVAL] ||
 		(*cl)->var == &ps->vars[V_MAILCHECKNONCURR]){
 	    lowrange = 0;
 	    hirange  = 25000;
@@ -2720,7 +2757,7 @@ radiobutton_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 	    set_radio_pretty_vals(ps, cl);
 
 	    if((*cl)->var == &ps->vars[V_AB_SORT_RULE])
-	      addrbook_reset();
+	      addrbook_redo_sorts();
 	    else if((*cl)->var == &ps->vars[V_THREAD_DISP_STYLE]){
 		clear_index_cache(ps->mail_stream, 0);
 	    }
@@ -3176,7 +3213,8 @@ update_option_screen(struct pine *ps, OPT_SCREEN_S *screen, Pos *cursor_pos)
 		    if(p[0] == '(' && p[2] == ')' &&
 		       p[3] == ' ' && p[4] == ' ' &&
 		       (!strncmp(p+5, COLOR_BLOB, COLOR_BLOB_LEN)
-		        || !strncmp(p+5, COLOR_BLOB_TRAN, COLOR_BLOB_LEN))){
+		        || !strncmp(p+5, COLOR_BLOB_TRAN, COLOR_BLOB_LEN)
+		        || !strncmp(p+5, COLOR_BLOB_NORM, COLOR_BLOB_LEN))){
 			COLOR_PAIR  *lastc = NULL, *newc = NULL;
 
 			MoveCursor(dline+HEADER_ROWS(ps), ctmp->valoffset);
@@ -3225,7 +3263,8 @@ update_option_screen(struct pine *ps, OPT_SCREEN_S *screen, Pos *cursor_pos)
 			if(p[0] == '(' && p[2] == ')' &&
 			   p[3] == ' ' && p[4] == ' ' &&
 			   (!strncmp(p+5, COLOR_BLOB, COLOR_BLOB_LEN)
-			    || !strncmp(p+5, COLOR_BLOB_TRAN, COLOR_BLOB_LEN))){
+			    || !strncmp(p+5, COLOR_BLOB_TRAN, COLOR_BLOB_LEN)
+			    || !strncmp(p+5, COLOR_BLOB_NORM, COLOR_BLOB_LEN))){
 			    COLOR_PAIR  *lastc = NULL, *newc = NULL;
 
 			    MoveCursor(dline+HEADER_ROWS(ps), ctmp->val2offset);
@@ -3957,7 +3996,7 @@ checkbox_pretty_value(struct pine *ps, CONF_S *cl)
     /* find longest value's name */
     for(lv = 0, i = 0; feature = feature_list(i); i++)
       if(feature_list_section(feature)
-	 && lv < (j = utf8_width(feature->name)))
+	 && lv < (j = utf8_width(pretty_feature_name(feature->name))))
 	lv = j;
 
     lv = MIN(lv, 100);
@@ -3967,7 +4006,7 @@ checkbox_pretty_value(struct pine *ps, CONF_S *cl)
     x = feature_gets_an_x(ps, cl->var, feature, &comment, ew);
 
     utf8_snprintf(tmp, sizeof(tmp), "[%c]  %-*.*w%s", x ? 'X' : ' ',
-	    lv, lv, feature->name, comment ? comment : "");
+		  lv, lv, pretty_feature_name(feature->name), comment ? comment : "");
 
     return(cpystr(tmp));
 }
@@ -4463,7 +4502,7 @@ toggle_feature_bit(struct pine *ps, int index, struct variable *var, CONF_S *cl,
 
 	case F_ENABLE_INCOMING :
 	  q_status_message(SM_ORDER | SM_DING, 3, 4,
-	       "Folder List changes will take effect your next pine session.");
+	       "Folder List changes will take effect your next Alpine session.");
 	  break;
 
 #ifdef	_WINDOWS
@@ -4995,7 +5034,7 @@ fix_side_effects(struct pine *ps, struct variable *var, int revert)
 	else
 	  ps->inc_check_timeout = old_value;
 
-	if(!revert && (F_OFF(F_ENABLE_INCOMING, ps) || F_OFF(F_ENABLE_INCOMING_UNSEEN, ps)))
+	if(!revert && (F_OFF(F_ENABLE_INCOMING, ps) || F_OFF(F_ENABLE_INCOMING_CHECKING, ps)))
 	  q_status_message(SM_ORDER, 0, 3, _("This option has no effect without Enable-Incoming-Folders-Checking"));
     }
     else if(var == &ps->vars[V_INCCHECKINTERVAL]){
@@ -5008,14 +5047,27 @@ fix_side_effects(struct pine *ps, struct variable *var, int revert)
 	else
 	  ps->inc_check_interval = old_value;
 
-	if(!revert && (F_OFF(F_ENABLE_INCOMING, ps) || F_OFF(F_ENABLE_INCOMING_UNSEEN, ps)))
+	if(!revert && (F_OFF(F_ENABLE_INCOMING, ps) || F_OFF(F_ENABLE_INCOMING_CHECKING, ps)))
+	  q_status_message(SM_ORDER, 0, 3, _("This option has no effect without Enable-Incoming-Folders-Checking"));
+    }
+    else if(var == &ps->vars[V_INC2NDCHECKINTERVAL]){
+	int old_value = ps->inc_second_check_interval;
+
+	if(SVAR_INC_2NDCHECK_INTERV(ps, old_value, tmp_20k_buf, SIZEOF_20KBUF)){
+	    if(!revert)
+	      q_status_message(SM_ORDER, 3, 5, tmp_20k_buf);
+	}
+	else
+	  ps->inc_second_check_interval = old_value;
+
+	if(!revert && (F_OFF(F_ENABLE_INCOMING, ps) || F_OFF(F_ENABLE_INCOMING_CHECKING, ps)))
 	  q_status_message(SM_ORDER, 0, 3, _("This option has no effect without Enable-Incoming-Folders-Checking"));
     }
     else if(var == &ps->vars[V_INCCHECKLIST]){
 	if(ps->context_list && ps->context_list->use & CNTXT_INCMNG)
 	  reinit_incoming_folder_list(ps, ps->context_list);
 
-	if(!revert && (F_OFF(F_ENABLE_INCOMING, ps) || F_OFF(F_ENABLE_INCOMING_UNSEEN, ps)))
+	if(!revert && (F_OFF(F_ENABLE_INCOMING, ps) || F_OFF(F_ENABLE_INCOMING_CHECKING, ps)))
 	  q_status_message(SM_ORDER, 0, 3, _("This option has no effect without Enable-Incoming-Folders-Checking"));
     }
     else if(var == &ps->vars[V_ADDRESSBOOK] ||
@@ -5034,7 +5086,8 @@ fix_side_effects(struct pine *ps, struct variable *var, int revert)
 	    var == &ps->vars[V_DEFAULT_SAVE_FOLDER]){
 	init_save_defaults();
     }
-    else if(var == &ps->vars[V_KW_BRACES]){
+    else if(var == &ps->vars[V_KW_BRACES] ||
+	    var == &ps->vars[V_OPENING_SEP]){
 	clear_index_cache(ps->mail_stream, 0);
     }
     else if(var == &ps->vars[V_KEYWORDS]){
@@ -5049,7 +5102,7 @@ fix_side_effects(struct pine *ps, struct variable *var, int revert)
     else if(var == &ps->vars[V_INIT_CMD_LIST]){
 	if(!revert)
 	  q_status_message(SM_ASYNC, 0, 3,
-	    _("Initial command changes will affect your next pine session."));
+	    _("Initial command changes will affect your next Alpine session."));
     }
     else if(var == &ps->vars[V_VIEW_HEADERS]){
 	ps->view_all_except = 0;
@@ -5191,7 +5244,7 @@ fix_side_effects(struct pine *ps, struct variable *var, int revert)
 	}
 	else{
 	    busy_cue(_("Active Example"), NULL, 0);
-	    sleep(3);
+	    sleep(5);
 	    cancel_busy_cue(-1);
 	}
     }
@@ -5356,7 +5409,7 @@ fix_side_effects(struct pine *ps, struct variable *var, int revert)
 
 	cur_rule_value(var, TRUE, FALSE);
 	if(var == &ps_global->vars[V_AB_SORT_RULE])
-	  addrbook_reset();
+	  addrbook_redo_sorts();
 	else if(var == &ps_global->vars[V_THREAD_INDEX_STYLE]){
 	    clear_index_cache(ps_global->mail_stream, 0);
 	    set_lflags(ps_global->mail_stream, ps_global->msgmap,
@@ -5471,6 +5524,8 @@ fix_side_effects(struct pine *ps, struct variable *var, int revert)
             var == &ps->vars[V_IND_ARR_FORE_COLOR]  ||
             var == &ps->vars[V_IND_REC_FORE_COLOR]  ||
 	    var == &ps->vars[V_IND_OP_FORE_COLOR]   ||
+	    var == &ps->vars[V_IND_FROM_FORE_COLOR] ||
+	    var == &ps->vars[V_IND_SUBJ_FORE_COLOR] ||
             var == &ps->vars[V_IND_PLUS_BACK_COLOR] ||
             var == &ps->vars[V_IND_IMP_BACK_COLOR]  ||
             var == &ps->vars[V_IND_DEL_BACK_COLOR]  ||
@@ -5479,7 +5534,9 @@ fix_side_effects(struct pine *ps, struct variable *var, int revert)
             var == &ps->vars[V_IND_UNS_BACK_COLOR]  ||
             var == &ps->vars[V_IND_ARR_BACK_COLOR]  ||
             var == &ps->vars[V_IND_REC_BACK_COLOR]  ||
-            var == &ps->vars[V_IND_OP_BACK_COLOR]){
+            var == &ps->vars[V_IND_OP_BACK_COLOR]   ||
+            var == &ps->vars[V_IND_FROM_BACK_COLOR] ||
+            var == &ps->vars[V_IND_SUBJ_BACK_COLOR]){
 	clear_index_cache(ps_global->mail_stream, 0);
     }
     else if(var == score_act_global_ptr){
@@ -5533,7 +5590,7 @@ fix_side_effects(struct pine *ps, struct variable *var, int revert)
 		        var == &ps->vars[V_SSHCMD] ||
 		        var == &ps->vars[V_SSHPATH])){
 	q_status_message2(SM_ASYNC, 0, 3,
-		      _("Changes%s%s will affect your next pine session."),
+		      _("Changes%s%s will affect your next Alpine session."),
 			  var->name ? " to " : "", var->name ? var->name : "");
     }
 
@@ -5544,7 +5601,7 @@ fix_side_effects(struct pine *ps, struct variable *var, int revert)
 		   var == &ps->vars[V_RSHOPENTIMEO] ||
 		   var == &ps->vars[V_SSHOPENTIMEO]))
       q_status_message(SM_ASYNC, 0, 3,
-		       _("Timeout changes will affect your next pine session."));
+		       _("Timeout changes will affect your next Alpine session."));
 }
 
 

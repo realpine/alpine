@@ -15,7 +15,7 @@
 @SET_MAKE@
 
 # ========================================================================
-# Copyright 2006 University of Washington
+# Copyright 2006-2007 University of Washington
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -72,18 +72,19 @@ am_alpine_OBJECTS = addrbook.$(OBJEXT) adrbkcmd.$(OBJEXT) \
 	help.$(OBJEXT) imap.$(OBJEXT) init.$(OBJEXT) kblock.$(OBJEXT) \
 	keymenu.$(OBJEXT) ldapconf.$(OBJEXT) listsel.$(OBJEXT) \
 	mailcmd.$(OBJEXT) mailindx.$(OBJEXT) mailpart.$(OBJEXT) \
-	mailview.$(OBJEXT) pattern.$(OBJEXT) pipe.$(OBJEXT) \
-	print.$(OBJEXT) radio.$(OBJEXT) remote.$(OBJEXT) \
-	reply.$(OBJEXT) roleconf.$(OBJEXT) send.$(OBJEXT) \
-	setup.$(OBJEXT) signal.$(OBJEXT) status.$(OBJEXT) \
-	takeaddr.$(OBJEXT) titlebar.$(OBJEXT)
+	mailview.$(OBJEXT) newuser.$(OBJEXT) pattern.$(OBJEXT) \
+	pipe.$(OBJEXT) print.$(OBJEXT) radio.$(OBJEXT) \
+	remote.$(OBJEXT) reply.$(OBJEXT) roleconf.$(OBJEXT) \
+	send.$(OBJEXT) setup.$(OBJEXT) signal.$(OBJEXT) \
+	status.$(OBJEXT) takeaddr.$(OBJEXT) titlebar.$(OBJEXT)
 nodist_alpine_OBJECTS = date.$(OBJEXT)
 alpine_OBJECTS = $(am_alpine_OBJECTS) $(nodist_alpine_OBJECTS)
-alpine_LDADD = $(LDADD)
-alpine_DEPENDENCIES = ../pico/libpico.a ../pico/osdep/libpicoosd.a \
+am__DEPENDENCIES_1 = ../pico/libpico.a ../pico/osdep/libpicoosd.a \
 	../pith/libpith.a ../pith/osdep/libpithosd.a \
 	../pith/charconv/libpithcc.a osdep/libpineosd.a \
 	../c-client/c-client.a
+am__DEPENDENCIES_2 =
+alpine_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2)
 am_rpdump_OBJECTS = rpdump.$(OBJEXT)
 rpdump_OBJECTS = $(am_rpdump_OBJECTS)
 rpdump_LDADD = $(LDADD)
@@ -146,6 +147,7 @@ CXXFLAGS = @CXXFLAGS@
 CYGPATH_W = @CYGPATH_W@
 C_CLIENT_SPECIALS = @C_CLIENT_SPECIALS@
 C_CLIENT_TARGET = @C_CLIENT_TARGET@
+C_CLIENT_WITH_IPV6 = @C_CLIENT_WITH_IPV6@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
 ECHO = @ECHO@
@@ -253,9 +255,10 @@ SUBDIRS = osdep
 alpine_SOURCES = addrbook.c adrbkcmd.c after.c alpine.c arg.c busy.c colorconf.c \
 	confscroll.c context.c dispfilt.c flagmaint.c folder.c help.c imap.c \
 	init.c kblock.c keymenu.c ldapconf.c listsel.c mailcmd.c mailindx.c \
-	mailpart.c mailview.c pattern.c pipe.c print.c radio.c remote.c reply.c \
+	mailpart.c mailview.c newuser.c pattern.c pipe.c print.c radio.c remote.c reply.c \
 	roleconf.c send.c setup.c signal.c status.c takeaddr.c titlebar.c
 
+alpine_LDADD = $(LDADD) $(INTLLIBS)
 nodist_alpine_SOURCES = date.c
 rpdump_SOURCES = rpdump.c
 rpload_SOURCES = rpload.c
@@ -265,7 +268,7 @@ LDADD = ../pico/libpico.a ../pico/osdep/libpicoosd.a \
 	../pith/charconv/libpithcc.a \
 	osdep/libpineosd.a ../c-client/c-client.a
 
-AM_CPPFLAGS = -I$(top_srcdir)/include -DLOCALEDIR=\"$(localedir)\"
+AM_CPPFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/include -DLOCALEDIR=\"$(localedir)\"
 CLEANFILES = date.c
 all: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
@@ -369,6 +372,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mailindx.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mailpart.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mailview.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/newuser.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/pattern.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/pipe.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/print.Po@am__quote@

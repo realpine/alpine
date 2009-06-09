@@ -20,6 +20,10 @@ pico_SOURCES = main.c utf8stub.c
 
 pilot_SOURCES = pilot.c utf8stub.c
 
+pico_LDADD = $(LDADD) $(INTLLIBS)
+
+pilot_LDADD = $(LDADD) $(INTLLIBS)
+
 LDADD = ../c-client/utf8.o libpico.a osdep/libpicoosd.a \
 	../pith/osdep/libpithosd.a ../pith/charconv/libpithcc.a
 

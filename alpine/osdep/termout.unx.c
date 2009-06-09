@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: termout.unx.c 408 2007-02-01 00:14:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: termout.unx.c 561 2007-05-09 17:48:49Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -29,6 +29,7 @@ static char rcsid[] = "$Id: termout.unx.c 408 2007-02-01 00:14:18Z hubert@u.wash
 #include "../../pith/debug.h"
 #include "../../pith/conf.h"
 #include "../../pith/newmail.h"
+#include "../../pith/charconv/utf8.h"
 
 #include "../../pico/estruct.h"
 #include "../../pico/pico.h"
@@ -952,18 +953,30 @@ void
 icon_text(char *s, int type)
 {
     static enum {ukn, yes, no} xterm;
+    char *str, *converted, *use_this;
 
     if(xterm == ukn)
       xterm = (getenv("DISPLAY") != NULL) ? yes : no;
 
     if(F_ON(F_ENABLE_XTERM_NEWMAIL,ps_global) && xterm == yes){
 	fputs("\033]0;", stdout);
-	fputs(s ? s : ps_global->pine_name, stdout);
+
+	str = s ? s : ps_global->pine_name;
+	converted = convert_to_locale(str);
+	use_this = converted ? converted : str;
+
+	fputs(use_this, stdout);
+
 	fputs("\007", stdout);
 	fputs("\033]1;", stdout);
-	fputs(s ? s : ps_global->pine_name, stdout);
+
+	fputs(use_this, stdout);
+
 	fputs("\007", stdout);
 	fflush(stdout);
+
+	if(converted)
+	  fs_give((void **) &converted);
     }
 }
 

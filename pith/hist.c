@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: hist.c 540 2007-04-25 17:58:55Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: hist.c 572 2007-05-15 22:16:22Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -26,9 +26,6 @@ init_hist(HISTORY_S **history, int histsize)
 {
     size_t l;
     
-    if(F_ON(F_DISABLE_INPUT_HISTORY,ps_global))
-      return;
-
     if(!history)
       return;
 

@@ -14,7 +14,7 @@ dnl  */
 
 AC_PREREQ([2.57])
 
-AC_REVISION([$Id: configure.ac 532 2007-04-19 21:05:30Z mikes@u.washington.edu $])
+AC_REVISION([$Id: configure.ac 614 2007-06-28 00:48:15Z mikes@u.washington.edu $])
 
 dnl Alpine Version Number is in $srcdir/VERSION
 AC_INIT(alpine, m4_normalize(m4_include([VERSION])), [alpine-contact@cac.washington.edu])
@@ -308,6 +308,54 @@ if test -n "$SPELLPROG" ; then
     AC_DEFINE_UNQUOTED([SPELLER], "$SPELLPROG", [Program pico uses to check spelling])
 fi
 
+dnl OPTION: system-pinerc
+dnl if we haven't changed the prefix or sysconfdir,
+dnl we use the pine historical default,
+dnl otherwise we expect config files in sysconfdir.
+if test $sysconfdir = /usr/local/etc ; then
+	dpv=/usr/local/lib/pine.conf
+else
+ 	dpv=$sysconfdir/pine.conf
+fi
+AC_ARG_WITH(system-pinerc,
+  AC_HELP_STRING([--with-system-pinerc=VALUE], [System pinerc (/usr/local/lib/pine.conf)]),
+    [
+      case "$withval" in
+	no)
+	  ;;
+	yes)
+	  ;;
+	*)
+	  dpv=$withval
+	  ;;
+      esac
+    ])
+AC_DEFINE_UNQUOTED(SYSTEM_PINERC, "$dpv", [System pinerc])
+
+dnl OPTION: system-fixed-pinerc
+dnl if we haven't changed the prefix or sysconfdir,
+dnl we use the pine historical default,
+dnl otherwise we expect config files in sysconfdir.
+if test $sysconfdir = /usr/local/etc ; then
+	dpv=/usr/local/lib/pine.conf.fixed
+else
+	dpv=$sysconfdir/pine.conf.fixed
+fi
+AC_ARG_WITH(system-fixed-pinerc,
+  AC_HELP_STRING([--with-system-fixed-pinerc=VALUE], [System fixed pinerc (/usr/local/lib/pine.conf.fixed)]),
+    [
+      case "$withval" in
+	no)
+	  ;;
+	yes)
+	  ;;
+	*)
+	  dpv=$withval
+	  ;;
+      esac
+    ])
+AC_DEFINE_UNQUOTED(SYSTEM_PINERC_FIXED, "$dpv", [System fixed pinerc])
+
 dnl Function to simplify setting alpine/pico defaults
 dnl usage: PINEVAR(configure-name, definition-name, definition-value, help)
 AC_DEFUN([PINEVAR],
@@ -350,8 +398,6 @@ PINEVAR_UNQUOTED(max_fill-column, MAX_FILLCOL, 80, [Maximum fill column])
 PINEVAR_UNQUOTED(debug-level, DEFAULT_DEBUG, 2, [Specify default debug verbosity level])
 PINEVAR_UNQUOTED(debug-files, NUMDEBUGFILES, 4, [Specify number of debug files])
 PINEVAR(debug-file, DEBUGFILE, [.pine-debug], [Specify debug file name])
-PINEVAR(system-pinerc,SYSTEM_PINERC, [/usr/local/lib/pine.conf], [System pinerc])
-PINEVAR(system-fixed-pinerc, SYSTEM_PINERC_FIXED, [/usr/local/lib/pine.conf.fixed], [System fixed pinerc])
 PINEVAR(display-overlap, DF_OVERLAP, [2], [Lines preserved while paging])
 PINEVAR(display-margin, DF_MARGIN, [0], [Lines visible while scrolling])
 PINEVAR(default-fcc, DF_DEFAULT_FCC, [sent-mail], [Default sent mail folder])
@@ -459,7 +505,7 @@ else
       alpine_SSLDIR="/usr"
       alpine_SSLCERTS="/etc/ssl/certs"
       ;;
-    *-sco-sysv*|*-sysv*UnixWare|*-sysv*OpenUNIX)
+    *-sco-sysv* | *-sysv*UnixWare | *-sysv*OpenUNIX)
       alpine_SSLTYPE="sco.nopwd"
       alpine_SSLDIR=/usr/local/ssl
       ;;
@@ -637,6 +683,20 @@ AC_ARG_WITH(c-client-target,
       alpine_with_c_client_target="$withval"
     fi
   ])
+
+
+dnl Without IPv6?
+AC_ARG_WITH(ipv6,
+  AC_HELP_STRING([--without-ipv6],[Disable IPv6, primarily to work around resolver problems]),
+  [ with_ipv6=$withval ])
+
+if test "x$with_ipv6" = "xno" ; then
+  AC_MSG_NOTICE([Excluding IPv6 Support])
+  c_client_specials="${c_client_specials}IP6=4 "
+  c_client_ip6="true"
+else
+  c_client_ip6="touch imap/ip6"
+fi
 
 
 dnl CHECK PROGRAMS
@@ -1015,7 +1075,7 @@ case "$host" in
     elif test -f /etc/debian_release -o -f /etc/debian_version ; then
       systype="DEB"
       alpine_c_client_target="ldb"
-      alpine_local_maildir="/var/spool/mail"
+      alpine_local_maildir="/var/mail"
     elif test -f /etc/SuSE-release ; then
       systype="LSU"
       alpine_c_client_target="lsu"
@@ -1132,12 +1192,19 @@ case "$host" in
     alpine_mode_readonly="(0600)"
     alpine_c_client_target="a32"
     ;;
-  *-*UNIX_SV|*-*-sysv5UnixWare7*|*-*OpenUNIX*)
+  *-*UNIX_SV | *-*-sysv5UnixWare7* | *-*OpenUNIX*)
     systype="UW2"
     alpine_path_delim="/"
     alpine_local_maildir="/var/mail"
     alpine_mode_readonly="(0600)"
     alpine_c_client_target="uw2"
+    ;;
+  *-*-osf5*)
+    systype="OSF"
+    alpine_path_delim="/"
+    alpine_local_maildir="/usr/spool/mail"
+    alpine_mode_readonly="(0600)"
+    alpine_c_client_target="osf"
     ;;
   *-*-cygwin)
     systype="CYG"
@@ -1173,16 +1240,16 @@ AC_DEFINE_UNQUOTED([S_FILESEP],"$alpine_path_delim",[File name separator as stri
 AC_DEFINE_UNQUOTED([MAILDIR],"$alpine_local_maildir",[Path to local inboxes for pico newmail check])
 AC_DEFINE_UNQUOTED([MODE_READONLY], $alpine_mode_readonly, [File mode used to set readonly access])
 
-specials=
 if test -n "$alpine_c_client_cflags" ; then
-  specials="EXTRACFLAGS=$alpine_c_client_cflags "
+  c_client_specials="${c_client_specials}EXTRACFLAGS=$EXTRACFLAGS $alpine_c_client_cflags "
 fi
 
 dnl c-client make particulars
 AC_SUBST([C_CLIENT_TARGET], $alpine_c_client_target)
+AC_SUBST([C_CLIENT_WITH_IPV6], $c_client_ip6)
 if test "x$alpine_SSLTYPE" = "xnone" ; then 
   AC_MSG_NOTICE([* * *  NOT Including SSL Support])
-  AC_SUBST([C_CLIENT_SPECIALS], "SSLTYPE=none")
+  c_client_specials="${c_client_specials}SSLTYPE=none "
 else
   dnl issue any warnings for common OpenSSL issues
 
@@ -1212,29 +1279,29 @@ else
 
 
   if test -n "$alpine_SSLDIR" ; then
-    specials="${specials}SSLDIR=$alpine_SSLDIR "
+    c_client_specials="${c_client_specials}SSLDIR=$alpine_SSLDIR "
   fi
 
   if test -n "$alpine_SSLCERTS" ; then
-    specials="${specials}SSLCERTS=$alpine_SSLCERTS "
+    c_client_specials="${c_client_specials}SSLCERTS=$alpine_SSLCERTS "
   fi
 
   if test -n "$alpine_SSLINCLUDE" ; then
-    specials="${specials}SSLINCLUDE=$alpine_SSLINCLUDE "
+    c_client_specials="${c_client_specials}SSLINCLUDE=$alpine_SSLINCLUDE "
   fi
 
   if test -n "$alpine_SSLLIB" ; then
-    specials="${specials}SSLLIB=$alpine_SSLLIB "
+    c_client_specials="${c_client_specials}SSLLIB=$alpine_SSLLIB "
   fi
 
 fi
 
 if test "x$alpine_GSSTYPE" != "xnone" ; then
-  specials="${specials}EXTRAAUTHENTICATORS=gss "
+  c_client_specials="${c_client_specials}EXTRAAUTHENTICATORS=gss "
   AC_MSG_NOTICE([* * * Including Kerberos5 functionality])
 fi
 
-AC_SUBST([C_CLIENT_SPECIALS], "$specials")
+AC_SUBST([C_CLIENT_SPECIALS], $c_client_specials)
 
 dnl Deal with Web Alpine
 if test -z "$WEB_BUILD" ; then

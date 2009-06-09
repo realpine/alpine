@@ -107,6 +107,7 @@ CXXFLAGS = @CXXFLAGS@
 CYGPATH_W = @CYGPATH_W@
 C_CLIENT_SPECIALS = @C_CLIENT_SPECIALS@
 C_CLIENT_TARGET = @C_CLIENT_TARGET@
+C_CLIENT_WITH_IPV6 = @C_CLIENT_WITH_IPV6@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
 ECHO = @ECHO@
@@ -212,7 +213,7 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 noinst_LIBRARIES = libpithcc.a
 libpithcc_a_SOURCES = filesys.c utf8.c
-AM_CPPFLAGS = -I$(top_srcdir)/include
+AM_CPPFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/include
 all: all-am
 
 .SUFFIXES:

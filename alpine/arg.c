@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: arg.c 506 2007-04-03 00:54:05Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: arg.c 617 2007-06-28 20:58:19Z jpf@u.washington.edu $";
 #endif
 
 /*
@@ -146,6 +146,7 @@ N_(" -copy_abook <local_abook> <remote_abook>     copy local addressbook to remo
 N_(" -convert_sigs -p <pinerc>   convert signatures to literal signatures"),
 #if	defined(_WINDOWS)
 N_(" -install \tPrompt for some basic setup information"),
+N_(" -uninstall \tRemove traces of Alpine from Windows system settings"),
 N_(" -registry <cmd>\tWhere cmd is set,noset,clear,clearsilent,dump"),
 #endif
 " -<option>=<value>   Assign <value> to the pinerc option <option>",
@@ -471,8 +472,19 @@ Loop: while(--ac > 0)
 	      }
 #ifdef	_WINDOWS
 	      else if(strcmp(*av, "install") == 0){
-		  ps_global->install_flag = 1;
+		  pine_state->install_flag = 1;
+		  pine_state->update_registry = UREG_ALWAYS_SET;
 		  goto Loop;
+	      }
+	      else if(strcmp(*av, "uninstall") == 0){
+		  /*
+		   * Blast password cache, clear registry settings
+		   */
+#if	(WINCRED > 0)
+		  erase_windows_credentials();
+#endif
+		  mswin_reg(MSWR_OP_BLAST, MSWR_NULL, NULL, 0);
+		  exit(0);
 	      }
 	      else if(strcmp(*av, "registry") == 0){
 		  if(--ac){

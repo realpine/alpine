@@ -1,5 +1,5 @@
 /*
- * $Id: color.h 548 2007-04-27 19:21:20Z hubert@u.washington.edu $
+ * $Id: color.h 558 2007-05-08 23:38:08Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -19,6 +19,7 @@
 
 #include "../pith/filttype.h"
 #include "../pith/pattern.h"
+#include "../pith/osdep/color.h"
 
 
 typedef struct spec_color_s {
@@ -74,7 +75,6 @@ typedef struct spec_color_s {
 #define DEFAULT_IND_NEW_BACK_RGB	"174,000,174"
 #define DEFAULT_IND_OP_FORE_RGB		"192,192,192"
 #define DEFAULT_IND_OP_BACK_RGB		"255,255,255"
-#define DEFAULT_VIEW_HDR_COLORS		"\"/HDR=Subject/FG=black/BG=000,255,000\""
 
 
 /* exported protoypes */

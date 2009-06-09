@@ -35,6 +35,6 @@ helptext.c: cmplhelp.sh pine.hlp
 helptext.h: cmplhlp2.sh pine.hlp
 	$(SHELL) cmplhlp2.sh < pine.hlp > $@
 
-AM_CPPFLAGS = -I$(top_srcdir)/include
+AM_CPPFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/include
 
 CLEANFILES = helptext.c helptext.h cmplhelp.sh cmplhlp2.sh

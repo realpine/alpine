@@ -92,7 +92,8 @@ The executables produced are:
  pilot  The standalone file system navigator.
 
  alpined
-        The Web Alpine serveret which manages the 
+        The Web Alpine serveret that manages per-session data and all
+        interaction between the web and IMAP servers.
  
  imapd  The IMAP daemon. If you want to run alpine in client/server mode,
         this is the daemon to run on the server. Installing this

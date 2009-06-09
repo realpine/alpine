@@ -1,8 +1,8 @@
 /*
- * $Id: reply.h 481 2007-03-13 22:16:32Z hubert@u.washington.edu $
+ * $Id: reply.h 605 2007-06-20 21:15:13Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,12 @@
 			     || !strucmp((st), "html")		\
 			     || !strucmp((st), "enriched")	\
 			     || !strucmp((st), "richtext"))
+
+/* flags for get_body_part_text */
+#define GBPT_NONE	0x00
+#define GBPT_PEEK	0x01
+#define GBPT_NOINTR	0x02
+#define GBPT_DELQUOTES	0x04
 
 
 #include "../pith/repltype.h"
@@ -63,7 +69,8 @@ void	    reply_forward_header(MAILSTREAM *, long, char *, ENVELOPE *, gf_io_t, c
 char	   *forward_subject(ENVELOPE *, int);
 BODY	   *forward_body(MAILSTREAM *, ENVELOPE *, BODY *, long, char *, void *, int);
 char	   *bounce_msg_body(MAILSTREAM *, long int, char *, char **, char *, ENVELOPE **, BODY **, int *);
-int	    get_body_part_text(MAILSTREAM *, BODY *, long, char *, long, gf_io_t, char *, char **);
+int	    get_body_part_text(MAILSTREAM *, BODY *, long, char *, long,
+			       gf_io_t, char *, char **, unsigned);
 int	    quote_fold(long, char *, LT_INS_S **, void *);
 int	    twsp_strip(long, char *, LT_INS_S **, void *);
 int         post_quote_space(long, char *, LT_INS_S **, void *);

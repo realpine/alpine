@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: save.c 442 2007-02-16 23:01:28Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: save.c 610 2007-06-23 00:19:52Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -33,6 +33,7 @@ static char rcsid[] = "$Id: save.c 442 2007-02-16 23:01:28Z hubert@u.washington.
 #include "../pith/ablookup.h"
 #include "../pith/news.h"
 #include "../pith/util.h"
+#include "../pith/reply.h"
 #include "../pith/sequence.h"
 #include "../pith/stream.h"
 #include "../pith/options.h"
@@ -411,9 +412,10 @@ save(struct pine *state, MAILSTREAM *stream, CONTEXT_S *context, char *folder,
      MSGNO_S *msgmap, int flgs)
 {
     int		  rv, rc, j, our_stream = 0, cancelled = 0;
-    int           delete, filter, k, preserve_keywords;
-    char	 *save_folder, *seq, flags[64], date[64], tmp[MAILTMPLEN];
+    int           delete, filter, preserve, k, worry_about_keywords = 0;
+    char	 *save_folder, *seq, *flags = NULL, date[64], tmp[MAILTMPLEN];
     long	  i, nmsgs, rawno;
+    size_t        len;
     STORE_S	 *so = NULL;
     MAILSTREAM	 *save_stream = NULL, *dstn_stream = NULL;
     MESSAGECACHE *mc, *mcdst;
@@ -427,6 +429,247 @@ save(struct pine *state, MAILSTREAM *stream, CONTEXT_S *context, char *folder,
     }
     else
       save_folder = folder;
+
+    /*
+     * Because the COPY/APPEND command doesn't always create keywords when they
+     * aren't already defined in a mailbox, we need to ensure that the keywords
+     * exist in the destination (are defined and settable) before we do the copies.
+     * Here's what the code is doing
+     *
+     * If we have keywords set in the source messages
+     *   Add a dummy message to destination mailbox
+     *
+     *   for each keyword that is set in the set of messages we're saving
+     *     set the keyword in that message (thus creating it)
+     *
+     *   remember deleted messages
+     *   undelete them
+     *   delete dummy message
+     *   expunge
+     *   delete remembered messages
+     *
+     * After that the assumption is that the keywords will be saved by a
+     * COPY command. We need to set the flags string ourself for appends.
+     */
+
+    /* are any keywords set in the source messages? */
+    for(i = mn_first_cur(msgmap); !worry_about_keywords && i > 0L; i = mn_next_cur(msgmap)){
+	rawno = mn_m2raw(msgmap, i);
+	mc = (rawno > 0L && stream && rawno <= stream->nmsgs)
+		? mail_elt(stream, rawno) : NULL;
+	if(mc && mc->user_flags)
+	  worry_about_keywords++;
+    }
+
+    if(worry_about_keywords){
+	MAILSTREAM *dstn_stream = NULL;
+	int         already_open = 0;
+	int         we_blocked_reuse = 0;
+
+	/*
+	 * Possible problem created by our stream re-use
+	 * strategy. If we are going to open a new stream
+	 * here, we want to be sure not to re-use the
+	 * stream we are saving _from_, so take it out of the
+	 * re-use pool before we call open.
+	 */
+	if(sp_flagged(stream, SP_USEPOOL)){
+	    we_blocked_reuse++;
+	    sp_unflag(stream, SP_USEPOOL);
+	}
+
+	/* see if there is a stream open already */
+	if(!dstn_stream){
+	    dstn_stream = context_already_open_stream(context,
+						      save_folder,
+						      AOS_RW_ONLY);
+	    already_open = dstn_stream ? 1 : 0;
+	}
+
+	if(!dstn_stream)
+	  dstn_stream = context_open(context, NULL,
+				     save_folder,
+				     SP_USEPOOL | SP_TEMPUSE,
+				     NULL);
+
+	if(dstn_stream && dstn_stream->kwd_create){
+	    imapuid_t dummy_uid = 0L;
+	    long dummy_msgno, delete_count;
+	    int expbits, set;
+	    char *flags = NULL;
+
+	    /* find keywords that need to be defined */
+	    for(k = 0; k < NUSERFLAGS; k++)	/* all the possible source flags */
+	      if(stream->user_flags
+		 && stream->user_flags[k]
+		 && stream->user_flags[k][0]){
+		  /* is this flag set in any of the save set? */
+		  for(set = 0, i = mn_first_cur(msgmap);
+		      !set && i > 0L;
+		      i = mn_next_cur(msgmap)){
+		      rawno = mn_m2raw(msgmap, i);
+		      if(user_flag_is_set(stream, rawno, stream->user_flags[k]))
+			set++;
+		  }
+
+		  if(set){
+		      /*
+		       * The flag may already be defined in this
+		       * mailbox. Check for that first.
+		       */
+		      for(j = 0; j < NUSERFLAGS; j++)
+			if(dstn_stream->user_flags
+			   && dstn_stream->user_flags[j]
+			   && dstn_stream->user_flags[j][0]
+			   && !strcmp(dstn_stream->user_flags[j], stream->user_flags[k])){
+			    set = 0;
+			    break;
+			}
+		  }
+
+		  if(set){
+		      if(flags == NULL){
+		          len = strlen(stream->user_flags[k]) + 1;
+		          flags = (char *) fs_get((len+1) * sizeof(char));
+			  snprintf(flags, len+1, "%s ", stream->user_flags[k]);
+		      }
+		      else{
+			  char *p;
+			  size_t newlen;
+
+		          newlen = strlen(stream->user_flags[k]) + 1;
+		          len += newlen;
+			  fs_resize((void **) &flags, (len+1) * sizeof(char));
+			  p = flags + strlen(flags);
+			  snprintf(p, newlen+1, "%s ", stream->user_flags[k]);
+		      }
+		  }
+	      }
+
+	    if(flags){
+		char *p;
+		size_t newlen;
+		STRING msg;
+		char dummymsg[1000];
+		char *id = NULL;
+		char *idused;
+		appenduid_t *au;
+
+		newlen = strlen("\\DELETED");
+		len += newlen;
+		fs_resize((void **) &flags, (len+1) * sizeof(char));
+		p = flags + strlen(flags);
+		snprintf(p, newlen+1, "%s", "\\DELETED");
+
+		id = generate_message_id();
+		idused = id ? id : "<xyz>";
+		snprintf(dummymsg, sizeof(dummymsg), "Date: Thu, 18 May 2006 00:00 -0700\r\nFrom: dummy@example.com\r\nSubject: dummy\r\nMessage-ID: %s\r\n\r\ndummy\r\n", idused);
+
+		/*
+		 * We need to get the uid of the message we are about to
+		 * append so that we can delete it when we're done and
+		 * so we don't affect other messages.
+		 */
+
+		if(LEVELUIDPLUS (dstn_stream)){
+		    au = mail_parameters(NIL, GET_APPENDUID, NIL);
+		    mail_parameters(NIL, SET_APPENDUID, (void *) appenduid_cb);
+		}
+
+		INIT(&msg, mail_string, (void *) dummymsg, strlen(dummymsg));
+		if(pine_mail_append(dstn_stream, dstn_stream->mailbox, &msg)){
+
+		    if(LEVELUIDPLUS(dstn_stream))
+		      dummy_uid = get_last_append_uid();
+
+		    if(dummy_uid == 0L){
+			dummy_msgno = get_msgno_by_msg_id(dstn_stream, idused,
+							  sp_msgmap(dstn_stream));
+			if(dummy_msgno <= 0L || dummy_msgno > dstn_stream->nmsgs)
+			  dummy_msgno = dstn_stream->nmsgs;
+
+			rawno = mn_m2raw(sp_msgmap(dstn_stream), dummy_msgno);
+			if(rawno > 0L && rawno <= dstn_stream->nmsgs)
+			  dummy_uid = mail_uid(dstn_stream, rawno);
+
+			if(dummy_uid == 0L)
+			  dummy_msgno = dstn_stream->nmsgs;
+		    }
+
+		    /*
+		     * We need to remember which messages are deleted,
+		     * undelete them, do the expunge, then delete them again.
+		     */
+		    delete_count = count_flagged(dstn_stream, F_DEL);
+		    if(delete_count){
+			for(i = 1L; i <= dstn_stream->nmsgs; i++)
+			  if(((mc = mail_elt(dstn_stream, i)) && mc->valid && mc->deleted)
+				 || (mc && !mc->valid && mc->searched)){
+			      mc->sequence = 1;
+			      expbits      = MSG_EX_DELETE;
+			      msgno_exceptions(dstn_stream, i, "0", &expbits, TRUE);
+			  }
+			  else if((mc = mail_elt(dstn_stream, i)) != NULL)
+			    mc->sequence = 0;
+
+			if(seq = build_sequence(dstn_stream, NULL, NULL)){
+			    mail_flag(dstn_stream, seq, "\\DELETED", ST_SILENT);
+			    fs_give((void **) &seq);
+			}
+		    }
+
+		    if(dummy_uid > 0L)
+		      mail_flag(dstn_stream, long2string(dummy_uid),
+			        flags, ST_SET | ST_UID | ST_SILENT);
+		    else
+		      mail_flag(dstn_stream, long2string(dummy_msgno),
+			        flags, ST_SET | ST_SILENT);
+
+		    ps_global->mm_log_error = 0;
+		    ps_global->expunge_in_progress = 1;
+		    mail_expunge(dstn_stream);
+		    ps_global->expunge_in_progress = 0;
+
+		    if(delete_count){
+			for(i = 1L; i <= dstn_stream->nmsgs; i++)
+			  if((mc = mail_elt(dstn_stream, i)) != NULL){
+			    mc->sequence 
+			       = (msgno_exceptions(dstn_stream, i, "0", &expbits, FALSE)
+				  && (expbits & MSG_EX_DELETE));
+
+			    /*
+			     * Remove the EX_DELETE bit in case we're still using
+			     * this stream.
+			     */
+			    if(mc->sequence){
+			      expbits      &= ~MSG_EX_DELETE;
+			      msgno_exceptions(dstn_stream, i, "0", &expbits, TRUE);
+			    }
+			  }
+
+			if(seq = build_sequence(dstn_stream, NULL, NULL)){
+			    mail_flag(dstn_stream, seq, "\\DELETED", ST_SET | ST_SILENT);
+			    fs_give((void **) &seq);
+			}
+		    }
+		}
+
+		if(LEVELUIDPLUS(dstn_stream))
+		  mail_parameters(NIL, SET_APPENDUID, (void *) au);
+
+		if(id)
+		  fs_give((void **) &id);
+
+		fs_give((void **) &flags);
+	    }
+	}
+
+	if(dstn_stream && !already_open)
+	  pine_mail_close(dstn_stream);
+
+	if(we_blocked_reuse)
+	  sp_set_flags(stream, sp_flags(stream) | SP_USEPOOL);
+    }
 
     /*
      * If any of the messages have exceptional attachment handling
@@ -478,8 +721,9 @@ save(struct pine *state, MAILSTREAM *stream, CONTEXT_S *context, char *folder,
 	  mail_flag(stream, dseq, "\\DELETED", 0L);
 
 	seq = currentf_sequence(stream, msgmap, 0L, &nmsgs, 0, NULL, NULL);
-	if(F_ON(F_AGG_SEQ_COPY, ps_global)
-	   || (mn_get_sort(msgmap) == SortArrival && !mn_get_revsort(msgmap))){
+	if(!(flgs & SV_PRESERVE)
+	   && (F_ON(F_AGG_SEQ_COPY, ps_global)
+	       || (mn_get_sort(msgmap) == SortArrival && !mn_get_revsort(msgmap)))){
 	    
 	    /*
 	     * currentf_sequence() above lit all the elt "sequence"
@@ -596,18 +840,6 @@ save(struct pine *state, MAILSTREAM *stream, CONTEXT_S *context, char *folder,
 
 	nmsgs = 0L;
 
-        /*
-         * It may seem like we ought to just use the optional flags
-	 * argument to APPEND to set the user keywords, and indeed that
-	 * sometimes works. However there are some IMAP servers which
-	 * don't implement the optional keywords arguments to APPEND correctly.
-         * Imapd is one of these. They may fail to set the keywords in the
-	 * appended message. It may or may not result in an APPEND failure
-	 * so we can't even count on that. We have to just open up a
-	 * stream to the destination and set them if there are any to
-	 * be set.
-	 */
-
 	/* 
 	 * if there is more than one message, do multiappend.
 	 * otherwise, we can use our already open stream.
@@ -618,7 +850,7 @@ save(struct pine *state, MAILSTREAM *stream, CONTEXT_S *context, char *folder,
 	    STRING msg;
 
 	    pkg.stream = stream;
-	    pkg.flags = flags;
+	    pkg.flags = NULL;
 	    pkg.date = date;
 	    pkg.msg = &msg;
 	    pkg.msgmap = msgmap;
@@ -655,6 +887,9 @@ save(struct pine *state, MAILSTREAM *stream, CONTEXT_S *context, char *folder,
 		  }
 		}
 
+		if(pkg.flags)
+		  fs_give((void **) &pkg.flags);
+
 		ps_global->noshow_error = 0;
 
 		if(rv){
@@ -689,7 +924,7 @@ save(struct pine *state, MAILSTREAM *stream, CONTEXT_S *context, char *folder,
 	    mc = (rawno > 0L && stream && rawno <= stream->nmsgs)
 		    ? mail_elt(stream, rawno) : NULL;
 
-	    flag_string(mc, F_ANS|F_FLAG|F_SEEN, flags, sizeof(flags));
+	    flags = flag_string(stream, rawno, F_ANS|F_FLAG|F_SEEN|F_KEYWORD);
 	      
 	    if(mc && mc->day)
 	      mail_date(date, mc);
@@ -699,6 +934,9 @@ save(struct pine *state, MAILSTREAM *stream, CONTEXT_S *context, char *folder,
 	    rv = save_fetch_append(stream, mn_m2raw(msgmap, i),
 				   NULL, save_stream, save_folder, context,
 				   mc ? mc->rfc822_size : 0L, flags, date, so);
+
+	    if(flags)
+	      fs_give((void **) &flags);
 
 	    if(sp_expunge_count(stream))
 	      rv = -1;			/* All bets are off! */
@@ -736,84 +974,6 @@ save(struct pine *state, MAILSTREAM *stream, CONTEXT_S *context, char *folder,
 	    fs_give((void **)&seq);
 	}
     }
-
-    /* are any keywords set in our messages? */
-    preserve_keywords = 0;
-    for(i = mn_first_cur(msgmap); !preserve_keywords && i > 0L;
-	i = mn_next_cur(msgmap)){
-	rawno = mn_m2raw(msgmap, i);
-	mc = (rawno > 0L && stream && rawno <= stream->nmsgs)
-		? mail_elt(stream, rawno) : NULL;
-	if(mc && mc->user_flags)
-	  preserve_keywords++;
-    }
-
-    if(preserve_keywords){
-	MAILSTREAM *dstn_stream = NULL;
-	int         already_open = 0;
-	int         we_blocked_reuse = 0;
-
-	if(sp_expunge_count(stream)){
-	    q_status_message(SM_ORDER, 3, 5,
-			   _("Possible trouble setting keywords in destination"));
-	    goto get_out;
-	}
-
-	/*
-	 * Possible problem created by our stream re-use
-	 * strategy. If we are going to open a new stream
-	 * here, we want to be sure not to re-use the
-	 * stream we are saving _from_, so take it out of the
-	 * re-use pool before we call open.
-	 */
-	if(sp_flagged(stream, SP_USEPOOL)){
-	    we_blocked_reuse++;
-	    sp_unflag(stream, SP_USEPOOL);
-	}
-
-	/* see if there is a stream open already */
-	if(!dstn_stream){
-	    dstn_stream = context_already_open_stream(context,
-						      save_folder,
-						      AOS_RW_ONLY);
-	    already_open = dstn_stream ? 1 : 0;
-	}
-
-	if(!dstn_stream)
-	  dstn_stream = context_open(context, NULL,
-				     save_folder,
-				     SP_USEPOOL | SP_TEMPUSE,
-				     NULL);
-
-	if(dstn_stream){
-	    /* make sure dstn_stream knows about the new messages */
-	    (void) pine_mail_ping(dstn_stream);
-
-	    for(i = mn_first_cur(msgmap); i > 0L; i = mn_next_cur(msgmap)){
-		ENVELOPE *env;
-
-		rawno = mn_m2raw(msgmap, i);
-		mc = (rawno > 0L && stream && rawno <= stream->nmsgs)
-			? mail_elt(stream, rawno) : NULL;
-		env = NULL;
-		if(mc && mc->user_flags)
-		  env = pine_mail_fetchstructure(stream, rawno, NULL);
-
-		if(env && env->message_id && env->message_id[0])
-		  set_keywords_in_msgid_msg(stream, mc, dstn_stream,
-					    env->message_id,
-					    mn_total_cur(msgmap)+10L);
-	    }
-
-	    if(!already_open)
-	      pine_mail_close(dstn_stream);
-	}
-
-	if(we_blocked_reuse)
-	  sp_set_flags(stream, sp_flags(stream) | SP_USEPOOL);
-    }
-
-get_out:
 
     ps_global->try_to_create = 0;		/* reset for next time */
     if(!cancelled && nmsgs < mn_total_cur(msgmap)){
@@ -874,8 +1034,10 @@ long save_fetch_append_cb(MAILSTREAM *stream, void *data, char **flags,
 		? mail_elt(pkg->stream, raw) : NULL;
 	if(mc){
 	    size = mc->rfc822_size;
-	    /* we "know" that pkg->flags is size 64 */
-	    flag_string(mc, F_ANS|F_FLAG|F_SEEN, pkg->flags, 64);
+	    if(pkg->flags)
+	      fs_give((void **) &pkg->flags);
+
+	    pkg->flags = flag_string(pkg->stream, raw, F_ANS|F_FLAG|F_SEEN|F_KEYWORD);
 	}
 
 	if(mc && mc->day)

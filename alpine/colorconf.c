@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: colorconf.c 550 2007-04-30 18:15:20Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: colorconf.c 611 2007-06-26 22:55:13Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -47,6 +47,8 @@ char	       *new_color_line(char *, int, int, int);
 int	        color_text_tool(struct pine *, int, CONF_S **, unsigned);
 int	        color_holding_var(struct pine *, struct variable *);
 int	        color_related_var(struct pine *, struct variable *);
+int             offer_normal_color_for_var(struct pine *, struct variable *);
+int             offer_none_color_for_var(struct pine *, struct variable *);
 void		color_update_selected(struct pine *, CONF_S *, char *, char *, int);
 int		color_edit_screen(struct pine *, CONF_S **);
 
@@ -402,6 +404,10 @@ color_config_init_display(struct pine *ps, CONF_S **ctmp, CONF_S **first_line)
 
     standard_radio_setup(ps, ctmp, vtmp, NULL);
 
+    new_confline(ctmp);
+    /* Blank line */
+    (*ctmp)->flags |= (CF_NOSELECT | CF_B_LINE);
+
     vtmp = &ps->vars[V_TITLEBAR_COLOR_STYLE];
 
     new_confline(ctmp);
@@ -437,6 +443,10 @@ color_config_init_display(struct pine *ps, CONF_S **ctmp, CONF_S **first_line)
 
 	/* If not foreground, skip it */
 	if(!srchstr(vtmp->name, "-foreground-color"))
+	  continue;
+
+	/* skip this for now and include it with HEADER COLORS */
+	if(vtmp == &ps->vars[V_HEADER_GENERAL_FORE_COLOR])
 	  continue;
 
 	if(!saw_first_index && !struncmp(vtmp->name, "index-", 6)){
@@ -495,6 +505,24 @@ color_config_init_display(struct pine *ps, CONF_S **ctmp, CONF_S **first_line)
     (*ctmp)->flags			|= CF_NOSELECT;
     (*ctmp)->value                       = cpystr(dashes);
 
+    vtmp = &ps->vars[V_HEADER_GENERAL_FORE_COLOR];
+    new_confline(ctmp);
+    /* Blank line */
+    (*ctmp)->flags |= CF_NOSELECT | CF_B_LINE;
+
+    new_confline(ctmp)->var = vtmp;
+
+    (*ctmp)->varnamep		 = *ctmp;
+    (*ctmp)->keymenu		 = &color_setting_keymenu;
+    (*ctmp)->help		 = config_help(vtmp - ps->vars, 0);
+    (*ctmp)->tool		 = color_setting_tool;
+    (*ctmp)->flags |= (CF_STARTITEM | CF_COLORSAMPLE | CF_POT_SLCTBL);
+    if(!pico_usingcolor())
+      (*ctmp)->flags |= CF_NOSELECT;
+
+    (*ctmp)->value		 = pretty_value(ps, *ctmp);
+    (*ctmp)->valoffset		 = COLOR_INDENT;
+
     vtmp = &ps->vars[V_VIEW_HDR_COLORS];
     lval = LVAL(vtmp, ew);
 
@@ -508,7 +536,7 @@ color_config_init_display(struct pine *ps, CONF_S **ctmp, CONF_S **first_line)
 	new_confline(ctmp);
 	(*ctmp)->help			 = NO_HELP;
 	(*ctmp)->flags			|= CF_NOSELECT;
-	(*ctmp)->value = cpystr(ADDHEADER_COMMENT);
+	(*ctmp)->value = cpystr(_(ADDHEADER_COMMENT));
 	(*ctmp)->valoffset		 = COLOR_INDENT;
     }
 
@@ -772,6 +800,8 @@ add_color_setting_disp(struct pine *ps, CONF_S **ctmp, struct variable *var,
     char	    tmp[100+1];
     char           *title   = _("HELP FOR SETTING UP COLOR");
     char           *pvalfg, *pvalbg;
+    int             fg_is_custom = 1, bg_is_custom = 1;
+    CONF_S         *cl_custom = NULL;
 
 
     /* find longest value's name */
@@ -820,6 +850,14 @@ add_color_setting_disp(struct pine *ps, CONF_S **ctmp, struct variable *var,
 	(*ctmp)->varmem		 = CFC_SET_COLOR(which, i);
 
 	transparent = (trans_is_on && i == count-1);
+	if(transparent)
+	  (*ctmp)->help		 = h_config_usetransparent_color;
+
+	if(fg_is_custom && fg && !strucmp(color_to_canonical_name(fg), colorx(i)))
+	  fg_is_custom  = 0;
+
+	if(bg_is_custom && bg && !strucmp(color_to_canonical_name(bg), colorx(i)))
+	  bg_is_custom  = 0;
 
 	(*ctmp)->value		 = new_color_line(transparent ? COLOR_BLOB_TRAN
 							      : COLOR_BLOB,
@@ -845,10 +883,60 @@ add_color_setting_disp(struct pine *ps, CONF_S **ctmp, struct variable *var,
     (*ctmp)->val2offset	     = indent + lv + 5 + SPACE_BETWEEN_DOUBLEVARS;
     (*ctmp)->flags	    |= CF_DOUBLEVAR;
     (*ctmp)->varmem	     = CFC_SET_COLOR(which, i);
-    (*ctmp)->value	     = new_color_line("Custom",
-					      (fg && is_rgb_color(fg)),
-					      (bg && is_rgb_color(bg)),
-					      lv);
+    cl_custom = (*ctmp);
+#endif
+
+    if(offer_normal_color_for_var(ps, var)){
+	new_confline(ctmp)->var		= var;
+	(*ctmp)->varnamep	 	= varnamep;
+	(*ctmp)->keymenu		= km;
+	(*ctmp)->help			= h_config_usenormal_color;
+	(*ctmp)->help_title		= title;
+	(*ctmp)->tool			= color_setting_tool;
+	(*ctmp)->valoffset		= indent;
+	/* 5 is length of "( )  " */
+	(*ctmp)->val2offset	 = indent + lv + 5 + SPACE_BETWEEN_DOUBLEVARS;
+	(*ctmp)->flags		|= CF_DOUBLEVAR;
+	(*ctmp)->varmem		 = CFC_SET_COLOR(which, CFC_ICOLOR_NORM);
+	if(fg_is_custom && fg && !struncmp(fg, MATCH_NORM_COLOR, RGBLEN))
+	  fg_is_custom  = 0;
+
+	if(bg_is_custom && bg && !struncmp(bg, MATCH_NORM_COLOR, RGBLEN))
+	  bg_is_custom  = 0;
+
+	(*ctmp)->value		 = new_color_line(COLOR_BLOB_NORM,
+						  fg && !struncmp(fg, MATCH_NORM_COLOR, RGBLEN),
+						  bg && !struncmp(bg, MATCH_NORM_COLOR, RGBLEN),
+						  lv);
+    }
+
+    if(offer_none_color_for_var(ps, var)){
+	new_confline(ctmp)->var		= var;
+	(*ctmp)->varnamep	 	= varnamep;
+	(*ctmp)->keymenu		= km;
+	(*ctmp)->help			= h_config_usenone_color;
+	(*ctmp)->help_title		= title;
+	(*ctmp)->tool			= color_setting_tool;
+	(*ctmp)->valoffset		= indent;
+	/* 5 is length of "( )  " */
+	(*ctmp)->val2offset	 = indent + lv + 5 + SPACE_BETWEEN_DOUBLEVARS;
+	(*ctmp)->flags		|= CF_DOUBLEVAR;
+	(*ctmp)->varmem		 = CFC_SET_COLOR(which, CFC_ICOLOR_NONE);
+	if(fg_is_custom && fg && !struncmp(fg, MATCH_NONE_COLOR, RGBLEN))
+	  fg_is_custom  = 0;
+
+	if(bg_is_custom && bg && !struncmp(bg, MATCH_NONE_COLOR, RGBLEN))
+	  bg_is_custom  = 0;
+
+	(*ctmp)->value		 = new_color_line(COLOR_BLOB_NONE,
+						  fg && !struncmp(fg, MATCH_NONE_COLOR, RGBLEN),
+						  bg && !struncmp(bg, MATCH_NONE_COLOR, RGBLEN),
+						  lv);
+    }
+
+#ifdef	_WINDOWS
+    if(cl_custom)
+      cl_custom->value = new_color_line("Custom", fg_is_custom, bg_is_custom, lv);
 #endif
 
     new_confline(ctmp)->var	= var;
@@ -1074,6 +1162,28 @@ color_related_var(struct pine *ps, struct variable *var)
 
 
 int
+offer_normal_color_for_var(struct pine *ps, struct variable *var)
+{
+    return(color_holding_var(ps, var)
+	   && var != &ps->vars[V_NORM_FORE_COLOR]
+	   && var != &ps->vars[V_NORM_BACK_COLOR]
+	   && var != &ps->vars[V_REV_FORE_COLOR]
+	   && var != &ps->vars[V_REV_BACK_COLOR]
+	   && var != &ps->vars[V_SLCTBL_FORE_COLOR]
+	   && var != &ps->vars[V_SLCTBL_BACK_COLOR]);
+}
+
+
+int
+offer_none_color_for_var(struct pine *ps, struct variable *var)
+{
+    return(color_holding_var(ps, var)
+	   && (!struncmp(var->name, "index-", 6)
+	       || var == &ps->vars[V_KW_COLORS]));
+}
+
+
+int
 color_setting_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 {
     int	             rv = 0, i, cancel = 0, deefault;
@@ -1125,6 +1235,10 @@ color_setting_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 	if(apval){
 	    if(CFC_ICOLOR(*cl) < pico_count_in_color_table())
 	      *apval = cpystr(colorx(CFC_ICOLOR(*cl)));
+	    else if(CFC_ICOLOR(*cl) == CFC_ICOLOR_NORM)
+	      *apval = cpystr(MATCH_NORM_COLOR);
+	    else if(CFC_ICOLOR(*cl) == CFC_ICOLOR_NONE)
+	      *apval = cpystr(MATCH_NONE_COLOR);
 	    else if(old_val)
 	      *apval = cpystr(is_rgb_color(old_val)
 			       ? old_val : color_to_asciirgb(old_val));
@@ -1204,6 +1318,10 @@ color_setting_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 		old_val = hc->bg;
 		if(CFC_ICOLOR(*cl) < pico_count_in_color_table())
 		  hc->bg = cpystr(colorx(CFC_ICOLOR(*cl)));
+		else if(CFC_ICOLOR(*cl) == CFC_ICOLOR_NORM)
+		  hc->bg = cpystr(MATCH_NORM_COLOR);
+		else if(CFC_ICOLOR(*cl) == CFC_ICOLOR_NONE)
+		  hc->bg = cpystr(MATCH_NONE_COLOR);
 		else if(old_val)
 		  hc->bg = cpystr(is_rgb_color(old_val)
 				    ? old_val
@@ -1230,6 +1348,10 @@ color_setting_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 
 		if(CFC_ICOLOR(*cl) < pico_count_in_color_table())
 		  hc->fg = cpystr(colorx(CFC_ICOLOR(*cl)));
+		else if(CFC_ICOLOR(*cl) == CFC_ICOLOR_NORM)
+		  hc->fg = cpystr(MATCH_NORM_COLOR);
+		else if(CFC_ICOLOR(*cl) == CFC_ICOLOR_NONE)
+		  hc->fg = cpystr(MATCH_NONE_COLOR);
 		else if(old_val)
 		  hc->fg = cpystr(is_rgb_color(old_val)
 				    ? old_val
@@ -1325,6 +1447,10 @@ color_setting_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 		old_val = hc->bg;
 		if(CFC_ICOLOR(*cl) < pico_count_in_color_table())
 		  hc->bg = cpystr(colorx(CFC_ICOLOR(*cl)));
+		else if(CFC_ICOLOR(*cl) == CFC_ICOLOR_NORM)
+		  hc->bg = cpystr(MATCH_NORM_COLOR);
+		else if(CFC_ICOLOR(*cl) == CFC_ICOLOR_NONE)
+		  hc->bg = cpystr(MATCH_NONE_COLOR);
 		else if(old_val)
 		  hc->bg = cpystr(is_rgb_color(old_val)
 				    ? old_val
@@ -1351,6 +1477,10 @@ color_setting_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 
 		if(CFC_ICOLOR(*cl) < pico_count_in_color_table())
 		  hc->fg = cpystr(colorx(CFC_ICOLOR(*cl)));
+		else if(CFC_ICOLOR(*cl) == CFC_ICOLOR_NORM)
+		  hc->fg = cpystr(MATCH_NORM_COLOR);
+		else if(CFC_ICOLOR(*cl) == CFC_ICOLOR_NONE)
+		  hc->fg = cpystr(MATCH_NONE_COLOR);
 		else if(old_val)
 		  hc->fg = cpystr(is_rgb_color(old_val)
 				    ? old_val
@@ -1961,7 +2091,7 @@ color_setting_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 
 	    end->flags     = CF_NOSELECT;
 	    end->help      = NO_HELP;
-	    end->value     = cpystr(ADDHEADER_COMMENT);
+	    end->value     = cpystr(_(ADDHEADER_COMMENT));
 	    end->valoffset = COLOR_INDENT;
 	    end->varnamep  = NULL;
 	    end->varmem    = 0;
@@ -2322,7 +2452,8 @@ color_setting_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 void
 color_update_selected(struct pine *ps, CONF_S *cl, char *fg, char *bg, int cleardef)
 {
-    int i;
+    int i, fg_is_custom = 1, bg_is_custom = 1;
+    CONF_S *cl_custom = NULL;
 
     /* back up to header line */
     for(; cl && (cl->flags & CF_DOUBLEVAR); cl = prev_confline(cl))
@@ -2339,28 +2470,74 @@ color_update_selected(struct pine *ps, CONF_S *cl, char *fg, char *bg, int clear
     for(i = 0, cl = next_confline(cl);
 	i < pico_count_in_color_table() && cl;
 	i++, cl = next_confline(cl)){
-	if(fg && !strucmp(color_to_canonical_name(fg), colorx(i)))
-	  cl->value[1] = R_SELD;
+	if(fg && !strucmp(color_to_canonical_name(fg), colorx(i))){
+	    cl->value[1] = R_SELD;
+	    fg_is_custom = 0;
+	}
 	else
 	  cl->value[1] = ' ';
 
-	if(bg && !strucmp(color_to_canonical_name(bg), colorx(i)))
-	  cl->value[cl->val2offset - cl->valoffset + 1] = R_SELD;
+	if(bg && !strucmp(color_to_canonical_name(bg), colorx(i))){
+	    cl->value[cl->val2offset - cl->valoffset + 1] = R_SELD;
+	    bg_is_custom = 0;
+	}
 	else
 	  cl->value[cl->val2offset - cl->valoffset + 1] = ' ';
     }
 
 #ifdef	_WINDOWS
-    /* check for rgb color indicating a custom setting */
-    cl->value[1] = (fg && is_rgb_color(fg)) ? R_SELD : ' ';
-    cl->value[cl->val2offset - cl->valoffset + 1] =  (bg && is_rgb_color(bg))
-							? R_SELD : ' ';
-    cl = next_confline(cl); /* advance to Default checkbox */
+    cl_custom = cl;
+    cl = next_confline(cl);
 #endif
+
+    if(cl && cl->var && offer_normal_color_for_var(ps, cl->var)){
+	if(fg && !struncmp(color_to_canonical_name(fg), MATCH_NORM_COLOR, RGBLEN)){
+	    cl->value[1] = R_SELD;
+	    fg_is_custom = 0;
+	}
+	else
+	  cl->value[1] = ' ';
+
+	if(bg && !struncmp(color_to_canonical_name(bg), MATCH_NORM_COLOR, RGBLEN)){
+	    cl->value[cl->val2offset - cl->valoffset + 1] = R_SELD;
+	    bg_is_custom = 0;
+	}
+	else
+	  cl->value[cl->val2offset - cl->valoffset + 1] = ' ';
+
+	cl = next_confline(cl);
+    }
+
+    if(cl && cl->var && offer_none_color_for_var(ps, cl->var)){
+	if(fg && !struncmp(color_to_canonical_name(fg), MATCH_NONE_COLOR, RGBLEN)){
+	    cl->value[1] = R_SELD;
+	    fg_is_custom = 0;
+	}
+	else
+	  cl->value[1] = ' ';
+
+	if(bg && !struncmp(color_to_canonical_name(bg), MATCH_NONE_COLOR, RGBLEN)){
+	    cl->value[cl->val2offset - cl->valoffset + 1] = R_SELD;
+	    bg_is_custom = 0;
+	}
+	else
+	  cl->value[cl->val2offset - cl->valoffset + 1] = ' ';
+
+	cl = next_confline(cl);
+    }
 
     /* Turn off Default X */
     if(cleardef)
       cl->value[1] = ' ';
+
+#ifdef	_WINDOWS
+    /* check for a custom setting */
+    if(cl_custom){
+	cl_custom->value[1] = fg_is_custom ? R_SELD : ' ';
+	cl_custom->value[cl_custom->val2offset - cl_custom->valoffset + 1]
+	    = bg_is_custom ? R_SELD : ' ';
+    }
+#endif
 }
 
 
@@ -2369,8 +2546,8 @@ color_edit_screen(struct pine *ps, CONF_S **cl)
 {
     OPT_SCREEN_S     screen, *saved_screen;
     CONF_S          *ctmp = NULL, *first_line = NULL, *ctmpb;
-    int              rv, is_index = 0, is_custom = 0, indent = 12;
-    int              is_normal = 0, is_keywordcol = 0;
+    int              rv, is_index = 0, is_hdrcolor = 0, indent = 12;
+    int              is_general = 0, is_keywordcol = 0;
     char             tmp[1200+1], name[1200], *p;
     struct variable *vtmp, v;
     int              i, def;
@@ -2380,14 +2557,14 @@ color_edit_screen(struct pine *ps, CONF_S **cl)
 
     vtmp = (*cl)->var;
     if(vtmp == &ps->vars[V_VIEW_HDR_COLORS])
-      is_custom++;
+      is_hdrcolor++;
     else if(vtmp == &ps->vars[V_KW_COLORS])
       is_keywordcol++;
     else if(color_holding_var(ps, vtmp)){
 	if(!struncmp(vtmp->name, "index-", 6))
 	  is_index++;
 	else
-	  is_normal++;
+	  is_general++;
     }
 
     new_confline(&ctmp);
@@ -2398,7 +2575,7 @@ color_edit_screen(struct pine *ps, CONF_S **cl)
 
     new_confline(&ctmp)->var = vtmp;
 
-    if(is_normal){
+    if(is_general){
 	p = srchstr(vtmp->name, "-foreground-color");
 	snprintf(name, sizeof(name), "%.*s", p ? MIN(p - vtmp->name, 30) : 30, vtmp->name);
 	name[sizeof(name)-1] = '\0';
@@ -2413,7 +2590,7 @@ color_edit_screen(struct pine *ps, CONF_S **cl)
 	if(islower((unsigned char)name[0]))
 	  name[0] = toupper((unsigned char)name[0]);
     }
-    else if(is_custom){
+    else if(is_hdrcolor){
 	char **lval;
 	
 	lval = LVAL(vtmp, ew);
@@ -2479,7 +2656,7 @@ color_edit_screen(struct pine *ps, CONF_S **cl)
     ctmp->flags			|= (CF_STARTITEM | CF_NOSELECT);
     ctmp->keymenu		 = &color_changing_keymenu;
 
-    if(is_custom){
+    if(is_hdrcolor){
 	char **apval;
 
 	def = !(hc && hc->fg && hc->fg[0] && hc->bg && hc->bg[0]);

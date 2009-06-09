@@ -1,5 +1,5 @@
 /*
- * $Id: colorconf.h 380 2007-01-23 00:09:18Z hubert@u.washington.edu $
+ * $Id: colorconf.h 577 2007-05-22 22:16:43Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -24,7 +24,7 @@
 
 #define HEADER_WORD "Header "
 #define KW_COLORS_HDR "KEYWORD COLORS"
-#define ADDHEADER_COMMENT "[ Use the AddHeader command to add colored headers in MESSAGE VIEW ]"
+#define ADDHEADER_COMMENT N_("[ Use the AddHeader command to add colored headers in MESSAGE TEXT screen ]")
 #define EQ_COL 37
 
 #define SPACE_BETWEEN_DOUBLEVARS 3
@@ -35,6 +35,8 @@
 #define SBS 1	/* space between samples */
 #define COLOR_BLOB "<    >"
 #define COLOR_BLOB_TRAN "<TRAN>"
+#define COLOR_BLOB_NORM "<NORM>"
+#define COLOR_BLOB_NONE "<NONE>"
 #define COLOR_BLOB_LEN 6
 #define COLOR_INDENT 3
 #define COLORNOSET "  [ Colors below may not be set until color is turned on above ]"
@@ -52,6 +54,9 @@
 #define	CFC_SET_COLOR(I, C)	(((I) << 16) | (C))
 #define	CFC_ICUST_INC(V)	CFC_SET_COLOR(CFC_ICUST(V) + 1, CFC_ICOLOR(V))
 #define	CFC_ICUST_DEC(V)	CFC_SET_COLOR(CFC_ICUST(V) - 1, CFC_ICOLOR(V))
+
+#define	CFC_ICOLOR_NORM		(1000)
+#define	CFC_ICOLOR_NONE		(1001)
 
 
 extern int treat_color_vars_as_text;

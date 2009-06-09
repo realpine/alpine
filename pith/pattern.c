@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pattern.c 529 2007-04-18 22:41:05Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pattern.c 596 2007-06-09 00:20:47Z hubert@u.washington.edu $";
 #endif
 /*
  * ========================================================================
@@ -333,6 +333,7 @@ static PAT_HANDLE	*pattern_h_roles_ne,    *pattern_h_roles_any,
 			*pattern_h_filts_ne,    *pattern_h_filts_any,
 			*pattern_h_incol_ne,    *pattern_h_incol_any,
 			*pattern_h_other_ne,    *pattern_h_other_any,
+			*pattern_h_srch_ne,     *pattern_h_srch_any,
 			*pattern_h_oldpat_ne,   *pattern_h_oldpat_any,
 			*pattern_h_oldfilt_ne,  *pattern_h_oldfilt_any,
 			*pattern_h_oldscore_ne, *pattern_h_oldscore_any;
@@ -346,6 +347,7 @@ static long	  	 pat_status_roles_ne,    pat_status_roles_any,
 			 pat_status_filts_ne,    pat_status_filts_any,
 			 pat_status_incol_ne,    pat_status_incol_any,
 			 pat_status_other_ne,    pat_status_other_any,
+			 pat_status_srch_ne,     pat_status_srch_any,
 			 pat_status_oldpat_ne,   pat_status_oldpat_any,
 			 pat_status_oldfilt_ne,  pat_status_oldfilt_any,
 			 pat_status_oldscore_ne, pat_status_oldscore_any;
@@ -359,17 +361,19 @@ static long	  	 pat_status_roles_ne,    pat_status_roles_any,
 	     ((rflags) & ROLE_DO_FILTER) ? &pat_status_filts_ne :	\
 	      ((rflags) & ROLE_DO_SCORES) ? &pat_status_scores_ne :	\
 	       ((rflags) & ROLE_DO_ROLES)  ? &pat_status_roles_ne :	\
-	        ((rflags) & ROLE_OLD_FILT)  ? &pat_status_oldfilt_ne :	\
-	         ((rflags) & ROLE_OLD_SCORE) ? &pat_status_oldscore_ne :\
-					        &pat_status_oldpat_ne)	\
+	        ((rflags) & ROLE_DO_SRCH)   ? &pat_status_srch_ne :	\
+	         ((rflags) & ROLE_OLD_FILT)  ? &pat_status_oldfilt_ne :	\
+	          ((rflags) & ROLE_OLD_SCORE) ? &pat_status_oldscore_ne :\
+					         &pat_status_oldpat_ne)	\
 	: (((rflags) & ROLE_DO_INCOLS) ? &pat_status_incol_any :	\
 	    ((rflags) & ROLE_DO_OTHER)  ? &pat_status_other_any :	\
 	     ((rflags) & ROLE_DO_FILTER) ? &pat_status_filts_any :	\
 	      ((rflags) & ROLE_DO_SCORES) ? &pat_status_scores_any :	\
 	       ((rflags) & ROLE_DO_ROLES)  ? &pat_status_roles_any :	\
-	        ((rflags) & ROLE_OLD_FILT)  ? &pat_status_oldfilt_any :	\
-	         ((rflags) & ROLE_OLD_SCORE) ? &pat_status_oldscore_any:\
-					        &pat_status_oldpat_any);
+	        ((rflags) & ROLE_DO_SRCH)   ? &pat_status_srch_any :	\
+	         ((rflags) & ROLE_OLD_FILT)  ? &pat_status_oldfilt_any :\
+	          ((rflags) & ROLE_OLD_SCORE) ? &pat_status_oldscore_any:\
+					         &pat_status_oldpat_any);
 #define CANONICAL_RFLAGS(rflags)	\
     ((((rflags) & (ROLE_DO_ROLES | ROLE_REPLY | ROLE_FORWARD | ROLE_COMPOSE)) \
 					? ROLE_DO_ROLES  : 0) |		   \
@@ -381,6 +385,8 @@ static long	  	 pat_status_roles_ne,    pat_status_roles_any,
 					? ROLE_DO_FILTER : 0) |		   \
      (((rflags) & (ROLE_DO_OTHER))					   \
 					? ROLE_DO_OTHER  : 0) |		   \
+     (((rflags) & (ROLE_DO_SRCH))					   \
+					? ROLE_DO_SRCH   : 0) |		   \
      (((rflags) & (ROLE_OLD_FILT))					   \
 					? ROLE_OLD_FILT  : 0) |		   \
      (((rflags) & (ROLE_OLD_SCORE))					   \
@@ -435,7 +441,7 @@ static long	  	 pat_status_roles_ne,    pat_status_roles_any,
      }									\
     }
 
-#define PATTERN_N (8)
+#define PATTERN_N (9)
 
 
 void
@@ -447,7 +453,8 @@ set_pathandle(long int rflags)
 		     (rflags & ROLE_DO_FILTER) ? &pattern_h_filts_ne :
 		      (rflags & ROLE_DO_SCORES) ? &pattern_h_scores_ne :
 		       (rflags & ROLE_DO_ROLES)  ? &pattern_h_roles_ne :
-					            &pattern_h_oldpat_ne)
+		        (rflags & ROLE_DO_SRCH)   ? &pattern_h_srch_ne :
+					             &pattern_h_oldpat_ne)
 		: ((rflags & PAT_USE_CHANGED)
 		 ? &pattern_h_filts_cfg
 	         : ((rflags & ROLE_DO_INCOLS) ? &pattern_h_incol_any :
@@ -455,7 +462,8 @@ set_pathandle(long int rflags)
 		      (rflags & ROLE_DO_FILTER) ? &pattern_h_filts_any :
 		       (rflags & ROLE_DO_SCORES) ? &pattern_h_scores_any :
 		        (rflags & ROLE_DO_ROLES)  ? &pattern_h_roles_any :
-					            &pattern_h_oldpat_any));
+		         (rflags & ROLE_DO_SRCH)   ? &pattern_h_srch_any :
+					              &pattern_h_oldpat_any));
 }
 
 
@@ -482,6 +490,8 @@ open_any_patterns(long int rflags)
       sub_open_any_patterns(ROLE_DO_SCORES | (rflags & PAT_USE_MASK));
     if(canon_rflags & ROLE_DO_ROLES)
       sub_open_any_patterns(ROLE_DO_ROLES  | (rflags & PAT_USE_MASK));
+    if(canon_rflags & ROLE_DO_SRCH)
+      sub_open_any_patterns(ROLE_DO_SRCH   | (rflags & PAT_USE_MASK));
     if(canon_rflags & ROLE_OLD_FILT)
       sub_open_any_patterns(ROLE_OLD_FILT  | (rflags & PAT_USE_MASK));
     if(canon_rflags & ROLE_OLD_SCORE)
@@ -519,6 +529,8 @@ sub_open_any_patterns(long int rflags)
       var = &ps_global->vars[V_PAT_SCORES];
     else if(rflags & ROLE_DO_INCOLS)
       var = &ps_global->vars[V_PAT_INCOLS];
+    else if(rflags & ROLE_DO_SRCH)
+      var = &ps_global->vars[V_PAT_SRCH];
     else if(rflags & ROLE_OLD_FILT)
       var = &ps_global->vars[V_PAT_FILTS_OLD];
     else if(rflags & ROLE_OLD_SCORE)
@@ -582,7 +594,7 @@ void
 close_every_pattern(void)
 {
     close_patterns(ROLE_DO_INCOLS | ROLE_DO_FILTER | ROLE_DO_SCORES
-		   | ROLE_DO_OTHER | ROLE_DO_ROLES
+		   | ROLE_DO_OTHER | ROLE_DO_ROLES | ROLE_DO_SRCH
 		   | ROLE_OLD_FILT | ROLE_OLD_SCORE | ROLE_OLD_PAT
 		   | PAT_USE_CURRENT);
     /*
@@ -591,7 +603,7 @@ close_every_pattern(void)
      * a time.
      */
     close_patterns(ROLE_DO_INCOLS | ROLE_DO_FILTER | ROLE_DO_SCORES
-		   | ROLE_DO_OTHER | ROLE_DO_ROLES
+		   | ROLE_DO_OTHER | ROLE_DO_ROLES | ROLE_DO_SRCH
 		   | ROLE_OLD_FILT | ROLE_OLD_SCORE | ROLE_OLD_PAT
 		   | PAT_USE_MAIN);
 }
@@ -619,6 +631,8 @@ close_patterns(long int rflags)
       sub_close_patterns(ROLE_DO_SCORES | (rflags & PAT_USE_MASK));
     if(canon_rflags & ROLE_DO_ROLES)
       sub_close_patterns(ROLE_DO_ROLES  | (rflags & PAT_USE_MASK));
+    if(canon_rflags & ROLE_DO_SRCH)
+      sub_close_patterns(ROLE_DO_SRCH   | (rflags & PAT_USE_MASK));
     if(canon_rflags & ROLE_OLD_FILT)
       sub_close_patterns(ROLE_OLD_FILT  | (rflags & PAT_USE_MASK));
     if(canon_rflags & ROLE_OLD_SCORE)
@@ -687,6 +701,8 @@ any_patterns(long int rflags, PAT_STATE *pstate)
       ret += sub_any_patterns(ROLE_DO_SCORES, pstate);
     if(canon_rflags & ROLE_DO_ROLES)
       ret += sub_any_patterns(ROLE_DO_ROLES, pstate);
+    if(canon_rflags & ROLE_DO_SRCH)
+      ret += sub_any_patterns(ROLE_DO_SRCH, pstate);
     if(canon_rflags & ROLE_OLD_FILT)
       ret += sub_any_patterns(ROLE_OLD_FILT, pstate);
     if(canon_rflags & ROLE_OLD_SCORE)
@@ -1513,6 +1529,8 @@ parse_action_slash(char *str, ACTION_S *action)
       action->is_a_other = 1;
     else if(!strncmp(str, "/ISINCOL=1", 10))
       action->is_a_incol = 1;
+    else if(!strncmp(str, "/ISSRCH=1", 9))
+      action->is_a_srch = 1;
     /*
      * This is unfortunate. If a new filter is set to only set
      * state bits it will be interpreted by an older pine which
@@ -2816,30 +2834,34 @@ first_any_pattern(PAT_STATE *pstate)
 
 	switch(i){
 	  case 1:
-	    local_rflag = ROLE_DO_INCOLS & CANONICAL_RFLAGS(pstate->rflags);
+	    local_rflag = ROLE_DO_SRCH & CANONICAL_RFLAGS(pstate->rflags);
 	    break;
 
 	  case 2:
-	    local_rflag = ROLE_DO_ROLES & CANONICAL_RFLAGS(pstate->rflags);
+	    local_rflag = ROLE_DO_INCOLS & CANONICAL_RFLAGS(pstate->rflags);
 	    break;
 
 	  case 3:
-	    local_rflag = ROLE_DO_FILTER & CANONICAL_RFLAGS(pstate->rflags);
+	    local_rflag = ROLE_DO_ROLES & CANONICAL_RFLAGS(pstate->rflags);
 	    break;
 
 	  case 4:
-	    local_rflag = ROLE_DO_SCORES & CANONICAL_RFLAGS(pstate->rflags);
+	    local_rflag = ROLE_DO_FILTER & CANONICAL_RFLAGS(pstate->rflags);
 	    break;
 
 	  case 5:
-	    local_rflag = ROLE_DO_OTHER & CANONICAL_RFLAGS(pstate->rflags);
+	    local_rflag = ROLE_DO_SCORES & CANONICAL_RFLAGS(pstate->rflags);
 	    break;
 
 	  case 6:
-	    local_rflag = ROLE_OLD_FILT & CANONICAL_RFLAGS(pstate->rflags);
+	    local_rflag = ROLE_DO_OTHER & CANONICAL_RFLAGS(pstate->rflags);
 	    break;
 
 	  case 7:
+	    local_rflag = ROLE_OLD_FILT & CANONICAL_RFLAGS(pstate->rflags);
+	    break;
+
+	  case 8:
 	    local_rflag = ROLE_OLD_SCORE & CANONICAL_RFLAGS(pstate->rflags);
 	    break;
 
@@ -2900,6 +2922,7 @@ first_pattern(PAT_STATE *pstate)
 	           (rflags & (ROLE_DO_INCOLS|ROLE_INCOL) &&
 		    pat->action->is_a_incol) ||
 	           (rflags & ROLE_DO_OTHER && pat->action->is_a_other) ||
+	           (rflags & ROLE_DO_SRCH && pat->action->is_a_srch) ||
 	           (rflags & ROLE_DO_SCORES && pat->action->is_a_score) ||
 		   (rflags & ROLE_SCORE && pat->action->scoreval) ||
 		   (rflags & ROLE_DO_FILTER && pat->action->is_a_filter) ||
@@ -2948,30 +2971,34 @@ last_any_pattern(PAT_STATE *pstate)
 
 	switch(i){
 	  case 1:
-	    local_rflag = ROLE_DO_INCOLS & CANONICAL_RFLAGS(pstate->rflags);
+	    local_rflag = ROLE_DO_SRCH & CANONICAL_RFLAGS(pstate->rflags);
 	    break;
 
 	  case 2:
-	    local_rflag = ROLE_DO_ROLES & CANONICAL_RFLAGS(pstate->rflags);
+	    local_rflag = ROLE_DO_INCOLS & CANONICAL_RFLAGS(pstate->rflags);
 	    break;
 
 	  case 3:
-	    local_rflag = ROLE_DO_FILTER & CANONICAL_RFLAGS(pstate->rflags);
+	    local_rflag = ROLE_DO_ROLES & CANONICAL_RFLAGS(pstate->rflags);
 	    break;
 
 	  case 4:
-	    local_rflag = ROLE_DO_SCORES & CANONICAL_RFLAGS(pstate->rflags);
+	    local_rflag = ROLE_DO_FILTER & CANONICAL_RFLAGS(pstate->rflags);
 	    break;
 
 	  case 5:
-	    local_rflag = ROLE_DO_OTHER & CANONICAL_RFLAGS(pstate->rflags);
+	    local_rflag = ROLE_DO_SCORES & CANONICAL_RFLAGS(pstate->rflags);
 	    break;
 
 	  case 6:
-	    local_rflag = ROLE_OLD_FILT & CANONICAL_RFLAGS(pstate->rflags);
+	    local_rflag = ROLE_DO_OTHER & CANONICAL_RFLAGS(pstate->rflags);
 	    break;
 
 	  case 7:
+	    local_rflag = ROLE_OLD_FILT & CANONICAL_RFLAGS(pstate->rflags);
+	    break;
+
+	  case 8:
 	    local_rflag = ROLE_OLD_SCORE & CANONICAL_RFLAGS(pstate->rflags);
 	    break;
 
@@ -3036,6 +3063,7 @@ last_pattern(PAT_STATE *pstate)
 	           (rflags & (ROLE_DO_INCOLS|ROLE_INCOL) &&
 		    pat->action->is_a_incol) ||
 	           (rflags & ROLE_DO_OTHER && pat->action->is_a_other) ||
+	           (rflags & ROLE_DO_SRCH && pat->action->is_a_srch) ||
 	           (rflags & ROLE_DO_SCORES && pat->action->is_a_score) ||
 		   (rflags & ROLE_SCORE && pat->action->scoreval) ||
 		   (rflags & ROLE_DO_FILTER && pat->action->is_a_filter) ||
@@ -3120,6 +3148,7 @@ next_pattern(PAT_STATE *pstate)
 	           (rflags & (ROLE_DO_INCOLS|ROLE_INCOL) &&
 		    pat->action->is_a_incol) ||
 	           (rflags & ROLE_DO_OTHER && pat->action->is_a_other) ||
+	           (rflags & ROLE_DO_SRCH && pat->action->is_a_srch) ||
 	           (rflags & ROLE_DO_SCORES && pat->action->is_a_score) ||
 		   (rflags & ROLE_SCORE && pat->action->scoreval) ||
 		   (rflags & ROLE_DO_FILTER && pat->action->is_a_filter) ||
@@ -3203,6 +3232,7 @@ prev_pattern(PAT_STATE *pstate)
 	           (rflags & (ROLE_DO_INCOLS|ROLE_INCOL) &&
 		    pat->action->is_a_incol) ||
 	           (rflags & ROLE_DO_OTHER && pat->action->is_a_other) ||
+	           (rflags & ROLE_DO_SRCH && pat->action->is_a_srch) ||
 	           (rflags & ROLE_DO_SCORES && pat->action->is_a_score) ||
 		   (rflags & ROLE_SCORE && pat->action->scoreval) ||
 		   (rflags & ROLE_DO_FILTER && pat->action->is_a_filter) ||
@@ -3250,6 +3280,8 @@ write_patterns(long int rflags)
       err += sub_write_patterns(ROLE_DO_SCORES | (rflags & PAT_USE_MASK));
     if(!err && canon_rflags & ROLE_DO_ROLES)
       err += sub_write_patterns(ROLE_DO_ROLES  | (rflags & PAT_USE_MASK));
+    if(!err && canon_rflags & ROLE_DO_SRCH)
+      err += sub_write_patterns(ROLE_DO_SRCH   | (rflags & PAT_USE_MASK));
 
     if(!err && !(rflags & PAT_USE_CHANGED))
       write_pinerc(ps_global, (rflags & PAT_USE_MAIN) ? Main : Post, WRP_NONE);
@@ -3314,6 +3346,8 @@ sub_write_patterns(long int rflags)
 	      var = &ps_global->vars[V_PAT_SCORES];
 	    else if(rflags & ROLE_DO_INCOLS)
 	      var = &ps_global->vars[V_PAT_INCOLS];
+	    else if(rflags & ROLE_DO_SRCH)
+	      var = &ps_global->vars[V_PAT_SRCH];
 
 	    alval = (rflags & PAT_USE_CHANGED) ? &(var->changed_val.l)
 	      : ALVAL(var, (rflags & PAT_USE_MAIN) ? Main : Post);
@@ -4386,6 +4420,9 @@ data_for_patline(PAT_S *pat)
 
 	if(action->is_a_incol)
 	  sstrncpy(&q, "/ISINCOL=1", l-(q-p));
+
+	if(action->is_a_srch)
+	  sstrncpy(&q, "/ISSRCH=1", l-(q-p));
 
 	if(action->is_a_score)
 	  sstrncpy(&q, "/ISSCORE=1", l-(q-p));
@@ -6677,6 +6714,7 @@ copy_action(ACTION_S *action)
 	newaction->is_a_score  = action->is_a_score;
 	newaction->is_a_filter = action->is_a_filter;
 	newaction->is_a_other  = action->is_a_other;
+	newaction->is_a_srch   = action->is_a_srch;
 	newaction->repl_type   = action->repl_type;
 	newaction->forw_type   = action->forw_type;
 	newaction->comp_type   = action->comp_type;
@@ -6964,6 +7002,11 @@ process_filter_patterns(MAILSTREAM *stream, MSGNO_S *msgmap, long int recent)
 
     if(!msgmap || !stream)
       return;
+
+    if(stream->rdonly){
+	dprint((5, "process_filter_patterns: skipping because stream is readonly\n"));
+	return;
+    }
 
     if(!recent)
       sp_set_flags(stream, sp_flags(stream) | SP_FILTERED);

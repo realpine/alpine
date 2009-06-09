@@ -1,5 +1,5 @@
 /*
- * $Id: adrbklib.h 512 2007-04-05 17:14:45Z hubert@u.washington.edu $
+ * $Id: adrbklib.h 592 2007-06-07 17:46:58Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -624,8 +624,7 @@ typedef struct addrscreenstate {
                    zoomed,       /* zoomed into view only selected entries */
                    config,       /* called from config screen             */
                    n_serv,       /* how many directory servers are there  */
-                   n_impl,       /* how many of those have impl bit set   */
-                   selected_is_history;
+                   n_impl;       /* how many of those have impl bit set   */
 #ifdef	_WINDOWS
     long	   last_ent;	 /* index of last known entry		  */
 #endif
@@ -802,7 +801,7 @@ typedef struct _cust_filt {
 
 /* exported prototypes */
 AdrBk         *adrbk_open(PerAddrBook *, char *, char *, size_t, int);
-int            adrbk_is_in_sort_order(AdrBk *, int, int);
+int            adrbk_is_in_sort_order(AdrBk *, int);
 adrbk_cntr_t   adrbk_count(AdrBk *);
 AdrBk_Entry   *adrbk_get_ae(AdrBk *, a_c_arg_t);
 AdrBk_Entry   *adrbk_lookup_by_nick(AdrBk *, char *, adrbk_cntr_t *);
@@ -820,13 +819,13 @@ int            adrbk_append(AdrBk *, char *, char *, char *,
 int            adrbk_delete(AdrBk *, a_c_arg_t, int, int, int, int);
 int            adrbk_listdel(AdrBk *, a_c_arg_t, char *);
 int            adrbk_listdel_all(AdrBk *, a_c_arg_t);
-int            adrbk_nlistadd(AdrBk *, a_c_arg_t, char **,int,int,int);
+int            adrbk_nlistadd(AdrBk *, a_c_arg_t,adrbk_cntr_t *,int *,char **,int,int,int);
 void           adrbk_check_validity(AdrBk *, long);
 MAILSTREAM    *adrbk_handy_stream(char *);
 void           adrbk_close(AdrBk *);
 void           adrbk_partial_close(AdrBk *);
 void           note_closed_adrbk_stream(MAILSTREAM *);
-int            adrbk_write(AdrBk *, int, int, int);
+int            adrbk_write(AdrBk *, a_c_arg_t, adrbk_cntr_t *, int *, int, int);
 void           free_ae(AdrBk_Entry **);
 void           exp_free(EXPANDED_S *);
 int            exp_is_expanded(EXPANDED_S *, a_c_arg_t);
@@ -840,6 +839,7 @@ int            any_ab_open(void);
 void           init_ab_if_needed(void);
 int            init_addrbooks(OpenStatus, int, int, int);
 void           addrbook_reset(void);
+void           addrbook_redo_sorts(void);
 AccessType     adrbk_access(PerAddrBook *);
 void           trim_remote_adrbks(void);
 void           completely_done_with_adrbks(void);

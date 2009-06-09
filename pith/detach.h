@@ -1,5 +1,5 @@
 /*
- * $Id: detach.h 442 2007-02-16 23:01:28Z hubert@u.washington.edu $
+ * $Id: detach.h 602 2007-06-18 18:25:20Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -54,6 +54,7 @@ extern FETCH_READC_S *g_fr_desc;
  * it different from all those possible values.
  */
 #define DT_NODFILTER   (long) 0x10000
+#define DT_NOINTR      (long) 0x20000
 
 
 /* exported protoypes */

@@ -1,8 +1,8 @@
 /*
- * $Id: stream.h 394 2007-01-25 20:29:45Z hubert@u.washington.edu $
+ * $Id: stream.h 600 2007-06-15 23:23:02Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -460,6 +460,8 @@ int	       same_remote_mailboxes(char *, char *);
 int	       is_imap_stream(MAILSTREAM *);
 int	       modern_imap_stream(MAILSTREAM *);
 int	       streams_died(void);
+void           appenduid_cb(char *mailbox,unsigned long uidvalidity, SEARCHSET *set);
+imapuid_t      get_last_append_uid(void);
 MAILSTREAM    *mail_cmd_stream(CONTEXT_S *, int *);
 long           dummy_soutr(void *, char *);
 

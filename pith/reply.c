@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: reply.c 543 2007-04-26 04:06:02Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: reply.c 605 2007-06-20 21:15:13Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -40,6 +40,7 @@ static char rcsid[] = "$Id: reply.c 543 2007-04-26 04:06:02Z mikes@u.washington.
 #include "../pith/stream.h"
 #include "../pith/busy.h"
 #include "../pith/readfile.h"
+#include "../pith/text.h"
 
 
 /*
@@ -949,7 +950,7 @@ reply_body(MAILSTREAM *stream, ENVELOPE *env, struct mail_bodystruct *orig_body,
 		get_body_part_text(stream, reply_raw_body ? NULL : tmp_body, msgno,
 				   reply_raw_body ? sect_prefix
 				   : (p = body_partno(stream, msgno, tmp_body)),
-				   0L, pc, prefix, NULL);
+				   0L, pc, prefix, NULL, GBPT_NONE);
 		if(!reply_raw_body && p)
 		  fs_give((void **) &p);
 	    }
@@ -985,7 +986,7 @@ reply_body(MAILSTREAM *stream, ENVELOPE *env, struct mail_bodystruct *orig_body,
 
 		    get_body_part_text(stream, tmp_body, msgno,
 				       p = body_partno(stream,msgno,tmp_body),
-				       0L, pc, prefix, NULL);
+				       0L, pc, prefix, NULL, GBPT_NONE);
 		    fs_give((void **) &p);
 		}
 		else
@@ -1022,7 +1023,8 @@ reply_body(MAILSTREAM *stream, ENVELOPE *env, struct mail_bodystruct *orig_body,
 
 		    if(!(get_body_part_text(stream,
 					    &body->nested.part->body,
-					    msgno, section, 0L, pc, prefix, &new_charset)
+					    msgno, section, 0L, pc, prefix,
+					    &new_charset, GBPT_NONE)
 			 && fetch_contents(stream, msgno, sect_prefix, body)))
 		      q_status_message(SM_ORDER | SM_DING, 3, 4,
 				       _("Error including all message parts"));
@@ -1051,7 +1053,8 @@ reply_body(MAILSTREAM *stream, ENVELOPE *env, struct mail_bodystruct *orig_body,
 		    sect_buf[sizeof(sect_buf)-1] = '\0';
 		    fs_give((void **) &p);
 		    get_body_part_text(stream, tmp_body, msgno,
-				       sect_buf, 0L, pc, prefix, NULL);
+				       sect_buf, 0L, pc, prefix,
+				       NULL, GBPT_NONE);
 
 		    part = body->nested.part->next;
 		    body->nested.part->next = NULL;
@@ -2102,7 +2105,8 @@ forward_body(MAILSTREAM *stream, ENVELOPE *env, struct mail_bodystruct *orig_bod
 	    reply_forward_header(stream, msgno, sect_prefix, env, pc, "");
 	}
 
-	if(!get_body_part_text(stream, forward_raw_body ? NULL : orig_body, msgno, section, 0L, pc, NULL, NULL)){
+	if(!get_body_part_text(stream, forward_raw_body ? NULL : orig_body,
+			       msgno, section, 0L, pc, NULL, NULL, GBPT_NONE)){
 	    mail_free_body(&body);
 	    return(NULL);
 	}
@@ -2156,7 +2160,8 @@ forward_body(MAILSTREAM *stream, ENVELOPE *env, struct mail_bodystruct *orig_bod
 		}
 
 		if(!(get_body_part_text(stream, &orig_body->nested.part->body,
-					msgno, section, 0L, pc, NULL, &new_charset)
+					msgno, section, 0L, pc,
+					NULL, &new_charset, GBPT_NONE)
 		     && fetch_contents(stream, msgno, sect_prefix, body)))
 		  mail_free_body(&body);
 		else if(new_charset)
@@ -2349,7 +2354,7 @@ bounce_msg_body(MAILSTREAM *stream,
     }
 
     /* pass NULL body to force mail_fetchtext */
-    if(!get_body_part_text(stream, NULL, rawno, part, 0L, pc, NULL, NULL))
+    if(!get_body_part_text(stream, NULL, rawno, part, 0L, pc, NULL, NULL, GBPT_NONE))
       errstr = _("Error fetching message contents. Can't Bounce message");
 
     gf_clear_so_writec(msgtext);
@@ -2407,14 +2412,17 @@ As with all internal text, NVT end-of-line conventions are observed.
 DOESN'T sanity check the prefix given!!!
   ----*/
 int
-get_body_part_text(MAILSTREAM *stream, struct mail_bodystruct *body, long int msg_no,
-		   char *part_no, long partial, gf_io_t pc, char *prefix, char **ret_charset)
+get_body_part_text(MAILSTREAM *stream, struct mail_bodystruct *body,
+		   long int msg_no, char *part_no, long partial, gf_io_t pc,
+		   char *prefix, char **ret_charset, unsigned flags)
 {
     int		i, we_cancel = 0, dashdata, wrapflags = GFW_FORCOMPOSE, flow_res = 0;
-    FILTLIST_S  filters[11];
+    FILTLIST_S  filters[12];
     long	len;
     char       *err, *charset, *prefix_p = NULL;
-    int		filtcnt = 0, flags = 0;
+    int		filtcnt = 0;
+    char       *free_this = NULL;
+    DELQ_S      dq;
 
     memset(filters, 0, sizeof(filters));
     if(ret_charset)
@@ -2589,8 +2597,27 @@ get_body_part_text(MAILSTREAM *stream, struct mail_bodystruct *body, long int ms
 	}
     }
 
+    if(flags & GBPT_DELQUOTES){
+	memset(&dq, 0, sizeof(dq));
+	dq.lines = Q_DEL_ALL;
+	dq.is_flowed = 0;
+	dq.indent_length = 0;
+	dq.saved_line = &free_this;
+	dq.handlesp   = NULL;
+	dq.do_color   = 0;
+	dq.delete_all = 1;
+
+	filters[filtcnt].filter = gf_line_test;
+	filters[filtcnt++].data = gf_line_test_opt(delete_quotes, &dq);
+    }
+
     err = detach(stream, msg_no, part_no, partial, &len, pc,
-		 filters[0].filter ? filters : NULL, (partial > 0L) ? FT_PEEK : 0);
+		 filters[0].filter ? filters : NULL,
+		 ((flags & GBPT_PEEK) ? FT_PEEK : 0)
+		 | ((flags & GBPT_NOINTR) ? DT_NOINTR : 0));
+
+    if(free_this)
+      fs_give((void **) &free_this);
 
     if(prefix_p)
       *prefix_p = ' ';
@@ -3358,7 +3385,8 @@ forward_multi_alt(MAILSTREAM *stream, ENVELOPE *env, struct mail_bodystruct *ori
 		sect_prefix ? "." : "", flags & FWD_NESTED ? "1." : "",
 		partnum);
 	tmp_buf[sizeof(tmp_buf)-1] = '\0';
-	get_body_part_text(stream, body, msgno, tmp_buf, 0L, pc, NULL, &new_charset);
+	get_body_part_text(stream, body, msgno, tmp_buf, 0L, pc,
+			   NULL, &new_charset, GBPT_NONE);
 
 	/*
 	 * get_body_part_text translated the data to a new charset.

@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: color.c 140 2006-09-26 19:30:49Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: color.c 577 2007-05-22 22:16:43Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -57,11 +57,8 @@ colorcmp(char *color1, char *color2)
 {
     char buf[RGBLEN+1];
 
-    if(color1 && color2){
-	strncpy(buf, color_to_asciirgb(color1), sizeof(buf));
-	buf[sizeof(buf)-1] = '\0';
-	return(strcmp(buf, color_to_asciirgb(color2)));
-    }
+    if(color1 && color2)
+      return(strcmp(color_to_asciirgb(color1), color_to_asciirgb(color2)));
 
     /* if both NULL they're the same? */
     return(!(color1 || color2));

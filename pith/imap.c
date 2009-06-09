@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: imap.c 473 2007-03-07 23:16:56Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: imap.c 600 2007-06-15 23:23:02Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -753,7 +753,7 @@ imap_seq_exec(MAILSTREAM *stream, char *sequence,
 long
 imap_seq_exec_append(MAILSTREAM *stream, long int msgno, void *args)
 {
-    char	 *save_folder, flags[64], date[64];
+    char	 *save_folder, *flags = NULL, date[64];
     CONTEXT_S    *cntxt = NULL;
     int		  our_stream = 0;
     long	  rv = 0L;
@@ -772,7 +772,7 @@ imap_seq_exec_append(MAILSTREAM *stream, long int msgno, void *args)
 	mc = (msgno > 0L && stream && msgno <= stream->nmsgs)
 		? mail_elt(stream, msgno) : NULL;
 
-	flag_string(mc, F_ANS|F_FLAG|F_SEEN, flags, sizeof(flags));
+	flags = flag_string(stream, msgno, F_ANS|F_FLAG|F_SEEN|F_KEYWORD);
 	if(mc && mc->day)
 	  mail_date(date, mc);
 	else
@@ -781,6 +781,9 @@ imap_seq_exec_append(MAILSTREAM *stream, long int msgno, void *args)
 	rv = save_fetch_append(stream, msgno, NULL,
 			       save_stream, save_folder, NULL,
 			       mc ? mc->rfc822_size : 0L, flags, date, so);
+	if(flags)
+	  fs_give((void **) &flags);
+
 	if(rv < 0 || sp_expunge_count(stream)){
 	    cmd_cancelled("Attached message Save");
 	    rv = 0L;

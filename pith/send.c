@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: send.c 495 2007-03-29 17:50:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: send.c 605 2007-06-20 21:15:13Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -799,7 +799,7 @@ redraft_work(MAILSTREAM **streamp, long int cont_msg, ENVELOPE **outgoing,
 		
 	    ps_global->postpone_no_flow = 1;
 	    get_body_part_text(stream, &b->nested.part->body,
-			       cont_msg, "1", 0L, pc, NULL, NULL);
+			       cont_msg, "1", 0L, pc, NULL, NULL, GBPT_NONE);
 	    ps_global->postpone_no_flow = 0;
 
 	    if(!fetch_contents(stream, cont_msg, NULL, *body))
@@ -823,7 +823,8 @@ redraft_work(MAILSTREAM **streamp, long int cont_msg, ENVELOPE **outgoing,
 
 	    (*body)->contents.text.data = (void *)so;
 	    ps_global->postpone_no_flow = 1;
-	    get_body_part_text(stream, b, cont_msg, "1", 0L, pc, NULL, NULL);
+	    get_body_part_text(stream, b, cont_msg, "1", 0L, pc,
+			       NULL, NULL, GBPT_NONE);
 	    ps_global->postpone_no_flow = 0;
 	}
 

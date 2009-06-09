@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: color.c 548 2007-04-27 19:21:20Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: color.c 577 2007-05-22 22:16:43Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -23,6 +23,7 @@ static char rcsid[] = "$Id: color.c 548 2007-04-27 19:21:20Z hubert@u.washington
 
 #include "terminal.h"
 #include "color.h"
+#include "../../pith/osdep/color.h"
 
 #ifndef	_WINDOWS
 
@@ -414,7 +415,7 @@ tfgcolor(int color)
 	 * set default colors
 	 * if (current background was not default) reset it
 	 */
-	if(_last_bg_color && strcmp(_last_bg_color, "transparent")){
+	if(_last_bg_color && strncmp(_last_bg_color, MATCH_TRAN_COLOR, RGBLEN)){
 	    strncpy(bg_color_was, _last_bg_color, sizeof(bg_color_was));
 	    bg_color_was[sizeof(bg_color_was)-1] = '\0';
 	}
@@ -482,7 +483,7 @@ tbgcolor(int color)
 	 * set default colors
 	 * if (current foreground was not default) reset it
 	 */
-	if(_last_fg_color && strcmp(_last_fg_color, "transparent")){
+	if(_last_fg_color && strncmp(_last_fg_color, MATCH_TRAN_COLOR, RGBLEN)){
 	    strncpy(fg_color_was, _last_fg_color, sizeof(fg_color_was));
 	    fg_color_was[sizeof(fg_color_was)-1] = '\0';
 	}
@@ -612,7 +613,7 @@ init_color_table(void)
 	    }
 
 	    if(COL_TRANS() && i == count-1){
-		strncpy(colorname, "transparent", sizeof(colorname));
+		strncpy(colorname, MATCH_TRAN_COLOR, sizeof(colorname));
 		colorname[sizeof(colorname)-1] = '\0';
 	    }
 
@@ -813,7 +814,7 @@ init_color_table(void)
 	for(i = 0, t = ct; t && i < count; i++, t++){
 	    t->rgb = (char *)fs_get((RGBLEN+1) * sizeof(char));
 	    if(COL_TRANS() && i == count-1)
-	      snprintf(t->rgb, RGBLEN+1, "transparent");
+	      snprintf(t->rgb, RGBLEN+1, MATCH_TRAN_COLOR);
 	    else
 	      snprintf(t->rgb, RGBLEN+1, "%3.3d,%3.3d,%3.3d", t->red, t->green, t->blue);
 	}
@@ -953,6 +954,8 @@ color_to_canonical_name(char *s)
     /* rgb is the canonical name */
     if(ct->names)
       return(ct->rgb);
+    else if(!struncmp(s, MATCH_NORM_COLOR, RGBLEN) || !struncmp(s, MATCH_NONE_COLOR, RGBLEN))
+      return(s);
     
     return("");
 }
@@ -1425,6 +1428,8 @@ pico_is_good_color(char *s)
 
     if(!strcmp(s, END_PSEUDO_REVERSE))
       return(TRUE);
+    else if(!struncmp(s, MATCH_NORM_COLOR, RGBLEN) || !struncmp(s, MATCH_NONE_COLOR, RGBLEN))
+      return(TRUE);
     else if(*s == ' ' || isdigit(*s)){
 	/* check for rgb string instead of name */
 	for(ct = color_tbl; ct->rgb; ct++)
@@ -1493,6 +1498,11 @@ pico_set_fg_color(char *s)
 	return(TRUE);
     }
 
+    if(!struncmp(s, MATCH_NORM_COLOR, RGBLEN))
+      s = _nfcolor;
+    else if(!struncmp(s, MATCH_NONE_COLOR, RGBLEN))
+      return(TRUE);
+
     if((val = color_to_val(s)) >= 0){
 	size_t len;
 	int changed;
@@ -1537,6 +1547,11 @@ pico_set_bg_color(char *s)
 	return(TRUE);
     }
 
+    if(!struncmp(s, MATCH_NORM_COLOR, RGBLEN))
+      s = _nbcolor;
+    else if(!struncmp(s, MATCH_NONE_COLOR, RGBLEN))
+      return(TRUE);
+
     if((val = color_to_val(s)) >= 0){
 	size_t len;
 	int changed;
@@ -1574,17 +1589,21 @@ pico_set_bg_color(char *s)
  *
  * Args    colorName -- The color to convert to ascii rgb.
  *
- * Returns  Pointer to a static buffer containing the rgb string.
+ * Returns  Pointer to a static buffer containing the rgb string. Can use up
+ * to three returned values at once before the first is overwritten.
  */
 char *
 color_to_asciirgb(char *colorName)
 {
-    static char c_to_a_buf[RGBLEN+1];
+    static char c_to_a_buf[3][RGBLEN+1];
+    static int whichbuf = 0;
     struct color_table *ct;
     struct color_name_list *nl;
     int done;
 
-    c_to_a_buf[0] = '\0';
+    whichbuf = (whichbuf + 1) % 3;
+
+    c_to_a_buf[whichbuf][0] = '\0';
 
     for(done=0, ct = color_tbl; !done && ct->names; ct++){
       for(nl = ct->names; !done && nl; nl = nl->next)
@@ -1596,8 +1615,8 @@ color_to_asciirgb(char *colorName)
     }
     
     if(ct && ct->names){
-	strncpy(c_to_a_buf, ct->rgb, sizeof(c_to_a_buf));
-	c_to_a_buf[sizeof(c_to_a_buf)-1] = '\0';
+	strncpy(c_to_a_buf[whichbuf], ct->rgb, sizeof(c_to_a_buf[0]));
+	c_to_a_buf[whichbuf][sizeof(c_to_a_buf[0])-1] = '\0';
     }
     else if(*colorName == ' ' || isdigit(*colorName)){
 	/* check for rgb string instead of name */
@@ -1634,20 +1653,24 @@ color_to_asciirgb(char *colorName)
 
 	    if(r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255){
 		/* it was already RGB */
-		snprintf(c_to_a_buf, sizeof(c_to_a_buf), "%3.3d,%3.3d,%3.3d", r, g, b);
+		snprintf(c_to_a_buf[whichbuf], sizeof(c_to_a_buf[0]), "%3.3d,%3.3d,%3.3d", r, g, b);
 	    }
 	}
 	else{
-	    strncpy(c_to_a_buf, ct->rgb, sizeof(c_to_a_buf));
-	    c_to_a_buf[sizeof(c_to_a_buf)-1] = '\0';
+	    strncpy(c_to_a_buf[whichbuf], ct->rgb, sizeof(c_to_a_buf[0]));
+	    c_to_a_buf[whichbuf][sizeof(c_to_a_buf[0])-1] = '\0';
 	}
     }
 
-    if(!c_to_a_buf[0]){
+    if(!c_to_a_buf[whichbuf][0]){
 	int l;
 
 	/*
-	 * If we didn't find the color we're in a bit of trouble. This
+	 * If we didn't find the color it could be that it is the
+	 * normal color (MATCH_NORM_COLOR) or the none color
+	 * (MATCH_NONE_COLOR). If that is the case, this strncpy thing
+	 * will work out correctly because those two strings are
+	 * RGBLEN long. Otherwise we're in a bit of trouble. This
 	 * most likely means that the user is using the same pinerc on
 	 * two terminals, one with more colors than the other. We didn't
 	 * find a match because this color isn't present on this terminal.
@@ -1657,13 +1680,13 @@ color_to_asciirgb(char *colorName)
 	 * but at least the embedded colors in filter.c will get properly
 	 * sucked up when they're encountered.
 	 */
-	strncpy(c_to_a_buf, "xxxxxxxxxxx", RGBLEN);  /* RGBLEN is 11 */
+	strncpy(c_to_a_buf[whichbuf], "xxxxxxxxxxx", RGBLEN);  /* RGBLEN is 11 */
 	l = strlen(colorName);
-	strncpy(c_to_a_buf, colorName, (l < RGBLEN) ? l : RGBLEN);
-	c_to_a_buf[RGBLEN] = '\0';
+	strncpy(c_to_a_buf[whichbuf], colorName, (l < RGBLEN) ? l : RGBLEN);
+	c_to_a_buf[whichbuf][RGBLEN] = '\0';
     }
     
-    return(c_to_a_buf);
+    return(c_to_a_buf[whichbuf]);
 }
 
 

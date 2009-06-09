@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: thread.c 155 2006-09-29 23:28:46Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: thread.c 598 2007-06-12 17:36:59Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1033,7 +1033,7 @@ status_symbol_for_thread(MAILSTREAM *stream, PINETHRD_S *thrd, IndexColType type
 	      status = (cnt == tot_in_thrd) ? 'N' : 'n';
 	}
     }
-    else if(type == iIStatus){
+    else if(type == iIStatus || type == iSIStatus){
 	tot_in_thrd = count_flags_in_thread(stream, thrd, F_NONE);
 
 	/* unseen and recent */

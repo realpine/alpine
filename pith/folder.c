@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: folder.c 473 2007-03-07 23:16:56Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: folder.c 612 2007-06-27 17:07:47Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -59,6 +59,7 @@ int	    folder_insert_sorted(int, int, int, FOLDER_S *, FLIST *,
 void        folder_insert_index(FOLDER_S *, int, FLIST *);
 void        folder_delete(int, FLIST *);
 int         compare_names(const qsort_t *, const qsort_t *);
+void        init_incoming_unseen_data(struct pine *, FOLDER_S *f);
 
 
 char *
@@ -444,18 +445,23 @@ void
 mail_list_response(MAILSTREAM *stream, char *mailbox, int delim, long int attribs,
 		   void *data, unsigned int options)
 {
+    int counted = 0;
+
     if(delim)
       ((LISTRES_S *) data)->delim = delim;
 
     if(mailbox && *mailbox){
 	if(!(attribs & LATT_NOSELECT)){
+	    counted++;
 	    ((LISTRES_S *) data)->isfile  = 1;
 	    ((LISTRES_S *) data)->count	 += 1;
 	}
 
 	if(!(attribs & LATT_NOINFERIORS)){
 	    ((LISTRES_S *) data)->isdir  = 1;
-	    ((LISTRES_S *) data)->count += 1;
+
+	    if(!counted)
+	      ((LISTRES_S *) data)->count += 1;
 	}
 
 	if(attribs & LATT_HASCHILDREN)
@@ -667,32 +673,41 @@ init_incoming_folder_list(struct pine *ps, CONTEXT_S *cntxt)
 	      fs_give((void **)&nickname);
 	}
 
-	/* see if this folder is in the monitoring list */
-	in_list = 0;
-	if(!ps->VAR_INCCHECKLIST)
-	  in_list++;			/* everything in by default */
-	else{
-	    for(j = 0; !in_list && ps->VAR_INCCHECKLIST[j]; j++){
-		if((f->nickname && !strucmp(ps->VAR_INCCHECKLIST[j],f->nickname))
-		   || (f->name && !strucmp(ps->VAR_INCCHECKLIST[j],f->name)))
-		  in_list++;
-	    }
-	}
-
-	if(in_list){
-	    if(F_ON(F_ENABLE_INCOMING_UNSEEN, ps))
-	      f->last_unseen_update = LUU_INIT;
-	    else
-	      f->last_unseen_update = LUU_NOMORECHK;
-	}
-	else
-	  f->last_unseen_update = LUU_NEVERCHK;
+	init_incoming_unseen_data(ps, f);
 
 	folder_insert(f->nickname 
 		      && (strucmp(f->nickname, ps->inbox_name) == 0)
 			    ? -1 : folder_total(FOLDERS(cntxt)),
 		      f, FOLDERS(cntxt));
     }
+}
+
+
+void
+init_incoming_unseen_data(struct pine *ps, FOLDER_S *f)
+{
+    int j, check_this = 0;
+
+    if(!f)
+      return;
+
+    /* see if this folder is in the monitoring list */
+    if(F_ON(F_ENABLE_INCOMING_CHECKING, ps)){
+	if(!ps->VAR_INCCHECKLIST)
+	  check_this++;			/* everything in by default */
+	else{
+	    for(j = 0; !check_this && ps->VAR_INCCHECKLIST[j]; j++){
+		if((f->nickname && !strucmp(ps->VAR_INCCHECKLIST[j],f->nickname))
+		   || (f->name && !strucmp(ps->VAR_INCCHECKLIST[j],f->name)))
+		  check_this++;
+	    }
+	}
+    }
+
+    if(check_this)
+      f->last_unseen_update = LUU_INIT;
+    else
+      f->last_unseen_update = LUU_NEVERCHK;
 }
 
 
@@ -713,7 +728,7 @@ void
 init_inbox_mapping(char *path, CONTEXT_S *cntxt)
 {
     FOLDER_S *f;
-    int in_list, j;
+    int check_this, j;
 
     /*
      * If mapping already exists, blast it and replace it below...
@@ -733,23 +748,21 @@ init_inbox_mapping(char *path, CONTEXT_S *cntxt)
     f->isfolder = 1;
 
     /* see if this folder is in the monitoring list */
-    in_list = 0;
-    if(!ps_global->VAR_INCCHECKLIST)
-      in_list++;			/* everything in by default */
-    else{
-	for(j = 0; !in_list && ps_global->VAR_INCCHECKLIST[j]; j++){
-	    if((f->nickname && !strucmp(ps_global->VAR_INCCHECKLIST[j],f->nickname))
-	       || (f->name && !strucmp(ps_global->VAR_INCCHECKLIST[j],f->name)))
-	      in_list++;
+    check_this = 0;
+    if(F_ON(F_ENABLE_INCOMING_CHECKING, ps_global)){
+	if(!ps_global->VAR_INCCHECKLIST)
+	  check_this++;			/* everything in by default */
+	else{
+	    for(j = 0; !check_this && ps_global->VAR_INCCHECKLIST[j]; j++){
+		if((f->nickname && !strucmp(ps_global->VAR_INCCHECKLIST[j],f->nickname))
+		   || (f->name && !strucmp(ps_global->VAR_INCCHECKLIST[j],f->name)))
+		  check_this++;
+	    }
 	}
     }
 
-    if(in_list){
-	if(F_ON(F_ENABLE_INCOMING_UNSEEN, ps_global))
-	  f->last_unseen_update = LUU_INIT;
-	else
-	  f->last_unseen_update = LUU_NOMORECHK;
-    }
+    if(check_this)
+      f->last_unseen_update = LUU_INIT;
     else
       f->last_unseen_update = LUU_NEVERCHK;
 
@@ -1034,18 +1047,34 @@ build_folder_list(MAILSTREAM **stream, CONTEXT_S *context, char *pat, char *cont
 		  *p   = '\0';
 
 		  pine_mail_list(ldata.stream, reference, "%", NULL);
+
+		  /* anything interesting inside? */
+		  f->hasnochildren = (listres.count <= 1L);
+		  f->haschildren   = !f->hasnochildren;;
 	      }
 
-	      /* anything interesting inside? */
-	      if(f->hasnochildren ||
-		 (!f->haschildren && listres.count <= 1L)){
+	      if(f->hasnochildren){
 		  if(f->isfolder){
 		      f->isdir = 0;
 		  }
-		  else{
-		      folder_delete(i, FOLDERS(context));
-		      i--;	/* offset inc'ing */
-		  }
+		  /*
+		   * If F_QUELL_EMPTY_DIRS really means to quell
+		   * all empty dirs then we would include the
+		   * following code here.
+		   *
+		   * else{
+		   *     folder_delete(i, FOLDERS(context));
+		   *     i--;
+		   * }
+		   *
+		   * However, we don't want to hide directories
+		   * that are only directories even if they are
+		   * empty. We only want to hide the directory
+		   * piece of a dual-use folder when there are
+		   * no children in the directory (and the user
+		   * most likely thinks of it as a folder instead
+		   * of a folder and a directory).
+		   */
 	      }
 	  }
     }
@@ -1072,6 +1101,9 @@ mail_list_filter(MAILSTREAM *stream, char *mailbox, int delim, long int attribs,
     BFL_DATA_S *ld = (BFL_DATA_S *) data;
     FOLDER_S   *new_f = NULL, *dual_f = NULL;
 
+    if(!ld)
+      return;
+
     if(delim)
       ld->response.delim = delim;
 
@@ -1089,10 +1121,30 @@ mail_list_filter(MAILSTREAM *stream, char *mailbox, int delim, long int attribs,
 				ld->args.name, ld->args.tail))
       return;
 
-    /* Does result  */
+    /* ignore dotfolders unless told not to */
     if(F_OFF(F_ENABLE_DOT_FOLDERS, ps_global) && *mailbox == '.'){
 	dprint((3, "mail_list_filter: dotfolder disallowed"));
 	return;
+    }
+
+    /*
+     * If this response is INBOX then check to see if INBOX
+     * is already in the list (which it would be if we added it with
+     * init_inbox_mapping) and skip it if it's there.
+     * One consequence of this is that if this inbox is
+     * actually the real inbox then we aren't going to mark
+     * it as dual-use even if it is dual-use. If we wanted to
+     * make that work it would be difficult because we somehow
+     * need to figure out that the returned INBOX really is
+     * our inbox with the same path and everything.
+     */
+    if(!strucmp(mailbox, ps_global->inbox_name)){
+	int	      i;
+
+	/* is it already in the folder list? */
+	for(i = 0; i < folder_total(ld->list); i++)
+	  if(!strucmp(FLDR_NAME(folder_entry(i, ld->list)), ps_global->inbox_name))
+	    return;
     }
 
     if(!(attribs & LATT_NOSELECT)){
@@ -1113,50 +1165,30 @@ mail_list_filter(MAILSTREAM *stream, char *mailbox, int delim, long int attribs,
 	ld->response.count++;
 	ld->response.isdir = 1;
 
-	if(F_OFF(F_SEPARATE_FLDR_AS_DIR, ps_global) && !strucmp(mailbox, "inbox")){
-	    FOLDER_S *f;
-	    int	      i;
+	if(!new_f)
+	  new_f = new_folder(mailbox, 0);
 
-	    for(i = 0; i < folder_total(ld->list); i++)
-	      if(!strucmp((f = folder_entry(i, ld->list))->name, "inbox")){
-		  f->isdir = 1;
-		  if(attribs & LATT_HASCHILDREN)
-		    f->haschildren = 1;
-		  if(attribs & LATT_HASNOCHILDREN)
-		    f->hasnochildren = 1;
-		  break;
-	      }
-	}
-	else{
-	    int dual;
+	new_f->isdir = 1;
+	if(attribs & LATT_HASCHILDREN)
+	  new_f->haschildren = 1;
+	if(attribs & LATT_HASNOCHILDREN)
+	  new_f->hasnochildren = 1;
 
-	    if(!new_f)
-	      new_f = new_folder(mailbox, 0);
-
-	    new_f->isdir = 1;
+	/*
+	 * When we have F_SEPARATE_FLDR_AS_DIR we still want to know
+	 * whether the name really represents both so that we don't
+	 * inadvertently delete both when the user meant one or the
+	 * other.
+	 */
+	if(dual_f){
 	    if(attribs & LATT_HASCHILDREN)
-	      new_f->haschildren = 1;
+	      dual_f->haschildren = 1;
+
 	    if(attribs & LATT_HASNOCHILDREN)
-	      new_f->hasnochildren = 1;
+	      dual_f->hasnochildren = 1;
 
-	    /*
-	     * When we have F_SEPARATE_FLDR_AS_DIR we still want to know
-	     * whether the name really represents both so that we don't
-	     * inadvertently delete both when the user meant one or the
-	     * other.
-	     */
-	    if(dual_f){
-		if(attribs & LATT_HASCHILDREN)
-		  dual_f->haschildren = 1;
-		if(attribs & LATT_HASNOCHILDREN)
-		  dual_f->hasnochildren = 1;
-
-		dual_f->isdual = dual = 1;
-	    }
-	    else
-	      dual = 0;
-
-	    new_f->isdual = dual;
+	    dual_f->isdual = 1;
+	    new_f->isdual = 1;
 	}
     }
 
@@ -1850,18 +1882,18 @@ compare_folders_alpha_dir(FOLDER_S *f1, FOLDER_S *f2)
  * if necessary.
  */
 void
-folder_unseen_count_updater(int force)
+folder_unseen_count_updater(unsigned long flags)
 {
   CONTEXT_S *ctxt;
   time_t oldest, started_checking;
-  int ftotal, i, first = -1, next, check_this;
+  int ftotal, i, first = -1;
   FOLDER_S *f;
-  
+
   /*
    * We would only do this if there is an incoming collection, the
    * user wants us to monitor, and we're in the folder screen.
    */
-  if(ps_global->in_folder_screen && F_ON(F_ENABLE_INCOMING_UNSEEN, ps_global)
+  if(ps_global->in_folder_screen && F_ON(F_ENABLE_INCOMING_CHECKING, ps_global)
      && (ctxt=ps_global->context_list) && ctxt->use & CNTXT_INCMNG
      && (ftotal = folder_total(FOLDERS(ctxt)))){
     /*
@@ -1874,7 +1906,7 @@ folder_unseen_count_updater(int force)
      */
     for(i = 0; i < ftotal; i++){
       f = folder_entry(i, FOLDERS(ctxt));
-      if(LUU_YES(f->last_unseen_update)){
+      if(f && LUU_YES(f->last_unseen_update)){
 	first = i;
 	oldest = f->last_unseen_update;
 	break;
@@ -1890,7 +1922,7 @@ folder_unseen_count_updater(int force)
     if(first >= 0){
       for(i = 1; i < ftotal; i++){
         f = folder_entry(i, FOLDERS(ctxt));
-        if(LUU_YES(f->last_unseen_update) && f->last_unseen_update < oldest){
+        if(f && LUU_YES(f->last_unseen_update) && f->last_unseen_update < oldest){
 	  first = i;
 	  oldest = f->last_unseen_update;
 	}
@@ -1900,43 +1932,25 @@ folder_unseen_count_updater(int force)
     /* now first is the next one to be checked */
 
     started_checking = time(0);
-    next = first;
 
-    /* only check for 3 or 4 seconds */
-    while(next >= 0 && (time(0) - started_checking) < MIN(4,ps_global->inc_check_timeout)){
+    for(i = first; i < ftotal; i++){
       /* update the next one */
-      check_this = next;
-      next = -1;
-      f = folder_entry(check_this, FOLDERS(ctxt));
-      if(!force && (time(0) - f->last_unseen_update) < ps_global->inc_check_interval)
-	next = -1;
-      else{
+      f = folder_entry(i, FOLDERS(ctxt));
+      if(f && LUU_YES(f->last_unseen_update)
+         && (flags & UFU_FORCE
+	     /* or it's been long enough and we've not been in this function too long */
+	     || (((time(0) - f->last_unseen_update) >= ps_global->inc_check_interval)
+		 && ((time(0) - started_checking) < MIN(4,ps_global->inc_check_timeout)))))
+	update_folder_unseen(f, ctxt, flags);
+    }
 
-	update_folder_unseen(f, ctxt, UFU_ANNOUNCE | (force ? UFU_FORCE : 0));
-
-	/* find next one to check */
-
-	/* still checking entries after the first one */
-	if(check_this >= first){
-	  for(i = check_this+1; next == -1 && i < ftotal; i++){
-	    f = folder_entry(i, FOLDERS(ctxt));
-	    if(LUU_YES(f->last_unseen_update)
-	       && (force || (time(0) - f->last_unseen_update) >= ps_global->inc_check_interval)){
-	      next = i;
-	    }
-	  }
-	}
-
-	/* wrap back to beginning of list */
-	for(i = 0; next == -1 && i < first; i++){
-	  f = folder_entry(i, FOLDERS(ctxt));
-	  if(LUU_YES(f->last_unseen_update)
-	     && (force || (time(0) - f->last_unseen_update) >= ps_global->inc_check_interval)){
-	    next = i;
-	    break;
-	  }
-	}
-      }
+    for(i = 0; i < first; i++){
+      f = folder_entry(i, FOLDERS(ctxt));
+      if(f && LUU_YES(f->last_unseen_update)
+         && (flags & UFU_FORCE
+	     || (((time(0) - f->last_unseen_update) >= ps_global->inc_check_interval)
+		 && ((time(0) - started_checking) < MIN(4,ps_global->inc_check_timeout)))))
+	update_folder_unseen(f, ctxt, flags);
     }
   }
 }
@@ -1948,44 +1962,121 @@ folder_unseen_count_updater(int force)
  * interval has passed or if the FORCE flag is set.
  */
 void
-update_folder_unseen(FOLDER_S *f, CONTEXT_S *ctxt, long unsigned int flags)
+update_folder_unseen(FOLDER_S *f, CONTEXT_S *ctxt, unsigned long flags)
 {
     time_t now;
     int orig_valid;
-    unsigned long orig_unseen, orig_recent;
+    int use_imap_interval = 0;
+    int stream_is_open = 0;
+    unsigned long orig_unseen, orig_new, orig_tot;
+    char mailbox_name[MAILTMPLEN];
+    char *target = NULL;
+    DRIVER *d;
 
     if(!f || !LUU_YES(f->last_unseen_update))
       return;
 
     now = time(0);
+    context_apply(mailbox_name, ctxt, f->name, MAILTMPLEN);
 
-    if(flags & UFU_FORCE || (now - f->last_unseen_update) >= ps_global->inc_check_interval){
-	char mailbox_name[MAXPATH+1];
-	unsigned long tot, uns, rec;
+    if(!mailbox_name[0])
+      return;
 
-	orig_valid = f->unseen_valid;
+    if(check_for_move_mbox(mailbox_name, NULL, 0, &target)){
+	MAILSTREAM *strm;
+
+	/*
+	 * If this maildrop is the currently open stream use that.
+	 * I'm not altogether sure that this is a good way to
+	 * check this.
+	 */
+	if(target
+	   && ((strm=ps_global->mail_stream)
+		&& strm->snarf.name
+		&& (!strcmp(target,strm->mailbox)
+		    || !strcmp(target,strm->original_mailbox)))){
+	    stream_is_open++;
+	}
+    }
+    else{
+	stream_is_open = sp_stream_get(mailbox_name, SP_MATCH | SP_RO_OK) ? 1 : 0;
+	if(!stream_is_open){
+	    /*
+	     * If it's IMAP or local we use a shorter interval.
+	     */
+	    d = mail_valid(NIL, mailbox_name, (char *) NIL);
+	    if(d && !strcmp(d->name, "imap") || !IS_REMOTE(mailbox_name))
+	      use_imap_interval++;
+	}
+    }
+
+    /*
+     * Update if forced, or if it's been a while, or if we have a
+     * stream open to this mailbox already.
+     */
+    if(flags & UFU_FORCE
+       || stream_is_open
+       || ((use_imap_interval
+	    && (now - f->last_unseen_update) >= ps_global->inc_check_interval)
+	   || ((now - f->last_unseen_update) >= ps_global->inc_second_check_interval))){
+	unsigned long tot, uns, new;
+	unsigned long *totp = NULL, *unsp = NULL, *newp = NULL;
+
+	orig_valid  = f->unseen_valid;
 	orig_unseen = f->unseen;
-	orig_recent = f->recent;
+	orig_new    = f->new;
+	orig_tot    = f->total;
+
+	if(F_ON(F_INCOMING_CHECKING_RECENT, ps_global))
+	  newp = &new;
+	else
+	  unsp = &uns;
+
+	if(F_ON(F_INCOMING_CHECKING_TOTAL, ps_global))
+	  totp = &tot;
 
 	f->unseen_valid = 0;
-	context_apply(mailbox_name, ctxt, f->name, MAXPATH+1);
-	if(get_recent_in_folder(mailbox_name, &rec, &uns, &tot)){
+
+	dprint((9, "update_folder_unseen(%s)", FLDR_NAME(f)));
+	if(get_recent_in_folder(mailbox_name, newp, unsp, totp)){
 	    f->last_unseen_update = time(0);
 	    f->unseen_valid = 1;
-	    f->unseen = uns;
-	    f->recent = rec;
+	    if(unsp)
+	      f->unseen = uns;
 
-	    if(orig_valid && orig_unseen != f->unseen){
-		if(flags & UFU_ANNOUNCE && orig_valid && f->unseen > orig_unseen)
-		  q_status_message2(SM_ASYNC, 1, 3, "%s: %s unseen",
-				    FLDR_NAME(f), comatose(f->unseen));
+	    if(newp)
+	      f->new = new;
+
+	    if(totp)
+	      f->total = tot;
+
+	    if(orig_valid
+	       && ((F_ON(F_INCOMING_CHECKING_RECENT, ps_global)
+		    && orig_new != f->new)
+		   ||
+	           (F_OFF(F_INCOMING_CHECKING_RECENT, ps_global)
+		    && orig_unseen != f->unseen)
+		   ||
+	           (F_ON(F_INCOMING_CHECKING_TOTAL, ps_global)
+		    && orig_tot != f->total))){
+
 		ps_global->noticed_change_in_unseen = 1;
+		if(flags & UFU_ANNOUNCE
+		   && ((F_ON(F_INCOMING_CHECKING_RECENT, ps_global)
+			&& orig_new < f->new)
+		       ||
+		       (F_OFF(F_INCOMING_CHECKING_RECENT, ps_global)
+			&& orig_unseen < f->unseen))){
+		    if(F_ON(F_INCOMING_CHECKING_RECENT, ps_global))
+		      q_status_message3(SM_ASYNC, 1, 3, "%s: %s %s",
+					FLDR_NAME(f), comatose(f->new),
+					_("new"));
+		    else
+		      q_status_message3(SM_ASYNC, 1, 3, "%s: %s %s",
+					FLDR_NAME(f), comatose(f->unseen),
+					_("unseen"));
+		}
 	    }
-
-	    if(flags & UFU_ANNOUNCE
-	       && orig_valid && (f->unseen > orig_unseen || f->recent > orig_recent))
-	      q_status_message2(SM_ASYNC, 1, 3, "%s: %s unseen",
-				FLDR_NAME(f), comatose(f->unseen));
 	}
 	else
 	  f->last_unseen_update = LUU_NOMORECHK;	/* no further checking */
@@ -1993,8 +2084,42 @@ update_folder_unseen(FOLDER_S *f, CONTEXT_S *ctxt, long unsigned int flags)
 }
 
 
+void
+update_folder_unseen_by_stream(MAILSTREAM *strm, unsigned long flags)
+{
+  CONTEXT_S *ctxt;
+  int ftotal, i;
+  char mailbox_name[MAILTMPLEN];
+  FOLDER_S *f;
+
+  /*
+   * Attempt to figure out which incoming folder this stream
+   * is open to, if any, so we can update the unseen counters.
+   */
+  if(strm
+     && F_ON(F_ENABLE_INCOMING_CHECKING, ps_global)
+     && (ctxt=ps_global->context_list) && ctxt->use & CNTXT_INCMNG
+     && (ftotal = folder_total(FOLDERS(ctxt)))){
+    for(i = 0; i < ftotal; i++){
+      f = folder_entry(i, FOLDERS(ctxt));
+      context_apply(mailbox_name, ctxt, f->name, MAILTMPLEN);
+      if(same_stream_and_mailbox(mailbox_name, strm)){
+	/* if we failed earlier on this one, give it another go */
+	if(f->last_unseen_update == LUU_NOMORECHK)
+	  init_incoming_unseen_data(ps_global, f);
+
+	if(ps_global->in_folder_screen)
+	  update_folder_unseen(f, ctxt, flags | UFU_FORCE);
+
+	return;
+      }
+    }
+  }
+}
+
+
 /*
- * Find the number of recent, unseen, and the total number of
+ * Find the number of new, unseen, and the total number of
  * messages in mailbox_name.
  * If the corresponding arg is NULL it will skip the work
  * necessary for that flag.
@@ -2002,73 +2127,101 @@ update_folder_unseen(FOLDER_S *f, CONTEXT_S *ctxt, long unsigned int flags)
  * Returns 1 if successful, 0 if not.
  */
 int
-get_recent_in_folder(char *mailbox_name, long unsigned int *recent,
+get_recent_in_folder(char *mailbox_name, long unsigned int *new,
 		     long unsigned int *unseen, long unsigned int *total)
 {
     MAILSTREAM   *strm = NIL;
-    unsigned long tot, rec, uns;
+    unsigned long tot, nw, uns;
     int           gotit = 0;
+    int           maildrop = 0;
+    char         *target = NULL;
+    MSGNO_S      *msgmap;
+    long          excluded, flags;
+    extern MAILSTATUS mm_status_result;
+
+    dprint((9, "get_recent_in_folder(%s)", mailbox_name ? mailbox_name : "?"));
+
+    if(check_for_move_mbox(mailbox_name, NULL, 0, &target)){
+
+	maildrop++;
+
+	/*
+	 * If this maildrop is the currently open stream use that.
+	 */
+	if(target
+	   && ((strm=ps_global->mail_stream)
+		&& strm->snarf.name
+		&& (!strcmp(target,strm->mailbox)
+		    || !strcmp(target,strm->original_mailbox)))){
+	    gotit++;
+	    msgmap = sp_msgmap(strm);
+	    excluded = any_lflagged(msgmap, MN_EXLD);
+
+	    tot = strm->nmsgs - excluded;
+	    if(tot){
+	      if(new)
+		nw = count_flagged(strm, F_RECENT | F_UNSEEN | F_UNDEL);
+
+	      if(unseen)
+		uns = count_flagged(strm, F_UNSEEN | F_UNDEL);
+	    }
+	    else{
+	      nw = 0;
+	      uns = 0;
+	    }
+	}
+	/* else fall through to just open it case */
+    }
 
     /* do we already have it selected? */
-    if((strm = sp_stream_get(mailbox_name, SP_MATCH | SP_RO_OK))){
-	MSGNO_S *msgmap;
-	long     excluded;
-
+    if(!gotit && (strm = sp_stream_get(mailbox_name, SP_MATCH | SP_RO_OK))){
 	gotit++;
 	if(strm == ps_global->mail_stream){
+
 	    /*
 	     * Unfortunately, we have to worry about excluded
-	     * messages now. The user doesn't want to have
+	     * messages. The user doesn't want to have
 	     * excluded messages count in the totals, especially
 	     * recent excluded messages.
 	     */
 
 	    msgmap = sp_msgmap(strm);
+	    excluded = any_lflagged(msgmap, MN_EXLD);
 
-	    if((excluded = any_lflagged(msgmap, MN_EXLD))){
+	    tot = strm->nmsgs - excluded;
+	    if(tot){
+	      if(new)
+		nw = count_flagged(strm, F_RECENT | F_UNSEEN | F_UNDEL);
 
-		tot = strm->nmsgs - excluded;
-		if(tot){
-		  if(recent)
-		    rec = count_flagged(strm, F_RECENT);
-
-		  if(unseen)
-		    uns = count_flagged(strm, F_UNSEEN);
-		}
-		else{
-		  rec = 0;
-		  uns = 0;
-		}
+	      if(unseen)
+		uns = count_flagged(strm, F_UNSEEN | F_UNDEL);
 	    }
 	    else{
-		tot = strm->nmsgs;
-		rec = strm->recent;
-	        if(unseen)
-		  uns = count_flagged(strm, F_UNSEEN);
+	      nw = 0;
+	      uns = 0;
 	    }
 	}
 	else{
 	    tot = strm->nmsgs;
-	    rec = sp_recent_since_visited(strm);
+	    if(new)
+	      nw = count_flagged(strm, F_RECENT | F_UNSEEN | F_UNDEL);
+
 	    if(unseen)
-	      uns = count_flagged(strm, F_UNSEEN);
+	      uns = count_flagged(strm, F_UNSEEN | F_UNDEL);
 	}
     }
     /*
      * No, but how about another stream to same server which
      * could be used for a STATUS command?
      */
-    else if((strm = sp_stream_get(mailbox_name, SP_SAME))
+    else if(!gotit && (strm = sp_stream_get(mailbox_name, SP_SAME))
 	    && modern_imap_stream(strm)){
-	long flags;
-
-	extern MAILSTATUS mm_status_result;
 
 	flags = 0L;
 	if(total)
 	  flags |= SA_MESSAGES;
 
-	if(recent)
+	if(new)
 	  flags |= SA_RECENT;
 
 	if(unseen)
@@ -2085,9 +2238,9 @@ get_recent_in_folder(char *mailbox_name, long unsigned int *recent,
 	}
 
 	if(!(total && !gotit)){
-	    if(recent){
+	    if(new){
 		if(mm_status_result.flags & SA_RECENT){
-		    rec = mm_status_result.recent;
+		    nw = mm_status_result.recent;
 		    gotit++;
 		}
 		else
@@ -2095,7 +2248,7 @@ get_recent_in_folder(char *mailbox_name, long unsigned int *recent,
 	    }
 	}
 
-	if(!((total || recent) && !gotit)){
+	if(!((total || new) && !gotit)){
 	    if(unseen){
 		if(mm_status_result.flags & SA_UNSEEN){
 		    uns = mm_status_result.unseen;
@@ -2110,28 +2263,38 @@ get_recent_in_folder(char *mailbox_name, long unsigned int *recent,
     /* Let's just Select it. */
     if(!gotit){
 	long saved_timeout;
+	long openflags;
+
+	/* 
+	 * Traditional unix folders don't notice new mail if
+	 * they are opened readonly. So maildrops with unix folder
+	 * targets will snarf to the file but the stream that is
+	 * opened won't see the new mail. So make all maildrop
+	 * opens non-readonly here.
+	 */
+	openflags = SP_USEPOOL | SP_TEMPUSE | (maildrop ? 0 : OP_READONLY);
 
 	saved_timeout = (long) mail_parameters(NULL, GET_OPENTIMEOUT, NULL);
 	mail_parameters(NULL, SET_OPENTIMEOUT, (void *) (long) ps_global->inc_check_timeout);
-	strm = pine_mail_open(NULL, mailbox_name,
-			      OP_READONLY | SP_USEPOOL | SP_TEMPUSE,
-			      NULL);
+	strm = pine_mail_open(NULL, mailbox_name, openflags, NULL);
 	mail_parameters(NULL, SET_OPENTIMEOUT, (void *) saved_timeout);
 
 	if(strm){
 	    gotit++;
 	    tot = strm->nmsgs;
-	    rec = strm->recent;
+	    if(new)
+	      nw = count_flagged(strm, F_RECENT | F_UNSEEN | F_UNDEL);
+
 	    if(unseen)
-	      uns = count_flagged(strm, F_UNSEEN);
+	      uns = count_flagged(strm, F_UNSEEN | F_UNDEL);
 
 	    pine_mail_close(strm);
 	}
     }
 
     if(gotit){
-	if(recent)
-	  *recent = rec;
+	if(new)
+	  *new = nw;
 
 	if(unseen)
 	  *unseen = uns;
@@ -2141,6 +2304,23 @@ get_recent_in_folder(char *mailbox_name, long unsigned int *recent,
     }
 
     return(gotit);
+}
+
+
+void
+clear_incoming_valid_bits(void)
+{
+    CONTEXT_S *ctxt;
+    int ftotal, i;
+    FOLDER_S *f;
+
+    if(F_ON(F_ENABLE_INCOMING_CHECKING, ps_global)
+       && (ctxt=ps_global->context_list) && ctxt->use & CNTXT_INCMNG
+       && (ftotal = folder_total(FOLDERS(ctxt))))
+      for(i = 0; i < ftotal; i++){
+	  f = folder_entry(i, FOLDERS(ctxt));
+	  init_incoming_unseen_data(ps_global, f);
+      }
 }
 
 

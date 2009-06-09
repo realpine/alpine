@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcmd.c 543 2007-04-26 04:06:02Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: mailcmd.c 609 2007-06-22 23:38:20Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -351,7 +351,7 @@ process_cmd(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
 	       (in_index == MsgIndx)
 	         ? _("HELP FOR MESSAGE INDEX")
 		 : (in_index == View)
-		   ? _("HELP FOR MESSAGE VIEW")
+		   ? _("HELP FOR MESSAGE TEXT")
 		   : _("HELP FOR THREAD INDEX"),
 	       HLPD_NONE);
 	dprint((4,"MAIL_CMD: did help command\n"));
@@ -1926,13 +1926,13 @@ cmd_flag_prompt(struct pine *state, struct flag_screen *flags, int allow_keyword
     ESCKEY_S           *ek;
     char               *ftext, *ftext_not;
     static char *flag_text =
-  N_("Flag New, Deleted, Answered, or Important ? ");
+  N_("Flag New, Deleted, Answered or Important ? ");
     static char *flag_text_ak =
-  N_("Flag New, Deleted, Answered, Important (or Keyword initial) ? ");
+  N_("Flag New, Deleted, Answered, Important or Keyword initial ? ");
     static char *flag_text_not =
-  N_("Flag NOT New, NOT Deleted, NOT Answered, or NOT Important ? ");
+  N_("Flag !New, !Deleted, !Answered or !Important ? ");
     static char *flag_text_ak_not =
-  N_("Flag NOT New, NOT Deleted, NOT Answered, NOT Important, or NOT KI ? ");
+  N_("Flag !New, !Deleted, !Answered, !Important or !Keyword initial ? ");
 
     if(allow_keyword_shortcuts){
 	int       cnt = 0;
@@ -2171,6 +2171,7 @@ cmd_save(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap, int aopt, CmdW
     CONTEXT_S	     *cntxt = NULL;
     ENVELOPE	     *e = NULL;
     SaveDel           del = DontAsk;
+    SavePreserveOrder pre = DontAskPreserve;
     int               notrealinbox = 0;
 
     dprint((4, "\n - saving message -\n"));
@@ -2212,11 +2213,17 @@ cmd_save(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap, int aopt, CmdW
 
     del = (!READONLY_FOLDER(stream) && F_OFF(F_SAVE_WONT_DELETE, ps_global))
 	     ? Del : NoDel;
+    if(mn_total_cur(msgmap) > 1L)
+      pre = F_OFF(F_AGG_SEQ_COPY, ps_global) ? Preserve : NoPreserve;
+    else
+      pre = DontAskPreserve;
+
     if(save_prompt(state, &cntxt, newfolder, sizeof(newfolder), nmsgs, e,
-		   raw, NULL, &del, &notrealinbox)){
+		   raw, NULL, &del, &pre, &notrealinbox)){
 	we_cancel = busy_cue(NULL, NULL, 1);
 	i = save(state, stream, cntxt, newfolder, msgmap,
 		 ((del == RetDel) ? SV_DELETE : 0)
+		 | ((pre == RetPreserve) ? SV_PRESERVE : 0)
 		 | (notrealinbox ? 0 : SV_INBOXWOCNTXT)
 		 | SV_FIX_DELS);
 	if(we_cancel)
@@ -2423,20 +2430,21 @@ role_compose(struct pine *state)
 int
 save_prompt(struct pine *state, CONTEXT_S **cntxt, char *nfldr, size_t len_nfldr,
 	    char *nmsgs, ENVELOPE *env, long int rawmsgno, char *section,
-	    SaveDel *dela, int *notrealinbox)
+	    SaveDel *dela, SavePreserveOrder *prea, int *notrealinbox)
 {
     int		      rc, ku = -1, n, flags, last_rc = 0, saveable_count = 0, done = 0;
-    int		      delindex, r;
+    int		      delindex, preindex, r;
     char	      prompt[6*MAX_SCREEN_COLS+1], *p, expanded[MAILTMPLEN];
     char              *buf = tmp_20k_buf;
     char              shortbuf[200];
     char              *folder;
     HelpType	      help;
     SaveDel           del = DontAsk;
+    SavePreserveOrder pre = DontAskPreserve;
     char             *deltext = NULL;
     static HISTORY_S *history = NULL;
     CONTEXT_S	     *tc;
-    ESCKEY_S	      ekey[9];
+    ESCKEY_S	      ekey[10];
 
     if(!cntxt)
       panic("no context ptr in save_prompt");
@@ -2498,7 +2506,15 @@ save_prompt(struct pine *state, CONTEXT_S **cntxt, char *nfldr, size_t len_nfldr
 	del = *dela;
     }
 
-    if(saveable_count > 1 && F_ON(F_DISABLE_INPUT_HISTORY, ps_global)){
+    if(prea && (*prea == NoPreserve || *prea == Preserve)){
+	ekey[rc].ch      = ctrl('W');
+	ekey[rc].rval    = 16;
+	ekey[rc].name    = "^W";
+	preindex = rc++;
+	pre = *prea;
+    }
+
+    if(saveable_count > 1 && F_ON(F_DISABLE_SAVE_INPUT_HISTORY, ps_global)){
 	ekey[rc].ch      = KEY_UP;
 	ekey[rc].rval    = 10;
 	ekey[rc].name    = "";
@@ -2509,7 +2525,7 @@ save_prompt(struct pine *state, CONTEXT_S **cntxt, char *nfldr, size_t len_nfldr
 	ekey[rc].name    = "";
 	ekey[rc++].label = "";
     }
-    else if(F_OFF(F_DISABLE_INPUT_HISTORY, ps_global)){
+    else if(F_OFF(F_DISABLE_SAVE_INPUT_HISTORY, ps_global)){
 	ekey[rc].ch      = KEY_UP;
 	ekey[rc].rval    = 30;
 	ekey[rc].name    = "";
@@ -2576,14 +2592,21 @@ save_prompt(struct pine *state, CONTEXT_S **cntxt, char *nfldr, size_t len_nfldr
 	if(del != DontAsk)
 	  ekey[delindex].label = (del == NoDel) ? "Delete" : "No Delete";
 
+	if(pre != DontAskPreserve)
+	  ekey[preindex].label = (pre == NoPreserve) ? "Preserve Order" : "Any Order";
+
 	if(ku >= 0){
 	    if(items_in_hist(history) > 1){
 		ekey[ku].name  = HISTORY_UP_KEYNAME;
-		ekey[ku].label = HISTORY_UP_KEYLABEL;
+		ekey[ku].label = HISTORY_KEYLABEL;
+		ekey[ku+1].name  = HISTORY_DOWN_KEYNAME;
+		ekey[ku+1].label = HISTORY_KEYLABEL;
 	    }
 	    else{
 		ekey[ku].name  = "";
 		ekey[ku].label = "";
+		ekey[ku+1].name  = "";
+		ekey[ku+1].label = "";
 	    }
 	}
 
@@ -2641,10 +2664,11 @@ save_prompt(struct pine *state, CONTEXT_S **cntxt, char *nfldr, size_t len_nfldr
 			done++;
 		    }
 		    else if((exists & FEX_ISDIR)){
+			char	   tmp[MAILTMPLEN];
+
 			tc = *cntxt;
 			if(breakout){
 			    CONTEXT_S *fake_context;
-			    char	   tmp[MAILTMPLEN];
 			    size_t	   l;
 
 			    strncpy(tmp, name, sizeof(tmp));
@@ -2671,6 +2695,16 @@ save_prompt(struct pine *state, CONTEXT_S **cntxt, char *nfldr, size_t len_nfldr
 				&& *(p+1) == '\0')
 			  done = display_folder_list(cntxt, nfldr,
 						     1, folders_for_save);
+			else{
+			    q_status_message1(SM_ORDER, 3, 3,
+				      _("\"%s\" is a directory"), name);
+			    if(tc->dir->delim
+			       && !((p=strrindex(name, tc->dir->delim)) && *(p+1) == '\0')){
+				strncpy(tmp, name, sizeof(tmp));
+				tmp[sizeof(tmp)-1] = '\0';
+				snprintf(nfldr, len_nfldr, "%s%c", tmp, tc->dir->delim);
+			    }
+			}
 		    }
 		    else{			/* Doesn't exist, create! */
 			if(fullname = folder_as_breakout(*cntxt, name)){
@@ -2717,7 +2751,8 @@ save_prompt(struct pine *state, CONTEXT_S **cntxt, char *nfldr, size_t len_nfldr
 	    break;
 
 	  case 3 :
-            help = (help == NO_HELP) ? h_oe_save : NO_HELP;
+	    helper(h_save, _("HELP FOR SAVE"), HLPD_SIMPLE);
+	    ps_global->mangled_screen = 1;
 	    break;
 
 	  case 4 :				/* redraw */
@@ -2787,6 +2822,10 @@ save_prompt(struct pine *state, CONTEXT_S **cntxt, char *nfldr, size_t len_nfldr
 	    deltext = (del == NoDel) ? " (no delete)" : " (and delete)";
 	    break;
 
+	  case 16 :			/* Preserve Order or not */
+	    pre = (pre == NoPreserve) ? Preserve : NoPreserve;
+	    break;
+
 	  case 30 :
 	    if((p = get_prev_hist(history, nfldr, 0, (void *) *cntxt)) != NULL){
 		strncpy(nfldr, p, len_nfldr);
@@ -2845,6 +2884,9 @@ save_prompt(struct pine *state, CONTEXT_S **cntxt, char *nfldr, size_t len_nfldr
 
     if(dela && (*dela == NoDel || *dela == Del))
       *dela = (del == NoDel) ? RetNoDel : RetDel;
+
+    if(prea && (*prea == NoPreserve || *prea == Preserve))
+      *prea = (pre == NoPreserve) ? RetNoPreserve : RetPreserve;
 
     /* checking for special ./inbox case */
     snprintf(prompt, sizeof(prompt), "./%s", ps_global->inbox_name);
@@ -3965,11 +4007,15 @@ get_export_filename(struct pine *ps, char *filename, char *deefault,
 	if(ku >= 0){
 	    if(items_in_hist(*history) > 0){
 		opts[ku].name  = HISTORY_UP_KEYNAME;
-		opts[ku].label = HISTORY_UP_KEYLABEL;
+		opts[ku].label = HISTORY_KEYLABEL;
+		opts[ku+1].name  = HISTORY_DOWN_KEYNAME;
+		opts[ku+1].label = HISTORY_KEYLABEL;
 	    }
 	    else{
 		opts[ku].name  = "";
 		opts[ku].label = "";
+		opts[ku+1].name  = "";
+		opts[ku+1].label = "";
 	    }
 	}
 
@@ -5057,7 +5103,7 @@ broach_folder(int qline, int allow_list, int *notrealinbox, CONTEXT_S **context)
 	ekey[rc++].label = N_("ListMatches");
     }
 
-    if(ps_global->context_list->next && F_ON(F_DISABLE_INPUT_HISTORY, ps_global)){
+    if(ps_global->context_list->next && F_ON(F_DISABLE_SAVE_INPUT_HISTORY, ps_global)){
 	ekey[rc].ch      = KEY_UP;
 	ekey[rc].rval    = 10;
 	ekey[rc].name    = "";
@@ -5068,7 +5114,7 @@ broach_folder(int qline, int allow_list, int *notrealinbox, CONTEXT_S **context)
 	ekey[rc].name    = "";
 	ekey[rc++].label = "";
     }
-    else if(F_OFF(F_DISABLE_INPUT_HISTORY, ps_global)){
+    else if(F_OFF(F_DISABLE_SAVE_INPUT_HISTORY, ps_global)){
 	ekey[rc].ch      = KEY_UP;
 	ekey[rc].rval    = 30;
 	ekey[rc].name    = "";
@@ -5119,14 +5165,42 @@ broach_folder(int qline, int allow_list, int *notrealinbox, CONTEXT_S **context)
 
 	prompt[sizeof(prompt)-1] = '\0';
 
+	if(utf8_width(prompt) > MAXPROMPT){
+	    if(ps_global->context_list->next)
+	      snprintf(prompt, sizeof(prompt), "GOTO <%s> %.*s%s: ",
+			tc->nickname, sizeof(prompt)-50, expanded,
+			*expanded ? " " : "");
+	    else
+	      snprintf(prompt, sizeof(prompt), "GOTO %.*s%s: ", sizeof(prompt)-20, expanded,
+		      *expanded ? " " : "");
+
+	    prompt[sizeof(prompt)-1] = '\0';
+
+	    if(utf8_width(prompt) > MAXPROMPT){
+		if(ps_global->context_list->next)
+		  snprintf(prompt, sizeof(prompt), "<%s> %.*s%s: ",
+			    tc->nickname, sizeof(prompt)-50, expanded,
+			    *expanded ? " " : "");
+		else
+		  snprintf(prompt, sizeof(prompt), "%.*s%s: ", sizeof(prompt)-20, expanded,
+			  *expanded ? " " : "");
+
+		prompt[sizeof(prompt)-1] = '\0';
+	    }
+	}
+
 	if(ku >= 0){
 	    if(items_in_hist(history) > 1){
 		ekey[ku].name  = HISTORY_UP_KEYNAME;
-		ekey[ku].label = HISTORY_UP_KEYLABEL;
+		ekey[ku].label = HISTORY_KEYLABEL;
+		ekey[ku+1].name  = HISTORY_DOWN_KEYNAME;
+		ekey[ku+1].label = HISTORY_KEYLABEL;
 	    }
 	    else{
 		ekey[ku].name  = "";
 		ekey[ku].label = "";
+		ekey[ku+1].name  = "";
+		ekey[ku+1].label = "";
 	    }
 	}
 
@@ -5708,9 +5782,9 @@ cmd_pipe(struct pine *state, MSGNO_S *msgmap, int aopt)
     char          *resultfilename = NULL, prompt[80], *p;
     int            done = 0, rv = 0;
     gf_io_t	   pc;
-    int		   fourlabel = -1, j = 0, next = 0;
+    int		   fourlabel = -1, j = 0, next = 0, ku;
     int            pipe_rv; /* rv of proc to separate from close_system_pipe rv */
-    long           ku, i, rawno;
+    long           i, rawno;
     unsigned       flagsforhist = 1;	/* raw=8/delimit=4/newpipe=2/capture=1 */
     static HISTORY_S *history = NULL;
     int	           capture = 1, raw = 0, delimit = 0, newpipe = 0;
@@ -5816,11 +5890,15 @@ cmd_pipe(struct pine *state, MSGNO_S *msgmap, int aopt)
 	 */
 	if(items_in_hist(history) > 2){
 	    pipe_opt[ku].name  = HISTORY_UP_KEYNAME;
-	    pipe_opt[ku].label = HISTORY_UP_KEYLABEL;
+	    pipe_opt[ku].label = HISTORY_KEYLABEL;
+	    pipe_opt[ku+1].name  = HISTORY_DOWN_KEYNAME;
+	    pipe_opt[ku+1].label = HISTORY_KEYLABEL;
 	}
 	else{
 	    pipe_opt[ku].name  = "";
 	    pipe_opt[ku].label = "";
+	    pipe_opt[ku+1].name  = "";
+	    pipe_opt[ku+1].label = "";
 	}
 
 	flags = OE_APPEND_CURRENT | OE_SEQ_SENSITIVE;
@@ -7424,11 +7502,15 @@ select_by_text(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct searc
 
 	    if(items_in_hist(history) > 0){
 		ekey[ku].name  = HISTORY_UP_KEYNAME;
-		ekey[ku].label = HISTORY_UP_KEYLABEL;
+		ekey[ku].label = HISTORY_KEYLABEL;
+		ekey[ku+1].name  = HISTORY_DOWN_KEYNAME;
+		ekey[ku+1].label = HISTORY_KEYLABEL;
 	    }
 	    else{
 		ekey[ku].name  = "";
 		ekey[ku].label = "";
+		ekey[ku+1].name  = "";
+		ekey[ku+1].label = "";
 	    }
 
 	    flags = OE_APPEND_CURRENT | OE_KEEP_TRAILING_SPACE;
@@ -7801,7 +7883,7 @@ select_by_status(MAILSTREAM *stream, struct search_set **limitsrch)
 
 
 /*
- * Select by rule. Usually indexcolor and roles would be most useful.
+ * Select by rule. Usually srch, indexcolor, and roles would be most useful.
  * Sets searched bits in mail_elts
  * 
  * Args    limitsrch -- limit search to this searchset
@@ -7813,7 +7895,8 @@ select_by_rule(MAILSTREAM *stream, struct search_set **limitsrch)
 {
     char       rulenick[1000], *nick;
     PATGRP_S  *patgrp;
-    int        r, not = 0, rflags = ROLE_DO_INCOLS
+    int        r, not = 0, rflags = ROLE_DO_SRCH
+				    | ROLE_DO_INCOLS
 				    | ROLE_DO_ROLES
 				    | ROLE_DO_SCORES
 				    | ROLE_DO_OTHER
@@ -8537,8 +8620,8 @@ file_lister(char *title, char *path, size_t pathlen, char *file, size_t filelen,
     int	   rv;
     void (*redraw)(void) = ps_global->redrawer;
 
-    push_titlebar_state();
     standard_picobuf_setup(&pbf);
+    push_titlebar_state();
     if(!newmail)
       pbf.newmail = NULL;
 

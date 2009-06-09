@@ -173,8 +173,19 @@ AC_DEFUN([AM_PO_SUBDIRS],
               CATALOGS="$CATALOGS $lang.gmo"
             done
           fi
+          test X$POFILES = X && NOPOFILES="#"
+          test X$DUMMYPOFILES = X && NODUMMYPOFILES="#"
           test -n "$as_me" && echo "$as_me: creating $ac_dir/Makefile" || echo "creating $ac_dir/Makefile"
-          sed -e "/^POTFILES =/r $ac_dir/POTFILES" -e "/^# Makevars/r $ac_given_srcdir/$ac_dir/Makevars" -e "s|@POFILES@|$POFILES|g" -e "s|@GMOFILES@|$GMOFILES|g" -e "s|@UPDATEPOFILES@|$UPDATEPOFILES|g" -e "s|@DUMMYPOFILES@|$DUMMYPOFILES|g" -e "s|@CATALOGS@|$CATALOGS|g" -e "s|@POMAKEFILEDEPS@|$POMAKEFILEDEPS|g" "$ac_dir/Makefile.in" > "$ac_dir/Makefile"
+          sed -e "/^POTFILES =/r $ac_dir/POTFILES" \
+		-e "/^# Makevars/r $ac_given_srcdir/$ac_dir/Makevars" \
+		-e "s|@POFILES@|$POFILES|g" -e "s|@GMOFILES@|$GMOFILES|g" \
+		-e "s|@UPDATEPOFILES@|$UPDATEPOFILES|g" \
+		-e "s|@DUMMYPOFILES@|$DUMMYPOFILES|g" \
+		-e "s|@CATALOGS@|$CATALOGS|g" \
+		-e "s|@POMAKEFILEDEPS@|$POMAKEFILEDEPS|g" \
+		-e "s|@NOPOFILES@|$NOPOFILES|g" \
+		-e "s|@NODUMMYPOFILES@|$NODUMMYPOFILES|g" \
+			"$ac_dir/Makefile.in" > "$ac_dir/Makefile"
           for f in "$ac_given_srcdir/$ac_dir"/Rules-*; do
             if test -f "$f"; then
               case "$f" in

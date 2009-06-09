@@ -1,5 +1,5 @@
 /*
- * $Id: mailcmd.h 534 2007-04-23 22:20:32Z hubert@u.washington.edu $
+ * $Id: mailcmd.h 609 2007-06-22 23:38:20Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -49,6 +49,7 @@
 
 
 typedef enum {DontAsk, NoDel, Del, RetNoDel, RetDel} SaveDel;
+typedef enum {DontAskPreserve, NoPreserve, Preserve, RetNoPreserve, RetPreserve} SavePreserveOrder;
 
 typedef enum {View, MsgIndx, ThrdIndx} CmdWhere;
 
@@ -59,7 +60,8 @@ char	   *pretty_command(UCS);
 void	    bogus_command(UCS, char *);
 void	    bogus_utf8_command(char *, char *);
 int	    save_prompt(struct pine *, CONTEXT_S **, char *, size_t, 
-			char *, ENVELOPE *, long, char *, SaveDel *, int *);
+			char *, ENVELOPE *, long, char *, SaveDel *,
+			SavePreserveOrder *, int *);
 int	    create_for_save_prompt(CONTEXT_S *, char *, int);
 int	    expunge_prompt(MAILSTREAM *, char *, long);
 void	    expunge_and_close_begins(int, char *);

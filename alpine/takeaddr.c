@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: takeaddr.c 493 2007-03-27 21:51:48Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: takeaddr.c 596 2007-06-09 00:20:47Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -2006,6 +2006,7 @@ cmd_take_addr(struct pine *ps, MSGNO_S *msgmap, int agg)
 	case 'i':
 	case 'f':
 	case 'o':
+	case 'c':
 	case 'x':
 	  role_take(ps, msgmap, rtype);
 	  break;
@@ -2369,7 +2370,7 @@ take_without_edit(TA_S *ta_list, int num_in_list, int command_line, TA_STATE_S *
 	    pab_dst->address_book->sort_rule = AB_SORT_RULE_NONE;
 
 	    rc = adrbk_nlistadd(pab_dst->address_book,
-				(a_c_arg_t)new_entry_num,
+				(a_c_arg_t)new_entry_num, NULL, NULL,
 				list, 0, 0, 0);
 
 	    pab_dst->address_book->sort_rule = save_sort_rule;
@@ -2386,21 +2387,15 @@ take_without_edit(TA_S *ta_list, int num_in_list, int command_line, TA_STATE_S *
     }
 
     if(need_write){
+	int sort_happened = 0;
 
-	if(adrbk_write(pab_dst->address_book, 0, 1, total_to_copy <= 1)){
+	if(adrbk_write(pab_dst->address_book, 0, NULL, &sort_happened, 0, 1)){
 	    err++;
 	    goto get_out;
 	}
 
-	if(total_to_copy > 1){
-	    exp_free(pab_dst->address_book->exp);
-
-	    /*
-	     * Sort the results since they were appended.
-	     */
-	    (void)adrbk_sort(pab_dst->address_book,
-			     (a_c_arg_t)0, (adrbk_cntr_t *)NULL, 0);
-	}
+	if(sort_happened)
+	  ps_global->mangled_screen = 1;
     }
 
 get_out:

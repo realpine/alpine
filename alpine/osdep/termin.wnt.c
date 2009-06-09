@@ -50,7 +50,7 @@ static char rcsid[] = "$Id: termin.unx.c 193 2006-10-20 17:09:26Z mikes@u.washin
 #include "termin.gen.h"
 #include "termin.wnt.h"
 
-#define	RETURN_CH(X)	return(key_recorder((X)))
+#define	RETURN_CH(X)	return(key_rec ? ((*key_rec)(X)) : (int)(X))
 
 /* global to tell us if the window was resized. */
 static int DidResize = FALSE;
@@ -129,6 +129,11 @@ read_char(int tm)
 {
     unsigned   ch = 0;
     time_t     timein;
+    int (*key_rec)(int);
+
+    key_rec = key_recorder;
+    if(ps_global->conceal_sensitive_debugging && debug < 10)
+      key_rec = NULL;
 
     if(process_config_input((int *) &ch))
       RETURN_CH(ch);

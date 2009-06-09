@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailpart.c 536 2007-04-23 23:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailpart.c 609 2007-06-22 23:38:20Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1561,7 +1561,7 @@ write_attached_msg(long int msgno, ATTACH_S **ap, STORE_S *store, int newfile)
 void
 save_msg_att(long int msgno, ATTACH_S *a)
 {
-    char	 newfolder[MAILTMPLEN], *save_folder, flags[64], date[64];
+    char	 newfolder[MAILTMPLEN], *save_folder, *flags = NULL, date[64];
     char         nmsgs[80];
     CONTEXT_S   *cntxt = NULL;
     int		 our_stream = 0, rv;
@@ -1572,7 +1572,7 @@ save_msg_att(long int msgno, ATTACH_S *a)
     snprintf(nmsgs, sizeof(nmsgs), _("Attached Msg (part %s) "), a->number);
     nmsgs[sizeof(nmsgs)-1] = '\0';
     if(save_prompt(ps_global, &cntxt, newfolder, sizeof(newfolder), nmsgs,
-		   a->body->nested.msg->env, msgno, a->number, NULL, NULL)){
+		   a->body->nested.msg->env, msgno, a->number, NULL, NULL, NULL)){
 	if(strucmp(newfolder, ps_global->inbox_name) == 0){
 	    save_folder = ps_global->VAR_INBOX_PATH;
 	    cntxt = NULL;
@@ -1587,7 +1587,7 @@ save_msg_att(long int msgno, ATTACH_S *a)
 	    mc = (msgno > 0L && ps_global->mail_stream
 		  && msgno <= ps_global->mail_stream->nmsgs)
 		  ? mail_elt(ps_global->mail_stream, msgno) : NULL;
-	    flag_string(mc, F_ANS|F_FLAG|F_SEEN, flags, sizeof(flags));
+	    flags = flag_string(ps_global->mail_stream, msgno, F_ANS|F_FLAG|F_SEEN|F_KEYWORD);
 	    if(mc && mc->day)
 	      mail_date(date, mc);
 	    else
@@ -1596,6 +1596,10 @@ save_msg_att(long int msgno, ATTACH_S *a)
 	    rv = save_fetch_append(ps_global->mail_stream, msgno, a->number,
 				   save_stream, save_folder, cntxt,
 				   a->body->size.bytes, flags, date, so);
+
+	    if(flags)
+	      fs_give((void **) &flags);
+
 	    if(rv == 1)
 	      q_status_message2(SM_ORDER, 0, 4,
 			   _("Attached message (part %s) saved to \"%s\""),
@@ -1646,7 +1650,7 @@ save_digest_att(long int msgno, ATTACH_S *a)
     nmsgs[sizeof(nmsgs)-1] = '\0';
 
     if(save_prompt(ps_global, &cntxt, newfolder, sizeof(newfolder),
-		   nmsgs, NULL, 0, NULL, NULL, NULL)){
+		   nmsgs, NULL, 0, NULL, NULL, NULL, NULL)){
 	save_folder = (strucmp(newfolder, ps_global->inbox_name) == 0)
 			? ps_global->VAR_INBOX_PATH : newfolder;
 
@@ -2718,6 +2722,7 @@ display_vcard_att(long int msgno, ATTACH_S *a, int flags)
 {
     STORE_S   *in_store, *out_store = NULL;
     HANDLE_S  *handles = NULL;
+    URL_HILITE_S uh;
     gf_io_t    gc, pc;
     char     **lines, **ll, *errstr = NULL, tmp[MAILTMPLEN], *p;
     int	       cmd, indent, begins = 0;
@@ -2780,8 +2785,9 @@ display_vcard_att(long int msgno, ATTACH_S *a, int flags)
 	    if(F_ON(F_VIEW_SEL_URL, ps_global)
 	       || F_ON(F_VIEW_SEL_URL_HOST, ps_global)
 	       || F_ON(F_SCAN_ADDR, ps_global))
-	      gf_link_filter(gf_line_test, gf_line_test_opt(url_hilite,
-							    &handles));
+	      gf_link_filter(gf_line_test,
+			     gf_line_test_opt(url_hilite,
+					      gf_url_hilite_opt(&uh,&handles,0)));
 
 	    gf_link_filter(gf_wrap,
 			   gf_wrap_filter_opt(ps_global->ttyo->screen_cols - 4,
@@ -3449,17 +3455,15 @@ bounce_msg_att(MAILSTREAM *stream, long int msgno, char *part, char *subject)
 void
 pipe_attachment(long int msgno, ATTACH_S *a)
 {
-    char    *err, *resultfilename = NULL, prompt[80];
-    int      rc, capture = 1, raw = 0, we_cancel = 0;
+    char    *err, *resultfilename = NULL, prompt[80], *p;
+    int      rc, capture = 1, raw = 0, we_cancel = 0, j = 0;
+    long     ku;
     PIPE_S  *syspipe;
     HelpType help;
     char     pipe_command[MAXPATH+1];
-    static ESCKEY_S pipe_opt[] = {
-	{0, 0, "", ""},
-	{ctrl('W'), 10, "^W", NULL},
-	{ctrl('Y'), 11, "^Y", NULL},
-	{-1, 0, NULL, NULL}
-    };
+    unsigned          flagsforhist = 1;	/* raw=2 /capture=1 */
+    static HISTORY_S *history = NULL;
+    ESCKEY_S pipe_opt[6];
     
     if(ps_global->restricted){
 	q_status_message(SM_ORDER | SM_DING, 0, 4,
@@ -3469,6 +3473,47 @@ pipe_attachment(long int msgno, ATTACH_S *a)
 
     help = NO_HELP;
     pipe_command[0] = '\0';
+
+    init_hist(&history, HISTSIZE);
+    flagsforhist = (raw ? 0x2 : 0) + (capture ? 0x1 : 0);
+    if((p = get_prev_hist(history, "", flagsforhist, NULL)) != NULL){
+	strncpy(pipe_command, p, sizeof(pipe_command));
+	pipe_command[sizeof(pipe_command)-1] = '\0';
+	if(history->hist[history->curindex]){
+	    flagsforhist = history->hist[history->curindex]->flags;
+	    raw     = (flagsforhist & 0x2) ? 1 : 0;
+	    capture = (flagsforhist & 0x1) ? 1 : 0;
+	}
+    }
+
+    pipe_opt[j].ch    = 0;
+    pipe_opt[j].rval  = 0;
+    pipe_opt[j].name  = "";
+    pipe_opt[j++].label = "";
+
+    pipe_opt[j].ch    = ctrl('W');
+    pipe_opt[j].rval  = 10;
+    pipe_opt[j].name  = "^W";
+    pipe_opt[j++].label = NULL;
+
+    pipe_opt[j].ch    = ctrl('Y');
+    pipe_opt[j].rval  = 11;
+    pipe_opt[j].name  = "^Y";
+    pipe_opt[j++].label = NULL;
+
+    pipe_opt[j].ch      = KEY_UP;
+    pipe_opt[j].rval    = 30;
+    pipe_opt[j].name    = "";
+    ku = j;
+    pipe_opt[j++].label = "";
+
+    pipe_opt[j].ch      = KEY_DOWN;
+    pipe_opt[j].rval    = 31;
+    pipe_opt[j].name    = "";
+    pipe_opt[j++].label = "";
+    
+    pipe_opt[j].ch = -1;
+
     while(1){
 	int flags;
 
@@ -3477,6 +3522,24 @@ pipe_attachment(long int msgno, ATTACH_S *a)
 	prompt[sizeof(prompt)-1] = '\0';
 	pipe_opt[1].label = raw ? "DecodedData" : "Raw Data";
 	pipe_opt[2].label = capture ? "Free Output" : "Capture Output";
+
+	/*
+	 * 2 is really 1 because there will be one real entry and
+	 * one entry of "" because of the get_prev_hist above.
+	 */
+	if(items_in_hist(history) > 2){
+	    pipe_opt[ku].name  = HISTORY_UP_KEYNAME;
+	    pipe_opt[ku].label = HISTORY_KEYLABEL;
+	    pipe_opt[ku+1].name  = HISTORY_DOWN_KEYNAME;
+	    pipe_opt[ku+1].label = HISTORY_KEYLABEL;
+	}
+	else{
+	    pipe_opt[ku].name  = "";
+	    pipe_opt[ku].label = "";
+	    pipe_opt[ku+1].name  = "";
+	    pipe_opt[ku+1].label = "";
+	}
+
 	flags = OE_APPEND_CURRENT | OE_SEQ_SENSITIVE;
 	rc = optionally_enter(pipe_command, -FOOTER_ROWS(ps_global), 0,
 			      sizeof(pipe_command), prompt,
@@ -3492,11 +3555,42 @@ pipe_attachment(long int msgno, ATTACH_S *a)
 	else if(rc == 11){
 	    capture = !capture;		/* flip capture output */
 	}
+	else if(rc == 30){
+	    flagsforhist = (raw ? 0x2 : 0) + (capture ? 0x1 : 0);
+	    if((p = get_prev_hist(history, pipe_command, flagsforhist, NULL)) != NULL){
+		strncpy(pipe_command, p, sizeof(pipe_command));
+		pipe_command[sizeof(pipe_command)-1] = '\0';
+		if(history->hist[history->curindex]){
+		    flagsforhist = history->hist[history->curindex]->flags;
+		    raw     = (flagsforhist & 0x2) ? 1 : 0;
+		    capture = (flagsforhist & 0x1) ? 1 : 0;
+		}
+	    }
+	    else
+	      Writechar(BELL, 0);
+	}
+	else if(rc == 31){
+	    flagsforhist = (raw ? 0x2 : 0) + (capture ? 0x1 : 0);
+	    if((p = get_next_hist(history, pipe_command, flagsforhist, NULL)) != NULL){
+		strncpy(pipe_command, p, sizeof(pipe_command));
+		pipe_command[sizeof(pipe_command)-1] = '\0';
+		if(history->hist[history->curindex]){
+		    flagsforhist = history->hist[history->curindex]->flags;
+		    raw     = (flagsforhist & 0x2) ? 1 : 0;
+		    capture = (flagsforhist & 0x1) ? 1 : 0;
+		}
+	    }
+	    else
+	      Writechar(BELL, 0);
+	}
 	else if(rc == 0){
 	    if(pipe_command[0] == '\0'){
 		cmd_cancelled("Pipe command");
 		break;
 	    }
+
+	    flagsforhist = (raw ? 0x2 : 0) + (capture ? 0x1 : 0);
+	    save_hist(history, pipe_command, flagsforhist, NULL);
 
 	    flags = PIPE_USER | PIPE_WRITE | PIPE_STDERR;
 	    flags |= (raw ? PIPE_RAW : 0);

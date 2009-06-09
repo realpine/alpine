@@ -57,4 +57,4 @@ Filename: "{app}\install.txt"; Description: "View Alpine README"; Flags: postins
 Type: files; Name: "{app}\alpine.url"
 
 [UninstallRun]
-Filename: "{app}\alpine.exe"; Parameters: "-nosplash -registry clearsilent"
+Filename: "{app}\alpine.exe"; Parameters: "-nosplash -uninstall"

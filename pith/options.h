@@ -2,7 +2,7 @@
  * $Id: options.h 101 2006-08-10 22:53:04Z mikes@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@
 
 
 #include "indxtype.h"			/* for ICE_S */
-#include "thread.h"			/* for PIENTHRD_S */
+#include "thread.h"			/* for PINETHRD_S */
 #include "handle.h"			/* for HANDLE_S */
 #include "filttype.h"			/* for gf_io_t */
 #include "state.h"			/* for struct pine */
@@ -166,6 +166,28 @@ extern void (*pith_opt_filter_pattern_cmd)(char **, SEARCHSET *, MAILSTREAM *, l
  * Hook to read signature from local file
  */
 extern char *(*pith_opt_get_signature_file)(char *, int, int, int);
+
+
+/*
+ * Hook to make variable names pretty in help text
+ */
+extern char *(*pith_opt_pretty_var_name)(char *);
+
+
+/*
+ * Hook to make feature names pretty in help text
+ */
+extern char *(*pith_opt_pretty_feature_name)(char *);
+
+
+/*
+ * optional hook in mailindx.c:{from,subject}_str to cause the returned
+ * string to be truncated at the formatted width. 1 truncates.
+ * This is useful because the truncated string ends slightly
+ * differently than it would if it weren't truncated, for
+ * example it might end ... or something like that.
+ */
+extern int (*pith_opt_truncate_sfstr)(void);
 
 
 #endif /* PITH_OPTIONS_INCLUDED */

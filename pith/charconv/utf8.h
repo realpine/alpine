@@ -1,5 +1,5 @@
 /*-----------------------------------------------------------------------
- $Id: utf8.h 435 2007-02-09 23:35:33Z hubert@u.washington.edu $
+ $Id: utf8.h 583 2007-05-29 23:10:02Z hubert@u.washington.edu $
   -----------------------------------------------------------------------*/
 
 /*
@@ -94,6 +94,7 @@ int            output_charset_is_supported(char *);
 int            posting_charset_is_supported(char *);
 char          *utf8_to_charset(char *, char *, int);
 char          *comatose(long);
+char          *tose(long);
 void           line_paint(int, struct display_line *, int *);
 
 

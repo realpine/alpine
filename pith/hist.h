@@ -1,5 +1,5 @@
 /*
- * $Id: hist.h 540 2007-04-25 17:58:55Z hubert@u.washington.edu $
+ * $Id: hist.h 589 2007-06-04 22:35:52Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -34,8 +34,9 @@ typedef struct history_s {
 } HISTORY_S;
 
 
-#define HISTORY_UP_KEYNAME  "Up/Dn"
-#define HISTORY_UP_KEYLABEL N_("History")
+#define HISTORY_UP_KEYNAME  "Up"
+#define HISTORY_DOWN_KEYNAME  "Down"
+#define HISTORY_KEYLABEL N_("History")
 
 
 void        init_hist(HISTORY_S **, int);

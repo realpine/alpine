@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: alpined.c 512 2007-04-05 17:14:45Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: alpined.c 613 2007-06-28 00:39:44Z mikes@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -1020,7 +1020,7 @@ PEInfoCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 
 		    snprintf(tvname, sizeof(tvname), "%.200s-foreground-color", varname);
 		    for(vtmp = &ps_global->vars[V_NORM_FORE_COLOR];
-			vtmp->name && strcmp(vtmp->name, tvname);
+			vtmp->name && strucmp(vtmp->name, tvname);
 			vtmp++)
 		      ;
 
@@ -1047,9 +1047,9 @@ PEInfoCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 
 		    snprintf(tvname, sizeof(tvname), "%.200s%.50s", varname, "-background-color");
 		    vtmp++;
-		    if((vtmp->name && strcmp(vtmp->name, tvname)) || !vtmp->name)
+		    if((vtmp->name && strucmp(vtmp->name, tvname)) || !vtmp->name)
 		      for(vtmp = &ps_global->vars[V_NORM_FORE_COLOR];
-			  vtmp->name && strcmp(vtmp->name, tvname);
+			  vtmp->name && strucmp(vtmp->name, tvname);
 			  vtmp++)
 			;
 
@@ -1205,7 +1205,7 @@ PEInfoCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 		     */
 		    for(i = 0, curfeature = NULL; feature = feature_list(i); i++)
 		      if(s = feature_list_section(feature)){
-			  if(!curfeature || strcmp(s, curfeature)){
+			  if(!curfeature || strucmp(s, curfeature)){
 			      if(resObj) {
 				  Tcl_ListObjAppendElement(interp,
 							   secObj,
@@ -1480,7 +1480,7 @@ PEInfoCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 		     */
 		    if(featurename = Tcl_GetStringFromObj(objv[2], NULL))
 		      for(i = 0; feature = feature_list(i); i++)
-			if(!strcmp(featurename, feature->name)){
+			if(!strucmp(featurename, feature->name)){
 			    isset = F_ON(feature->id, ps_global);
 			    break;
 			}
@@ -1524,8 +1524,9 @@ PEInfoCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 		    }
 		    else {
 			snprintf(tvname, sizeof(tvname), "%.200s%.50s", varname, "-foreground-color");
-			for(vtmp = &ps_global->vars[V_NORM_FORE_COLOR]; vtmp->name
-			      && strcmp(vtmp->name, tvname); vtmp++);
+			for(vtmp = &ps_global->vars[V_NORM_FORE_COLOR];
+			    vtmp->name && strucmp(vtmp->name, tvname);
+			    vtmp++);
 			if(!vtmp->name) return(TCL_ERROR);
 			if(vtmp->is_list) return(TCL_ERROR);
 			if(!vtmp->current_val.p)
@@ -1538,9 +1539,12 @@ PEInfoCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 			}
 			snprintf(tvname, sizeof(tvname), "%.200s%.50s", varname, "-background-color");
 			vtmp++;
-			if((vtmp->name && strcmp(vtmp->name, tvname)) || !vtmp->name)
-			  for(vtmp = &ps_global->vars[V_NORM_FORE_COLOR]; vtmp->name
-				&& strcmp(vtmp->name, tvname); vtmp++);
+			if((vtmp->name && strucmp(vtmp->name, tvname)) || !vtmp->name)
+			  for(vtmp = &ps_global->vars[V_NORM_FORE_COLOR];
+			      vtmp->name && strucmp(vtmp->name, tvname);
+			      vtmp++)
+			    ;
+
 			if(!vtmp->name) return(TCL_ERROR);
 			if(vtmp->is_list) return(TCL_ERROR);
 			if(!vtmp->current_val.p)
@@ -1579,8 +1583,12 @@ PEInfoCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 				    TCL_VOLATILE);
 		      return(TCL_ERROR);
 		    }
-		    for(vtmp = ps_global->vars; vtmp->name && 
-			  strcmp(vtmp->name, varname); vtmp++);
+
+		    for(vtmp = ps_global->vars;
+			vtmp->name && strucmp(vtmp->name, varname);
+			vtmp++)
+		      ;
+
 		    if(!vtmp->name){
 		      snprintf(tmperrmsg, sizeof(tmperrmsg), "Can't find variable named %s", 
 			      strlen(varname) < 200 ? varname : "");
@@ -1848,7 +1856,7 @@ PEInfoCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 		    if((featurename = Tcl_GetStringFromObj(objv[2], NULL))
 		       && Tcl_GetIntFromObj(interp, objv[3], &set) != TCL_ERROR)
 		      for(i = 0; feature = feature_list(i); i++)
-			if(!strcmp(featurename, feature->name)){
+			if(!strucmp(featurename, feature->name)){
 			    if(set != F_ON(feature->id, ps_global)){
 				toggle_feature(ps_global,
 					       &ps_global->vars[V_FEATURE_LIST],
@@ -1891,8 +1899,9 @@ PEInfoCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 			return(TCL_OK);
 		    }
 		    else if(strucmp(function, "variable") == 0){
-		        for(vtmp = ps_global->vars; vtmp->name && 
-			      strcmp(vtmp->name, helpname); vtmp++);
+		        for(vtmp = ps_global->vars;
+			    vtmp->name && strucmp(vtmp->name, helpname);
+			    vtmp++);
 			if(!vtmp->name) {
 			  snprintf(tmperrmsg, sizeof(tmperrmsg), "Can't find variable named %s", 
 				  strlen(helpname) < 200 ? helpname : "");
@@ -1905,7 +1914,7 @@ PEInfoCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 		    }
 		    else if(strucmp(function, "feature") == 0){
 		        for(i = 0; ftmp = feature_list(i); i++){
-			    if(!strcmp(helpname, ftmp->name)){
+			    if(!strucmp(helpname, ftmp->name)){
 			      text = ftmp->help;
 			      break;
 			    }
@@ -1939,7 +1948,8 @@ PEInfoCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 		    if((varname = Tcl_GetStringFromObj(objv[2], NULL))
 		       && (Tcl_ListObjGetElements(interp, objv[3], &numlistvals, 
 							   &objVal) == TCL_OK)){
-		        for(vtmp = ps_global->vars; vtmp->name && strcmp(vtmp->name, varname); 
+		        for(vtmp = ps_global->vars;
+			    vtmp->name && strucmp(vtmp->name, varname); 
 			    vtmp++);
 			if(!vtmp->name){
 			  return(TCL_ERROR);
@@ -1972,7 +1982,7 @@ PEInfoCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 			    }
 			    else{
 			        if(line = Tcl_GetStringFromObj(objVal[0], NULL)){
-				    if(strcmp(vtmp->name, "reply-indent-string"))
+				    if(strucmp(vtmp->name, "reply-indent-string"))
 				      removing_leading_and_trailing_white_space(line);
 				    if(vtmp->main_user_val.p)
 				      fs_give((void **)&vtmp->main_user_val.p);
@@ -2267,7 +2277,7 @@ PEConfigCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 
 		snprintf(tvname, sizeof(tvname), "%.200s-foreground-color", varname);
 		for(vtmp = &ps_global->vars[V_NORM_FORE_COLOR];
-		    vtmp->name && strcmp(vtmp->name, tvname);
+		    vtmp->name && strucmp(vtmp->name, tvname);
 		    vtmp++)
 		  ;
 
@@ -2297,9 +2307,9 @@ PEConfigCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 
 		snprintf(tvname, sizeof(tvname), "%.200s%.50s", varname, "-background-color");
 		vtmp++;
-		if((vtmp->name && strcmp(vtmp->name, tvname)) || !vtmp->name)
+		if((vtmp->name && strucmp(vtmp->name, tvname)) || !vtmp->name)
 		  for(vtmp = &ps_global->vars[V_NORM_FORE_COLOR];
-		      vtmp->name && strcmp(vtmp->name, tvname);
+		      vtmp->name && strucmp(vtmp->name, tvname);
 		      vtmp++)
 		    ;
 
@@ -2616,8 +2626,12 @@ PEConfigCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 		NAMEVAL_S       *tmpnv;
 
 		if(varname == NULL) return(TCL_ERROR);
-		for(vtmp = ps_global->vars; vtmp->name
-		      && strcmp(vtmp->name, varname); vtmp++);
+
+		for(vtmp = ps_global->vars;
+		    vtmp->name && strucmp(vtmp->name, varname);
+		    vtmp++)
+		  ;
+
 		if(!vtmp->name){
 		    Tcl_SetResult(interp, err, TCL_VOLATILE);
 		    return(TCL_ERROR);
@@ -2959,8 +2973,12 @@ PEConfigCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 		    char *colorp;
 
 		    snprintf(tvname, sizeof(tvname), "%.200s%.50s", varname, "-foreground-color");
-		    for(vtmp = &ps_global->vars[V_NORM_FORE_COLOR]; vtmp->name
-			  && strcmp(vtmp->name, tvname); vtmp++);
+
+		    for(vtmp = &ps_global->vars[V_NORM_FORE_COLOR];
+			vtmp->name && strucmp(vtmp->name, tvname);
+			vtmp++)
+		      ;
+
 		    if(!vtmp->name) return(TCL_ERROR);
 		    if(vtmp->is_list) return(TCL_ERROR);
 
@@ -2980,9 +2998,12 @@ PEConfigCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 
 		    snprintf(tvname, sizeof(tvname), "%.200s%.50s", varname, "-background-color");
 		    vtmp++;
-		    if((vtmp->name && strcmp(vtmp->name, tvname)) || !vtmp->name)
-		      for(vtmp = &ps_global->vars[V_NORM_FORE_COLOR]; vtmp->name
-			    && strcmp(vtmp->name, tvname); vtmp++);
+		    if((vtmp->name && strucmp(vtmp->name, tvname)) || !vtmp->name)
+		      for(vtmp = &ps_global->vars[V_NORM_FORE_COLOR];
+			  vtmp->name && strucmp(vtmp->name, tvname);
+			  vtmp++)
+			;
+
 		    if(!vtmp->name) return(TCL_ERROR);
 		    if(vtmp->is_list) return(TCL_ERROR);
 
@@ -3076,8 +3097,10 @@ PEConfigCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 		int i, strlistpos, numlistvals;
 
 		if(varname == NULL) return(TCL_ERROR);
-		for(vtmp = ps_global->vars; vtmp->name
-		      && strcmp(vtmp->name, varname); vtmp++);
+		for(vtmp = ps_global->vars;
+		    vtmp->name && strucmp(vtmp->name, varname);
+		    vtmp++)
+		  ;
 		if(!vtmp->name){
 		    Tcl_SetResult(interp, err, TCL_VOLATILE);
 		    return(TCL_ERROR);
@@ -3113,7 +3136,7 @@ PEConfigCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 		    if(numlistvals){
 			if(line = Tcl_GetStringFromObj(objVal[0], 0)){
 			    tline = cpystr(line);
-			    if(strcmp(vtmp->name, "reply-indent-string"))
+			    if(strucmp(vtmp->name, "reply-indent-string"))
 			      removing_leading_and_trailing_white_space(tline);
 			    if(!strcmp(tline, "\"\"")){
 				tline[0] = '\0';
@@ -3149,7 +3172,7 @@ PEConfigCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 		if((featurename = Tcl_GetStringFromObj(objv[2], NULL))
 		   && Tcl_GetIntFromObj(interp, objv[3], &set) != TCL_ERROR)
 		  for(i = 0; feature = feature_list(i); i++)
-		    if(!strcmp(featurename, feature->name)){
+		    if(!strucmp(featurename, feature->name)){
 			ps_global->vars[V_FEATURE_LIST].is_changed_val = 1;
 			wasset = F_CH_ON(feature->id);
 			F_CH_SET(feature->id, set);
@@ -4445,15 +4468,19 @@ PEFolderCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 	      
 	      if(cp){
 		if(!strcmp(op, "list")){
-		  int i, fcount;
+		  int i, fcount, bflags = BFL_NONE;
 		  char dir[3];
 		  
 		  ps_global->c_client_error[0] = ps_global->last_error[0] = '\0';
 		  if(PEFolderChange(interp, cp, objc - 3, objv + 3) == TCL_ERROR)
 		    return TCL_ERROR;
 		  
-		  peNoPassword = 0;  		  
-		  build_folder_list(NULL, cp, "*", NULL, (cp->use & CNTXT_NEWS) ? BFL_LSUB : BFL_NONE);
+		  peNoPassword = 0;
+		  if(cp->use & CNTXT_NEWS)
+		    bflags |= BFL_LSUB;
+
+		  build_folder_list(NULL, cp, "*", NULL, bflags);
+
 		  if(peNoPassword){
 		    Tcl_SetResult(interp, AUTH_FAILURE_STRING, TCL_VOLATILE);
 		    reset_context_folders(cp);
@@ -4466,14 +4493,18 @@ PEFolderCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 		      FOLDER_S *f = folder_entry(i, FOLDERS(cp));
 		      
 		      p = type;
-		      if(f->isdir)
-			*p++ = 'D';
-		      
+		      if(f->isdir){
+			  *p++ = 'D';
+
+			  if(f->hasnochildren && !f->haschildren)
+			    *p++ = 'E';
+		      }
+
 		      if(f->isfolder
 			 || f->nickname
 			 || (cp->use & CNTXT_INCMNG))
 			*p++ = 'F';
-		      
+
 		      *p = '\0';
 		      
 		      peAppListF(interp, Tcl_GetObjResult(interp), "%s%s", type,
@@ -6074,6 +6105,7 @@ peIndexFormat(Tcl_Interp *interp)
 	switch(cdesc->ctype){
 	  case iFStatus:
 	  case iIStatus:
+	  case iSIStatus:
 	    dname = "iStatus";
 	  case iStatus:
 	    name = "Status";
@@ -11255,7 +11287,7 @@ PEAddressCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 		    }
 		    if(tag == List) {
 		      adrbk_listdel_all(ab, new_entry);
-		      adrbk_nlistadd(ab, new_entry, addrs, 0, 1, 1);
+		      adrbk_nlistadd(ab, new_entry, NULL, NULL, addrs, 0, 1, 1);
 		    }
 		    return(TCL_OK);
 		}

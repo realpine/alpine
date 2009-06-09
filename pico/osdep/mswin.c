@@ -31,6 +31,7 @@
 #include "../../pith/charconv/utf8.h"
 
 #include "../../pith/filttype.h"
+#include "../../pith/osdep/color.h"
 
 #include "mswin_tw.h"
 
@@ -364,6 +365,15 @@ typedef	struct _iconlist {
     struct _iconlist *next;
 } IconList;
 
+/*
+ * char * array for printing registry settings.
+ */
+typedef struct MSWR_LINE_BUFFER {
+    char **linep; /* store these as utf8, since that's what we have to pass back */
+    unsigned long size;
+    unsigned long offset;
+} MSWR_LINE_BUFFER_S;
+
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  *
@@ -514,6 +524,9 @@ LOCAL int	MSWRAlpineGet(HKEY hKey, LPTSTR subkey, LPTSTR val,
 LOCAL void	MSWIconAddList(int row, int id, HICON hIcon);
 LOCAL int	MSWIconPaint(int row, HDC hDC);
 LOCAL void	MSWIconFree(IconList **ppIcon);
+LOCAL int       MSWRLineBufAdd(MSWR_LINE_BUFFER_S *lpLineBuf, LPTSTR line);
+LOCAL int       MSWRDump(HKEY hKey, LPTSTR pSubKey, int keyDepth,
+			 MSWR_LINE_BUFFER_S *lpLineBuf);
 
 
 		/* ... interface routines ... */
@@ -4063,6 +4076,9 @@ color_to_canonical_name(char *s)
 
     if(!s)
       return(NULL);
+
+    if(!struncmp(s, MATCH_NORM_COLOR, RGBLEN) || !struncmp(s, MATCH_NONE_COLOR, RGBLEN))
+      return(s);
 
     for(ct = MSWINColorTable; ct->colorName; ct++)
       if(!struncmp(ct->colorName, s, (int)strlen(ct->colorName)))
@@ -8893,17 +8909,24 @@ pico_count_in_color_table()
 char *
 color_to_asciirgb(char *colorName)
 {
-    static char  c_to_a_buf[RGBLEN+1];
+    static char  c_to_a_buf[3][RGBLEN+1];
+    static int   whichbuf = 0;
     COLORREF	 cf;
     int          l;
 
+    whichbuf = (whichbuf + 1) % 3;
+
     if(ConvertRGBString(colorName, &cf)){
-	snprintf(c_to_a_buf, sizeof(c_to_a_buf), "%.3d,%.3d,%.3d",
+	snprintf(c_to_a_buf[whichbuf], sizeof(c_to_a_buf[0]), "%.3d,%.3d,%.3d",
 		GetRValue(cf), GetGValue(cf), GetBValue(cf));
     }
     else{
 	/*
-	 * If we didn't find the color we're in a bit of trouble. This
+	 * If we didn't find the color it could be that it is the
+	 * normal color (MATCH_NORM_COLOR) or the none color
+	 * (MATCH_NONE_COLOR). If that is the case, this strncpy thing
+	 * will work out correctly because those two strings are
+	 * RGBLEN long. Otherwise we're in a bit of trouble. This
 	 * most likely means that the user is using the same pinerc on
 	 * two terminals, one with more colors than the other. We didn't
 	 * find a match because this color isn't present on this terminal.
@@ -8913,13 +8936,13 @@ color_to_asciirgb(char *colorName)
 	 * but at least the embedded colors in filter.c will get properly
 	 * sucked up when they're encountered.
 	 */
-	strncpy(c_to_a_buf, "xxxxxxxxxxx", RGBLEN);
+	strncpy(c_to_a_buf[whichbuf], "xxxxxxxxxxx", RGBLEN);
 	l = (int)strlen(colorName);
-	strncpy(c_to_a_buf, colorName, (l < RGBLEN) ? l : RGBLEN);
-	c_to_a_buf[RGBLEN] = '\0';
+	strncpy(c_to_a_buf[whichbuf], colorName, (l < RGBLEN) ? l : RGBLEN);
+	c_to_a_buf[whichbuf][RGBLEN] = '\0';
     }
 
-    return(c_to_a_buf);
+    return(c_to_a_buf[whichbuf]);
 }
 
 
@@ -9002,6 +9025,10 @@ pico_is_good_color(char *colorName)
 {
     COLORREF	 cf;
 
+    if(!struncmp(colorName, MATCH_NORM_COLOR, RGBLEN)
+       || !struncmp(colorName, MATCH_NONE_COLOR, RGBLEN))
+      return(TRUE);
+
     return(ConvertRGBString(colorName, &cf));
 }
 
@@ -9009,7 +9036,17 @@ pico_is_good_color(char *colorName)
 int
 pico_set_fg_color(char *colorName)
 {
+    char fgbuf[MAXCLEN];
+
     FlushWriteAccum ();
+    
+    if(!struncmp(colorName, MATCH_NORM_COLOR, RGBLEN)){
+	ConvertStringRGB(fgbuf,sizeof(fgbuf),gpTTYInfo->rgbFGColor);
+	colorName = fgbuf;
+    }
+    else if(!struncmp(colorName, MATCH_NONE_COLOR, RGBLEN))
+      return(TRUE);
+
     return(ConvertRGBString(colorName, &gpTTYInfo->curAttrib.rgbFG));
 }
 
@@ -9017,7 +9054,17 @@ pico_set_fg_color(char *colorName)
 int
 pico_set_bg_color(char *colorName)
 {
+    char bgbuf[MAXCLEN];
+
     FlushWriteAccum ();
+    
+    if(!struncmp(colorName, MATCH_NORM_COLOR, RGBLEN)){
+	ConvertStringRGB(bgbuf,sizeof(bgbuf),gpTTYInfo->rgbBGColor);
+	colorName = bgbuf;
+    }
+    else if(!struncmp(colorName, MATCH_NONE_COLOR, RGBLEN))
+      return(TRUE);
+
     return(ConvertRGBString(colorName, &gpTTYInfo->curAttrib.rgbBG));
 }
 
@@ -10538,6 +10585,7 @@ ConfirmExit (void)
 
 
 #define	MSWR_ROOT	TEXT("Software\\University of Washington\\Alpine\\1.0")
+#define	MSWR_CAPABILITIES TEXT("Software\\University of Washington\\Alpine\\1.0\\Capabilities")
 #define	MSWR_APPNAME	TEXT("Alpine")
 #define MSWR_DLLPATH    TEXT("DLLPath")
 #define MSWR_DLLNAME    TEXT("pmapi32.dll")
@@ -10545,46 +10593,30 @@ ConfirmExit (void)
 
 
 struct mswin_reg_key {
-  HKEY   rhk;        /* root key (HKEY_LOCAL_MACHINE, ...) */
-  LPTSTR rkey;       /* key name */
-  LPTSTR rnames[3];  /* NULL terminated list of key values */
+  HKEY    rhk;        /* root key (HKEY_LOCAL_MACHINE, ...) */
+  LPTSTR *knames;     /* NULL terminated list of keys */
+};
+
+LPTSTR mswin_pine_hklm_regs[] = {
+    MSWR_ROOT,
+    TEXT("Software\\Clients\\Mail\\Alpine"),
+    TEXT("Software\\Clients\\News\\Alpine"),
+    TEXT("Software\\Classes\\Alpine.Url.Mailto"),
+    TEXT("Software\\Classes\\Alpine.Url.News"),
+    TEXT("Software\\Classes\\Alpine.Url.Nntp"),
+    TEXT("Software\\Classes\\Alpine.Url.Imap"),
+    NULL
+};
+
+LPTSTR mswin_pine_hkcu_regs[] = {
+    MSWR_ROOT,
+    NULL
 };
 
 static struct mswin_reg_key mswin_pine_regs[] = {
-    {HKEY_LOCAL_MACHINE, MSWR_ROOT, {TEXT("Pinedir"), TEXT("PineEXE"), NULL}},
-    {HKEY_CURRENT_USER, MSWR_ROOT, {TEXT("PineRC"), NULL}},
-    {HKEY_CURRENT_USER, MSWR_ROOT, {TEXT("PineAux"), NULL}},
-    {HKEY_CURRENT_USER, MSWR_ROOT, {TEXT("PinePos"), NULL}},
-    {HKEY_LOCAL_MACHINE,
-     TEXT("Software\\Clients\\Mail\\Alpine"),
-     {TEXT(""), TEXT("DLLPath"), NULL}},
-    {HKEY_LOCAL_MACHINE, TEXT("Software\\Clients\\Mail\\Alpine\\Protocols\\Mailto\\DefaultIcon"),
-     {TEXT(""), NULL}},
-    {HKEY_LOCAL_MACHINE,
-     TEXT("Software\\Clients\\Mail\\Alpine\\Protocols\\Mailto\\shell\\open\\command"),
-     {TEXT(""), NULL}},
-   {HKEY_LOCAL_MACHINE,
-    TEXT("Software\\Clients\\Mail\\Alpine\\shell\\open\\command"),
-    {TEXT(""), NULL}},
-   {HKEY_LOCAL_MACHINE,
-    TEXT("Software\\Clients\\News\\Alpine"),
-    {TEXT(""), NULL}},
-   {HKEY_LOCAL_MACHINE,
-    TEXT("Software\\Clients\\News\\Alpine\\Protocols\\news\\DefaultIcon"),
-    {TEXT(""), NULL}},
-   {HKEY_LOCAL_MACHINE,
-    TEXT("Software\\Clients\\News\\Alpine\\Protocols\\news\\shell\\open\\command"),
-    {TEXT(""), NULL}},
-   {HKEY_LOCAL_MACHINE,
-    TEXT("Software\\Clients\\News\\Alpine\\Protocols\\nntp\\DefaultIcon"),
-    {TEXT(""), NULL}},
-   {HKEY_LOCAL_MACHINE,
-    TEXT("Software\\Clients\\News\\Alpine\\Protocols\\nntp\\shell\\open\\command"),
-    {TEXT(""), NULL}},
-   {HKEY_LOCAL_MACHINE,
-    TEXT("Software\\Clients\\News\\Alpine\\shell\\open\\command"),
-    {TEXT(""), NULL}},
-  {NULL, NULL, {NULL}}
+    {HKEY_LOCAL_MACHINE, mswin_pine_hklm_regs},
+    {HKEY_CURRENT_USER, mswin_pine_hkcu_regs},
+    {NULL, NULL}
 };
 
 
@@ -10688,122 +10720,18 @@ mswin_reg_lptstr(int op, int tree, LPTSTR data_lptstr, size_t size)
 	}
     }
     else if(op & MSWR_OP_BLAST){
-        int rv = 0;
+        int rv = 0, i, j;
 
-	/* UN-Register as a mail client on this system */
-	rv +=
-	  MSWRClear(HKEY_LOCAL_MACHINE, TEXT("SOFTWARE\\Clients\\Mail\\Alpine"));
-
-	/* UN-Register as a news client on this system */
-	rv +=
-	  MSWRClear(HKEY_LOCAL_MACHINE, TEXT("SOFTWARE\\Clients\\News\\Alpine"));
-
-	/* UN-Register as a IMAP url handler */
-	rv +=
-	  MSWRClear(HKEY_CLASSES_ROOT, TEXT("imap"));
-
-	rv +=
-	  MSWRClear(HKEY_LOCAL_MACHINE, MSWR_ROOT);
-
-	rv +=
-	  MSWRClear(HKEY_CURRENT_USER, MSWR_ROOT);
+	for(i = 0; mswin_pine_regs[i].rhk; i++){
+	    for(j = 0; mswin_pine_regs[i].knames[j]; j++)
+	      MSWRClear(mswin_pine_regs[i].rhk, mswin_pine_regs[i].knames[j]);
+	}
 	if(rv) return -1;
     }
     /* else, ignore unknown op? */
 
     return(0);
 }
-
-
-/*
- *  Dump all of the registry values into an array of strings.
- */
-char **
-mswin_reg_dump()
-{
-    int            lines = 10;  /* initial amount of lines */
-    int            i = 0, j, tlines = 0;
-    LPTSTR         *regtext, tmpreg_lptstr;
-    TCHAR          tmpbuf[MSWRDBUF];
-    BYTE           tmpreg[MSWR_DATA_MAX];
-    HKEY           hKey;
-    unsigned long  tmpreglen = MSWR_DATA_MAX, tmpbuflen = MSWRDBUF;
-    char           **regtext_utf8;
-
-    /* approximate how many lines we're going to need */
-    while(mswin_pine_regs[i].rkey){
-      lines += 2;
-      j = 0;
-      while(mswin_pine_regs[i].rnames[j]){
-	lines++;
-	j++;
-      }
-      i++;
-    }
-    regtext = (LPTSTR *)MemAlloc((lines+1) * sizeof(LPTSTR));
-    i = tlines = 0;
-    _sntprintf(tmpbuf, tmpbuflen, TEXT("Registry values for Alpine:"));
-    regtext[tlines] = MemAlloc((_tcslen(tmpbuf) + 1) * sizeof(TCHAR));
-    _tcsncpy(regtext[tlines++], tmpbuf, _tcslen(tmpbuf)+1);
-    _sntprintf(tmpbuf, tmpbuflen, TEXT(""));
-    regtext[tlines] = MemAlloc((_tcslen(tmpbuf) + 1) * sizeof(TCHAR));
-    _tcsncpy(regtext[tlines++], tmpbuf, _tcslen(tmpbuf)+1);
-    while(i < lines && mswin_pine_regs[i].rkey){
-	_sntprintf(tmpbuf, tmpbuflen, TEXT("[ %s\\%s ]"),
-	      mswin_pine_regs[i].rhk == HKEY_LOCAL_MACHINE ?
-		   TEXT("HKEY_LOCAL_MACHINE") : TEXT("HKEY_CURRENT_USER"),
-		   mswin_pine_regs[i].rkey);
-      regtext[tlines] = MemAlloc((_tcslen(tmpbuf) + 1) * sizeof(TCHAR));
-      _tcsncpy(regtext[tlines++], tmpbuf, _tcslen(tmpbuf)+1);
-      if(RegOpenKeyEx(mswin_pine_regs[i].rhk,
-		      mswin_pine_regs[i].rkey,
-		      0, KEY_ALL_ACCESS, &hKey) == ERROR_SUCCESS){
-	j = 0;
-	while(mswin_pine_regs[i].rnames[j]){
-	    DWORD dType;
-
-	    RegQueryValueEx(hKey, mswin_pine_regs[i].rnames[j], NULL, &dType,
-			    tmpreg, &tmpreglen);
-	    tmpreg_lptstr = (LPTSTR)tmpreg;
-	    _sntprintf(tmpbuf, tmpbuflen, TEXT("\t%s = %s"), *(mswin_pine_regs[i].rnames[j]) ?
-		       mswin_pine_regs[i].rnames[j] : TEXT("(Default)"),
-		       *tmpreg_lptstr ? tmpreg_lptstr : TEXT("(Not Defined)"));
-	    regtext[tlines] = (LPTSTR)MemAlloc((_tcslen(tmpbuf) + 1) * sizeof(TCHAR));
-	    _tcsncpy(regtext[tlines++], tmpbuf, _tcslen(tmpbuf)+1);
-	    tmpreg[0] = 0;
-	    tmpreglen = MSWR_DATA_MAX;
-	    j++;
-	}
-	RegCloseKey(hKey);
-      }
-      else{
-	  _sntprintf(tmpbuf, tmpbuflen, TEXT("\tNOT DEFINED"));
-	  regtext[tlines] = (LPTSTR)MemAlloc((_tcslen(tmpbuf) + 1) * sizeof(TCHAR));
-	  _tcsncpy(regtext[tlines++], tmpbuf, _tcslen(tmpbuf)+1);
-      }
-      _sntprintf(tmpbuf, tmpbuflen, TEXT(""));
-      regtext[tlines] = (LPTSTR)MemAlloc((_tcslen(tmpbuf) + 1) * sizeof(TCHAR));
-      _tcsncpy(regtext[tlines++], tmpbuf, _tcslen(tmpbuf)+1);
-      i++;
-    }
-    regtext[tlines] = NULL;
-
-    /* kinda silly to convert to utf8 only to convert back */
-    regtext_utf8 = (char **)MemAlloc((tlines+1) * sizeof(char *));
-    for(i = 0; i < tlines; i++){
-	if(regtext[i]){
-	    regtext_utf8[i] = lptstr_to_utf8(regtext[i]);
-	    MemFree((void *)regtext[i]);
-	}
-	else
-	  regtext_utf8[i] = NULL;
-    }
-    regtext_utf8[lines] = NULL;
-    MemFree((void *)regtext);
-
-    return regtext_utf8;
-}
-
 
 
 LOCAL void
@@ -10855,6 +10783,60 @@ MSWRAlpineSetHandlers(int update, LPTSTR path_lptstr)
     LPTSTR tmp_lptstr = (LPTSTR)tmp_b;
 
     /* Register as a mail client on this system */
+    if(RegOpenKeyEx(HKEY_LOCAL_MACHINE,
+		    MSWR_ROOT, 0, KEY_ALL_ACCESS,
+		    &hKey) == ERROR_SUCCESS){
+	if(RegCreateKeyEx(HKEY_LOCAL_MACHINE, MSWR_CAPABILITIES, 0, TEXT("REG_SZ"),
+			  REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS,
+			  NULL, &hSubKey, &dwDisp) == ERROR_SUCCESS){
+	    MSWRPoke(hSubKey, NULL, TEXT("ApplicationDescription"),
+		     TEXT("Alpine - A program for sending, receiving, and filing email and news, whether stored locally or accessed over the network via IMAP, POP3, or NNTP. Alpine is the successor to Pine, and also is maintained by the University of Washington."));
+	    MSWRPoke(hSubKey, NULL, TEXT("ApplicationName"),
+		     TEXT("Alpine"));
+	    _sntprintf(tmp_lptstr, tmp_lptstr_tcharlen, TEXT("%salpine.exe,0"), path_lptstr);
+	    MSWRPoke(hSubKey, NULL, TEXT("ApplicationIcon"), tmp_lptstr);
+	    MSWRPoke(hSubKey, TEXT("UrlAssociations"), TEXT("mailto"), TEXT("Alpine.Url.Mailto"));
+	    MSWRPoke(hSubKey, TEXT("UrlAssociations"), TEXT("news"), TEXT("Alpine.Url.News"));
+	    MSWRPoke(hSubKey, TEXT("UrlAssociations"), TEXT("nntp"), TEXT("Alpine.Url.Nntp"));
+	    MSWRPoke(hSubKey, TEXT("UrlAssociations"), TEXT("imap"), TEXT("Alpine.Url.Imap"));
+	    RegCloseKey(hSubKey);
+	}
+	RegCloseKey(hKey);
+	if(RegOpenKeyEx(HKEY_LOCAL_MACHINE, TEXT("Software\\RegisteredApplications"), 0,
+			KEY_ALL_ACCESS, &hKey) == ERROR_SUCCESS){
+	    MSWRPoke(hKey, NULL, TEXT("Alpine"), MSWR_CAPABILITIES);
+	    RegCloseKey(hKey);
+	}
+	if(RegOpenKeyEx(HKEY_LOCAL_MACHINE,
+			TEXT("Software\\Classes"), 0, KEY_ALL_ACCESS, &hKey) == ERROR_SUCCESS){
+	    if(RegCreateKeyEx(hKey, TEXT("Alpine.Url.Mailto"), 0, TEXT("REG_SZ"),
+			      REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS,
+			      NULL, &hSubKey, &dwDisp) == ERROR_SUCCESS){
+		MSWRProtocolSet(hSubKey, MSWR_SDC_MAIL, path_lptstr);
+		RegCloseKey(hSubKey);
+	    }
+	    if(RegCreateKeyEx(hKey, TEXT("Alpine.Url.Nntp"), 0, TEXT("REG_SZ"),
+			      REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS,
+			      NULL, &hSubKey, &dwDisp) == ERROR_SUCCESS){
+		MSWRProtocolSet(hSubKey, MSWR_SDC_NNTP, path_lptstr);
+		RegCloseKey(hSubKey);
+	    }
+	    if(RegCreateKeyEx(hKey, TEXT("Alpine.Url.News"), 0, TEXT("REG_SZ"),
+			      REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS,
+			      NULL, &hSubKey, &dwDisp) == ERROR_SUCCESS){
+		MSWRProtocolSet(hSubKey, MSWR_SDC_NEWS, path_lptstr);
+		RegCloseKey(hSubKey);
+	    }
+	    if(RegCreateKeyEx(hKey, TEXT("Alpine.Url.Imap"), 0, TEXT("REG_SZ"),
+			      REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS,
+			      NULL, &hSubKey, &dwDisp) == ERROR_SUCCESS){
+		MSWRProtocolSet(hSubKey, MSWR_SDC_IMAP, path_lptstr);
+		RegCloseKey(hSubKey);
+	    }
+	    RegCloseKey(hKey);
+	}
+    }
+
     if((exists = RegOpenKeyEx(HKEY_LOCAL_MACHINE,
 			      TEXT("SOFTWARE\\Clients\\Mail\\Alpine"),
 			      0, KEY_ALL_ACCESS, &hKey) == ERROR_SUCCESS)
@@ -11186,6 +11168,132 @@ MSWRPoke(HKEY hKey, LPTSTR subkey, LPTSTR valstr, LPTSTR data_lptstr)
 }
 
 
+LOCAL int
+MSWRLineBufAdd(MSWR_LINE_BUFFER_S *lpLineBuf, LPTSTR line)
+{
+    LPTSTR new_line;
+    unsigned long new_line_len;
+
+    if(lpLineBuf->offset >= lpLineBuf->size){
+	/* this probably won't happen, but just in case */
+	lpLineBuf->size *= 2;
+	lpLineBuf->linep = (char **)MemRealloc(lpLineBuf->linep,
+					      (lpLineBuf->size + 1)*sizeof(char *));
+    }
+
+    lpLineBuf->linep[lpLineBuf->offset++] = lptstr_to_utf8(line);
+    lpLineBuf->linep[lpLineBuf->offset] = NULL;
+}
+
+/*
+ *  Dump all of the registry values from a list of keys into an array
+ *  of UTF8-formatted strings.
+ */
+char **
+mswin_reg_dump(void)
+{
+    MSWR_LINE_BUFFER_S lineBuf;
+    unsigned long initial_size = 256;
+    int i, j;
+
+    lineBuf.linep = (char **)MemAlloc((initial_size+1)*sizeof(char *));
+    lineBuf.size = initial_size;
+    lineBuf.offset = 0;
+    
+    MSWRLineBufAdd(&lineBuf, TEXT("Registry values for Alpine:"));
+    MSWRLineBufAdd(&lineBuf, TEXT(""));
+
+    for(i = 0; mswin_pine_regs[i].rhk; i++){
+	MSWRLineBufAdd(&lineBuf, mswin_pine_regs[i].rhk == HKEY_LOCAL_MACHINE
+		       ? TEXT("HKEY_LOCAL_MACHINE") 
+		       : TEXT("HKEY_CURRENT_USER"));
+	for(j = 0; mswin_pine_regs[i].knames[j]; j++)
+	  MSWRDump(mswin_pine_regs[i].rhk,
+		   mswin_pine_regs[i].knames[j],
+		   1, &lineBuf);
+    }
+
+    return(lineBuf.linep);
+}
+
+
+/*
+ * Recursive function to crawl a registry hierarchy and print the contents.
+ *
+ * Returns: 0
+ */
+LOCAL int
+MSWRDump(HKEY hKey, LPTSTR pSubKey, int keyDepth, MSWR_LINE_BUFFER_S *lpLineBuf)
+{
+    HKEY  hSubKey;
+    TCHAR KeyBuf[MSWR_KEY_MAX+1];
+    TCHAR ValBuf[MSWR_VAL_MAX+1];
+    BYTE  DataBuf[MSWR_DATA_MAX+1];
+    DWORD dwKeyIndex, dwKeyLen;
+    DWORD dwValIndex, dwValLen, dwDataLen;
+    DWORD dwType;
+    FILETIME ftKeyTime;
+    TCHAR new_buf[1024];
+    unsigned int new_buf_len = 1024;
+    int i, j, k, tab_width = 4;
+
+    /* open the passed subkey */
+    if(RegOpenKeyEx(hKey, pSubKey, 0,
+		    KEY_READ, &hSubKey) == ERROR_SUCCESS){
+	
+	/* print out key name here */
+	for(i = 0, k = 0; i < keyDepth % 8; i++)
+	  for(j = 0; j < tab_width; j++)
+	    new_buf[k++] = ' ';
+	_sntprintf(new_buf+k, new_buf_len - k, TEXT("%s"), pSubKey);
+	new_buf[new_buf_len - 1] = '\0';
+	MSWRLineBufAdd(lpLineBuf, new_buf);
+
+	keyDepth++;
+
+	/* Loop through the string values and print their data */
+	for(dwValIndex = 0L, dwValLen = MSWR_VAL_MAX + 1, dwDataLen = MSWR_DATA_MAX + 1;
+	    RegEnumValue(hSubKey, dwValIndex, ValBuf, &dwValLen, NULL, &dwType,
+			 DataBuf, &dwDataLen) == ERROR_SUCCESS;
+	    dwValIndex++, dwValLen = MSWR_VAL_MAX + 1, dwDataLen = MSWR_DATA_MAX + 1){
+
+	    /* print out value here */
+	    for(i = 0, k = 0; i < keyDepth % 8; i++)
+	      for(j = 0; j < tab_width; j++)
+		new_buf[k++] = ' ';
+	    _sntprintf(new_buf+k, new_buf_len - k,
+		       TEXT("%.*s = %.*s"),
+		       dwValLen ? dwValLen : 128,
+		       dwValLen ? ValBuf : TEXT("(Default)"),
+		       dwType == REG_SZ && dwDataLen ? dwDataLen/sizeof(TCHAR) : 128,
+		       (dwType == REG_SZ 
+			? (dwDataLen ? (LPTSTR)DataBuf : TEXT("(No data)"))
+			: TEXT("(Some non-string data)")));
+	    new_buf[new_buf_len - 1] = '\0';
+	    MSWRLineBufAdd(lpLineBuf, new_buf);
+	}
+
+	/* Loop through the subkeys and recursively print their data */
+	for(dwKeyIndex = 0L, dwKeyLen = MSWR_KEY_MAX + 1;
+	    RegEnumKeyEx(hSubKey, dwKeyIndex, KeyBuf, &dwKeyLen,
+			 NULL, NULL, NULL, &ftKeyTime) == ERROR_SUCCESS;
+	    dwKeyIndex++, dwKeyLen = MSWR_KEY_MAX + 1){
+	    MSWRDump(hSubKey, KeyBuf, keyDepth, lpLineBuf);
+	}
+    }
+    else {
+	/* Couldn't open the key.  Must not be defined. */
+	for(i = 0, k = 0; i < keyDepth % 8; i++)
+	  for(j = 0; j < tab_width; j++)
+	    new_buf[k++] = ' ';
+	_sntprintf(new_buf+k, new_buf_len - k, TEXT("%s - Not Defined"), pSubKey);
+	new_buf[new_buf_len - 1] = '\0';
+	MSWRLineBufAdd(lpLineBuf, new_buf);
+    }
+
+    return 0;
+}
+
 
 /*
  * Fundamental registry access function that removes a registry key
@@ -11202,17 +11310,17 @@ MSWRClear(HKEY hKey, LPTSTR pSubKey)
 
     if(RegOpenKeyEx(hKey, pSubKey, 0,
 		    KEY_READ, &hSubKey) == ERROR_SUCCESS){
-      RegCloseKey(hSubKey);
+	RegCloseKey(hSubKey);
 	if(RegOpenKeyEx(hKey, pSubKey, 0,
 			KEY_ALL_ACCESS, &hSubKey) == ERROR_SUCCESS){
 	    for(dwKeyIndex = 0L, dwKeyLen = MSWR_KEY_MAX + 1;
 		RegEnumKeyEx(hSubKey, dwKeyIndex, KeyBuf, &dwKeyLen,
 			     NULL, NULL, NULL, &ftKeyTime) == ERROR_SUCCESS;
 		dwKeyLen = MSWR_KEY_MAX + 1)
-	        if(MSWRClear(hSubKey, KeyBuf)!= 0){
-		    rv = -1;
-		    dwKeyIndex++;
-		}
+	      if(MSWRClear(hSubKey, KeyBuf)!= 0){
+		  rv = -1;
+		  dwKeyIndex++;
+	      }
 	    RegCloseKey(hSubKey);
 	    if(RegDeleteKey(hKey, pSubKey) != ERROR_SUCCESS || rv)
 	      return -1;

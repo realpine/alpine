@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: stream.c 494 2007-03-28 18:03:58Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: stream.c 600 2007-06-15 23:23:02Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -3267,6 +3267,27 @@ streams_died(void)
     }
 
     return(rv);
+}
+
+
+/*
+ * Very simple version of appenduid_cb until we need something
+ * more complex.
+ */
+
+static imapuid_t last_append_uid;
+
+void
+appenduid_cb(char *mailbox,unsigned long uidvalidity, SEARCHSET *set)
+{
+    last_append_uid = set ? set->first : 0L;
+}
+
+
+imapuid_t
+get_last_append_uid(void)
+{
+    return last_append_uid;
 }
 
 

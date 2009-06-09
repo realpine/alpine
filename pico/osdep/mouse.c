@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mouse.c 477 2007-03-08 19:50:00Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mouse.c 589 2007-06-04 22:35:52Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -353,8 +353,12 @@ checkmouse (unsigned long *ch, int ddd, int xxx, int yyy)
 	/* Now, was that a mouse down or mouse up? */
 	if (mouse.event == M_EVENT_DOWN) {	/* button down */
 	    oindex = i;			/* remember where */
-	    if(i != -1)			/* invert label */
-		invert_label (1, &menuitems[i]);
+	    if(i != -1){		/* invert label */
+		if(menuitems[i].label_hiliter != NULL)
+		  (*menuitems[i].label_hiliter)(1, &menuitems[i]);
+		else
+		    invert_label(1, &menuitems[i]);
+	    }
 	}
 	else if (mouse.event == M_EVENT_UP) {/* button up */
 	    if (oindex != -1) {		  /* If up in menu item. */
@@ -373,8 +377,12 @@ checkmouse (unsigned long *ch, int ddd, int xxx, int yyy)
 
     /* If this is mouse up AND there was a mouse down in a menu item
      * then uninvert that menu item */
-    if(mouse.event == M_EVENT_UP && oindex != -1)
-      invert_label(0, &menuitems[oindex]);	/* restore label */
+    if(mouse.event == M_EVENT_UP && oindex != -1){
+	if(menuitems[oindex].label_hiliter != NULL)
+	  (*menuitems[oindex].label_hiliter)(0, &menuitems[oindex]);
+	else
+	  invert_label(0, &menuitems[oindex]);
+    }
 
     return(rv);
 }

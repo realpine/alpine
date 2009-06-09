@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: takeaddr.c 493 2007-03-27 21:51:48Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: takeaddr.c 605 2007-06-20 21:15:13Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1843,7 +1843,8 @@ grab_addrs_from_body(MAILSTREAM *stream, long int msgno,
 
     gf_set_so_writec(&pc, so);
 
-    failure = !get_body_part_text(stream, body, msgno, "1", 0L, pc, NULL, NULL);
+    failure = !get_body_part_text(stream, body, msgno, "1", 0L, pc,
+				  NULL, NULL, GBPT_NONE);
 
     gf_clear_so_writec(so);
 

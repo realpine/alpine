@@ -79,14 +79,13 @@ binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
 am_pico_OBJECTS = main.$(OBJEXT) utf8stub.$(OBJEXT)
 pico_OBJECTS = $(am_pico_OBJECTS)
-pico_LDADD = $(LDADD)
-pico_DEPENDENCIES = ../c-client/utf8.o libpico.a osdep/libpicoosd.a \
+am__DEPENDENCIES_1 = ../c-client/utf8.o libpico.a osdep/libpicoosd.a \
 	../pith/osdep/libpithosd.a ../pith/charconv/libpithcc.a
+am__DEPENDENCIES_2 =
+pico_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2)
 am_pilot_OBJECTS = pilot.$(OBJEXT) utf8stub.$(OBJEXT)
 pilot_OBJECTS = $(am_pilot_OBJECTS)
-pilot_LDADD = $(LDADD)
-pilot_DEPENDENCIES = ../c-client/utf8.o libpico.a osdep/libpicoosd.a \
-	../pith/osdep/libpithosd.a ../pith/charconv/libpithcc.a
+pilot_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2)
 DEFAULT_INCLUDES = 
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -134,6 +133,7 @@ CXXFLAGS = @CXXFLAGS@
 CYGPATH_W = @CYGPATH_W@
 C_CLIENT_SPECIALS = @C_CLIENT_SPECIALS@
 C_CLIENT_TARGET = @C_CLIENT_TARGET@
+C_CLIENT_WITH_IPV6 = @C_CLIENT_WITH_IPV6@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
 ECHO = @ECHO@
@@ -240,6 +240,8 @@ target_alias = @target_alias@
 SUBDIRS = osdep
 pico_SOURCES = main.c utf8stub.c
 pilot_SOURCES = pilot.c utf8stub.c
+pico_LDADD = $(LDADD) $(INTLLIBS)
+pilot_LDADD = $(LDADD) $(INTLLIBS)
 LDADD = ../c-client/utf8.o libpico.a osdep/libpicoosd.a \
 	../pith/osdep/libpithosd.a ../pith/charconv/libpithcc.a
 

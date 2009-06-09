@@ -1,5 +1,5 @@
 /*
- * $Id: save.h 220 2006-11-06 19:58:04Z hubert@u.washington.edu $
+ * $Id: save.h 609 2007-06-22 23:38:20Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -29,6 +29,7 @@
 					/* just different status messages	*/
 #define SV_FIX_DELS		0x4	/* remove Del mark before saving	*/
 #define SV_INBOXWOCNTXT		0x8	/* interpret "inbox" as one true inbox	*/
+#define SV_PRESERVE		0x10	/* preserve order			*/
 
 
 /* exported protoypes */

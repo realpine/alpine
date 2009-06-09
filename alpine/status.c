@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: status.c 508 2007-04-03 22:14:39Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: status.c 603 2007-06-18 23:01:32Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -95,7 +95,7 @@ static time_t displayed_time;
 void
 q_status_message(int flags, int min_time, int max_time, char *message)
 {
-    SMQ_T *new;
+    SMQ_T *new, *q;
     char  *clean_msg;
     size_t mlen;
 
@@ -120,31 +120,43 @@ q_status_message(int flags, int min_time, int max_time, char *message)
 
     clean_msg[mlen] = '\0';
 
-    /* Hunt to last message -- if same already queued, move on... */
-    if(new = message_queue){
-	while(new->next != message_queue)
-	  new = new->next;
+    if(q = message_queue){		/* there is something already queued */
 
-	if(!strcmp(new->text, message)){
-	    new->shown = 0;
-
-	    if(new->min_display_time < min_time)
-	      new->min_display_time = min_time;
-
-	    if(new->max_display_time < max_time)
-	      new->max_display_time = max_time;
-
+	/*
+	 * If new message is just informational, discard it.
+	 */
+	if(flags & SM_INFO){
 	    if(clean_msg)
 	      fs_give((void **)&clean_msg);
 
 	    return;
 	}
-	else if(flags & SM_INFO){
-	    if(clean_msg)
-	      fs_give((void **)&clean_msg);
 
-	    return;
-	}
+
+	/*
+	 * Scan through all of the messages currently in the queue.
+	 * If the new message is already queued, don't add it again.
+	 */
+	do {
+	    if(q->text && !strcmp(q->text, clean_msg)){
+		if(q->min_display_time < min_time)
+		  q->min_display_time = min_time;
+
+		if(q->max_display_time < max_time)
+		  q->max_display_time = max_time;
+
+		dprint((9, "q_status_message(%s): skipping duplicate msg\n",
+		       clean_msg ? clean_msg : "?"));
+
+		if(clean_msg)
+		  fs_give((void **)&clean_msg);
+
+		return;
+	    }
+
+	    q = q->next;
+
+	} while(q != message_queue);
     }
 
     new = (SMQ_T *)fs_get(sizeof(SMQ_T));

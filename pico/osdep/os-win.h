@@ -1,4 +1,3 @@
-#line 2 "osdep/os-win.h"
 #ifndef _PICO_OS_INCLUDED
 #define _PICO_OS_INCLUDED
 

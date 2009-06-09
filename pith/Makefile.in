@@ -137,6 +137,7 @@ CXXFLAGS = @CXXFLAGS@
 CYGPATH_W = @CYGPATH_W@
 C_CLIENT_SPECIALS = @C_CLIENT_SPECIALS@
 C_CLIENT_TARGET = @C_CLIENT_TARGET@
+C_CLIENT_WITH_IPV6 = @C_CLIENT_WITH_IPV6@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
 ECHO = @ECHO@
@@ -253,7 +254,7 @@ libpith_a_SOURCES = ablookup.c abdlc.c addrbook.c addrstring.c adrbklib.c bldadd
 	state.c status.c store.c stream.c string.c strlst.c takeaddr.c tempfile.c text.c \
 	thread.c adjtime.c url.c util.c helptext.c
 
-AM_CPPFLAGS = -I$(top_srcdir)/include
+AM_CPPFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/include
 CLEANFILES = helptext.c helptext.h cmplhelp.sh cmplhlp2.sh
 all: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive

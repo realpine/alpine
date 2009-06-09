@@ -19,4 +19,4 @@ libpithosd_a_SOURCES = bldpath.c canaccess.c canonicl.c collate.c color.c coredu
 	fnexpand.c hostname.c lstcmpnt.c mimedisp.c pipe.c pw_stuff.c \
 	rename.c tempfile.c temp_nam.c writ_dir.c
 
-AM_CPPFLAGS = -I$(top_srcdir)/include
+AM_CPPFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/include

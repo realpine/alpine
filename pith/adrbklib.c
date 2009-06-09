@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: adrbklib.c 523 2007-04-13 23:01:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: adrbklib.c 592 2007-06-07 17:46:58Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -608,14 +608,6 @@ try_again:
 	goto get_out;
     }
 
-#ifdef notdef
-    /*
-     * Logically, we ought to build the lookup tries here so that nickname
-     * and address lookups will work after we open. However, we're going to
-     * check the sort order and if it is out of order we'll sort and then
-     * have to rebuild the tries. So instead of building the tries here,
-     * build them in the caller if necessary, for performance reasons.
-     */
     if(ab->arr
        && build_abook_tries(ab, (warning && !*warning) ? warning : NULL)){
 	if(we_cancel)
@@ -624,7 +616,6 @@ try_again:
 	dprint((2, "failed in build_abook_tries\n"));
 	goto get_out;
     }
-#endif /* notdef */
 
     if(we_cancel)
       cancel_busy_cue(-1);
@@ -684,7 +675,7 @@ dir_containing(char *filename)
  * the SortType.  Returns 1 if is sorted correctly, 0 otherwise.
  */
 int
-adrbk_is_in_sort_order(AdrBk *ab, int force_check, int be_quiet)
+adrbk_is_in_sort_order(AdrBk *ab, int be_quiet)
 {
     adrbk_cntr_t entry;
     AdrBk_Entry *ae, *ae_prev;
@@ -2101,7 +2092,6 @@ copy_ae(AdrBk_Entry *src)
 }
 
 
-
 /*
  * Add an entry to the address book, or modify an existing entry
  *
@@ -2151,6 +2141,7 @@ adrbk_add(AdrBk *ab, a_c_arg_t old_entry_num, char *nickname, char *fullname,
     int (*cmp_func)();
     int retval = 0;
     int need_write = 0;
+    int set_mangled = 0;
 
     dprint((3, "- adrbk_add(%s) -\n", nickname ? nickname : ""));
 
@@ -2214,6 +2205,11 @@ adrbk_add(AdrBk *ab, a_c_arg_t old_entry_num, char *nickname, char *fullname,
 	/* Insert ae before entry new_enum. */
 	insert_ab_entry(ab, (a_c_arg_t) new_enum, ae, 0);
 
+	if(F_OFF(F_EXPANDED_DISTLISTS,ps_global))
+	  exp_add_nth(ab->exp, (a_c_arg_t)new_enum);
+
+	exp_add_nth(ab->selects, (a_c_arg_t)new_enum);
+
 	/*
 	 * insert_ab_entry copies the pointers of ae so the things
 	 * being pointed to (nickname, ...) are still in use.
@@ -2229,14 +2225,8 @@ adrbk_add(AdrBk *ab, a_c_arg_t old_entry_num, char *nickname, char *fullname,
 	  *resort_happened = 1;
 
 	if(write_it)
-	  retval = adrbk_write(ab, enable_intr, be_quiet, 1);
-
-	if(retval == 0){
-	    if(F_OFF(F_EXPANDED_DISTLISTS,ps_global))
-	      exp_add_nth(ab->exp, (a_c_arg_t)new_enum);
-
-	    exp_add_nth(ab->selects, (a_c_arg_t)new_enum);
-	}
+	  retval = adrbk_write(ab, (a_c_arg_t) new_enum, new_entry_num, &set_mangled,
+			       enable_intr, be_quiet);
     }
     else{
         /*----- Updating an existing entry ----*/
@@ -2379,22 +2369,26 @@ adrbk_add(AdrBk *ab, a_c_arg_t old_entry_num, char *nickname, char *fullname,
 	if(fix_tries)
 	  repair_abook_tries(ab);
 
-	if(write_it && need_write)
-	  retval = adrbk_write(ab, enable_intr, be_quiet, 1);
+	if(write_it && need_write){
+	    int sort_happened = 0;
+
+	    retval = adrbk_write(ab, (a_c_arg_t) new_enum, new_entry_num,
+			         &sort_happened, enable_intr, be_quiet);
+
+	    set_mangled = sort_happened;
+
+	    if(new_entry_num)
+	      new_enum = (*new_entry_num);
+
+	    if(resort_happened && (sort_happened || (old_enum != new_enum)))
+	      *resort_happened = 1;
+	}
 	else
 	  retval = 0;
-
-	/*
-	 * If it got re-sorted we just throw in the towel and unexpand
-	 * all the lists and dump the selected state.
-	 * Maybe someday we'll fix it to try to track
-	 * the numbers of the expanded lists.
-	 */
-	if(old_enum != new_enum && retval == 0){
-	    exp_free(ab->exp);
-	    as.selected_is_history = 1;
-	}
     }
+
+    if(set_mangled)
+      ps_global->mangled_screen = 1;
 
     return(retval);
 }
@@ -2555,6 +2549,7 @@ adrbk_delete(AdrBk *ab, a_c_arg_t entry_num, int save_deleted, int enable_intr,
 	     int be_quiet, int write_it)
 {
     int retval = 0;
+    int set_mangled = 0;
 
     dprint((3, "- adrbk_delete(%ld) -\n", (long)entry_num));
 
@@ -2562,16 +2557,16 @@ adrbk_delete(AdrBk *ab, a_c_arg_t entry_num, int save_deleted, int enable_intr,
       return -2;
 
     delete_ab_entry(ab, entry_num, save_deleted);
+    if(F_OFF(F_EXPANDED_DISTLISTS,ps_global))
+      exp_del_nth(ab->exp, entry_num);
+
+    exp_del_nth(ab->selects, entry_num);
 
     if(write_it)
-      retval = adrbk_write(ab, enable_intr, be_quiet, 1);
+      retval = adrbk_write(ab, 0, NULL, &set_mangled, enable_intr, be_quiet);
 
-    if(retval == 0){
-	if(F_OFF(F_EXPANDED_DISTLISTS,ps_global))
-	  exp_del_nth(ab->exp, entry_num);
-
-	exp_del_nth(ab->selects, entry_num);
-    }
+    if(set_mangled)
+      ps_global->mangled_screen = 1;
     
     return(retval);
 }
@@ -2595,6 +2590,8 @@ adrbk_listdel(AdrBk *ab, a_c_arg_t entry_num, char *addr)
 {
     char **p, *to_free;
     AdrBk_Entry *ae;
+    int ret;
+    int set_mangled = 0;
 
     dprint((3, "- adrbk_listdel(%ld) -\n", (long) entry_num));
 
@@ -2629,7 +2626,12 @@ adrbk_listdel(AdrBk *ab, a_c_arg_t entry_num, char *addr)
     if(to_free)
       fs_give((void **) &to_free);
 
-    return(adrbk_write(ab, 1, 0, 1));
+    ret = adrbk_write(ab, 0, NULL, &set_mangled, 1, 0);
+
+    if(set_mangled)
+      ps_global->mangled_screen = 1;
+
+    return(ret);
 }
 
 
@@ -2688,12 +2690,14 @@ adrbk_listdel_all(AdrBk *ab, a_c_arg_t entry_num)
  *                -2 : error writing address book -- check errno
  */
 int
-adrbk_nlistadd(AdrBk *ab, a_c_arg_t entry_num, char **addrs, int enable_intr,
-	       int be_quiet, int write_it)
+adrbk_nlistadd(AdrBk *ab, a_c_arg_t entry_num, adrbk_cntr_t *new_entry_num,
+	       int *resort_happened, char **addrs,
+	       int enable_intr, int be_quiet, int write_it)
 {
     char **p;
     int    cur_size, size_of_additional_list, new_size;
     int    i, rc = 0;
+    int    set_mangled = 0;
     AdrBk_Entry *ae;
 
     dprint((3, "- adrbk_nlistadd(%ld) -\n", (long) entry_num));
@@ -2736,7 +2740,13 @@ adrbk_nlistadd(AdrBk *ab, a_c_arg_t entry_num, char **addrs, int enable_intr,
       sort_addr_list(ae->addr.list);
 
     if(write_it)
-      rc = adrbk_write(ab, enable_intr, be_quiet, 1);
+      rc = adrbk_write(ab, entry_num, new_entry_num, &set_mangled, enable_intr, be_quiet);
+
+    if(set_mangled){
+	ps_global->mangled_screen = 1;
+	if(resort_happened)
+	  *resort_happened = 1;
+    }
 
     return(rc);
 }
@@ -3008,9 +3018,6 @@ static adrbk_cntr_t entry_num_for_percent;
 /*
  * Write out the address book.
  *
- * If the addressbook is remote, only do the remote write part of the
- * operation when write_to_remote is set.
- *
  * If be_quiet is set, don't turn on busy_cue.
  *
  * If enable_intr_handling is set, turn on and off interrupt handling.
@@ -3040,7 +3047,8 @@ static adrbk_cntr_t entry_num_for_percent;
  *           -5 interrupted
  */
 int
-adrbk_write(AdrBk *ab, int enable_intr_handling, int be_quiet, int write_to_remote)
+adrbk_write(AdrBk *ab, a_c_arg_t current_entry_num, adrbk_cntr_t *new_entry_num,
+	    int *sort_happened, int enable_intr_handling, int be_quiet)
 {
     FILE                  *ab_stream = NULL;
     AdrBk_Entry           *ae = NULL;
@@ -3169,6 +3177,20 @@ adrbk_write(AdrBk *ab, int enable_intr_handling, int be_quiet, int write_to_remo
     if(ab_stream == NULL){
 	dprint((1, "adrbk_write(%s): fdopen failed\n", temp_filename ? temp_filename : "?"));
         goto io_error;
+    }
+
+    if(adrbk_is_in_sort_order(ab, be_quiet)){
+	if(sort_happened)
+	  *sort_happened = 0;
+
+	if(new_entry_num)
+	  *new_entry_num = current_entry_num;
+    }
+    else{
+	if(sort_happened)
+	  *sort_happened = 1;
+
+	(void) adrbk_sort(ab, current_entry_num, new_entry_num, be_quiet);
     }
 
     /* accept keyboard interrupts */
@@ -3506,7 +3528,7 @@ adrbk_write(AdrBk *ab, int enable_intr_handling, int be_quiet, int write_to_remo
      * If it fails we warn but continue to operate on the changed,
      * locally cached addressbook file.
      */
-    if(write_to_remote && ab->type == Imap){
+    if(ab->type == Imap){
 	int   e;
 	char datebuf[200];
 
@@ -4830,10 +4852,11 @@ sort_addr_list(char **list)
 int
 adrbk_sort(AdrBk *ab, a_c_arg_t current_entry_num, adrbk_cntr_t *new_entry_num, int be_quiet)
 {
-    adrbk_cntr_t *sort_array, *inv;
+    adrbk_cntr_t *sort_array, *inv, tmp;
     long i, j, hi, count;
-    int result, skip_the_sort = 0, we_cancel = 0;
+    int skip_the_sort = 0, we_cancel = 0;
     AdrBk_Entry ae_tmp, *ae_i, *ae_hi;
+    EXPANDED_S *e, *e2, *smallest;
 
     dprint((5, "- adrbk_sort -\n"));
 
@@ -4905,6 +4928,76 @@ adrbk_sort(AdrBk *ab, a_c_arg_t current_entry_num, adrbk_cntr_t *new_entry_num, 
 	*new_entry_num = inv[(adrbk_cntr_t) current_entry_num];
     }
 
+    /*
+     * The expanded and selected lists will be wrong now. Correct them.
+     * First the expanded list.
+     */
+    e = ab->exp ? ab->exp->next : NULL;
+    while(e){
+	if(e->ent >= 0 && e->ent < count)
+	  e->ent = inv[e->ent];
+
+	e = e->next;
+    }
+
+    /*
+     * And sort into ascending order as expected by the exp_ routines.
+     */
+    e = ab->exp ? ab->exp->next : NULL;
+    while(e){
+	/* move smallest to e */
+	e2 = e;
+	smallest = e;
+	while(e2){
+	    if(e2->ent != NO_NEXT && e2->ent >= 0 && e2->ent < count && e2->ent < smallest->ent)
+	      smallest = e2;
+
+	    e2 = e2->next;
+	}
+
+	/* swap values in e and smallest */
+	if(e != smallest){
+	    tmp = e->ent;
+	    e->ent = smallest->ent;
+	    smallest->ent = tmp;
+	}
+
+	e = e->next;
+    }
+
+    /*
+     * Same thing for the selected list.
+     */
+    e = ab->selects ? ab->selects->next : NULL;
+    while(e){
+	if(e->ent >= 0 && e->ent < count)
+	  e->ent = inv[e->ent];
+
+	e = e->next;
+    }
+
+    e = ab->selects ? ab->selects->next : NULL;
+    while(e){
+	/* move smallest to e */
+	e2 = e;
+	smallest = e;
+	while(e2){
+	    if(e2->ent != NO_NEXT && e2->ent >= 0 && e2->ent < count && e2->ent < smallest->ent)
+	      smallest = e2;
+
+	    e2 = e2->next;
+	}
+
+	/* swap values in e and smallest */
+	if(e != smallest){
+	    tmp = e->ent;
+	    e->ent = smallest->ent;
+	    smallest->ent = tmp;
+	}
+
+	e = e->next;
+    }
+
     for(i = 0L; i < count; i++){
 	if(i != inv[i]){
 	    /* find inv[j] which = i */
@@ -4936,43 +5029,6 @@ adrbk_sort(AdrBk *ab, a_c_arg_t current_entry_num, adrbk_cntr_t *new_entry_num, 
 
     dprint((9, "- adrbk_sort: done with rearranging -\n"));
 
-    result = adrbk_write(ab, 1, be_quiet, 1);
-
-    dprint((9, "- adrbk_sort: done with adrbk_write -\n"));
-
-    if(result == 0){
-	exp_free(ab->exp);
-	exp_free(ab->selects);
-	if(new_entry_num && (adrbk_cntr_t) current_entry_num >= 0
-	   && (adrbk_cntr_t) current_entry_num < count){
-	    *new_entry_num = inv[(adrbk_cntr_t) current_entry_num];
-	}
-    }
-    else if(result == -2){
-	q_status_message(SM_ORDER, 3, 4, _("address book sort failed, can't save"));
-	/* put it back the way it was */
-	for(i = 0L; i < count; i++){
-	    if(i != sort_array[i]){
-		/* find sort_array[j] which = i */
-		for(j = i+1; j < count; j++){
-		    if(i == sort_array[j]){
-			hi = j;
-			break;
-		    }
-		}
-
-		/* swap i and hi */
-		ae_i  = adrbk_get_ae(ab, (a_c_arg_t) i);
-		ae_hi = adrbk_get_ae(ab, (a_c_arg_t) hi);
-		memcpy(&ae_tmp, ae_i, sizeof(ae_tmp));
-		memcpy(ae_i, ae_hi, sizeof(ae_tmp));
-		memcpy(ae_hi, &ae_tmp, sizeof(ae_tmp));
-
-		sort_array[hi] = sort_array[i];
-	    }
-	}
-    }
-
 skip_the_write_too:
     if(we_cancel)
       cancel_busy_cue(0);
@@ -4983,7 +5039,7 @@ skip_the_write_too:
     if(inv)
       fs_give((void **) &inv);
 
-    return(result);
+    return 0;
 }
 
 
@@ -5260,6 +5316,36 @@ addrbook_reset(void)
 
 
 /*
+ * Sort was changed in options screen. Since we only sort normally
+ * when we actually make a change to the address book, we need to
+ * go out of our way to sort here.
+ */
+void
+addrbook_redo_sorts(void)
+{
+    int i;
+    PerAddrBook *pab;
+    AdrBk *ab;
+
+    dprint((4, "- addrbook_redo_sorts -\n"));
+
+    addrbook_reset();
+    init_ab_if_needed();
+
+    for(i = 0; i < as.n_addrbk; i++){
+	pab = &as.adrbks[i];
+	init_abook(pab, NoDisplay);
+	ab = pab->address_book;
+
+	if(!adrbk_is_in_sort_order(ab, 0))
+	  adrbk_write(ab, 0, NULL, NULL, 1, 0);
+    }
+
+    addrbook_reset();
+}
+
+
+/*
  * Returns type of access allowed on this addrbook.
  */
 AccessType
@@ -5511,8 +5597,6 @@ late_failure:
 			  error_description(errno)));
 	    }
 	    else{
-		int build_lookup_tries = 1;
-
 		if(pab->access == NoExists)
 		  pab->access = ReadWrite;
 
@@ -5524,30 +5608,6 @@ late_failure:
 		     * global config file.
 		     */
 		    add_forced_entries(pab->address_book);
-
-		    /*
-		     * For huge addrbooks, it really pays if you can make
-		     * them read-only so that you skip adrbk_is_in_sort_order.
-		     */
-		    if(!adrbk_is_in_sort_order(pab->address_book, 0, 0)){
-			(void) adrbk_sort(pab->address_book, (a_c_arg_t) 0,
-					  (adrbk_cntr_t *) NULL, 0);
-			build_lookup_tries = 0;
-		    }
-		}
-
-		if(build_lookup_tries){
-		    if(pab->address_book->arr
-		       && build_abook_tries(pab->address_book,
-				   (warning && !*warning) ? warning : NULL)){
-
-			/* This shouldn't happen */
-
-			dprint((2, "failed in build_abook_tries\n"));
-			adrbk_close(pab->address_book);
-			pab->address_book = NULL;
-			goto late_failure;
-		    }
 		}
 
 		new_status = want_status;

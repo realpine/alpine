@@ -1,5 +1,5 @@
 /*
- * $Id: color.h 548 2007-04-27 19:21:20Z hubert@u.washington.edu $
+ * $Id: color.h 558 2007-05-08 23:38:08Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -42,6 +42,24 @@ typedef struct COLOR_PAIR {
 #define PSC_NORM	0x1
 #define PSC_REV		0x2
 #define PSC_RET		0x4	/* return an allocated copy of previous color */
+
+
+/*
+ * MATCH_NORM_COLOR means that the color that is set to this value
+ * will actually use the corresponding fg or bg color from the
+ * so called Normal Color. A MATCH_NONE_COLOR means that the
+ * corresponding fg or bg color will just be left alone, so that
+ * it will stay the same as it was. This is useful when you want
+ * to change the foreground color but let the background match
+ * whatever it was before, for example in colored index lines.
+ *
+ * Note: these need to be RGBLEN in length because they are sometimes
+ * used in places where an RGB value is expected.
+ */
+#define MATCH_NORM_COLOR	"norm_padded"
+#define MATCH_NONE_COLOR	"none_padded"
+
+#define MATCH_TRAN_COLOR	"transparent"
 
 
 /* exported prototypes */

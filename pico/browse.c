@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: browse.c 473 2007-03-07 23:16:56Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: browse.c 582 2007-05-24 19:01:54Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -357,7 +357,9 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 	    ccol = 0;
 	}
 
-	if(gmp->flags & FB_LMODEPOS){
+	if(!(gmode&MDSHOCUR))
+	  movecursor(crow, ccol);
+	else if(gmp->flags & FB_LMODEPOS){
 	    if(gmp->flags & FB_LMODE && gmp->current->mode != FIODIR)
 	      movecursor(crow, ccol+1);
 	    else
@@ -2463,17 +2465,15 @@ BrowserAnchor(char *utf8dir)
     char *dots = "...";
     char *br = "BROWSER";
     char *dir = "Dir: ";
-    UCS  *ucs, *u;
+    UCS  *ucs;
     int   need, extra, avail;
     int   title_wid, b_wid, t_to_b_wid, b_to_d_wid, d_wid, dot_wid, dir_wid, after_dir_wid;
+    COLOR_PAIR *lastc = NULL;
 
     if(!utf8dir)
       utf8dir = "";
 
     pdir = utf8dir;
-
-    movecursor(0, 0);
-    (*term.t_rev)(1);
 
     if(browser_title)
       snprintf(titlebuf, sizeof(buf), "  %s", browser_title);
@@ -2572,14 +2572,27 @@ BrowserAnchor(char *utf8dir)
     /* just making sure */
     utf8_snprintf(titlebuf, sizeof(titlebuf), "%-*.*w", term.t_ncol, term.t_ncol, buf);
 
+    movecursor(0, 0);
+    if(Pmaster && Pmaster->colors && Pmaster->colors->tbcp
+       && pico_is_good_colorpair(Pmaster->colors->tbcp)){
+	lastc = pico_get_cur_color();
+	(void) pico_set_colorp(Pmaster->colors->tbcp, PSC_NONE);
+    }
+    else
+      (*term.t_rev)(1);
+
     ucs = utf8_to_ucs4_cpystr(titlebuf);
     if(ucs){
-	u = ucs;
-	pputs(u, 0);
-	fs_give((void **) &u);
+	pputs(ucs, 0);
+	fs_give((void **) &ucs);
     }
 
-    (*term.t_rev)(0);
+    if(lastc){
+	(void) pico_set_colorp(lastc, PSC_NONE);
+	free_color_pair(&lastc);
+    }
+    else
+      (*term.t_rev)(0);
 }
 
 

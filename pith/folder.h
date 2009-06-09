@@ -1,8 +1,8 @@
 /*
- * $Id: folder.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: folder.h 588 2007-06-01 22:42:27Z mikes@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,6 +63,7 @@ typedef struct _existdata {
 #define	BFL_FLDRONLY	0x01		/* ignore directories	      */
 #define	BFL_LSUB	0x02		/* use mail_lsub vs mail_list */
 #define	BFL_SCAN	0x04		/* use mail_scan vs mail_list */
+#define	BFL_CHILDREN	0x08		/* make sure haschildren is accurate */
 
 #define	FI_FOLDER	0x01		/* folder_index flags */
 #define	FI_DIR		0x02
@@ -111,8 +112,11 @@ int	    compare_folders_dir_alpha(FOLDER_S *, FOLDER_S *);
 int	    compare_folders_alpha_dir(FOLDER_S *, FOLDER_S *);
 void	    mail_list_response(MAILSTREAM *, char *, int, long, void *, unsigned);
 void	    folder_seen_count_updater(void *);
+void	    folder_unseen_count_updater(unsigned long);
 void	    update_folder_unseen(FOLDER_S *, CONTEXT_S *, unsigned long);
+void        update_folder_unseen_by_stream(MAILSTREAM *, unsigned long);
 int	    get_recent_in_folder(char *, unsigned long *, unsigned long *, unsigned long *);
+void        clear_incoming_valid_bits(void);
 int	    selected_folders(CONTEXT_S *);
 SELECTED_S *new_selected(void);
 void	    free_selected(SELECTED_S **);

@@ -1,5 +1,5 @@
 /*
- * $Id: filter.h 543 2007-04-26 04:06:02Z mikes@u.washington.edu $
+ * $Id: filter.h 577 2007-05-22 22:16:43Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -39,7 +39,13 @@
 #define	GFW_FLOW_RESULT		0x08
 #define	GFW_DELSP		0x10
 #define GFW_USECOLOR		0x20
-#define GFW_FORCOMPOSE          0X40
+#define GFW_HDRCOLOR		0x40
+#define GFW_FORCOMPOSE          0x80
+
+
+/* gf_url_hilite flags */
+#define	URH_NONE		0x00	/* no flags			    */
+#define	URH_HDRCOLOR		0x01	/* in header, use header base color */
 
 
 #define TAG_EMBED	'\377'	/* Announces embedded data in text string */
@@ -61,6 +67,12 @@
 #define	TAG_SMALLOFF	'h'
 #define	TAG_HANDLE	'Z'	/* indicate's a handle to an action	  */
 #define	TAG_HANDLEOFF	'z'	/* indicate's end of handle text	  */
+
+
+typedef struct url_hilite_s {
+    HANDLE_S **handlesp;
+    int        hdr_color;
+} URL_HILITE_S;
 
 
 /*
@@ -177,6 +189,7 @@ void	    gf_prepend_editorial(FILTER_S *, int);
 void	   *gf_prepend_editorial_opt(prepedtest_t, char *);
 void	    gf_nvtnl_local(FILTER_S *, int);
 void	    gf_local_nvtnl(FILTER_S *, int);
+void	   *gf_url_hilite_opt(URL_HILITE_S *, HANDLE_S **, int);
 
 
 #endif /* PITH_FILTER_INCLUDED */

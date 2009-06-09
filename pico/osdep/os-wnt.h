@@ -87,7 +87,6 @@
 /* #define POSIX_SIGNALS */
 /* #define SYSV_SIGNALS */ /* use System-V signal semantics (ttyin.c) */
 
-#define	SIGNALHASARG	1
 #define	SIG_PROTO(args)	args
 
 

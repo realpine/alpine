@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: bind.c 848 2007-12-06 19:57:49Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: bind.c 855 2007-12-07 23:45:22Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -306,6 +306,17 @@ wscrollw(int begrow, int endrow, char *utf8textp[], int textlen)
 		break;
 	    case  NODATA :
 	        break;
+#ifdef notdef
+    /*
+     * We don't handle window resize events correctly when in pico help.
+     * resize_pico() redraws the edit window instead of the help window.
+     * A ^L will redraw the help text. What we'd like is something like
+     * a KEY_RESIZE return from GetKey. If we had that we could exit
+     * wscrollw with a FALSE return value and have that cause us to loop
+     * back into wscrollw with the adjusted size. That would still mean
+     * the edit text would be redrawn first...
+     */
+#endif /* notdef */
 	    default :
 		unknown_command(c);
 		break;

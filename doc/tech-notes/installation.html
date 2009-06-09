@@ -3,9 +3,8 @@
 
 <H2><A NAME="compile">Compile-time Options</A></H2>
 
-Unlike Pine, <EM>Alpine</EM>'s UNIX build environment
-(except for the c-client library)
-is based on the GNU Build System's autotools.
+<EM>Alpine</EM>'s UNIX build environment
+is based on Autotools (the GNU Build System).
 Once you've unpacked the source distribution find the file
 <CODE>configure</CODE> in the top-level directory.
 You may look at the many options available by typing
@@ -29,6 +28,13 @@ followed by
 <CENTER><SAMP>
                 make
 </SAMP></CENTER>
+
+<P>
+
+Note, while the UW IMAP Toolkit (whose c-client
+library <EM>Alpine</EM> uses for mailbox access) build is not based on
+Autotools, <EM>Alpine</EM>'s configure script should set an
+appropriate make target and compilation options for most systems.
 
 <P>
 

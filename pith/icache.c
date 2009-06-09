@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: icache.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: icache.c 873 2007-12-15 02:39:22Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -265,15 +265,135 @@ fetch_ice(MAILSTREAM *stream, long unsigned int rawno)
 	memset(*peltp, 0, sizeof(PINELT_S));
     }
 
-    if((*peltp)->ice == NULL){
-	(*peltp)->ice = (ICE_S *) fs_get(sizeof(ICE_S));
-	memset((*peltp)->ice, 0, sizeof(ICE_S));
-    }
+    if((*peltp)->ice == NULL)
+      (*peltp)->ice = new_ice();
 
     if(need_format_setup(stream) && setup_header_widths)
       (*setup_header_widths)(stream);
 
     return((*peltp)->ice);
+}
+
+
+ICE_S **
+fetch_ice_ptr(MAILSTREAM *stream, long unsigned int rawno)
+{
+    PINELT_S    **peltp;
+    MESSAGECACHE *mc;
+
+    if(!stream || rawno < 1L || rawno > stream->nmsgs)
+      return NULL;
+
+    if(!(mc = mail_elt(stream, rawno)))
+      return NULL;
+
+    /*
+     * any private elt data yet?
+     */
+    if((*(peltp = (PINELT_S **) &mc->sparep) == NULL)){
+	*peltp = (PINELT_S *) fs_get(sizeof(PINELT_S));
+	memset(*peltp, 0, sizeof(PINELT_S));
+    }
+
+    return(&(*peltp)->ice);
+}
+
+
+ICE_S *
+copy_ice(ICE_S *src)
+{
+    ICE_S *head = NULL;
+
+    if(src){
+	head                    = new_ice();
+
+	head->color_lookup_done = src->color_lookup_done;
+	head->widths_done       = src->widths_done;
+	head->to_us             = src->to_us;
+	head->cc_us             = src->cc_us;
+	head->plus              = src->plus;
+	head->id                = src->id;
+
+	if(src->linecolor)
+	  head->linecolor = new_color_pair(src->linecolor->fg, src->linecolor->bg);
+
+	if(src->ifield)
+	  head->ifield = copy_ifield(src->ifield);
+
+	if(src->tice)
+	  head->tice = copy_ice(src->tice);
+    }
+
+    return(head);
+}
+
+
+IFIELD_S *
+copy_ifield(IFIELD_S *src)
+{
+    IFIELD_S *head = NULL;
+
+    if(src){
+	head          = new_ifield(NULL);
+
+	if(src->next)
+	  head->next = copy_ifield(src->next);
+
+	head->ctype   = src->ctype;
+	head->width   = src->width;
+	head->leftadj = src->leftadj;
+
+	if(src->ielem)
+	  head->ielem = copy_ielem(src->ielem);
+    }
+
+    return(head);
+}
+
+
+IELEM_S *
+copy_ielem(IELEM_S *src)
+{
+    IELEM_S *head = NULL;
+
+    if(src){
+	head          = new_ielem(NULL);
+
+	if(src->next)
+	  head->next = copy_ielem(src->next);
+
+	head->type = src->type;
+	head->wid  = src->wid;
+
+	if(src->color){
+	    head->color     = new_color_pair(src->color->fg, src->color->bg);
+	    head->freecolor = 1;
+	}
+
+	if(src->data){
+	    head->data     = cpystr(src->data);
+	    head->datalen  = strlen(head->data);
+	    head->freedata = 1;
+	}
+
+	if(src->print_format){
+	    head->print_format = cpystr(src->print_format);
+	    head->freeprintf   = strlen(head->print_format) + 1;
+	}
+    }
+
+    return(head);
+}
+
+
+ICE_S *
+new_ice(void)
+{
+    ICE_S *ice;
+
+    ice = (ICE_S *) fs_get(sizeof(ICE_S));
+    memset(ice, 0, sizeof(ICE_S));
+    return(ice);
 }
 
 

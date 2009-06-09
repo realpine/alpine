@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: string.c 841 2007-12-03 19:51:03Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: string.c 866 2007-12-12 19:08:54Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1110,6 +1110,22 @@ parse_date(char *given_date, struct date *d)
 	while(*p && isspace((unsigned char)*p))
 	  p++;
     }
+    else if((q=strchr(p, ' ')) != NULL && q - p == 3){
+	*q = '\0';
+	for(i = xdays; *i != NULL; i++) 
+	  if(strucmp(p, *i) == 0) /* Match first 3 letters */
+	    break;
+
+	*q = ' ';
+
+	if(*i != NULL) {
+	    /* Started with week day */
+	    d->wkday = i - xdays;
+	    p = q+1;
+	    while(*p && isspace((unsigned char)*p))
+	      p++;
+	}
+    }
 
     if(isdigit((unsigned char)*p)) {
         d->day = atoi(p);
@@ -1324,7 +1340,7 @@ date_to_local_time_t(char *date)
     theirtime.tm_mon = d.month - 1;
     theirtime.tm_mday = d.day;
     theirtime.tm_hour = d.hour - d.hours_off_gmt;
-    theirtime.tm_min = d.minute;
+    theirtime.tm_min = d.minute - d.min_off_gmt;
     theirtime.tm_sec = d.sec;
 
     theirtime.tm_isdst = dst;

@@ -14,7 +14,7 @@ dnl  */
 
 AC_PREREQ([2.57])
 
-AC_REVISION([$Id: configure.ac 850 2007-12-06 23:58:57Z mikes@u.washington.edu $])
+AC_REVISION([$Id: configure.ac 887 2007-12-20 22:32:04Z mikes@u.washington.edu $])
 
 dnl Alpine Version Number is in $srcdir/VERSION
 AC_INIT(alpine, m4_normalize(m4_include([VERSION])), [alpine-contact@cac.washington.edu])
@@ -72,7 +72,7 @@ AC_ARG_WITH(dmalloc-dir,
   [
     if test "x$withval" != "xno" ; then
       enable_dmalloc = "yes"
-      CPPFLAGS="$CPPFLAGS -I${withval}"
+      CPPFLAGS="$CPPCFLAGS -I${withval}"
       LDFLAGS="$LDFLAGS -L${withval}"
     fi
   ])
@@ -152,7 +152,7 @@ AC_ARG_WITH(lib-path,
         ;;
       *)
       	new_ldflags="-L`echo ${withval} | ${SED} 's/:/ -L/g'`"
-      	AM_LDFLAGS="$AM_LDFLAGS $new_ldflags"
+      	LDFLAGS="$LDFLAGS $new_ldflags"
 	;;
     esac
   ])
@@ -220,8 +220,8 @@ fi
 
 dnl enable background posting support
 AC_MSG_CHECKING([option: background post enabled])
-AC_ARG_ENABLE(background_post, AC_HELP_STRING([--disable-background-post],[Disable background posting]))
-if test x$background_post != "xno" ; then
+AC_ARG_ENABLE(background-post, AC_HELP_STRING([--disable-background-post],[Disable background posting]))
+if test x$enable_background_post != "xno" ; then
   AC_DEFINE([BACKGROUND_POST], [], [Enable background posting support])
   AC_MSG_RESULT([yes])
 else
@@ -230,18 +230,18 @@ fi
 
 dnl enable keyboard locking support
 AC_MSG_CHECKING([option: keyboard lock enabled])
-AC_ARG_ENABLE(keyboard_lock, AC_HELP_STRING([--disable-keyboard-lock],[Disable keyboard locking]))
-if test x$keyboard_lock != "xno" ; then
+AC_ARG_ENABLE(keyboard-lock, AC_HELP_STRING([--disable-keyboard-lock],[Disable keyboard locking]))
+if test x$enable_keyboard_lock != "xno" ; then
+  AC_DEFINE([KEYBOARD_LOCK], [], [Enable keyboard lock support])
   AC_MSG_RESULT([yes])
 else
-  AC_DEFINE([NO_KEYBOARD_LOCK], [], [Disable keyboard lock support])
   AC_MSG_RESULT([no])
 fi
 
 dnl enable from encoding support
 AC_MSG_CHECKING([option: from encoding enabled])
-AC_ARG_ENABLE(from_encoding, AC_HELP_STRING([--enable-from-encoding],[Enable From encoding in sent messages]))
-if test x$from_encoding = "xyes" ; then
+AC_ARG_ENABLE(from-encoding, AC_HELP_STRING([--enable-from-encoding],[Enable From encoding in sent messages]))
+if test x$enable_from_encoding = "xyes" ; then
   AC_DEFINE([ENCODE_FROMS], [], [Enable From address encoding in sent messages])
   AC_MSG_RESULT([yes])
 else
@@ -354,7 +354,7 @@ case "$SPELLPROG" in
   yes)
     AC_PATH_PROG(alpine_simple_spellcheck, [aspell])
     if test -n "$alpine_simple_spellcheck" ; then
-      alpine_simple_spellcheck="$alpine_simple_spellcheck --mode=email list"
+      alpine_simple_spellcheck="$alpine_simple_spellcheck --dont-backup --mode=email list"
     else
       AC_PATH_PROG(alpine_simple_spellcheck, [ispell])
       if test -n "$alpine_simple_spellcheck" ; then
@@ -387,7 +387,7 @@ case "$ISPELLPROG" in
   yes)
     AC_PATH_PROG(alpine_interactive_spellcheck, [aspell])
     if test -n "$alpine_interactive_spellcheck" ; then
-      alpine_interactive_spellcheck="$alpine_interactive_spellcheck --mode=email check"
+      alpine_interactive_spellcheck="$alpine_interactive_spellcheck --dont-backup --mode=email check"
     else
       AC_PATH_PROG(alpine_interactive_spellcheck, [ispell])
     fi
@@ -407,14 +407,13 @@ if test -n "$alpine_interactive_spellcheck" ; then
 fi
 
 dnl OPTION: system-pinerc
-dnl if we haven't changed the prefix or sysconfdir,
-dnl we use the pine historical default,
-dnl otherwise we expect config files in sysconfdir.
-if test $sysconfdir = /usr/local/etc ; then
-	dpv=/usr/local/lib/pine.conf
-else
- 	dpv=$sysconfdir/pine.conf
-fi
+dnl NOTE: historically we used /lib for the config dir.
+dnl       don't ask, it was a long time ago. but, we can't
+dnl       change it now without breaking compatibility
+case "$prefix" in
+  NONE) dpv=/usr/local/lib/pine.conf ;;
+  *) dpv=${prefix}/lib/pine.conf ;;
+esac
 AC_ARG_WITH(system-pinerc,
   AC_HELP_STRING([--with-system-pinerc=VALUE], [System pinerc (/usr/local/lib/pine.conf)]),
     [
@@ -431,14 +430,13 @@ AC_ARG_WITH(system-pinerc,
 AC_DEFINE_UNQUOTED(SYSTEM_PINERC, "$dpv", [System pinerc])
 
 dnl OPTION: system-fixed-pinerc
-dnl if we haven't changed the prefix or sysconfdir,
-dnl we use the pine historical default,
-dnl otherwise we expect config files in sysconfdir.
-if test $sysconfdir = /usr/local/etc ; then
-	dpv=/usr/local/lib/pine.conf.fixed
-else
-	dpv=$sysconfdir/pine.conf.fixed
-fi
+dnl NOTE: historically we used /lib for the config dir.
+dnl       don't ask, it was a long time ago. but, we can't
+dnl       change it now without breaking compatibility
+case "$prefix" in
+  NONE) dpv=/usr/local/lib/pine.conf.fixed ;;
+  *) dpv=${prefix}/lib/pine.conf.fixed ;;
+esac
 AC_ARG_WITH(system-fixed-pinerc,
   AC_HELP_STRING([--with-system-fixed-pinerc=VALUE], [System fixed pinerc (/usr/local/lib/pine.conf.fixed)]),
     [
@@ -665,14 +663,14 @@ else
     ])
   dnl setup globals so tests below work
   if test -n "$alpine_SSLINCLUDE" ; then
-    CPPFLAGS="-I$alpine_SSLINCLUDE $CPPFLAGS"
+    CPPCFLAGS="-I$alpine_SSLINCLUDE $CPPFLAGS"
   elif test -n "$alpine_SSLDIR" ; then
     CPPFLAGS="-I${alpine_SSLDIR}/include $CPPFLAGS"
   fi
   if test -n "$alpine_SSLLIB" ; then
-    AM_LDFLAGS="-L$alpine_SSLLIB $AM_LDFLAGS"
+    LDFLAGS="-L$alpine_SSLLIB $LDFLAGS"
   elif test -n "$alpine_SSLDIR" ; then
-    AM_LDFLAGS="-L${alpine_SSLDIR}/lib $AM_LDFLAGS"
+    LDFLAGS="-L${alpine_SSLDIR}/lib $LDFLAGS"
   fi
 fi
 
@@ -687,27 +685,28 @@ if test "x$with_krb5" = "xno" ; then
 else
   alpine_GSSTYPE=
 
-  AC_ARG_WITH(gss-dir,
+  AC_ARG_WITH(krb5-dir,
     AC_HELP_STRING([--with-krb5-dir=DIR], [Root of Kerberos lib/include path]),
     [
       if test "x$withval" != "xno" ; then
-	alpine_GSSDIR=$withval
+	CPPFLAGS="$CPPFLAGS -I${withval}/include"
+	LDFLAGS="$LDFLAGS -L${withval}/lib"
       fi
     ])
 
-  AC_ARG_WITH(gss-include-dir,
+  AC_ARG_WITH(krb5-include-dir,
     AC_HELP_STRING([--with-krb5-include-dir=DIR], [Kerberos include file path]),
     [
       if test "x$withval" != "xno" ; then
-	alpine_GSSINCLUDE=$withval
+	CPPFLAGS="$CPPFLAGS -I$withval"
       fi
     ])
 
-  AC_ARG_WITH(gss-lib-dir,
+  AC_ARG_WITH(krb5-lib-dir,
     AC_HELP_STRING([--with-krb5-lib-dir=DIR], [Kerberos library path]),
     [
       if test "x$withval" != "xno" ; then
-	alpine_GSSLIB=$withval
+	LDFLAGS="$LDFLAGS -L$withval"
       fi
     ])
 fi
@@ -729,7 +728,7 @@ else
     [
       if test "x$withval" != "xno" ; then 
 	CPPFLAGS="$CPPFLAGS -I${withval}/include"
-	AM_LDFLAGS="$AM_LDFLAGS -L${withval}/lib"
+	LDFLAGS="$LDFLAGS -L${withval}/lib"
       fi
     ])
 
@@ -745,7 +744,7 @@ else
     AC_HELP_STRING([--with-ldap-lib-dir=DIR], [LDAP library path]),
     [
       if test "x$withval" != "xno" ; then
-	AM_LDFLAGS="$AM_LDFLAGS -L$withval"
+	LDFLAGS="$LDFLAGS -L$withval"
       fi
     ])
 fi
@@ -941,20 +940,10 @@ fi
 
 dnl provide KRB5 support?
 if test "x$alpine_GSSTYPE" != "xnone" ; then
-  case x$alpine_GSSLIB in
-    x)
-      AC_SEARCH_LIBS(gss_init_sec_context,$alpine_GSSLIB,,
-	[
-	  alpine_GSSTYPE="none"
-	])
-     ;;
-    *)
-      AC_CHECK_FUNC(gss_init_sec_context,,
-	[
-	  alpine_GSSTYPE="none"
-	])
-     ;;
-  esac
+  AC_CHECK_FUNC(gss_init_sec_context,,
+    [
+      alpine_GSSTYPE="none"
+    ])
 fi
 
 dnl check for tcl libraries for Web Alpine (HACKY)
@@ -1013,8 +1002,8 @@ if test x$alpine_REGEX != "xyes" ; then
 fi
 AC_DEFINE(HAVE_REGEX_H,1,[Regular expression header file exists])
 if test x$alpine_REGEX = "xyes" ; then
-  CPPFLAGS="$CPPFLAGS -I\$(top_builddir)/regex"
-  AM_LDFLAGS="$AM_LDFLAGS -L\$(top_builddir)/regex -lregex"
+  CPPFLAGS="$CPPFLAGS -I${top_builddir}/regex"
+  LDFLAGS="$LDFLAGS -L${top_builddir}/regex -lregex"
   REGEX_BUILD=regex
 fi
 
@@ -1253,7 +1242,6 @@ case "$host" in
       else
 	alpine_c_client_target="lrh"
       fi
-      alpine_local_maildir="/var/spool/mail"
     elif test -f /etc/redhat-release -o -f /etc/redhat_version ; then
       systype="LRH"
       if test -d /etc/pki/tls ; then  
@@ -1261,7 +1249,6 @@ case "$host" in
       else
 	alpine_c_client_target="lrh"
       fi
-      alpine_local_maildir="/var/spool/mail"
     elif test -f /etc/debian_release -o -f /etc/debian_version ; then
       if test -d /etc/osso-af-init ; then
         systype="LN8"
@@ -1270,18 +1257,14 @@ case "$host" in
         systype="DEB"
         alpine_c_client_target="ldb"
       fi
-      alpine_local_maildir="/var/mail"
     elif test -f /etc/SuSE-release ; then
       systype="LSU"
       alpine_c_client_target="lsu"
-      alpine_local_maildir="/var/spool/mail"
     elif test -f /etc/mandrake-release ; then
       systype="LMD"
       alpine_c_client_target="lmd"
-      alpine_local_maildir="/var/spool/mail"
     else
       systype="LNX"
-      alpine_local_maildir="/var/mail"
       AC_CHECK_LIB(pam, pam_start,
         [
           alpine_c_client_target="lnp"
@@ -1298,7 +1281,6 @@ case "$host" in
   *-apple-darwin*)
     systype="OSX"
     alpine_path_delim="/"
-    alpine_local_maildir="/usr/spool/mail"
     alpine_mode_readonly="(0600)"
     LIBS="$LIBS -framework Carbon -framework ApplicationServices -framework Security"
     AM_CFLAGS="$AM_CFLAGS -Dbsd"
@@ -1329,7 +1311,6 @@ case "$host" in
       AC_DEFINE([__EXTENSIONS__], [1], [Enable extended pthread features on Solaris])
     fi
     alpine_path_delim="/"
-    alpine_local_maildir="/usr/spool/mail"
     alpine_mode_readonly="(0600)"
     dnl possible other OS's need this.
     dnl Use autoconf 2.61's AC_USE_SYSTEM_EXTENSIONS at some point
@@ -1337,35 +1318,36 @@ case "$host" in
   *-*-sunos4*)
     systype="SUN"
     alpine_path_delim="/"
-    alpine_local_maildir="/usr/spool/mail"
     alpine_mode_readonly="(0600)"
     alpine_c_client_target="s40"
     ;;
   *-next-*)
     systype="NXT"
     alpine_path_delim="/"
-    alpine_local_maildir="/usr/spool/mail"
     alpine_mode_readonly="(0600)"
     alpine_c_client_target="nx3"
     ;;
   *-*-netbsd*)
     systype="NEB"
     alpine_path_delim="/"
-    alpine_local_maildir="/usr/spool/mail"
+    alpine_mode_readonly="(0600)"
+    alpine_c_client_target="neb"
+    ;;
+  *-*-dragonfly*)
+    systype="DFB"
+    alpine_path_delim="/"
     alpine_mode_readonly="(0600)"
     alpine_c_client_target="neb"
     ;;
   *-*-bsdi*)
     systype="BSI"
     alpine_path_delim="/"
-    alpine_local_maildir="/var/mail"
     alpine_mode_readonly="(0600)"
     alpine_c_client_target="bsi"
     ;;
   *-*-freebsd*)
     systype="BSF"
     alpine_path_delim="/"
-    alpine_local_maildir="/usr/spool/mail"
     alpine_mode_readonly="(0600)"
     alpine_c_client_target="bsf"
     LIBS="$LIBS $LIBINTL"
@@ -1373,7 +1355,6 @@ case "$host" in
   *-*-openbsd*)
     systype="BSO"
     alpine_path_delim="/"
-    alpine_local_maildir="/usr/spool/mail"
     alpine_mode_readonly="(0600)"
     alpine_c_client_target="bso"
     LIBS="$LIBS $LIBINTL"
@@ -1381,42 +1362,36 @@ case "$host" in
   *-*-aix4*)
     systype="A41"
     alpine_path_delim="/"
-    alpine_local_maildir="/usr/spool/mail"
     alpine_mode_readonly="(0600)"
     alpine_c_client_target="a41"
     ;;
   *-*-aix3*)
     systype="A32"
     alpine_path_delim="/"
-    alpine_local_maildir="/usr/spool/mail"
     alpine_mode_readonly="(0600)"
     alpine_c_client_target="a32"
     ;;
   *-*UNIX_SV | *-*-sysv5UnixWare7* | *-*OpenUNIX*)
     systype="UW2"
     alpine_path_delim="/"
-    alpine_local_maildir="/var/mail"
     alpine_mode_readonly="(0600)"
     alpine_c_client_target="uw2"
     ;;
   *-*-osf5*)
     systype="OSF"
     alpine_path_delim="/"
-    alpine_local_maildir="/usr/spool/mail"
     alpine_mode_readonly="(0600)"
     alpine_c_client_target="osf"
     ;;
   *-*-cygwin)
     systype="CYG"
     alpine_path_delim="\\"
-    alpine_local_maildir="/var/mail"
     alpine_mode_readonly="(S_IREAD | S_IWRITE)"
     alpine_c_client_target="cyg"
     ;;
   windows* | *-*-pw32*)
     systype="WNT"
     alpine_path_delim="\\"
-    alpine_local_maildir="/var/mail"
     alpine_mode_readonly="(S_IREAD | S_IWRITE)"
     alpine_c_client_target="wnt"
     AC_DEFINE([_WINDOWS], [1], [Windows is just too different])
@@ -1426,10 +1401,18 @@ case "$host" in
     ;;
 esac
 
+dnl set pico newmail check directory
 if test -n "$alpine_with_local_maildir" ; then
     alpine_local_maildir=$alpine_with_local_maildir
+elif test -d /var/spool/mail ; then
+    alpine_local_maildir="/var/spool/mail"
+elif test -d /var/mail ; then
+    alpine_local_maildir="/var/mail"
+else
+    alpine_local_maildir="/usr/spool/mail"
 fi
 
+dnl set c-client make target
 if test -n "$alpine_with_c_client_target" ; then
     alpine_c_client_target=$alpine_with_c_client_target
 fi
@@ -1464,7 +1447,7 @@ else
     AC_MSG_NOTICE([* * *   in Alpine, this might be the reason for them.])
   fi
 
-  if test -z "`ls ${certdir} | $EGREP '^@<:@0-9A-Za-z@:>@{8}\.@<:@0-9@:>@'`" ; then
+  if test -z "`ls ${certdir} | $EGREP '^@<:@0-9A-Fa-f@:>@{8}\.@<:@0-9@:>@'`" ; then
     AC_MSG_NOTICE([* * * No 8-hexdigit symlinks in certificate directory "${certdir}".])
     AC_MSG_NOTICE([* * *   This might indicate that CA certs did not get properly])
     AC_MSG_NOTICE([* * *   installed.  If you get certificate validation failures])

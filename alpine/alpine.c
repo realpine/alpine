@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: alpine.c 844 2007-12-05 17:50:54Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: alpine.c 881 2007-12-18 18:29:24Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -1623,7 +1623,7 @@ main_menu_screen(struct pine *pine_state)
 	mswin_mousetrackcallback(pcpine_main_cursor);
 #endif
 #endif
-        ch = read_command(&utf8str);
+	ch = READ_COMMAND(&utf8str);
 #ifdef	MOUSE
 	clear_mfunc(mouse_in_content);
 #endif
@@ -1773,18 +1773,18 @@ help_case :
 	    /*---------- Release Notes ----------*/
 	  case MC_RELNOTES :
 	    /* TRANSLATORS: This is a screen title */
-	    helper(h_news, _("PINE RELEASE NOTES"), 0);
+	    helper(h_news, _("ALPINE RELEASE NOTES"), 0);
 	    pine_state->mangled_screen = 1;
 	    break;
 
 
-#ifndef NO_KEYBOARD_LOCK
+#ifdef KEYBOARD_LOCK
 	    /*---------- Keyboard lock ----------*/
 	  case MC_KBLOCK :
 	    (void) lock_keyboard();
 	    pine_state->mangled_screen = 1;
 	    break;
-#endif /* !NO_KEYBOARD_LOCK */
+#endif /* KEYBOARD_LOCK */
 
 
 	    /*---------- Quit pine ----------*/
@@ -2060,7 +2060,7 @@ show_main_screen(struct pine *ps, int quick_draw, OtherMenu what,
 
 	setbitmap(bitmap);
 
-#ifndef NO_KEYBOARD_LOCK
+#ifdef KEYBOARD_LOCK
 	if(ps_global->restricted || F_ON(F_DISABLE_KBLOCK_CMD,ps_global))
 #endif
 	  clrbitn(MAIN_KBLOCK_KEY, bitmap);
@@ -3162,18 +3162,14 @@ goodnight_gracey(struct pine *pine_state, int exit_val)
 
     free_pinerc_strings(&pine_state);
 
+    strncpy(msg, pf, sizeof(msg));
+    msg[sizeof(msg)-1] = '\0';
     if(final_msg){
-	strncpy(msg, pf, sizeof(msg));
-	msg[sizeof(msg)-1] = '\0';
 	strncat(msg, " -- ", sizeof(msg)-strlen(msg)-1);
 	msg[sizeof(msg)-1] = '\0';
 	strncat(msg, final_msg, sizeof(msg)-strlen(msg)-1);
 	msg[sizeof(msg)-1] = '\0';
 	fs_give((void **)&final_msg);
-    }
-    else{
-	strncpy(msg, pf, sizeof(msg));
-	msg[sizeof(msg)-1] = '\0';
     }
 
     dprint((7, "goodnight_gracey: sp_end\n"));

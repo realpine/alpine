@@ -1,11 +1,11 @@
-alpine.tar.z README
-Last changed: 25 January 2007
+
 
 -----------------------------------------------------------------------
                 Alpine/Pico/Pilot/Web Alpine/Imapd Distribution
 -----------------------------------------------------------------------
 
-/* ========================================================================
+
+/* ====================================================================
  * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +14,7 @@ Last changed: 25 January 2007
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * ========================================================================
+ * ====================================================================
 */
 
 For the latest info about Alpine, see http://www.washington.edu/alpine
@@ -28,10 +28,12 @@ This Alpine distribution includes:
 alpine     - The Alpine source directory
 configure  - Script to set system-specific configuration, defaults
 contrib    - Contributed ports and additions
-doc        - Documentation directory. The main documentation is tech-notes.txt
+doc        - Documentation directory. The main documentation is
+             tech-notes.txt
 imap	   - Source tree containing C-Client IMAP implementation
 m4         - macros used in the configure process
-packages   - Scripts for building packages for various Linux distributions
+packages   - Scripts for building packages for various Linux
+             distributions
 pico       - The Pico and Pilot source directory
 pith       - Core functions common to Alpine/Web Alpine
 po         - localization data
@@ -41,7 +43,10 @@ Most of the documentation is in doc/tech-notes.txt. It is not user
 level documentation, but there are things in it some users might find
 useful.  The directory doc/tech-notes contains source for
 doc/tech-notes.txt in HTML format which can be viewed via a Web
-browser by opening doc/tech-notes/index.html.
+pbrowser by opening doc/tech-notes/index.html.
+
+User level documentation for Alpine is contained in the programs
+themselves in the form of context-sensitive help.
 
 
 -----------------------------------------------------------------------
@@ -49,8 +54,8 @@ PRELIMINARIES
 -----------------------------------------------------------------------
 
 If you are reading this, you have presumably succeeded in extracting
-the distribution from the compressed tar archive file, via the following 
-command, or equivalent:
+the distribution from the compressed tar archive file, via the
+following command, or equivalent:
 
         tar zxf alpine.tar.z
 
@@ -63,15 +68,33 @@ above.
 BUILD PROCESS
 -----------------------------------------------------------------------
 
-Alpine build process uses GNU autoconf.  It should be sufficient to build
-alpine by typing the commands:
+The Alpine build process is based on GNU autotools.  On most Unix
+systems, generating a suitable Alpine binary from the source
+distribution should be as simple as typing the commands:
 
         ./configure
         make
 
-For a list of configuration options and default settings type:
+For a list of configuration options and default Alpine settings type:
 
-       ./configure --help   
+       ./configure --help
+
+Note, the included UW IMAP Toolkit used for mailbox access does not
+make use of GNU autotools.  However, in most cases Alpine's configure
+script should set the appropriate make target and options.  The
+targetted OS can be set from Alpine's configure command line, but in
+rare cases more significant manual intervention may be required.  If
+problems are encountered, see imap/README for more details.
+
+The PC-Alpine build is based on the Microsoft C compiler and
+libraries.  The Alpine Team bases builds on Visual Studio 8 from the
+command line using the static build.bat batch and makefiles to
+generate suitable binaries.
+
+The Web Alpine application requires a few extra, manual steps to get
+all the components built and installed.  See web/README for an
+explanation of the various components and web/INSTALL for a basic
+installation recipe.
 
 
 -----------------------------------------------------------------------
@@ -92,11 +115,11 @@ The executables produced are:
  pilot  The standalone file system navigator.
 
  alpined
-        The Web Alpine serveret that manages per-session data and all
-        interaction between the web and IMAP servers.
+        The Web Alpine serveret that is the primary component of 
+	Web Alpine 
  
- imapd  The IMAP daemon. If you want to run alpine in client/server mode,
-        this is the daemon to run on the server. Installing this
+ imapd  The IMAP daemon. If you want to run alpine in client/server
+        mode, this is the daemon to run on the server. Installing this
         requires system privileges and modifications to /etc/services.
         See doc/tech-notes for more details.
  
@@ -119,7 +142,6 @@ system.  As the remaining binaries are intended for specific uses or
 are a component of a larger package, their installation is typically
 done by hand.
 
-  
------------------------------------------------------------------------
-END OF alpine.tar.z README
------------------------------------------------------------------------
+--
+alpine.tar.z README
+$Id: README 884 2007-12-20 18:30:27Z mikes@u.washington.edu $

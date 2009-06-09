@@ -1,5 +1,5 @@
 /*
- * $Id: termin.gen.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
+ * $Id: termin.gen.h 881 2007-12-18 18:29:24Z mikes@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -19,8 +19,12 @@
 #include <general.h>
 #include "../radio.h"
 
+/* Useful Macros */
+#define	READ_COMMAND(U)	(read_command_prep() ? read_command(U) : NO_OP_COMMAND)
+
 /* exported prototypes */
 UCS	read_command(char **);
+int	read_command_prep(void);
 int	key_recorder(int);
 int	optionally_enter(char *, int, int, int, char *, ESCKEY_S *, HelpType, int *);
 UCS	validatekeys(UCS);

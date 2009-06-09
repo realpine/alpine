@@ -69,8 +69,10 @@ start_after(AFTER_S *a)
 	/* Initialize and set thread detached attribute */
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+#if	defined(PTHREAD_STACK_MIN)
 	stack = PTHREAD_STACK_MIN + 0x10000;
 	pthread_attr_setstacksize(&attr, stack);
+#endif
 
 	if((rc = pthread_create(&after_thread, &attr, do_after, (void *) a)) != 0){
 	    after_active = 0;

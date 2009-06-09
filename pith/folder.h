@@ -1,5 +1,5 @@
 /*
- * $Id: folder.h 845 2007-12-05 22:34:30Z hubert@u.washington.edu $
+ * $Id: folder.h 878 2007-12-17 23:09:45Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -104,7 +104,8 @@ FOLDER_S   *new_folder(char *, unsigned long);
 FOLDER_S   *folder_entry(int, FLIST *);
 int         folder_total(FLIST *);
 int	    folder_index(char *, CONTEXT_S *, int);
-char	   *folder_is_nick(char *, void *, int);
+char	   *folder_is_nick(char *, FLIST *, int);
+char	   *folder_is_target_of_nick(char *, CONTEXT_S *);
 int	    folder_insert(int, FOLDER_S *, FLIST *);
 FLIST      *init_folder_entries(void);
 int	    compare_folders_alpha(FOLDER_S *, FOLDER_S *);

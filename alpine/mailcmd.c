@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcmd.c 846 2007-12-05 23:43:19Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailcmd.c 879 2007-12-18 00:46:28Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -897,15 +897,15 @@ nfolder:
 
 	    start = mn_get_cur(msgmap);
 
-	    if(THREADING()){
+	    /*
+	     * If we are on a collapsed thread, start looking after the
+	     * collapsed part, unless we are viewing the message.
+	     */
+	    if(THREADING() && in_index != View){
 		PINETHRD_S *thrd;
 		long        rawno;
 		int         collapsed;
 
-		/*
-		 * If we are on a collapsed thread, start looking after the
-		 * collapsed part.
-		 */
 		rawno = mn_m2raw(msgmap, start);
 		thrd = fetch_thread(stream, rawno);
 		collapsed = thrd && thrd->next
@@ -2346,7 +2346,7 @@ cmd_bounce(struct pine *state, MSGNO_S *msgmap, int aopt)
 int
 cmd_save(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap, int aopt, CmdWhere in_index)
 {
-    char	      newfolder[MAILTMPLEN], nmsgs[32];
+    char	      newfolder[MAILTMPLEN], nmsgs[32], *nick;
     int		      we_cancel = 0, rv = 0;
     long	      i, raw;
     CONTEXT_S	     *cntxt = NULL;
@@ -2445,6 +2445,13 @@ cmd_save(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap, int aopt, CmdW
 			    short_str(cntxt->nickname,
 				      (char *)(tmp_20k_buf+2000), 1000,
 				      lennick, EndDots));
+		    tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
+		}
+		else if((nick=folder_is_target_of_nick(newfolder, cntxt)) != NULL){
+		    snprintf(tmp_20k_buf, SIZEOF_20KBUF,
+			    "Message %s copied to \"%s\"",
+			    long2string(mn_get_cur(msgmap)),
+			    nick);
 		    tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
 		}
 		else{
@@ -3112,7 +3119,7 @@ create_for_save_prompt(CONTEXT_S *context, char *folder, int sequence_sensitive)
 void
 cmd_expunge(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap)
 {
-    long del_count;
+    long del_count, prefilter_del_count;
     int we_cancel = 0;
     char prompt[MAX_SCREEN_COLS+1];
     COLOR_PAIR   *lastc = NULL;
@@ -3167,6 +3174,10 @@ cmd_expunge(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap)
 			 _("Can't expunge. Folder is read-only"));
 	return;
     }
+
+    prefilter_del_count = count_flagged(stream, F_DEL|F_NOFILT);
+
+    mail_expunge_prefilter(stream, MI_NONE);
 
     if((del_count = count_flagged(stream, F_DEL|F_NOFILT)) != 0){
 	int ret;
@@ -3243,7 +3254,7 @@ cmd_expunge(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap)
 	  q_status_message1(SM_ORDER, 0, 3,
 			    _("No messages expunged from folder \"%s\""),
 			    pretty_fn(state->cur_folder));
-	else
+	else if(!prefilter_del_count)
 	  q_status_message(SM_ORDER, 0, 3,
 		     _("No messages marked deleted.  No messages expunged."));
     }

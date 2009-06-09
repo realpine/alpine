@@ -406,3 +406,9 @@ function wp_escape(s) {
     t = t.replace(/\+/, '%2b');
     return t;
 }
+
+function flipCheck(eid){
+    var cb = window.document.getElementById(eid);
+    if(cb) cb.checked = !cb.checked;
+    return false;
+}

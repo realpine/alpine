@@ -1,8 +1,8 @@
 /*
- * $Id: icache.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: icache.h 873 2007-12-15 02:39:22Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,6 +43,11 @@ void	  clear_ice(ICE_S **);
 void	  free_ifield(IFIELD_S **);
 void	  free_ielem(IELEM_S **);
 ICE_S	 *fetch_ice(MAILSTREAM *, unsigned long);
+ICE_S	**fetch_ice_ptr(MAILSTREAM *, unsigned long);
+ICE_S	 *copy_ice(ICE_S *);
+IFIELD_S *copy_ifield(IFIELD_S *);
+IELEM_S	 *copy_ielem(IELEM_S *);
+ICE_S	 *new_ice(void);
 IFIELD_S *new_ifield(IFIELD_S **);
 IELEM_S	 *new_ielem(IELEM_S **);
 

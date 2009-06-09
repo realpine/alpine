@@ -1,22 +1,25 @@
 
-                         The Pine Message System
+                         The Alpine Message System
 
 BACKGROUND
 
-Pine(tm) --a Program for Internet News & Email-- is a tool for reading,
-sending, and managing electronic messages.  It was designed specifically
-with novice computer users in mind, but can be tailored to accommodate the
-needs of "power users" as well.  Pine uses Internet message protocols
-(e.g. RFC-822, SMTP, MIME, IMAP, NNTP) and runs on Unix and PCs.
+Alpine, is a tool for reading, sending, and managing electronic
+messages built upon the venerable Pine Message System.  It was
+designed specifically with novice computer users in mind, but can be
+tailored to accommodate the needs of "power users" as well.  Alpine
+uses Internet message protocols (e.g. RFC-822, SMTP, MIME, IMAP, NNTP)
+and runs on Unix and PCs.
 
-The guiding principles for Pine's user-interface were:  careful limitation
-of features, one-character mnemonic commands, always-present command
-menus, immediate user feedback, and high tolerance for user mistakes. It
-is intended that Pine can be learned by exploration rather than reading
-manuals.  Feedback from the University of Washington community and many
-thousands of Internet sites around the world has been encouraging.
+The guiding principles for Alpine's user-interface were: careful
+limitation of features, one-character mnemonic commands,
+always-present command menus, immediate user feedback, and high
+tolerance for user mistakes. It is intended that Alpine can be learned
+by exploration rather than by reading manuals.  At the same time, Alpine
+is highly customizable and provides numerous advanced features
+intended to help the most experienced users manage large mail
+collections.
 
-Pine's message composition editor (Pico) and its file browser (Pilot) are
+Alpine's message composition editor (Pico) and its file browser (Pilot) are
 also available as separate stand-alone programs.  Pico is a very simple
 and easy-to-use text editor offering paragraph justification, cut/paste,
 and a spelling checker.
@@ -54,20 +57,18 @@ FEATURES
 
 AVAILABILITY
 
-Pine, Pico, and UW's IMAP server are copyrighted, but freely available.
-The latest version, including source code, can be found on the Internet
-host "ftp.cac.washington.edu" in the file "pine/pine.tar.Z" (accessible
-via anonymous FTP).  To try Pine out from the Internet, you may telnet to
-"demo.cac.washington.edu" and login as "pinedemo".
+Alpine, Web Alpine, PC-Alpine, Pico, and UW's IMAP server are made
+freely available under the Apache License, Version 2.0.  The latest
+version, including source code, can be found on the Internet host
+"ftp.cac.washington.edu" in the file "alpine/alpine.tar.Z" (accessible
+via anonymous FTP).
 
-For further information, visit the Pine Information Center at
-  http://www.washington.edu/pine/
+For further information, visit the Alpine Information Center at
+  http://www.washington.edu/alpine/
 
-There is also a Pine-specific Internet news group (comp.mail.pine). 
+Alpine is brought to you by the Office of Computing & Communications at the
+University of Washington.
 
-Pine is brought to you by the Office of Computing & Communications at the
-University of Washington.   Pine and Pico are registered trademarks of UW.
-
-98.05.11
+2007.12.13
 
 

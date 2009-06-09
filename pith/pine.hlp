@@ -1,4 +1,4 @@
-# $Id: pine.hlp 847 2007-12-06 18:06:35Z hubert@u.washington.edu $
+# $Id: pine.hlp 882 2007-12-20 16:34:31Z hubert@u.washington.edu $
 #
 #        T H E   A L P I N E    M E S S A G E   S Y S T E M
 #
@@ -137,9 +137,10 @@ NOTE: Several sections of help text which weren't being used were removed
 at RCS version number 4.122.  In particular, there were some placeholders
 with help text for the config screen and the composer that didn't have any
 reasonable place to be called from.
+Dummy change to get revision in pine.hlp.
 
 ============= h_revision =================
-$Id: pine.hlp 847 2007-12-06 18:06:35Z hubert@u.washington.edu $
+$Id: pine.hlp 882 2007-12-20 16:34:31Z hubert@u.washington.edu $
 ============= h_news =================
 <HTML>
 <HEAD>
@@ -168,580 +169,31 @@ Apache web server.
 
 <H2>New in Alpine <!--#echo var="ALPINE_VERSION"--></H2>
 
-Version <!--#echo var="ALPINE_VERSION"--> 
-addresses bugs found in previous releases and has a few additions as well.
+Alpine <!--#echo var="ALPINE_VERSION"-->
+is an evolutionary release that is based on
+<A HREF="http://www.washington.edu/pine/">Pine</A>, which was also
+developed at the University of Washington.
+It is upwards-compatible for existing Pine users.
 
 <P>
-Additions include:
-<P>
-<UL>
-   <LI> For dual-use folders make the name a separate handle from the
-	trailing [delimiter] indicator. Clicking on the name opens the
-	folder and clicking on the delimiter opens the directory.
-   <LI> Remove most &quot;specialness&quot; of INBOX so that it is
-	easier to access folders named INBOX other than the configured
-	INBOX
-   <LI> New token _NEWLINE_ to make it possible to remove the blank line
-	following the <A HREF="h_config_reply_intro"><!--#echo var="VAR_reply-leadin"--></A>
-   <LI> New tokens PREFDATE, PREFTIME, PREFDATETIME are locale-specific
-	versions of dates for use with the
-	the <A HREF="h_config_reply_intro"><!--#echo var="VAR_reply-leadin"--></A> option,
-	signatures, templates,
-	and the <A HREF="h_config_index_format"><!--#echo var="VAR_index-format"--></A> option
-</UL>
-
-<P>
-Bugs that have been addressed in this release include:
-<P>
-<UL>
-   <LI> Protect the thread that manipulates the busy spinner from window
-	resize events, hopefully fixing the resize crashes
-   <LI> Alpine failed to build using Sun Studio
-   <LI> Alpined failed to build with C90 compiler
-   <LI> Setup/Config screen overflowed off right edge of screen
-   <LI> Garbled index screen with Assume Slow Link and non-ascii characters
-   <LI> Improvements to character set labeling for outgoing messages
-   <LI> Do not fetch envelope data for sorting
-   <LI> Do not fetch unnecessary envelope data for select by Match Me
-   <LI> Cancel out of select by Match Me did not work
-   <LI> Make Reply more tolerant of non-compliant line endings when
-	adding the reply prefix
-   <LI> Remove the font color choice from the PC-Alpine Set Window Font
-	dialog box so that it doesn't change a custom Normal font color
-	to black
-   <LI> If sort order is non-arrival, when selecting a postponed message
-	to be resumed sometimes the wrong message was selected
-   <LI> Not really a bug, but changed
-	<A HREF="h_config_dates_to_local"><!--#echo var="FEAT_convert-dates-to-localtime"--></A>
-	so that it only converts dates in the index, not when viewing
-	a message
-   <LI> When a message showed up in the index as &quot;Yesterday&quot;
-	it wasn't changing when we passed midnight
-   <LI> AllParts command was visible in attachment save keymenu when it
-	should not have been there, it should only show up in the export
-	command keymenu when exporting a message which has attachments
-</UL>
-
-<P>
-Version 0.99999
-addressed bugs found in previous releases and had a few additions as well.
-<P>
-Additions included:
-<P>
-<UL>
-   <LI> Change feature 
-        <A HREF="h_config_thread_sorts_by_arrival"><!--#echo var="FEAT_thread-sorts-by-arrival"--></A>
-	to not preserve the sorting together of top-level threads that have the same subject.
-   <LI> In PC-Alpine, eliminate some configuration options that no longer make sense
-	in the Windows version of Alpine.
-	The eliminated options are
-	<A HREF="h_config_char_set">Display Character Set</A>,
-	<A HREF="h_config_key_char_set">Keyboard Character Set</A>,
-	and <A HREF="h_config_use_system_translation">Use System Translation</A>.
-   <LI> Regular expressions possible in option
-        <A HREF="h_config_alt_addresses"><!--#echo var="VAR_alt-addresses"--></A>
-   <LI> New feature <A HREF="h_config_copy_to_to_from"><!--#echo var="FEAT_copy-to-address-to-from-if-it-is-us"--></A>
-   <LI> Minor enhancements to <A HREF="h_common_flag">Flag command</A> to allow user
-	to see Keywords that exist in a folder but aren't defined in the
-	<A HREF="h_config_keywords"><!--#echo var="VAR_keywords"--> config option</A>,
-	and to allow keywords to be added from the Flag Details screen
-   <LI> Add a User-Agent header to help us identify revision number in bug reports
-</UL>
-
-<P>
-Bugs addressed in the 0.99999 release included:
-<P>
-<UL>
-   <LI> Alpine would hang when invoking a display filter on freebsd
-   <LI> Character over-type in line editor prompt near bottom of screen. When
-	using the status line to enter data that is longer than will fit on
-	the line the fifth character from the right hand edge was overwritten,
-	causing confusion.
-   <LI> An index line color that depends on the message status (for example
-	red for important messages) sometimes didn't update until the cursor was
-	moved away from that line
-   <LI> The Important symbol was sometimes missing when the
-	<A HREF="h_config_thread_index_style"><!--#echo var="VAR_threading-index-style"--></A>
-	was set to one of the separate-index-screen styles
-   <LI> With the option <A HREF="h_config_incoming_checking_total"><!--#echo var="FEAT_incoming-checking-includes-total"--></A>
-	turned on the total would sometimes be higher than what showed up
-	when looking at the folder due to messages that had been filtered
-   <LI> Overly slow performance on Mac OS X due to the use of threads in
-	the busy spinner
-   <LI> If features
-	<A HREF="h_downgrade_multipart_to_text"><!--#echo var="FEAT_downgrade-multipart-to-text"--></A>
-	and
-	<A HREF="h_config_8bit_smtp"><!--#echo var="FEAT_enable-8bit-esmtp-negotiation"--></A>
-	or
-	<A HREF="h_config_8bit_nntp"><!--#echo var="FEAT_enable-8bit-nntp-posting"--></A>
-	were turned on Alpine could forget about the encoding type &quot;7BIT&quot; after
-	sending a message containing Japanese characters
-   <LI> Incorrect end-of-line markers in messages exported from PC-Alpine
-   <LI> Incorrect display in pico for long lines with leading tabs
-   <LI> Maximizing and quitting in Windows Alpine causes the maximized screen size to be
-        stored
-   <LI> Crash when resizing screen to small number of rows in composer
-   <LI> Problem with long MIME subtype names in attachments with PC Alpine
-   <LI> Pipe command viewer did not wrap long lines
-   <LI> Clicking on either FirstPage or LastPage did not work
-   <LI> Don't convert to locale character set when piping or writing to a file
-	from attachments that aren't specifically type TEXT
-</UL>
-
-<P>
-Version 0.9999
-addressed bugs found in previous releases and had a few additions as well.
-<P>
-Additions included:
-<P>
-<UL>
-   <LI> New feature 
-        <A HREF="h_config_thread_sorts_by_arrival"><!--#echo var="FEAT_thread-sorts-by-arrival"--></A>
-	to rearrange by threads that have the most recent arrivals.
-   <LI> New feature
-	<A HREF="h_config_dates_to_local"><!--#echo var="FEAT_convert-dates-to-localtime"--></A>
-	to convert dates to your local timezone before displaying them
-   <LI> Small changes to Lcc behavior in composer. Lcc will usually append
-	to the To line contents now instead of replacing them. Lcc in a role
-	will set the To line, like it does if you type in the nickname in
-	the Lcc field. It still won't set the Fcc but you can set up the
-	role to do that if you want.
-   <LI> Attempt to handle so-called soft hyphens but only in a simple way
-   <LI> New color option <A HREF="h_config_incunseen_color">Incoming Unseen Color</A>
-	to color Incoming folders containing unseen messages
-   <LI> New feature <A HREF="h_config_nntp_search_uses_overview"><!--#echo var="FEAT_nntp-search-uses-overview"--></A> to improve search response in news. This feature is
-	turned on by default. If it causes trouble please let the alpha list know.
-   <LI> In addition to the automatically set status flags for &quot;New&quot;,
-        &quot;Answered&quot;, and &quot;Deleted&quot; state that already existed,
-	a new &quot;Forwarded&quot; state flag has been added. This flag is a
-	little different from the others in that it is implemented by using the
-	non-standard &quot;$Forwarded&quot; keyword instead of one of the
-	IMAP standard system flags.
-   <LI> New tokens
-	(<A HREF="h_index_tokens">Tokens for Index and Replying</A>)
-       for the
-	<A HREF="h_config_index_format"><!--#echo var="VAR_index-format"--></A> option.
-	The tokens are PRIORITY, PRIORITYALPHA, and PRIORITY!. These give a way
-	to display the value of the X-Priority header. It's also possible to
-	set the value of the X-Priority header on outgoing mail by using the
-	&quot;Priority&quot; subcommand that is available after typing Ctrl-X
-	to send. These tokens may be colored using the
-	<A HREF="h_config_index_pri_color">Index Priority Symbol Colors</A>.
-</UL>
-
-<P>
-Bugs addressed in the 0.9999 release included:
-<P>
-<UL>
-   <LI> Alternate editor did not work in PC-Alpine
-   <LI> Crash when choosing from several postponed messages if postponed
-	message folder was local
-   <LI> Crash when saving to a local folder (error was &quot;imap_cap called on non-IMAP stream!&quot;)
-   <LI> Terminal reset not working correctly with display and sending filters
-   <LI> Cutting / pasting addresses with commas inside quotes did not work
-	correctly in the composer
-   <LI> If both <A HREF="h_config_separate_fold_dir_view"><!--#echo var="FEAT_separate-folder-and-directory-entries"--></A>
-	and <A HREF="h_config_quell_empty_dirs"><!--#echo var="FEAT_quell-empty-directories"--></A>
-	were set then empty dual-use directories were not hidden
-   <LI> If the <A HREF="h_config_fld_sort_rule"><!--#echo var="VAR_folder-sort-rule"--></A>
-	sorted directories to the front or back of the list,
-	<A HREF="h_config_quell_empty_dirs"><!--#echo var="FEAT_quell-empty-directories"--></A>
-	was turned on, and
-	<A HREF="h_config_separate_fold_dir_view"><!--#echo var="FEAT_separate-folder-and-directory-entries"--></A>
-	was turned off; the sort order could be incorrect
-   <LI> Calculating a Score using the &quot;Score From Header&quot; method
-	did not work unless the &quot;Score Value&quot; was set to something
-	other than zero
-   <LI> Left arrow did not exit from Setup/Config screen by default
-   <LI> SHORTIMAPSTATUS token added in last version was not quite right
-   <LI> We were breaking the References: header and thus threading when we 
-        encountered reasonably long Message-Ids
-   <LI> Windows Alpine could freeze when receiving a message in Hebrew or
-        other languages with zero-length Unicode characters
-   <LI> Windows Alpine was ignoring characters input via Alt-Gr, such as
-        the &quot;@&quot; symbol on a German keyboard.
-   <LI> Filters that used an incoming folder as a Specific folder to match
-        did not work if the folder name ended with an implicit &quot;INBOX&quot;
-   <LI> Character set was wrong when forwarding a multi-part alternative and
-	typing in text in a character set different from the character set
-	of the part being forwarded
-   <LI> Bounce was sometimes translating text instead of just sending
-	it as labeled
-   <LI> Several small adjustments to message-to-message navigation in threaded
-	index screens and some small adjustments in the appearance of index
-	lines in those screens
-   <LI> Eliminate status message flicker when holding down the down arrow
-</UL>
-
-<P>
-Version 0.999
-addressed bugs found in previous releases and had a few additions as well.
-<P>
-Additions included:
-<P>
-<UL>
-   <LI> Configuration support for Tru64 and some fixes for other systems
-   <LI> New color option <A HREF="h_config_header_general_color">Header General Color</A>
-	to color all headers in MESSAGE TEXT screen
-   <LI> Added <A HREF="h_config_usenone_color">NONE</A> color setting for
-	Index symbols and Keyword colors so that the background color of
-	a symbol can be set to not blot out the background color of an
-	index line. There is also a similar
-	<A HREF="h_config_usenormal_color">NORM</A> color that tracks
-	the Normal Color
-   <LI> New color options <A HREF="h_config_index_subject_color">Index Subject Color</A>
-	and <A HREF="h_config_index_from_color">Index From Color</A>
-        options to color parts of MESSAGE INDEX lines
-   <LI> Some improvements to
-	<A HREF="h_config_enable_incoming_checking"><!--#echo var="FEAT_enable-incoming-folders-checking"--></A>
-	option, including new options
-	<A HREF="h_config_incoming_checking_total"><!--#echo var="FEAT_incoming-checking-includes-total"--></A>,
-	<A HREF="h_config_incoming_checking_recent"><!--#echo var="FEAT_incoming-checking-uses-recent"--></A>, and
-	<A HREF="h_config_incoming_second_interv"><!--#echo var="VAR_incoming-check-interval-secondary"--></A>
-   <LI> Eliminate address book sorting wars when two different systems sort an
-	address book differently. Instead of checking that the address book is
-	correctly  sorted whenever it is opened the sorting will only happen when
-	a change is made. The sort order you see is the sort order from the
-	last system where a change was made.
-   <LI> Added a new category of Rule called a Search Rule. A Search Rule has a
-	Pattern but no Action is associated with that Pattern. It is used with
-	the <A HREF="h_index_cmd_select">Select</A>
-	command in the MESSAGE INDEX screen to Select the set of
-	messages that match a rule's Pattern.
-   <LI> Added minor adjustment to display of opening text with
-	<A HREF="h_config_opening_sep"><!--#echo var="VAR_opening-text-separator-chars"--></A> option.
-	Display of opening text is controlled by configuring your
-	<A HREF="h_config_index_format"><!--#echo var="VAR_index-format"--></A> option
-	to include one of the Subject tokens that causes this behavior
-	(SUBJECTTEXT, SUBJKEYTEXT, or SUBJKEYINITTEXT).
-   <LI> Added tokens OPENINGTEXT and OPENINGTEXTNQ for use with the
-	<A HREF="h_config_index_format"><!--#echo var="VAR_index-format"--></A> option.
-        These are alternative ways to display the opening text of a
-	message in the index screen.
-   <LI> Added SHORTIMAPSTATUS token for the
-	<A HREF="h_config_index_format"><!--#echo var="VAR_index-format"--></A>
-   <LI> The default values of many features have been changed, exposing a more
-	advanced user interface by default. In addition, though the names of
-	features used in the configuration files remains the same, the displayed
-	text in the Config screen is no longer tied directly to that name.
-   <LI> Changed Windows Alpine so that it can show up in the list of default
-	programs in Vista.
-</UL>
-
-<P>
-Bugs addressed in the 0.999 release included:
-<P>
-<UL>
-   <LI> INBOX displayed twice in some situations when there was a folder
-	named INBOX
-   <LI> Crash in PC-Alpine related to traditional UNIX mailbox format
-   <LI> Canceling out of the password prompt when opening an incoming folder
-	was causing the re-open of a previously opened folder to fail
-   <LI> News collection display empty after canceling out of password prompt
-   <LI> Extra password prompt when adding incoming folder after canceling
-	out of earlier password prompt
-   <LI> Recognize and ignore XML processing instructions in HTML messages
-   <LI> Window title was being set using Unicode characters instead of the
-	local character set of the display terminal
-   <LI> The option <A HREF="h_config_use_boring_spinner"><!--#echo var="FEAT_busy-cue-spinner-only"--></A>
-	was displaying an oncoming two-engine airplane instead of a spinner
-   <LI> Got rid of default green Subject header color added in 0.99
-   <LI> <A HREF="h_config_titleclosed_color">Title Closed Color</A> wasn't
-	being shown when in the composer
-   <LI> Disable-Input-History, which was added in previous version, is changed
-	to <A HREF="h_config_input_history"><!--#echo var="FEAT_disable-save-input-history"--></A> and
-	its effect is restricted to ambiguous situations, like Save
-   <LI> Added missing input history command for Pipe Attachment
-   <LI> Cannot open another folder after an empty directory is opened when
-	<A HREF="h_config_combined_folder_display"><!--#echo var="FEAT_combined-folder-display"--></A>
-	and <A HREF="h_config_expanded_folders"><!--#echo var="FEAT_expanded-view-of-folders"--></A>
-	options are set
-   <LI> When answering No to the commit changes question after changing the
-	<!--#echo var="VAR_inbox-path"--> the change was written to the config file anyway
-   <LI> When the <!--#echo var="VAR_threading-display-style"--> results in the information being
-	truncated add a thread depth indicator in brackets at the right hand edge
-</UL>
-
-<P>
-Version 0.99
-addressed bugs found in previous releases and had a few additions as well.
-<P>
-Additions included:
-<P>
-<UL>
-   <LI> Added a <A HREF="h_config_role_scorehdrtok">method</A>
-        to use a number embedded in a header as an Alpine score
-   <LI> New color option <A HREF="h_config_metamsg_color">Meta-Message Color</A> to
-	color messages from Alpine that have been added in the MESSAGE TEXT screen
-   <LI> Added a history mechanism for many of the commands that use the text input
-	field near the bottom of the screen (WhereIs, Pipe, Save, Export, GoTo,
-	Bounce, Select by text). This can be turned off with the option
-	<A HREF="h_config_input_history">Disable-Input-History</A>.
-   <LI> Configurable <A HREF="h_config_wordseps"><!--#echo var="VAR_composer-word-separators"--></A>
-   <LI> Added editorial comment to start of displayed HTML when a link's text
-        appears to be a URL but does not match the HREF target, or when the
-        target is specified by IP address.
-   <LI> Added server name <A HREF="h_config_quell_host_after_url">decoration</A>
-        to link display in HTML text.
-</UL>
-
-<P>
-Bugs addressed in the 0.99 release included:
-<P>
-
-<UL>
-   <LI> IndexColor rules and Score rules were broken in 0.98
-   <LI> Crash searching message index
-   <LI> Crash in OS X when opening attachments and no command line
-	arguments were given to Alpine
-   <LI> Paragraph justify was broken in 0.98
-   <LI> Crash searching help text on MacOS PowerPC
-   <LI> <A HREF="h_config_quote_replace_string"><!--#echo var="VAR_quote-replace-string"--></A> was switching
-	out quotes in the composer even though it should only be done when viewing a message
-</UL>
-
-<P>
-Version 0.98
-addressed bugs found in previous releases and had a few additions as well.
-<P>
-Additions included:
-<P>
-<UL>
-   <LI> Added a little bit of localization in the month and day names in the
-        MESSAGE INDEX when the locale is known. Disable this with the option
-	<A HREF="h_config_disable_index_locale_dates"><!--#echo var="FEAT_disable-index-locale-dates"--></A>
-   <LI> Two new tokens for the
-	<A HREF="h_config_index_format"><!--#echo var="VAR_index-format"--></A> option.
-	The tokens are HEADER and TEXT. HEADER is motivated by the
-	desire to display spam scores in the MESSAGE INDEX.
-   <LI> Some improvements in tab-completion of address book nicknames
-   <LI> UNIX Alpine now also recognizes Ctrl-Left in the composer if Ctrl-Left
-	produces the &quot;standard&quot; ESC [ 5D escape sequence. ESC ESC
-	Left arrow also produces Ctrl-Left. Ctrl-Left is back one word and
-	Ctrl-Right is forward one word.
-   <LI> When composing, if a <A HREF="h_compose_markcutpaste">Mark</A>
-        has been set the <A HREF="h_compose_justify">Justify</A>
-	command will now offer the possibility of adjusting the quote level
-	of the marked text. For example, Ctrl-J followed by a 3 will set the quote level
-	(the number of &gt; characters at the start of the lines) of the
-	selected region to three.
-   <LI> Make it possible to configure Alpine to use a passfile on Mac OS X instead
-        of using Apple Keychain (configure option). Changed the name of the
-	Alpine argument -nowrite_passfile to -nowrite_password_cache to
-	better reflect its purpose.
-</UL>
-
-<P>
-Bugs addressed in the 0.98 release included:
-<P>
-
-<UL>
-   <LI> Address book sort was broken
-   <LI> WhereIs search in MESSAGE INDEX did not find match on current line
-   <LI> About Attachment command didn't show parameter values in last version
-   <LI> Mouse click in headers while composing was broken
-   <LI> Crash in attachment and URL opening under Mac OS X when not viewed
-	locally
-   <LI> Crash when reading Indic test into composer
-   <LI> Crash when bouncing a message and send fails
-   <LI> Reverse Arrival sort could occasionally result in Alpine becoming
-	confused about which message goes with which message number. One
-	possible symptom was new messages arriving but not showing up in
-	the index, or filtered messages appearing even though they had
-	been filtered.
-   <LI> When replying to a mangled address that looked like &lt;@domain&gt;
-	an address consisting of what looked like random characters was
-	used instead of the bad address
-   <LI> When piping a RAW message to the display the message was being interpreted
-	as if it was encoded as UTF-8 instead of just leaving the bits alone
-   <LI> The Recent flag was lost when Saving to unix format local folders
-   <LI> Some address book crashes fixed
-   <LI> Minor problem with maildrops together with reply and reopen
-</UL>
-
-<P>
-Version 0.83
-addressed bugs found in previous releases and had a few additions as well.
-<P>
-Additions included:
-<P>
-<UL>
-   <LI> Tab-completion of address book nicknames when <A HREF="h_config_enable_tab_complete"><!--#echo var="FEAT_enable-tab-completion"--></A> feature is turned on
-   <LI> For Windows version when composing Ctrl-Left is back one word, Ctrl-Home
-        moves to beginning of body, and Ctrl-End moves to the end
-   <LI> Added transparent color possibility for UNIX Alpine &quot;use-termdef&quot; style when
-        termcap entry contains Back Color Erase
-   <LI> Avoid invalid character set errors from IMAP server when there is no reason
-	to use a non-ASCII character set
-   <LI> Windows Alpine builds without requiring setup of c-client directories or LDAP configuration
-   <LI> Added ViewInNewWindow command to PC-Alpine's Message menu
-   <LI> Added <A HREF="h_config_use_boring_spinner"><!--#echo var="FEAT_busy-cue-spinner-only"--></A> option
-	to turn off randomness in the busy cue animations. The option
-	Active-Msg-Updates-Per-Second was renamed to
-	<A HREF="h_config_active_msg_interval"><!--#echo var="VAR_busy-cue-rate"--></A>.
-</UL>
-
-<P>
-Bugs addressed in the 0.83 release included:
-<P>
-
-<UL>
-   <LI> Crash from message with charset label unicode-1-1-utf-7
-   <LI> Crash when doing beginning of month copying of read-messages
-   <LI> A Stay-Open folder which was in the <!--#echo var="VAR_incoming-archive-folders"--> list could
-	break the Select command in that folder
-   <LI> Ctrl-Z did not work in Windows version
-   <LI> Printing of a message didn't work in Windows version
-   <LI> Crash when deleting threads with the Delete key
-   <LI> Crash when expanding address book entry with no domain name in address
-   <LI> Crash in composer when editing headers (double free in FormatLines)
-   <LI> Username was truncated to 3 characters in login dialog
-   <LI> Buffer overflow in altedit.c
-   <LI> Quotes with leading digits could be painted in the wrong color
-   <LI> Bug preventing opening of attachments in Mac OS X or opening attachments with the wrong application
-   <LI> Message attachments were displayed incorrectly when header colors were turned on
-   <LI> When including a message from the composer (with Ctrl-R Ctrl-W) non-ascii text
-	was not correctly converted
-   <LI> Sending and display filters were not converting the data to the
-	local character set before calling the filter, and were not converting
-	back afterwards
-   <LI> When a program was used for the <A HREF="h_config_signature_file"><!--#echo var="VAR_signature-file"--></A>
-        the output was assumed to be in UTF-8 instead of in the locale's
-	character set
-   <LI> In Windows the context menu for selecting from multiple
-	postponed messages was broken
-   <LI> Crash when running with command line argument of -d0
-</UL>
-
-<P>
-Version 0.82
-addressed bugs found in previous releases and had a few additions as well.
-
-<P>
-Additions included:
-<P>
-<UL>
-   <LI> Added PC-Alpine aspell interface from Michael Sartain.
-        Install library code from http://aspell.net/win32/
-   <LI> PC-Alpine &quot;View in New Window&quot; command will now use a new
-        window instead of reusing the existing window if the Ctrl key
-	is held down while clicking (Sartain)
-   <LI> Links in PC-Alpine viewing windows and IMAP telemetry window are selectable (Sartain)
-   <LI> Attempted to improve password preserving behavior for Windows and MacOS
-   <LI> Added transparent color for UNIX Alpine, explained a bit in <A HREF="h_config_color_style">Color Style</A> help
-   <LI> Added a some 24-hour clock SMARTDATETIME configuration options for dates in the
-	<A HREF="h_config_index_format"><!--#echo var="VAR_index-format"--></A> option.
-   <LI> Make it possible to enter long filenames at the Ctrl-J attachment prompts and the insert file prompt in the composer
-   <LI> Allow more columns on screen for tiny fonts
-   <LI> Added TogglePreferPlain toggle in message view screen (see
-	<A HREF="h_config_prefer_plain_text"><!--#echo var="FEAT_prefer-plain-text"--></A>)
-   <LI> (Experimental) There is a hotkey (Ctrl-Shift-E) in PC-Alpine
-        text windows (IMAP telemetry, message view windows) to make
-	the window ReadWrite. This might, for example, be useful as a
-	clipboard window while composing in the main window.
-</UL>
-
-<P>
-Bugs addressed in the 0.82 release included:
-<P>
-
-<UL>
-   <LI> Crash when removing last HEADER COLOR in Setup/Kolor
-   <LI> Crash in Windows version when closing New Mail Window
-   <LI> Crash in Windows version when selecting with mouse in New Mail window
-        or IMAP Telemetry window
-   <LI> Double free error in Keychain code
-   <LI> Crash when both pthread and debugging are defined (the default) on some systems
-   <LI> Crash caused by aggregate Bounce
-   <LI> Copy and Copy Append didn't work in Windows version
-   <LI> Display of text/html special characters was broken
-   <LI> Improve index date display for bad dates
-   <LI> Tab completion didn't work in some Save prompts
-   <LI> Address book fullname encoding problems
-   <LI> Address book display problems
-   <LI> Address book problems when changing nicknames
-   <LI> In PC-Alpine registry lookups of handlers for mime types
-        (like APPLICATION/MSWORD) wasn't working correctly
-   <LI> Non-ascii fullnames in Lcc field were not encoded correctly
-   <LI> Mouse paste didn't work in PC-Alpine when entering text on the status
-	line at the bottom, click caused Alpine to hang
-   <LI> When editing filter with a Folder List there was a false complaint
-        that an incoming folder didn't exist
-   <LI> Reply delimiter wrong when replying to message with no Date header
-   <LI> Some text attachments displayed with incorrect line breaks
-   <LI> Improve code portability
-</UL>
-
-<P>
-Version 0.81
-addressed bugs found in previous releases and had a few additions as well.
-
-<P>
-Additions included:
-<P>
-<UL>
-   <LI> More improvements to configure script
-   <LI> Removed Disable-Active-Status-Messages feature and replaced it with
-<A HREF="h_config_active_msg_interval">Active-Msg-Updates-Per-Second</A>. Added a
-few animations just for fun.
-   <LI> Changed default index display so that it attempts to use locale
-information to decide how to print dates. Also added a few more explicit
-configuration options for dates in the
-<A HREF="h_config_index_format"><!--#echo var="VAR_index-format"--></A> option.
-   <LI> Attempt to use Mac OSX Keychain for password storage
-   <LI> Added 256-color xterm support (very lightly tested)
-</UL>
-
-<P>
-Bugs addressed in the 0.81 release included:
-<P>
-
-<UL>
-   <LI> Fixed some alternate editor and viewer problems in PC-Alpine
-   <LI> Fixed Ctrl-T file selection in composer for PC-Alpine
-   <LI> Fixed use of &quot;DOWN&quot;, &quot;UP&quot; in <!--#echo var="VAR_initial-keystroke-list"-->
-   <LI> Fixed immediate exit due to &quot;No user input&quot;
-   <LI> Fixed crash when alpine prints its final debugfile message
-   <LI> Fixed UnKill in headers in composer
-   <LI> PC-Alpine crashes when MIMETYPE file is present
-   <LI> Fixed -bail to actually bail
-   <LI> Partial fetch failure on server led to Alpine crash
-   <LI> Moved LDAP-specific declaration into #ifdef ENABLE_LDAP
-</UL>
-
-<P>
-Version 0.8
-addressed bugs found in previous releases and had a few additions as well.
-
-<P>
-Additions included:
+Changes include:
 <P>
 <UL>
    <LI> Ground-up reorganization of source code around addition
-of "pith/" core routine library.
-   <LI> Ground-up reorganization of build and install procedure 
-based on GNU Build System's autotools.  NOTE, the included imap library
-build is not based on autotools, so some features will not work however
-it should get built automatically during the Alpine build process.
-   <LI> Web-based version included. It is built on TCL designed to run under
-a suitable CGI-supporting web server such as Apache.
-   <LI> Alpine uses Unicode internally and is capable of understanding
-most character sets. It should be capable of displaying any left to right
-character sets if running in a UTF-8 terminal emulator or on Windows with
-suitable fonts. Code has been somewhat prepared for localization, but no
-translations are available yet.
+	of "pith/" core routine library.
+   <LI> Fundamental improvement in Alpine's internal text handling, which
+	is now based exclusively on Unicode. This allows displaying incoming
+	messages and producing outgoing messages in many different languages.
+   <LI> Ground-up reorganization of build and install procedures
+	based on GNU Build System's autotools. NOTE, the included IMAP library
+	build is not based on autotools, so some features will not work. However,
+	it should get built automatically during the Alpine build process.
+   <LI> Web-based version included built on TCL designed to run under
+	a suitable CGI-supporting web server such as Apache.
 </UL>
 
 <P>
-Bugs addressed in the 0.8 release included:
-<P>
-
-<UL>
-   <LI> Sorting by Score would not work after changing a message's score by setting a keyword or changing its status
-</UL>
-
-<P>
-Details on changes in previous versions of Alpine
+Details on changes in previous (prerelease) versions of Alpine
 may be found at the following URL:
 <P>
 <CENTER><SAMP><A HREF="http://www.washington.edu/alpine/changes.html">http://www.washington.edu/alpine/changes.html</A></SAMP></CENTER>
@@ -771,14 +223,6 @@ URL:
 <P>
 <CENTER><SAMP><A HREF="http://www.washington.edu/alpine/faq/">http://www.washington.edu/alpine/faq/</A></SAMP></CENTER>
 <P>
-Some topics of current interest include:
-<UL>
-<P><LI> <A HREF="h_maildrop">Mail Drops</A>
-<P><LI> Information on <A HREF="h_info_on_locking">Folder Locking</A>
-<P><LI> Information on <A HREF="h_info_on_mbox">Missing mail and the mbox driver</A>
-<P><LI> Information on <A HREF="h_folder_name_namespaces">Folder Namespaces</A>
-<P>
-</UL>
 
 <HR WIDTH="75%"><P>
 
@@ -33754,6 +33198,71 @@ The Message View page uses this value to determine when to wrap lines
 in displayed message text.  Note, a smaller value may result in jagged
 right margins or confusing quoting.  A larger value may cause lines of text to
 run beyond the browser's right edge, requiring horizontal scrolling.
+
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_send_confirms_only_expanded =====
+<HTML>
+<HEAD>
+<TITLE>FEATURE: send-confirms-only-expanded</TITLE>
+</HEAD>
+<BODY>
+<H1>FEATURE: send-confirms-only-expanded (Web Alpine Only)</H1>
+
+This Web Alpine option specifies whether or not a Send confirmations
+happens when a composed message is readied for sending or not.  The
+default behavior is to not confirm that the nicknames were expanded to
+the intended addresses.
+
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_enable_jump_command =====
+<HTML>
+<HEAD>
+<TITLE>FEATURE: enable-jump-command</TITLE>
+</HEAD>
+<BODY>
+<H1>FEATURE: enable-jump-command (Web Alpine Only)</H1>
+
+This Web Alpine option specifies whether or not a Jump command is
+offered in the Message List and Message View pages.  The command is
+implemented as an input field in the left column of the List and View
+screens. 
+
+<P>
+When enabled and a number is entered in the input field while the
+Message List is displayed, the Message List is reframed with the
+specified message.  While viewing a message, the message associated
+with the specified message number is displayed.
+
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_enable_newmail_sound =====
+<HTML>
+<HEAD>
+<TITLE>FEATURE: enable-newmail-sound</TITLE>
+</HEAD>
+<BODY>
+<H1>FEATURE: enable-newmail-sound (Web Alpine Only)</H1>
+
+This Web Alpine option specifies whether or not a sound file is sent
+to the web browser along with the newmail notification message.
+
 
 <P>
 <UL>   

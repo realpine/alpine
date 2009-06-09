@@ -443,6 +443,9 @@
 /* Default configuration value */
 #undef INTERRUPTED_MAIL
 
+/* Enable keyboard lock support */
+#undef KEYBOARD_LOCK
+
 /* Define if you use OpenLDAP 2.3.x deprecated functions */
 #undef LDAP_DEPRECATED
 
@@ -466,9 +469,6 @@
 
 /* Disallow users changing their From address */
 #undef NEVER_ALLOW_CHANGING_FROM
-
-/* Disable keyboard lock support */
-#undef NO_KEYBOARD_LOCK
 
 /* Default configuration value */
 #undef NUMDEBUGFILES

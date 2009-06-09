@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: kblock.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: kblock.c 869 2007-12-13 23:41:46Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -15,8 +15,6 @@ static char rcsid[] = "$Id: kblock.c 673 2007-08-16 22:25:10Z hubert@u.washingto
  * ========================================================================
  */
 
-#ifndef NO_KEYBOARD_LOCK
-
 #include "headers.h"
 #include "kblock.h"
 #include "status.h"
@@ -24,6 +22,8 @@ static char rcsid[] = "$Id: kblock.c 673 2007-08-16 22:25:10Z hubert@u.washingto
 #include "radio.h"
 #include "../pith/conf.h"
 #include "../pith/state.h"
+
+#ifdef KEYBOARD_LOCK
 
 
 /*
@@ -191,4 +191,4 @@ lock_keyboard(void)
 }
 
 
-#endif /* !NO_KEYBOARD_LOCK */
+#endif /* KEYBOARD_LOCK */

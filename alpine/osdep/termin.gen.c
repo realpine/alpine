@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: termin.gen.c 744 2007-10-10 17:10:59Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: termin.gen.c 881 2007-12-18 18:29:24Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -88,8 +88,6 @@ read_command(char **utf8str)
     int i, tm = 0, more_freq_timeo;
     UCS ucs;
     long dtime; 
-    MAILSTREAM *m;
-    char *fname;
     static unsigned char utf8buf[7];
     unsigned char *newdestp;
 
@@ -111,39 +109,8 @@ read_command(char **utf8str)
     cancel_busy_cue(-1);
     tm = (messages_queued(&dtime) > 1) ? (int)dtime : more_freq_timeo;
 
-    /*
-     * Before we sniff at the input queue, make sure no external event's
-     * changed our picture of the message sequence mapping.  If so,
-     * recalculate the dang thing and run thru whatever processing loop
-     * we're in again...
-     */
-    for(i = 0; i < ps_global->s_pool.nstream; i++){
-	m = ps_global->s_pool.streams[i];
-	if(m && sp_flagged(m, SP_LOCKED) && sp_flagged(m, SP_USERFLDR)
-	   && sp_expunge_count(m)){
-	    fname = STREAMNAME(m);
-	    q_status_message3(SM_ORDER, 3, 3,
-			      "%s message%s expunged from folder \"%s\"",
-			      long2string(sp_expunge_count(m)),
-			      plural(sp_expunge_count(m)),
-			      pretty_fn(fname));
-	    sp_set_expunge_count(m, 0L);
-	    display_message('x');
-	}
-    }
-
     if(utf8str)
       *utf8str = NULL;
-
-    if(sp_mail_box_changed(ps_global->mail_stream)
-       && sp_new_mail_count(ps_global->mail_stream)){
-        dprint((2, "Noticed %ld new msgs! \n",
-		   sp_new_mail_count(ps_global->mail_stream)));
-	ucs = NO_OP_COMMAND;
-	dprint((9, "  so Read command returning: 0x%x %s\n", ucs,
-		  pretty_command(ucs)));
-	return(ucs);		/* cycle thru so caller can update */
-    }
 
     ucs = read_char(tm);
     if(ucs != NO_OP_COMMAND && ucs != NO_OP_IDLE && ucs != KEY_RESIZE)
@@ -213,6 +180,45 @@ read_command(char **utf8str)
     }
 
     return(ucs);
+}
+
+
+int
+read_command_prep()
+{
+    int		i;
+    char       *fname;
+    MAILSTREAM *m;
+
+    /*
+     * Before we sniff at the input queue, make sure no external event's
+     * changed our picture of the message sequence mapping.  If so,
+     * recalculate the dang thing and run thru whatever processing loop
+     * we're in again...
+     */
+    for(i = 0; i < ps_global->s_pool.nstream; i++){
+	m = ps_global->s_pool.streams[i];
+	if(m && sp_flagged(m, SP_LOCKED) && sp_flagged(m, SP_USERFLDR)
+	   && sp_expunge_count(m)){
+	    fname = STREAMNAME(m);
+	    q_status_message3(SM_ORDER, 3, 3,
+			      "%s message%s expunged from folder \"%s\"",
+			      long2string(sp_expunge_count(m)),
+			      plural(sp_expunge_count(m)),
+			      pretty_fn(fname));
+	    sp_set_expunge_count(m, 0L);
+	    display_message('x');
+	}
+    }
+
+    if(sp_mail_box_changed(ps_global->mail_stream)
+       && sp_new_mail_count(ps_global->mail_stream)){
+        dprint((2, "Noticed %ld new msgs! \n",
+		   sp_new_mail_count(ps_global->mail_stream)));
+	return(FALSE);		/* cycle thru so caller can update */
+    }
+
+    return(TRUE);
 }
 
 

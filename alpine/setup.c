@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: setup.c 809 2007-11-09 21:13:47Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: setup.c 863 2007-12-11 18:54:24Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -823,7 +823,7 @@ adjust_list_of_monitored_incoming(CONTEXT_S *cntxt, EditWhich which, int varnum)
 	  if(p->selected)
 	    cnt++;
 
-	if(cnt > 0 && cnt < ftotal){
+	if(cnt > 0 && cnt <= ftotal){
 	    the_list = (char **) fs_get((cnt+1) * sizeof(*the_list));
 	    memset(the_list, 0, (cnt+1) * sizeof(*the_list));
 	    for(i = 0, p = listhead; p; p = p->next)

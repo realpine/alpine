@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: terminal.c 672 2007-08-15 23:07:18Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: terminal.c 867 2007-12-13 19:31:13Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -253,6 +253,11 @@ setup_dflt_esc_seq(void)
     kpinsert("\033[5B", CTRL_KEY_DOWN, 1);
     kpinsert("\033[5C", CTRL_KEY_RIGHT, 1);
     kpinsert("\033[5D", CTRL_KEY_LEFT, 1);
+
+    kpinsert("\033[1;5A", CTRL_KEY_UP, 1);
+    kpinsert("\033[1;5B", CTRL_KEY_DOWN, 1);
+    kpinsert("\033[1;5C", CTRL_KEY_RIGHT, 1);
+    kpinsert("\033[1;5D", CTRL_KEY_LEFT, 1);
 
 
     /*
@@ -976,6 +981,11 @@ setup_dflt_esc_seq(void)
     kpinsert("\033[5B", CTRL_KEY_DOWN, 1);
     kpinsert("\033[5C", CTRL_KEY_RIGHT, 1);
     kpinsert("\033[5D", CTRL_KEY_LEFT, 1);
+
+    kpinsert("\033[1;5A", CTRL_KEY_UP, 1);
+    kpinsert("\033[1;5B", CTRL_KEY_DOWN, 1);
+    kpinsert("\033[1;5C", CTRL_KEY_RIGHT, 1);
+    kpinsert("\033[1;5D", CTRL_KEY_LEFT, 1);
 
 
     /*

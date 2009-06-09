@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: browse.c 848 2007-12-06 19:57:49Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: browse.c 861 2007-12-11 02:18:44Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -1402,8 +1402,8 @@ FileBrowse(char *dir, size_t dirlen, char *fn, size_t fnlen,
 	  case (CTRL|'M'):
 	  Selected:
 
-	    if((toupper(new_c) == 'S' && (gmode&MDBRONLY))
-	       || (toupper(new_c) == 'V' && !(gmode&MDBRONLY)))
+	    if(((new_c == 'S' || new_c == 's') && (gmode&MDBRONLY))
+	       || ((new_c == 'V' || new_c == 'v') && !(gmode&MDBRONLY)))
 	      goto Default;
 
 	    if(gmp->current->mode == FIODIR){

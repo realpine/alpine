@@ -1,5 +1,5 @@
 /*
- * $Id: kblock.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: kblock.h 869 2007-12-13 23:41:46Z mikes@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -17,8 +17,11 @@
 #define PINE_KBLOCK_INCLUDED
 
 
+#ifdef KEYBOARD_LOCK
+
 /* exported protoypes */
 int	    lock_keyboard(void);
 
+#endif	/* KEYBOARD_LOCK */
 
 #endif /* PINE_KBLOCK_INCLUDED */

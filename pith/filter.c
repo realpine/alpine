@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: filter.c 832 2007-11-27 18:58:52Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: filter.c 875 2007-12-17 18:39:47Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -2259,7 +2259,7 @@ typedef	struct _utf8_s {
 				    else if(utf8_text_cs(&intext, ((UTF8_S *) f->opt)->charset, &outtext, NULL, NULL)){ \
 					for(n = 0; n < outtext.size; n++) \
 					  GF_PUTC(f->next, outtext.data[n]); \
-					if(intext.data != outtext.data) \
+					if(outtext.data && intext.data != outtext.data) \
 					  fs_give((void **) &outtext.data); \
 				    } \
 				    else{ \

@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: helpbody.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: helpbody.tcl 861 2007-12-11 02:18:44Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -52,6 +52,18 @@ set hidden_sections {
   {filtedit	0	"Filter Editor"		filtedit}
 }
 
+proc WPHelpTopic {topic} {
+  source genvars.tcl
+  foreach g [list general_vars msglist_vars composer_vars folder_vars address_vars msgview_vars rule_vars] {
+    foreach m [set $g] {
+      if {[string compare $topic [lindex $m 1]] == 0} {
+	return [lindex $m 2]
+      }
+    }
+  }
+
+  return $topic
+}
 
 WPEval $help_vars {
   foreach s $sections {
@@ -103,15 +115,7 @@ WPEval $help_vars {
 
       if {[info exists helpfile] == 0} {
 	if {[string length $topicclass] && [catch {WPCmd PEInfo help $topic $topicclass} helptext] == 0 && [llength $helptext]} {
-	  source genvars.tcl
-	  foreach g [list general_vars msglist_vars composer_vars folder_vars address_vars msgview_vars rule_vars] {
-	    foreach m [set $g] {
-	      if {[string compare $topic [lindex $m 1]] == 0} {
-		set shownvarname [lindex $m 2]
-		break
-	      }
-	    }
-	  }
+	  set shownvarname [WPHelpTopic $topic]
 
 	  # rough once-over to digest it for suitable display in the alpine context
 	  set show 1
@@ -122,10 +126,18 @@ WPEval $help_vars {
 	      {^<[/]?[bB][oO][dD][yY]>.*} {
 		continue
 	      }
-	      {^<!--chtml [^e]*} {
-		set show 0
+	      {^<!--chtml if pinemode=.*} {
+		if {[regexp {^<!--chtml if pinemode=["]([^"]*).*} $line dummy mode]
+		    && [string compare $mode web] == 0} {
+		  set show 1
+		} else {
+		  set show 0
+		}
 	      }
-	      {^<!--chtml else -->} {
+	      {^<!--chtml else[ ]*-->} {
+		set show [expr {$show == 0}]
+	      }
+	      {^<!--chtml endif-->} {
 		set show 1
 	      }
 	      default {
@@ -134,6 +146,24 @@ WPEval $help_vars {
 		  while {[regexp {<[aA] ([^>]*)>} $line urlargs]} {
 		    lappend urls $urlargs
 		    if {[regsub {(.*)<[aA] ([^>]*)>(.*)} $line "\\1___URL___\\3" line] == 0} {
+		      break 
+		    }
+		  }
+
+		  # special locally expanded markup
+		  set exp {<!--[#]echo var=([^ ]*)-->}
+		  while {[regexp $exp $line dummy locexp]} {
+		    set locexp [string trim $locexp {"}]
+		    switch -regex $locexp {
+		      ^FEAT_* {
+			set locexp [WPHelpTopic [string range $locexp 5 end]]
+		      }
+		      ^VAR_* {
+			set locexp [WPHelpTopic [string range $locexp 4 end]]
+		      }
+		    }
+
+		    if {[regsub $exp $line $locexp line] == 0} {
 		      break 
 		    }
 		  }
@@ -148,7 +178,7 @@ WPEval $help_vars {
 		    } else {
 		      set newurl ""
 		    }
-		    if {[regsub {(([^_]{2})*)___URL___(.*)} $line "\\2$newurl\\3" line] == 0} {
+		    if {[regsub {(.*)___URL___(.*)} $line "\\1$newurl\\2" line] == 0} {
 		      break
 		    }
 		  }

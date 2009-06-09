@@ -3,16 +3,17 @@
 
 
 
+
 Network Working Group                                       Chris Newman
 Internet-Draft                                          Sun Microsystems
 Intended Status: Proposed Standard                      Arnt Gulbrandsen
                                                   Oryx Mail Systems GmhH
                                                          Alexey Melnikov
                                                            Isode Limited
-                                                       November 14, 2007
+                                                        December 8, 2007
 
          Internet Message Access Protocol Internationalization
-                     draft-ietf-imapext-i18n-13.txt
+                     draft-ietf-imapext-i18n-14.txt
 
 
 Status of this Memo
@@ -54,13 +55,13 @@ Abstract
 
 
 
-Newman, Gulbrandsen         Expires May 2008                  FF[Page 1]
+Newman & Co                 Expires June 2008                 FF[Page 1]
 
 
 
 
 
-Internet-draft                                             November 2007
+Internet-draft                                             December 2007
 
 
     which improve international support including comparator negotiation
@@ -78,12 +79,16 @@ Table of Contents
     3.3 LANGUAGE Response . . . . . . . . . . . . . . . . . . . . . .  6
     3.4 TRANSLATION Extension to the NAMESPACE Response . . . . . . .  6
     3.5 Formal Syntax . . . . . . . . . . . . . . . . . . . . . . . .  6
-    4.  COMPARATOR Extension  . . . . . . . . . . . . . . . . . . . .  7
-    4.1 COMPARATOR Extension Requirements . . . . . . . . . . . . . .  8
-    4.2 Comparators and Charsets  . . . . . . . . . . . . . . . . . .  9
-    4.3 COMPARATOR Command  . . . . . . . . . . . . . . . . . . . . .  9
-    4.4 COMPARATOR Response . . . . . . . . . . . . . . . . . . . . . 10
-    4.5 Formal Syntax . . . . . . . . . . . . . . . . . . . . . . . . 10
+    4.  I18NLEVEL=1 and I18NLEVEL=2 Extensions  . . . . . . . . . . .  7
+    4.1 Introduction and Overview . . . . . . . . . . . . . . . . . .  8
+    4.2 Requirements common to both I18NLEVEL=1 and I18NLEVEL=2 . . .
+    4.3 I18NLEVEL=1 Extension Requirements  . . . . . . . . . . . . .  8
+    4.4 I18NLEVEL=2 Extension Requirements  . . . . . . . . . . . . .  8
+    4.5 Compatibility Notes
+    4.6 Comparators and Charsets  . . . . . . . . . . . . . . . . . .  9
+    4.7 COMPARATOR Command  . . . . . . . . . . . . . . . . . . . . .  9
+    4.8 COMPARATOR Response . . . . . . . . . . . . . . . . . . . . . 10
+    4.9 Formal Syntax . . . . . . . . . . . . . . . . . . . . . . . . 10
     5.  Other IMAP Internationalization Issues  . . . . . . . . . . . 11
     5.1 UTF-8 Userids and Passwords . . . . . . . . . . . . . . . . . 11
     5.2 UTF-8 Mailbox Names . . . . . . . . . . . . . . . . . . . . . 11
@@ -108,21 +113,20 @@ Conventions Used in This Document
     [RFC4234] notation including the core rules defined in Appendix A.
     The UTF8-related productions are defined in [RFC3629].
 
+
+
+Newman & Co                 Expires June 2008                 FF[Page 2]
+
+
+
+
+
+Internet-draft                                             December 2007
+
+
     In examples, "C:" and "S:" indicate lines sent by the client and
     server respectively.  If a single "C:" or "S:" label applies to
     multiple lines, then the line breaks between those lines are for
-
-
-
-Newman, Gulbrandsen         Expires May 2008                  FF[Page 2]
-
-
-
-
-
-Internet-draft                                             November 2007
-
-
     editorial clarity only and are not part of the actual protocol
     exchange.
 
@@ -137,7 +141,7 @@ Internet-draft                                             November 2007
     language for protocol error messages and in combination with the
     NAMESPACE extension [RFC2342] enables namespace translations.
 
-    The COMPARATOR extension allows the client to request a suitable
+    The I18NLEVEL=2 extension allows the client to request a suitable
     collation which will modify the behavior of the base specification's
     SEARCH command as well as the SORT and THREAD extensions [SORT].
     This leverages the collation registry [RFC4790].
@@ -168,21 +172,21 @@ Internet-draft                                             November 2007
     A server that advertises this extension MUST use the language "i-
     default" as described in [RFC2277] as its default language until
     another supported language is negotiated by the client. A server
+
+
+
+Newman & Co                 Expires June 2008                 FF[Page 3]
+
+
+
+
+
+Internet-draft                                             December 2007
+
+
     MUST include "i-default" as one of its supported languages.
 
     Clients and servers that support this extension MUST also support
-
-
-
-Newman, Gulbrandsen         Expires May 2008                  FF[Page 3]
-
-
-
-
-
-Internet-draft                                             November 2007
-
-
     the NAMESPACE extension [RFC2342].
 
     The LANGUAGE command is valid in all states. Clients are urged to
@@ -228,20 +232,20 @@ Internet-draft                                             November 2007
     is unable to enumerate the list of languages it supports it MAY
     return a tagged NO response to the enumeration request.
 
+
+
+
+Newman & Co                 Expires June 2008                 FF[Page 4]
+
+
+
+
+
+Internet-draft                                             December 2007
+
+
         < The server defaults to using English i-default responses until
           the user explicitly changes the language. >
-
-
-
-
-Newman, Gulbrandsen         Expires May 2008                  FF[Page 4]
-
-
-
-
-
-Internet-draft                                             November 2007
-
 
         C: A001 LOGIN KAREN PASSWORD
         S: A001 OK LOGIN completed
@@ -288,21 +292,21 @@ Internet-draft                                             November 2007
         S: D002 OK Sprachwechsel durch LANGUAGE-Befehl ausgefuehrt
         C: D003 LANGUAGE "default"
         S: * LANGUAGE (DE)
+
+
+
+Newman & Co                 Expires June 2008                 FF[Page 5]
+
+
+
+
+
+Internet-draft                                             December 2007
+
+
         S: D003 OK Sprachwechsel durch LANGUAGE-Befehl ausgefuehrt
 
         < Server does not speak French, but does speak English. User
-
-
-
-Newman, Gulbrandsen         Expires May 2008                  FF[Page 5]
-
-
-
-
-
-Internet-draft                                             November 2007
-
-
           speaks Canadian French and Canadian English. >
 
         C: E001 LANGUAGE FR-CA EN-CA
@@ -349,19 +353,18 @@ Internet-draft                                             November 2007
         S: A001 OK LANGUAGE-Befehl ausgefuehrt
 
 
+
+
+Newman & Co                 Expires June 2008                 FF[Page 6]
+
+
+
+
+
+Internet-draft                                             December 2007
+
+
 3.5 Formal Syntax
-
-
-
-
-Newman, Gulbrandsen         Expires May 2008                  FF[Page 6]
-
-
-
-
-
-Internet-draft                                             November 2007
-
 
     The following syntax specification inherits ABNF [RFC4234] rules
     from IMAP4rev1 [RFC3501], IMAP4 Namespace [RFC2342], Tags for the
@@ -401,38 +404,55 @@ Internet-draft                                             November 2007
         ; UTF-8 excluding 7-bit control characters and "["
 
 
-4.  COMPARATOR Extension
+4.  I18NLEVEL=1 and I18NLEVEL=2 Extensions
+
+
+4.1 Introduction and Overview
 
     IMAP4rev1 [RFC3501] includes the SEARCH command which can be used to
     locate messages matching criteria including human-readable text.
     The SORT extension [SORT] to IMAP allows the client to ask the
+
+
+
+Newman & Co                 Expires June 2008                 FF[Page 7]
+
+
+
+
+
+Internet-draft                                             December 2007
+
+
     server to determine the order of messages based on criteria
     including human-readable text.  These mechanisms require the ability
     to support non-English search and sort functions.
 
-    This section defines an IMAP extension to negotiate use of
+    Section 4 defines two IMAP extensions for internationalizing IMAP
+    SEARCH, SORT and THREAD [SORT] using the comparator framework
+    [RFC4790].
+
+    The I18NLEVEL=1 extension updates SEARCH/SORT/THREAD to use
+    i;unicode-casemap comparator, as defined in [UCM]. See Sections 4.2
+    and 4.3 for more details.
+
+    The I18NLEVEL=2 extension is a superset of the I18NLEVEL=1
+    extension. It adds to I18NLEVEL=1 extension the ability to determine
+    the active comparator (see definition below) and negotiate use of
+    comparators using the COMPARATOR command. It also adds the
+    COMPARATOR response that indicates the active comparator and
+    possibly other available comparators. See Sections 4.2 and 4.4 for
+    more details.
 
 
-
-Newman, Gulbrandsen         Expires May 2008                  FF[Page 7]
-
-
-
-
-
-Internet-draft                                             November 2007
-
-
-    comparators [RFC4790] to internationalize IMAP SEARCH, SORT and
-    THREAD.  The IMAP extension consists of a new command to determine
-    or change the active comparator and a new response to indicate the
-    active comparator and possibly other available comparators.
+4.2 Requirements common to both I18NLEVEL=1 and I18NLEVEL=2
 
     The term "default comparator" refers to the comparator which is used
-    by SEARCH and SORT absent any negotiation using the COMPARATOR
-    command.  The term "active comparator" refers to the comparator
-    which will be used within a session e.g. by SEARCH and SORT.  The
-    COMPARATOR command is used to change the active comparator.
+    by SEARCH and SORT absent any negotiation using the COMPARATOR (see
+    Section 4.7) command.  The term "active comparator" refers to the
+    comparator which will be used within a session e.g. by SEARCH and
+    SORT.  The COMPARATOR command is used to change the active
+    comparator.
 
     The active comparator applies to the following SEARCH keys: "BCC",
     "BODY", "CC", "FROM", "SUBJECT", "TEXT", "TO" and "HEADER".  If the
@@ -449,41 +469,56 @@ Internet-draft                                             November 2007
     base subject text from a Subject header occurs prior to the
     application of a comparator.
 
+    A server that advertises I18NLEVEL=1 or I18NLEVEL=2 extension MUST
+    implement the i;unicode-casemap comparator, as defined in [UCM].
 
-4.1 COMPARATOR Extension Requirements
 
-    IMAP servers that support this extension MUST list the keyword
-    COMPARATOR in their CAPABILITY data once IMAP enters authenticated
+
+
+Newman & Co                 Expires June 2008                 FF[Page 8]
+
+
+
+
+
+Internet-draft                                             December 2007
+
+
+    A server that advertises I18NLEVEL=1 or I18NLEVEL=2 extension MUST
+    support UTF-8 as a SEARCH charset.
+
+
+4.3 I18NLEVEL=1 Extension Requirements
+
+    IMAP servers that satisfies all requirements specified in sections
+    4.2 and 4.6 (and doesn't support/advertise any other I18NLEVEL=<n>
+    extension, where n > 1) MUST list the keyword I18NLEVEL=1 in their
+    CAPABILITY data once IMAP enters authenticated state, and MAY list
+    that keyword in other states.
+
+
+
+4.4 I18NLEVEL=2 Extension Requirements
+
+    IMAP servers that satisfies all requirements specified in sections
+    4.2, 4.4, 4.6-4.9 (and doesn't support/advertise any other
+    I18NLEVEL=<n> extension, where n > 2) MUST list the keyword
+    I18NLEVEL=2 in their CAPABILITY data once IMAP enters authenticated
     state, and MAY list that keyword in other states.
 
     A server that advertises this extension MUST implement the
     i;unicode-casemap comparator, as defined in [UCM]. It MAY implement
     other comparators from the IANA registry established by [RFC4790].
+    See also section 4.5 of this document.
 
     A server that advertises this extension SHOULD use i;unicode-casemap
-    as the default comparator.  The selection of the default comparator
-    MAY be adjustable by the server administrator, and MAY be sensitive
-    to the current user.  Once the IMAP connection enters authenticated
-    state, the default comparator MUST remain static for the remainder
-    of that connection.
-
-    A server that advertises this extension MUST support UTF-8 as a
-    SEARCH charset.
-
-    The COMPARATOR command is valid in authenticated and selected
-
-
-
-Newman, Gulbrandsen         Expires May 2008                  FF[Page 8]
-
-
-
-
-
-Internet-draft                                             November 2007
-
-
-    states.
+    as the default comparator. (Note that i;unicode-casemap is the
+    default comparator for I18NLEVEL=1, but not necessarily the default
+    for I18NLEVEL=2.) The selection of the default comparator MAY be
+    adjustable by the server administrator, and MAY be sensitive to the
+    current user.  Once the IMAP connection enters authenticated state,
+    the default comparator MUST remain static for the remainder of that
+    connection.
 
     Note that since SEARCH uses the substring operation, IMAP servers
     can only implement collations that offer the substring operation
@@ -496,7 +531,36 @@ Internet-draft                                             November 2007
     IMAP command, the server MUST respond with a tagged BAD.
 
 
-4.2 Comparators and Character Encodings
+4.5 Compatibility Notes
+
+
+
+Newman & Co                 Expires June 2008                 FF[Page 9]
+
+
+
+
+
+Internet-draft                                             December 2007
+
+
+    Several server implementations deployed prior to the publication of
+    this specification comply with I18NLEVEL=1 (see section 4.3), but do
+    not advertise that.  Other legacy servers use the i;ascii-casemap
+    (see [RFC4790]) comparator.
+
+    There is no good way for a client to know which comparator that a
+    legacy server uses.  If the client has to assume the worst, it may
+    end up doing expensive local operations to obtain i;unicode-casemap
+    comparisons even though the server implements it.
+
+    Legacy server implementations which comply with I18NLEVEL=1 should
+    be updated to advertise I18NLEVEL=1.  All server implementations
+    should eventually be updated to comply with the I18NLEVEL=2
+    extension.
+
+
+4.6 Comparators and Character Encodings
 
     RFC 3501, section 6.4.4 says:
 
@@ -528,20 +592,21 @@ Internet-draft                                             November 2007
     (c) For the substring operation:
         If step (b) failed (e.g., the text is in an unknown charset,
         contains a sequence which is not valid according in that
+
+
+
+Newman & Co                 Expires June 2008                FF[Page 10]
+
+
+
+
+
+Internet-draft                                             December 2007
+
+
         charset, etc.), the original decoded text from (a) (i.e.,
         before the charset conversion attempt) is collated using the
         i;octet comparator (see [RFC4790]).
-
-
-
-Newman, Gulbrandsen         Expires May 2008                  FF[Page 9]
-
-
-
-
-
-Internet-draft                                             November 2007
-
 
         If step (b) was successful, the converted text from (b) is
         collated according to the active comparator.
@@ -573,17 +638,32 @@ Internet-draft                                             November 2007
 
 
 
-4.3 COMPARATOR Command
+4.7 COMPARATOR Command
 
     Arguments: Optional comparator order arguments.
 
-    Response:  A possible COMPARATOR response (see Section 4.4).
+    Response:  A possible COMPARATOR response (see Section 4.8).
 
     Result:    OK - Command completed
                NO - No matching comparator found
                BAD - arguments invalid
 
+    The COMPARATOR command is valid in authenticated and selected
+    states.
+
     The COMPARATOR command is used to determine or change the active
+
+
+
+Newman & Co                 Expires June 2008                FF[Page 11]
+
+
+
+
+
+Internet-draft                                             December 2007
+
+
     comparator.  When issued with no arguments, it results in a
     COMPARATOR response indicating the currently active comparator.
 
@@ -591,18 +671,6 @@ Internet-draft                                             November 2007
     active comparator as directed. (If more than one installed
     comparator is matched by an argument, the first argument wins.) The
     COMPARATOR response lists all matching comparators if more than one
-
-
-
-Newman, Gulbrandsen         Expires May 2008                 FF[Page 10]
-
-
-
-
-
-Internet-draft                                             November 2007
-
-
     matches the specified patterns.
 
     The argument "default" refers to the server's default comparator.
@@ -619,7 +687,7 @@ Internet-draft                                             November 2007
         S: A001 OK Will use i;basic for collation
 
 
-4.4 COMPARATOR Response
+4.8 COMPARATOR Response
 
     Contents:  The active comparator.
                An optional list of available matching comparators
@@ -631,7 +699,7 @@ Internet-draft                                             November 2007
     present only if more than one match is found.
 
 
-4.5 Formal Syntax
+4.9 Formal Syntax
 
     The following syntax specification inherits ABNF [RFC4234] rules
     from IMAP4rev1 [RFC3501], and Internet Application Protocol
@@ -645,23 +713,23 @@ Internet-draft                                             November 2007
 
       response-payload  =/ comparator-data
 
+
+
+Newman & Co                 Expires June 2008                FF[Page 12]
+
+
+
+
+
+Internet-draft                                             December 2007
+
+
         comparator-data   = "COMPARATOR" SP comp-sel-quoted [SP "("
                         comp-id-quoted *(SP comp-id-quoted) ")"]
 
         comp-id-quoted  = astring
             ; Once any literal wrapper or quoting is removed, this
             ; follows the collation-id rule from [RFC4790]
-
-
-
-Newman, Gulbrandsen         Expires May 2008                 FF[Page 11]
-
-
-
-
-
-Internet-draft                                             November 2007
-
 
         comp-order-quoted = astring
             ; Once any literal wrapper or quoting is removed, this
@@ -672,16 +740,7 @@ Internet-draft                                             November 2007
             ; follows the collation-selected rule from [RFC4790]
 
 
-4.6 UNICASEMAP Extension Requirements
-
-    An IMAP server that implements the i;unicode-casemap comparator
-    [UCM] and satisfies all requirements specified in sections 4, 4.1
-    and 4.2 of this document, but doesn't implement the COMPARATOR
-    command and response, SHOULD advertise the UNICASEMAP capability in
-    the CAPABILITY response.
-
-
-    5.  Other IMAP Internationalization Issues
+5.  Other IMAP Internationalization Issues
 
     The following sections provide an overview of various other IMAP
     internationalization issues.  These issues are not resolved by this
@@ -691,7 +750,7 @@ Internet-draft                                             November 2007
 
 5.1 Unicode Userids and Passwords
 
-    IMAP4rev1 presently restricts the userid and password fields of the
+    IMAP4rev1 currently restricts the userid and password fields of the
     LOGIN command to US-ASCII. The "userid" and "password" fields of the
     IMAP LOGIN command are restricted to US-ASCII only until a future
     standards track RFC states otherwise.  Servers are encouraged to
@@ -711,20 +770,20 @@ Internet-draft                                             November 2007
     The modified UTF-7 mailbox naming convention described in section
     5.1.3 of RFC 3501 is best viewed as an transition from the status
     quo in 1996 when modified UTF-7 was first specified.  At that time,
-
-
-
-Newman, Gulbrandsen         Expires May 2008                 FF[Page 12]
-
-
-
-
-
-Internet-draft                                             November 2007
-
-
     there was widespread unofficial use of local character sets such as
     ISO-8859-1 and Shift-JIS for non-ASCII mailbox names, with resultant
+
+
+
+Newman & Co                 Expires June 2008                FF[Page 13]
+
+
+
+
+
+Internet-draft                                             December 2007
+
+
     non-interoperability.
 
     The requirements in section 5.1 of RFC 3501 are very important if
@@ -746,8 +805,8 @@ Internet-draft                                             November 2007
 
 6.  IANA Considerations
 
-    The IANA is requested to add LANGUAGE, COMPARATOR and UNICASEMAP to
-    the IMAP4 Capabilities Registry.  [Note to IANA:
+    The IANA is requested to add LANGUAGE, I18NLEVEL=1 and I18NLEVEL=2
+    to the IMAP4 Capabilities Registry.  [Note to IANA:
     http://www.iana.org/assignments/imap4-capabilities]
 
 
@@ -769,39 +828,37 @@ Internet-draft                                             November 2007
     issue the LANGUAGE command once a security layer is active, so this
     does not impact subsequent protocol operations.
 
-    Both the LANGUAGE and COMPARATOR extensions use the UTF-8 charset,
-    thus the security considerations for UTF-8 [RFC3629] are relevent.
+    LANGUAGE, I18NLEVEL=1 and I18NLEVEL=2 extensions use the UTF-8
+    charset, thus the security considerations for UTF-8 [RFC3629] are
+    relevent.  However, neither uses UTF-8 for identifiers so the most
+    serious concerns do not apply.
 
 
 
-Newman, Gulbrandsen         Expires May 2008                 FF[Page 13]
+Newman & Co                 Expires June 2008                FF[Page 14]
 
 
 
 
 
-Internet-draft                                             November 2007
-
-
-    However, neither uses UTF-8 for identifiers so the most serious
-    concerns do not apply.
+Internet-draft                                             December 2007
 
 
 8.  Acknowledgements
 
     The LANGUAGE extension is based on a previous Internet draft by Mike
-    Gahrns and Alexey Melnikov, a substantial portion of the text in
-    that section was written by them.  Many people have participated in
-    discussions about an IMAP Language extension in the various fora of
-    the IETF and Internet working groups, so any list of contributors is
-    bound to be incomplete.  However, the authors would like to thank
-    Andrew McCown for early work on the original proposal, John Myers
-    for suggestions regarding the namespace issue, along with Jutta
-    Degener, Mark Crispin, Mark Pustilnik, Larry Osterman, Cyrus Daboo
-    and Martin Duerst for their many suggestions that have been
-    incorporated into this document.
+    Gahrns, a substantial portion of the text in that section was
+    written by him.  Many people have participated in discussions about
+    an IMAP Language extension in the various fora of the IETF and
+    Internet working groups, so any list of contributors is bound to be
+    incomplete.  However, the authors would like to thank Andrew McCown
+    for early work on the original proposal, John Myers for suggestions
+    regarding the namespace issue, along with Jutta Degener, Mark
+    Crispin, Mark Pustilnik, Larry Osterman, Cyrus Daboo and Martin
+    Duerst for their many suggestions that have been incorporated into
+    this document.
 
-    Initial discussion of the COMPARATOR extension involved input from
+    Initial discussion of the I18NLEVEL=2 extension involved input from
     Mark Crispin and other participants of the IMAP Extensions WG.
 
 
@@ -810,7 +867,7 @@ Internet-draft                                             November 2007
     This is a non-normative list of standards to consider when
     implementing i18n aware IMAP software.
 
-      o The LANGUAGE and COMPARATOR extensions to IMAP (this
+      o The LANGUAGE and I18NLEVEL=2 extensions to IMAP (this
         specification).
       o The 8-bit rules for mailbox naming in section 5.1 of RFC 3501.
       o The Mailbox International Naming Convention in section 5.1.3 of
@@ -824,29 +881,29 @@ Internet-draft                                             November 2007
         BODYSTRUCTURE. There is also some deployed non-standard use of
         MIME header encoding inside double-quotes for filenames.
       o IDNA [RFC3490] and punycode [RFC3492] for domain names
-        (presently only relevant to IMAP clients).
+        (currently only relevant to IMAP clients).
       o The UTF-8 charset [RFC3629].
       o The IETF policy on Character Sets and Languages [RFC2277].
 
 
 Normative References
 
-
-
-
-Newman, Gulbrandsen         Expires May 2008                 FF[Page 14]
-
-
-
-
-
-Internet-draft                                             November 2007
-
-
     [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
                Requirement Levels", BCP 14, RFC 2119, March 1997.
 
     [RFC2277]  Alvestrand, "IETF Policy on Character Sets and
+
+
+
+Newman & Co                 Expires June 2008                FF[Page 15]
+
+
+
+
+
+Internet-draft                                             December 2007
+
+
                Languages", BCP 18, RFC 2277, January 1998.
 
     [RFC2342]  Gahrns, Newman, "IMAP4 Namespace", RFC 2342, May 1998.
@@ -892,18 +949,19 @@ Internet-draft                                             November 2007
                2047, November 1996.
 
 
-
-
-Newman, Gulbrandsen         Expires May 2008                 FF[Page 15]
-
-
-
-
-
-Internet-draft                                             November 2007
-
-
 Informative References
+
+
+
+
+
+Newman & Co                 Expires June 2008                FF[Page 16]
+
+
+
+
+
+Internet-draft                                             December 2007
 
 
     [RFC2231]  Freed, Moore, "MIME Parameter Value and Encoded Word
@@ -952,100 +1010,43 @@ Authors' Addresses
     5 Castle Business Village, 36 Station Road,
     Hampton, Middlesex, TW12 2BX, UK
 
-
-
-Newman, Gulbrandsen         Expires May 2008                 FF[Page 16]
-
-
-
-
-
-Internet-draft                                             November 2007
-
-
     Email: Alexey.Melnikov@isode.com
 
 
 
 
+Newman & Co                 Expires June 2008                FF[Page 17]
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Newman, Gulbrandsen         Expires May 2008                 FF[Page 17]
-
-
-
-
-
-Internet-draft                                             November 2007
+Internet-draft                                             December 2007
 
 
 Intellectual Property Statement
 
     The IETF takes no position regarding the validity or scope of any
-    Intellectual Property Rights or other rights that might be claimed
-    to pertain to the implementation or use of the technology described
-    in this document or the extent to which any license under such
-    rights might or might not be available; nor does it represent that
-    it has made any independent effort to identify any such rights.
-    Information on the procedures with respect to rights in RFC
-    documents can be found in BCP 78 and BCP 79.
+    Intellectual Property Rights or other rights that might be claimed to
+    pertain to the implementation or use of the technology described in
+    this document or the extent to which any license under such rights
+    might or might not be available; nor does it represent that it has
+    made any independent effort to identify any such rights.  Information
+    on the procedures with respect to rights in RFC documents can be found
+    in BCP 78 and BCP 79.
 
     Copies of IPR disclosures made to the IETF Secretariat and any
     assurances of licenses to be made available, or the result of an
-    attempt made to obtain a general license or permission for the use
-    of such proprietary rights by implementers or users of this
-    specification can be obtained from the IETF on-line IPR repository
-    at http://www.ietf.org/ipr.
+    attempt made to obtain a general license or permission for the use of
+    such proprietary rights by implementers or users of this specification
+    can be obtained from the IETF on-line IPR repository at
+    http://www.ietf.org/ipr.
 
     The IETF invites any interested party to bring to its attention any
     copyrights, patents or patent applications, or other proprietary
     rights that may cover technology that may be required to implement
-    this standard.  Please address the information to the IETF at ietf-
-    ipr@ietf.org.
+    this standard.  Please address the information to the IETF at
+    ietf-ipr@ietf.org.
 
 
 Full Copyright Statement
@@ -1074,6 +1075,6 @@ Acknowledgment
 
 
 
-Newman, Gulbrandsen         Expires May 2008                 FF[Page 18]
+Newman & Co                 Expires June 2008                FF[Page 18]
 
 

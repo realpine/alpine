@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: thread.c 842 2007-12-04 00:13:55Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: thread.c 873 2007-12-15 02:39:22Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -158,7 +158,7 @@ erase_threading_info(MAILSTREAM *stream, MSGNO_S *msgmap)
 
 
 void
-sort_thread_callback(MAILSTREAM *stream, struct thread_node *tree)
+sort_thread_callback(MAILSTREAM *stream, THREADNODE *tree)
 {
     THREADNODE *collapsed_tree = NULL;
     long          i;
@@ -484,7 +484,7 @@ calculate_visible_threads(MAILSTREAM *stream)
 
 
 struct pass_along *
-sort_thread_flatten(struct thread_node *node, MAILSTREAM *stream,
+sort_thread_flatten(THREADNODE *node, MAILSTREAM *stream,
 		    struct pass_along *entry, PINETHRD_S *thrd, unsigned int flags)
 {
     long n = 0L;

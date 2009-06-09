@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: conf.c 809 2007-11-09 21:13:47Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: conf.c 867 2007-12-13 19:31:13Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -330,9 +330,9 @@ CONF_TXT_T cf_text_upload_prefix[] =	"Text sent to terminal emulator prior to in
 
 CONF_TXT_T cf_text_download_cmd[] =	"Path and filename of the program used to download text via your terminal\n# emulator from Alpine's export and save commands.";
 
-CONF_TXT_T cf_text_download_prefix[] =	"Text sent to terminal emulator prior to invoking the program defined by\n# the download-command variable.\n# Note: _FILE_ will be replaced with the temporary file used in the downlaod.";
+CONF_TXT_T cf_text_download_prefix[] =	"Text sent to terminal emulator prior to invoking the program defined by\n# the download-command variable.\n# Note: _FILE_ will be replaced with the temporary file used in the download.";
 
-CONF_TXT_T cf_text_goto_default[] =	"Sets the default folder and collectionoffered at the Goto Command's prompt.";
+CONF_TXT_T cf_text_goto_default[] =	"Sets the default folder and collection offered at the Goto Command's prompt.";
 
 CONF_TXT_T cf_text_mailcap_path[] =	"Sets the search path for the mailcap configuration file.\n# NOTE: colon delimited under UNIX, semi-colon delimited under DOS/Windows/OS2.";
 
@@ -3160,12 +3160,12 @@ feature_list(int index)
 	 F_QUELL_USER_ID_PROMPT, h_config_quell_user_id_prompt, PREF_HIDDEN, 0},
 	{"selectable-item-nobold", NULL,
 	 F_SLCTBL_ITEM_NOBOLD, NO_HELP, PREF_NONE, 0},
-	{"send-confirms-only-expanded", NULL,
-	 F_SEND_CONFIRM_ON_EXPAND, 0, PREF_HIDDEN, 0},	/* exposed in Web Alpine */
-	{"enable-jump-cmd", NULL,
-	 F_ENABLE_JUMP_CMD, 0, PREF_HIDDEN, 0},		/* exposed in Web Alpine */
-	{"enable-newmail-sound", NULL,
-	 F_ENABLE_NEWMAIL_SOUND, 0, PREF_HIDDEN, 0}	/* exposed in Web Alpine */
+	{"send-confirms-only-expanded", NULL,	/* exposed in Web Alpine */
+	 F_SEND_CONFIRM_ON_EXPAND, h_config_send_confirms_only_expanded, PREF_HIDDEN, 0},
+	{"enable-jump-cmd", NULL,		/* exposed in Web Alpine */
+	 F_ENABLE_JUMP_CMD, h_config_enable_jump_command, PREF_HIDDEN, 0},
+	{"enable-newmail-sound", NULL,		/* exposed in Web Alpine */
+	 F_ENABLE_NEWMAIL_SOUND, h_config_enable_newmail_sound, PREF_HIDDEN, 0}
     };
 
     return((index >= 0 && index < (sizeof(feat_list)/sizeof(feat_list[0])))
@@ -6703,9 +6703,9 @@ update_posting_charset(struct pine *ps, int revert)
 }
 
 
-#define FIXED_COMMENT		"(fixed)"
-#define DEFAULT_COMMENT		"(default)"
-#define OVERRIDE_COMMENT	"(overriddent)"
+#define FIXED_COMMENT		_("(fixed)")
+#define DEFAULT_COMMENT		_("(default)")
+#define OVERRIDE_COMMENT	_("(overridden)")
 
 int
 feature_gets_an_x(struct pine *ps, struct variable *var, FEATURE_S *feature,

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: confscroll.c 830 2007-11-26 23:45:22Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: confscroll.c 881 2007-12-18 18:29:24Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -611,7 +611,7 @@ conf_scroll_screen(struct pine *ps, OPT_SCREEN_S *screen, CONF_S *start_line, ch
 	mswin_setscrollcallback(config_scroll_callback);
 #endif
         /*------ Read the command from the keyboard ----*/
-	ch = read_command(&utf8str);
+	ch = READ_COMMAND(&utf8str);
 #ifdef	MOUSE
 	clear_mfunc(mouse_in_content);
 #endif

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: takeaddr.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: takeaddr.c 881 2007-12-18 18:29:24Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -1278,16 +1278,15 @@ takeaddr_screen(struct pine *ps, TA_S *ta_list, int how_many_selected,
 #endif
 
 #ifdef  _WINDOWS
-        mswin_setscrollcallback(ta_scroll_callback);
+	    mswin_setscrollcallback(ta_scroll_callback);
 #endif
-	    ch = read_command(&utf8str);
-
+	    ch = READ_COMMAND(&utf8str);
 #ifdef	MOUSE
 	    clear_mfunc(mouse_in_content);
 #endif
 
 #ifdef  _WINDOWS
-        mswin_setscrollcallback(NULL);
+	    mswin_setscrollcallback(NULL);
 #endif
 	    cmd = menu_command(ch, km);
 	    if (ta_screen->current)

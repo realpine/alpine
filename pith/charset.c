@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: charset.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: charset.c 875 2007-12-17 18:39:47Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -292,13 +292,14 @@ rfc1522_decode_to_utf8(unsigned char *d, size_t len, char *s)
 	     */
 
 	    /* if already copying to destn, copy it */
+	    l = (sw - s) + RFC1522_INIT_L;
 	    if(rv){
 		rfc1522_copy_and_transliterate(rv, &d, len, (unsigned char *) s, l, NULL);
 		*d = '\0';
 		s += l;				/* advance s beyond intro */
 	    }
 	    else	/* probably won't have to copy it at all, wait */
-	      s += ((sw - s) + RFC1522_INIT_L);
+	      s += l;
 	}
     }
 
@@ -484,7 +485,7 @@ rfc1522_copy_and_transliterate(unsigned char  *rv,
     if((*d)-rv > len-1)
       *d = rv+len-1;
 
-    if(src.data != xsrc.data)
+    if(xsrc.data && src.data != xsrc.data)
       fs_give((void **) &xsrc.data);
 }
 

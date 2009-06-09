@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailindx.c 842 2007-12-04 00:13:55Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailindx.c 873 2007-12-15 02:39:22Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -1967,7 +1967,7 @@ format_index_index_line(INDEXDATA_S *idata)
     ADDRESS      *addr, *toaddr, *ccaddr, *last_to;
     PINETHRD_S   *thrd = NULL;
     INDEX_COL_S	 *cdesc = NULL;
-    ICE_S        *ice;
+    ICE_S        *ice, **icep;
     IFIELD_S     *ifield;
     IELEM_S      *ielem;
     struct variable *vars = ps_global->vars;
@@ -1981,6 +1981,19 @@ format_index_index_line(INDEXDATA_S *idata)
       return(NULL);
 
     free_ifield(&ice->ifield);
+
+    /*
+     * Operate on a temporary copy of ice. The reason for this
+     * is that we may end up causing a pine_mail_fetchenvelope() call
+     * (e.g., in to_us_symbol_for_thread()) that causes an mm_flags()
+     * and mm_flags may do a clear_ice(), freeing the ice we are working
+     * on out from under us. We try to fetch everything we need in
+     * build_header_work() but c-client will short-circuit our request
+     * if we already got the raw header for some reason. One possible
+     * reason is a categorizer command in a filter. In that case
+     * we still need a fetch fast to get the rest of the envelope data.
+     */
+    ice = copy_ice(ice);
 
     /* is this a collapsed thread index line? */
     if(!idata->bogus && THREADING()){
@@ -2950,6 +2963,16 @@ format_index_index_line(INDEXDATA_S *idata)
     ice->widths_done = 1;
     ice->id = ice_hash(ice);
 
+    /*
+     * Now we have to put the temporary copy of ice back as the
+     * real thing.
+     */
+    icep = fetch_ice_ptr(idata->stream, idata->rawno);
+    if(icep){
+	free_ice(icep);	/* free what is already there */
+	*icep = ice;
+    }
+
     return(ice);
 }
 
@@ -2960,7 +2983,7 @@ format_thread_index_line(INDEXDATA_S *idata)
     char         *p, buffer[BIGWIDTH+1];
     int           thdlen, space_left, i;
     PINETHRD_S   *thrd = NULL;
-    ICE_S        *ice, *tice = NULL;
+    ICE_S        *ice, *tice = NULL, **ticep = NULL;
     IFIELD_S     *ifield;
     IELEM_S      *ielem;
     int         (*save_sfstr_func)(void);
@@ -2999,6 +3022,9 @@ format_thread_index_line(INDEXDATA_S *idata)
       return(ice);
 
     free_ifield(&tice->ifield);
+
+    ticep = &ice->tice;
+    tice = copy_ice(tice);
 
     if(space_left >= 3){
 	char to_us, status;
@@ -3226,6 +3252,11 @@ format_thread_index_line(INDEXDATA_S *idata)
 
     tice->widths_done = 1;
     tice->id = ice_hash(tice);
+
+    if(ticep){
+	free_ice(ticep);	/* free what is already there */
+	*ticep = tice;
+    }
 
     return(ice);
 }
@@ -4171,9 +4202,48 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len,
 	    }
 	}
     }
-    else
-      parse_date(F_ON(F_DATES_TO_LOCAL,ps_global)
+    else{
+	parse_date(F_ON(F_DATES_TO_LOCAL,ps_global)
 		    ? convert_date_to_local(datesrc) : datesrc, &d);
+	if(d.year == -1 || d.month == -1 || d.day == -1){
+	    sdatetimetype = 0;
+	    sdatetime24type = 0;
+	    preftype = 0;
+	    switch(type){
+	      case iSDate: case iSDateTime: case iSDateTime24:
+		type = iS1Date;
+		break;
+	      
+	      case iSDateIso: case iSDateTimeIso: case iSDateTimeIso24:
+	      case iPrefDate: case iPrefTime: case iPrefDateTime:
+		type = iDateIso;
+		break;
+	      
+	      case iSDateIsoS: case iSDateTimeIsoS: case iSDateTimeIsoS24:
+		type = iDateIsoS;
+		break;
+	      
+	      case iSDateS1: case iSDateTimeS1: case iSDateTimeS124:
+		type = iS1Date;
+		break;
+	      
+	      case iSDateS2: case iSDateTimeS2: case iSDateTimeS224:
+		type = iS1Date;
+		break;
+	      
+	      case iSDateS3: case iSDateTimeS3: case iSDateTimeS324:
+		type = iS1Date;
+		break;
+	      
+	      case iSDateS4: case iSDateTimeS4: case iSDateTimeS424:
+		type = iS1Date;
+		break;
+	      
+	      default:
+		break;
+	    }
+	}
+    }
 
     /* some special ones to start with */
     if(preftype){

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: signal.c 676 2007-08-20 19:46:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: signal.c 876 2007-12-17 19:36:32Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -181,18 +181,12 @@ Call panic which cleans up tty modes and then core dumps
 static RETSIGTYPE
 auger_in_signal(int sig)
 {
-    char buf[100], *s;
+    char buf[100];
 
     end_signals(1);			/* don't catch any more signals */
     imap_flush_passwd_cache(FALSE);
 
-#if defined(SIGNALHASARG)
-    s = comatose(sig);
-#else
-    s = "?";
-#endif
-
-    snprintf(buf, sizeof(buf), "Received abort signal(sig=%s)", s);
+    snprintf(buf, sizeof(buf), "Received abort signal(sig=%d)", sig);
     buf[sizeof(buf)-1] = '\0';
 
     panic(buf);				/* clean up and get out */

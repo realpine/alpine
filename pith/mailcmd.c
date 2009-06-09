@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcmd.c 845 2007-12-05 22:34:30Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailcmd.c 878 2007-12-17 23:09:45Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -654,10 +654,9 @@ do_broach_folder(char *newfolder, CONTEXT_S *new_context, MAILSTREAM **streamp,
 		     "%s", ps_global->cur_folder);
 	}
 
-	strncpy(ps_global->cur_folder, sp_fldr(ps_global->mail_stream)
-					 ? sp_fldr(ps_global->mail_stream)
-					 : ps_global->inbox_name,
-		sizeof(ps_global->cur_folder)-1);
+	p = sp_fldr(ps_global->mail_stream) ? sp_fldr(ps_global->mail_stream)
+					    : ps_global->inbox_name;
+	strncpy(ps_global->cur_folder, p, sizeof(ps_global->cur_folder)-1);
 	ps_global->cur_folder[sizeof(ps_global->cur_folder)-1] = '\0';
 	ps_global->context_current = ps_global->context_list;
 	reset_index_format();
@@ -817,10 +816,10 @@ do_broach_folder(char *newfolder, CONTEXT_S *new_context, MAILSTREAM **streamp,
                            mn_get_cur(ps_global->msgmap),
                            mn_get_total(ps_global->msgmap),
                            ps_global->mail_stream));
-		strncpy(ps_global->cur_folder,
-			sp_fldr(ps_global->mail_stream)
+		p = sp_fldr(ps_global->mail_stream)
 			  ? sp_fldr(ps_global->mail_stream)
-			  : ps_global->inbox_name,
+			  : ps_global->inbox_name;
+		strncpy(ps_global->cur_folder, p,
 			sizeof(ps_global->cur_folder)-1);
 		ps_global->cur_folder[sizeof(ps_global->cur_folder)-1] = '\0';
             }

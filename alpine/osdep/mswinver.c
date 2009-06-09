@@ -11,8 +11,8 @@
  * ========================================================================
  */
 
-#define VER_MAJOR 0
-#define VER_MINOR 999999
+#define VER_MAJOR 1
+#define VER_MINOR 0
 extern char datestamp[];
 
 

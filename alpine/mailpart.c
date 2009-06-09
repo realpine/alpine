@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailpart.c 825 2007-11-21 06:29:53Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailpart.c 881 2007-12-18 18:29:24Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -457,7 +457,7 @@ attachment_screen(struct pine *ps)
 		       ps_global->ttyo->screen_rows -(FOOTER_ROWS(ps_global)+1),
 		       ps_global->ttyo->screen_cols);
 #endif
-	ch = read_command(&utf8str);
+	ch = READ_COMMAND(&utf8str);
 #ifdef	MOUSE
 	clear_mfunc(mouse_in_content);
 #endif

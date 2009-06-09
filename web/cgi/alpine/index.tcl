@@ -1,4 +1,4 @@
-# $Id: index.tcl 849 2007-12-06 23:12:33Z mikes@u.washington.edu $
+# $Id: index.tcl 864 2007-12-11 20:21:47Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -1178,12 +1178,6 @@ if {![info exists nopage]} {
 	cgi_put  " elobj.src = (ckd) ? '[WPimg markall3]' : '[WPimg marknone3]';"
 	cgi_put  " return false;"
 	cgi_puts "}"
-
-	cgi_put "function fc(eid){"
-	cgi_put " var cb = document.getElementById(eid);"
-	cgi_put " cb.checked = !cb.checked;"
-	cgi_put " return false;"
-	cgi_put "}"
       }
 
       if {$_wp(keybindings)} {
@@ -1826,11 +1820,11 @@ if {![info exists nopage]} {
 		      Size {
 			set text [index_part_color [index_quote [lindex [lindex $part 0] 0]] [lindex $part 1]]
 			set class isize
-			set onclick "onclick=\"fc('cb$u')\""
+			set onclick "onclick=\"flipCheck('cb$u')\""
 		      }
 		      Number {
 			set text [index_part_color [index_quote [WPcomma [string trim [lindex [lindex $part 0] 0]]]] [lindex $part 1]]
-			set onclick "onclick=\"fc('cb$u')\""
+			set onclick "onclick=\"flipCheck('cb$u')\""
 		      }
 		      From -
 		      To {
@@ -1845,11 +1839,11 @@ if {![info exists nopage]} {
 			  }
 			}]
 
-			set onclick "onclick=\"fc('cb$u')\""
+			set onclick "onclick=\"flipCheck('cb$u')\""
 		      }
 		      default {
 			set text [index_part_color [index_quote [lindex [lindex $part 0] 0]] [lindex $part 1]]
-			set onclick "onclick=\"fc('cb$u')\""
+			set onclick "onclick=\"flipCheck('cb$u')\""
 		      }
 		    }
 

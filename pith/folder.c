@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: folder.c 845 2007-12-05 22:34:30Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: folder.c 878 2007-12-17 23:09:45Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1611,13 +1611,29 @@ folder_index(char *name, CONTEXT_S *cntxt, int flags)
  *        nicknames can only be set by configuration...
  */
 char *
-folder_is_nick(char *nickname, void *flist, int flags)
+folder_is_nick(char *nickname, FLIST *flist, int flags)
 {
     register  int  i = 0;
     FOLDER_S *f;
 
+    if(!(nickname && *nickname && flist))
+      return(NULL);
+
     while((f = folder_entry(i, flist)) != NULL){
-	if(f->nickname && strcmp(nickname, f->nickname) == 0){
+	/*
+	 * The second part of the OR is checking in a case-indep
+	 * way for INBOX. It should be restricted to the context
+	 * to which we add the INBOX folder, which would be either
+	 * the Incoming Folders collection or the first collection
+	 * if there is no Incoming collection. We don't need to check
+	 * the collection because nickname assignment has already
+	 * done that for us. Most folders don't have nicknames, only
+	 * incoming folders and folders like inbox if not in incoming.
+	 */
+	if(f->nickname
+	   && (!strcmp(nickname, f->nickname)
+	       || (!strucmp(nickname, f->nickname)
+		   && !strucmp(nickname, ps_global->inbox_name)))){
 	    char source[MAILTMPLEN], *target = NULL;
 
 	    /*
@@ -1630,6 +1646,30 @@ folder_is_nick(char *nickname, void *flist, int flags)
 	    else
 	      return(f->name);
 	}
+	else
+	  i++;
+    }
+
+    return(NULL);
+}
+
+
+char *
+folder_is_target_of_nick(char *longname, CONTEXT_S *cntxt)
+{
+    register  int  i = 0;
+    FOLDER_S *f;
+    FLIST *flist = NULL;
+
+    if(cntxt && cntxt == ps_global->context_list)
+      flist = FOLDERS(cntxt);
+
+    if(!(longname && *longname && flist))
+      return(NULL);
+
+    while((f = folder_entry(i, flist)) != NULL){
+	if(f->nickname && f->name && !strcmp(longname, f->name))
+	  return(f->nickname);
 	else
 	  i++;
     }
@@ -2042,14 +2082,14 @@ update_folder_unseen(FOLDER_S *f, CONTEXT_S *ctxt, unsigned long flags,
 	MAILSTREAM *m = NULL;
 
 	stream_is_open = (this_is_the_stream
-			  || sp_stream_get(mailbox_name, SP_MATCH | SP_RO_OK)
+			  || (m=sp_stream_get(mailbox_name, SP_MATCH | SP_RO_OK))
 			  || ((m=ps_global->mail_stream) && !sp_dead_stream(m)
 			      && same_stream_and_mailbox(mailbox_name,m))
 	                  || (!IS_REMOTE(mailbox_name)
-			      && already_open_stream(mailbox_name, AOS_NONE))) ? 1 : 0;
+			      && (m=already_open_stream(mailbox_name, AOS_NONE)))) ? 1 : 0;
 
 	if(stream_is_open){
-	    if(m && !this_is_the_stream)
+	    if(!this_is_the_stream)
 	      this_is_the_stream = m;
 	}
 	else{

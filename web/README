@@ -1,9 +1,18 @@
-This is the README file that is part of the Web Alpine Application
-distributed with the Alpine Mail System.
+/* ========================================================================
+ * Copyright 2006-2007 University of Washington
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * ========================================================================
+ */
 
 
-WEB ALPINE 1.0
---------------
+WEB ALPINE
+----------
 
 Web Alpine is the web-based component of the Alpine Mail System.  It
 rests on the same distributed email technology behind Alpine, but is
@@ -68,3 +77,5 @@ Send comments and questions to <alpine-contact@cac.washington.edu>.
 
 
 --
+alpine.tar.z web/README
+$Id: README 884 2007-12-20 18:30:27Z mikes@u.washington.edu $

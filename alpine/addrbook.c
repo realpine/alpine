@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: addrbook.c 678 2007-08-20 23:05:24Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: addrbook.c 881 2007-12-18 18:29:24Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -2818,7 +2818,7 @@ addr_book(AddrBookArg style, char *title, char **error_message)
 	mswin_setscrollcallback(addr_scroll_callback);
 	mswin_sethelptextcallback(pcpine_help_addrbook);
 #endif
-	c = read_command(&utf8str);
+	c = READ_COMMAND(&utf8str);
 #ifdef	MOUSE
 	clear_mfunc(mouse_in_content);
 #endif

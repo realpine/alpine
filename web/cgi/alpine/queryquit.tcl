@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: queryquit.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
+# $Id: queryquit.tcl 864 2007-12-11 20:21:47Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -89,18 +89,12 @@ WPEval $quit_vars {
   cgi_html {
     cgi_head {
       WPStdHtmlHdr "Quitting Web Alpine"
+      WPStdScripts
       WPStyleSheets
       cgi_put  "<style type='text/css'>"
       cgi_put  ".expungebox { background-color:AntiqueWhite }"
+      cgi_put  ".clickit { cursor: pointer }"
       cgi_puts "</style>"
-
-      cgi_javascript {
-	cgi_put "function flpchk(eid){"
-	cgi_put " var cb = document.getElementById(eid);"
-	cgi_put " cb.checked = !cb.checked;"
-	cgi_put " return false;"
-	cgi_put "}"
-      }
     }
 
     cgi_body BGCOLOR="$_wp(bordercolor)" {
@@ -171,7 +165,7 @@ WPEval $quit_vars {
 				    }
 				    cgi_table_data align=left {
 				      set t "Expunge ${numdels} deleted message[expr {($numdels > 1) ? "s" : ""}] from ${fname}."
-				      cgi_put [cgi_span onclick=\"flpchk('$cbn')\" $t]
+				      cgi_put [cgi_span class=clickit onclick=\"flipCheck('$cbn')\" $t]
 				    }
 				  }
 				}

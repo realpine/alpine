@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: compose.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
+# $Id: compose.tcl 864 2007-12-11 20:21:47Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -58,10 +58,6 @@ set msgs(noattach) {[ Message has no attachments ]}
 set defaultheaders {to cc subject attach}
 
 set fccname ""
-
-proc sendname {n i} {
-  cgi_put [cgi_span class=navtext style=\"color:white\" onclick=\"setop($i)\" "$n"]
-}
 
 proc fieldname {name} {
   regsub -all -- {-} [string tolower $name] {_} fieldname
@@ -254,7 +250,7 @@ proc rowfield {item itemval style} {
 		  set checked checked
 		}
 
-		cgi_checkbox fccattach=1 class=smallhdr $checked
+		cgi_checkbox fccattach=1 class=smallhdr id="fcccb" $checked
 	      }
 	      cgi_table_data valign=middle class=smallhdr {
 		set blurb "Include attachments in copy of message saved to Fcc"
@@ -262,7 +258,7 @@ proc rowfield {item itemval style} {
 		  append blurb " (i.e., \"$fccname\")"
 		}
 
-		cgi_put $blurb
+		cgi_put [cgi_span "style=cursor: pointer" onclick="flipCheck('fcccb')" $blurb]
 	      }
 	    }
 	  }
@@ -598,6 +594,7 @@ WPEval $compose_vars {
       cgi_http_equiv Content-Type "text/html; charset=$charset"
 
       WPStdHtmlHdr "Compose Message"
+      WPStdScripts
       WPStyleSheets
 
       cgi_put  "<style type='text/css'>"
@@ -641,14 +638,14 @@ WPEval $compose_vars {
 
 		  cgi_puts [cgi_span class=navtext "When finished, choose action below, then click [cgi_italic $doneverb].[cgi_nl][cgi_nl]"]
 		  
-		  cgi_radio_button sendop=send
-		  sendname Send 0
+		  cgi_radio_button sendop=send id="RB1"
+		  cgi_put [cgi_span class=navtext "style=color:white; cursor: pointer" onclick=\"flipCheck('RB1')\" "Send"]
 		  cgi_br
-		  cgi_radio_button sendop=postpone
-		  sendname Postpone 1
+		  cgi_radio_button sendop=postpone id="RB2"
+		  cgi_put [cgi_span class=navtext "style=color:white; cursor: pointer" onclick=\"flipCheck('RB2')\" "Postpone"]
 		  cgi_br
-		  cgi_radio_button sendop=cancel
-		  sendname Cancel 2
+		  cgi_radio_button sendop=cancel id="RB3"
+		  cgi_put [cgi_span class=navtext "style=color:white; cursor: pointer" onclick=\"flipCheck('RB3')\" "Cancel"]
 		  cgi_br
 		  cgi_br
 		  #cgi_image_button action=[WPimg but_s_do] border=0 alt="Do"

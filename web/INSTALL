@@ -1,5 +1,16 @@
-This is the INSTALL file that is part of the Web Alpine Application
-distributed with the Alpine Mail System.
+alpine.tar.z web/INSTALL
+$id$
+/* ========================================================================
+ * Copyright 2006-2007 University of Washington
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * ========================================================================
+ */
 
 
 BUILDING AND INSTALLING WEB ALPINE
@@ -130,20 +141,20 @@ those tools where they need to be within the web/ directory structure.
 Second, the web/ directory tree needs to be made available to the web
 server.  On the example system, start by moving the web/ directory
 tree into a more system-visible location.  We'll also change the name
-to reflect the current version number (for this example, X.YY) to help
+to reflect the current version number (for this example, 1.00) to help
 keep future upgrades isolated.  This command will likely require
 elevated privileges using either sudo or after becoming root.
 
   4.  % cd ../..
 
-  5.  % sudo mv web /usr/local/libexec/alpine-X.YY
+  5.  % sudo mv web /usr/local/libexec/alpine-1.00
 
 Next, for simplicity, create a generically named symbolic link as a
 synonym for the version-specific directory.
 
   6.  % cd /usr/local/libexec
 
-  7.  % sudo ln -s alpine-X.YY alpine
+  7.  % sudo ln -s alpine-1.00 alpine
 
 After that, make the scripts that actually generate the user visible
 portion of Web Alpine available to the web server.
@@ -306,4 +317,4 @@ what's going on and why.  If you have any questions or comments drop
 us a note <alpine-contact@cac.washington.edu>.
 
 -- 
-$id$
+$Id: INSTALL 884 2007-12-20 18:30:27Z mikes@u.washington.edu $

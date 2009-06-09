@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailview.c 844 2007-12-05 17:50:54Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailview.c 881 2007-12-18 18:29:24Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -2663,7 +2663,7 @@ scrolltool(SCROLL_S *sparms)
 	if(ps_global->prev_screen == mail_view_screen)
 	  mswin_setviewinwindcallback(view_in_new_window);
 #endif
-        ch = read_command(&utf8str);
+	ch = (sparms->quell_newmail || read_command_prep()) ? read_command(&utf8str) : NO_OP_COMMAND;
 #ifdef	MOUSE
 #ifndef	WIN32
 	if(sparms->text.handles)

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailindx.c 824 2007-11-19 23:55:01Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailindx.c 881 2007-12-18 18:29:24Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -519,7 +519,7 @@ index_lister(struct pine *state, CONTEXT_S *cntxt, char *folder, MAILSTREAM *str
 				    : pcpine_help_index_simple);
 	mswin_setviewinwindcallback(view_in_new_window);
 #endif
-	ch = read_command(&utf8str);
+	ch = READ_COMMAND(&utf8str);
 #ifdef	MOUSE
 	clear_mfunc(mouse_in_content);
 #endif
@@ -2376,7 +2376,8 @@ pine_imap_envelope(MAILSTREAM *stream, long unsigned int rawno, ENVELOPE *env)
 		textcpy(&szt, &mc->private.msg.header.text);
 		mail_filter((char *) szt.data, szt.size, lines, 0L);
 		idata.resent_to_us = parsed_resent_to_us((char *) szt.data);
-		fs_give((void **) &szt.data);
+		if(szt.data)
+		  fs_give((void **) &szt.data);
 	    }
 
 	    free_strlst(&lines);

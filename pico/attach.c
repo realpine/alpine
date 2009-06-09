@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: attach.c 923 2008-02-05 23:09:15Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: attach.c 1080 2008-06-11 17:21:24Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -179,7 +179,7 @@ AskAttach(char *cmnt, size_t cmntlen, LMLIST **lm)
 		    bfn[sizeof(bfn)-1] = '\0';
 		}
 
-		if(!pico_fncomplete(bfn, sizeof(bfn), fname, sizeof(fn)-(fname-fn)))
+		if(!pico_fncomplete(bfn, fname, sizeof(fn)-(fname-fn)))
 		  (*term.t_beep)();
 	    }
 	    else

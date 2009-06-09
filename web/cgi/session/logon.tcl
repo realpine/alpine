@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: logon.tcl 948 2008-03-06 00:24:37Z mikes@u.washington.edu $
+# $Id: logon.tcl 1104 2008-07-02 17:40:27Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -52,7 +52,7 @@ cgi_eval {
     }
 
     if {[catch {WPCmd PESession open $User $confloc $defconf} answer]} {
-      if {[string length $answer] == 0} {
+      if {0 == [string length $answer] || 0 == [string compare BADPASSWD [lindex $answer 0]]} {
 	set answer "Unknown Username or Incorrect Password"
       }
 
@@ -127,7 +127,7 @@ cgi_eval {
       set defsort {Date 0}
     }
 
-    # set these in pinetdd's interp so they're fished out by WPImport
+    # set these in alpined's interp so they're fished out by WPImport
     if {[catch {
       WPCmd set sort [lindex $defsort 0]
       WPCmd set rev [lindex $defsort 1]

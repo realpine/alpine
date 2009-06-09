@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: tempfile.c 745 2007-10-11 18:03:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: tempfile.c 1070 2008-06-03 19:27:23Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,11 +38,15 @@ create_tmpfile(void)
     return(tmpfile());
 #else
     char *file_name;
-    FILE *stream;
+    FILE *stream = NULL;
 
     file_name = temp_nam(NULL, "pine-tmp");
-    stream = our_fopen(file_name, "w+b");
-    our_unlink(file_name);
+    if(file_name){
+	stream = our_fopen(file_name, "w+b");
+	our_unlink(file_name);
+	fs_give((void **) &file_name);
+    }
+
     return(stream);
 #endif
 }

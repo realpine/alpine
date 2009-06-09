@@ -1,8 +1,8 @@
 /*
- * $Id: remote.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: remote.h 1069 2008-06-03 15:54:15Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@
 #define REMOTE_ABOOK_SUBTYPE	"x-pine-addrbook"
 #define REMOTE_PINERC_SUBTYPE	"x-pine-pinerc"
 #define REMOTE_SIG_SUBTYPE	"x-pine-sig"
+#define REMOTE_SMIME_SUBTYPE	"x-pine-smime"
 
 #define PMAGIC                   "P#*E@"
 #define METAFILE_VERSION_NUM     "01"
@@ -60,8 +61,8 @@ extern char meta_prefix[];
 
 /* exported protoypes */
 char       *read_remote_pinerc(PINERC_S *, ParsePinerc);
-REMDATA_S  *rd_create_remote(RemType, char *, void *, unsigned *, char *,char *);
-REMDATA_S  *rd_new_remdata(RemType, char *, void *);
+REMDATA_S  *rd_create_remote(RemType, char *, char *, unsigned *, char *, char *);
+REMDATA_S  *rd_new_remdata(RemType, char *, char *);
 void	    rd_free_remdata(REMDATA_S **);
 void	    rd_trim_remdata(REMDATA_S **);
 void	    rd_close_remdata(REMDATA_S **);

@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: adrbkcmd.c 744 2007-10-10 17:10:59Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: adrbkcmd.c 1060 2008-05-30 16:52:41Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1594,7 +1594,7 @@ single_space::sticky::dirty::start_here::blank::KS_ODATAVAR
 static struct headerentry headents_for_add[]={
   {"Server Name : ",  N_("Server"),  h_composer_abook_add_server, 14, 0, NULL,
    verify_server_name, NULL, NULL, NULL, NULL, NULL, NULL,
-   1, 0, 0, 0, 0, 1, 0, 0, 0, 0, KS_NONE},
+   1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"Folder Name : ",  N_("Folder"),  h_composer_abook_add_folder, 14, 0, NULL,
    verify_folder_name, NULL, NULL, NULL, NULL, NULL, NULL,
    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
@@ -6591,7 +6591,7 @@ query_server(struct pine *ps, int selecting, int *exit, int who, char **error)
 #define FILTSIZE 1000
     char fbuf[FILTSIZE+1];
     char *ret = NULL;
-    LDAP_SERV_RES_S *winning_e = NULL;
+    LDAP_CHOOSE_S *winning_e = NULL;
     LDAP_SERV_RES_S *free_when_done = NULL;
     SAVED_QUERY_S *sq = NULL;
     static ESCKEY_S ekey[] = {
@@ -6892,7 +6892,7 @@ all_done:
       free_headents(&he);
 
     if(free_when_done)
-      free_ldap_result_list(free_when_done);
+      free_ldap_result_list(&free_when_done);
 
     if(winning_e)
       fs_give((void **)&winning_e);
@@ -6915,7 +6915,7 @@ all_done:
  *               to be viewed.
  */
 void
-view_ldap_entry(struct pine *ps, LDAP_SERV_RES_S *winning_e)
+view_ldap_entry(struct pine *ps, LDAP_CHOOSE_S *winning_e)
 {
     STORE_S    *srcstore = NULL;
     SourceType  srctype = CharStar;
@@ -6964,7 +6964,7 @@ view_ldap_entry(struct pine *ps, LDAP_SERV_RES_S *winning_e)
  *               to be viewed.
  */
 void
-compose_to_ldap_entry(struct pine *ps, LDAP_SERV_RES_S *e, int allow_role)
+compose_to_ldap_entry(struct pine *ps, LDAP_CHOOSE_S *e, int allow_role)
 {
     char  **elecmail = NULL,
 	  **mail = NULL,
@@ -6980,29 +6980,29 @@ compose_to_ldap_entry(struct pine *ps, LDAP_SERV_RES_S *e, int allow_role)
 	char       *a;
 	BerElement *ber;
 
-	for(a = ldap_first_attribute(e->ld, e->res, &ber);
+	for(a = ldap_first_attribute(e->ld, e->selected_entry, &ber);
 	    a != NULL;
-	    a = ldap_next_attribute(e->ld, e->res, ber)){
+	    a = ldap_next_attribute(e->ld, e->selected_entry, ber)){
 
 	    if(strcmp(a, e->info_used->mailattr) == 0){
 		if(!mail)
-		  mail = ldap_get_values(e->ld, e->res, a);
+		  mail = ldap_get_values(e->ld, e->selected_entry, a);
 	    }
 	    else if(strcmp(a, "electronicmail") == 0){
 		if(!elecmail)
-		  elecmail = ldap_get_values(e->ld, e->res, a);
+		  elecmail = ldap_get_values(e->ld, e->selected_entry, a);
 	    }
 	    else if(strcmp(a, e->info_used->cnattr) == 0){
 		if(!cn)
-		  cn = ldap_get_values(e->ld, e->res, a);
+		  cn = ldap_get_values(e->ld, e->selected_entry, a);
 	    }
 	    else if(strcmp(a, e->info_used->gnattr) == 0){
 		if(!givenname)
-		  givenname = ldap_get_values(e->ld, e->res, a);
+		  givenname = ldap_get_values(e->ld, e->selected_entry, a);
 	    }
 	    else if(strcmp(a, e->info_used->snattr) == 0){
 		if(!sn)
-		  sn = ldap_get_values(e->ld, e->res, a);
+		  sn = ldap_get_values(e->ld, e->selected_entry, a);
 	    }
 
 	    our_ldap_memfree(a);
@@ -7130,7 +7130,7 @@ compose_to_ldap_entry(struct pine *ps, LDAP_SERV_RES_S *e, int allow_role)
  *               to be viewed.
  */
 void
-forward_ldap_entry(struct pine *ps, LDAP_SERV_RES_S *winning_e)
+forward_ldap_entry(struct pine *ps, LDAP_CHOOSE_S *winning_e)
 {
     STORE_S    *srcstore = NULL;
     SourceType  srctype = CharStar;
@@ -7148,7 +7148,7 @@ forward_ldap_entry(struct pine *ps, LDAP_SERV_RES_S *winning_e)
 
 
 STORE_S *
-prep_ldap_for_viewing(struct pine *ps, LDAP_SERV_RES_S *winning_e, SourceType srctype, HANDLE_S **handlesp)
+prep_ldap_for_viewing(struct pine *ps, LDAP_CHOOSE_S *winning_e, SourceType srctype, HANDLE_S **handlesp)
 {
     STORE_S    *store = NULL;
     char       *a, *tmp;
@@ -7179,7 +7179,7 @@ prep_ldap_for_viewing(struct pine *ps, LDAP_SERV_RES_S *winning_e, SourceType sr
 	obuf[ps->ttyo->screen_cols+1] = '\0';
     }
 
-    a = ldap_get_dn(winning_e->ld, winning_e->res);
+    a = ldap_get_dn(winning_e->ld, winning_e->selected_entry);
 
     so_puts(store, obuf);
     if((tmp = fold(a, width, width, "", "   ", FLD_NONE)) != NULL){
@@ -7192,19 +7192,19 @@ prep_ldap_for_viewing(struct pine *ps, LDAP_SERV_RES_S *winning_e, SourceType sr
 
     our_ldap_dn_memfree(a);
 
-    for(a = ldap_first_attribute(winning_e->ld, winning_e->res, &ber);
+    for(a = ldap_first_attribute(winning_e->ld, winning_e->selected_entry, &ber);
 	a != NULL;
-	a = ldap_next_attribute(winning_e->ld, winning_e->res, ber)){
+	a = ldap_next_attribute(winning_e->ld, winning_e->selected_entry, ber)){
 
 	if(a && *a){
 	    char **vals;
 	    char  *fn = NULL;
 
-	    vals = ldap_get_values(winning_e->ld, winning_e->res, a);
+	    vals = ldap_get_values(winning_e->ld, winning_e->selected_entry, a);
 
 	    /* save this for mailto */
 	    if(handlesp && !cn && !strcmp(a, winning_e->info_used->cnattr))
-	      cn = ldap_get_values(winning_e->ld, winning_e->res, a);
+	      cn = ldap_get_values(winning_e->ld, winning_e->selected_entry, a);
 
 	    if(vals){
 		int do_mailto;
@@ -7557,6 +7557,7 @@ url_local_ldap(char *url)
     LDAP            *ld;
     struct timeval   t;
     int              ld_err, mangled = 0, we_cancel, retval = 0, proto = 3;
+    int              we_turned_on = 0;
     char             ebuf[300];
     LDAPMessage     *result;
     LDAP_SERV_S     *info;
@@ -7583,7 +7584,7 @@ url_local_ldap(char *url)
       return(retval);
     }
     
-    intr_handling_on();
+    we_turned_on = intr_handling_on();
     we_cancel = busy_cue(_("Searching for LDAP url"), NULL, 0);
     ps_global->mangled_footer = 1;
 
@@ -7633,7 +7634,11 @@ url_local_ldap(char *url)
 	    we_cancel = 0;
 	}
 
-	intr_handling_off();
+	if(we_turned_on){
+	    intr_handling_off();
+	    we_turned_on = 0;
+	}
+
 	if(ldap_count_entries(ld, result) == 0){
 	  q_status_message(SM_ORDER, 3, 5, _("No matches found for url"));
 	  ldap_unbind(ld);
@@ -7664,7 +7669,7 @@ url_local_ldap(char *url)
 	  if(mangled)
 	    ps_global->mangled_screen = 1;
 
-	  free_ldap_result_list(serv_res);
+	  free_ldap_result_list(&serv_res);
 	  retval = 1;
         }
       }
@@ -7673,7 +7678,8 @@ url_local_ldap(char *url)
     if(we_cancel)
       cancel_busy_cue(-1);
 
-    intr_handling_off();
+    if(we_turned_on)
+      intr_handling_off();
 
     if(ldapurl)
       ldap_free_urldesc(ldapurl);

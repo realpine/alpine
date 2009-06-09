@@ -32,7 +32,7 @@
 #include "state.h"			/* for struct pine */
 #include "adrbklib.h"			/* for SAVE_STATE_S */
 #ifdef	ENABLE_LDAP
-#include "ldap.h"			/* for LDAP_SERV_RES_S */
+#include "ldap.h"
 #endif
 
 
@@ -67,7 +67,7 @@ extern int  (*pith_opt_rfc2369_editorial)(long, HANDLE_S **, int, int, gf_io_t);
 /*
  * optional hook in ldap.c:wp_lookups to ask user where to save chosen LDAP result
  */
-extern void (*pith_opt_save_ldap_entry)(struct pine *, LDAP_SERV_RES_S *, int);
+extern void (*pith_opt_save_ldap_entry)(struct pine *, LDAP_CHOOSE_S *, int);
 #endif
 
 /*
@@ -203,6 +203,24 @@ extern int (*pith_opt_truncate_sfstr)(void);
  * application that needs to react to that handle it here.
  */
 extern void (*pith_opt_closing_stream)(MAILSTREAM *);
+
+
+/*
+ * Callback from mm_expunged to let us know the "current"
+ * message was expunged
+ */
+extern void (*pith_opt_current_expunged)(long unsigned int);
+
+/*
+ * Option User-Agent Header Prefix
+ */
+extern char *(*pith_opt_user_agent_prefix)(void);
+
+
+/*
+ * optional call to prompt for S/MIME passphase
+ */
+extern int (*pith_opt_smime_get_passphrase)(void);
 
 
 #endif /* PITH_OPTIONS_INCLUDED */

@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: rfc2231.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: rfc2231.c 971 2008-03-18 17:24:31Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ static char rcsid[] = "$Id: rfc2231.c 671 2007-08-15 20:28:09Z hubert@u.washingt
 
 #include "../pith/headers.h"
 #include "../pith/rfc2231.h"
+#include "../pith/mimedesc.h"
 #include "../pith/state.h"
 #include "../pith/conf.h"
 #include "../pith/store.h"
@@ -35,7 +36,7 @@ static char rcsid[] = "$Id: rfc2231.c 671 2007-08-15 20:28:09Z hubert@u.washingt
 
 
 char *
-rfc2231_get_param(struct mail_body_parameter *parms, char *name,
+rfc2231_get_param(PARAMETER *parms, char *name,
 		  char **charset, char **lang)
 {
     char *buf, *p;
@@ -242,7 +243,7 @@ rfc2231_output(STORE_S *so, char *attrib, char *value, char *specials, char *cha
 
 
 PARMLIST_S *
-rfc2231_newparmlist(struct mail_body_parameter *params)
+rfc2231_newparmlist(PARAMETER *params)
 {
     PARMLIST_S *p = NULL;
 
@@ -293,7 +294,7 @@ rfc2231_list_params(PARMLIST_S *plist)
 		plist->list = pp->next;
 		*ppp = mail_newbody_parameter();	/* add to seen list */
 		(*ppp)->attribute = cpystr(plist->attrib);
-		plist->value = rfc2231_get_param(pp,plist->attrib,NULL,NULL);
+		plist->value = parameter_val(pp,plist->attrib);
 		return(TRUE);
 	    }
 

@@ -1,10 +1,10 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pilot.c 737 2007-10-03 19:40:34Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pilot.c 1019 2008-04-02 22:09:20Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ static char rcsid[] = "$Id: pilot.c 737 2007-10-03 19:40:34Z hubert@u.washington
 #include	"../c-client/rfc822.h"
 #include	"../pith/osdep/collate.h"
 #include	"../pith/charconv/filesys.h"
+#include	"../pith/charconv/utf8.h"
 #include	"../pith/conf.h"
 
 
@@ -142,7 +143,7 @@ main(int argc, char *argv[])
       display_charmap = cpstr(display_character_set);
 #if   HAVE_LANGINFO_H && defined(CODESET)
     else
-      display_charmap = cpstr(nl_langinfo(CODESET));
+      display_charmap = cpstr(nl_langinfo_codeset_wrapper());
 #endif
 
     if(!display_charmap)

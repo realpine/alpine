@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mimedesc.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mimedesc.c 1122 2008-08-02 00:32:26Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ static char rcsid[] = "$Id: mimedesc.c 671 2007-08-15 20:28:09Z hubert@u.washing
 
 #include "../pith/headers.h"
 #include "../pith/mimedesc.h"
+#include "../pith/mimetype.h"
 #include "../pith/state.h"
 #include "../pith/conf.h"
 #include "../pith/mailview.h"
@@ -24,6 +25,7 @@ static char rcsid[] = "$Id: mimedesc.c 671 2007-08-15 20:28:09Z hubert@u.washing
 #include "../pith/editorial.h"
 #include "../pith/mailpart.h"
 #include "../pith/mailcap.h"
+#include "../pith/smime.h"
 
 
 /* internal prototypes */
@@ -127,11 +129,27 @@ describe_mime(struct mail_bodystruct *body, char *prefix, int num,
 	    a->can_display     = MCD_INTERNAL;
 	    (a+1)->description = NULL;
 	}
-	else if(mailcap_can_display(body->type, body->subtype,
-				    body->parameter, 0)
+#ifdef SMIME
+	else if(!strucmp(body->subtype, OUR_PKCS7_ENCLOSURE_SUBTYPE)){
+	    memset(a = next_attachment(), 0, sizeof(ATTACH_S));
+	    if(*prefix){
+		prefix[n = strlen(prefix) - 1] = '\0';
+		a->number		       = cpystr(prefix);
+		prefix[n] = '.';
+	    }
+	    else
+	      a->number = cpystr("");
+
+	    a->description     = body->description ? cpystr(body->description)
+						   : cpystr("");
+	    a->body	       = body;
+	    a->can_display     = MCD_INTERNAL;
+	    (a+1)->description = NULL;
+	}
+#endif /* SMIME */
+	else if(mailcap_can_display(body->type, body->subtype, body, 0)
 		|| (can_display_ext 
-		    = mailcap_can_display(body->type, body->subtype,
-					  body->parameter, 1))){
+		    = mailcap_can_display(body->type, body->subtype, body, 1))){
 	    memset(a = next_attachment(), 0, sizeof(ATTACH_S));
 	    if(*prefix){
 		prefix[n = strlen(prefix) - 1] = '\0';
@@ -217,7 +235,7 @@ describe_mime(struct mail_bodystruct *body, char *prefix, int num,
 	    /*
 	     * This test remains for backward compatibility
 	     */
-	    if((value = body_parameter(body, "name")) != NULL){
+	    if(body && (value = parameter_val(body->parameter, "name")) != NULL){
 		named = strucmp(value, "Message Body");
 		fs_give((void **) &value);
 	    }
@@ -238,8 +256,7 @@ describe_mime(struct mail_bodystruct *body, char *prefix, int num,
 	}
 	else{
 	    a->test_deferred = 0;
-	    a->can_display = mime_can_display(body->type, body->subtype,
-					      body->parameter);
+	    a->can_display = mime_can_display(body->type, body->subtype, body);
 	}
 
 	/*
@@ -292,10 +309,88 @@ mime_known_text_subtype(char *subtype)
 }
 
 
+/*
+ * Returns attribute value or NULL.
+ * Value returned needs to be freed by caller
+ */
 char *
-body_parameter(struct mail_bodystruct *body, char *attribute)
+parameter_val(PARAMETER *param, char *attribute)
 {
-    return(rfc2231_get_param(body->parameter, attribute, NULL, NULL));
+    if(!(param && attribute && attribute[0]))
+      return(NULL);
+
+    return(rfc2231_get_param(param, attribute, NULL, NULL));
+}
+
+
+/*
+ * Get sender_filename, the filename set by the sender in the attachment.
+ * If a sender_filename buffer is passed in, the answer is copied to it
+ * and a pointer to it is returned. If sender_filename is passed in as NULL
+ * then an allocated copy of the sender filename is returned instead.
+ * If ext_ptr is non-NULL then it is set to point to the extension name.
+ * It is not a separate copy, it points into the string sender_filename.
+ */
+char *
+get_filename_parameter(char *sender_filename, size_t sfsize, BODY *body, char **ext_ptr)
+{
+    char *p = NULL;
+    char *decoded_name = NULL;
+    char *filename = NULL;
+    char  tmp[1000];
+
+    if(!body)
+      return(NULL);
+
+    if(sender_filename){
+	if(sfsize <= 0)
+	  return(NULL);
+
+	sender_filename[0] = '\0';
+    }
+
+    /*
+     * First check for Content-Disposition's "filename" parameter and
+     * if that isn't found for the deprecated Content-Type "name" parameter.
+     */
+    if((p = parameter_val(body->disposition.parameter, "filename"))
+       || (p = parameter_val(body->parameter, "name"))){
+
+	/*
+	 * If somebody sent us and incorrectly rfc2047 encoded
+	 * parameter value instead of what rfc2231 suggest we
+	 * grudglingly try to fix it.
+	 */
+	if(p[0] == '=' && p[1] == '?')
+	  decoded_name = (char *) rfc1522_decode_to_utf8((unsigned char *) tmp,
+							 sizeof(tmp), p);
+
+	if(!decoded_name)
+	  decoded_name = p;
+
+	filename = last_cmpnt(decoded_name);
+
+	if(!filename)
+	  filename = decoded_name;
+    }
+
+    if(filename){
+	if(sender_filename){
+	    strncpy(sender_filename, filename, sfsize-1);
+	    sender_filename[sfsize-1] = '\0';
+	}
+	else
+	  sender_filename = cpystr(filename);
+    }
+
+    if(p)
+      fs_give((void **) &p);
+
+    /* ext_ptr will end up pointing into sender_filename string */
+    if(ext_ptr && sender_filename)
+      mt_get_file_ext(sender_filename, ext_ptr);
+
+    return(sender_filename);
 }
 
 
@@ -411,8 +506,7 @@ static struct set_names {
  ----*/
 
 char *
-type_desc(int type, char *subtype, struct mail_body_parameter *params,
-	  struct mail_body_parameter *disp_params, int full)
+type_desc(int type, char *subtype, PARAMETER *params, PARAMETER *disp_params, int full)
 {
     static char  type_d[200];
     int		 i;
@@ -429,7 +523,7 @@ type_desc(int type, char *subtype, struct mail_body_parameter *params,
 
     switch(type){
       case TYPETEXT:
-	parmval = rfc2231_get_param(params, "charset", NULL, NULL);
+	parmval = parameter_val(params, "charset");
 
         if(parmval){
 	    for(i = 0; charset_names[i].rfcname; i++)
@@ -472,7 +566,7 @@ type_desc(int type, char *subtype, struct mail_body_parameter *params,
 
       case TYPEMESSAGE:
 	if(full && subtype && strucmp(subtype, "external-body") == 0)
-	  if((parmval = rfc2231_get_param(params, "access-type", NULL, NULL)) != NULL){
+	  if((parmval = parameter_val(params, "access-type")) != NULL){
 	      snprintf(p, sizeof(type_d)-(p-type_d), " (%s%s)", full ? "Access: " : "", parmval);
 	      fs_give((void **) &parmval);
 	  }
@@ -484,11 +578,11 @@ type_desc(int type, char *subtype, struct mail_body_parameter *params,
     }
 
     if(full && type != TYPEMULTIPART && type != TYPEMESSAGE){
-	if((parmval = rfc2231_get_param(params, "name", NULL, NULL)) != NULL){
+	if((parmval = parameter_val(params, "name")) != NULL){
 	    snprintf(p, sizeof(type_d)-(p-type_d), " (Name: \"%s\")", parmval);
 	    fs_give((void **) &parmval);
 	}
-	else if((parmval = rfc2231_get_param(disp_params, "filename", NULL, NULL)) != NULL){
+	else if((parmval = parameter_val(disp_params, "filename")) != NULL){
 	    snprintf(p, sizeof(type_d)-(p-type_d), " (Filename: \"%s\")", parmval);
 	    fs_give((void **) &parmval);
 	}
@@ -539,7 +633,8 @@ format_mime_size(char *string, size_t stringlen, struct mail_bodystruct *b, int 
       case ENC8BIT :
       case ENC7BIT :
 	if(b->type == TYPETEXT)
-	  snprintf(string, stringlen-(string-origstring), "%s lines", comatose(b->size.lines));
+	  /* lines with no CRLF aren't counted, just add one so it makes more sense */
+	  snprintf(string, stringlen-(string-origstring), "%s lines", comatose(b->size.lines+1));
 	else
 	  strncpy(p = string, byte_string(b->size.bytes), stringlen-(string-origstring));
 
@@ -592,7 +687,7 @@ mime_show(struct mail_bodystruct *body)
 	 * Since we're testing for internal displayability, give the
 	 * internal result over an external viewer
 	 */
-	effort = mime_can_display(body->type, body->subtype, body->parameter);
+	effort = mime_can_display(body->type, body->subtype, body);
 	if(effort == MCD_NONE)
 	  return(SHOW_NONE);
 	else if(effort & MCD_INTERNAL)
@@ -691,6 +786,29 @@ part_desc(char *number, BODY *body, int type, int width, int flags, gf_io_t pc)
 
     t = &tmp_20k_buf[strlen(tmp_20k_buf)];
 
+#ifdef SMIME
+    /* if smime and not attempting print */
+    if(F_OFF(F_DONT_DO_SMIME, ps_global) && is_pkcs7_body(body) && type != 3){
+
+    	sstrncpy(&t, "\015\012", SIZEOF_20KBUF-(t-tmp_20k_buf));
+	
+	if(ps_global->smime && ps_global->smime->need_passphrase){
+	    sstrncpy(&t,
+	    "This part is a PKCS7 S/MIME enclosure. "
+	    "You may be able to view it by entering the correct passphrase "
+	    "with the \"Decrypt\" command.",
+	    SIZEOF_20KBUF-(t-tmp_20k_buf));
+	}
+	else{
+	    sstrncpy(&t,
+	    "This part is a PKCS7 S/MIME enclosure. "
+	    "Press \"^E\" for more information.",
+	    SIZEOF_20KBUF-(t-tmp_20k_buf));
+	}
+    
+    } else 
+#endif
+
     if(type){
 	sstrncpy(&t, "\015\012", SIZEOF_20KBUF-(t-tmp_20k_buf));
 	switch(type) {
@@ -748,11 +866,11 @@ part_desc(char *number, BODY *body, int type, int width, int flags, gf_io_t pc)
 
  ----*/
 int
-mime_can_display(int type, char *subtype, struct mail_body_parameter *params)
+mime_can_display(int type, char *subtype, BODY *body)
 {
-    return((mailcap_can_display(type, subtype, params, 0)
+    return((mailcap_can_display(type, subtype, body, 0)
 	      ? MCD_EXTERNAL 
-	    : (mailcap_can_display(type, subtype, params, 1) 
+	    : (mailcap_can_display(type, subtype, body, 1) 
 	       ? (MCD_EXT_PROMPT | MCD_EXTERNAL) : MCD_NONE))
 	   | ((type == TYPETEXT || type == TYPEMESSAGE
 	       || MIME_VCARD(type,subtype))

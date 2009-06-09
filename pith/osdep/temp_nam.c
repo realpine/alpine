@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: temp_nam.c 745 2007-10-11 18:03:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: temp_nam.c 1010 2008-03-25 22:09:06Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -65,10 +65,20 @@ was_nonexistent_tmp_name(char *as, size_t aslen, char *ext)
     struct stat     sbuf;
     unsigned        pid;
     static unsigned n = 0;
+    int             i;
     int             fd, tries = 0;
     int             f;
+    static unsigned long r = 0;
+
+    if(r == 0L)
+      r = (unsigned)getpid() + time((time_t *)0);
+      
+    for(i = 5; i > 0; i--)
+      r = 1664525 * r + 1013904223;
 
     pid = ((unsigned)getpid() * 100) + n++;
+
+    pid += (r % 50000L);
 
     /* extra X's get set to 0's */
     for(trv = as; *trv; ++trv)
@@ -84,7 +94,7 @@ was_nonexistent_tmp_name(char *as, size_t aslen, char *ext)
     }
 
     /* add the extension, enough room guaranteed by caller */
-    if(ext){
+    if(ext && *ext){
 	strncat(as, ".", aslen-strlen(as)-1);
 	as[aslen-1] = '\0';
 	strncat(as, ext, aslen-strlen(as)-1);
@@ -209,114 +219,9 @@ static char sccsid[] = "@(#)tmpnam.c	4.5 (Berkeley) 6/27/88";
 char *
 temp_nam(char *dir, char *prefix)
 {
-    struct stat buf;
-    size_t      l, ll;
-    char       *f, *name;
-
-    if(!(name = (char *)malloc(MAXPATH * sizeof(char))))
-        return((char *)NULL);
-
-    if(!dir && (f = getenv("TMPDIR")) && !our_stat(f, &buf) &&
-                         (buf.st_mode&S_IFMT) == S_IFDIR &&
-			 !can_access(f, ACCESSIBLE)){
-	strncpy(name, f, MAXPATH-1);
-	name[MAXPATH-1] = '\0';
-        goto done;
-    }
-
-    if(!dir && (f = getenv("TMP")) && !our_stat(f, &buf) &&
-                         (buf.st_mode&S_IFMT) == S_IFDIR &&
-			 !can_access(f, ACCESSIBLE)){
-	strncpy(name, f, MAXPATH-1);
-	name[MAXPATH-1] = '\0';
-        goto done;
-    }
-
-    if(!dir && (f = getenv("TEMP")) && !our_stat(f, &buf) &&
-                         (buf.st_mode&S_IFMT) == S_IFDIR &&
-			 !can_access(f, ACCESSIBLE)){
-	strncpy(name, f, MAXPATH-1);
-	name[MAXPATH-1] = '\0';
-        goto done;
-    }
-
-    if(dir){
-	strncpy(name, dir, MAXPATH-1);
-	name[MAXPATH-1] = '\0';
-#ifdef	_WINDOWS
-
-	if(!*dir || (isalpha(*dir) && *(dir+1) == ':' && !*(dir+2))){
-	    strncat(name, "\\", MAXPATH-strlen(name)-1);
-	    name[MAXPATH-1] = '\0';
-	}
-
-#endif /* UNIX */
-
-      if(!our_stat(name, &buf)
-	 && (buf.st_mode&S_IFMT) == S_IFDIR
-	 && !can_access(name, ACCESSIBLE)){
-	  strncpy(name, dir, MAXPATH-1);
-	  name[MAXPATH-1] = '\0';
-	  goto done;
-      }
-    }
-
-#ifndef P_tmpdir
-#ifdef	_WINDOWS
-#define	P_tmpdir	"\\tmp"
-#else  /* UNIX */
-#define	P_tmpdir	"/usr/tmp"
-#endif /* UNIX */
-#endif
-    if(!our_stat(P_tmpdir, &buf) &&
-                         (buf.st_mode&S_IFMT) == S_IFDIR &&
-			 !can_access(P_tmpdir, ACCESSIBLE)){
-	strncpy(name, P_tmpdir, MAXPATH-1);
-	name[MAXPATH-1] = '\0';
-        goto done;
-    }
-
-#ifndef	_WINDOWS
-
-    if(!our_stat("/tmp", &buf) &&
-                         (buf.st_mode&S_IFMT) == S_IFDIR &&
-			 !can_access("/tmp", ACCESSIBLE)){
-	strncpy(name, "/tmp", MAXPATH-1);
-	name[MAXPATH-1] = '\0';
-        goto done;
-    }
-
-#endif /* !_WINDOWS */
-
-    free((void *)name);
-    return((char *)NULL);
-
-done:
-    f = NULL;
-    if(name[0] && *((f = &name[l=strlen(name)]) - 1) != PATH_SEP[0] && l+1 < MAXPATH){
-	*f++ = PATH_SEP[0];
-	*f = '\0';
-	l++;
-    }
-
-    if(prefix && (ll = strlen(prefix)) && l+ll < MAXPATH){
-	strncpy(f, prefix, MAXPATH-(f-name));
-	name[MAXPATH-1] = '\0';
-	f += ll;
-	l += ll;
-    }
-
-    if(l+6 < MAXPATH){
-	strncpy(f, "XXXXXX", MAXPATH-(f-name));
-	name[MAXPATH-1] = '\0';
-    }
-    else{
-	free((void *)name);
-	return((char *)NULL);
-    }
-
-    return(was_nonexistent_tmp_name(name, MAXPATH, NULL));
+    return(temp_nam_ext(dir, prefix, NULL));
 }
+
 
 /*----------------------------------------------------------------------
 
@@ -332,10 +237,10 @@ temp_nam_ext(char *dir, char *prefix, char *ext)
     size_t      l, ll;
     char       *f, *name;
 
-    if(ext == NULL || *ext == '\0')
-      return(temp_nam(dir, prefix));
+    if(ext == NULL)
+      ext = "";
 
-    if(!(name = (char *)malloc((unsigned int)MAXPATH)))
+    if(!(name = (char *)malloc(MAXPATH * sizeof(char))))
         return((char *)NULL);
 
     if(!dir && (f = getenv("TMPDIR")) && !our_stat(f, &buf) &&
@@ -389,6 +294,7 @@ temp_nam_ext(char *dir, char *prefix, char *ext)
 #define	P_tmpdir	"/usr/tmp"
 #endif /* UNIX */
 #endif
+
     if(!our_stat(P_tmpdir, &buf) &&
                          (buf.st_mode&S_IFMT) == S_IFDIR &&
 			 !can_access(P_tmpdir, ACCESSIBLE)){
@@ -397,7 +303,7 @@ temp_nam_ext(char *dir, char *prefix, char *ext)
         goto done;
     }
 
-#ifndef	IS_WINODOWS
+#ifndef	_WINDOWS
     if(!our_stat("/tmp", &buf) &&
                          (buf.st_mode&S_IFMT) == S_IFDIR &&
 			 !can_access("/tmp", ACCESSIBLE)){
@@ -425,8 +331,8 @@ done:
 	l += ll;
     }
 
-    if(l+6+strlen(ext)+1 < MAXPATH){
-	strncpy(f, "XXXXXX", MAXPATH-(f-name));
+    if(l+5+(ext[0] ? strlen(ext)+1 : 0) < MAXPATH){
+	strncpy(f, "XXXXX", MAXPATH-(f-name));
 	name[MAXPATH-1] = '\0';
     }
     else{

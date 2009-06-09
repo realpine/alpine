@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: queryauth.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: queryauth.tcl 1096 2008-06-30 22:03:35Z hubert@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -92,7 +92,7 @@ WPEval $query_vars {
 
 	    cgi_table_data valign=top class=dialog {
 	      cgi_division align=center class=dialog "style=\"padding:30 12%\"" {
-		if {[info exists reason] && [string compare $reason BADPASSWD]} {
+		if {[info exists reason] && [string compare BADPASSWD [string range $reason 0 8]]} {
 		  cgi_puts $reason
 		} else {
 		  cgi_puts "Login Required"

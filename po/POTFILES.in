@@ -53,6 +53,7 @@ alpine/imap.c
 alpine/newuser.c
 alpine/help.c
 alpine/print.c
+alpine/smime.c
 pico/osdep/mswin_tw.c
 pico/osdep/msdlg.c
 pico/osdep/read.c
@@ -186,3 +187,5 @@ pith/context.c
 pith/help.c
 pith/handle.c
 pith/strlst.c
+pith/smime.c
+pith/smkeys.c

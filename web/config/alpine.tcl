@@ -11,8 +11,9 @@
 #
 # ========================================================================
 
+encoding system "utf-8"
+
 set _wp(appname)	Alpine
-set _wp(version)	1.00
 set _wp(admin)		admin@sample-domain.edu
 set _wp(helpdesk)	admin@sample-domain.edu
 set _wp(comments)	help@sample-domain.edu
@@ -35,6 +36,9 @@ set _wp(cgipath)	[file join $_wp(fileroot) cgi]
 
 # place for CGI scripts that execute the interface
 set _wp(appdir)		alpine
+
+# place for CGI scripts supporting alternative UI
+set _wp(appdir_alt)     [file join alpine 2.0]
 
 # place for CGI scripts not requiring session-key
 set _wp(pubdir)		pub
@@ -99,6 +103,7 @@ set _wp(logodir)	alpine
 # various timerouts, dimensions and feature settings
 set _wp(refresh)	600
 set _wp(timeout)	900
+set _wp(autodraft)	300
 set _wp(logoutpause)	60
 set _wp(indexlines)	20
 set _wp(indexheight)	24
@@ -150,6 +155,9 @@ set _wp(indexheight) [expr {$_wp(indexheight) <= 20 ? 20 : $_wp(indexheight) >= 
 #set _wp(spamaddr)	spamaddr@sample-domain.edu
 #set _wp(spamfolder)	junk-mail
 #set _wp(spamsubj)	"ATTACHED SPAM"
+
+# default command evaluator DO NOT MESS WITH THIS
+set _wp(eval)		{}
 
 #
 # Nickname server bindings.  If not present, prompt for the
@@ -305,6 +313,12 @@ proc WPValidId {{sessid {}}} {
     }
 
     set _wp(sockname) [WPSocketName $_wp(sessid)]
+
+    if {[info exists _wp(cumulative)]} {
+      set _wp(eval) WPSendCmdTimed
+    } else {
+      set _wp(eval) WPSendCmd
+    }
 
     if {[info exists _wp(hostcheck)] && $_wp(hostcheck) == 1 && ![info exists created]
 	&& [catch {WPCmd set wp_client} client] == 0
@@ -473,21 +487,29 @@ proc WPGetInputAndID {_sessid} {
 
 }
 
+proc WPSendCmd {args} {
+  global _wp
+
+  return [WPSend $_wp(sockname) $args]
+}
+
+proc WPSendCmdTimed {args} {
+  global _wp
+
+  set t [lindex [time {set r [WPSend $_wp(sockname) $args]}] 0]
+  incr _wp(cumulative) $t
+
+  if {$_wp(cmdtime)} {
+    WPdebug "time $t : $args"
+  }
+
+  return $r
+}
+
 proc WPCmd {args} {
   global _wp
 
-  if {[info exists _wp(cumulative)]} {
-    set t [lindex [time {set r [WPSend $_wp(sockname) $args]}] 0]
-    incr _wp(cumulative) $t
-
-    if {$_wp(cmdtime)} {
-      WPdebug "time $t : $args"
-    }
-
-    return $r
-  } else {
-    return [WPSend $_wp(sockname) $args]
-  }
+  return [eval "$_wp(eval) $args"]
 }
 
 proc WPLoadCGIVar {_var} {

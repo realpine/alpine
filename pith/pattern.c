@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pattern.c 908 2008-01-14 20:12:44Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pattern.c 1113 2008-07-14 18:01:54Z hubert@u.washington.edu $";
 #endif
 /*
  * ========================================================================
@@ -29,7 +29,7 @@ static char rcsid[] = "$Id: pattern.c 908 2008-01-14 20:12:44Z hubert@u.washingt
 #include "../pith/mailcmd.h"
 #include "../pith/filter.h"
 #include "../pith/save.h"
-#include "../pith/rfc2231.h"
+#include "../pith/mimedesc.h"
 #include "../pith/reply.h"
 #include "../pith/folder.h"
 #include "../pith/maillist.h"
@@ -5319,7 +5319,7 @@ collect_charsets_from_body(struct mail_bodystruct *body, STRLIST_S **listptr)
 	    /* else fall through to text case */
 
 	  case TYPETEXT:
-	    cset = rfc2231_get_param(body->parameter, "charset", NULL, NULL);
+	    cset = parameter_val(body->parameter, "charset");
 	    if(cset){
 		STRLIST_S *newsl;
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: confscroll.c 897 2008-01-04 22:49:15Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: confscroll.c 1069 2008-06-03 15:54:15Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -31,6 +31,7 @@ static char rcsid[] = "$Id: confscroll.c 897 2008-01-04 22:49:15Z hubert@u.washi
 #include "mailindx.h"
 #include "talk.h"
 #include "setup.h"
+#include "smime.h"
 #include "../pith/state.h"
 #include "../pith/flag.h"
 #include "../pith/list.h"
@@ -397,6 +398,9 @@ exclude_config_var(struct pine *ps, struct variable *var, int allow_hard_to_conf
     }
 
     return(!(var->is_user && var->is_used && !var->is_obsolete &&
+#ifdef	SMIME
+	     !smime_related_var(ps, var) &&
+#endif	/* SMIME */
 	     !color_related_var(ps, var)));
 }
 
@@ -5197,6 +5201,11 @@ fix_side_effects(struct pine *ps, struct variable *var, int revert)
 	else
 	  ps->viewer_overlap = old_value;
     }
+#ifdef	SMIME
+    else if(smime_related_var(ps, var)){
+	smime_deinit();
+    }
+#endif	/* SMIME */
     else if(var == &ps->vars[V_MAXREMSTREAM]){
 	int old_value = ps->s_pool.max_remstream;
 

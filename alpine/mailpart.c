@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailpart.c 945 2008-03-05 18:56:28Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: mailpart.c 1069 2008-06-03 15:54:15Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -64,6 +64,7 @@ static char rcsid[] = "$Id: mailpart.c 945 2008-03-05 18:56:28Z mikes@u.washingt
 #include "../pith/list.h"
 #include "../pith/ablookup.h"
 #include "../pith/options.h"
+#include "../pith/smime.h"
 
 
 /*
@@ -124,6 +125,8 @@ void	    export_attachment(int, long, ATTACH_S *);
 char	   *write_attached_msg(long, ATTACH_S **, STORE_S *, int);
 void	    save_msg_att(long, ATTACH_S *);
 void	    save_digest_att(long, ATTACH_S *);
+int         save_msg_att_work(long int, ATTACH_S *, MAILSTREAM *, char *,
+			      CONTEXT_S *, char *);
 void	    export_msg_att(long, ATTACH_S *);
 void	    export_digest_att(long, ATTACH_S *);
 void	    print_attachment(int, long, ATTACH_S *);
@@ -404,10 +407,16 @@ attachment_screen(struct pine *ps)
 	     * If message or digest, leave Reply and Save and,
 	     * conditionally, Bounce on...
 	     */
-	    if(MIME_MSG(last_type, last_subtype)
-	       || MIME_DGST(last_type, last_subtype)){
+	    if(MIME_MSG(last_type, last_subtype)){
 		if(F_OFF(F_ENABLE_BOUNCE, ps))
 		  clrbitn(ATT_BOUNCE_KEY, bitmap);
+
+		km->keys[ATT_EXPORT_KEY].name  = "";
+		km->keys[ATT_EXPORT_KEY].label = "";
+	    }
+	    else if(MIME_DGST(last_type, last_subtype)){
+		clrbitn(ATT_BOUNCE_KEY, bitmap);
+		clrbitn(ATT_REPLY_KEY, bitmap);
 
 		km->keys[ATT_EXPORT_KEY].name  = "";
 		km->keys[ATT_EXPORT_KEY].label = "";
@@ -1281,8 +1290,7 @@ void
 write_attachment(int qline, long int msgno, ATTACH_S *a, char *method)
 {
     char	filename[MAXPATH+1], full_filename[MAXPATH+1],
-	        title_buf[64], *att_name, *err,
-               *dec_err, *terr;
+	        title_buf[64], *err;
     int         r, rflags = GER_NONE, we_cancel = 0;
     static HISTORY_S *history = NULL;
     static ESCKEY_S att_save_opts[] = {
@@ -1293,28 +1301,7 @@ write_attachment(int qline, long int msgno, ATTACH_S *a, char *method)
 
     /*-------  Figure out suggested file name ----*/
     filename[0] = full_filename[0] = '\0';
-    att_name	= "filename";
-
-    /* warning: overload "err" use */
-    if((a->body->disposition.type &&
-       (err = rfc2231_get_param(a->body->disposition.parameter, att_name,
-				NULL, NULL))) ||
-       (err = rfc2231_get_param(a->body->parameter, att_name + 4, NULL, NULL))){
-	if(err[0] == '=' && err[1] == '?'){
-	    if(!(dec_err = (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
-							  SIZEOF_20KBUF, err)))
-	      dec_err = err;
-	      
-	}
-	else
-	  dec_err = err;
-	terr = last_cmpnt(dec_err);
-	if(!terr)
-	  terr = dec_err;
-	strncpy(filename, terr, sizeof(filename)-1);
-	filename[sizeof(filename)-1] = '\0';
-	fs_give((void **) &err);
-    }
+    (void) get_filename_parameter(filename, sizeof(filename), a->body, NULL);
 
     dprint((9, "export_attachment(name: %s)\n",
 	   filename ? filename : "?"));
@@ -1532,7 +1519,8 @@ write_attached_msg(long int msgno, ATTACH_S **ap, STORE_S *store, int newfile)
     gf_io_t   pc;
     MESSAGECACHE *mc;
 
-    if((*ap)->body->nested.msg->env){
+    if(ap && *ap && (*ap)->body && (*ap)->body->nested.msg
+       && (*ap)->body->nested.msg->env){
 	start_of_append = so_tell(store);
 
 	gf_set_so_writec(&pc, store);
@@ -1567,13 +1555,12 @@ write_attached_msg(long int msgno, ATTACH_S **ap, STORE_S *store, int newfile)
 void
 save_msg_att(long int msgno, ATTACH_S *a)
 {
-    char	 newfolder[MAILTMPLEN], *save_folder, *flags = NULL, date[64];
-    char         nmsgs[80];
-    CONTEXT_S   *cntxt = NULL;
-    int		 our_stream = 0, rv;
+    char	  newfolder[MAILTMPLEN], *save_folder, *flags = NULL;
+    char          date[64], nmsgs[80];
+    CONTEXT_S    *cntxt = NULL;
+    int		  our_stream = 0, rv;
     MAILSTREAM   *save_stream;
     MESSAGECACHE *mc;
-    STORE_S      *so;
 
     snprintf(nmsgs, sizeof(nmsgs), _("Attached Msg (part %s) "), a->number);
     nmsgs[sizeof(nmsgs)-1] = '\0';
@@ -1588,47 +1575,34 @@ save_msg_att(long int msgno, ATTACH_S *a)
 
 	save_stream = save_msg_stream(cntxt, save_folder, &our_stream);
 
-	if((so = so_get(CharStar, NULL, WRITE_ACCESS)) != NULL){
-	    /* store flags before the fetch so UNSEEN bit isn't flipped */
-	    mc = (msgno > 0L && ps_global->mail_stream
-		  && msgno <= ps_global->mail_stream->nmsgs)
-		  ? mail_elt(ps_global->mail_stream, msgno) : NULL;
-	    flags = flag_string(ps_global->mail_stream, msgno, F_ANS|F_FLAG|F_SEEN|F_KEYWORD);
-	    if(mc && mc->day)
-	      mail_date(date, mc);
-	    else
-	      *date = '\0';
+	mc = (msgno > 0L && ps_global->mail_stream
+	      && msgno <= ps_global->mail_stream->nmsgs)
+	      ? mail_elt(ps_global->mail_stream, msgno) : NULL;
+	flags = flag_string(ps_global->mail_stream, msgno, F_ANS|F_FLAG|F_SEEN|F_KEYWORD);
+	if(mc && mc->day)
+	  mail_date(date, mc);
+	else
+	  *date = '\0';
 
-	    if(pith_opt_save_size_changed_prompt)
-	      (*pith_opt_save_size_changed_prompt)(0L, SSCP_INIT);
+	if(pith_opt_save_size_changed_prompt)
+	  (*pith_opt_save_size_changed_prompt)(0L, SSCP_INIT);
 
-	    rv = save_fetch_append(ps_global->mail_stream, msgno, a->number,
-				   save_stream, save_folder, cntxt,
-				   a->body->size.bytes, flags, date, so);
+	rv = save_msg_att_work(msgno, a, save_stream, save_folder, cntxt, date);
 
-	    if(pith_opt_save_size_changed_prompt)
-	      (*pith_opt_save_size_changed_prompt)(0L, SSCP_END);
+	if(pith_opt_save_size_changed_prompt)
+	  (*pith_opt_save_size_changed_prompt)(0L, SSCP_END);
 
-	    if(flags)
-	      fs_give((void **) &flags);
+	if(flags)
+	  fs_give((void **) &flags);
 
-	    if(rv == 1)
-	      q_status_message2(SM_ORDER, 0, 4,
-			   _("Attached message (part %s) saved to \"%s\""),
-				a->number, 
-				save_folder);
-	    else if(rv == -1)
-	      cmd_cancelled("Attached message Save");
-	    /* else whatever broke in save_fetch_append shoulda bitched */
-
-	    so_give(&so);
-	}
-	else{
-	    dprint((1, "Can't allocate store for save: %s\n",
-		       error_description(errno)));
-	    q_status_message(SM_ORDER | SM_DING, 3, 4,
-			     _("Problem creating space for message text."));
-	}
+	if(rv == 1)
+	  q_status_message2(SM_ORDER, 0, 4,
+		       _("Attached message (part %s) saved to \"%s\""),
+			    a->number, 
+			    save_folder);
+	else if(rv == -1)
+	  cmd_cancelled("Attached message Save");
+	/* else whatever broke in save_fetch_append shoulda bitched */
 
 	if(our_stream)
 	  mail_close(save_stream);
@@ -1647,15 +1621,17 @@ void
 save_digest_att(long int msgno, ATTACH_S *a)
 {
     char	 newfolder[MAILTMPLEN], *save_folder,
-		 date[64], nmsgs[80], *p;
+		 date[64], nmsgs[80];
     CONTEXT_S   *cntxt = NULL;
     int		 our_stream = 0, rv, cnt = 0;
-    MAILSTREAM   *save_stream;
-    PART	 *part;
-    STORE_S      *so;
+    MAILSTREAM  *save_stream;
+    ATTACH_S    *ap;
 
-    for(part = a->body->nested.part; part; part = part->next)
-      if(MIME_MSG(part->body.type, part->body.subtype))
+    for(ap = a + 1;
+	ap->description
+	  && !strncmp(a->number, ap->number, strlen(a->number));
+	ap++)
+      if(MIME_MSG(ap->body->type, ap->body->subtype))
 	cnt++;
     
     snprintf(nmsgs, sizeof(nmsgs), "%d Msg Digest (part %s) ", cnt, a->number);
@@ -1671,26 +1647,13 @@ save_digest_att(long int msgno, ATTACH_S *a)
 	if(pith_opt_save_size_changed_prompt)
 	  (*pith_opt_save_size_changed_prompt)(0L, SSCP_INIT);
 
-	for(part = a->body->nested.part; part; part = part->next)
-	  if(MIME_MSG(part->body.type, part->body.subtype)){
-	      if((so = so_get(CharStar, NULL, WRITE_ACCESS)) != NULL){
-		  *date = '\0';
-		  rv = save_fetch_append(ps_global->mail_stream, msgno,
-				       p = body_partno(ps_global->mail_stream,
-						       msgno, &part->body),
-				       save_stream, save_folder, cntxt,
-				       part->body.size.bytes,
-				       NULL, date, so);
-		  fs_give((void **) &p);
-	      }
-	      else{
-		  dprint((1, "Can't allocate store for save: %s\n",
-			     error_description(errno)));
-		  q_status_message(SM_ORDER | SM_DING, 3, 4,
-				   _("Problem creating space for message text."));
-		  rv = 0;
-	      }
-
+	for(ap = a + 1;
+	    ap->description
+	      && !strncmp(a->number, ap->number, strlen(a->number));
+	    ap++)
+	  if(MIME_MSG(ap->body->type, ap->body->subtype)){
+	      *date = '\0';
+	      rv = save_msg_att_work(msgno, ap, save_stream, save_folder, cntxt, date);
 	      if(rv != 1)
 		break;
 	  }
@@ -1710,6 +1673,35 @@ save_digest_att(long int msgno, ATTACH_S *a)
 	if(our_stream)
 	  mail_close(save_stream);
     }
+}
+
+
+int
+save_msg_att_work(long int msgno, ATTACH_S *a, MAILSTREAM *save_stream,
+		  char *save_folder, CONTEXT_S *cntxt, char *date)
+{
+    STORE_S      *so;
+    int           rv = 0;
+
+    if(a && a->body && MIME_MSG(a->body->type, a->body->subtype)){
+	if((so = so_get(CharStar, NULL, WRITE_ACCESS)) != NULL){
+	    *date = '\0';
+	    rv = save_fetch_append(ps_global->mail_stream, msgno,
+				   a->number,
+				   save_stream, save_folder, cntxt,
+				   a->body->size.bytes,
+				   NULL, date, so);
+	}
+	else{
+	    dprint((1, "Can't allocate store for save: %s\n",
+		     error_description(errno)));
+	    q_status_message(SM_ORDER | SM_DING, 3, 4,
+			   _("Problem creating space for message text."));
+	    rv = 0;
+	}
+    }
+
+    return(rv);
 }
 
 
@@ -1851,26 +1843,11 @@ export_digest_att(long int msgno, ATTACH_S *a)
 	      && !strncmp(a->number, ap->number, strlen(a->number))
 	      && !err;
 	    ap++){
-	    if(ap->body->type == TYPEMESSAGE){
-		if(ap->body->subtype && strucmp(ap->body->subtype, "rfc822")){
-		    char buftmp[MAILTMPLEN];
-
-		    snprintf(buftmp, sizeof(buftmp), "%s", ap->body->subtype);
-		    buftmp[sizeof(buftmp)-1] = '\0';
-		    snprintf(tmp_20k_buf, SIZEOF_20KBUF, "  [Unknown Message subtype: %s ]\n",
-			    buftmp);
-		    tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
-		    if(!so_puts(store, tmp_20k_buf))
-		      err = _("Can't write export file");
-		}
-		else{
-		    count++;
-		    err = write_attached_msg(msgno, &ap, store,
-					     !count && !(rflags & GER_APPEND));
-		}
+	    if(MIME_MSG(ap->body->type, ap->body->subtype)){
+		count++;
+		err = write_attached_msg(msgno, &ap, store,
+					 !count && !(rflags & GER_APPEND));
 	    }
-	    else if(!so_puts(store, "Unknown type in Digest"))
-	      err = _("Can't write export file");
 	}
 
 	if(so_give(&store))
@@ -1910,7 +1887,6 @@ void
 print_attachment(int qline, long int msgno, ATTACH_S *a)
 {
     char prompt[250];
-    int	 next = 0;
 
     if(ps_global->restricted){
         q_status_message(SM_ORDER | SM_DING, 0, 4,
@@ -1924,7 +1900,7 @@ print_attachment(int qline, long int msgno, ATTACH_S *a)
     prompt[sizeof(prompt)-1] = '\0';
     if(open_printer(prompt) >= 0){
 	if(MIME_MSG_A(a))
-	  (void) print_msg_att(msgno, a, next);
+	  (void) print_msg_att(msgno, a, 1);
 	else if(MIME_DGST_A(a))
 	  print_digest_att(msgno, a);
 	else
@@ -1935,15 +1911,13 @@ print_attachment(int qline, long int msgno, ATTACH_S *a)
 }
 
 
-/*----------------------------------------------------------------------
-  Print the attachment message/rfc822 to specified file
-
-  Args: 
-
-  Result: 
-  ----*/
+/*
+ * Print the attachment message/rfc822 to specified file
+ *
+ * Returns 1 on success, 0 on failure.
+ */
 int
-print_msg_att(long int msgno, ATTACH_S *a, int next)
+print_msg_att(long int msgno, ATTACH_S *a, int first)
 {
     ATTACH_S *ap = a;
     MESSAGECACHE *mc;
@@ -1953,10 +1927,10 @@ print_msg_att(long int msgno, ATTACH_S *a, int next)
        && (mc = mail_elt(ps_global->mail_stream, msgno)) && mc->valid))
       mc = NULL;
 
-    if(((next && F_ON(F_AGG_PRINT_FF, ps_global)) ? print_char(FORMFEED) : 1)
+    if(((!first && F_ON(F_AGG_PRINT_FF, ps_global)) ? print_char(FORMFEED) : 1)
        && pine_mail_fetchstructure(ps_global->mail_stream, msgno, NULL)
        && (F_ON(F_FROM_DELIM_IN_PRINT, ps_global)
-	     ? bezerk_delimiter(a->body->nested.msg->env, mc, print_char, next)
+	     ? bezerk_delimiter(a->body->nested.msg->env, mc, print_char, !first)
 	     : 1)
        && format_msg_att(msgno, &ap, NULL, print_char, FM_NOINDENT))
       return(1);
@@ -1985,36 +1959,20 @@ print_digest_att(long int msgno, ATTACH_S *a)
     for(ap = a + 1;
 	ap->description
 	  && !strncmp(a->number, ap->number, strlen(a->number));
-	ap++, next++){
-	if(ap->body->type == TYPEMESSAGE){
-	    if(ap->body->subtype && strucmp(ap->body->subtype, "rfc822")){
-		char buftmp[MAILTMPLEN];
+	ap++){
+	if(MIME_MSG(ap->body->type, ap->body->subtype)){
+	    char *p = part_desc(ap->number, ap->body->nested.msg->body,
+				0, 80, FM_NOINDENT, print_char);
+	    if(p){
+		q_status_message1(SM_ORDER | SM_DING, 3, 3,
+				  _("Can't print digest: %s"), p);
+		break;
+	    }
+	    else if(!print_msg_att(msgno, ap, !next))
+	      break;
 
-		snprintf(buftmp, sizeof(buftmp), "%s", ap->body->subtype);
-		buftmp[sizeof(buftmp)-1] = '\0';
-		snprintf(tmp_20k_buf, SIZEOF_20KBUF, "  [Unknown Message subtype: %s ]\n",
-			buftmp);
-		tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
-		if(!gf_puts(tmp_20k_buf, print_char))
-		  break;
-	    }
-	    else{
-		char *p = part_desc(ap->number, ap->body->nested.msg->body,
-				    0, 80, FM_NOINDENT, print_char);
-		if(p){
-		    q_status_message1(SM_ORDER | SM_DING, 3, 3,
-				      _("Can't print digest: %s"), p);
-		    break;
-		}
-		else if(print_msg_att(msgno, ap, next))
-		  break;
-	    }
+	    next++;
 	}
-	else if(ap->body->type == TYPETEXT
-		&& decode_text(ap, msgno, print_char, NULL, QStatus, FM_NOINDENT))
-	  break;
-	else if(!gf_puts("Unknown type in Digest", print_char))
-	  break;
     }
 }
 
@@ -2031,14 +1989,18 @@ int
 display_attachment(long int msgno, ATTACH_S *a, int flags)
 {
     char    *filename = NULL;
+    char     sender_filename[1000];
+    char    *extp = NULL;
     STORE_S *store;
     gf_io_t  pc;
     char    *err;
     int      we_cancel = 0, rv;
-    char     prefix[8];
+    char     prefix[70];
+    char     ext[32];
+    char     mtype[128];
 
     /*------- Display the attachment -------*/
-    if(dispatch_attachment(a) == MCD_NONE) {
+    if(dispatch_attachment(a) == MCD_NONE){
         /*----- Can't display this type ------*/
 	if(a->body->encoding < ENCOTHER)
 	  q_status_message4(SM_ORDER | SM_DING, 3, 5,
@@ -2087,6 +2049,8 @@ display_attachment(long int msgno, ATTACH_S *a, int flags)
 	return(0);
     }
 
+    /* arrive here if MCD_EXTERNAL */
+
     if(F_OFF(F_QUELL_ATTACH_EXTRA_PROMPT, ps_global)
        && (!(flags & DA_DIDPROMPT)))
       if(want_to(_("View selected Attachment"), 'y',
@@ -2094,99 +2058,91 @@ display_attachment(long int msgno, ATTACH_S *a, int flags)
 	  cmd_cancelled(NULL);
 	  return(1);
       }
+
+    sender_filename[0] = '\0';
+    ext[0] = '\0';
+    prefix[0] = '\0';
+
     if(F_OFF(F_QUELL_ATTACH_EXT_WARN, ps_global)
        && (a->can_display & MCD_EXT_PROMPT)){
-	char prompt[256], *namep = NULL, *dec_namep = NULL, *ext = NULL;
+	char prompt[256];
 
-	if((namep = rfc2231_get_param(a->body->parameter, "name", NULL, NULL)) != NULL){
-	    if(namep[0] == '=' && namep[1] == '?'){
-		if(!(dec_namep = (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
-								SIZEOF_20KBUF, namep)))
-		  dec_namep = namep;
-	    }
-	    else
-	      dec_namep = namep;
-
-	    mt_get_file_ext((char *) dec_namep, &ext);
-	}
+	(void) get_filename_parameter(sender_filename, sizeof(sender_filename),
+				      a->body, &extp);
 	snprintf(prompt, sizeof(prompt),
 		"Attachment %s%s unrecognized. %s%s%s", 
 		a->body->subtype, 
 		strlen(a->body->subtype) > 12 ? "..." : "", 
-		ext ? "Try open by file extension (." : "Try opening anyway",
-		ext ? ext : "",
-		ext ? ")" : "");
-	prompt[sizeof(prompt)-1] = '\0';
-	if(namep)
-	  fs_give((void **)&namep);
+		(extp && extp[0]) ? "Try open by file extension (." : "Try opening anyway",
+		(extp && extp[0]) ? extp : "",
+		(extp && extp[0]) ? ")" : "");
+
 	if(want_to(prompt, 'n', 0, NO_HELP, WT_NORM) == 'n'){
 	    cmd_cancelled(NULL);
 	    return(1);
 	}
     }
+
     /*------ Write the image to a temporary file ------*/
-    if(mime_os_specific_access()){
-	/*
-	 *  Windows applications are particular about the file name extensions
-	 *  Try to look up the expected extension from the mime.types file.
-	 *
-	 *  This is now general, because now unix-based (Mac OS X)
-	 *  apps are finnicky about extensions.  It's probably ok
-	 *  to do extensions for all platforms, but we'll just do
-	 *  Windows and OSX for now.
-	 *
-	 *  The mime_os_specific_access() call is only to delineate
-	 *  Win and Mac from others.
-	 */
-	char ext[32];
-	char mtype[128];
 
-	ext[0] = '\0';
-	strncpy (mtype, body_type_names(a->body->type), sizeof(mtype));
+    /* create type/subtype in mtype */
+    strncpy(mtype, body_type_names(a->body->type), sizeof(mtype));
+    mtype[sizeof(mtype)-1] = '\0';
+    if(a->body->subtype){
+	strncat(mtype, "/", sizeof(mtype)-strlen(mtype)-1);
 	mtype[sizeof(mtype)-1] = '\0';
-	if (a->body->subtype) {
-	    strncat(mtype, "/", sizeof(mtype)-strlen(mtype)-1);
-	    mtype[sizeof(mtype)-1] = '\0';
-	    strncat(mtype, a->body->subtype, sizeof(mtype)-strlen(mtype)-1);
-	    mtype[sizeof(mtype)-1] = '\0';
-	}
-
-	if(!set_mime_extension_by_type(ext, mtype)){
-	    char *namep, *dec_namep, *dotp, *p;
-
-	    if((namep = rfc2231_get_param(a->body->parameter, "name", NULL, NULL)) != NULL){
-		if(namep[0] == '=' && namep[1] == '?'){
-		    if(!(dec_namep = 
-			 (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
-							SIZEOF_20KBUF, namep)))
-		      dec_namep = namep;
-		}
-		else
-		  dec_namep = namep;
-
-		for(dotp = NULL, p = dec_namep; *p; p++)
-		  if(*p == '.')
-		    dotp = p + 1;
-
-		if(dotp && strlen(dotp) < sizeof(ext) - 1){
-		    strncpy(ext, dotp, sizeof(ext));
-		    ext[sizeof(ext)-1] = '\0';
-		}
-
-		if(namep)
-		  fs_give((void **) &namep);
-	    }
-	}
-
-	filename = temp_nam_ext(NULL, "im", ext);
-	if(!filename) /* just try opening it without extension */
-	  filename = temp_nam(NULL, "im");
+	strncat(mtype, a->body->subtype, sizeof(mtype)-strlen(mtype)-1);
+	mtype[sizeof(mtype)-1] = '\0';
     }
-    else{
-	snprintf(prefix, sizeof(prefix), "img-%s", (a->body->subtype)
-		? a->body->subtype : "unk");
-	prefix[sizeof(prefix)-1] = '\0';
-	filename = temp_nam(NULL, prefix);
+
+    /*
+     * If we haven't already gotten the filename parameter, get it
+     * now. It may be used in the temporary filename and possibly
+     * for its extension.
+     */
+    if(!sender_filename[0])
+      (void) get_filename_parameter(sender_filename, sizeof(sender_filename),
+				    a->body, &extp);
+
+    if(!set_mime_extension_by_type(ext, mtype)){	/* extension from type */
+	if(extp && extp[0]){				/* extension from filename */
+	    strncpy(ext, extp, sizeof(ext));
+	    ext[sizeof(ext)-1] = '\0';
+	}
+    }
+
+    /* create a temp file */
+    if(sender_filename){
+	char *p, *q = NULL;
+
+	/* get rid of any extension */
+	if(mt_get_file_ext(sender_filename, &q) && q && q > sender_filename)
+	  *(q-1) = '\0';
+
+	/* be careful about what is allowed in the filename */
+	for(p = sender_filename; *p; p++)
+	  if(!(isascii((unsigned char) *p)
+	       && (isalnum((unsigned char) *p)
+		   || *p == '-' || *p == '_' || *p == '+' || *p == '.' || *p == '=')))
+	    break;
+
+	if(!*p)			/* filename was ok to use */
+	  snprintf(prefix, sizeof(prefix), "img-%s-", sender_filename);
+    }
+
+    /* didn't get it yet */
+    if(!prefix[0]){
+	snprintf(prefix, sizeof(prefix), "img-%s-", (a->body->subtype)
+		 ? a->body->subtype : "unk");
+    }
+
+    filename = temp_nam_ext(NULL, prefix, ext);
+
+    if(!filename){
+        q_status_message1(SM_ORDER | SM_DING, 3, 5,
+                          _("Error \"%s\", Can't create temporary file"),
+                          error_description(errno));
+        return(1);
     }
 
     if((store = so_get(FileStar, filename, WRITE_ACCESS|OWNER_ONLY)) == NULL){
@@ -2279,7 +2235,7 @@ run_viewer(char *image_file, struct mail_bodystruct *body, int chk_extension)
     we_cancel = busy_cue("Displaying attachment", NULL, 0);
 
     if((mc_cmd = mailcap_build_command(body->type, body->subtype,
-				      body->parameter, image_file,
+				      body, image_file,
 				      &needs_terminal, chk_extension)) != NULL){
 	if(we_cancel)
 	  cancel_busy_cue(-1);
@@ -2479,7 +2435,7 @@ display_digest_att(long int msgno, ATTACH_S *a, int flags)
 				      _("Can't format digest: %s"), errstr);
 		    bad_news++;
 		}
-		else if(format_msg_att(msgno, &ap, &handles, pc, FM_DISPLAY))
+		else if(!format_msg_att(msgno, &ap, &handles, pc, FM_DISPLAY))
 		  bad_news++;
 	    }
 	}
@@ -2547,7 +2503,7 @@ scroll_attachment(char *title, STORE_S *store, SourceType src, HANDLE_S *handles
      * If message or digest, leave Reply and Save and,
      * conditionally, Bounce on...
      */
-    if(MIME_MSG_A(a) || MIME_DGST_A(a)){
+    if(MIME_MSG_A(a)){
 	if(F_OFF(F_ENABLE_BOUNCE, ps_global))
 	  clrbitn(ATV_BOUNCE_KEY, sargs.keys.bitmap);
     }
@@ -2677,6 +2633,9 @@ process_attachment_cmd(int cmd, MSGNO_S *msgmap, SCROLL_S *sparms)
 }
 
 
+/*
+ * Returns 1 on success, 0 on error.
+ */
 int
 format_msg_att(long int msgno, ATTACH_S **a, HANDLE_S **handlesp, gf_io_t pc, int flags)
 {
@@ -2707,7 +2666,24 @@ format_msg_att(long int msgno, ATTACH_S **a, HANDLE_S **handlesp, gf_io_t pc, in
 	}
 
 	gf_puts(NEWLINE, pc);
-	if((++(*a))->description
+
+	++(*a);
+
+#ifdef SMIME
+	if((*a)->body && (*a)->body->subtype && (strucmp((*a)->body->subtype, OUR_PKCS7_ENCLOSURE_SUBTYPE)==0)){
+	    if((*a)->description){
+		if(!(!format_editorial((*a)->description,
+				       ps_global->ttyo->screen_cols,
+				       flags, NULL, pc)
+		     && gf_puts(NEWLINE, pc) && gf_puts(NEWLINE, pc)))
+		  rv = 0;
+	    }
+
+	    ++(*a);
+	}
+#endif /* SMIME */
+
+	if(((*a))->description
 	   && (*a)->body && (*a)->body->type == TYPETEXT){
 	    if(decode_text(*a, msgno, pc, NULL, QStatus, flags))
 	      rv = 0;
@@ -2981,7 +2957,7 @@ display_attach_info(long int msgno, ATTACH_S *a)
 	char *pretty_cmd;
 
 	if((mc_cmd = mailcap_build_command(a->body->type, a->body->subtype,
-				       a->body->parameter, "<datafile>", &nt,
+				       a->body, "<datafile>", &nt,
 				       a->can_display & MCD_EXT_PROMPT)) != NULL){
 	    so_puts(store, "\"");
 	    if((pretty_cmd = execview_pretty_command(mc_cmd, &free_pretty_cmd)) != NULL)
@@ -3239,8 +3215,8 @@ forward_msg_att(MAILSTREAM *stream, long int msgno, ATTACH_S *a)
 		    char *charset;
 
 		    charset
-		      = rfc2231_get_param(a->body->nested.msg->body->parameter,
-				          "charset", NULL, NULL);
+		      = parameter_val(a->body->nested.msg->body->parameter,
+				          "charset");
 		    
 		    if(charset && strucmp(charset, "us-ascii") != 0){
 			CONV_TABLE *ct;
@@ -3484,8 +3460,8 @@ reply_msg_att(MAILSTREAM *stream, long int msgno, ATTACH_S *a)
 		char *charset;
 
 		charset
-		  = rfc2231_get_param(a->body->nested.msg->body->parameter,
-				      "charset", NULL, NULL);
+		  = parameter_val(a->body->nested.msg->body->parameter,
+				      "charset");
 		
 		if(charset && strucmp(charset, "us-ascii") != 0){
 		    CONV_TABLE *ct;
@@ -3845,8 +3821,7 @@ dispatch_attachment(ATTACH_S *a)
 {
     if(a->test_deferred){
 	a->test_deferred = 0;
-	a->can_display = mime_can_display(a->body->type, a->body->subtype,
-					  a->body->parameter);
+	a->can_display = mime_can_display(a->body->type, a->body->subtype, a->body);
     }
 
     return(a->can_display);

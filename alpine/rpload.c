@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: rpload.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: rpload.c 1069 2008-06-03 15:54:15Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ static char rcsid[] = "$Id: rpload.c 673 2007-08-16 22:25:10Z hubert@u.washingto
 #include "../pith/remote.h"	/* REMOTE_ABOOK_SUBTYPE... */
 
 
-typedef enum {Pinerc, Abook, Sig, NotSet} RemoteType;
+typedef enum {Pinerc, Abook, Sig, Smime, NotSet} RemoteType;
 
 
 int        parse_args(int, char **, int *, int *, char **, char **, RemoteType *);
@@ -62,6 +62,7 @@ app_main (argc, argv)
  *
  *  Type is one of abook
  *                 pinerc
+ *                 smime
  *                 sig         (this is mostly obsolete, literal sigs
  *                              should be used instead)
  *                 -f means force the folder to be written even if it
@@ -250,13 +251,14 @@ check_for_header_msg(stream)
     int         ret = NotSet;
     char       *h, *try;
     size_t      len;
-    char       *pinerc, *abook, *sig;
+    char       *pinerc, *abook, *sig, *smime;
 
     pinerc = spechdr(Pinerc);
     abook  = spechdr(Abook);
     sig    = spechdr(Sig);
+    smime  = spechdr(Smime);
     
-    len = MAX(MAX(strlen(pinerc), strlen(abook)), strlen(sig));
+    len = MAX(MAX(strlen(pinerc), strlen(abook)), MAX(strlen(sig), strlen(smime)));
 
     sl = mail_newstringlist();
     sl->text.data = (unsigned char *)fs_get((len+1) * sizeof(unsigned char));
@@ -304,6 +306,8 @@ check_for_header_msg(stream)
       fs_give((void **)&abook);
     if(sig)
       fs_give((void **)&sig);
+    if(smime)
+      fs_give((void **)&smime);
 
     return(ret);
 }
@@ -324,6 +328,9 @@ ptype(rtype)
 	break;
       case Sig:
         ret = cpystr("sig");
+	break;
+      case Smime:
+        ret = cpystr("smime");
 	break;
       default:
 	break;
@@ -348,6 +355,9 @@ spechdr(rtype)
 	break;
       case Sig:
         ret = cpystr(REMOTE_SIG_SUBTYPE);
+	break;
+      case Smime:
+        ret = cpystr(REMOTE_SMIME_SUBTYPE);
 	break;
       default:
 	break;
@@ -504,6 +514,14 @@ add_initial_msg(stream, mailbox, special_hdr)
 	strncat(buf, "This folder contains an Alpine config file.\015\012", sizeof(buf)-strlen(buf)-1);
 	strncat(buf, "This message is just an explanatory message.\015\012", sizeof(buf)-strlen(buf)-1);
 	strncat(buf, "The last message in the folder is the live config data.\015\012", sizeof(buf)-strlen(buf)-1);
+	strncat(buf, "The rest of the messages contain previous revisions of the data.\015\012", sizeof(buf)-strlen(buf)-1);
+	strncat(buf, "To restore a previous revision just delete and expunge all of the messages\015\012", sizeof(buf)-strlen(buf)-1);
+	strncat(buf, "which come after it.\015\012", sizeof(buf)-strlen(buf)-1);
+    }
+    else if(!strucmp(special_hdr, REMOTE_SMIME_SUBTYPE)){
+	strncat(buf, "This folder contains Alpine S/MIME config information.\015\012", sizeof(buf)-strlen(buf)-1);
+	strncat(buf, "This message is just an explanatory message.\015\012", sizeof(buf)-strlen(buf)-1);
+	strncat(buf, "The last message in the folder is the live data.\015\012", sizeof(buf)-strlen(buf)-1);
 	strncat(buf, "The rest of the messages contain previous revisions of the data.\015\012", sizeof(buf)-strlen(buf)-1);
 	strncat(buf, "To restore a previous revision just delete and expunge all of the messages\015\012", sizeof(buf)-strlen(buf)-1);
 	strncat(buf, "which come after it.\015\012", sizeof(buf)-strlen(buf)-1);

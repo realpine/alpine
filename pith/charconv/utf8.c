@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: utf8.c 902 2008-01-08 17:04:58Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: utf8.c 1019 2008-04-02 22:09:20Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1924,7 +1924,7 @@ setup_for_input_output(int use_system_routines, char **display_charmap,
 #if	PREREQ_FOR_SYS_TRANSLATION
 	char *dcm;
 
-	dcm = nl_langinfo(CODESET);
+	dcm = nl_langinfo_codeset_wrapper();
 	dcm = dcm ? dcm : "US-ASCII";
 
 	init_utf8_display(0, NULL);
@@ -2117,6 +2117,72 @@ posting_charset_is_supported(char *posting_charset)
 
 
 /*
+ * This function is only defined in this special case and so calls
+ * to it should be wrapped in the same macro conditionals.
+ *
+ * Returns the default display charset for a UNIX terminal emulator,
+ * it is what nl_langinfo(CODESET) should return but we need to
+ * wrap nl_langinfo because we know of strange behaving implementations.
+ */
+#if !defined(_WINDOWS) && HAVE_LANGINFO_H && defined(CODESET)
+char *
+nl_langinfo_codeset_wrapper(void)
+{
+    char *ret = NULL;
+
+    ret = nl_langinfo(CODESET);
+    
+    /*
+     * If the value returned from nl_langinfo() is not a real charset,
+     * see if we can figure out what they meant. If we can't figure it
+     * out return NULL and let the caller decide what to do.
+     */
+    if(ret && *ret && !output_charset_is_supported(ret)){
+	if(!strcmp("ANSI_X3.4-1968", ret)
+	   || !strcmp("ASCII", ret)
+	   || !strcmp("C", ret)
+	   || !strcmp("POSIX", ret))
+	  ret = "US-ASCII";
+	else if(!strucmp(ret, "UTF8"))
+	  ret = "UTF-8";
+	else if(!strucmp(ret, "EUCJP"))
+	  ret = "EUC-JP";
+	else if(!strucmp(ret, "EUCKP"))
+	  ret = "EUC-KP";
+	else if(!strucmp(ret, "SJIS"))
+	  ret = "SHIFT-JIS";
+	else if(strstr(ret, "8859")){
+	    char *p;
+
+	    /* check for digits after 8859 */
+	    p = strstr(ret, "8859");
+	    p += 4;
+	    if(!isdigit(*p))
+	      p++;
+
+	    if(isdigit(*p)){
+		static char buf[12];
+
+		memset(buf, 0, sizeof(buf));
+		strncpy(buf, "ISO-8859-", sizeof(buf));
+		buf[9] = *p++;
+		if(isdigit(*p))
+		  buf[10] = *p;
+
+		ret = buf;
+	    }
+	}
+    }
+
+    if(ret && !output_charset_is_supported(ret))
+      ret = NULL;
+
+    return(ret);
+}
+#endif
+
+
+/*
  * Convert the "orig" string from UTF-8 to "charset". If no conversion is
  * needed the return value will point to orig. If a conversion is done,
  * the return string should be freed by the caller.
@@ -2228,14 +2294,35 @@ tose(long int number)
 void
 line_paint(int offset,			/* current dot offset into vl */
 	   struct display_line *displ,
-	   int passwd)			/* flag to hide display of chars */
+	   int *passwd)			/* flag to hide display of chars */
 {
     int i, w, w2, already_got_one = 0;
     int vfirst, vlast, dfirst, dlast, vi, di;
     int new_vbase;
     unsigned (*width_a_to_b)(UCS *, int, int);
 
-    if(passwd)
+    /*
+     * Set passwd to 10 in caller if you want to conceal the
+     * password but not print asterisks for feedback.
+     *
+     * Set passwd to 1 in caller to conceal by printing asterisks.
+     */
+    if(passwd && *passwd >= 10){	/* don't show asterisks */
+	if(*passwd > 10)
+	  return;
+	else
+	  *passwd = 11;		/* only blat once */
+
+	i = 0;
+	(*displ->movecursor)(displ->row, displ->col);
+	while(i++ <= displ->dwid)
+	  (*displ->writechar)(' ');
+
+	(*displ->movecursor)(displ->row, displ->col);
+	return;
+    }
+
+    if(passwd && *passwd)
       width_a_to_b = single_width_chars_a_to_b;
     else
       width_a_to_b = ucs4_str_width_a_to_b;
@@ -2317,7 +2404,7 @@ line_paint(int offset,			/* current dot offset into vl */
 	displ->vbase = MAX(new_vbase, 0);
     }
 
-    if(displ->vbase == 1 && (passwd || wcellwidth(displ->vl[0]) == 1))
+    if(displ->vbase == 1 && ((passwd && *passwd) || wcellwidth(displ->vl[0]) == 1))
       displ->vbase = 0;
 	 
     vfirst = displ->vbase;
@@ -2354,7 +2441,7 @@ line_paint(int offset,			/* current dot offset into vl */
      * Copy the relevant part of the virtual line into the display line.
      */
     for(vi = vfirst, di = dfirst; vi <= vlast; vi++, di++)
-      if(passwd)
+      if(passwd && *passwd)
         displ->dl[di] = '*';		/* to conceal password */
       else
         displ->dl[di] = displ->vl[vi];

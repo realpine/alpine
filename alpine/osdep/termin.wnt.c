@@ -4,7 +4,7 @@ static char rcsid[] = "$Id: termin.unx.c 193 2006-10-20 17:09:26Z mikes@u.washin
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -297,7 +297,8 @@ win_dialog_opt_enter(char *utf8string, int utf8string_size, char *utf8prompt,
 
     return_v = mswin_dialog(prompt, string, n, 
 			    (flags && *flags & OE_APPEND_CURRENT),
-			    (flags && *flags & OE_PASSWD),
+			    (flags && *flags & OE_PASSWD_NOAST) ? 10 :
+			     (flags && *flags & OE_PASSWD)       ?  1 : 0,
 			    button_list,
 			    help_text, flags ? *flags : OE_NONE);
 

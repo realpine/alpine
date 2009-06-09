@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: msdlg.c 933 2008-02-22 23:52:28Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: msdlg.c 1014 2008-03-26 17:27:45Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -82,7 +82,7 @@ typedef struct {
     LPTSTR 	string;			/* Resulting string. */
     int		strlen;			/* Length of buffer. */
     int		append;			/* Append to existing string. */
-    int		passwd;			/* Passwd, don't echo. */
+    int		passwd;			/* Passwd, don't echo (1 use asterisk, 10 space). */
     unsigned	flags;			/* other flags. */
     int		dflt;
     int		cancel;
@@ -292,7 +292,7 @@ mswin_dialog_proc (HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	SetDlgItemText(hDlg, IDC_RESPONCE, gOEInfo.string);
 
 	SendDlgItemMessage (hDlg, IDC_RESPONCE, EM_SETPASSWORDCHAR,
-		gOEInfo.passwd ? '*' : 0, 0L);
+		(gOEInfo.passwd == 1) ? '*' : gOEInfo.passwd ? ' ' : 0, 0L);
 	SendDlgItemMessage (hDlg, IDC_RESPONCE, EM_LIMITTEXT, 
 		gOEInfo.strlen - 1, 0L);
 	l = (long) lstrlen(gOEInfo.string);

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcmd.c 938 2008-02-29 18:18:49Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailcmd.c 1127 2008-08-07 00:27:42Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -47,6 +47,7 @@ static char rcsid[] = "$Id: mailcmd.c 938 2008-02-29 18:18:49Z hubert@u.washingt
 #include "send.h"
 #include "takeaddr.h"
 #include "roleconf.h"
+#include "smime.h"
 #include "../pith/state.h"
 #include "../pith/msgno.h"
 #include "../pith/store.h"
@@ -54,7 +55,6 @@ static char rcsid[] = "$Id: mailcmd.c 938 2008-02-29 18:18:49Z hubert@u.washingt
 #include "../pith/flag.h"
 #include "../pith/sort.h"
 #include "../pith/maillist.h"
-#include "../pith/rfc2231.h"
 #include "../pith/save.h"
 #include "../pith/pipe.h"
 #include "../pith/news.h"
@@ -71,6 +71,7 @@ static char rcsid[] = "$Id: mailcmd.c 938 2008-02-29 18:18:49Z hubert@u.washingt
 #include "../pith/pattern.h"
 #include "../pith/tempfile.h"
 #include "../pith/search.h"
+#include "../pith/margin.h"
 #ifdef _WINDOWS
 #include "../pico/osdep/mswin.h"
 #endif
@@ -1104,6 +1105,9 @@ nfolder:
 		      ret = 'y';
 
 		    if(ret == 'y'){
+			if(nextstream && sp_dead_stream(nextstream))
+			  nextstream = NULL;
+
 			visit_folder(state, nextfolder,
 				     state->context_current, nextstream,
 				     DB_FROMTAB);
@@ -1143,7 +1147,7 @@ get_out:
 		dprint((4, "\n\n ---- Exiting ZOOM mode ----\n"));
 		q_status_message(SM_ORDER,0,2, _("Index Zoom Mode is now off"));
 	    }
-	    else if((i = zoom_index(state, stream, msgmap)) != 0){
+	    else if((i = zoom_index(state, stream, msgmap, MN_SLCT)) != 0){
 		if(any_lflagged(msgmap, MN_HIDE)){
 		    dprint((4,"\n\n ---- Entering ZOOM mode ----\n"));
 		    q_status_message4(SM_ORDER, 0, 2,
@@ -1298,7 +1302,7 @@ get_out:
 	       && F_ON(F_AUTO_ZOOM, state)
 	       && any_lflagged(msgmap, MN_SLCT) > 0L
 	       && !any_lflagged(msgmap, MN_HIDE))
-	      (void) zoom_index(state, stream, msgmap);
+	      (void) zoom_index(state, stream, msgmap, MN_SLCT);
 	}
 
 	break;
@@ -1307,16 +1311,6 @@ get_out:
           /*------- Toggle Current Message Selection State -----------*/
       case MC_SELCUR :
 	if(any_messages(msgmap, NULL, NULL)){
-	    /*
-	     * If everything is selected, the first unselect should cause
-	     * an autozoom. In order to trigger the right code in select_by_current
-	     * we set the MN_HIDE bit on the current message here.
-	     */
-	    if(get_lflag(stream, msgmap, mn_get_cur(msgmap), MN_SLCT)
-	       && F_ON(F_AUTO_ZOOM, state) && !any_lflagged(msgmap, MN_HIDE)
-	       && any_lflagged(msgmap, MN_SLCT) == mn_get_total(msgmap))
-	      set_lflag(stream, msgmap, mn_get_cur(msgmap), MN_HIDE, 1);
-
 	   if((select_by_current(state, msgmap, in_index)
 	       || (F_OFF(F_UNSELECT_WONT_ADVANCE, state)
 	           && !any_lflagged(msgmap, MN_HIDE)))
@@ -1432,6 +1426,21 @@ get_out:
       case MC_TOGGLE :
 	a_changed = TRUE;
 	break;
+
+
+#ifdef SMIME
+          /*------- Try to decrypt message -----------*/
+      case MC_DECRYPT:
+	if(state->smime && state->smime->need_passphrase)
+	  smime_get_passphrase();
+
+	a_changed = TRUE;
+	break;
+
+      case MC_SECURITY:
+	state->next_screen = smime_info_screen;
+	break;
+#endif
 
 
           /*------- Bounce -----------*/
@@ -1777,7 +1786,7 @@ go_again:
     flag_screen.explanation = screen_text;
 
     if(MCMD_ISAGG(aopt)){
-	if(!pseudo_selected(msgmap)){
+	if(!pseudo_selected(ps_global->mail_stream, msgmap)){
 	    free_flag_table(&ftbl);
 	    return rv;
 	}
@@ -2260,7 +2269,7 @@ cmd_reply(struct pine *state, MSGNO_S *msgmap, int aopt)
     int rv = 0;
 
     if(any_messages(msgmap, NULL, "to Reply to")){
-	if(MCMD_ISAGG(aopt) && !pseudo_selected(msgmap))
+	if(MCMD_ISAGG(aopt) && !pseudo_selected(state->mail_stream, msgmap))
 	  return rv;
 
 	rv = reply(state, NULL);
@@ -2290,7 +2299,7 @@ cmd_forward(struct pine *state, MSGNO_S *msgmap, int aopt)
     int rv = 0;
 
     if(any_messages(msgmap, NULL, "to Forward")){
-	if(MCMD_ISAGG(aopt) && !pseudo_selected(msgmap))
+	if(MCMD_ISAGG(aopt) && !pseudo_selected(state->mail_stream, msgmap))
 	  return rv;
 
 	rv = forward(state, NULL);
@@ -2321,7 +2330,7 @@ cmd_bounce(struct pine *state, MSGNO_S *msgmap, int aopt)
     int rv = 0;
 
     if(any_messages(msgmap, NULL, "to Bounce")){
-	if(MCMD_ISAGG(aopt) && !pseudo_selected(msgmap))
+	if(MCMD_ISAGG(aopt) && !pseudo_selected(state->mail_stream, msgmap))
 	  return rv;
 
 	rv = bounce(state, NULL);
@@ -2350,7 +2359,7 @@ int
 cmd_save(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap, int aopt, CmdWhere in_index)
 {
     char	      newfolder[MAILTMPLEN], nmsgs[32], *nick;
-    int		      we_cancel = 0, rv = 0;
+    int		      we_cancel = 0, rv = 0, save_flags;
     long	      i, raw;
     CONTEXT_S	     *cntxt = NULL;
     ENVELOPE	     *e = NULL;
@@ -2368,7 +2377,7 @@ cmd_save(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap, int aopt, CmdW
 	return rv;
     }
 
-    if(MCMD_ISAGG(aopt) && !pseudo_selected(msgmap))
+    if(MCMD_ISAGG(aopt) && !pseudo_selected(stream, msgmap))
       return rv;
 
     raw = mn_m2raw(msgmap, mn_get_cur(msgmap));
@@ -2409,11 +2418,16 @@ cmd_save(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap, int aopt, CmdW
 	    ps_global->mangled_footer = 1;
 	}
 
+	save_flags = SV_FIX_DELS;
+	if(pre == RetPreserve)
+	  save_flags |= SV_PRESERVE;
+	if(del == RetDel)
+	  save_flags |= SV_DELETE;
+	if(ps_global->context_list == cntxt && !strucmp(newfolder, ps_global->inbox_name))
+	  save_flags |= SV_INBOXWOCNTXT;
+
 	we_cancel = busy_cue(_("Saving"), NULL, 1);
-	i = save(state, stream, cntxt, newfolder, msgmap,
-		 ((del == RetDel) ? SV_DELETE : 0)
-		 | ((pre == RetPreserve) ? SV_PRESERVE : 0)
-		 | SV_FIX_DELS);
+	i = save(state, stream, cntxt, newfolder, msgmap, save_flags);
 	if(we_cancel)
 	  cancel_busy_cue(0);
 
@@ -3432,7 +3446,7 @@ cmd_export(struct pine *state, MSGNO_S *msgmap, int qline, int aopt)
 	return rv;
     }
 
-    if(MCMD_ISAGG(aopt) && !pseudo_selected(msgmap))
+    if(MCMD_ISAGG(aopt) && !pseudo_selected(state->mail_stream, msgmap))
       return rv;
 
     export_opts[i = 0].ch  = ctrl('T');
@@ -3668,8 +3682,6 @@ cmd_export(struct pine *state, MSGNO_S *msgmap, int qline, int aopt)
     else{
 	if(rflags & GER_ALLPARTS && full_filename[0]){
 	    char dir[MAXPATH+1];
-	    char *p1, *p2, *p3;
-	    char *att_name = "filename";
 	    char  lfile[MAXPATH+1];
 	    int  ok = 0, tries = 0, saved = 0, errs = 0;
 	    ATTACH_S *a;
@@ -3765,28 +3777,7 @@ cmd_export(struct pine *state, MSGNO_S *msgmap, int qline, int aopt)
 		  continue;
 		
 		lfile[0] = '\0';
-		if((a->body && a->body->disposition.type &&
-		   (p1 = rfc2231_get_param(a->body->disposition.parameter,
-					  att_name, NULL, NULL))) ||
-		   (p1 = rfc2231_get_param(a->body->parameter,
-					  att_name + 4, NULL, NULL))){
-
-		    if(p1[0] == '=' && p1[1] == '?'){
-			if(!(p2 = (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf, SIZEOF_20KBUF, p1)))
-			  p2 = p1;
-		    }
-		    else
-		      p2 = p1;
-
-		    p3 = last_cmpnt(p2);
-		    if(!p3)
-		      p3 = p2;
-
-		    strncpy(lfile, p3, sizeof(lfile)-1);
-		    lfile[sizeof(lfile)-1] = '\0';
-
-		    fs_give((void **) &p1);
-		}
+		(void) get_filename_parameter(lfile, sizeof(lfile), a->body, NULL);
 		
 		if(lfile[0] == '\0'){
 		  snprintf(lfile, sizeof(lfile), "part_%.*s", sizeof(lfile)-6,
@@ -4468,7 +4459,7 @@ get_export_filename(struct pine *ps, char *filename, char *deefault,
 		}
 	    }
 	    else{				/* File Completion */
-	      if(!pico_fncomplete(dir2, sizeof(dir2), filename2, sizeof(filename2)))
+	      if(!pico_fncomplete(dir2, filename2, sizeof(filename2)))
 		  Writechar(BELL, 0);
 	      strncat(postcolon, filename2,
 		      sizeof(postcolon)-1-strlen(postcolon));
@@ -5887,7 +5878,7 @@ cmd_print(struct pine *state, MSGNO_S *msgmap, int aopt, CmdWhere in_index)
     BODY     *b;
     MESSAGECACHE *mc;
 
-    if(MCMD_ISAGG(aopt) && !pseudo_selected(msgmap))
+    if(MCMD_ISAGG(aopt) && !pseudo_selected(state->mail_stream, msgmap))
       return rv;
 
     msgs = mn_total_cur(msgmap);
@@ -6085,7 +6076,7 @@ cmd_pipe(struct pine *state, MSGNO_S *msgmap, int aopt)
     pipe_opt[j++].label = NULL;
 
     if(MCMD_ISAGG(aopt)){
-	if(!pseudo_selected(msgmap))
+	if(!pseudo_selected(state->mail_stream, msgmap))
 	  return rv;
 	else{
 	    fourlabel = j;
@@ -6519,7 +6510,7 @@ list_mgmt_screen(STORE_S *html)
 
 	    gf_link_filter(gf_html2plain,
 			   gf_html2plain_opt(NULL, ps_global->ttyo->screen_cols,
-					     NULL, &handles, NULL, 0));
+					     non_messageview_margin(), &handles, NULL, 0));
 
 	    error = gf_pipe(gc, pc);
 
@@ -8355,7 +8346,7 @@ choose_a_rule(int rflags)
     /* TRANSLATORS: SELECT A RULE is a screen title
        TRANSLATORS: Print something1 using something2.
        "rules" is something1 */
-    choice = choose_item_from_list(rule_list, _("SELECT A RULE"),
+    choice = choose_item_from_list(rule_list, NULL, _("SELECT A RULE"),
 				   _("rules"), h_select_rule_screen,
 				   _("HELP FOR SELECTING A RULE NICKNAME"), NULL);
 
@@ -8566,7 +8557,7 @@ choose_a_keyword(void)
     /* TRANSLATORS: SELECT A KEYWORD is a screen title
        TRANSLATORS: Print something1 using something2.
        "keywords" is something1 */
-    choice = choose_item_from_list(keyword_list, _("SELECT A KEYWORD"),
+    choice = choose_item_from_list(keyword_list, NULL, _("SELECT A KEYWORD"),
 				   _("keywords"), h_select_keyword_screen,
 				   _("HELP FOR SELECTING A KEYWORD"), NULL);
 
@@ -8689,7 +8680,7 @@ choose_a_charset(int which_charsets)
     /* TRANSLATORS: SELECT A CHARACTER SET is a screen title
        TRANSLATORS: Print something1 using something2.
        "character sets" is something1 */
-    choice = choose_item_from_list(charset_list, _("SELECT A CHARACTER SET"),
+    choice = choose_item_from_list(charset_list, NULL, _("SELECT A CHARACTER SET"),
 				   _("character sets"), h_select_charset_screen,
 				   _("HELP FOR SELECTING A CHARACTER SET"), NULL);
 
@@ -9022,6 +9013,9 @@ display_folder_list(CONTEXT_S **c, char *f, int sublist, int (*lister) (struct p
  * Allow user to choose a single item from a list of strings.
  *
  * Args    list -- Array of strings to choose from, NULL terminated.
+ *     displist -- Array of strings to display instead of displaying list.
+ *                   Indices correspond to the list array. Display the displist
+ *                   but return the item from list if displist non-NULL.
  *        title -- For conf_scroll_screen
  *        pdesc -- For conf_scroll_screen
  *         help -- For conf_scroll_screen
@@ -9030,19 +9024,22 @@ display_folder_list(CONTEXT_S **c, char *f, int sublist, int (*lister) (struct p
  * Returns an allocated copy of the chosen item or NULL.
  */
 char *
-choose_item_from_list(char **list, char *title, char *pdesc, HelpType help,
+choose_item_from_list(char **list, char **displist, char *title, char *pdesc, HelpType help,
 		      char *htitle, char *cursor_location)
 {
     LIST_SEL_S *listhead, *ls, *p, *starting_val = NULL;
-    char      **t;
+    char      **t, **dl;
     char       *ret = NULL, *choice = NULL;
 
     /* build the LIST_SEL_S list */
     p = listhead = NULL;
-    for(t = list; *t; t++){
+    for(t = list, dl = displist; *t; t++, dl++){
 	ls = (LIST_SEL_S *) fs_get(sizeof(*ls));
 	memset(ls, 0, sizeof(*ls));
 	ls->item = cpystr(*t);
+	if(displist)
+	  ls->display_item = cpystr(*dl);
+
 	if(cursor_location && (cursor_location == (*t)))
 	  starting_val = ls;
 	

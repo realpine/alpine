@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: remote.c 745 2007-10-11 18:03:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: remote.c 1028 2008-04-10 16:50:54Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ static char rcsid[] = "$Id: remote.c 745 2007-10-11 18:03:32Z hubert@u.washingto
 #include "../pith/util.h"
 #include "../pith/conf.h"
 #include "../pith/tempfile.h"
+#include "../pith/margin.h"
 
 
 /*
@@ -140,7 +141,7 @@ rd_prompt_about_forged_remote_data(int reason, REMDATA_S *rd, char *extra)
 	gf_filter_init();
 	gf_link_filter(gf_html2plain,
 		       gf_html2plain_opt(NULL,
-					 ps_global->ttyo->screen_cols, NULL,
+					 ps_global->ttyo->screen_cols, non_messageview_margin(),
 					 &handles, NULL, GFHP_LOCAL_HANDLES));
 	gf_set_so_readc(&gc, in_store);
 	gf_set_so_writec(&pc, out_store);

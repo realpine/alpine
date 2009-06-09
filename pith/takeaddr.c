@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: takeaddr.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: takeaddr.c 1008 2008-03-25 01:25:48Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -546,7 +546,7 @@ set_up_takeaddr(int cmd, struct pine *ps, MSGNO_S *msgmap, TA_S **ta_ret,
     if(!(cmd == 'a' || cmd == 'e'))
       return -1;
 
-    if((flags & TA_AGG) && !pseudo_selected(msgmap))
+    if((flags & TA_AGG) && !pseudo_selected(ps_global->mail_stream, msgmap))
       return -1;
 
     if(mn_get_total(msgmap) > 0 && mn_total_cur(msgmap) == 1)

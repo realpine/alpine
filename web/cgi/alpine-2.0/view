@@ -1,0 +1,250 @@
+#!./tclsh
+# $Id: view 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# ========================================================================
+# Copyright 2008 University of Washington
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# ========================================================================
+
+#  view.tcl
+#
+#  Purpose:  CGI script generating page to display text of requested
+#            message
+#
+#  Input:    PATH_INFO: [/<col_number>]/<folder_name>[/<uid_of_viewed_msg>
+#            along with possible search parameters:
+set view_args {
+  {delete	{}	0}
+  {spam		{}	0}
+  {unread	{}	0}
+  {star		{}	{}}
+  {showimg	{}	{}}
+  {hideimg	{}	{}}
+  {searchText	{}	{}}
+}
+
+
+# On input failure, redirect to home page "browse"
+proc view_redirect {} {
+  global _wp
+
+  cgi_http_head {
+    cgi_redirect "[cgi_root]/$_wp(appdir_alt)/browse"
+  }
+}
+
+# inherit global config
+source ./alpine.tcl
+source ./common.tcl
+source ./foldercache.tcl
+source ./messageview.tcl
+
+# TEST
+proc cgi_suffix {args} {
+  return ""
+}
+
+proc noimp {s} {
+  return "onClick=return noImp('${s}');"
+}
+
+# for inserting debug comments at end of page
+set dmsgs ""
+proc dm {s} {
+  global dmsgs
+  lappend dmsgs $s
+}
+
+
+WPEval $view_args {
+  # grok PATH_INFO for collection 'c' and folder 'f'
+  if {[info exists env(PATH_INFO)] && [string length $env(PATH_INFO)]} {
+    if {0 == [regexp {^/([0-9]+)/(.*)/([0-9]+)$} $env(PATH_INFO) dummy c f u]} {
+      WPCmd PEInfo statmsg "Cannot open invalid path: $env(PATH_INFO)"
+      error [list _redirect "[cgi_root]/$_wp(appdir_alt)/browse/0/INBOX"]
+    }
+  } else {
+    WPCmd PEInfo statmsg "Cannot view unspecified folder"
+    error [list _redirect "[cgi_root]/$_wp(appdir_alt)/browse/0/INBOX"]
+  }
+
+  # verify or visit specified collection/folder
+  if {[catch {setCurrentFolder c f u} result]} {
+    set authlist [wpHandleAuthException $result [list $c "folders in collection"] $f]
+    if {0 == [llength $authlist]} {
+      WPCmd PEInfo statmsg "$result"
+      error [list _redirect "$_wp(serverpath)/$_wp(appdir_alt)/browse/$c/$f"]
+    }
+  }
+
+  # load message drawing routine for this session
+  # save per-message source, proc overhead
+  # to reinstall on the fly:
+  catch {WPCmd rename drawMessageText {}}
+  if {0 == [llength [WPCmd info commands drawMessageText]]} {
+    if {[catch {
+      WPCmd source "[pwd]/messageview.tcl"
+      WPCmd source "[pwd]/messagelist.tcl"
+    } result]} {
+      error [list _action browse "cannot load message viewer: $result"]
+    }
+  }
+
+  # process any actions specified by view_args
+  if {$delete > 0} {
+    if {0 == [catch [WPCmd PEMessage $delete number] dnum]} {
+      
+    }
+    # ELSE already deleted, don't worry about it
+  } elseif {$spam > 0} {
+    if {0 == [catch [WPCmd PEMessage $spam number] snum]} {
+
+    }
+    # ELSE already reported, don't worry about it
+  } elseif {$unread > 0} {
+    if {[catch {WPCmd PEMessage $unread flag new 1} result]} {
+      # ERROR: Cannot set $u unread
+    }
+  } elseif {[string length $star]} {
+    switch -- $star {
+      0 {
+	if {[catch {WPCmd PEMessage $u flag important 0} result]} {
+	  # ERROR: Cannot set Star on message $u
+	}
+      }
+      1 {
+	if {[catch {WPCmd PEMessage $u flag important 1} result]} {
+	  # ERROR: Cannot set Star on message $u
+	}
+      }
+      default {}
+    }
+  }
+
+  if {[catch {WPCmd PEMessage $u charset} charset]
+      || [string length $charset] == 0
+      || [string compare us-ascii [string tolower $charset]] == 0} {
+    set charset "ISO-8859-1"
+  }
+
+  if {[catch {WPCmd PEMessage $u number} n]} {
+    WPCmd PEInfo statmsg "$n"
+    error [list _redirect "$_wp(serverpath)/$_wp(appdir_alt)/browse/$c/$f"]
+  }
+
+  cgi_http_head {
+    WPStdHttpHdrs "text/html; charset=$charset"
+  }
+
+  # counts and so forth
+  set mc [WPCmd PEMailbox messagecount]
+
+  set unext [WPCmd PEMailbox uid [WPCmd PEMailbox next $n 1]]
+  set delim [WPCmd PEFolder delimiter $c]
+
+
+  cgi_html {
+    cgi_head {
+      cgi_content_type "text/html; charset=$charset"
+      #      WPStdHttpHdrs "text/html; charset=$charset"
+      cgi_title [wpPageTitle "Message $n of $mc in $f"]
+      cgi_base "href=$_wp(serverpath)/$_wp(appdir_alt)/"
+      cgi_stylesheet css/menu.css
+      cgi_stylesheet css/cbn/screen.css
+      cgi_stylesheet css/cbn/folderdialog.css
+      cgi_stylesheet lib/yui/build/container/assets/container-core.css
+      cgi_stylesheet lib/yui/build/menu/assets/skins/sam/menu.css
+      cgi_stylesheet lib/yui/build/button/assets/skins/sam/button.css
+      # Yahoo UI libraries
+      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/utilities/utilities.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/container/container-min.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/datasource/datasource-beta-min.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/menu/menu-min.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/button/button-min.js" {}
+      # local libraries
+      cgi_script type=text/javascript language="JavaScript" src="lib/common.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="lib/mailbox.js" {}
+      # page specfic JS
+      cgi_javascript {
+	cgi_puts "YAHOO.alpine.cgi_root = '$_wp(serverpath)';"
+	cgi_puts "YAHOO.alpine.app_root = '$_wp(serverpath)/$_wp(appdir_alt)';"
+	cgi_puts "YAHOO.alpine.current.c = $c;"
+	cgi_puts "YAHOO.alpine.current.f = \"$f\";"
+	cgi_puts "YAHOO.alpine.current.u = $u;"
+	cgi_puts "YAHOO.alpine.current.count = $mc;"
+	cgi_puts "YAHOO.alpine.current.selected = [WPCmd PEMailbox selected];"
+	cgi_puts "YAHOO.alpine.current.searched = [WPCmd PEMailbox searched];"
+	cgi_puts "YAHOO.alpine.current.focused = [WPCmd PEMailbox focus];"
+	if {[lsearch -exact [list Junk Trash] $f] >= 0} {
+	  cgi_puts "function doEmpty(ctrlObj,listOption){"
+	  cgi_puts " if(listOption == 'all'){"
+	  cgi_puts "  emptyFolder('$c','$f','all',{status:true,fn:'updateViewLinksAndSuch(0,0,0,0,0,0);'});"
+	  cgi_puts " } else {"
+	  cgi_puts "  newMessageText({control:ctrlObj,parms:{op:'trash'}});"
+	  cgi_puts " }"
+	  cgi_puts " return false;"
+	  cgi_puts "}"
+	}
+	cgi_puts "function bodyOnLoad() {"
+	cgi_puts " initMenus();"
+	cgi_puts " initMorcButton('viewMorcButton');"
+	cgi_puts " if(YAHOO.env.ua.gecko > 0){ sizeVPHeight(); window.onresize = resizeVPHeight; }"
+	cgi_puts " setNewMailCheckInterval([WPCmd PEInfo inputtimeout]);"
+	wpStatusAndNewmailJavascript
+	wpSaveMenuJavascript "view" $c $f [WPCmd PEFolder defaultcollection] morcInViewDone
+        cgi_puts "}"
+
+	# WHILE TESTING/DEBUGGING
+	cgi_puts "var impi = new Array(); function noImp(m){ var sm; if(impi\[m\]) {impi\[m\]++; if(impi\[m\] > 4) sm = '<b>Seriously,</b> ' + m + ' will <b>never</b> get implemented if you keep bothering me!'; else sm = m + ' is <b>still</b> not implemented!'; } else { sm = m + ' is not implemented yet!' ; impi\[m\] = 1 ;} showStatusMessage(sm,3); return false; }"
+
+	cgi_puts "browserDetect();"
+      }
+    }
+
+    cgi_body class=wap "onLoad=bodyOnLoad()" {
+      cgi_division  id="skip" {
+	cgi_put [cgi_url "Skip to Next Message" "#"]
+	cgi_put [cgi_url "Skip to Message List" "browse#messages"]
+	cgi_put [cgi_url "Skip to Folders" "#folders"]
+	cgi_put [cgi_url "Skip to Compose" "compose#to"]
+      }
+
+      wpCommonPageLayout view $c $f $u [cgi_url "[cgi_quote_html $f], Message $n of $mc" browse/$c/[WPPercentQuote $f $delim] id=gBigContext] {} [list [cgi_cgi "$_wp(appdir_alt)/browse/${c}/${f}?u=${u}"] "$f" 1 mailboxSearch()] {} {
+	# CONTEXT COMMANDS
+	cgi_division class=hdrBtns {
+	  cgi_put [cgi_url "[cgi_span "class=sp hdrBtnImg hbi1" ""][cgi_span "class=hdrBtnText" Print]" "print" "onClick=if(window.print){window.print();return false;}else return true;"]
+	  cgi_put [cgi_url "[cgi_span "class=sp hdrBtnImg hbi2" ""][cgi_span "class=hdrBtnText" Settings]" "settings"]
+	  cgi_put [cgi_url "[cgi_span "class=sp hdrBtnImg hbi3" ""][cgi_span "class=hdrBtnText" Help]" # "onClick=return openMailboxHelp();" class=wap]
+	  cgi_put [cgi_url "[cgi_span "class=sp hdrBtnImg hbi4" ""][cgi_span "class=hdrBtnText" "Sign out"]" "../../session/logout.tcl?cid=[WPCmd PEInfo key]&sessid=${sessid}"]
+	}
+      } {
+	cgi_division id=listTopMenubar "style=\"display: none;\"" {
+	  cgi_puts [WPCmd cgi_buffer "drawTopListMenuBar $c {$f}"]
+	}
+	cgi_division id=viewTopMenubar {
+	  cgi_puts [WPCmd cgi_buffer "drawTopViewMenuBar $c {$f} $u $n"]
+	}
+      } {
+	cgi_puts [WPCmd cgi_buffer "drawMessageText $c {$f} $u $showimg"]
+      } {
+	cgi_division id=listBottomMenubar "style=\"display: none;\"" {
+	  cgi_puts [WPCmd cgi_buffer "drawBottomListMenuBar $c {$f} 0 0 $mc"]
+	}
+	cgi_division id=viewBottomMenubar {
+	  cgi_puts [WPCmd cgi_buffer "drawBottomViewMenuBar $c {$f} $u $n $mc"]
+	}
+      }
+
+      # any debugging info to insert?
+      foreach dmsg $dmsgs {
+	cgi_html_comment "DEBUG: $dmsg"
+	cgi_puts ""
+      }
+    }
+  }
+}

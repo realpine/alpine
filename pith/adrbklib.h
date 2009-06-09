@@ -1,5 +1,5 @@
 /*
- * $Id: adrbklib.h 947 2008-03-05 23:25:51Z hubert@u.washington.edu $
+ * $Id: adrbklib.h 1004 2008-03-19 19:43:03Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2008 University of Washington
@@ -203,6 +203,7 @@ typedef struct adrbk {
     AdrBk_Trie   *nick_trie;
     AdrBk_Trie   *addr_trie;
     AdrBk_Trie   *full_trie;
+    AdrBk_Trie   *revfull_trie;
     time_t        last_change_we_know_about;/* to look for others changing it*/
     time_t        last_local_valid_chk;/* when valid check was done          */
     unsigned      flags;               /* see defines in alpine.h (DEL_FILE...)*/
@@ -807,8 +808,6 @@ adrbk_cntr_t   adrbk_count(AdrBk *);
 AdrBk_Entry   *adrbk_get_ae(AdrBk *, a_c_arg_t);
 AdrBk_Entry   *adrbk_lookup_by_nick(AdrBk *, char *, adrbk_cntr_t *);
 AdrBk_Entry   *adrbk_lookup_by_addr(AdrBk *, char *, adrbk_cntr_t *);
-int            adrbk_longest_unambig_nick(AdrBk *, char *, char **);
-STRLIST_S     *adrbk_list_of_possible_nicks(AdrBk *, char *);
 char          *adrbk_formatname(char *, char **, char **);
 void           adrbk_clearrefs(AdrBk *);
 AdrBk_Entry   *adrbk_newentry(void);

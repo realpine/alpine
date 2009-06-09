@@ -1,5 +1,5 @@
 /*
- * $Id: sequence.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: sequence.h 1008 2008-03-25 01:25:48Z mikes@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -25,7 +25,7 @@ char	  *selected_sequence(MAILSTREAM *, MSGNO_S *, long *, int);
 char	  *currentf_sequence(MAILSTREAM *, MSGNO_S *, long, long *, int, char **, char **);
 char	  *invalid_elt_sequence(MAILSTREAM *, MSGNO_S *);
 char	  *build_sequence(MAILSTREAM *, MSGNO_S *, long *);
-int	   pseudo_selected(MSGNO_S *);
+int	   pseudo_selected(MAILSTREAM *, MSGNO_S *);
 void	   restore_selected(MSGNO_S *);
 SEARCHSET *limiting_searchset(MAILSTREAM *, int);
 

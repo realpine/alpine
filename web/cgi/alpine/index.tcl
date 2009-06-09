@@ -1,4 +1,4 @@
-# $Id: index.tcl 864 2007-12-11 20:21:47Z mikes@u.washington.edu $
+# $Id: index.tcl 1096 2008-06-30 22:03:35Z hubert@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -465,7 +465,7 @@ if {$queryexpunge == 1 || [string compare [string tolower $queryexpunge] expunge
 	    }
 
 	    if {[catch {WPCmd PEFolder exists $f_colid $f_name} reason]} {
-	      if {[string compare $reason BADPASSWD] == 0} {
+	      if {[string compare BADPASSWD [string range $reason 0 8]] == 0} {
 		set oncancel "index.tcl&savecancel=1"
 		set conftext "Create Folder '$f_name'?"
 		lappend params [list page index]
@@ -1930,6 +1930,12 @@ if {![info exists nopage]} {
 	    }
 
 	    cgi_puts "[cgi_nbspace]${counttext}${nexttext}"
+	  }
+	  cgi_table_data align=right class=context {
+	    cgi_put "Powered by [cgi_url Alpine "http://www.washington.edu/alpine/" target="_blank"] - [cgi_copyright] 2007 University of Washington"
+	    if {[info exists _wp(appdir_alt)]} {
+	      cgi_puts " - [cgi_url "Standard Version " "$_wp(serverpath)/$_wp(appdir_alt)/browse" target=_top]"
+	    }
 	  }
 	}
       }

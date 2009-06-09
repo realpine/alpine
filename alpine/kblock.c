@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: kblock.c 869 2007-12-13 23:41:46Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: kblock.c 1014 2008-03-26 17:27:45Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -122,7 +122,7 @@ lock_keyboard(void)
 	    else
 	      snprintf(prompt, sizeof(prompt), _("Enter password to LOCK keyboard : "));
 
-	    flags = OE_PASSWD;
+	    flags = F_ON(F_QUELL_ASTERISKS, ps_global) ? OE_PASSWD_NOAST : OE_PASSWD;
 	    rc =  optionally_enter(pw, -FOOTER_ROWS(ps), 0, sizeof(pw),
 				    prompt, NULL, help, &flags);
 
@@ -169,7 +169,8 @@ lock_keyboard(void)
         while(1){
 	    int rc;
 
-	    flags = OE_PASSWD | OE_DISALLOW_CANCEL;
+	    flags = OE_DISALLOW_CANCEL
+		      | (F_ON(F_QUELL_ASTERISKS, ps_global) ? OE_PASSWD_NOAST : OE_PASSWD);
 	    rc =  optionally_enter(passwd, -FOOTER_ROWS(ps), 0, sizeof(passwd),
 				   _("Enter password to UNLOCK keyboard : "),NULL,
 				   help, &flags);

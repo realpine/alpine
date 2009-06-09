@@ -1,4 +1,4 @@
-# $Id: post.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
+# $Id: post.tcl 1096 2008-06-30 22:03:35Z hubert@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -569,7 +569,7 @@ if {[info exists postcmd]} {
   if {[info exists msgdata]} {
     if {[catch {WPCmd $postcmd $postcmdopt $msgdata} errstr]} {
       # if auth problem, save msgdata for after we ask for credentials
-      if {([string compare $errstr NOPASSWD] == 0 || [string compare $errstr BADPASSWD] == 0)
+      if {([string compare NOPASSWD [string range $errstr 0 7]] == 0 || [string compare BADPASSWD [string range $errstr 0 8]] == 0)
           && [catch {WPCmd PEInfo set suspended_composition $msgdata} errstr] == 0} {
 
 	if {[catch {WPCmd PEInfo authrequestor} server]} {

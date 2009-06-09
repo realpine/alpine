@@ -1,5 +1,5 @@
 /*
- * $Id: pineelt.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: pineelt.h 1108 2008-07-10 05:01:13Z mikes@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -37,9 +37,19 @@ typedef	struct part_exception_s {
  * spare pointer.
  */
 typedef struct pine_elt {
-    PINETHRD_S  *pthrd;
-    PARTEX_S    *exceptions;
-    ICE_S       *ice;
+	PINETHRD_S  *pthrd;
+	PARTEX_S    *exceptions;
+	ICE_S       *ice;
+	/* per-message pine state bits */
+	unsigned int hidden:1;
+	unsigned int excluded:1;
+	unsigned int selected:1;
+	unsigned int searched:1;
+	unsigned int unsorted:1;
+	unsigned int collapsed:1;
+	unsigned int colhid:1;
+	unsigned int colhid2:1;
+	unsigned int tmp:1;
 } PINELT_S;
 
 

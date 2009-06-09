@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: store.c 745 2007-10-11 18:03:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: store.c 1070 2008-06-03 19:27:23Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,9 @@ static char rcsid[] = "$Id: store.c 745 2007-10-11 18:03:32Z hubert@u.washington
 #include "../pith/status.h"
 #include "../pith/state.h"
 #include "../pico/keydefs.h"
+#ifdef SMIME
+#include <openssl/buffer.h>
+#endif /* SMIME */
 
 
 /*
@@ -52,6 +55,11 @@ int	so_reaquire(STORE_S *);
 #ifdef _WINDOWS
 int	so_file_readc_windows(unsigned char *, STORE_S *);
 #endif /* _WINDOWS */
+#ifdef SMIME
+int	so_bio_writec(int, STORE_S *);
+int	so_bio_readc(unsigned char *, STORE_S *);
+int	so_bio_puts(STORE_S *, char *);
+#endif /* SMIME */
 
 
 /*
@@ -187,6 +195,22 @@ so_get(SourceType source, char *name, int rtype)
 	    fs_give((void **)&so);		/* so freed & set to NULL */
 	}
     }
+#ifdef SMIME
+    else if(so->src == BioType){
+	so->writec = so_bio_writec;
+	so->readc  = so_bio_readc;
+	so->puts   = so_bio_puts;
+
+	if(!(so->txt = BIO_new(BIO_s_mem()))){
+	    dprint((1, "so_get error: BIO driver allocation error"));
+
+	    if(so->name)
+	      fs_give((void **) &so->name);
+
+	    fs_give((void **) &so);		/* so freed & set to NULL */
+	}
+    }
+#endif /* SMIME */
     else{
 	so->writec = (rtype & WRITE_TO_LOCALE)	? so_cs_writec_locale
 						: so_cs_writec;
@@ -214,7 +238,7 @@ so_give(STORE_S **so)
 {
     int ret = 0;
 
-    if(!so)
+    if(!(so && (*so)))
       return(ret);
 
     if((*so)->src == FileStar || (*so)->src == TmpFileStar){
@@ -228,6 +252,13 @@ so_give(STORE_S **so)
 	if(etsod.give)
 	  (*etsod.give)((*so)->txt);
     }
+#ifdef SMIME
+    else if((*so)->txt && (*so)->src == BioType){
+	BIO *b = (BIO *) (*so)->txt;
+
+	BIO_free(b);
+    }
+#endif /* SMIME */
     else if((*so)->txt)
       fs_give((void **)&((*so)->txt));
 
@@ -624,6 +655,71 @@ so_file_puts_locale(STORE_S *so, char *s)
 }
 
 
+#ifdef SMIME
+/*
+ * put a character into the specified storage object,
+ * expanding if neccessary
+ *
+ * return 1 on success and 0 on failure
+ */
+int
+so_bio_writec(int c, STORE_S *so)
+{
+    if(so->txt && so->src == BioType){
+	unsigned char ch[1];
+	BIO *b = (BIO *) so->txt;
+
+	ch[0] = (unsigned char) (c & 0xff);
+
+	if(BIO_write(b, ch, 1) >= 1)
+	  return(1);
+    }
+
+    return(0);
+}
+
+
+int
+so_bio_readc(unsigned char *c, STORE_S *so)
+{
+    if(so->txt && so->src == BioType){
+	unsigned char ch[1];
+	BIO *b = (BIO *) so->txt;
+
+	if(BIO_read(b, ch, 1) >= 1){
+	    *c = ch[0];
+	    return(1);
+	}
+    }
+
+    return(0);
+}
+
+
+/*
+ * write a string into the specified storage object,
+ * expanding if necessary (and cheating if the object
+ * happens to be a file!)
+ *
+ * return 1 on success and 0 on failure
+ */
+int
+so_bio_puts(STORE_S *so, char *s)
+{
+
+    if(so->txt && so->src == BioType){
+	BIO *b = (BIO *) so->txt;
+	int slen = strlen(s);
+
+	if(BIO_puts(b, s) >= slen)
+	  return(1);
+    }
+
+    return(1);
+}
+#endif /* SMIME */
+
+
 /*
  *
  */
@@ -670,10 +766,20 @@ so_seek(STORE_S *so, long int pos, int orig)
 	if(etsod.seek)
 	  return((*etsod.seek)(so->txt, pos, orig));
 
-	fatal("programmer botch: unsupported so_truncate call");
+	fatal("programmer botch: unsupported so_seek call");
 	/*NOTREACHED*/
 	return(0); /* suppress dumb compiler warnings */
     }
+#ifdef SMIME
+    else if(so->src == BioType){
+	BIO *b = (BIO *) so->txt;
+
+	if(b && BIO_method_type(b) != BIO_TYPE_MEM)
+	  (void) BIO_reset(b);
+
+	return(0);
+    }
+#endif /* SMIME */
     else			/* FileStar or TmpFileStar */
       return((so->txt || so_reaquire(so))
 		? fseek((FILE *)so->txt,pos,orig)
@@ -727,6 +833,30 @@ so_truncate(STORE_S *so, long int size)
 	/*NOTREACHED*/
 	return(0); /* suppress dumb compiler warnings */
     }
+#ifdef SMIME
+    else if(so->src == BioType){
+	fatal("programmer botch: unsupported so_truncate call for BioType");
+	/*NOTREACHED*/
+	return(0); /* suppress dumb compiler warnings */
+
+#ifdef notdef
+	long len;
+	BIO *b = (BIO *) so->txt;
+
+	if(b){
+	    BUF_MEM *biobuf = NULL;
+
+	    BIO_get_mem_ptr(b, &biobuf);
+	    if(biobuf){
+		BUF_MEM_grow(biobuf, size);
+		return(1);
+	    }
+	}
+
+	return(0);
+#endif /* notdef */
+    }
+#endif /* SMIME */
     else			/* FileStar or TmpFileStar */
       return(fflush((FILE *) so->txt) != EOF
 	     && fseek((FILE *) so->txt, size, 0) == 0
@@ -752,6 +882,13 @@ so_tell(STORE_S *so)
 	/*NOTREACHED*/
 	return(0); /* suppress dumb compiler warnings */
     }
+#ifdef SMIME
+    else if(so->src == BioType){
+	fatal("programmer botch: unsupported so_tell call for BioType");
+	/*NOTREACHED*/
+	return(0); /* suppress dumb compiler warnings */
+    }
+#endif /* SMIME */
     else			/* FileStar or TmpFileStar */
       return(ftell((FILE *) so->txt));
 }
@@ -871,7 +1008,7 @@ so_fgets(STORE_S *so, char *s, size_t size)
     unsigned char c;
     char *p = s;
 
-    while(size-- > 0 && so_readc(&c, so) > 0){
+    while(--size > 0 && so_readc(&c, so) > 0){
 	*p++ = (char) c;
 	if(c == '\n')
 	  break;

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: send.c 931 2008-02-15 02:11:48Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: send.c 1125 2008-08-06 18:25:58Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -42,6 +42,7 @@ static char rcsid[] = "$Id: send.c 931 2008-02-15 02:11:48Z hubert@u.washington.
 #include "../pith/imap.h"
 #include "../pith/ablookup.h"
 #include "../pith/sort.h"
+#include "../pith/smime.h"
 
 #include "../c-client/smtp.h"
 #include "../c-client/nntp.h"
@@ -105,8 +106,6 @@ typedef enum {MsgBody, HdrText} MsgPart;
 long       post_rfc822_output(char *, ENVELOPE *, BODY *, soutr_t, TCPSTREAM *, long);
 int        l_flush_net(int);
 int        l_putc(int);
-long       pine_rfc822_output_body(BODY *,soutr_t,TCPSTREAM *);
-int	   pine_write_body_header(BODY *, soutr_t, TCPSTREAM *);
 int	   pine_write_header_line(char *, char *, STORE_S *);
 int	   pine_write_params(PARAMETER *, STORE_S *);
 char      *tidy_smtp_mess(char *, char *, char *, size_t);
@@ -336,12 +335,16 @@ redraft_work(MAILSTREAM **streamp, long int cont_msg, ENVELOPE **outgoing,
     char       **smtp_servers = NULL, **nntp_servers = NULL;
     int		 i, pine_generated = 0, our_replyto = 0;
     int          added_to_role = 0;
+    unsigned	 gbpt_flags = GBPT_NONE;
     MESSAGECACHE *mc;
 
     if(!(streamp && *streamp))
       return(redraft_cleanup(streamp, TRUE, flags));
 
     stream = *streamp;
+
+    if(flags & REDRAFT_HTML)
+      gbpt_flags |= GBPT_HTML_OK;
 
     /* grok any user-defined or non-c-client headers */
     if((e = pine_mail_fetchstructure(stream, cont_msg, &b)) != NULL){
@@ -865,7 +868,7 @@ redraft_work(MAILSTREAM **streamp, long int cont_msg, ENVELOPE **outgoing,
 		return(redraft_cleanup(streamp, TRUE, flags));
 	    }
 		
-	    if((charset = rfc2231_get_param(part->body.parameter,"charset",NULL,NULL)) != NULL){
+	    if((charset = parameter_val(part->body.parameter,"charset")) != NULL){
 		/* let outgoing routines decide on charset */
 		if(!strucmp(charset, "US-ASCII") || !strucmp(charset, "UTF-8"))
 		  set_parameter(&part->body.parameter, "charset", NULL);
@@ -874,8 +877,9 @@ redraft_work(MAILSTREAM **streamp, long int cont_msg, ENVELOPE **outgoing,
 	    }
 
 	    ps_global->postpone_no_flow = 1;
+
 	    get_body_part_text(stream, &b->nested.part->body,
-			       cont_msg, "1", 0L, pc, NULL, NULL, GBPT_NONE);
+			       cont_msg, "1", 0L, pc, NULL, NULL, gbpt_flags);
 	    ps_global->postpone_no_flow = 0;
 
 	    if(!fetch_contents(stream, cont_msg, NULL, *body))
@@ -883,10 +887,12 @@ redraft_work(MAILSTREAM **streamp, long int cont_msg, ENVELOPE **outgoing,
 			       _("Error including all message parts"));
 	}
 	else{
-	    *body			 = mail_newbody();
-	    (*body)->type		 = TYPETEXT;
+	    *body	  = mail_newbody();
+	    (*body)->type = TYPETEXT;
+	    if(b->subtype)
+	      (*body)->subtype = cpystr(b->subtype);
 
-	    if((charset = rfc2231_get_param(b->parameter,"charset",NULL,NULL)) != NULL){
+	    if((charset = parameter_val(b->parameter,"charset")) != NULL){
 		/* let outgoing routines decide on charset */
 		if(!strucmp(charset, "US-ASCII") || !strucmp(charset, "UTF-8"))
 		  fs_give((void **) &charset);
@@ -905,7 +911,7 @@ redraft_work(MAILSTREAM **streamp, long int cont_msg, ENVELOPE **outgoing,
 	    (*body)->contents.text.data = (void *)so;
 	    ps_global->postpone_no_flow = 1;
 	    get_body_part_text(stream, b, cont_msg, "1", 0L, pc,
-			       NULL, NULL, GBPT_NONE);
+			       NULL, NULL, gbpt_flags);
 	    ps_global->postpone_no_flow = 0;
 	}
 
@@ -1188,6 +1194,9 @@ pine_new_env(ENVELOPE *outgoing, char **fccp, char ***tobufpp, PINEFIELD *custom
 
     stdcnt = cnt;
 
+    for(pf = custom; pf; pf = pf->next)
+      cnt++;	
+
     /* temporary PINEFIELD array */
     i = (cnt + 1) * sizeof(PINEFIELD);
     pfields = (PINEFIELD *)fs_get((size_t) i);
@@ -1210,7 +1219,7 @@ pine_new_env(ENVELOPE *outgoing, char **fccp, char ***tobufpp, PINEFIELD *custom
 
     /* initialize pfield */
     pf = pfields;
-    for(i=0; i < cnt; i++, pf++){
+    for(i=0; i < stdcnt; i++, pf++){
 
         pf->name        = cpystr(pf_template[i].name);
 	if(i == N_SENDER && F_ON(F_USE_SENDER_NOT_X, ps_global))
@@ -1523,7 +1532,7 @@ check_addresses(METAENV *header)
  * or something similar. If value doesn't match any of the values then
  * the actual value is used instead.
  */
-void
+PINEFIELD *
 set_priority_header(METAENV *header, char *value)
 {
     PINEFIELD *pf;
@@ -1733,6 +1742,7 @@ call_mailer(METAENV *header, struct mail_bodystruct *body, char **alt_smtp_serve
     char	*verbose_file = NULL;
     BODY	*bp = NULL;
     PINEFIELD	*pf;
+    BODY	*origBody = body;
 
     dprint((4, "Sending mail...\n"));
 
@@ -1746,6 +1756,29 @@ call_mailer(METAENV *header, struct mail_bodystruct *body, char **alt_smtp_serve
 	    _("Can't send message. No recipients specified!"));
 	return(0);
     }
+
+#ifdef SMIME
+    if(ps_global->smime && (ps_global->smime->do_encrypt || ps_global->smime->do_sign)){
+    	int result;
+	
+    	STORE_S *so = lmc.so;
+	lmc.so = NULL;
+    
+    	result = 1;
+    
+    	if(ps_global->smime->do_encrypt)
+    	  result = encrypt_outgoing_message(header, &body);
+	
+	/* need to free new body from encrypt if sign fails? */
+	if(result && ps_global->smime->do_sign)
+	  result = sign_outgoing_message(header, &body, ps_global->smime->do_encrypt);
+	
+	lmc.so = so;
+	
+	if(!result)
+	  return 0;
+    }
+#endif
 
     /* set up counts and such to keep track sent percentage */
     send_bytes_sent = 0;
@@ -2077,6 +2110,24 @@ call_mailer(METAENV *header, struct mail_bodystruct *body, char **alt_smtp_serve
       mail_free_envelope(&fake_env);
 
   done:
+
+#ifdef SMIME
+    /* Free replacement encrypted body */
+    if(F_OFF(F_DONT_DO_SMIME, ps_global) && body != origBody){
+    
+    	if(body->type == TYPEMULTIPART){
+	    /* Just get rid of first part, it's actually origBody */
+	    void *x = body->nested.part;
+	    
+	    body->nested.part = body->nested.part->next;
+	    
+	    fs_give(&x);
+	}
+    
+    	pine_free_body(&body);
+    }
+#endif
+
     if(we_cancel)
       cancel_busy_cue(0);
 
@@ -2825,8 +2876,10 @@ pine_encode_body (struct mail_bodystruct *body)
 
   dprint((4, "-- pine_encode_body: %d\n", body ? body->type : 0));
   if (body) switch (body->type) {
+    char *freethis;
+
     case TYPEMULTIPART:		/* multi-part */
-      if (!body->parameter) {	/* cookie not set up yet? */
+      if(!(freethis=parameter_val(body->parameter, "BOUNDARY"))){
 	  char tmp[MAILTMPLEN];	/* make cookie not in BASE64 or QUOTEPRINT*/
 
 	  snprintf (tmp,sizeof(tmp),"%ld-%ld-%ld=:%ld",gethostid (),random (),(long) time (0),
@@ -2834,6 +2887,10 @@ pine_encode_body (struct mail_bodystruct *body)
 	  tmp[sizeof(tmp)-1] = '\0';
 	  set_parameter(&body->parameter, "BOUNDARY", tmp);
       }
+
+      if(freethis)
+        fs_give((void **) &freethis);
+
       part = body->nested.part;	/* encode body parts */
       do pine_encode_body (&part->body);
       while ((part = part->next) != NULL);	/* until done */
@@ -2852,7 +2909,7 @@ pine_encode_body (struct mail_bodystruct *body)
 	 && so_attr((STORE_S *) body->contents.text.data, "edited", NULL)){
 	  char *charset, *posting_charset, *lp;
 
-	  if(!((charset = rfc2231_get_param(body->parameter, "charset", NULL, NULL))
+	  if(!((charset = parameter_val(body->parameter, "charset"))
 	        && !strucmp(charset, UNKNOWN_CHARSET))
 	     && (posting_charset = posting_characterset(body, charset, MsgBody))){
 
@@ -4256,7 +4313,7 @@ pine_rfc822_output_body(struct mail_bodystruct *body, soutr_t f, void *s)
 
 	if(body->type == TYPETEXT
 	   && so_attr((STORE_S *) body->contents.text.data, "edited", NULL)
-	   && (charset = rfc2231_get_param(body->parameter, "charset", NULL, NULL))){
+	   && (charset = parameter_val(body->parameter, "charset"))){
 	    if(strucmp(charset, "utf-8") && strucmp(charset, "us-ascii")){
 		if(!strucmp(charset, "iso-2022-jp")){
 		    ljp.report_err = 0;
@@ -4331,7 +4388,7 @@ pine_rfc822_output_body(struct mail_bodystruct *body, soutr_t f, void *s)
 	    /*
 	     * BUG: If this name is not ascii it's going to cause trouble.
 	     */
-	    name = rfc2231_get_param(body->parameter, "name", NULL, NULL);
+	    name = parameter_val(body->parameter, "name");
 	    snprintf(tmp, sizeof(tmp),
     "    A %s/%s%s%s%s segment of about %s bytes.\015\012",
 		    body_type_names(body->type), 

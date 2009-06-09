@@ -1,5 +1,5 @@
 /*
- * $Id: state.h 937 2008-02-28 01:04:46Z hubert@u.washington.edu $
+ * $Id: state.h 1069 2008-06-03 15:54:15Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2008 University of Washington
@@ -307,6 +307,9 @@ struct pine {
 
     time_t       last_nextitem_forcechk;
 
+    MAILSTREAM  *cur_uid_stream;
+    imapuid_t    cur_uid;
+
     int		 deadlets;
 
     int		 quote_suppression_threshold;
@@ -336,6 +339,10 @@ struct pine {
     INIT_ERR_S  *init_errs;
 
     PRINT_S	*print;
+
+#ifdef SMIME
+    SMIME_STUFF_S *smime;
+#endif /* SMIME */
 
     struct variable *vars;
 };

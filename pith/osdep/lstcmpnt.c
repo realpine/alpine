@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: lstcmpnt.c 897 2008-01-04 22:49:15Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: lstcmpnt.c 1069 2008-06-03 15:54:15Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ static char rcsid[] = "$Id: lstcmpnt.c 897 2008-01-04 22:49:15Z hubert@u.washing
 #include <general.h>
 
 #include <string.h>
+#include "../../pith/charconv/filesys.h"
+#include "canaccess.h"
 #include "lstcmpnt.h"
 
 
@@ -64,3 +66,37 @@ last_cmpnt(char *filename)
 }
 
 
+/*
+ * Like our_mkdir but it makes subdirs as well as the final dir
+ */
+int
+our_mkpath(char *path, mode_t mode)
+{
+    char save, *q = path;
+
+#ifdef	_WINDOWS
+    if(isalpha((unsigned char) q[0]) && q[1] == ':' && q[2])
+      q = path + 3;
+#endif
+
+    if(q == path && q[0] == FILE_SEP)
+      q = path + 1;
+
+    while((q = strchr(q, FILE_SEP)) != NULL){
+	save = *q;
+	*q = '\0';
+	if(can_access(path, ACCESS_EXISTS) != 0)
+	  if(our_mkdir(path, mode) != 0){
+	      *q = save;
+	      return -1;
+	  }
+
+	*q = save;
+	q++;
+    }
+
+    if(can_access(path, ACCESS_EXISTS) != 0 && our_mkdir(path, mode) != 0)
+      return -1;
+
+    return 0;
+}

@@ -1,4 +1,4 @@
-# $Id: about.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: about.tcl 1135 2008-08-12 20:47:04Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -10,7 +10,7 @@
 #
 # ========================================================================
 cgi_h2 "About Web Alpine"
-cgi_p "Version $_wp(version) [cgi_font size=-1 "([WPCmd PEInfo version])"]"
+cgi_p "Version [WPCmd PEInfo version].[WPCmd PEInfo revision] (basic HTML interface)"
 cgi_p {
 Web Alpine is a mail user agent, built on the Alpine Mail System, designed to
 provide email access and management facilities via the World Wide Web.  
@@ -27,4 +27,4 @@ email needs.
 }
 cgi_p {
 }
-cgi_p "Alpine is still under development. Please send your comments and suggestions to [cgi_quote_html "<$_wp(comments)>"]."
+cgi_p "Send comments and suggestions to [cgi_quote_html "<$_wp(comments)>"]."

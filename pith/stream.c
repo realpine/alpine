@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: stream.c 847 2007-12-06 18:06:35Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: stream.c 1009 2008-03-25 18:57:53Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1532,7 +1532,7 @@ pine_mail_fetch_structure(MAILSTREAM *stream, long unsigned int msgno,
     ENVELOPE *env = NULL;
 
     ps_global->dont_count_flagchanges = 1;
-    if(stream && msgno > 0L && msgno <= stream->nmsgs)
+    if(stream && (flags & FT_UID || (msgno > 0L && msgno <= stream->nmsgs)))
       env = mail_fetch_structure(stream, msgno, body, flags);
 
     ps_global->dont_count_flagchanges = 0;

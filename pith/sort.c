@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: sort.c 912 2008-01-16 01:20:37Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: sort.c 1108 2008-07-10 05:01:13Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -21,6 +21,7 @@ static char rcsid[] = "$Id: sort.c 912 2008-01-16 01:20:37Z hubert@u.washington.
 #include "../pith/status.h"
 #include "../pith/msgno.h"
 #include "../pith/flag.h"
+#include "../pith/pineelt.h"
 #include "../pith/thread.h"
 #include "../pith/search.h"
 #include "../pith/pattern.h"
@@ -468,10 +469,13 @@ sort_folder(MAILSTREAM *stream, MSGNO_S *msgmap, SortOrder new_sort,
      * Turn off the MN_USOR flag. Don't bother going through the
      * function call and the message number mappings.
      */
-    if(THREADING())
-      for(i = 1L; i <= stream->nmsgs; i++)
-        if((mc = mail_elt(stream, i)) != NULL)
-          mc->spare7 = 0;
+    if(THREADING()){
+	PINELT_S *pelt;
+
+	for(i = 1L; i <= stream->nmsgs; i++)
+	  if((mc = mail_elt(stream, i)) != NULL && (pelt = mc->sparep) != NULL)
+	    pelt->unsorted = 0;
+    }
 }
 
 

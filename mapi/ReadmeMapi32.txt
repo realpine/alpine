@@ -1,5 +1,5 @@
 ReadmeMapi32.txt
-March 14, 2008
+August 12, 2008
 University of Washington
 
 NOTE: It is uncertain what remains to be done for pmapi to work with
@@ -7,7 +7,7 @@ alpine.  This dll should work with a PC-Pine installation, but in
 the future will be made to work with Alpine.  Registry access and
 Unicode support will have to change for that to happen.
 
-	         pmapi32 for Alpine 1.10
+	         pmapi32 for Alpine 1.99
 
 This distribution comes with two other files, instmapi.exe and
 pmapi32.dll, for use with Aline.  It is recommended that these files

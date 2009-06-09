@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: reply.c 937 2008-02-28 01:04:46Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: reply.c 1069 2008-06-03 15:54:15Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -51,7 +51,7 @@ The evolution continues...
 #include "../pith/filter.h"
 #include "../pith/pattern.h"
 #include "../pith/charset.h"
-#include "../pith/rfc2231.h"
+#include "../pith/mimedesc.h"
 #include "../pith/remote.h"
 #include "../pith/news.h"
 #include "../pith/util.h"
@@ -637,8 +637,7 @@ reply(struct pine *pine_state, ACTION_S *role_arg)
 	if(orig_body){
 	    char *charset;
 
-	    charset = rfc2231_get_param(orig_body->parameter,
-					"charset", NULL, NULL);
+	    charset = parameter_val(orig_body->parameter, "charset");
 	    if(charset && strucmp(charset, "us-ascii") != 0){
 		CONV_TABLE *ct;
 
@@ -1306,7 +1305,7 @@ get_signature_file(char *file, int prenewlines, int postnewlines, int is_sig)
 				sig_path);
 	}
 	else if((IS_REMOTE(sig_path) &&
-		 (tmp_sig = read_remote_sigfile(sig_path))) ||
+		 (tmp_sig = simple_read_remote_file(sig_path, REMOTE_SIG_SUBTYPE))) ||
 		(tmp_sig = read_file(sig_path, READ_FROM_LOCALE)))
 	  sigsize = strlen(tmp_sig);
 	else
@@ -1624,8 +1623,7 @@ forward(struct pine *ps, ACTION_S *role_arg)
     if(ret != 'y' && totalmsgs == 1L && orig_body){
 	char *charset;
 
-	charset = rfc2231_get_param(orig_body->parameter,
-				    "charset", NULL, NULL);
+	charset = parameter_val(orig_body->parameter, "charset");
 	if(charset && strucmp(charset, "us-ascii") != 0){
 	    CONV_TABLE *ct;
 
@@ -1921,7 +1919,7 @@ signature_edit(char *sigfile, char *title)
       return(cpystr(_("No signature file defined.")));
     
     if(IS_REMOTE(sigfile)){
-	rd = rd_create_remote(RemImap, sig_path, (void *)REMOTE_SIG_SUBTYPE,
+	rd = rd_create_remote(RemImap, sig_path, REMOTE_SIG_SUBTYPE,
 			      NULL, "Error: ",
 			      _("Can't access remote configuration."));
 	if(!rd)

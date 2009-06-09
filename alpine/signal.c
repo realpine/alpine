@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: signal.c 922 2008-02-01 18:42:29Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: signal.c 1024 2008-04-07 22:58:40Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -58,8 +58,6 @@ void		  fast_clean_up(void);
 static RETSIGTYPE usr2_signal(int);
 static RETSIGTYPE winch_signal(int);
 static RETSIGTYPE intr_signal(int);
-void		  intr_allow(void);
-void		  intr_disallow(void);
 void		  suspend_notice(char *);
 void		  suspend_warning(void);
 
@@ -667,43 +665,29 @@ intr_signal(int sig)
 }
 
 
-void
-intr_allow(void)
-{
-    if(signal(SIGINT, intr_signal) == intr_signal)
-      return;				/* already installed */
-
-    intr_proc(1);			/* turn on interrupt char */
-}
-
-
-void
-intr_disallow(void)
-{
-    if(signal(SIGINT, SIG_IGN) == SIG_IGN)	/* already off! */
-      return;
-
-    our_sigunblock(SIGINT);		/* unblock signal after longjmp */
-    ps_global->intr_pending = 0;
-    intr_proc(0);			/* turn off interrupt char */
-}
-
-
-void
+int
 intr_handling_on(void)
 {
+#ifdef	_WINDOWS
+    return 0;				/* No interrupts in Windows */
+#else  /* UNIX */
     if(signal(SIGINT, intr_signal) == intr_signal)
-      return;				/* already installed */
+      return 0;				/* already installed */
 
     intr_proc(1);
     if(ps_global && ps_global->ttyo)
       draw_cancel_keymenu();
+
+    return 1;
+#endif /* UNIX */
 }
 
 
 void
 intr_handling_off(void)
 {
+#ifdef	_WINDOWS
+#else  /* UNIX */
     if(signal(SIGINT, SIG_IGN) == SIG_IGN)	/* already off! */
       return;
 
@@ -713,6 +697,7 @@ intr_handling_off(void)
       blank_keymenu(ps_global->ttyo->screen_rows - 2, 0);
 
     ps_global->mangled_footer = 1;
+#endif /* UNIX */
 }
 
 

@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: init.tcl 948 2008-03-06 00:24:37Z mikes@u.washington.edu $
+# $Id: init.tcl 1036 2008-04-25 22:51:07Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -138,7 +138,7 @@ cgi_eval {
 
   set cookiepath $_wp(appdir)
 
-  # stash session open parms in pinetcld's interpreter
+  # stash session open parms in alpined's interpreter
   lappend parms User
   lappend parms $User
   lappend parms Server

@@ -1,0 +1,71 @@
+/* ========================================================================
+ * Copyright 2006-2008 University of Washington
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * ========================================================================
+ */
+
+.menu a, .menu a:link, .menu a:visited {
+	white-space: nowrap;
+	color: #ffffff;
+	display: block;
+	margin: 0;
+	padding: 0 8px;
+	line-height: 34px;
+	text-decoration: none;
+}
+
+.menu a img
+{
+	border: none;
+	margin: 10px 0;
+}
+
+.menu a span
+{
+	margin-top: 10px;
+}
+
+.menu a:focus, .menu a:hover, .menu a:active {
+	background-color: #555555;
+	color: #ffffff;
+}
+
+.menu li {
+	list-style: none;
+}
+
+.menu li hr {
+	margin: 2px 0;
+}
+
+.menu li:focus ul, .menu li:hover ul, .menu li:active ul, .menu li.sfhover ul {
+	left: auto;
+	top: auto;
+	z-index: 99;
+}
+
+.menu ul {
+	background-color: #333333;
+	left: -999px;
+	top: -999px;
+	margin-left: -1px;
+	position: absolute;
+}
+
+.menu ul li {
+	border: 0 none;
+	clear: left;
+	margin-right: 0;
+}
+
+.menu, .menu ul {
+	color: #ffffff;
+	margin: 0;
+	padding: 0;
+}

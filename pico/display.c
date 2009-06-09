@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: display.c 933 2008-02-22 23:52:28Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: display.c 1014 2008-03-26 17:27:45Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1702,7 +1702,7 @@ mlreplyd(UCS *prompt, UCS *buf, int nbuf, int flg, EXTRAKEYS *extras)
 
     for(;;){
 
-	line_paint(b-buf, &dline, 0);
+	line_paint(b-buf, &dline, NULL);
 	(*term.t_flush)();
 
 #ifdef	MOUSE

@@ -1,8 +1,8 @@
 /*
- * $Id: margin.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: margin.h 1028 2008-04-10 16:50:54Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@
 
 /* exported protoypes */
 int	*format_view_margin(void);
+int	*non_messageview_margin(void);
 
 
 #endif /* PITH_MARGIN_INCLUDED */

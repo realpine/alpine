@@ -1,5 +1,5 @@
 /*
- * $Id: imap.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: imap.h 1033 2008-04-24 02:00:26Z mikes@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -130,7 +130,6 @@ void    imap_flush_passwd_cache(int);
 /* called by build_folder_list(), ok if it does nothing */
 void    set_read_predicted(int);
 void    mm_login_work (NETMBX *mb,char *user,char *pwd,long trial,char *usethisprompt, char *altuserforcache);
-void	mm_expunged_current(unsigned long);
 
 
 #endif /* PITH_IMAP_INCLUDED */

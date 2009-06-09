@@ -1,5 +1,5 @@
 /*-----------------------------------------------------------------------
- $Id: alpined.h 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+ $Id: alpined.h 1096 2008-06-30 22:03:35Z hubert@u.washington.edu $
   -----------------------------------------------------------------------*/
 
 /* ========================================================================
@@ -19,21 +19,26 @@
  */
 #define	WP_MAXSTATUS	1024
 
-#define	WP_MAXAUTHREQ	256
-
 /*
  * Seconds afterwhich we bail on imap connections
  */
 #define	WP_TCP_TIMEOUT	(10 * 60)
 
+/*
+ * buf to hold hostname for auth/cert
+ */
+#define	CRED_REQ_SIZE	256
 
 /*
  * Various external definitions
  */
-extern int       peNoPassword;
-extern int       peCredentialError;
-extern char	 peCredentialRequestor[];
-extern char	*peSocketName;
+extern int	  peNoPassword;
+extern int	  peCredentialError;
+extern char	  peCredentialRequestor[];
+extern int	  peCertQuery;
+extern int	  peCertFailure;
+extern char	 *peSocketName;
+extern STRLIST_S *peCertHosts;
 
 /*
  * Protoypes for various functions

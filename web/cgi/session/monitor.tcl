@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: monitor.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: monitor.tcl 1036 2008-04-25 22:51:07Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -25,7 +25,7 @@ proc nicetime {timeoutput} {
 }
 
 # take process snapshot
-#set cmd "/bin/ps -lC pinetcld --sort=cutime"
+#set cmd "/bin/ps -lC alpined --sort=cutime"
 set cmd "/bin/ps -auxww --sort=cutime"
 if {[catch "exec $cmd" result]} {
   set prohdr "ps error: $result"
@@ -65,7 +65,7 @@ cgi_eval {
 
 	cgi_br
 
-	# list pinetcld adapters
+	# list alpined adapters
 	foreach l $proclist {
 	  if {[regexp $_wp(servlet) $l] || [regexp $_wp(pc_servlet) $l]} {
 	    lappend adapters $l
@@ -191,7 +191,7 @@ cgi_eval {
 	      cgi_puts "  User Config: $confloc"
 
 	      # launch session
-	      cgi_put "  Pinetcld Launch: "
+	      cgi_put "  alpined Launch: "
 	      set ct [time {
 		if {[catch {exec [file join $_wp(bin) launch.tcl]} _wp(sessid)]} {
 		  set err "FAILURE: $_wp(sessid)"

@@ -1,8 +1,8 @@
 /*
- * $Id: color.h 558 2007-05-08 23:38:08Z hubert@u.washington.edu $
+ * $Id: color.h 1007 2008-03-24 19:35:31Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -78,15 +78,12 @@ int	    pico_is_good_color(char *);
 COLOR_PAIR *pico_set_colors(char *, char *, int);
 int	    pico_set_fg_color(char *);
 int	    pico_set_bg_color(char *);
-void	    pico_set_nfg_color(void);
-void	    pico_set_nbg_color(void);
 void	    pico_nfcolor(char *);
 void	    pico_nbcolor(char *);
 void	    pico_rfcolor(char *);
 void	    pico_rbcolor(char *);
 COLOR_PAIR *pico_get_cur_color(void);
 COLOR_PAIR *pico_get_rev_color(void);
-void	    pico_toggle_color(int);
 void	    pico_set_normal_color(void);
 void	    pico_set_color_options(unsigned);
 unsigned    pico_get_color_options(void);

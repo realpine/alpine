@@ -1,8 +1,8 @@
 /*
- * $Id: adrbkcmd.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
+ * $Id: adrbkcmd.h 1006 2008-03-21 21:31:58Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,10 +51,10 @@ void	   free_headents(struct headerentry **);
 void       write_single_vcard_entry(struct pine *, gf_io_t, VCARD_INFO_S *);
 void       free_vcard_info(VCARD_INFO_S **);
 #ifdef	ENABLE_LDAP
-void       view_ldap_entry(struct pine *, LDAP_SERV_RES_S *);
-void       compose_to_ldap_entry(struct pine *, LDAP_SERV_RES_S *,int);
-void       forward_ldap_entry(struct pine *, LDAP_SERV_RES_S *);
-STORE_S   *prep_ldap_for_viewing(struct pine *, LDAP_SERV_RES_S *, SourceType, HANDLE_S **);
+void       view_ldap_entry(struct pine *, LDAP_CHOOSE_S *);
+void       compose_to_ldap_entry(struct pine *, LDAP_CHOOSE_S *,int);
+void       forward_ldap_entry(struct pine *, LDAP_CHOOSE_S *);
+STORE_S   *prep_ldap_for_viewing(struct pine *, LDAP_CHOOSE_S *, SourceType, HANDLE_S **);
 void       free_saved_query_parameters(void);
 int        url_local_ldap(char *);
 #endif

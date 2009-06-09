@@ -1,8 +1,8 @@
 /*
- * $Id: signal.h 147 2006-09-28 02:25:13Z mikes@u.washington.edu $
+ * $Id: signal.h 1024 2008-04-07 22:58:40Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@
 
 /* currently mandatory to implement stubs */
 
-void	    intr_handling_on(void);
+int	    intr_handling_on(void);
 void	    intr_handling_off(void);
 
 

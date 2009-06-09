@@ -1,7 +1,7 @@
 
                             Alpine Technical Notes
 
-   Version 1.10, March 2008
+   Version 1.99, August 2008
 
 Table of Contents
 
@@ -76,6 +76,7 @@ Table of Contents
           + SMTP Servers
           + MIME.Types file
           + Color Details
+          + S/MIME Overview
           + Additional Notes on PC-Alpine
 
   Behind the Scenes
@@ -530,6 +531,8 @@ Compile-time Options
    --without-pthread
           Do not test for nor build with POSIX thread support, which is used
           only for the Busy-Cue in the status line at this time.
+   --without-smime
+          Disable S/MIME support.
    --disable-debug
           Never create debug files.
    --with-smtp-msa=PATH
@@ -3465,6 +3468,144 @@ index-format=STATUS MSGNO SMARTDATETIME24 FROMORTO(33%) SIZENARROW SUBJKEY(6
    _signature-background-color_
    _signature-foreground-color_
           Signature Color.
+   _smime-public-cert-directory_
+          UNIX _Alpine_ only.
+          If the option smime-public-cert-container is set then this option
+          will have no effect.
+          Normally, Public Certificates for use with S/MIME will be stored in
+          the directory which is the value of this option. Those certificates
+          will be stored in PEM format, one certificate per file. The name of
+          the file for the certificate corresponding to
+
+                                emailaddress
+          should be
+
+                              emailaddress.crt
+          For example, a file for user@example.com would be in the file
+
+                            user@example.com.crt
+          in this directory.
+          Use the Setup/SMIME screen to modify this variable.
+          Typically, the public certificates that you have will come from
+          S/MIME signed messages that are sent to you. _Alpine_ will extract
+          the public certificate from the signed message and store it in the
+          certificates directory. These PEM format public certificates look
+          something like:
+-----BEGIN CERTIFICATE-----
+MIIFvTCCBKWgAwIBAgIQD4fYFHVI8T20yN4nus097DANBgkqhkiG9w0BAQUFADCB
+rjELMAkGA1UEBhMCVVMxCzAJBgNVBAgTAlVUMRcwFQYDVQQHEw5TYWx0IExha2Ug
+Q2l0eTEeMBwGA1UEChMVVGhlIFVTRVJUUlVTVCBOZXR3b3JrMSEwHwYDVQQLExho
+...
+2b9KGqDyMWW/rjNnmpjzjT2ObGM7lRA8lke4FLOLajhrz4ogO3b4DFfAAM1VSZH8
+D6sOwOLJZkLY8FRsfk63K+2EMzA2+qAzMKupgeTLqXIf
+-----END CERTIFICATE-----
+          + General S/MIME Overview
+          This option is displayed as "S/MIME - Public Cert Directory".
+   _smime-public-cert-container_
+          UNIX _Alpine_ only.
+          If   this   option   is   set   it  will  be  used  instead  of
+          smime-public-cert-directory
+          This option gives you a way to store certificates remotely on an IMAP
+          server instead of storing the certificates one per file locally. In
+          order to do that you just give this option a remote folder name for a
+          folder which does not yet exist. The name is similar to the name you
+          might use for a remote configuration file. A remote folder name might
+          look something like:
+
+              {myimaphost.myschool.k12.wa.us}mail/publiccerts
+          Use the Setup/SMIME screen to modify this variable.
+          + General S/MIME Overview
+          This option is displayed as "S/MIME - Public Cert Container".
+   _smime-private-key-directory_
+          UNIX _Alpine_ only.
+          In order to sign outgoing S/MIME messages you will need a personal
+          digital ID certificate. You will usually get such a certificate from
+          a  certificate authority such as Thawte or CAcert. (In order to
+          encrypt outgoing messages you don't need a personal digital ID, you
+          need the public certificate of the recipient instead.) If the option
+          smime-private-key-container is set then this option will have no
+          effect.
+          Normally, Private Keys for use with S/MIME will be stored in the
+          directory which is the value of this option. Those certificates will
+          be stored in PEM format, one certificate per file. The name of the
+          file for the certificate corresponding to your
+
+                                emailaddress
+          should be
+
+                              emailaddress.key
+          For example, if your address is user@example.com the name of the file
+          would be
+
+                            user@example.com.key
+          in this directory.
+          Use the Setup/SMIME screen to modify this variable.
+          Typically, the private key that you have will come from a Certificate
+          Authority. The private key should be stored in a PEM format file that
+          looks something like:
+-----BEGIN RSA PRIVATE KEY-----
+Proc-Type: 4,ENCRYPTED
+DEK-Info: DES-EDE3-CBC,2CBD328FD84CF5C6
+
+YBEXYLgLU9NJoc1V+vJ6UvcF08RX54S6jXsmgL0b5HGkudG6fhnmHkH7+UCvM5NI
+SXO/F8iuZDfs1VGG0NyitkFZ0Zn2vfaGovBvm15gx24b2xnZDLRB7/bNZkurnK5k
+VjAjZ2xXn2hFp2GJwqRdmxYNqsKGu52B99oti5HUWuZ2GFRaWjn5hYOqeApZE2uA
+...
+oSRqfI51UdSRt0tmGhHeTvybUVrHm9eKft8TTGf+qSBqzSc55CsmoVbRzw4Nfhix
+m+4TJybNGNfAgOctSkEyY/OCb49fRRQTCBZVIhzLGGmpYmkO55HbIA==
+-----END RSA PRIVATE KEY-----
+          + General S/MIME Overview
+          This option is displayed as "S/MIME - Private Key Directory".
+   _smime-private-key-container_
+          UNIX _Alpine_ only.
+          If   this   option   is   set   it  will  be  used  instead  of
+          smime-private-key-directory.
+          This option gives you a way to store keys remotely on an IMAP server
+          instead of storing the keys one per file locally. In order to do that
+          you just give this option a remote folder name for a folder which
+          does not yet exist. The name is similar to the name you might use for
+          a  remote  configuration  file. A remote folder name might look
+          something like:
+
+              {myimaphost.myschool.k12.wa.us}mail/privatekeys
+          Use the Setup/SMIME screen to modify this variable.
+          + General S/MIME Overview
+          This option is displayed as "S/MIME - Private Key Container".
+   _smime-cacert-directory_
+          UNIX _Alpine_ only.
+          If the option smime-cacert-container is set then this option will
+          have no effect.
+          CACert is a shorthand name for certification authority certificate.
+          Normally  _Alpine_  will  use the CACerts that are located in the
+          standard system location for CACerts. It may be the case that one of
+          your correspondents has a Digital ID which has been signed by a
+          certificate  authority that is not in the regular set of system
+          certificate authorities. You may supplement the system list by adding
+          further certificates of your own. These should be stored in the
+          directory which is the value of this option. The certificates will be
+          stored in PEM format, one certificate per file. The names of the
+          files can be anything ending in ".crt".
+          Use the Setup/SMIME screen to modify this variable.
+          These PEM format CA certificates look very similar to your public
+          certificates      for      particular      email      addresses
+          (smime-public-cert-directory).
+          + General S/MIME Overview
+          This option is displayed as "S/MIME - Cert Authority Directory".
+   _smime-cacert-container_
+          UNIX _Alpine_ only.
+          If   this   option   is   set   it  will  be  used  instead  of
+          smime-cacert-directory.
+          This option gives you a way to store certificates remotely on an IMAP
+          server instead of storing the certificates one per file locally. In
+          order to do that you just give this option a remote folder name for a
+          folder which does not yet exist. The name is similar to the name you
+          might use for a remote configuration file. A remote folder name might
+          look something like:
+
+                {myimaphost.myschool.k12.wa.us}mail/cacerts
+          Use the Setup/SMIME screen to modify this variable.
+          + General S/MIME Overview
+          This option is displayed as "S/MIME - Cert Authority Container".
    _smtp-server_
           One or more SMTP servers (host name or IP address) which _Alpine_
           will  use for outgoing mail. If not set, _Alpine_ passes outgoing
@@ -4279,17 +4420,18 @@ Configuration Features
           you want to continue.
           This feature is displayed as "Continue NextNew Without Confirming".
    _convert-dates-to-localtime_
-          Normally, the message dates that you see in the MESSAGE INDEX are
-          displayed in the timezone they were sent from. For example, if a
-          message was sent to you from a few timezones to the east it might
-          appear that it was sent from the future; or if it was sent from
-          somewhere to the west it might appear as if it is from yesterday even
-          though it was sent only a few minutes ago. If this feature is set an
-          attempt will be made to convert the dates to your local timezone to
-          be displayed.
+          Normally, the message dates that you see in the MESSAGE INDEX and
+          MESSAGE VIEW are displayed in the timezone they were sent from. For
+          example, if a message was sent to you from a few timezones to the
+          east it might appear that it was sent from the future; or if it was
+          sent from somewhere to the west it might appear as if it is from
+          yesterday even though it was sent only a few minutes ago. If this
+          feature is set an attempt will be made to convert the dates to your
+          local timezone to be displayed.
           Note that this does not affect the results of Select by Date or of
           anything else other than these displayed dates. When viewing the
-          message the Date header will still be shown unconverted.
+          message you may look at the original unconverted value of the Date
+          header by using the HdrMode Command.
    _copy-to-address-to-from-if-it-is-us_
           This  feature  affects the From address used when Replying to a
           message. It is probably only useful if you have some alt-addresses
@@ -5478,6 +5620,13 @@ John: on a job well done!
           because April is the 4th month of the year. A reason you might want
           to set this feature is so that the folders will sort in chronological
           order.
+   _publiccerts-in-keychain_
+          Mac OS X _Alpine_ only.
+          If this feature is set the Mac OS X default keychain will be used as
+          the   place   to   store   public  certificates  instead  of  a
+          smime-public-cert-directory or a smime-public-cert-container.
+          This  feature  is displayed as "S/MIME -- Public Certs in MacOS
+          Keychain".
    _quell-attachment-extension-warn_
           This feature suppresses the extra warning you can get when trying to
           view an attachment for which there is no mime-type match. Turning on
@@ -6043,6 +6192,44 @@ John: on a job well done!
           subthread which starts at the currently highlighted message, if any.
           If this feature is set, then the slash command Collapses or Expands
           the _entire_ current thread instead of just the subthread.
+   _smime-dont-do-smime_
+          UNIX _Alpine_ only.
+          Setting this feature turns off all of _Alpine_'s S/MIME support. You
+          might want to set this if you are having trouble due to the S/MIME
+          support.
+          + General S/MIME Overview
+          This feature is displayed as "S/MIME -- Turn off S/MIME".
+   _smime-encrypt-by-default_
+          UNIX _Alpine_ only.
+          This feature only has an effect if your version of _Alpine_ includes
+          support for S/MIME. It affects _Alpine_'s behavior when you send a
+          message. If this option is set, the "Encrypt" option will default to
+          ON when sending messages.
+          Only the default value is affected. In any case, you may still toggle
+          the Encrypt option on or off before sending with the "E Encrypt"
+          command  (provided  you  have  a  the public digital ID for the
+          recipient).
+          + General S/MIME Overview
+          This feature is displayed as "S/MIME -- Encrypt by Default".
+   _smime-remember-passphrase_
+          UNIX _Alpine_ only.
+          This feature only has an effect if your version of _Alpine_ includes
+          support for S/MIME. If this option is set, you will only have to
+          enter your passphrase for your private key once during an _Alpine_
+          session.
+          + General S/MIME Overview
+          This feature is displayed as "S/MIME -- Remember S/MIME Passphrase".
+   _smime-sign-by-default_
+          UNIX _Alpine_ only.
+          This feature only has an effect if your version of _Alpine_ includes
+          support for S/MIME. It affects _Alpine_'s behavior when you send a
+          message. If this option is set, the "Sign" option will default to ON
+          when sending messages.
+          Only the default value is affected. In any case, you may still toggle
+          the Signing option on or off before sending with the "G Sign" command
+          (provided you have a personal digital ID certificate).
+          + General S/MIME Overview
+          This feature is displayed as "S/MIME -- Sign by Default".
    _sort-default-fcc-alpha_
           This feature controls an aspect of _Alpine_'s FOLDER LIST screen. If
           set, the default FCC folder will be sorted alphabetically with the
@@ -6086,6 +6273,15 @@ John: on a job well done!
           quell-flowed-text feature. strip-whitespace-before-send also has the
           effect of turning off sending of flowed text.
           This feature is displayed as "Strip Whitespace Before Sending".
+   _suppress-asterisks-in-password-prompt_
+          When  you  are running _Alpine_ you will sometimes be asked for a
+          password in a prompt on the third line from the bottom of the screen.
+          Normally each password character you type will cause an asterisk to
+          echo on the screen. That gives you some feedback to know that your
+          typing is being recognized. There is a very slight security risk in
+          doing it this way because someone watching over your shoulder might
+          be able to see how many characters there are in your password. If
+          you'd like to suppress the echoing of the asterisks set this feature.
    _suppress-user-agent-when-sending_
           If this feature is set then _Alpine_ will not generate a User-Agent
           header in outgoing messages.
@@ -7483,8 +7679,10 @@ Per Server Directory Configuration
           the composer. If an address doesn't look like a fully-qualified
           address,  it will be looked up in your address books, and if it
           doesn't match a nickname there, then it will be looked up on the LDAP
-          servers  which have this feature set. Also see the LDAP feature
-          lookup-addrbook-contents    and    the   Setup/Config   feature
+          servers which have this feature set. The lookups will also be done
+          when  using the address completion feature (TAB command) in the
+          composer if any of the serves have this feature set. Also see the
+          LDAP feature lookup-addrbook-contents and the Setup/Config feature
           ldap-result-to-addrbook-add.
    _lookup-addrbook-contents_
           Normally implicit LDAP lookups from the composer are done only for
@@ -10674,6 +10872,130 @@ Color Details
    colors. The first eight colors should be in the order above. If they aren't,
    you could fix that by modifying your termcap entry on the UNIX system. This
    is not possible if your system uses TERMCAP instead of TERMINFO.
+     _________________________________________________________________
+
+S/MIME Overview
+
+   UNIX _Alpine_ only.
+
+   S/MIME is a standard for the public key encryption and signing of email.
+   UNIX _Alpine_ contains a basic implementation of S/MIME based on the OpenSSL
+   libraries.
+
+   Some limitations:
+     * There is no _PC-Alpine_ implementation.
+     * There is no provision for checking for CRLs (Certificate Revocation
+       Lists) in _Alpine_.
+     * This built-in S/MIME implementation is not compatible with and does not
+       help with PGP.
+     * There is no mechanism available for feeding either an entire incoming or
+       an entire outgoing message to an external filter and using that external
+       filter to do S/MIME or PGP processing.
+     * Because the implementation currently uses OpenSSL, there is only a very
+       limited integration with the Mac OS Keychain (the storing and access of
+       public certificates).
+     * There is no way to view or manipulate the lists of certificates from
+       within _Alpine_.
+
+   The S/MIME configuration screen is reached by going to the Main Menu and
+   typing the "S Setup" command followed by "M S/MIME".
+
+  S/MIME BASICS
+
+   In order to digitally sign messages you send you must have a public/private
+   key-pair. This may be obtained from a public Certificate Authority (CA) such
+   as Thawte, Verisign, Comodo, or GoDaddy; or from a smaller CA such as a
+   university which provides certificates for its users or a company which
+   provides certificates for its workers. These certificates are bound to an
+   email address, so the identity being verified is the email address not a
+   person's name.
+
+   Mail is signed by using the sender's private key, which only the owner of
+   the private key has access to. The signature is verified using the signer's
+   public key, which anyone can have access to. With _Alpine_, the first time
+   you receive a signed message the public key of the sender will be stored for
+   future use.
+
+   Mail is encrypted using the recipient's public key and decrypted by the
+   recipient with their private key.
+
+   You need a key of your own in order to sign outgoing messages and to have
+   others encrypt messages sent to you. You do not need a key of your own to
+   verify signed messages sent by others or to encrypt messages sent to others.
+
+  ALPINE S/MIME CERTIFICATE STORAGE
+
+   By default UNIX _Alpine_ stores the certificates it uses in a directory in
+   your home directory. The directory name is
+
+                               .alpine-smime
+
+   Within  that  directory  are  three  subdirectories. Each of the three
+   subdirectories contains files with PEM-encoded contents, the default format
+   for OpenSSL. The "public" directory contains public certificates. The files
+   within that directory have names that are email addresses with the suffix
+   ".crt" appended. An example filename is
+
+                            user@example.com.crt
+
+   The "private" directory contains private keys, probably just one for your
+   private key. These are also email addresses but with the suffix ".key"
+   instead. The third directory is "ca" and it contains certificates for any
+   Certificate Authorities that you want to trust but that aren't contained in
+   the set of system CAs. Those files may have arbitrary names as long as they
+   end with the suffix ".crt".
+
+  HOW TO SIGN AND ENCRYPT
+
+   If you have a certificate you may sign outgoing messages. After typing the
+   Ctrl-X command to send a message you will see the prompt
+
+                               Send message?
+
+   Available subcommands include "G Sign" and "E Encrypt". Typing the "G"
+   command will change the prompt to
+
+                           Send message (Signed)?
+
+   Typing the "E" command will change the prompt to
+
+                         Send message (Encrypted)?
+
+   You may even type both to get
+
+                     Send message (Encrypted, Signed)?
+
+  HOW TO READ SIGNED OR ENCRYPTED MESSAGES
+
+   The reading of a signed message should not require any special action on
+   your part. There should be an editorial addition at the start of the message
+   which says either
+
+                 This message was cryptographically signed.
+
+   or
+
+  This message was cryptographically signed but the signature could not be
+                                 verified.
+
+   If an encrypted message is sent to you the encrypted text will not be shown.
+   You will have to type the "Ctrl-D Decrypt" command (from the screen where
+   you are viewing the message) and supply your passphrase when asked.
+
+   For a signed or encrypted message there is also a "Ctrl-E Security" command
+   which gives you some information about the certificate used to sign or
+   encrypt the message.
+
+  MISCELLANEOUS
+
+   You may have access to a private certificate in the PKCS12 format, which
+   would sometimes be in a file with a ".p12" suffix. The UNIX shell command
+
+                 openssl pkcs12 -in file.p12 -out file.pem
+
+   may work to convert that from the PKCS12 format to the PEM format. Then that
+   file could be placed in the "private" directory with a filename of your
+   email address followed by the suffix ".key".
      _________________________________________________________________
 
 Additional Notes on PC-Alpine

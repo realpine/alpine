@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: folder.c 958 2008-03-11 17:45:09Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: folder.c 1117 2008-07-18 21:57:55Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -312,7 +312,12 @@ folder_name_exists(CONTEXT_S *cntxt, char *file, char **fullpath)
      * If no preset reference string, must be at top of context
      */
     if(cntxt && context_isambig(file)){
-	if(!(parms.args.reference = cntxt->dir->ref)){
+	/* inbox in first context is the real inbox */
+	if(ps_global->context_list == cntxt && !strucmp(file, ps_global->inbox_name)){
+	    reference[0] = '\0';
+	    parms.args.reference = reference;
+	}
+	else if(!(parms.args.reference = cntxt->dir->ref)){
 	    char *p;
 
 	    if((p = strstr(cntxt->context, "%s")) != NULL){

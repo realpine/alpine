@@ -1,8 +1,8 @@
 /*
- * $Id: mailview.h 577 2007-05-22 22:16:43Z hubert@u.washington.edu $
+ * $Id: mailview.h 1069 2008-06-03 15:54:15Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -120,7 +120,9 @@ int         folder_select_update(CONTEXT_S *, int);
 int         scroll_add_listmode(CONTEXT_S *, int);
 void	    display_output_file(char *, char *, char *, int);
 int	    rfc2369_editorial(long, HANDLE_S **, int, int, gf_io_t);
-
+void	    view_writec_init(STORE_S *, HANDLE_S **, int, int);
+void	    view_writec_destroy(void);
+int	    view_writec(int);
 
 
 #endif /* PINE_MAILVIEW_INCLUDED */

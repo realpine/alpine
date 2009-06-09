@@ -20,7 +20,8 @@ feature-list=enable-msg-view-urls,
 	enable-aggregate-command-set,
 	auto-zoom-after-select,
 	auto-unselect-after-apply,
-	fcc-without-attachments
+	fcc-without-attachments,
+	quell-empty-directories
 
 normal-background-color=white
 normal-foreground-color=black
@@ -34,7 +35,7 @@ quote3-background-color=white
 rsh-open-timeout=0
 ssh-open-timeout=0
 
-#index-format=MSGNO STATUS DATE FROMORTO SIZE SUBJECT
+index-format=ATT STATUS FROMORTO(18%) SUBJECT(70%) SMARTDATETIME(12%) SIZENARROW PRIORITY
 
 viewer-hdr-colors=/HDR=Subject/FG=black/BG=yellow,
 	/HDR=message-id/FG=black/BG=206\x2C206\x2C206,
@@ -46,3 +47,5 @@ wp-aggstate=2
 sort-key=date/reverse
 
 ldap-servers=people.u.washington.edu "/base=o=University of Washington,c=US/impl=1/rhs=0/ref=0/nosub=0/type=/srch=/time=/size=/cust=/nick=/matr=/catr=/satr=/gatr="
+
+addressbook-formats=FULLNAME NICKNAME ADDRESS

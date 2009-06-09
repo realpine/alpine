@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailview.c 945 2008-03-05 18:56:28Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: mailview.c 1111 2008-07-11 23:20:32Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -50,6 +50,7 @@ static char rcsid[] = "$Id: mailview.c 945 2008-03-05 18:56:28Z mikes@u.washingt
 #include "../pith/ablookup.h"
 #include "../pith/escapes.h"
 #include "../pith/keyword.h"
+#include "../pith/smime.h"
 
 
 #define FBUF_LEN	(50)
@@ -246,10 +247,10 @@ format_body(long int msgno, BODY *body, HANDLE_S **handlesp, HEADER_S *hp, int f
 	     * using its charset.
 	     */
 	    if(body && body->type == TYPETEXT)
-	      charset = rfc2231_get_param(body->parameter, "charset", NULL, NULL);
+	      charset = parameter_val(body->parameter, "charset");
 	    else if(body && body->type == TYPEMULTIPART && body->nested.part
 		    && body->nested.part->body.type == TYPETEXT)
-	      charset = rfc2231_get_param(body->nested.part->body.parameter, "charset", NULL, NULL);
+	      charset = parameter_val(body->nested.part->body.parameter, "charset");
 	    else
 	      charset = ps_global->display_charmap;
 
@@ -335,8 +336,18 @@ format_body(long int msgno, BODY *body, HANDLE_S **handlesp, HEADER_S *hp, int f
 	/*======== Now loop through formatting all the parts =======*/
 	for(a = ps_global->atmts; a->description != NULL; a++) {
 
-	    if(a->body->type == TYPEMULTIPART)
-	      continue;
+	    if(a->body->type == TYPEMULTIPART){
+#ifdef SMIME
+		if(strucmp(a->body->subtype, OUR_PKCS7_ENCLOSURE_SUBTYPE)==0){
+		    if(a->description){
+			if(!(!format_editorial(a->description, width, flgs, handlesp, pc)
+			     && gf_puts(NEWLINE, pc) && gf_puts(NEWLINE, pc)))
+			  return("Write Error");
+		    }
+		}
+#endif /* SMIME */
+		continue;
+	    }
 
 	    if(!a->shown) {
 		if(a->suppress_editorial)
@@ -402,7 +413,15 @@ format_body(long int msgno, BODY *body, HANDLE_S **handlesp, HEADER_S *hp, int f
 		 * the first part of a message/rfc822 segment...
 		 */
 		if(show_parts && a != ps_global->atmts 
-		   && a[-1].body && a[-1].body->type != TYPEMESSAGE
+		   && !((a[-1].body && a[-1].body->type == TYPEMESSAGE)
+#ifdef SMIME
+		       || (a[-1].body->type == TYPEMULTIPART
+		           && a[-1].body->subtype
+			   && (strucmp(a[-1].body->subtype, OUR_PKCS7_ENCLOSURE_SUBTYPE)==0)
+			   && &a[-1] != ps_global->atmts
+			   && a[-2].body && a[-2].body->type == TYPEMESSAGE)
+#endif /* SMIME */
+		       )
 		   && !(flgs & FM_NOEDITORIAL)){
 		    tmp1 = a->body->description ? a->body->description
 		      : "Attached Text";
@@ -634,6 +653,12 @@ format_attachment_list(long int msgno, BODY *body, HANDLE_S **handlesp, int flgs
 	    COLOR_PAIR *lastc = NULL;
 	    char numbuf[50];
 	    int thisdescwid, padwid;
+
+#ifdef SMIME
+	    if(a->body->type == TYPEMULTIPART
+	       && (strucmp(a->body->subtype, OUR_PKCS7_ENCLOSURE_SUBTYPE)==0))
+	      continue;
+#endif /* SMIME */
 
 	    i = utf8_width((descwid > 2 && a->description) ? a->description : "");
 	    thisdescwid = MIN(i, descwid);
@@ -2321,7 +2346,9 @@ format_envelope(MAILSTREAM *s, long int n, char *sect, ENVELOPE *e, gf_io_t pc,
 
     if((which & FE_DATE) && e->date) {
 	q = "Date: ";
-	snprintf(buftmp, sizeof(buftmp), "%s", (char *) e->date);
+	snprintf(buftmp, sizeof(buftmp), "%s",
+		 F_ON(F_DATES_TO_LOCAL,ps_global)
+		    ? convert_date_to_local((char *) e->date) : (char *) e->date);
 	buftmp[sizeof(buftmp)-1] = '\0';
 	p2 = (char *)rfc1522_decode_to_utf8((unsigned char *) tmp_20k_buf,
 					    SIZEOF_20KBUF, buftmp);
@@ -2888,7 +2915,7 @@ format_env_puts(char *s, gf_io_t pc)
 
 
 char *    
-display_parameters(struct mail_body_parameter *params)
+display_parameters(PARAMETER *params)
 {
     int		n, longest = 0;
     char       *d, *printme;

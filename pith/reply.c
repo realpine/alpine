@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: reply.c 953 2008-03-06 20:54:01Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: reply.c 1070 2008-06-03 19:27:23Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -28,7 +28,7 @@ static char rcsid[] = "$Id: reply.c 953 2008-03-06 20:54:01Z hubert@u.washington
 #include "../pith/newmail.h"
 #include "../pith/bldaddr.h"
 #include "../pith/mailindx.h"
-#include "../pith/rfc2231.h"
+#include "../pith/mimedesc.h"
 #include "../pith/detach.h"
 #include "../pith/help.h"
 #include "../pith/pipe.h"
@@ -44,6 +44,7 @@ static char rcsid[] = "$Id: reply.c 953 2008-03-06 20:54:01Z hubert@u.washington
 #include "../pith/list.h"
 #include "../pith/ablookup.h"
 #include "../pith/mailcmd.h"
+#include "../pith/margin.h"
 
 
 /*
@@ -60,6 +61,9 @@ int	(*pith_opt_reply_to_all_prompt)(int *);
  * standard type of storage object used for body parts...
  */
 #define		  PART_SO_TYPE	CharStar
+
+
+char *(*pith_opt_user_agent_prefix)(void);
 
 
 /*
@@ -976,7 +980,7 @@ reply_body(MAILSTREAM *stream, ENVELOPE *env, struct mail_bodystruct *orig_body,
 		 * but then the receiver may not be able to read it.
 		 */
 		if(bodyp
-		   && (charset = rfc2231_get_param(bodyp->parameter, "charset", NULL, NULL))
+		   && (charset = parameter_val(bodyp->parameter, "charset"))
 		   && strucmp(charset, UNKNOWN_CHARSET))
 		  set_parameter(&body->parameter, "charset", charset);
 
@@ -2198,7 +2202,7 @@ forward_body(MAILSTREAM *stream, ENVELOPE *env, struct mail_bodystruct *orig_bod
 	body->type		 = TYPETEXT;
 	body->contents.text.data = msgtext;
 	if(orig_body
-	   && (charset = rfc2231_get_param(orig_body->parameter, "charset", NULL, NULL)))
+	   && (charset = parameter_val(orig_body->parameter, "charset")))
 	  set_parameter(&body->parameter, "charset", charset);
 
 	if(charset)
@@ -2575,7 +2579,7 @@ get_body_part_text(MAILSTREAM *stream, struct mail_bodystruct *body,
 	return(rv == 0);
     }
 
-    charset = rfc2231_get_param(body->parameter, "charset", NULL, NULL);
+    charset = parameter_val(body->parameter, "charset");
 
     if(charset && strucmp(charset, "utf-8") && strucmp(charset, "us-ascii")){
 	if(ret_charset)
@@ -2595,13 +2599,13 @@ get_body_part_text(MAILSTREAM *stream, struct mail_bodystruct *body,
 		     && F_OFF(F_STRIP_WS_BEFORE_SEND, ps_global)
 		     && (!prefix || (strucmp(prefix,"> ") == 0)
 			 || strucmp(prefix, ">") == 0));
-	if((parmval = rfc2231_get_param(body->parameter,
-				       "format", NULL, NULL)) != NULL){
+	if((parmval = parameter_val(body->parameter,
+				       "format")) != NULL){
 	    if(!strucmp(parmval, "flowed")){
 		wrapflags |= GFW_FLOWED;
 
 		fs_give((void **) &parmval);
-		if((parmval = rfc2231_get_param(body->parameter, "delsp", NULL, NULL)) != NULL){
+		if((parmval = parameter_val(body->parameter, "delsp")) != NULL){
 		    if(!strucmp(parmval, "yes")){
 			filters[filtcnt++].filter = gf_preflow;
 			wrapflags |= GFW_DELSP;
@@ -2676,10 +2680,13 @@ get_body_part_text(MAILSTREAM *stream, struct mail_bodystruct *body,
 	    filters[filtcnt++].data = gf_enriched2plain_opt(&plain_opt);
 	}
 	else if(strucmp(body->subtype,"html") == 0){
-	    filters[filtcnt].filter = gf_html2plain;
-	    filters[filtcnt++].data = gf_html2plain_opt(NULL,
-						ps_global->ttyo->screen_cols,
-						NULL, NULL, NULL, GFHP_STRIPPED);
+	    if((flags & GBPT_HTML_OK) != GBPT_HTML_OK){
+		filters[filtcnt].filter = gf_html2plain;
+		filters[filtcnt++].data = gf_html2plain_opt(NULL,
+							    ps_global->ttyo->screen_cols,
+							    non_messageview_margin(),
+							    NULL, NULL, GFHP_STRIPPED);
+	    }
 	}
     }
 
@@ -3041,7 +3048,7 @@ copy_body(struct mail_bodystruct *new_body, struct mail_bodystruct *old_body)
 list. If old_p is NULL, NULL is returned.
  ----*/
 PARAMETER *
-copy_parameters(struct mail_body_parameter *old_p)
+copy_parameters(PARAMETER *old_p)
 {
     PARAMETER *new_p, *p1, *p2;
 
@@ -3173,7 +3180,9 @@ generate_user_agent(void)
       return(NULL);
 
     snprintf(buf, sizeof(buf),
-	     "Alpine %s (%s %s)", ALPINE_VERSION, SYSTYPE,
+	     "%sAlpine %s (%s %s)",
+	     (pith_opt_user_agent_prefix) ? (*pith_opt_user_agent_prefix)() : "",
+	     ALPINE_VERSION, SYSTYPE,
 	     get_alpine_revision_string(rev, sizeof(rev)));
 
     return(cpystr(buf));
@@ -3363,20 +3372,20 @@ signature_path(char *sname, char *sbuf, size_t len)
 
 
 char *
-read_remote_sigfile(char *name)
+simple_read_remote_file(char *name, char *subtype)
 {
     int        try_cache;
     REMDATA_S *rd;
     char      *file = NULL;
 
 
-    dprint((7, "read_remote_sigfile \"%s\"\n", name ? name : "?"));
+    dprint((7, "simple_read_remote_file(%s, %s)\n", name ? name : "?", subtype ? subtype : "?"));
 
     /*
      * We could parse the name here to find what type it is. So far we
      * only have type RemImap.
      */
-    rd = rd_create_remote(RemImap, name, (void *)REMOTE_SIG_SUBTYPE,
+    rd = rd_create_remote(RemImap, name, subtype,
 			  NULL, _("Error: "), _("Can't fetch remote configuration."));
     if(!rd)
       goto bail_out;
@@ -3417,7 +3426,7 @@ read_remote_sigfile(char *name)
 	    if(rd_update_local(rd) != 0){
 
 		dprint((1,
-		       "read_remote_sigfile: rd_update_local failed\n"));
+		       "simple_read_remote_file: rd_update_local failed\n"));
 		/*
 		 * Don't give up altogether. We still may be
 		 * able to use a cached copy.
@@ -3440,9 +3449,9 @@ read_remote_sigfile(char *name)
 	    rd->access = ReadOnly;
 	    rd->flags |= USE_OLD_CACHE;
 	    q_status_message(SM_ORDER, 3, 4,
-	     "Can't contact remote sig server, using cached copy");
+	     "Can't contact remote server, using cached copy");
 	    dprint((2,
-    "Can't open remote sigfile %s, using local cached copy %s readonly\n",
+    "Can't open remote file %s, using local cached copy %s readonly\n",
 		   rd->rn ? rd->rn : "?",
 		   rd->lf ? rd->lf : "?"));
 	}

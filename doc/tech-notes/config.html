@@ -3361,6 +3361,216 @@ It is not possible to have a literal backslash followed by an expanded token.
 <DD> <A HREF="#signature-color"><EM>Signature Color</EM></A>.
 <P>
 
+<DT> <A NAME="smime-public-cert-directory"><EM>smime-public-cert-directory</EM></A>
+
+<DD> UNIX <EM>Alpine</EM> only.
+<P>
+If the option
+<A HREF="#smime-public-cert-container"><EM>smime-public-cert-container</EM></A>
+is set then this option will have no effect.
+<P>
+Normally, Public Certificates for use with S/MIME will be stored in the directory
+which is the value of this option.
+Those certificates will be stored in PEM format, one certificate per file.
+The name of the file for the certificate corresponding to
+<P>
+<CENTER><SAMP>emailaddress</SAMP></CENTER>
+<P>
+should be
+<P>
+<CENTER><SAMP>emailaddress.crt</SAMP></CENTER>
+<P>
+For example, a file for user@example.com would be in the file
+<P>
+<CENTER><SAMP>user@example.com.crt</SAMP></CENTER>
+<P>
+in this directory.
+<P>
+Use the Setup/SMIME screen to modify this variable.
+<P>
+Typically, the public certificates that you have will come from S/MIME signed
+messages that are sent to you.
+<EM>Alpine</EM> will extract the public certificate from the signed message and store
+it in the certificates directory.
+These PEM format public certificates look something like:
+<PRE>
+-----BEGIN CERTIFICATE-----
+MIIFvTCCBKWgAwIBAgIQD4fYFHVI8T20yN4nus097DANBgkqhkiG9w0BAQUFADCB
+rjELMAkGA1UEBhMCVVMxCzAJBgNVBAgTAlVUMRcwFQYDVQQHEw5TYWx0IExha2Ug
+Q2l0eTEeMBwGA1UEChMVVGhlIFVTRVJUUlVTVCBOZXR3b3JrMSEwHwYDVQQLExho
+...
+2b9KGqDyMWW/rjNnmpjzjT2ObGM7lRA8lke4FLOLajhrz4ogO3b4DFfAAM1VSZH8
+D6sOwOLJZkLY8FRsfk63K+2EMzA2+qAzMKupgeTLqXIf
+-----END CERTIFICATE-----
+</PRE>
+<P>
+<UL>
+<LI><A HREF="config-notes.html#smime-general">General S/MIME Overview</A>
+</UL><P>
+This option is displayed as &quot;S/MIME - Public Cert Directory&quot;.
+<P>
+
+<DT> <A NAME="smime-public-cert-container"><EM>smime-public-cert-container</EM></A>
+
+<DD> UNIX <EM>Alpine</EM> only.
+<P>
+If this option is set it will be used instead of
+<A HREF="#smime-public-cert-directory"><EM>smime-public-cert-directory</EM></A>
+<P>
+This option gives you a way to store certificates remotely on an IMAP server
+instead of storing the certificates one per file locally.
+In order to do that you just give this option a remote folder name for a folder
+which does not yet exist.
+The name is similar to the name you might use for a remote configuration file.
+A remote folder name might look something like:
+<P>
+<CENTER><SAMP>{myimaphost.myschool.k12.wa.us}mail/publiccerts</SAMP></CENTER>
+<P>
+Use the Setup/SMIME screen to modify this variable.
+<P>
+<UL>
+<LI><A HREF="config-notes.html#smime-general">General S/MIME Overview</A>
+</UL><P>
+This option is displayed as &quot;S/MIME - Public Cert Container&quot;.
+<P>
+
+<DT> <A NAME="smime-private-key-directory"><EM>smime-private-key-directory</EM></A>
+
+<DD> UNIX <EM>Alpine</EM> only.
+<P>
+In order to sign outgoing S/MIME messages you will need a
+personal digital ID certificate.
+You will usually get such a certificate from a certificate authority such as
+Thawte or CAcert.
+(In order to encrypt outgoing messages you don't need a personal digital ID, you
+need the public certificate of the recipient instead.)
+If the option
+<A HREF="#smime-private-key-container"><EM>smime-private-key-container</EM></A>
+is set then this option will have no effect.
+<P>
+Normally, Private Keys for use with S/MIME will be stored in the directory
+which is the value of this option.
+Those certificates will be stored in PEM format, one certificate per file.
+The name of the file for the certificate corresponding to your
+<P>
+<CENTER><SAMP>emailaddress</SAMP></CENTER>
+<P>
+should be
+<P>
+<CENTER><SAMP>emailaddress.key</SAMP></CENTER>
+<P>
+For example, if your address is user@example.com the name of the file would be
+<P>
+<CENTER><SAMP>user@example.com.key</SAMP></CENTER>
+<P>
+in this directory.
+<P>
+Use the Setup/SMIME screen to modify this variable.
+<P>
+Typically, the private key that you have will come from a Certificate
+Authority.
+The private key should be stored in a PEM format file that
+looks something like:
+<PRE>
+-----BEGIN RSA PRIVATE KEY-----
+Proc-Type: 4,ENCRYPTED
+DEK-Info: DES-EDE3-CBC,2CBD328FD84CF5C6
+
+YBEXYLgLU9NJoc1V+vJ6UvcF08RX54S6jXsmgL0b5HGkudG6fhnmHkH7+UCvM5NI
+SXO/F8iuZDfs1VGG0NyitkFZ0Zn2vfaGovBvm15gx24b2xnZDLRB7/bNZkurnK5k
+VjAjZ2xXn2hFp2GJwqRdmxYNqsKGu52B99oti5HUWuZ2GFRaWjn5hYOqeApZE2uA
+...
+oSRqfI51UdSRt0tmGhHeTvybUVrHm9eKft8TTGf+qSBqzSc55CsmoVbRzw4Nfhix
+m+4TJybNGNfAgOctSkEyY/OCb49fRRQTCBZVIhzLGGmpYmkO55HbIA==
+-----END RSA PRIVATE KEY-----
+</PRE>
+<P>
+<UL>
+<LI><A HREF="config-notes.html#smime-general">General S/MIME Overview</A>
+</UL><P>
+This option is displayed as &quot;S/MIME - Private Key Directory&quot;.
+<P>
+
+<DT> <A NAME="smime-private-key-container"><EM>smime-private-key-container</EM></A>
+
+<DD> UNIX <EM>Alpine</EM> only.
+<P>
+If this option is set it will be used instead of
+<A HREF="#smime-private-key-directory"><EM>smime-private-key-directory</EM></A>.
+<P>
+This option gives you a way to store keys remotely on an IMAP server
+instead of storing the keys one per file locally.
+In order to do that you just give this option a remote folder name for a folder
+which does not yet exist.
+The name is similar to the name you might use for a remote configuration file.
+A remote folder name might look something like:
+<P>
+<CENTER><SAMP>{myimaphost.myschool.k12.wa.us}mail/privatekeys</SAMP></CENTER>
+<P>
+Use the Setup/SMIME screen to modify this variable.
+<P>
+<UL>
+<LI><A HREF="config-notes.html#smime-general">General S/MIME Overview</A>
+</UL><P>
+This option is displayed as &quot;S/MIME - Private Key Container&quot;.
+<P>
+
+<DT> <A NAME="smime-cacert-directory"><EM>smime-cacert-directory</EM></A>
+
+<DD> UNIX <EM>Alpine</EM> only.
+<P>
+If the option
+<A HREF="#smime-cacert-container"><EM>smime-cacert-container</EM></A>
+is set then this option will have no effect.
+<P>
+CACert is a shorthand name for certification authority certificate.
+Normally <EM>Alpine</EM> will use the CACerts that are located in the standard system
+location for CACerts.
+It may be the case that one of your correspondents has a Digital ID which has
+been signed by a certificate authority that is not in the regular set of system certificate
+authorities.
+You may supplement the system list by adding further certificates of your own.
+These should  be stored in the directory
+which is the value of this option.
+The certificates will be stored in PEM format, one certificate per file.
+The names of the files can be anything ending in &quot;.crt&quot;.
+<P>
+Use the Setup/SMIME screen to modify this variable.
+<P>
+These PEM format CA certificates look very similar to your public
+certificates for particular email addresses
+(<A HREF="#smime-public-cert-directory"><EM>smime-public-cert-directory</EM></A>).
+<P>
+<UL>
+<LI><A HREF="config-notes.html#smime-general">General S/MIME Overview</A>
+</UL><P>
+This option is displayed as &quot;S/MIME - Cert Authority Directory&quot;.
+<P>
+
+<DT> <A NAME="smime-cacert-container"><EM>smime-cacert-container</EM></A>
+
+<DD> UNIX <EM>Alpine</EM> only.
+<P>
+If this option is set it will be used instead of
+<A HREF="#smime-cacert-directory"><EM>smime-cacert-directory</EM></A>.
+<P>
+This option gives you a way to store certificates remotely on an IMAP server
+instead of storing the certificates one per file locally.
+In order to do that you just give this option a remote folder name for a folder
+which does not yet exist.
+The name is similar to the name you might use for a remote configuration file.
+A remote folder name might look something like:
+<P>
+<CENTER><SAMP>{myimaphost.myschool.k12.wa.us}mail/cacerts</SAMP></CENTER>
+<P>
+Use the Setup/SMIME screen to modify this variable.
+<P>
+<UL>
+<LI><A HREF="config-notes.html#smime-general">General S/MIME Overview</A>
+</UL><P>
+This option is displayed as &quot;S/MIME - Cert Authority Container&quot;.
+<P>
+
 <DT> <A NAME="smtp-server"><EM>smtp-server</EM></A>
 
 <DD> One or more SMTP servers (host name or IP address) which <EM>Alpine</EM> will
@@ -4577,7 +4787,7 @@ This feature is displayed as &quot;Continue NextNew Without Confirming&quot;.
 <DT> <A NAME="convert-dates-to-localtime"><EM>convert-dates-to-localtime</EM></A>
 
 <DD> Normally, the message dates that you see in the
-MESSAGE INDEX are displayed in the timezone they were sent from.
+MESSAGE INDEX and MESSAGE VIEW are displayed in the timezone they were sent from.
 For example, if a message was sent to you from a few timezones to the east
 it might appear that it was sent from the future;
 or if it was sent from somewhere to the west it might appear
@@ -4587,7 +4797,8 @@ to your local timezone to be displayed.
 <P>
 Note that this does not affect the results of Select by Date or of
 anything else other than these displayed dates.
-When viewing the message the Date header will still be shown unconverted.
+When viewing the message you may look at the original unconverted value of the Date
+header by using the HdrMode Command.
 <P>
 
 <DT> <A NAME="copy-to-to-from"><EM>copy-to-address-to-from-if-it-is-us</EM></A>
@@ -6456,6 +6667,19 @@ A reason you might want to set this feature is so that the folders
 will sort in chronological order.
 <P>
 
+<DT> <A NAME="publiccerts-in-keychain"><EM>publiccerts-in-keychain</EM></A>
+
+<DD> Mac OS X <EM>Alpine</EM> only.
+<P>
+If this feature is set the Mac OS X default keychain will be used as the place
+to store public certificates instead of a
+<A HREF="#smime-public-cert-directory"><EM>smime-public-cert-directory</EM></A>
+or a
+<A HREF="#smime-public-cert-container"><EM>smime-public-cert-container</EM></A>.
+<P>
+This feature is displayed as &quot;S/MIME -- Public Certs in MacOS Keychain&quot;.
+<P>
+
 <DT> <A NAME="quell-attachment-extension-warn"><EM>quell-attachment-extension-warn</EM></A>
 <DD> This feature suppresses the extra warning you can get when trying
 to view an attachment for which there is no mime-type match.  Turning
@@ -7319,6 +7543,74 @@ If this feature is set, then the slash command Collapses or Expands the
 <EM>entire</EM> current thread instead of just the subthread.
 <P>
 
+<DT> <A NAME="smime-dont-do-smime"><EM>smime-dont-do-smime</EM></A>
+
+<DD> UNIX <EM>Alpine</EM> only.
+<P>
+Setting this feature turns off all of <EM>Alpine</EM>'s S/MIME support.
+You might want to set this if you are having trouble due to the S/MIME support.
+<P>
+<UL>
+<LI><A HREF="config-notes.html#smime-general">General S/MIME Overview</A>
+</UL><P>
+This feature is displayed as &quot;S/MIME -- Turn off S/MIME&quot;.
+<P>
+
+<DT> <A NAME="smime-encrypt-by-default"><EM>smime-encrypt-by-default</EM></A>
+
+<DD> UNIX <EM>Alpine</EM> only.
+<P>
+This feature only has an effect if your version of <EM>Alpine</EM> includes
+support for S/MIME.
+It affects <EM>Alpine</EM>'s behavior when you send a message.
+If this option is set, the &quot;Encrypt&quot; option will default to ON when sending messages.
+<P>
+Only the default value is affected.
+In any case, you may still toggle the Encrypt option on or off before sending
+with the &quot;E Encrypt&quot; command (provided you have a the public digital ID
+for the recipient).
+<P>
+<UL>
+<LI><A HREF="config-notes.html#smime-general">General S/MIME Overview</A>
+</UL><P>
+This feature is displayed as &quot;S/MIME -- Encrypt by Default&quot;.
+<P>
+
+<DT> <A NAME="smime-remember-passphrase"><EM>smime-remember-passphrase</EM></A>
+
+<DD> UNIX <EM>Alpine</EM> only.
+<P>
+This feature only has an effect if your version of <EM>Alpine</EM> includes
+support for S/MIME.
+If this option is set, you will only have to enter your passphrase for your private key
+once during an <EM>Alpine</EM> session.
+<P>
+<UL>
+<LI><A HREF="config-notes.html#smime-general">General S/MIME Overview</A>
+</UL><P>
+This feature is displayed as &quot;S/MIME -- Remember S/MIME Passphrase&quot;.
+<P>
+
+<DT> <A NAME="smime-sign-by-default"><EM>smime-sign-by-default</EM></A>
+
+<DD> UNIX <EM>Alpine</EM> only.
+<P>
+This feature only has an effect if your version of <EM>Alpine</EM> includes
+support for S/MIME.
+It affects <EM>Alpine</EM>'s behavior when you send a message.
+If this option is set, the &quot;Sign&quot; option will default to ON when sending messages.
+<P>
+Only the default value is affected.
+In any case, you may still toggle the Signing option on or off before sending
+with the &quot;G Sign&quot; command (provided you have a personal digital ID
+certificate).
+<P>
+<UL>
+<LI><A HREF="config-notes.html#smime-general">General S/MIME Overview</A>
+</UL><P>
+This feature is displayed as &quot;S/MIME -- Sign by Default&quot;.
+<P>
+
 <DT> <A NAME="sort-default-fcc-alpha"><EM>sort-default-fcc-alpha</EM></A>
 
 <DD> This feature controls an aspect of <EM>Alpine</EM>'s FOLDER LIST screen.
@@ -7386,6 +7678,19 @@ strip-whitespace-before-send also has the effect of turning off sending
 of flowed text.
 <P>
 This feature is displayed as &quot;Strip Whitespace Before Sending&quot;.
+<P>
+
+<DT> <A NAME="suppress-asterisks-in-password-prompt"><EM>suppress-asterisks-in-password-prompt</EM></A>
+
+<DD> When you are running <EM>Alpine</EM> you will sometimes be asked for a password
+in a prompt on the third line from the bottom of the screen.
+Normally each password character you type will cause an asterisk to echo
+on the screen. That gives you some feedback to know that your typing is
+being recognized.
+There is a very slight security risk in doing it this way because someone
+watching over your shoulder might be able to see how many characters there
+are in your password.
+If you'd like to suppress the echoing of the asterisks set this feature.
 <P>
 
 <DT> <A NAME="suppress-user-agent-when-sending"><EM>suppress-user-agent-when-sending</EM></A>
@@ -9374,6 +9679,8 @@ the composer.
 If an address doesn't look like a fully-qualified address, it will be looked
 up in your address books, and if it doesn't match a nickname there, then it
 will be looked up on the LDAP servers which have this feature set.
+The lookups will also be done when using the address completion feature
+(TAB command) in the composer if any of the serves have this feature set.
 Also see the LDAP feature
 <A HREF="#lookup-addrbook-contents"><EM>lookup-addrbook-contents</EM></A>
 and the Setup/Config feature

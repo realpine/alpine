@@ -1,4 +1,4 @@
-# $Id: dosend.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: dosend.tcl 1096 2008-06-30 22:03:35Z hubert@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -52,7 +52,7 @@ if {[string length $user] && [string length $pass] && [string length $server]} {
 
 if {[catch {WPCmd PEInfo set suspended_composition} msgdata] == 0} {
   if {[catch {WPCmd PECompose post $msgdata} errstr]} {
-    if {[string compare $errstr BADPASSWD] == 0
+    if {[string compare BADPASSWD [string range $errstr 0 8]] == 0
 	&& [catch {WPCmd PEInfo set suspended_composition $msgdata} errstr] == 0} {
 	set oncancel "page=compose&restore=1&cid=$cid"
 	set conftext "Send Messsage?"

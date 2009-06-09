@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: dispfilt.c 745 2007-10-11 18:03:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: dispfilt.c 971 2008-03-18 17:24:31Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ static char rcsid[] = "$Id: dispfilt.c 745 2007-10-11 18:03:32Z hubert@u.washing
 #include "../pith/filter.h"
 #include "../pith/store.h"
 #include "../pith/addrstring.h"
-#include "../pith/rfc2231.h"
+#include "../pith/mimedesc.h"
 #include "../pith/list.h"
 #include "../pith/detach.h"
 
@@ -435,7 +435,7 @@ df_valid_test(struct mail_bodystruct *body, char *test)
 
 	    if(p){
 		*p = '\0';			/* tie off user charset */
-		if((p = rfc2231_get_param(body->parameter,"charset",NULL,NULL)) != NULL){
+		if((p = parameter_val(body->parameter,"charset")) != NULL){
 		    passed = !strucmp(test + 9, p);
 		    fs_give((void **) &p);
 		}

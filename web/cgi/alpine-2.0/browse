@@ -1,0 +1,329 @@
+#!./tclsh
+# $Id: browse 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# ========================================================================
+# Copyright 2008 University of Washington
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# ========================================================================
+
+#  browse
+#
+#  Purpose:  CGI script that generates a page displaying a message
+#            list of the indicated folder. 
+#
+#  Input:    PATH_INFO: [/<col_number>]/<folder_name>[/<uid_of_first_msg>
+#            along with possible search parameters:
+set browse_args {
+  {u		{}	0}
+  {pageFirst	{}	""}
+  {pagePrev	{}	""}
+  {pageNext	{}	""}
+  {pageLast	{}	""}
+  {sort		{}	""}
+  {rev		{}	""}
+}
+
+# inherit global config
+source ./alpine.tcl
+source ./common.tcl
+source ./foldercache.tcl
+
+# default browse state
+set c 0
+set f INBOX
+
+# TEST:
+proc cgi_suffix {args} {
+  return ""
+}
+
+# for inserting debug comments at end of page
+set dmsgs ""
+proc dm {s} {
+  global dmsgs
+  lappend dmsgs $s
+}
+
+# WHILE TESTING
+proc noimp {s} {
+  return "onClick=return noImp('${s}');"
+}
+
+WPEval $browse_args {
+  # grok PATH_INFO for collection, 'c', and folder 'f'
+  if {[info exists env(PATH_INFO)] && [string length $env(PATH_INFO)]} {
+    if {![regexp {^/([0-9]+)/(.*)$} $env(PATH_INFO) dummy c f]} {
+      WPCmd PEInfo statmsg "Cannot open invalid path: $env(PATH_INFO)"
+      set c 0
+      set f INBOX
+    }
+  } elseif {[catch {WPCmd PEFolder current} curf]
+	    || [lindex $curf 0] != 0
+	    || [string compare -nocase [lindex $curf 1] inbox]} {
+    WPCmd PEInfo statmsg "No Folder Specified, opening INBOX"
+  }
+
+  # verify or visit specified collection/folder
+
+  if {[catch {setCurrentFolder c f u} result]} {
+    set authlist [wpHandleAuthException $result [list $c "open folder $f"] $f]
+    if {0 == [llength $authlist]} {
+      WPCmd PEInfo statmsg "$result"
+      set c 0
+      set f INBOX
+    } else {
+      set opening_folder 1
+    }
+  }
+
+  if {[info exists opening_folder]} {
+    set n 1
+    set u 0
+  } else {
+    # set uid to "current" message?
+    if {$u <= 0 && 0 == [catch {WPCmd PEMailbox current} cm]} {
+      set u [lindex $cm 1]
+    }
+  }
+
+  # get default sort
+  if {[catch {WPCmd PEMailbox sort} cursort] || 0 == [string compare -nocase arrival [lindex $cursort 0]]} {
+    set sort date
+    set rev 1
+  }
+
+  # load index drawing routine for this session
+  # save perpage source, proc overhead
+  # call to reinstall during debugging:
+  catch {WPCmd rename drawMessageList {}}
+  if {0 == [llength [WPCmd info commands drawMessageList]]} {
+    if {[catch {
+		  WPCmd source "[pwd]/alpine.tcl"
+		  WPCmd source "[pwd]/common.tcl"
+		  WPCmd source "[pwd]/messagelist.tcl"
+		  WPCmd source "[pwd]/messageview.tcl"
+	       } result]} {
+      error [list _action browse "cannot load index lister: $result"]
+    }
+  }
+
+  # current context or folder changed?
+  if {$c == 0 && 0 == [string compare -nocase $f inbox]} {
+    set f INBOX
+  }
+
+  # move anything deleted to Trash
+  if {[catch {WPCmd PEMailbox trashdeleted current} result]} {
+    WPCmd PEInfo statmsg "Trash move Failed: $result"
+  }
+
+  # gain situational awareness, UID and number of message that must be on page
+  if {[info exists opening_folder]} {
+    set mc 0
+    set focused 0
+  } else {
+    set focused [WPCmd PEMailbox focus]
+    if {$focused > 0} {
+      set mc $focused
+    } else {
+      set mc [WPCmd PEMailbox messagecount]
+    }
+  }
+
+  if {$u == 0} {
+    # non given, set to first message in folder
+    set n 1
+    if {[catch {WPCmd PEMailbox uid 1} u]} {
+      set n 0
+      set u 0
+    }
+  } elseif {[catch {WPCmd PEMessage $u number} n]} {
+    set n 0
+    set u 0
+  }
+
+  # lines per page
+  if {0} {
+  if {[catch {WPCmd PEInfo indexlines} ppg] || $ppg <= 0} {
+    set ppg $_wp(indexlines)
+  }
+  } else {
+    # BUG: fix index scrolling under table header
+    set ppg 25
+  }
+
+  # look for image button clicks
+  foreach item $browse_args {
+    if {0 == [catch {cgi_import [lindex $item 0].x}]} {
+      set [lindex $item 0] 1
+    }
+  }
+
+  # preform actions specfied in browse_args
+  # NOTE: basic stuff only to be executed in absense of JS
+  if {[string length $pageFirst]} {
+    set n 1
+    set u [WPCmd PEMailbox uid 1]
+  } elseif {[string length $pagePrev]} {
+    if {$ppg >= $n} {
+      set n 1
+    } else {
+      set n [expr {$n - $ppg}]
+    }
+
+    if {[catch {WPCmd PEMailbox uid $n} u]} {
+      set u 0
+    }
+  } elseif {[string length $pageNext]} {
+    if {($n + $ppg) <= $mc} {
+      incr n $ppg
+      if {[catch {WPCmd PEMailbox uid $n} u]} {
+	set u 0
+      }
+    }
+  } elseif {[string length $pageLast]} {
+    set n $mc
+    if {[catch {WPCmd PEMailbox uid $n} u]} {
+      set u 0
+    }
+  } elseif {[string length $sort]} {
+    switch $rev {
+      0 -
+      1 {
+      }
+      default {
+	set rev [lindex $cursort 1]
+      }
+    }
+
+    if {[catch {WPCmd PEMailbox sort $sort $rev} cursort]} {
+      WPCmd PEInfo statmsg "Cannot set sort: $cursort"
+      set cursort [list nonsense 0]
+    } else {
+      # store result 
+      WPCmd set sort [list $sort $rev]
+    }
+  }
+
+  # page framing
+  wpInitPageFraming u n mc ppg pn pt
+
+  cgi_http_head {
+    WPStdHttpHdrs "text/html; charset=UTF-8"
+  }
+
+  cgi_html {
+    cgi_head {
+      #      WPStdHttpHdrs "text/html; charset=UTF-8"
+      cgi_title [wpPageTitle "$f, $pn of $pt ([WPCmd PEMailbox flagcount [list unseen undeleted]])"]
+      cgi_base "href=$_wp(serverpath)/$_wp(appdir_alt)/"
+      cgi_stylesheet css/menu.css
+      cgi_stylesheet css/cbn/screen.css
+      cgi_stylesheet css/cbn/folderdialog.css
+      cgi_stylesheet lib/yui/build/container/assets/container-core.css
+      cgi_stylesheet lib/yui/build/menu/assets/skins/sam/menu.css
+      cgi_stylesheet lib/yui/build/button/assets/skins/sam/button.css
+      # YahooUI libraries
+      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/utilities/utilities.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/container/container-min.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/datasource/datasource-beta-min.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/menu/menu-min.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/button/button-min.js" {}
+      # local libraries
+      cgi_script type=text/javascript language="JavaScript" src="lib/common.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="lib/mailbox.js" {}
+      # page specfic JS
+      cgi_javascript {
+	cgi_puts "YAHOO.alpine.cgi_root = '$_wp(serverpath)';"
+	cgi_puts "YAHOO.alpine.app_root = '$_wp(serverpath)/$_wp(appdir_alt)';"
+	cgi_puts "YAHOO.alpine.current.c = $c;"
+	cgi_puts "YAHOO.alpine.current.f = \"$f\";"
+	cgi_puts "YAHOO.alpine.current.u = $u;"
+	cgi_puts "YAHOO.alpine.current.count = $mc;"
+	cgi_puts "YAHOO.alpine.current.selected = [WPCmd PEMailbox selected];"
+	cgi_puts "YAHOO.alpine.current.searched = [WPCmd PEMailbox searched];"
+	cgi_puts "YAHOO.alpine.current.focused = [WPCmd PEMailbox focus];"
+	cgi_puts "function bodyOnLoad(){"
+	cgi_puts " initMenus();"
+	cgi_puts " initMorcButton('listMorcButton');"
+	cgi_puts " initSelection();"
+	cgi_puts " if(YAHOO.env.ua.gecko > 0){ sizeVPHeight(); window.onresize = resizeVPHeight; }"
+	cgi_puts " setNewMailCheckInterval([WPCmd PEInfo inputtimeout],'newMessageList()');"
+	wpStatusAndNewmailJavascript
+	wpSaveMenuJavascript "browse" $c $f [WPCmd PEFolder defaultcollection] morcInBrowseDone
+	cgi_puts " if(self.loadDDElements) loadDDElements();"
+
+	if {[info exists authlist]} {
+	  cgi_puts "YAHOO.alpine.resubmitRequest = function(){ window.location.href = 'browse/$c/$f'; };"
+	  cgi_puts "YAHOO.alpine.cancelRequest = function(){ window.location.href = 'browse/0/INBOX'; };"
+	  reportAuthException $authlist
+	}
+	cgi_puts "}"
+
+	# WHILE TESTING/DEBUGGING
+	cgi_puts "var impi = new Array(); function noImp(m){ var sm; if(impi\[m\]) {impi\[m\]++; if(impi\[m\] > 4) sm = '<b>Seriously,</b> ' + m + ' will <b>never</b> get implemented if you keep bothering me!'; else sm = m + ' is <b>still</b> not implemented!'; } else { sm = m + ' is not implemented yet!' ; impi\[m\] = 1 ;} showStatusMessage(sm,10); return false; }"
+
+	cgi_puts "browserDetect();"
+      }
+    }
+
+    cgi_body class="wap" "onLoad=bodyOnLoad()" {
+      cgi_division id="skip" {
+	cgi_put [cgi_url "Skip to Folders" "#messages"]
+	cgi_put [cgi_url "" "#folders"]
+	cgi_put [cgi_url "Skip to Compose" "compose#to"]
+      }
+
+      cgi_division id=msgDragProxy {
+	cgi_put "<b class=b1></b><b class=b2></b><b class=b3></b><b class=b4></b><div id=msgDragProxyText></div><b class=b4></b><b class=b3></b><b class=b2></b><b class=b1></b>"
+      }
+
+      if {$focused} {
+	set context "Search Results in [cgi_quote_html $f]"
+      } else {
+	set context [cgi_quote_html $f]
+      }
+
+      wpCommonPageLayout browse $c $f $u $context {} [list [cgi_cgi "$_wp(appdir_alt)/browse/${c}/${f}"] "$f" 1 mailboxSearch()] "" {
+	cgi_division class=hdrBtns {
+	  cgi_put [cgi_url "[cgi_span "class=sp hdrBtnImg hbi1" ""][cgi_span "class=hdrBtnText" Print]" "print" "onClick=if(window.print){window.print();return false;}else return true;"]
+	  cgi_put [cgi_url "[cgi_span "class=sp hdrBtnImg hbi2" ""][cgi_span "class=hdrBtnText" Settings]" "settings"]
+	  cgi_put [cgi_url "[cgi_span "class=sp hdrBtnImg hbi3" ""][cgi_span "class=hdrBtnText" Help]" # "onClick=return openMailboxHelp();" class=wap]
+	  cgi_put [cgi_url "[cgi_span "class=sp hdrBtnImg hbi4" ""][cgi_span "class=hdrBtnText" "Sign out"]" "../../session/logout.tcl?cid=[WPCmd PEInfo key]&sessid=${sessid}"]
+	}
+      } {
+	cgi_division id=listTopMenubar {
+	  cgi_puts [WPCmd cgi_buffer "drawTopListMenuBar $c {$f}"]
+	}
+	cgi_division id=viewTopMenubar "style=\"display: none;\"" {
+	  cgi_puts [WPCmd cgi_buffer "drawTopViewMenuBar $c {$f} $u $n"]
+	}
+      } {
+	if {[info exists opening_folder]} {
+	  cgi_division id=divMsgList class=contentBody {
+	    cgi_puts "Opening $f..."
+	  }
+	} else {
+	  cgi_puts [WPCmd cgi_buffer "drawMessageList $c {$f} $n $ppg"]
+	}
+      } {
+	cgi_division id=listBottomMenubar {
+	  cgi_puts [WPCmd cgi_buffer "drawBottomListMenuBar $c {$f} $pn $pt $mc"]
+	}
+	cgi_division id=viewBottomMenubar "style=\"display: none;\"" {
+	  cgi_puts [WPCmd cgi_buffer "drawBottomViewMenuBar $c {$f} $u $n $mc"]
+	}
+      }
+
+      foreach dmsg $dmsgs {
+	cgi_html_comment "DEBUG: $dmsg"
+	cgi_puts ""
+      }
+    }
+  }
+}

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: send.c 928 2008-02-08 17:43:23Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: send.c 1096 2008-06-30 22:03:35Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -46,7 +46,6 @@ static char rcsid[] = "$Id: send.c 928 2008-02-08 17:43:23Z hubert@u.washington.
 #include "../pith/copyaddr.h"
 #include "../pith/detach.h"
 #include "../pith/mimedesc.h"
-#include "../pith/rfc2231.h"
 #include "../pith/pipe.h"
 #include "../pith/addrstring.h"
 #include "../pith/news.h"
@@ -62,6 +61,7 @@ static char rcsid[] = "$Id: send.c 928 2008-02-08 17:43:23Z hubert@u.washington.
 #include "../pith/busy.h"
 #include "../pith/mimetype.h"
 #include "../pith/send.h"
+#include "../pith/smime.h"
 
 
 typedef struct body_particulars {
@@ -263,7 +263,7 @@ void
 compose_mail(char *given_to, char *fcc_arg, ACTION_S *role_arg,
 	     PATMT *attach, gf_io_t inc_text_getc)
 {
-    BODY	  *body;
+    BODY	  *body = NULL;
     ENVELOPE	  *outgoing = NULL;
     PINEFIELD	  *custom   = NULL;
     REPLY_S	  *reply	= NULL;
@@ -910,28 +910,28 @@ static struct headerentry he_template[]={
    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"From    : ",  "From",        h_composer_from,       10, 0, NULL,
    build_address, NULL, NULL, addr_book_compose,    "To AddrBk", NULL, abook_nickname_complete,
-   0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, KS_TOADDRBOOK},
+   0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, KS_TOADDRBOOK},
   {"Reply-To: ",  "Reply To",    h_composer_reply_to,   10, 0, NULL,
    build_address, NULL, NULL, addr_book_compose,    "To AddrBk", NULL, abook_nickname_complete,
-   0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, KS_TOADDRBOOK},
+   0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, KS_TOADDRBOOK},
   {"To      : ",  "To",          h_composer_to,         10, 0, NULL,
    build_address, NULL, NULL, addr_book_compose,    "To AddrBk", NULL, abook_nickname_complete,
-   0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, KS_TOADDRBOOK},
+   0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, KS_TOADDRBOOK},
   {"Cc      : ",  "Cc",          h_composer_cc,         10, 0, NULL,
    build_address, NULL, NULL, addr_book_compose,    "To AddrBk", NULL, abook_nickname_complete,
-   0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, KS_TOADDRBOOK},
+   0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, KS_TOADDRBOOK},
   {"Bcc     : ",  "Bcc",         h_composer_bcc,        10, 0, NULL,
    build_address, NULL, NULL, addr_book_compose,    "To AddrBk", NULL, abook_nickname_complete,
-   0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, KS_TOADDRBOOK},
+   0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, KS_TOADDRBOOK},
   {"Newsgrps: ",  "Newsgroups",  h_composer_news,        10, 0, NULL,
    news_build,    NULL, NULL, news_group_selector,  "To NwsGrps", NULL, NULL,
-   0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, KS_NONE},
+   0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"Fcc     : ",  "Fcc",         h_composer_fcc,        10, 0, NULL,
    NULL,          NULL, NULL, folders_for_fcc,      "To Fldrs", NULL, NULL,
-   0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, KS_NONE},
+   0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"Lcc     : ",  "Lcc",         h_composer_lcc,        10, 0, NULL,
    build_addr_lcc, NULL, NULL, addr_book_compose_lcc,"To AddrBk", NULL, abook_nickname_complete,
-   0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, KS_NONE},
+   0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, KS_NONE},
   {"Attchmnt: ",  "Attchmnt",    h_composer_attachment, 10, 0, NULL,
    NULL,          NULL, NULL, NULL,                 "To Files", NULL, NULL,
    0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, KS_NONE},
@@ -994,7 +994,7 @@ static struct headerentry he_template[]={
 static struct headerentry he_custom_addr_templ={
    NULL,          NULL,          h_composer_custom_addr,10, 0, NULL,
    build_address, NULL, NULL, addr_book_compose,    "To AddrBk", NULL, abook_nickname_complete,
-   0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, KS_TOADDRBOOK};
+   0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, KS_TOADDRBOOK};
 
 static struct headerentry he_custom_free_templ={
    NULL,          NULL,          h_composer_custom_free,10, 0, NULL,
@@ -3763,7 +3763,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 	    }
 
 	    if(priority_requested){
-		set_priority_header(&header, priority_requested);
+		(void) set_priority_header(&header, priority_requested);
 		fs_give((void **) &priority_requested);
 	    }
 
@@ -4425,7 +4425,7 @@ send_exit_for_pico(struct headerentry *he, void (*redraw_pico)(void), int allow_
     char      *rstr = NULL, *p, *lc, *optp;
     char       dsn_string[30];
     void     (*redraw)(void) = ps_global->redrawer;
-    ESCKEY_S   opts[16];
+    ESCKEY_S   opts[18];
     struct filters {
 	char  *filter;
 	int    index;
@@ -4571,6 +4571,25 @@ send_exit_for_pico(struct headerentry *he, void (*redraw_pico)(void), int allow_
     opts[i].name    = "P";
     opts[i++].label = N_("Priority");
 
+#ifdef SMIME
+    if(F_OFF(F_DONT_DO_SMIME, ps_global)){
+    	opts[i].ch  	= 'e';
+	opts[i].rval	= 'e';
+	opts[i].name	= "E";
+	opts[i++].label	= "Encrypt";
+    
+    	opts[i].ch  	= 'g';
+	opts[i].rval	= 'g';
+	opts[i].name	= "G";
+	opts[i++].label	= "Sign";
+
+	if(ps_global->smime){
+	    ps_global->smime->do_encrypt = F_ON(F_ENCRYPT_DEFAULT_ON, ps_global);
+	    ps_global->smime->do_sign = F_ON(F_SIGN_DEFAULT_ON, ps_global);
+	}
+    }		
+#endif
+
     double_rad = i;
 
     if(F_ON(F_DSN, ps_global)){
@@ -4713,6 +4732,40 @@ send_exit_for_pico(struct headerentry *he, void (*redraw_pico)(void), int allow_
 
 	    sstrncpy(&optp, dsn_string, SIZEOF_20KBUF-(optp-tmp_20k_buf));
 	}
+
+#ifdef SMIME
+    	if(ps_global->smime && ps_global->smime->do_encrypt){
+	    if((optp-tmp_20k_buf)+2 < SIZEOF_20KBUF){
+		if(!lparen){
+		    *optp++ = ' ';
+		    *optp++ = '(';
+		    lparen++;
+		}
+		else{
+		    *optp++ = ',';
+		    *optp++ = ' ';
+		}
+	    }
+
+	    sstrncpy(&optp, "Encrypted", SIZEOF_20KBUF-(optp-tmp_20k_buf));
+	}
+	
+    	if(ps_global->smime && ps_global->smime->do_sign){
+	    if((optp-tmp_20k_buf)+2 < SIZEOF_20KBUF){
+		if(!lparen){
+		    *optp++ = ' ';
+		    *optp++ = '(';
+		    lparen++;
+		}
+		else{
+		    *optp++ = ',';
+		    *optp++ = ' ';
+		}
+	    }
+
+	    sstrncpy(&optp, "Signed", SIZEOF_20KBUF-(optp-tmp_20k_buf));
+	}
+#endif
 
 	if(lparen && (optp-tmp_20k_buf) < SIZEOF_20KBUF)
 	  *optp++ = ')';
@@ -4865,6 +4918,16 @@ send_exit_for_pico(struct headerentry *he, void (*redraw_pico)(void), int allow_
 		  fs_give((void **) &prio);
 	    }
 	}
+#ifdef SMIME
+	else if(rv=='e'){
+	    if(ps_global->smime)
+	      ps_global->smime->do_encrypt = !ps_global->smime->do_encrypt;
+	}
+	else if(rv=='g'){
+	    if(ps_global->smime)
+	      ps_global->smime->do_sign = !ps_global->smime->do_sign;
+	}
+#endif
 
 	snprintf(dsn_string, sizeof(dsn_string), "DSN requested[%s%s%s%s]",
 		(call_mailer_flags & CM_DSN_NEVER)
@@ -4946,7 +5009,7 @@ choose_a_priority(char *default_val)
     /* TRANSLATORS: SELECT A PRIORITY is a screen title
        TRANSLATORS: Print something1 using something2.
        "priorities" is something1 */
-    choice = choose_item_from_list(priority_list, _("SELECT A PRIORITY"),
+    choice = choose_item_from_list(priority_list, NULL, _("SELECT A PRIORITY"),
 				   _("priorities"), h_select_priority_screen,
 				   _("HELP FOR SELECTING A PRIORITY"),
 				   starting_val);
@@ -5553,8 +5616,7 @@ outgoing2strings(METAENV *header, struct mail_bodystruct *bod, void **text,
 		    /*
 		     * If we can find a "name" parm, display that too...
 		     */
-		    if((name = rfc2231_get_param(part->body.parameter,
-						"name", NULL, NULL)) != NULL){
+		    if((name = parameter_val(part->body.parameter, "name")) != NULL){
 			/* Convert any [ or ]'s the name contained */
 			for(p = name; *p ; p++)
 			  if(*p == '[')

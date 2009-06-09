@@ -1,5 +1,5 @@
 /*
- * $Id: mailcmd.h 938 2008-02-29 18:18:49Z hubert@u.washington.edu $
+ * $Id: mailcmd.h 1004 2008-03-19 19:43:03Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2008 University of Washington
@@ -87,7 +87,7 @@ int	    apply_command(struct pine *, MAILSTREAM *, MSGNO_S *, UCS, int, int);
 char      **choose_list_of_keywords(void);
 char       *choose_a_charset(int);
 char      **choose_list_of_charsets(void);
-char       *choose_item_from_list(char **, char *, char *, HelpType, char *, char *);
+char       *choose_item_from_list(char **, char **, char *, char *, HelpType, char *, char *);
 int	    display_folder_list(CONTEXT_S **, char *, int,
 				int (*)(struct pine *, CONTEXT_S **, char *, int));
 int	    file_lister(char *, char *, size_t, char *, size_t, int, int);

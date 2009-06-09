@@ -1,8 +1,8 @@
 /*
- * $Id: mimedesc.h 389 2007-01-24 22:49:09Z hubert@u.washington.edu $
+ * $Id: mimedesc.h 971 2008-03-18 17:24:31Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,8 +28,9 @@ char	   *body_type_names(int);
 char	   *type_desc(int, char *, PARAMETER *, PARAMETER *, int);
 long        fcc_size_guess(BODY *);
 char	   *part_desc(char *, BODY *, int, int, int, gf_io_t);
-char	   *body_parameter(BODY *, char *);
-int	    mime_can_display(int, char *, PARAMETER *);
+char	   *parameter_val(PARAMETER *, char *);
+int	    mime_can_display(int, char *, BODY *);
+char	   *get_filename_parameter(char *, size_t, BODY *, char **);
 
 
 #endif /* PITH_MIMEDESC_INCLUDED */

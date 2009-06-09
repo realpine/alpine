@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: takeaddr.c 881 2007-12-18 18:29:24Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: takeaddr.c 1006 2008-03-21 21:31:58Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2972,7 +2972,7 @@ take_export_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
  *                    to save or export and just do the save.
  */
 void
-save_ldap_entry(struct pine *ps, LDAP_SERV_RES_S *e, int save)
+save_ldap_entry(struct pine *ps, LDAP_CHOOSE_S *e, int save)
 {
     char  *fullname = NULL,
 	  *address = NULL,
@@ -2998,42 +2998,42 @@ save_ldap_entry(struct pine *ps, LDAP_SERV_RES_S *e, int save)
 	char       *a;
 	BerElement *ber;
 
-	for(a = ldap_first_attribute(e->ld, e->res, &ber);
+	for(a = ldap_first_attribute(e->ld, e->selected_entry, &ber);
 	    a != NULL;
-	    a = ldap_next_attribute(e->ld, e->res, ber)){
+	    a = ldap_next_attribute(e->ld, e->selected_entry, ber)){
 
 	    dprint((9, " %s", a ? a : "?"));
 	    if(strcmp(a, e->info_used->cnattr) == 0){
 		if(!cn)
-		  cn = ldap_get_values(e->ld, e->res, a);
+		  cn = ldap_get_values(e->ld, e->selected_entry, a);
 	    }
 	    else if(strcmp(a, e->info_used->mailattr) == 0){
 		if(!mail)
-		  mail = ldap_get_values(e->ld, e->res, a);
+		  mail = ldap_get_values(e->ld, e->selected_entry, a);
 	    }
 	    else if(strcmp(a, "electronicmail") == 0){
 		if(!elecmail)
-		  elecmail = ldap_get_values(e->ld, e->res, a);
+		  elecmail = ldap_get_values(e->ld, e->selected_entry, a);
 	    }
 	    else if(strcmp(a, "comment") == 0){
 		if(!note)
-		  note = ldap_get_values(e->ld, e->res, a);
+		  note = ldap_get_values(e->ld, e->selected_entry, a);
 	    }
 	    else if(strcmp(a, e->info_used->snattr) == 0){
 		if(!sn)
-		  sn = ldap_get_values(e->ld, e->res, a);
+		  sn = ldap_get_values(e->ld, e->selected_entry, a);
 	    }
 	    else if(strcmp(a, e->info_used->gnattr) == 0){
 		if(!givenname)
-		  givenname = ldap_get_values(e->ld, e->res, a);
+		  givenname = ldap_get_values(e->ld, e->selected_entry, a);
 	    }
 	    else if(strcmp(a, "telephonenumber") == 0){
 		if(!telephone)
-		  telephone = ldap_get_values(e->ld, e->res, a);
+		  telephone = ldap_get_values(e->ld, e->selected_entry, a);
 	    }
 	    else if(strcmp(a, "title") == 0){
 		if(!title)
-		  title = ldap_get_values(e->ld, e->res, a);
+		  title = ldap_get_values(e->ld, e->selected_entry, a);
 	    }
 	}
 
@@ -3142,7 +3142,7 @@ save_ldap_entry(struct pine *ps, LDAP_SERV_RES_S *e, int save)
 	if(addr && e->serv && *e->serv){	/* save by reference */
 	    char *dn, *edn = NULL;
 
-	    dn = ldap_get_dn(e->ld, e->res);
+	    dn = ldap_get_dn(e->ld, e->selected_entry);
 	    if(dn){
 		edn = add_backslash_escapes(dn);
 		our_ldap_dn_memfree(dn);

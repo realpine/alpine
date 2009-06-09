@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: filter.c 957 2008-03-07 19:30:14Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: filter.c 1108 2008-07-10 05:01:13Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -2897,8 +2897,8 @@ typedef struct html_data {
  */
 typedef	struct _html_opts {
     char      *base;			/* Base URL for this html file */
-    int	       columns,			/* Display columns */
-	       indent;			/* Right margin */
+    int	       columns,			/* Display columns (excluding margins) */
+	       indent;			/* Left margin */
     HANDLE_S **handlesp;		/* Head of handles */
     htmlrisk_t warnrisk_f;		/* Nasty link warning call */
     unsigned   strip:1;			/* Hilite TAGs allowed */
@@ -3660,8 +3660,21 @@ html_pop(FILTER_S *fd, ELPROP_S *ep)
     HANDLER_S *tp;
 
     for(tp = HANDLERS(fd); tp && ep != EL(tp); tp = tp->below){
-	dprint((3, "--html Tag Nesting Inbalance: Expected /%s Got /%s",
-		ep->element, EL(tp)->element));
+	HANDLER_S *tp2;
+	ELPROP_S  *ep2;
+	
+	dprint((3, "-- html error: bad nesting: given /%s expected /%s", ep->element, EL(tp)->element));
+	/* if no evidence of opening tag, ignore given closing tag */
+	for(tp2 = HANDLERS(fd); tp2 && ep != EL(tp2); tp2 = tp2->below)
+	  ;
+
+	if(!tp2){
+	    dprint((3, "-- html error: no opening tag for given tag /%s", ep->element));
+	    return;
+	}
+
+	(void) (*EL(tp)->handler)(tp, 0, GF_EOD);
+	HANDLERS(fd) = tp->below;
     }
 
     if(tp){
@@ -3682,9 +3695,9 @@ html_pop(FILTER_S *fd, ELPROP_S *ep)
 	fs_give((void **)&tp);
     }
     else{
-	dprint((3, "--html Unhandled Closing Tag: %s", ep->element));
+	/* BUG: should MAKE SURE NOT TO EMIT IT */
+	dprint((3, "-- html error: end tag without a start: %s", ep->element));
     }
-    /* BUG: else, we should bitch */
 }
 
 
@@ -4918,7 +4931,7 @@ html_a(HANDLER_S *hd, int ch, int cmd)
 	 * space insertion/line breaking that's yet to get done...
 	 */
 	if(HD(hd->html_data)->prefix){
-	    dprint((2, "-- html_a: NESTED/UNTERMINATED ANCHOR!\n"));
+	    dprint((2, "-- html error: nested or unterminated anchor\n"));
 	    html_a_finish(hd);
 	}
 
@@ -6338,6 +6351,9 @@ html_pre(HANDLER_S *hd, int ch, int cmd)
 	    html_output_raw_tag(hd->html_data, "pre");
 	}
 	else{
+	    if(hd->html_data)
+	      hd->html_data->f1 = DFL;				\
+
 	    html_blank(hd->html_data, 1);
 	    hd->x = HD(hd->html_data)->wrapstate;
 	    HD(hd->html_data)->wrapstate = 0;
@@ -6842,7 +6858,7 @@ html_element_collector(FILTER_S *fd, int ch)
 	}
 	else if(ED(fd)->mkup_decl){
 	    if(ED(fd)->badform){
-		dprint((2, "-- html <!-- BAD: %.*s\n",
+		dprint((2, "-- html error: bad form: %.*s\n",
 			   ED(fd)->len, ED(fd)->buf ? ED(fd)->buf : "?"));
 		/*
 		 * Invalid comment -- make some guesses as
@@ -6856,7 +6872,7 @@ html_element_collector(FILTER_S *fd, int ch)
 		  return(1);
 	    }
 	    else{
-		dprint((5, "-- html <!-- OK: %.*s\n",
+		dprint((5, "-- html: OK: %.*s\n",
 			   ED(fd)->len, ED(fd)->buf ? ED(fd)->buf : "?"));
 		if(ED(fd)->start_comment == ED(fd)->end_comment){
 		    if(ED(fd)->len > 10){
@@ -6893,6 +6909,7 @@ html_element_collector(FILTER_S *fd, int ch)
 	    if(ED(fd)->element && (ep = html_element_properties(ED(fd)->element))){
 		if(ep->handler){
 		    /* dispatch the element's handler */
+		    HTML_DEBUG_EL(ED(fd)->end_tag ? "POP" : "PUSH", ED(fd));
 		    if(ED(fd)->end_tag){
 			html_pop(fd, ep);	/* remove it's handler */
 		    }
@@ -6908,6 +6925,36 @@ html_element_collector(FILTER_S *fd, int ch)
 			    }
 			}
 
+			/* enforce table nesting */
+			if(!strucmp(ep->element, "tr")){
+			    if(!HANDLERS(fd) || (strucmp(EL(HANDLERS(fd))->element, "table") && strucmp(EL(HANDLERS(fd))->element, "tbody") && strucmp(EL(HANDLERS(fd))->element, "thead"))){
+				dprint((2, "-- html error: bad nesting for <TR>, GOT %s\n", (HANDLERS(fd)) ? EL(HANDLERS(fd))->element : "NO-HANDLERS"));
+				if(HANDLERS(fd) && !strucmp(EL(HANDLERS(fd))->element,"tr")){
+				    dprint((2, "-- html error: bad nesting popping previous <TR>"));
+				    html_pop(fd, EL(HANDLERS(fd)));
+				}
+				else{
+				    dprint((2, "-- html error: bad nesting pusing <TABLE>"));
+				    html_push(fd, html_element_properties("table"));
+				}
+			    }
+			}
+			else if(!strucmp(ep->element, "td") || !strucmp(ep->element, "th")){
+			    if(!HANDLERS(fd)){
+				dprint((2, "-- html error: bad nesting: NO HANDLERS before <TD>"));
+				html_push(fd, html_element_properties("table"));
+				html_push(fd, html_element_properties("tr"));
+			    }
+			    else if(strucmp(EL(HANDLERS(fd))->element, "tr")){
+				dprint((2, "-- html error: bad nesting for <TD>, GOT %s\n", EL(HANDLERS(fd))->element));
+				html_push(fd, html_element_properties("tr"));
+			    }
+			    else if(!strucmp(EL(HANDLERS(fd))->element, "td")){
+				dprint((2, "-- html error: bad nesting popping <TD>"));
+				html_pop(fd, EL(HANDLERS(fd)));
+			    }
+			}
+
 			/* add it's handler */
 			if(html_push(fd, ep)){
 			    if(ED(fd)->empty){
@@ -6916,8 +6963,6 @@ html_element_collector(FILTER_S *fd, int ch)
 			    }
 			}
 		    }
-
-		    HTML_DEBUG_EL(ED(fd)->end_tag ? "POP" : "PUSH", ED(fd));
 		}
 		else {
 		    HTML_DEBUG_EL("IGNORED", ED(fd));
@@ -7517,7 +7562,7 @@ gf_html2plain(FILTER_S *f, int flg)
     }
     else if(flg == GF_EOD){
 	while(HANDLERS(f)){
-	    dprint((2, "--html Missing Closing Tag: %s",EL(HANDLERS(f))->element));
+	    dprint((2, "-- html error: no closing tag for %s",EL(HANDLERS(f))->element));
 	    html_pop(f, EL(HANDLERS(f)));
 	}
 
@@ -7550,7 +7595,7 @@ gf_html2plain(FILTER_S *f, int flg)
 	memset(f->data, 0, sizeof(HTML_DATA_S));
 	/* start with flowing text */
 	HD(f)->wrapstate = !PASS_HTML(f);
-	HD(f)->wrapcol   = WRAP_COLS(f) - 8;
+	HD(f)->wrapcol   = WRAP_COLS(f);
 	f->f1    = DFL;			/* state */
 	f->f2    = 0;			/* chars in wrap buffer */
 	f->n     = 0L;			/* chars on line so far */
@@ -7843,7 +7888,7 @@ html_output_normal(FILTER_S *f, int ch, int width)
 	    if(HD(f)->prefix)
 	      html_a_prefix(f);
 
-	    if((f->f2 += width) >= WRAP_COLS(f)){
+	    if((f->f2 += width) + 1 >= WRAP_COLS(f)){
 		HTML_LINEP_PUTC(f, ch & 0xff);
 		HTML_FLUSH(f);
 		html_newline(f);
@@ -7864,6 +7909,15 @@ html_output_normal(FILTER_S *f, int ch, int width)
 	  case 0 :
 	    switch(ch){
 	      default :
+		/*
+		 * It's difficult to both preserve whitespace and wrap at the
+		 * same time so we'll do a dumb wrap at the edge of the screen.
+		 * Since this shouldn't come up much in real life we'll hope
+		 * it is good enough.
+		 */
+		if(!PASS_HTML(f) && (f->n + width) > WRAP_COLS(f))
+		  html_newline(f);
+
 		f->n += width;			/* inc displayed char count */
 		HD(f)->blanks = 0;		/* reset blank line counter */
 		html_putc(f, ch & 0xff);
@@ -7967,7 +8021,7 @@ void
 html_output_flush(FILTER_S *f)
 {
     if(f->f2){
-	if(f->n && ((int) f->n) + f->f2 > HD(f)->wrapcol)
+	if(f->n && ((int) f->n) + 1 + f->f2 > HD(f)->wrapcol)
 	  html_newline(f);		/* wrap? */
 
 	if(f->n){			/* text already on the line? */

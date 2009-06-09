@@ -1,8 +1,8 @@
 /*
- * $Id: takeaddr.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: takeaddr.h 1006 2008-03-21 21:31:58Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ void           save_vcard_att(struct pine *, int, long, ATTACH_S *);
 void           take_to_export(struct pine *, LINES_TO_TAKE *);
 PerAddrBook   *setup_for_addrbook_add(SAVE_STATE_S *, int, char *);
 #ifdef	ENABLE_LDAP
-void           save_ldap_entry(struct pine *, LDAP_SERV_RES_S *, int);
+void           save_ldap_entry(struct pine *, LDAP_CHOOSE_S *, int);
 #endif
 
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: keymenu.c 937 2008-02-28 01:04:46Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: keymenu.c 1069 2008-06-03 15:54:15Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -870,8 +870,13 @@ struct key view_keys[] =
 	ENDKEY_MENU,
 	RCOMPOSE_MENU,
 	{"A",N_("TogglePreferPlain"),{MC_TOGGLE,1,{'a'}},KS_NONE},
+#ifdef SMIME
+	{"^D","Decrypt", {MC_DECRYPT,1,{ctrl('d')},KS_NONE}},
+	{"^E","Security", {MC_SECURITY,1,{ctrl('e')},KS_NONE}},
+#else
 	NULL_MENU,
 	NULL_MENU,
+#endif
 	NULL_MENU,
 	NULL_MENU,
 	NULL_MENU,
@@ -930,7 +935,7 @@ INST_KEY_MENU(oe_keymenu, oe_keys);
 struct key choose_setup_keys[] =
        {HELP_MENU,
 	OTHER_MENU,
-	{"E",N_("Exit Setup"),{MC_EXIT,3,{'e','m',ctrl('C')}},KS_EXITMODE},
+	{"E",N_("Exit Setup"),{MC_EXIT,2,{'e',ctrl('C')}},KS_EXITMODE},
 	{"P",N_("Printer"),{MC_PRINTER,1,{'p'}},KS_NONE},
 	/* TRANSLATORS: Change password */
 	{"N",N_("Newpassword"),{MC_PASSWD,1,{'n'}},KS_NONE},
@@ -954,7 +959,8 @@ struct key choose_setup_keys[] =
 	NULL_MENU,
 	/* TRANSLATORS: remote configuration setup */
 	{"Z",N_("RemoteConfigSetup"),{MC_REMOTE,1,{'z'}},KS_NONE},
-	NULL_MENU,
+	/* TRANSLATORS: configure S/MIME */
+	{"M",N_("S/Mime"),{MC_SECURITY,1,{'m'}},KS_NONE},
 	NULL_MENU,
 	PREVPAGE_MENU,
 	NEXTPAGE_MENU,
@@ -2566,6 +2572,50 @@ struct key take_export_keys_lm[] =
 	{"S",N_("SinglMode"),{MC_LISTMODE,1,{'s'}},KS_NONE}};
 INST_KEY_MENU(take_export_keymenu_lm, take_export_keys_lm);
 
+
+struct key smime_info_keys[] = 
+       {HELP_MENU,
+    	OTHER_MENU,
+	{"<","Back",{MC_VIEW_TEXT,2,{'<',','}},KS_EXITMODE},
+    	NULL_MENU,
+    	NULL_MENU,
+    	NULL_MENU,
+	PREVPAGE_MENU,
+	NEXTPAGE_MENU,
+    	NULL_MENU,
+    	NULL_MENU,
+    	NULL_MENU,
+    	NULL_MENU,
+
+	HELP_MENU,
+	OTHER_MENU,
+	MAIN_MENU,
+	QUIT_MENU,
+    	NULL_MENU,
+    	NULL_MENU,
+    	NULL_MENU,
+    	NULL_MENU,
+    	NULL_MENU,
+	INDEX_MENU,
+    	NULL_MENU,
+    	NULL_MENU};
+INST_KEY_MENU(smime_info_keymenu, smime_info_keys);
+
+
+struct key config_smime_helper_keys[] = 
+       {HELP_MENU,
+	WHEREIS_MENU,
+	EXIT_SETUP_MENU,
+	{"T","[" N_("Transfer") "]", {MC_CHOICE,3,{'t',ctrl('M'),ctrl('J')}}, KS_NONE},
+	PREV_MENU,
+	NEXT_MENU,
+	PREVPAGE_MENU,
+	NEXTPAGE_MENU,
+	NULL_MENU,
+	NULL_MENU,
+	HOMEKEY_MENU,
+	ENDKEY_MENU};
+INST_KEY_MENU(config_smime_helper_keymenu, config_smime_helper_keys);
 
 
 /*

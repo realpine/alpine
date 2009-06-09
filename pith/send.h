@@ -1,8 +1,8 @@
 /*
- * $Id: send.h 839 2007-12-01 01:10:52Z hubert@u.washington.edu $
+ * $Id: send.h 1096 2008-06-30 22:03:35Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,6 +41,7 @@
 #define	REDRAFT_NONE	0
 #define	REDRAFT_PPND	0x01
 #define	REDRAFT_DEL	0x02
+#define	REDRAFT_HTML	0x04
 
 
 /*
@@ -259,9 +260,11 @@ PINEFIELD  *combine_custom_headers(PINEFIELD *, PINEFIELD *);
 void        free_customs(PINEFIELD *);
 int         encode_whole_header(char *, METAENV *);
 int         news_poster(METAENV *, BODY *, char **, void (*)(PIPE_S *, int, void *));
-void        set_priority_header(METAENV *header, char *value);
+PINEFIELD  *set_priority_header(METAENV *header, char *value);
 void        pine_free_body_data(BODY *);
 void        free_charsetchecker(void);
+long        pine_rfc822_output_body(BODY *,soutr_t,TCPSTREAM *);
+int	    pine_write_body_header(BODY *, soutr_t, TCPSTREAM *);
 
 
 #endif /* PITH_SEND_INCLUDED */

@@ -1,8 +1,8 @@
 /*
- * $Id: mailpart.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: mailpart.h 1069 2008-06-03 15:54:15Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,9 @@
 	                   && (s) && !strucmp((s),"DIRECTORY"))       \
 			 || ((t) == TYPETEXT                          \
  		   && (s) && !strucmp((s),"X-VCARD")))
+
+/* Is this a multipart signed? */
+#define	MIME_MULT_SIGNED(t,s)	((t) == TYPEMULTIPART && (s) && !strucmp((s),"signed"))
 
 
 #define	MIME_MSG_A(a)	MIME_MSG((a)->body->type, (a)->body->subtype)

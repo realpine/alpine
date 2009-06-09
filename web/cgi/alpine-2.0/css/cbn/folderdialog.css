@@ -1,0 +1,94 @@
+/* ========================================================================
+ * Copyright 2006-2008 University of Washington
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * ========================================================================
+ */
+
+div.flistInstructions
+{
+	padding: 15px 5px 20px 5px;
+	text-align: center;
+}
+
+div#folderList
+{
+	font-size: .8em;
+	height: 14.5em;
+	border: 1px solid #aaaaaa;
+}
+
+div.flistContext
+{
+	border-bottom: 1px solid #36c;
+	padding: .5em 0;
+	font-weight: bold;
+	color: #003399;
+	background-color: #e7f0ff;
+}
+
+div.flistContext *
+{
+	margin-left: 5px;
+}
+
+div.flistContext img
+{
+	vertical-align: text-bottom;
+}
+
+div.flistContext a
+{
+	color: #003399;
+}
+
+span.flistFolder
+{
+	color: black;
+}
+
+div.flistFolders
+{
+	overflow: auto;
+	height: 12em;
+}
+
+div.flistFolders a
+{
+	font-size: .8em;
+}
+
+table.flt
+{
+	border: none;
+	width: 100%;
+}
+
+td.fli
+{
+	width: 24px;
+	text-align: center;
+}
+
+tr#flPick, tr#flPick a
+{
+	color: #ffffff;
+	background-color: #417bd9;
+}
+
+a.fln
+{
+	text-decoration: none;
+}
+
+td.flcd 
+{
+	font-size: .9em;
+	padding-left: 3em;
+	padding-bottom: 1.5em;
+}

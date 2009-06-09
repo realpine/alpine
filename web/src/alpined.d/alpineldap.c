@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: alpineldap.c 701 2007-08-31 18:52:30Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: alpineldap.c 1096 2008-06-30 22:03:35Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -74,8 +74,10 @@ char	  *peSocketName;
 WPLDAP_S *wpldap_global;
 #endif
 
-int   peNoPassword, peCredentialError;
-char	   peCredentialRequestor[WP_MAXAUTHREQ];
+int	peNoPassword, peCredentialError;
+int	peCertQuery, peCertFailure;
+char	peCredentialRequestor[CRED_REQ_SIZE];
+STRLIST_S *peCertHosts;
 
 void
 sml_addmsg(priority, text)

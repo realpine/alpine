@@ -1,0 +1,638 @@
+#!./tclsh
+# $Id: settings 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# ========================================================================
+# Copyright 2008 University of Washington
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# ========================================================================
+
+#  view.tcl
+#
+#  Purpose:  CGI script settings for Web Alpine 2.0 pages
+#
+#  Input:    PATH_INFO: [/<col_number>]/<folder_name>[/<uid_of_viewed_msg>
+#            along with possible search parameters:
+set settings_args {
+}
+
+# inherit global config
+source ./alpine.tcl
+source ./foldercache.tcl
+source ./common.tcl
+
+# TEST
+proc cgi_suffix {args} {
+  return ""
+}
+
+# WHILE TESTING/DEBUGGING
+proc noimp {s} {
+  return "onClick=return noImp('${s}');"
+}
+
+set dmsgs ""
+proc dm {s} {
+  global dmsgs
+
+  lappend dmsgs $s
+}
+
+# default location state
+set c -1
+set f ""
+
+# grok PATH_INFO for collection 'c' and folder 'f'
+if {[info exists env(PATH_INFO)] && [string length $env(PATH_INFO)]} {
+  # look for collection number, c
+  if {[regexp {^/([0-9]+)(/.*)} $env(PATH_INFO) dummy c r]} {
+    if {![string length $r]} {
+      set f $c
+      set c -1
+    }
+  } else {
+    set r $env(PATH_INFO)
+  }
+
+  # look for folder name (f) in remainder, r
+  if {[regexp {^/([^/]+)((/.*)|$)} $r dummy f r]} {
+    # look for uid of page's top message, u
+    if {[regexp {^/([0-9a-fA-F]+)} $r dummy u]} {
+    } else {
+    }
+  } else {
+    if {[string length $r]} {
+      # can't grok, reset context
+      set c -1
+    }
+  }
+}
+
+WPEval $settings_args {
+  # verify current collection/folder
+  if {[catch {WPCmd PEFolder current} curfold]} {
+    error [list _action browse "cannot determine default folder: $curfold"]
+  } else {
+    set curc [lindex $curfold 0]
+    set curf [lindex $curfold 1]
+  }
+
+  # "current" folder's context
+  if {$c < 0} {
+    set c $curc
+  }
+
+  # "current" folder
+  if {0 == [string length $f]} {
+    set f $curf
+  }
+
+  # open a different folder?
+  if {$c != $curc || [string compare $f $curf]} {
+    # BUG: validate $u?
+
+    error [list _action browse "NOT PREPARED TO OPEN NEW FOLDER $f YET"]
+    if {[catch {eval WPCmd PEMailbox open [list $c $f]} reason]} {
+    } else {
+      # STATUS: Opened Folder $f
+    }
+  }
+
+  set defc [WPCmd PEFolder defaultcollection]
+  set cols [WPCmd PEFolder collections]
+  
+  set charset "UTF-8"
+  set u 0
+
+  cgi_http_head {
+    WPStdHttpHdrs "text/html; charset=$charset"
+  }
+
+  cgi_html {
+    cgi_head {
+      cgi_content_type "text/html; charset=$charset"
+      #      WPStdHttpHdrs "text/html; charset=$charset"
+      cgi_title [wpPageTitle "Settings"]
+      cgi_base "href=$_wp(serverpath)/$_wp(appdir_alt)/"
+      cgi_stylesheet css/menu.css
+      cgi_stylesheet css/cbn/screen.css
+      cgi_stylesheet css/cbn/settings.css
+      # Yahoo Styles
+      cgi_stylesheet lib/yui/build/container/assets/container-core.css
+      cgi_stylesheet lib/yui/build/menu/assets/skins/sam/menu.css
+      cgi_stylesheet lib/yui/build/button/assets/skins/sam/button.css
+      # YahooUI libraries
+      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/utilities/utilities.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/container/container-min.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/datasource/datasource-beta-min.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/menu/menu-min.js" {}
+      cgi_script type=text/javascript language="JavaScript" src="lib/yui/build/button/button-min.js" {}
+      # local libraries
+      cgi_script language="JavaScript" src="lib/common.js" {}
+      cgi_script language="JavaScript" src="lib/settings.js" {}
+      cgi_javascript {
+	cgi_puts "YAHOO.alpine.cgi_root = '$_wp(serverpath)';"
+	cgi_puts "YAHOO.alpine.current.incoming = [WPCmd PEFolder isincoming $c];"
+	cgi_puts "YAHOO.alpine.current.c = $c;"
+	cgi_puts "YAHOO.alpine.current.f = \"$f\";"
+	foreach col $cols {
+	  regsub {'} [lindex $col 1] {\'} colname
+	  lappend colnames "'$colname'"
+	}
+	cgi_puts "YAHOO.alpine.current.u = $u;"
+	cgi_puts "YAHOO.alpine.current.collections = \[[join $colnames {,}]\];"
+	cgi_puts "function bodyOnLoad() {"
+	cgi_puts " initMenus();"
+	cgi_puts " if(YAHOO.env.ua.gecko > 0){ sizeVPHeight(); window.onresize = resizeVPHeight; }"
+	cgi_puts " setNewMailCheckInterval([WPCmd PEInfo inputtimeout]);"
+        cgi_puts "}"
+
+	# WHILE TESTING/DEBUGGING
+	cgi_puts "var impi = new Array(); function noImp(m){ var sm; if(impi\[m\]) {impi\[m\]++; if(impi\[m\] > 4) sm = '<b>Seriously,</b> ' + m + ' will <b>never</b> get implemented if you keep bothering me!'; else sm = m + ' is <b>still</b> not implemented!'; } else { sm = m + ' is not implemented yet!' ; impi\[m\] = 1 ;} showStatusMessage(sm,3); return false; }"
+
+	cgi_puts "browserDetect();"
+      }
+    }
+
+    cgi_body class=wap "onLoad=bodyOnLoad()" {
+      cgi_puts {<iframe name="formResponse" id="formResponse" src="img/cbn/spritelib.gif"></iframe>}
+      wpCommonPageLayout {settings {
+	cgi_hr
+	cgi_division id=backToInbox {
+	  cgi_put [cgi_url "[cgi_img img/cbn/inbox.gif class=wap] Back to $f" browse/$c/$f title="Return to $f without saving changes"]
+	}
+	cgi_hr
+	cgi_division class="ftitle bld" {
+	  cgi_put "Common Settings"
+	}
+	cgi_division "class=\"fld bld sel\"" {
+	  cgi_put [cgi_url "[cgi_img img/cbn/rt.gif class=wap] General Preferences" # class=wap id=Page1 "onClick=return settingsPage(this);"]
+	}
+	cgi_division "class=\"fld bld\"" {
+	  cgi_put [cgi_url "[cgi_img img/cbn/rt.gif class=wap] Personal Information" # class=wap id=Page2 "onClick=return settingsPage(this);"]
+	}
+	cgi_division "class=\"fld bld\"" {
+	  cgi_put [cgi_url "[cgi_img img/cbn/rt.gif class=wap] News and Weather" # class=wap id=Page3 "onClick=return settingsPage(this);"]
+	}
+	cgi_division class="ftitle bld" "style=\"margin-top: 2em;\"" {
+	  cgi_put "External Settings"
+	}
+	#if _wp(spamfilterlink) then set this up
+	cgi_division "class=\"fld bld\"" {
+	  cgi_put [cgi_url "[cgi_img img/cbn/rt.gif class=wap] Spam Filtering" # class=wap [noimp "Filter Confi"]]
+	}
+	#if _wp(vacationlink) then set this up
+	cgi_division "class=\"fld bld\"" {
+	  cgi_put [cgi_url "[cgi_img img/cbn/rt.gif class=wap] Vacation Auto-Reply" # class=wap [noimp "Vacation Config"]]
+	}
+	cgi_division class="ftitle bld" "style=\"margin-top: 2em;\"" {
+	  cgi_put "[cgi_url [cgi_img img/cbn/f_plus.gif class=wap] # "onClick=return toggleAdvance(this);"] Advance Settings"
+	}
+	cgi_division id=advancedSettings {
+	  cgi_division "class=\"fld bld\"" {
+	    cgi_put [cgi_url "[cgi_img img/cbn/rt.gif class=wap] Message List" # class=wap id=Page4 "onClick=return settingsPage(this);"]
+	  }
+	  cgi_division "class=\"fld bld\"" {
+	    cgi_put [cgi_url "[cgi_img img/cbn/rt.gif class=wap] Message View" # class=wap id=Page5 "onClick=return settingsPage(this);"]
+	  }
+	  cgi_division "class=\"fld bld\"" {
+	    cgi_put [cgi_url "[cgi_img img/cbn/rt.gif class=wap] Compose" # class=wap id=Page6 "onClick=return settingsPage(this);"]
+	  }
+	  cgi_division "class=\"fld bld\"" {
+	    cgi_put [cgi_url "[cgi_img img/cbn/rt.gif class=wap] Filters" # class=wap id=Page7 "onClick=return settingsPage(this);"]
+	  }
+	  cgi_division "class=\"fld bld\"" {
+	    cgi_put [cgi_url "[cgi_img img/cbn/rt.gif class=wap] Folders" # class=wap id=Page8 "onClick=return settingsPage(this);"]
+	  }
+	  cgi_division class="ftitle bld" "style=\"margin-top: 2em;\"" {
+	    cgi_put "Server Settings"
+	  }
+	  cgi_division "class=\"fld bld\"" {
+	    cgi_put [cgi_url "[cgi_img img/cbn/rt.gif class=wap] Directory Servers" # class=wap id=Page9 "onClick=return settingsPage(this);"]
+	  }
+	  cgi_division "class=\"fld bld\"" {
+	    cgi_put [cgi_url "[cgi_img img/cbn/rt.gif class=wap] Mail Servers" # class=wap id=Page10 "onClick=return settingsPage(this);"]
+	  }
+	}
+      }} "$c" "$f" "$u" Settings {} [list [cgi_cgi "$_wp(appdir_alt)/browse/${c}/${f}"] Settings 0] "" {
+	# CONTEXT COMMANDS
+	cgi_division class=hdrBtns {
+	  cgi_put [cgi_url "[cgi_span "class=sp hdrBtnImg hbi1" ""][cgi_span "class=hdrBtnText" Print]" "print" "onClick=if(window.print){window.print();return false;}else return true;"]
+	  cgi_put [cgi_url "[cgi_span "class=sp hdrBtnImg hbi3" ""][cgi_span "class=hdrBtnText" Help]" "javascript:openHelpWindow('settings.html');" class=wap]
+	  cgi_put [cgi_url "[cgi_span "class=sp hdrBtnImg hbi4" ""][cgi_span "class=hdrBtnText" "Sign out"]" "../../session/logout.tcl?cid=[WPCmd PEInfo key]&sessid=${sessid}"]
+	}
+      } {
+	# TO MENUBAR
+	cgi_anchor_name "toolbar"
+	cgi_table  class="toolbarTbl" cellpadding="0" cellspacing="0" {
+	  cgi_puts "<tbody>"
+	  cgi_table_row  {
+	    cgi_table_data {
+	      cgi_table class="toolbarTbl" cellpadding="0" cellspacing="0" {
+		cgi_puts "<tbody>"
+		cgi_table_row {
+		  cgi_table_data class="wap" {
+		    cgi_put [cgi_url [cgi_span "class=sp spmbi spmb10" "Save Settings"] "#" [noimp Save] title="Save Settings Changes"]
+		  }
+		  cgi_table_data class="wap" {
+		    cgi_put [cgi_url [cgi_span "class=sp spmbi spmb21" "Reset to Default Settings"] "#" [noimp "Restore Default"] title="Reset to Default Settings"]
+		  }
+		  cgi_table_data class="wap" {
+		    cgi_put [cgi_url [cgi_span "class=sp spmbi spmb12" "Cancel"] "browse/$c/$f" title="Cancel Settings Changes"]
+		  }
+		  cgi_table_data  width="100%" {
+		    cgi_puts [cgi_nbspace]
+		  }
+		}
+		cgi_puts "</tbody>"
+	      }
+	    }
+	  }
+	  cgi_puts "</tbody>"
+	}
+      } {
+	cgi_division id=divVPHeight class="contentBody" {
+	  cgi_table id=settingsPage1 "class=\"fields settings\"" cellpadding="0" cellspacing="0" {
+	    cgi_puts "<tbody>"
+	    cgi_puts "<tr><td class=title colspan=2><h2>General Preferences</h2></td></tr>"
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_puts "Display"
+		#[cgi_br]<a href="#" title="more info..." onClick="help_popup1.showPopup('anchor1');return false;" name="anchor1" id="anchor1"><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		cgi_table {
+		  cgi_put "<tbody>"
+		  cgi_table_row {
+		    cgi_table_data {
+		      cgi_put "Theme: "
+		    }
+		    cgi_table_data {
+		      cgi_select theme {
+			cgi_option "Carbon Fiber" value=cbn
+			cgi_option "Alpine Snow" value=snw
+			cgi_option "UW Dawgs" value=dwg
+		      }
+		    }
+		  }
+		  cgi_table_row {
+		    cgi_table_data {
+		      cgi_put "Number of messages per page "
+		    }
+		    cgi_table_data {
+		      cgi_select msgPerPage {
+			cgi_option 10 value=10
+			cgi_option 15 value=15
+			cgi_option 20 value=20
+			cgi_option 30 value=30
+			cgi_option 40 value=40
+			cgi_option 50 value=50
+		      }
+		    }
+		  }
+		  cgi_table_row {
+		    cgi_table_data {
+		      cgi_put "Wrap Plain Text message at "
+		    }
+		    cgi_table_data {
+		      cgi_text wrap=72 size="2"
+		      cgi_put " characters"
+		    }
+		  }
+		  cgi_put "</tbody>"
+		}
+		cgi_nl
+		cgi_checkbox altRows= id=alt_row_colors title="Alternate Row Shading"
+		cgi_put " <label for=alt_row_colors>Enable alternating row colors in message list</label><br>"
+		cgi_nl
+		cgi_checkbox jump= id=enable_jump title="Enable Jump Command"
+		cgi_put " <label for=enable_jump>Enable jump to message number</label><br>"
+		cgi_nl
+		cgi_checkbox pageSel= id=page_selector title="Page Selector"
+		cgi_put " <label for=page_selector>Enable page selector menu</label>"
+	      }
+	    }
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Folders"
+		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		cgi_put "Display "
+		cgi_select folderCache {
+		  cgi_option 5 value=5
+		  cgi_option 10 value=10
+		  cgi_option 15 value=15
+		  cgi_option 20 value=20
+		}
+		cgi_put " recent folders in left column"
+	      }
+	    }
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Compose Encoding"
+		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		cgi_radio_button "text_enc=1" id="default_encoding" checked
+		cgi_put " <label for=default_encoding>Use the browser's default encoding for outgoing messages</label><br>"
+		cgi_radio_button "text_enc=2" id="always_unicode"
+		cgi_put " <label for=always_unicode>Use</label> "
+		cgi_select encodings {
+		  cgi_option "Unicode (UTF-8)" value=UTF-8
+		  cgi_option "Chinese Simplified (GB2312)" value=GB2312
+		  cgi_option "Chinese Simplified (GB18030)" value=GB18030
+		  cgi_option "Chinese Traditional (Big5)" value=Big5
+		  cgi_option "Cyrillic (KOI8-R)" value=KOI8-R
+		  cgi_option "Japanese (ISO-2022-JP)" value=ISO-2022-JP
+		  cgi_option "Western (ISO-8859-15)" value=ISO-8859-15
+		}
+		cgi_put " <label for=always_unicode> encoding for outgoing messages</label>"
+	      }
+	    }
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Reply Options"
+		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		cgi_checkbox richText= id="reply_format" checked
+		cgi_put " <label for=reply_format>Use the same message format as original, e.g. Rich Text</label><br>"
+		cgi_checkbox headerInReply= id="inc_header_reply"
+		cgi_put " <label for=inc_header_reply>Include headers in replies</label><br>"
+		cgi_checkbox attachInReply= id="inc_attach_reply"
+		cgi_put " <label for=inc_attach_reply>Include attachments in replies</label><br>"
+		cgi_checkbox sigBefore= id="append_sig_before"
+		cgi_put " <label for=append_sig_before>Append signature above reply text</label><br>"
+		cgi_checkbox replyStripSig= id="reply_strip_sig"
+		cgi_put " <label for=reply_strip_sig>Strip signatures when replying</label>"
+	      }
+	    }
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Forwarding Options"
+		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		cgi_radio_button forwardOption=0 id="forward_inline" checked
+		cgi_put " <label for=forward_inline>Forward messsages inline</label><br>"
+		cgi_radio_button forwardOption=1 id="forward_attachment"
+		cgi_put " <label for=forward_attachment>Forward messsages as attachments</label>"
+	      }
+	    }
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Flag Personal Email"
+		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		cgi_checkbox personalLevel id="personal_level" checked
+		cgi_put " <label for=personal_level>Display an arrow ( › ) for messages Cc: or Bcc: to me, and a double arrow ( » ) for messages addressed only to me.</label>"
+	      }
+	    }
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "New Mail Notification"
+		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		cgi_checkbox enableSound= id="enable_sound" checked
+		cgi_put " <label for=enable_sound>Play a sound when new mail arrives</label>";# &nbsp;<a href="#"><img src="img/cbn/sound.gif"> play sound</a>"
+	      }
+	    }
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Auto-Contacts"
+		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		cgi_checkbox autosSaveAddr= id="autosave_sent_addr"
+		cgi_put " <label for=autosave_sent_addr>Automatically save sent email addresses into Contacts</label>"
+	      }
+	    }
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Save Sent"
+		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		cgi_checkbox saveSent= id="save_sent_mail" checked
+		cgi_put " <label for=save_sent_mail>Save your sent messages into the Sent folder</label>"
+	      }
+	    }
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Archive Sent"
+		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		cgi_radio_button archive_sent_mail=0 id="ask_archive_sent_mail" checked
+		cgi_put " <label for=ask_archive_sent_mail>Ask to archive Sent mail (once per month)</label><br>"
+		cgi_radio_button archive_sent_mail=1 id="always_archive_sent_mail"
+		cgi_put " <label for=always_archive_sent_mail>Always archive Sent mail</label><br>"
+		cgi_radio_button archive_sent_mail=2 id="never_archive_sent_mail"
+		cgi_put " <label for=never_archive_sent_mail>Never archive Sent mail</label><br><br>"
+		cgi_radio_button delete_old_sent_mail=0 id="ask_delete_old_sent_mail" checked
+		cgi_put " <label for=ask_delete_old_sent_mail>Ask to delete old Sent mail (once per month)</label><br>"
+		cgi_radio_button delete_old_sent_mail=1 id="never_delete_old_sent_mail"
+		cgi_put " <label for=never_delete_old_sent_mail>Never delete old Sent mail</label>"
+	      }
+	    }
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Emptying Trash"
+		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		cgi_checkbox promptExpunge= id="prompt_expunge" checked
+		cgi_put " <label for=prompt_expunge>Ask for confirmation when emptying the Trash</label><br>"
+		cgi_checkbox monthlyExpunge= id="periodic_expunge" checked
+		cgi_put " <label for=periodic_expunge>Regularly delete old messages from Trash folder (once per month)</label><br>"
+		cgi_checkbox expungeOnExit= id="expunge_on_exit"
+		cgi_put " <label for=expunge_on_exit>Empty the Trash folder when exiting</label>"
+	      }
+	    }
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Fcc Options"
+		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		cgi_checkbox fccWithoutAttach= id="fcc_without_attach"
+		cgi_put " <label for=fcc_without_attach>Fcc without attachments (e.g. Save to Sent folder without attachments)</label>"
+	      }
+	    }
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Keyboard Shortcuts"
+		#[cgi_br]<a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		cgi_checkbox kbShortcuts= id="kb_shortcuts"
+		cgi_put " <label for=kb_shortcuts>Enable Keyboard Shortcuts</label>"
+	      }
+	    }
+	    cgi_puts "</tbody>"
+	  }
+	  cgi_table id=settingsPage2 "class=\"fields settings\"" "style=\"display: none;\"" cellpadding="0" cellspacing="0" {
+	    cgi_puts "<tbody>"
+	    cgi_puts "<tr><td class=title colspan=2><h2>Personal Information</h2></td></tr>"
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Display Name"
+		#<br><a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		cgi_text personalName=
+	      }
+	    }
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "\"From:\" Address"
+		#<br><a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		cgi_text fromAddress=
+	      }
+	    }
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "\"Reply-To\" Address"
+		#<br><a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		cgi_text replyTo=
+	      }
+	    }
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Alternate Addresses"
+		cgi_put "<br><span class=tips><b>Tip:</b> List alternate email addresses<br>"
+		cgi_put "you use.  Reply All will not include"
+		cgi_put "<br>these email addresses when replying.</span>"
+		#<br><a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		cgi_textarea altAddresses= cols="72" rows="5" "title=\"Exclude Addresses\""
+	      }
+	    }
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Email Signature"
+		#<br><a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		#<input name="signature" id="no_sig" type="radio" checked />
+		#<label for="no_sig">No Signature</label><br>
+		#<input name="signature" id="use_sig" type="radio" />
+		#<label for="use_sig">Append Signature when composing messages</label><br>
+		cgi_textarea signature= cols="72" rows="5" title=Signature
+	      }
+	    }
+	    cgi_puts "</tbody>"
+	  }
+	  cgi_table id=settingsPage3 "class=\"fields settings\"" "style=\"display: none;\"" cellpadding="0" cellspacing="0" {
+	    cgi_puts "<tbody>"
+	    cgi_puts "<tr><td class=title colspan=2><h2>News and Weather</h2></td></tr>"
+
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Headline News"
+		#<br><a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		cgi_put " <label for=rss>RSS URL:</label>"
+		cgi_text rssNews= id="rss" value="http://uwnews.org/uweek/recent.rss"
+	      }
+	    }
+	    cgi_table_row {
+	      cgi_table_data class="title" {
+		cgi_put "Weather Bar"
+		#<br><a href="#" title="more info..."><img src="img/cbn/help_sm.gif"></a>
+	      }
+	      cgi_table_data class="body" {
+		cgi_table {
+		  cgi_put "<tbody>"
+		  cgi_table_row {
+		    cgi_table_data {
+		      cgi_put " <label for=weather_zipcode>Zipcode:</label>"
+		    }
+		    cgi_table_data {
+		      cgi_text areaCode= id="weather_zipcode" value="98195"
+		    }
+		  }
+		  cgi_table_row {
+		    cgi_table_data {
+		      cgi_put " <label for=weather_label>Display text for location:</label>"
+		    }
+		    cgi_table_data {
+		      cgi_text weatherLabel= id="weather_label" value="UW Weather"
+		    }
+		  }
+		}
+	      }
+	    }
+	    cgi_puts "</tbody>"
+	  }
+	  cgi_table id=settingsPage4 "class=\"fields settings\"" "style=\"display: none;\"" cellpadding="0" cellspacing="0" {
+	    cgi_puts "<tbody>"
+	    cgi_puts "<tr><td class=title colspan=2><h2>Message List</h2></td></tr>"
+
+	    cgi_puts "</tbody>"
+	  }
+	  cgi_table id=settingsPage5 "class=\"fields settings\"" "style=\"display: none;\"" cellpadding="0" cellspacing="0" {
+	    cgi_puts "<tbody>"
+	    cgi_puts "<tr><td class=title colspan=2><h2>Message View</h2></td></tr>"
+
+	    cgi_puts "</tbody>"
+	  }
+	  cgi_table id=settingsPage6 "class=\"fields settings\"" "style=\"display: none;\"" cellpadding="0" cellspacing="0" {
+	    cgi_puts "<tbody>"
+	    cgi_puts "<tr><td class=title colspan=2><h2>Compose</h2></td></tr>"
+
+	    cgi_puts "</tbody>"
+	  }
+	  cgi_table id=settingsPage7 "class=\"fields settings\"" "style=\"display: none;\"" cellpadding="0" cellspacing="0" {
+	    cgi_puts "<tbody>"
+	    cgi_puts "<tr><td class=title colspan=2><h2>Filters</h2></td></tr>"
+
+	    cgi_puts "</tbody>"
+	  }
+	  cgi_table id=settingsPage8 "class=\"fields settings\"" "style=\"display: none;\"" cellpadding="0" cellspacing="0" {
+	    cgi_puts "<tbody>"
+	    cgi_puts "<tr><td class=title colspan=2><h2>Folders</h2></td></tr>"
+
+	    cgi_puts "</tbody>"
+	  }
+	  cgi_table id=settingsPage9 "class=\"fields settings\"" "style=\"display: none;\"" cellpadding="0" cellspacing="0" {
+	    cgi_puts "<tbody>"
+	    cgi_puts "<tr><td class=title colspan=2><h2>Directory Servers</h2></td></tr>"
+
+	    cgi_puts "</tbody>"
+	  }
+	  cgi_table id=settingsPage10 "class=\"fields settings\"" "style=\"display: none;\"" cellpadding="0" cellspacing="0" {
+	    cgi_puts "<tbody>"
+	    cgi_puts "<tr><td class=title colspan=2><h2>Mail Servers</h2></td></tr>"
+
+	    cgi_puts "</tbody>"
+	  }
+	}
+      } {
+	# BOTTOM MENUBAR
+	cgi_table class="wap toolbarTbl" cellpadding="0" cellspacing="0" {
+	  cgi_puts "<tbody><tr><td>&nbsp;</td></tr></tbody>"
+	}
+      }
+
+      # any debugging info to insert?
+      foreach dmsg $dmsgs {
+	cgi_html_comment "DEBUG: $dmsg"
+	cgi_puts ""
+      }
+    }
+  }
+}

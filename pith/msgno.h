@@ -1,5 +1,5 @@
 /*
- * $Id: msgno.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: msgno.h 1108 2008-07-10 05:01:13Z mikes@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -150,6 +150,7 @@ typedef struct msg_nos {
 	       flagged_tmp,			/* tmp flagged count	   */
 	       flagged_stmp,			/* stmp flagged count	   */
 	       flagged_invisible,		/* this one's different    */
+	       flagged_srch,			/* search result/not slctd */
 	       visible_threads;			/* so is this one          */
 } MSGNO_S;
 

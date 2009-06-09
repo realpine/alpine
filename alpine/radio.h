@@ -1,8 +1,8 @@
 /*
- * $Id: radio.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: radio.h 1014 2008-03-26 17:27:45Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -61,7 +61,8 @@ typedef struct esckey {
 #define OE_KEEP_TRAILING_SPACE  0x10	/* Allow trailing white-space	*/
 #define OE_SEQ_SENSITIVE  	0x20	/* Sensitive to seq # changes   */
 #define OE_APPEND_CURRENT  	0x40	/* append, don't truncate       */
-#define OE_PASSWD	  	0x80	/* Don't echo user input        */
+#define OE_PASSWD  		0x80	/* Use asterisks to echo input  */
+#define OE_PASSWD_NOAST	  	0x100	/* Don't echo user input at all */
 
 #define	WT_NORM		 0x00		/* flags modifying want_to       */
 #define	WT_FLUSH_IN	 0x01		/* discard pending input         */

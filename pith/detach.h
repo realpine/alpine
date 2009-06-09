@@ -1,8 +1,8 @@
 /*
- * $Id: detach.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
+ * $Id: detach.h 1024 2008-04-07 22:58:40Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@
  */
 typedef struct _fetch_read {
     unsigned	   free_me:1;
+    unsigned	   we_turned_on:1;
     MAILSTREAM	  *stream;		/* stream of open mailbox */
     unsigned long  msgno;		/* message number within mailbox */
     char	  *section,		/* MIME section within message */

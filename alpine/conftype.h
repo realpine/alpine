@@ -1,5 +1,5 @@
 /*
- * $Id: conftype.h 937 2008-02-28 01:04:46Z hubert@u.washington.edu $
+ * $Id: conftype.h 1006 2008-03-21 21:31:58Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2008 University of Washington
@@ -81,7 +81,7 @@ typedef struct conf_line {
 #ifdef	ENABLE_LDAP
 	struct entry_and_screen {
 	    LDAP          *ld;
-	    LDAPMessage   *res;
+	    LDAPMessage   *entry;
 	    LDAP_SERV_S   *info_used;
 	    char          *serv;
 	    ADDR_CHOOSE_S *ac;

@@ -1,4 +1,4 @@
-# $Id: view.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
+# $Id: view.tcl 1008 2008-03-25 01:25:48Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -742,7 +742,7 @@ if {[info exists errstr]} {
 			  set saveurl "${attachurl}&download=1"
 			  if {0 == [string compare -nocase $mimetype "text"]
 			      && 0 == [string compare -nocase $mimesubtype "html"]} {
-			    set attachurl [append $attachurl "&download=1"]
+			    append attachurl "&download=1"
 			  }
 
 			  set attachexp "View ${mimetype}/${mimesubtype} Attachment"

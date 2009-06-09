@@ -1,5 +1,5 @@
 /*
- * $Id: pico.h 964 2008-03-14 23:53:39Z jpf@u.washington.edu $
+ * $Id: pico.h 1138 2008-08-12 22:13:52Z jpf@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2008 University of Washington
@@ -52,7 +52,7 @@
 
 
 
-#define HLSZ 256
+#define HLSZ NLINE
 
 /*
  * definitions of Mail header structures 
@@ -377,7 +377,7 @@ typedef struct  KBSTREE {
  */
 #ifdef	maindef
 PICO	*Pmaster = NULL;		/* composer specific stuff */
-char	*version = "5.01";		/* PICO version number */
+char	*version = "5.02";		/* PICO version number */
 
 #else
 extern	PICO *Pmaster;			/* composer specific stuff */
@@ -428,7 +428,7 @@ int   pico_writec(void *w, int c, int flags);
 int   pico_puts(void *w, char *s, int flags);
 int   pico_seek(void *w, long offset, int orig);
 int   pico_replace(void *, char *);
-int   pico_fncomplete(char *, size_t, char *, size_t);
+int   pico_fncomplete(char *, char *, size_t);
 #if defined(DOS) || defined(OS2)
 int   pico_nfsetcolor(char *);
 int   pico_nbsetcolor(char *);

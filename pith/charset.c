@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: charset.c 875 2007-12-17 18:39:47Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: charset.c 1031 2008-04-10 23:43:03Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ static char rcsid[] = "$Id: charset.c 875 2007-12-17 18:39:47Z hubert@u.washingt
 #include "../pith/state.h"
 #include "../pith/conf.h"
 #include "../pith/escapes.h"
-#include "../pith/rfc2231.h"
+#include "../pith/mimedesc.h"
 #include "../pith/filter.h"
 #include "../pith/string.h"
 #include "../pith/options.h"
@@ -48,7 +48,7 @@ body_charset(MAILSTREAM *stream, long int msgno, unsigned char *section)
 
 
     if((body = mail_body(stream, msgno, section)) && body->type == TYPETEXT){
-	if(!(charset = rfc2231_get_param(body->parameter, "charset", NULL, NULL)))
+	if(!(charset = parameter_val(body->parameter, "charset")))
 	  charset = cpystr("US-ASCII");
 
 	return(charset);
@@ -458,6 +458,15 @@ rfc1522_copy_and_transliterate(unsigned char  *rv,
 		    panic("c-client failed to transliterate recognized characterset");
 		}
 	    }
+	}
+	else if((cset=ps_global->VAR_UNK_CHAR_SET)
+		&& strucmp((char *) cset, "us-ascii")
+	        && strucmp((char *) cset, "utf-8")
+		&& utf8_charset(cset)){
+		if(!utf8_text(&src, cset, &xsrc, 0L)){
+		    /* should not happen */
+		    panic("c-client failed to transliterate recognized character set");
+		}
 	}
 	else{
 	    /* unknown bytes - mask off high bit chars */

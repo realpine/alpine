@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: alpine.c 938 2008-02-29 18:18:49Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: alpine.c 1071 2008-06-03 22:31:05Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -22,6 +22,7 @@ static char rcsid[] = "$Id: alpine.c 938 2008-02-29 18:18:49Z hubert@u.washingto
 #include "../pith/sort.h"
 #include "../pith/options.h"
 #include "../pith/list.h"
+#include "../pith/conf.h"
 
 #include "osdep/debuging.h"
 #include "osdep/termout.gen.h"
@@ -58,6 +59,7 @@ static char rcsid[] = "$Id: alpine.c 938 2008-02-29 18:18:49Z hubert@u.washingto
 #include "colorconf.h"
 #include "print.h"
 #include "after.h"
+#include "smime.h"
 #ifndef _WINDOWS
 #include "../pico/osdep/raw.h"	/* for STD*_FD */
 #endif
@@ -182,8 +184,12 @@ main(int argc, char **argv)
     pith_opt_pretty_var_name	   = pretty_var_name;
     pith_opt_pretty_feature_name   = pretty_feature_name;
     pith_opt_closing_stream        = titlebar_stream_closing;
+    pith_opt_current_expunged	   = mm_expunged_current;
+#ifdef	SMIME
+    pith_opt_smime_get_passphrase  = smime_get_passphrase;
+#endif
 #ifdef	ENABLE_LDAP
-    pith_opt_save_ldap_entry	 = save_ldap_entry;
+    pith_opt_save_ldap_entry       = save_ldap_entry;
 #endif
 
     status_message_lock_init();
@@ -297,6 +303,9 @@ main(int argc, char **argv)
     mail_parameters(NULL, SET_SENDCOMMAND, (void *) pine_imap_cmd_happened);
     mail_parameters(NULL, SET_FREESTREAMSPAREP, (void *) sp_free_callback);
     mail_parameters(NULL, SET_FREEELTSPAREP,    (void *) free_pine_elt);
+#ifdef	SMIME
+    mail_parameters(NULL, SET_FREEBODYSPAREP,   (void *) free_smime_body_sparep);
+#endif
 
     init_pinerc(pine_state, &init_pinerc_debugging);
 
@@ -423,6 +432,11 @@ main(int argc, char **argv)
 	ps_global->s_pool.max_remstream));
 
     init_vars(pine_state, process_init_cmds);
+
+#ifdef SMIME
+    if(F_ON(F_DONT_DO_SMIME, ps_global))
+      smime_deinit();
+#endif /* SMIME */
 
 #ifdef	ENABLE_NLS
     /*
@@ -2264,6 +2278,10 @@ choose_setup_cmd(int cmd, MSGNO_S *msgmap, SCROLL_S *sparms)
 	srv->cmd = 'z';
 	break;
 
+      case MC_SECURITY :	/* S/MIME setup screen */
+	srv->cmd = 'm';
+	break;
+
       case MC_EXCEPT :
 	srv->exc = !srv->exc;
 	menu_clear_binding(sparms->keys.menu, 'x');
@@ -2315,7 +2333,7 @@ int
 setup_menu(struct pine *ps)
 {
     int         ret = 0, exceptions = 0;
-    int         printer = 0, passwd = 0, config = 0, sig = 0, dir = 0, exc = 0;
+    int         printer = 0, passwd = 0, config = 0, sig = 0, dir = 0, smime = 0, exc = 0;
     SCROLL_S	sargs;
     SRV_S      *srv;
     STORE_S    *store;
@@ -2343,6 +2361,10 @@ setup_menu(struct pine *ps)
 
 #ifdef	ENABLE_LDAP
     dir++;
+#endif
+
+#ifdef	SMIME
+    smime++;
 #endif
 
     if(ps_global->post_prc)
@@ -2427,6 +2449,13 @@ setup_menu(struct pine *ps)
     so_puts(store, _("    command key labels, the titlebar at the top of each page, and quoted\n"));
     so_puts(store, _("    sections of messages you are viewing.\n"));
 
+    if(smime){
+	so_puts(store, "\n");
+	so_puts(store, _("(M) S/MIME:\n"));
+	so_puts(store, _("    Setup for using S/MIME to verify signed messages, decrypt\n"));
+	so_puts(store, _("    encrypted messages, and to sign or encrypt outgoing messages.\n"));
+    }
+
     so_puts(store, "\n");
     so_puts(store, _("(Z) RemoteConfigSetup:\n"));
     so_puts(store, _("    This is a command you will probably only want to use once, if at all.\n"));
@@ -2487,6 +2516,9 @@ setup_menu(struct pine *ps)
 
     if(!dir)
       clrbitn(SETUP_DIRECTORY, sargs.keys.bitmap);
+
+    if(!smime)
+      clrbitn(SETUP_SMIME, sargs.keys.bitmap);
 
     if(exc)
       menu_init_binding(sargs.keys.menu, 'x', MC_EXCEPT, "X",
@@ -2640,6 +2672,14 @@ do_setup_task(int command)
         /*--- ADD DIRECTORY SERVER --*/
       case 'd':
 	directory_config(ps_global, edit_exceptions);
+	ps_global->mangled_screen = 1;
+	break;
+#endif
+
+#ifdef	SMIME
+        /*--- S/MIME --*/
+      case 'm':
+	smime_config_screen(ps_global, edit_exceptions);
 	ps_global->mangled_screen = 1;
 	break;
 #endif
@@ -3160,6 +3200,10 @@ goodnight_gracey(struct pine *pine_state, int exit_val)
 #endif
 
     dprint((7, "goodnight_gracey: close config files\n"));    
+
+#ifdef SMIME
+    smime_deinit();
+#endif
 
     free_pinerc_strings(&pine_state);
 

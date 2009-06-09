@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcmd.c 945 2008-03-05 18:56:28Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: mailcmd.c 1108 2008-07-10 05:01:13Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -1717,7 +1717,7 @@ move_read_msgs(MAILSTREAM *stream, char *dstfldr, char *buf, size_t buflen, long
 	         || (!mc->valid && mc->searched)))
 	    set_lflag(stream, msgmap, i, MN_SLCT, 1);
 
-	pseudo_selected(msgmap);
+	pseudo_selected(stream, msgmap);
 	snprintf(buf, buflen, "Moving %s read message%s to \"%s\"",
 		comatose(searched), plural(searched), dstfldr);
 	we_cancel = busy_cue(buf, NULL, 0);
@@ -1985,12 +1985,12 @@ get_new_message_count(MAILSTREAM *stream, int imapstatus,
 
   ----*/
 long
-zoom_index(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap)
+zoom_index(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap, int onflag)
 {
     long        i, count = 0L, first = 0L, msgno;
     PINETHRD_S *thrd = NULL, *topthrd = NULL, *nthrd;
 
-    if(any_lflagged(msgmap, MN_SLCT)){
+    if(any_lflagged(msgmap, onflag)){
 
 	if(THREADING() && sp_viewing_a_thread(stream)){
 	    /* get top of current thread */
@@ -2000,7 +2000,7 @@ zoom_index(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap)
 	}
 
 	for(i = 1L; i <= mn_get_total(msgmap); i++){
-	    if(!get_lflag(stream, msgmap, i, MN_SLCT)){
+	    if(!get_lflag(stream, msgmap, i, onflag)){
 		set_lflag(stream, msgmap, i, MN_HIDE, 1);
 	    }
 	    else{
@@ -2095,11 +2095,11 @@ zoom_index(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap)
 
 	if(THRD_INDX()){
 	    thrd = fetch_thread(stream, mn_m2raw(msgmap, mn_get_cur(msgmap)));
-	    if(count_lflags_in_thread(stream, thrd, msgmap, MN_SLCT) == 0)
+	    if(count_lflags_in_thread(stream, thrd, msgmap, onflag) == 0)
 	      mn_set_cur(msgmap, first);
 	}
 	else if((THREADING() && sp_viewing_a_thread(stream))
-	        || !get_lflag(stream, msgmap, mn_get_cur(msgmap), MN_SLCT)){
+	        || !get_lflag(stream, msgmap, mn_get_cur(msgmap), onflag)){
 	    if(!first){
 		int flags = 0;
 

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: save.c 938 2008-02-29 18:18:49Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: save.c 1047 2008-05-02 21:58:34Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -29,7 +29,6 @@ static char rcsid[] = "$Id: save.c 938 2008-02-29 18:18:49Z hubert@u.washington.
 #include "../pith/bldaddr.h"
 #include "../pith/flag.h"
 #include "../pith/status.h"
-#include "../pith/rfc2231.h"
 #include "../pith/ablookup.h"
 #include "../pith/news.h"
 #include "../pith/util.h"
@@ -88,6 +87,14 @@ save_get_default(struct pine *state, ENVELOPE *e, long int rawno,
 		    ps_global->VAR_DEFAULT_SAVE_FOLDER,
 		    sizeof(ps_global->last_save_folder)-1);
 	    ps_global->last_save_folder[sizeof(ps_global->last_save_folder)-1] = '\0';
+
+	    /*
+	     * If the user entered "inbox" as their default save folder it is very
+	     * likely they meant the real inbox, not the inbox in the primary collection.
+	     */
+	    if(!context_was_set
+	      && !strucmp(ps_global->inbox_name, ps_global->last_save_folder))
+	      (*cntxt) = state->context_list;
 	}
     }
     else{
@@ -1584,7 +1591,7 @@ save_ex_explain_parts(struct mail_bodystruct *body, int depth, long unsigned int
 {
     char	  tmp[MAILTMPLEN], buftmp[MAILTMPLEN];
     unsigned long ilen;
-    char *name = rfc2231_get_param(body->parameter, "name", NULL, NULL);
+    char *name = parameter_val(body->parameter, "name");
 
     if(body->type == TYPEMULTIPART) {   /* multipart gets special handling */
 	PART *part = body->nested.part;	/* first body part */

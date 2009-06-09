@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: addrbook.c 881 2007-12-18 18:29:24Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: addrbook.c 1009 2008-03-25 18:57:53Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -88,7 +88,7 @@ int            search_book(long, int, long *, int *, int *);
 int            find_in_book(long, char *, long *, int *);
 int            search_in_one_line(AddrScrn_Disp *, AdrBk_Entry *, char *, char *);
 int            abook_select_tool(struct pine *, int, CONF_S **, unsigned);
-char          *choose_a_nickname_with_prefix(char *);
+char          *choose_an_address_with_this_prefix(COMPLETE_S *);
 #ifdef	_WINDOWS
 int	       addr_scroll_up(long);
 int	       addr_scroll_down(long);
@@ -6993,25 +6993,27 @@ abook_select_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 
 
 /*
- * Look in all of the address books for the longest unambiguous prefix
- * of a nickname which begins with the characters in "prefix".
+ * This isn't actually just a nickname completion anymore. The user types
+ * in a prefix of either a nickname, or a full address, or the addr@mailbox
+ * part of an address and we look in all of the address books for matches
+ * like that. We return the longest unambiguous match in answer.
  *
- * Args    prefix  -- The part of the nickname that has been typed so far
+ * Args    prefix  -- The part of the "nickname" that has been typed so far
  *         answer  -- The answer is returned here.
- *         tabtab  -- If the answer returned from adrbk_nick_complete is
+ *         tabtab  -- If the answer returned from adrbk_list_of_completions is
  *                    ambiguous and tabtab is set, then offer up a
- *                    selector screen among all the possible answers.
+ *                    selector screen for all the possible answers.
  *          flags  -- ANC_AFTERCOMMA -- This means that the passed in
  *                                      prefix may be a list of comma
  *                                      separated addresses and we're only
  *                                      completing the last one.
  *
- * Returns    0 -- no nickname has prefix as a prefix
- *            1 -- more than one nickname begins with
+ * Returns    0 -- no matches at all
+ *            1 -- more than one nickname (or address) begins with
  *                              the answer being returned
- *            2 -- the returned answer is a complete
- *                              nickname and there are no longer nicknames
- *                              which begin with the same characters
+ *            2 -- the returned answer is a complete answer, either a
+ *                              nickname or a complete address, and there are
+ *				no longer matches for the prefix
  *
  * Allocated answer is returned in answer argument.
  * Caller needs to free the answer.
@@ -7020,70 +7022,197 @@ int
 abook_nickname_complete(char *prefix, char **answer, int tabtab, unsigned flags)
 {
     int ambiguity;
+    COMPLETE_S *completions, *cp;
+    char *saved_beginning = NULL;
+    char *potential_answer = NULL;
 
-    ambiguity = adrbk_nick_complete(prefix, answer, flags);
+    /* there shouldn't be a case where answer is NULL */
+    if(answer)
+      *answer = NULL;
 
-    if(ambiguity == 1 && tabtab){
-	char *ambig_beg = NULL, *ambig_pref = NULL;
-	char *saved_beginning = NULL;
-	char *chosen_nickname = NULL;
+    /*
+     * If we need to handle case where no prefix is passed in,
+     * figure that out when we need it.
+     */
+    if(!(prefix && prefix[0]))
+      return(0);
 
-	if(answer && *answer){
-	    ambig_beg = *answer;
-	    *answer = NULL;
-	}
-	else
-	  ambig_beg = cpystr(prefix);
+    if(flags & ANC_AFTERCOMMA){
+	char *lastnick;
 
-	ambig_pref = ambig_beg;
+	/*
+	 * Find last comma, save the part before that, operate
+	 * only on the last address.
+	 */
+	if((lastnick = strrchr(prefix ? prefix : "", ',')) != NULL){
+	    lastnick++;
+	    while(!(*lastnick & 0x80) && isspace((unsigned char) (*lastnick)))
+	      lastnick++;
 
-	if(flags & ANC_AFTERCOMMA){
-	    char *lastnick;
-
-	    /*
-	     * Find last comma, save the part before that, operate
-	     * only on the last address.
-	     */
-	    if((lastnick = strrchr(ambig_beg ? ambig_beg : "", ',')) != NULL){
-		lastnick++;
-		while(!(*lastnick & 0x80) && isspace((unsigned char) (*lastnick)))
-		  lastnick++;
-
-		saved_beginning = cpystr(ambig_beg);
-		saved_beginning[lastnick-ambig_beg] = '\0';
-		ambig_pref = lastnick;
-	    }
-	}
-
-	chosen_nickname = choose_a_nickname_with_prefix(ambig_pref);
-	if(ambig_beg)
-	  fs_give((void **) &ambig_beg);
-
-	if(answer && *answer)
-	  fs_give((void **) answer);
-
-	if(chosen_nickname){
-	    ambiguity = 2;
-	    if(answer){
-		size_t l1, l2;
-
-		if(saved_beginning){
-		    l1 = strlen(saved_beginning);
-		    l2 = strlen(chosen_nickname);
-		    *answer = (char *) fs_get((l1+l2+1) * sizeof(char));
-		    strncpy(*answer, saved_beginning, l1+l2);
-		    strncpy(*answer+l1, chosen_nickname, l2);
-		    (*answer)[l1+l2] = '\0';
-		    fs_give((void **) &saved_beginning);
-		    fs_give((void **) &chosen_nickname);
-		}
-		else
-		  *answer = chosen_nickname;
-	    }
-	    else
-	      fs_give((void **) &chosen_nickname);
+	    saved_beginning = cpystr(prefix);
+	    saved_beginning[lastnick-prefix] = '\0';
+	    prefix = lastnick;
 	}
     }
+
+    if(!(prefix && prefix[0]))
+      return(0);
+
+    completions = adrbk_list_of_completions(prefix,
+			ps_global->cur_uid_stream, ps_global->cur_uid,
+			ALC_INCLUDE_ADDRS | ((strlen(prefix) >= 5) ? ALC_INCLUDE_LDAP : 0));
+
+    if(!completions)
+      ambiguity = 0;
+    else if(completions && completions->next)
+      ambiguity = 1;
+    else
+      ambiguity = 2;
+
+    if(ambiguity == 2){
+	if(completions->full_address && completions->full_address[0])
+	  potential_answer = cpystr(completions->full_address);
+	else if(completions->nickname && completions->nickname[0])
+	  potential_answer = cpystr(completions->nickname);
+	else if(completions->addr && completions->addr[0])
+	  potential_answer = cpystr(completions->addr);
+	else
+	  potential_answer = cpystr(prefix);
+    }
+    /* answer is ambiguous and caller wants a choose list in that case */
+    else if(ambiguity == 1 && tabtab){
+	potential_answer = choose_an_address_with_this_prefix(completions);
+
+	if(potential_answer)
+	  ambiguity = 2;
+	else{
+	    ambiguity = 1;
+	    potential_answer = cpystr(prefix);
+	}
+    }
+    else if(ambiguity == 1){
+	int  k;
+	char cand1_kth_char, cand2_kth_char;
+	char unambig[1000];
+
+	/* find the longest unambiguous prefix */
+	strncpy(unambig, prefix, sizeof(unambig));
+	unambig[sizeof(unambig)-1] = '\0';
+	k = strlen(unambig);
+
+	/*
+	 * First verify that they all match through prefix. LDAP sometimes gives
+	 * weird, inexplicable answers that don't seem to match at all.
+	 */
+	for(cp = completions; cp; cp = cp->next)
+	  if(!(		/* not a match */
+/*     no NICK bit                    OR            nickname matches prefix */
+    (!(cp->matches_bitmap & ALC_NICK) || (cp->nickname && strlen(cp->nickname) >= k && !struncmp(unambig, cp->nickname, k)))
+/* AND no ADDR bit                    OR            addr matches prefix */
+ && (!(cp->matches_bitmap & ALC_ADDR) || (cp->addr && strlen(cp->addr) >= k && !struncmp(unambig, cp->addr, k)))
+/* AND   neither FULL bit is set                      OR            one of the two fulls matches prefix */
+ && (!(cp->matches_bitmap & (ALC_FULL | ALC_REVFULL)) || ((cp->matches_bitmap & ALC_FULL && cp->full_address && strlen(cp->full_address) >= k && !struncmp(unambig, cp->full_address, k)) || (cp->matches_bitmap & ALC_REVFULL && cp->rev_fullname && strlen(cp->rev_fullname) >= k && !struncmp(unambig, cp->rev_fullname, k))))
+		   ))
+	    break;
+
+	/* if cp that means there was not a universal match up through prefix, stop */
+	if(!cp)
+	  do{
+	    cand1_kth_char = cand2_kth_char = '\0';
+	    if(completions->matches_bitmap & ALC_NICK && completions->nickname && strlen(completions->nickname) >= k)
+	      cand1_kth_char = completions->nickname[k];
+	    else if(completions->matches_bitmap & ALC_ADDR && completions->addr && strlen(completions->addr) >= k)
+	      cand1_kth_char = completions->addr[k];
+	    else{
+		if(completions->matches_bitmap & ALC_FULL && completions->full_address && strlen(completions->full_address) >= k)
+		  cand1_kth_char = completions->full_address[k];
+
+		if(completions->matches_bitmap & ALC_REVFULL && completions->rev_fullname && strlen(completions->rev_fullname) >= k)
+		  cand2_kth_char = completions->rev_fullname[k];
+	    }
+
+	    /*
+	     * You'll want a wide screen to read this. There are two possible
+	     * candidate chars for the next position. One or the other of them
+	     * has to match in all of the possible completions. We consider it
+	     * a match if either of the fullname completions for this entry is
+	     * a match. That may not match what the user expects but it may.
+	     */
+	    for(cp = completions; cp; cp = cp->next){
+                if(!(              /* candidate 1 is not a match */
+  /*    candidate 1 is defined   */
+          cand1_kth_char && cand1_kth_char != ','
+  /* AND   no NICK bit                    OR            nickname char is a match */
+     && (!(cp->matches_bitmap & ALC_NICK) || (cp->nickname && strlen(cp->nickname) >= k && cp->nickname[k] == cand1_kth_char))
+  /* AND   no ADDR bit                    OR            addr char is a match */
+     && (!(cp->matches_bitmap & ALC_ADDR) || (cp->addr && strlen(cp->addr) >= k && cp->addr[k] == cand1_kth_char))
+  /* AND   neither FULL bit is set                       OR            one of the two full chars is a match */
+     && (!(cp->matches_bitmap & (ALC_FULL | ALC_REVFULL)) || ((cp->matches_bitmap & ALC_FULL && cp->full_address && strlen(cp->full_address) >= k && cp->full_address[k] == cand1_kth_char) || (cp->matches_bitmap & ALC_REVFULL && cp->rev_fullname && strlen(cp->rev_fullname) >= k && cp->rev_fullname[k] == cand1_kth_char)))
+                       ))
+		  cand1_kth_char = '\0';	/* mark that it isn't a match */
+
+                if(!cand1_kth_char && !(              /* cand1 is not a match AND cand2 is not a match */
+  /*    candidate 2 is defined   */
+          cand2_kth_char && cand2_kth_char != ','
+  /* AND   no NICK bit                    OR            nickname char is a match */
+     && (!(cp->matches_bitmap & ALC_NICK) || (cp->nickname && strlen(cp->nickname) >= k && cp->nickname[k] == cand2_kth_char))
+  /* AND   no ADDR bit                    OR            addr char is a match */
+     && (!(cp->matches_bitmap & ALC_ADDR) || (cp->addr && strlen(cp->addr) >= k && cp->addr[k] == cand2_kth_char))
+  /* AND   neither FULL bit is set                       OR            one of the two full chars is a match */
+     && (!(cp->matches_bitmap & (ALC_FULL | ALC_REVFULL)) || ((cp->matches_bitmap & ALC_FULL && cp->full_address && strlen(cp->full_address) >= k && cp->full_address[k] == cand2_kth_char) || (cp->matches_bitmap & ALC_REVFULL && cp->rev_fullname && strlen(cp->rev_fullname) >= k && cp->rev_fullname[k] == cand2_kth_char)))
+                       ))
+		  cand2_kth_char = '\0';	/* mark that it isn't a match */
+
+		if(!cand1_kth_char && !cand2_kth_char)
+		  break;	/* no match so break */
+	    }
+
+	    if(!cp)			/* they all matched */
+	      unambig[k++] = cand1_kth_char ? cand1_kth_char : cand2_kth_char;
+
+	  }while(!cp && k < sizeof(unambig)-1);
+
+	unambig[k] = '\0';
+	unambig[sizeof(unambig)-1] = '\0';
+
+	/* don't return answer with trailing space */
+	while(--k >= 0 && isspace((unsigned char) unambig[k]))
+	  unambig[k] = '\0';
+
+	potential_answer = cpystr(unambig);
+    }
+
+    if(completions)
+      free_complete_s(&completions);
+
+    if(answer && ambiguity != 0){
+	if(potential_answer){
+	    if(saved_beginning){
+		size_t l1, l2;
+
+		l1 = strlen(saved_beginning);
+		l2 = strlen(potential_answer);
+		*answer = (char *) fs_get((l1+l2+1) * sizeof(char));
+		strncpy(*answer, saved_beginning, l1+l2);
+		strncpy(*answer+l1, potential_answer, l2);
+		(*answer)[l1+l2] = '\0';
+	    }
+	    else{
+		*answer = potential_answer;
+		potential_answer = NULL;
+	    }
+	}
+	else{
+	    /* this can't happen */
+	    ambiguity = 0;
+	}
+    }
+
+    if(saved_beginning)
+      fs_give((void **) &saved_beginning);
+
+    if(potential_answer)
+      fs_give((void **) &potential_answer);
 
     return(ambiguity);
 }
@@ -7094,68 +7223,62 @@ abook_nickname_complete(char *prefix, char **answer, int tabtab, unsigned flags)
  * prefix.
  */
 char *
-choose_a_nickname_with_prefix(char *prefix)
+choose_an_address_with_this_prefix(COMPLETE_S *completions)
 {
-    char *chosen_nickname = NULL;
-    char **lp, **possible_nicks = NULL;
-    STRLIST_S *list, *list2, *biglist = NULL;
-    PerAddrBook *pab;
-    int i;
+    char buf[1000];
+    char *chosen_address = NULL;
+    char **lp, **da, **possible_addrs = NULL, **display_addrs = NULL;
+    COMPLETE_S *cp;
     size_t cnt = 0;
+    int show_nick, show_revfull;
 
     /*
-     * Build a list of nicknames to choose from.
+     * Count how many and allocate an array for choose_item_from_list().
      */
-
-    for(i = 0; i < as.n_addrbk; i++){
-	pab = &as.adrbks[i];
-	list = adrbk_list_of_possible_nicks(pab ? pab->address_book : NULL, prefix);
-	combine_strlists(&biglist, list);
-    }
+    for(cnt = 0, cp = completions; cp; cp = cp->next)
+      cnt++;
 
     /*
-     * Eliminate duplicates by zeroing out the names.
-     */
-    for(list = biglist; list; list = list->next)
-      /* eliminate any dups further along in the list */
-      if(list->name)
-	for(list2 = list->next; list2; list2 = list2->next)
-	  if(list->name && list2->name && !strcmp(list->name, list2->name))
-	    fs_give((void **) &list2->name);
-
-    /*
-     * Count how many and allocate an array for choose_item_from_list.
-     */
-    for(cnt = 0, list = biglist; list; list = list->next)
-      if(list->name)
-        cnt++;
-
-    /*
-     * Copy biglist into an array.
+     * Copy completions into an array.
      */
     if(cnt > 0){
-	lp = possible_nicks = (char **) fs_get((cnt+1) * sizeof(*possible_nicks));
-	memset(possible_nicks, 0, (cnt+1) * sizeof(*possible_nicks));
-	for(list = biglist; list; list = list->next)
-	  if(list->name)
-	    *lp++ = cpystr(list->name ? list->name : "?");
+	lp = possible_addrs = (char **) fs_get((cnt+1) * sizeof(*possible_addrs));
+	memset(possible_addrs, 0, (cnt+1) * sizeof(*possible_addrs));
+	da = display_addrs = (char **) fs_get((cnt+1) * sizeof(*display_addrs));
+	memset(display_addrs, 0, (cnt+1) * sizeof(*display_addrs));
+	for(cp = completions; cp; cp = cp->next){
+	    show_nick = (cp->matches_bitmap & ALC_NICK) && cp->nickname && cp->nickname[0];
+	    show_revfull = 0;
+	    if(!show_nick && !(cp->matches_bitmap & (ALC_NICK | ALC_ADDR | ALC_FULL))
+	       && (cp->matches_bitmap & ALC_REVFULL)
+	       && cp->rev_fullname && cp->rev_fullname[0])
+	      show_revfull = 1;
 
-	qsort((qsort_t *) possible_nicks, cnt, sizeof(char *), sstrcasecmp);
+	    snprintf(buf, sizeof(buf), "%s%s%s%s%s",
+		     cp->full_address ? cp->full_address : "?",
+		     (show_nick || show_revfull) ? " (" : "",
+		     show_nick ? cp->nickname : "",
+		     show_revfull ? cp->rev_fullname : "",
+		     (show_nick || show_revfull) ? ")" : "");
+	    *da++ = cpystr(buf);
+	    *lp++ = cpystr(cp->full_address ? cp->full_address : "?");
+	}
     }
 
-    free_strlist(&biglist);
-
-    if(possible_nicks){
-	chosen_nickname = choose_item_from_list(possible_nicks,
-						_("SELECT A NICKNAME"),
-						_("nicknames"),
-						h_select_nickname_screen,
-						_("HELP FOR SELECTING A NICKNAME"),
+    if(possible_addrs){
+	chosen_address = choose_item_from_list(possible_addrs, display_addrs,
+						_("SELECT AN ADDRESS"),
+						_("addresses"),
+						h_select_address_screen,
+						_("HELP FOR SELECTING AN ADDRESS"),
 						NULL);
-	free_list_array(&possible_nicks);
+	free_list_array(&possible_addrs);
     }
 
-    return(chosen_nickname);
+    if(display_addrs)
+      free_list_array(&display_addrs);
+
+    return(chosen_address);
 }
 
 

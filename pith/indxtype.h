@@ -1,8 +1,8 @@
 /*
- * $Id: indxtype.h 835 2007-11-28 23:02:46Z hubert@u.washington.edu $
+ * $Id: indxtype.h 1058 2008-05-28 20:19:56Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -153,7 +153,7 @@ typedef struct index_elem {
     unsigned           freedata:1;	/* free data when done */
     unsigned           freecolor:1;	/* free color when done */
     unsigned           freeprintf:8;	/* how much alloced for print_format */
-    unsigned           wid:8;		/* redundant, width from print_format */
+    unsigned           wid:16;		/* redundant, width from print_format */
 } IELEM_S;
 
 
@@ -178,7 +178,7 @@ typedef struct index_elem {
 typedef struct index_field {
     struct index_field *next;
     IndexColType        ctype;
-    unsigned            width:8;	/* width of whole field           */
+    unsigned            width:16;	/* width of whole field           */
     unsigned            leftadj:1;	/* left adjust elements in field  */
     IELEM_S            *ielem;		/* list of elements in this field */
 } IFIELD_S;

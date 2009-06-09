@@ -14,7 +14,7 @@ dnl  */
 
 AC_PREREQ([2.57])
 
-AC_REVISION([$Id: configure.ac 961 2008-03-14 18:15:38Z mikes@u.washington.edu $])
+AC_REVISION([$Id: configure.ac 1128 2008-08-08 17:11:31Z hubert@u.washington.edu $])
 
 dnl Alpine Version Number is in $srcdir/VERSION
 AC_INIT(alpine, m4_normalize(m4_include([VERSION])), [alpine-contact@u.washington.edu])
@@ -540,6 +540,9 @@ PINEVAR(default-local-fullname, DF_LOCAL_FULLNAME, ["Local Support"], [Default l
 PINEVAR(default-local-address, DF_LOCAL_ADDRESS, [postmaster], [Default local support address])
 PINEVAR(default-keyboard-lock-count, DF_KBLOCK_PASSWD_COUNT, [1], [Default keyboard lock count])
 PINEVAR(default-remote-addressbook-history, DF_REMOTE_ABOOK_HISTORY, [3], [Default address book history count])
+PINEVAR(smime-public-cert-directory, DF_PUBLICCERT_DIR, [.alpine-smime/public], [Default Public Cert Directory])
+PINEVAR(smime-private-key-directory, DF_PRIVATEKEY_DIR, [.alpine-smime/private], [Default Private Key Directory])
+PINEVAR(smime-cacert-directory, DF_CACERT_DIR, [.alpine-smime/ca], [Default Cert Authority Directory])
 PINEVAR_UNQUOTED(default-printer, DF_DEFAULT_PRINTER, [ANSI_PRINTER], [Default printer])
 
 dnl set PASSFILE?
@@ -765,6 +768,11 @@ else
       fi
     ])
 fi
+
+dnl Include SMIME?
+AC_ARG_WITH(smime,
+  AC_HELP_STRING([--without-smime],[Disable S/MIME]),
+  [ with_smime=$withval ])
 
 dnl Include TCL?
 AC_ARG_WITH(tcl,
@@ -1263,7 +1271,7 @@ dnl Tests and assignments below are mostly to coax the appropriate
 dnl build from c-client.  Most of this will go away when c-client
 dnl adopts configure
 case "$host" in
-  *-linux-gnu)
+  *-linux-gnu*|*-k*bsd*-gnu*)
     alpine_path_delim="/"
     alpine_mode_readonly="(0600)"
     if test -f /etc/fedora-release ; then  
@@ -1482,6 +1490,13 @@ else
     certdir="${alpine_SSLDIR}/certs"
   else
     AC_MSG_NOTICE([SSL Problem: certificate directory not found])
+  fi
+
+  if test "x$with_smime" != "xno" ; then
+    if test -n "$certdir" ; then
+      AC_DEFINE([SMIME], [], [Enable S/MIME code])
+      AC_DEFINE_UNQUOTED([SMIME_SSLCERTS],"$certdir",[Directory where S/MIME CACerts are located])
+    fi
   fi
 
   if test ! -f ${certdir}/factory.pem ; then

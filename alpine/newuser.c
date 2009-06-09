@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: newuser.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: newuser.c 1028 2008-04-10 16:50:54Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ static char rcsid[] = "$Id: newuser.c 673 2007-08-16 22:25:10Z hubert@u.washingt
 #include "../pith/msgno.h"
 #include "../pith/filter.h"
 #include "../pith/init.h"
+#include "../pith/margin.h"
 
 
 /*
@@ -94,7 +95,7 @@ new_user_or_version(struct pine *ps)
 
 	    gf_link_filter(gf_html2plain,
 			   gf_html2plain_opt("x-alpine-help:",
-					     ps->ttyo->screen_cols, NULL,
+					     ps->ttyo->screen_cols, non_messageview_margin(),
 					     &handles, NULL, GFHP_LOCAL_HANDLES));
 
 	    error = gf_pipe(helper_getc, pc);

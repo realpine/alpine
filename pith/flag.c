@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: flag.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: flag.c 1113 2008-07-14 18:01:54Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -23,6 +23,7 @@ static char rcsid[] = "$Id: flag.c 671 2007-08-15 20:28:09Z hubert@u.washington.
 
 #include "../pith/headers.h"
 #include "../pith/flag.h"
+#include "../pith/pineelt.h"
 #include "../pith/icache.h"
 #include "../pith/mailindx.h"
 #include "../pith/mailcmd.h"
@@ -529,6 +530,7 @@ int
 get_lflag(MAILSTREAM *stream, MSGNO_S *msgs, long int n, int f)
 {
     MESSAGECACHE *mc;
+    PINELT_S	 *pelt;
     unsigned long rawno;
 
     rawno = msgs ? mn_m2raw(msgs, n) : n;
@@ -536,17 +538,21 @@ get_lflag(MAILSTREAM *stream, MSGNO_S *msgs, long int n, int f)
       return(0);
 
     mc = mail_elt(stream, rawno);
-    return((!mc) ? 0 : (!f)
-		    ? !(mc->spare || mc->spare2 || mc->spare3 ||
-		        mc->spare4 || mc->spare5)
-		    : (((f & MN_HIDE) ? mc->spare : 0)
-		       || ((f & MN_EXLD) ? mc->spare2 : 0)
-		       || ((f & MN_SLCT) ? mc->spare3 : 0)
-		       || ((f & MN_STMP) ? mc->spare6 : 0)
-		       || ((f & MN_USOR) ? mc->spare7 : 0)
-		       || ((f & MN_COLL) ? mc->spare5 : 0)
-		       || ((f & MN_CHID) ? mc->spare4 : 0)
-		       || ((f & MN_CHID2) ? mc->spare8 : 0)));
+    if(!mc || (pelt = (PINELT_S *) mc->sparep) == NULL)
+      return(f ? 0 : 1);
+
+    return((!f)
+	     ? !(pelt->hidden || pelt->excluded || pelt->selected ||
+		 pelt->colhid || pelt->collapsed || pelt->searched)
+	     : (((f & MN_HIDE) ? pelt->hidden : 0)
+		|| ((f & MN_EXLD) ? pelt->excluded : 0)
+		|| ((f & MN_SLCT) ? pelt->selected : 0)
+		|| ((f & MN_STMP) ? pelt->tmp : 0)
+		|| ((f & MN_USOR) ? pelt->unsorted : 0)
+		|| ((f & MN_COLL) ? pelt->collapsed : 0)
+		|| ((f & MN_CHID) ? pelt->colhid : 0)
+		|| ((f & MN_CHID2) ? pelt->colhid2 : 0)
+		|| ((f & MN_SRCH) ? pelt->searched : 0)));
 }
 
 
@@ -568,6 +574,7 @@ set_lflag(MAILSTREAM *stream, MSGNO_S *msgs, long int n, int f, int v)
     MESSAGECACHE *mc;
     long          rawno = 0L;
     PINETHRD_S   *thrd, *topthrd = NULL;
+    PINELT_S    **peltp, *pelt;
 
     if(n < 1L || n > mn_get_total(msgs))
       return(0L);
@@ -577,10 +584,17 @@ set_lflag(MAILSTREAM *stream, MSGNO_S *msgs, long int n, int f, int v)
 	int was_invisible, is_invisible;
 	int chk_thrd_cnt = 0, thrd_was_visible, was_hidden, is_hidden;
 
-	was_invisible = (mc->spare || mc->spare4) ? 1 : 0;
+	if((*(peltp = (PINELT_S **) &mc->sparep) == NULL)){
+	    *peltp = (PINELT_S *) fs_get(sizeof(PINELT_S));
+	    memset(*peltp, 0, sizeof(PINELT_S));
+	}
+
+	pelt = (*peltp);
+
+	was_invisible = (pelt->hidden || pelt->colhid) ? 1 : 0;
 
 	if((chk_thrd_cnt = ((msgs->visible_threads >= 0L)
-	   && THRD_INDX_ENABLED() && (f & MN_HIDE) && (mc->spare != v))) != 0){
+	   && THRD_INDX_ENABLED() && (f & MN_HIDE) && (pelt->hidden != v))) != 0){
 	    thrd = fetch_thread(stream, rawno);
 	    if(thrd && thrd->top){
 		if(thrd->top == thrd->rawno)
@@ -591,57 +605,62 @@ set_lflag(MAILSTREAM *stream, MSGNO_S *msgs, long int n, int f, int v)
 
 	    if(topthrd){
 		thrd_was_visible = thread_has_some_visible(stream, topthrd);
-		was_hidden = mc->spare ? 1 : 0;
+		was_hidden = pelt->hidden ? 1 : 0;
 	    }
 	}
 
-	if((f & MN_HIDE) && mc->spare != v){
-	    mc->spare = v;
+	if((f & MN_HIDE) && pelt->hidden != v){
+	    pelt->hidden = v;
 	    msgs->flagged_hid += (v) ? 1L : -1L;
 
-	    if(mc->spare && THREADING() && !THRD_INDX()
+	    if(pelt->hidden && THREADING() && !THRD_INDX()
 	       && stream == ps_global->mail_stream
 	       && ps_global->thread_disp_style == THREAD_MUTTLIKE)
 	      clear_index_cache_for_thread(stream, fetch_thread(stream, rawno),
 					   sp_msgmap(stream));
 	}
 
-	if((f & MN_CHID) && mc->spare4 != v){
-	    mc->spare4 = v;
+	if((f & MN_CHID) && pelt->colhid != v){
+	    pelt->colhid = v;
 	    msgs->flagged_chid += (v) ? 1L : -1L;
 	}
 
-	if((f & MN_CHID2) && mc->spare8 != v){
-	    mc->spare8 = v;
+	if((f & MN_CHID2) && pelt->colhid2 != v){
+	    pelt->colhid2 = v;
 	    msgs->flagged_chid2 += (v) ? 1L : -1L;
 	}
 
-	if((f & MN_COLL) && mc->spare5 != v){
-	    mc->spare5 = v;
+	if((f & MN_COLL) && pelt->collapsed != v){
+	    pelt->collapsed = v;
 	    msgs->flagged_coll += (v) ? 1L : -1L;
 	}
 
-	if((f & MN_USOR) && mc->spare7 != v){
-	    mc->spare7 = v;
+	if((f & MN_USOR) && pelt->unsorted != v){
+	    pelt->unsorted = v;
 	    msgs->flagged_usor += (v) ? 1L : -1L;
 	}
 
-	if((f & MN_EXLD) && mc->spare2 != v){
-	    mc->spare2 = v;
+	if((f & MN_EXLD) && pelt->excluded != v){
+	    pelt->excluded = v;
 	    msgs->flagged_exld += (v) ? 1L : -1L;
 	}
 
-	if((f & MN_SLCT) && mc->spare3 != v){
-	    mc->spare3 = v;
+	if((f & MN_SLCT) && pelt->selected != v){
+	    pelt->selected = v;
 	    msgs->flagged_tmp += (v) ? 1L : -1L;
 	}
 
-	if((f & MN_STMP) && mc->spare6 != v){
-	    mc->spare6 = v;
+	if((f & MN_SRCH) && pelt->searched != v){
+	    pelt->searched = v;
+	    msgs->flagged_srch += (v) ? 1L : -1L;
+	}
+
+	if((f & MN_STMP) && pelt->tmp != v){
+	    pelt->tmp = v;
 	    msgs->flagged_stmp += (v) ? 1L : -1L;
 	}
 
-	is_invisible = (mc->spare || mc->spare4) ? 1 : 0;
+	is_invisible = (pelt->hidden || pelt->colhid) ? 1 : 0;
 
 	if(was_invisible != is_invisible)
 	  msgs->flagged_invisible += (v) ? 1L : -1L;
@@ -651,7 +670,7 @@ set_lflag(MAILSTREAM *stream, MSGNO_S *msgs, long int n, int f, int v)
 	 * are visible and how many are MN_HIDE-hidden.
 	 */
 	if(chk_thrd_cnt && topthrd
-	   && (was_hidden != (is_hidden = mc->spare ? 1 : 0))){
+	   && (was_hidden != (is_hidden = pelt->hidden ? 1 : 0))){
 	    if(!thrd_was_visible && !is_hidden){
 		/* it is visible now, increase count by one */
 		msgs->visible_threads++;
@@ -722,13 +741,14 @@ any_lflagged(MSGNO_S *msgs, int f)
 
     if(f == MN_NONE)
       return(!(msgs->flagged_hid || msgs->flagged_exld || msgs->flagged_tmp ||
-	       msgs->flagged_coll || msgs->flagged_chid));
+	       msgs->flagged_coll || msgs->flagged_chid || msgs->flagged_srch));
     else if(f == (MN_HIDE | MN_CHID))
       return(msgs->flagged_invisible);		/* special non-bogus case */
     else
       return(((f & MN_HIDE)   ? msgs->flagged_hid  : 0L)
 	     + ((f & MN_EXLD) ? msgs->flagged_exld : 0L)
 	     + ((f & MN_SLCT) ? msgs->flagged_tmp  : 0L)
+	     + ((f & MN_SRCH) ? msgs->flagged_srch  : 0L)
 	     + ((f & MN_STMP) ? msgs->flagged_stmp  : 0L)
 	     + ((f & MN_COLL) ? msgs->flagged_coll  : 0L)
 	     + ((f & MN_USOR) ? msgs->flagged_usor  : 0L)

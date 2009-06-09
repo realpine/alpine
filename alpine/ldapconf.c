@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: ldapconf.c 673 2007-08-16 22:25:10Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: ldapconf.c 1006 2008-03-21 21:31:58Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -85,7 +85,7 @@ static char *dserv = N_("Directory Server on ");
  *         allocated here and freed by the caller.
  */
 int
-ldap_addr_select(struct pine *ps, ADDR_CHOOSE_S *ac, LDAP_SERV_RES_S **result,
+ldap_addr_select(struct pine *ps, ADDR_CHOOSE_S *ac, LDAP_CHOOSE_S **result,
 		 LDAPLookupStyle style, WP_ERR_S *wp_err, char *srchstr)
 {
     LDAPMessage     *e;
@@ -219,7 +219,7 @@ ldap_addr_select(struct pine *ps, ADDR_CHOOSE_S *ac, LDAP_SERV_RES_S **result,
 		ctmpa->help_title = _(srch_res_help_title);
 		ctmpa->tool       = addr_select_tool;
 		ctmpa->d.a.ld     = res_list->ld;
-		ctmpa->d.a.res    = e;
+		ctmpa->d.a.entry  = e;
 		ctmpa->d.a.info_used = res_list->info_used;
 		ctmpa->d.a.serv   = res_list->serv;
 		ctmpa->d.a.ac     = ac;
@@ -245,7 +245,7 @@ ldap_addr_select(struct pine *ps, ADDR_CHOOSE_S *ac, LDAP_SERV_RES_S **result,
 		ctmpa->help_title = _(srch_res_help_title);
 		ctmpa->tool       = addr_select_tool;
 		ctmpa->d.a.ld     = res_list->ld;
-		ctmpa->d.a.res    = e;
+		ctmpa->d.a.entry  = e;
 		ctmpa->d.a.info_used = res_list->info_used;
 		ctmpa->d.a.serv   = res_list->serv;
 		ctmpa->d.a.ac     = ac;
@@ -279,7 +279,7 @@ ldap_addr_select(struct pine *ps, ADDR_CHOOSE_S *ac, LDAP_SERV_RES_S **result,
 		ctmpa->help_title = _(srch_res_help_title);
 		ctmpa->tool       = addr_select_tool;
 		ctmpa->d.a.ld     = res_list->ld;
-		ctmpa->d.a.res    = e;
+		ctmpa->d.a.entry  = e;
 		ctmpa->d.a.info_used = res_list->info_used;
 		ctmpa->d.a.serv   = res_list->serv;
 		ctmpa->d.a.ac     = ac;
@@ -298,7 +298,7 @@ ldap_addr_select(struct pine *ps, ADDR_CHOOSE_S *ac, LDAP_SERV_RES_S **result,
 		    ctmpa->help_title = _(srch_res_help_title);
 		    ctmpa->tool       = addr_select_tool;
 		    ctmpa->d.a.ld     = res_list->ld;
-		    ctmpa->d.a.res    = e;
+		    ctmpa->d.a.entry  = e;
 		    ctmpa->d.a.info_used = res_list->info_used;
 		    ctmpa->d.a.serv   = res_list->serv;
 		    ctmpa->d.a.ac     = ac;
@@ -318,7 +318,7 @@ ldap_addr_select(struct pine *ps, ADDR_CHOOSE_S *ac, LDAP_SERV_RES_S **result,
 		    ctmpa->help_title = _(srch_res_help_title);
 		    ctmpa->tool       = addr_select_tool;
 		    ctmpa->d.a.ld     = res_list->ld;
-		    ctmpa->d.a.res    = e;
+		    ctmpa->d.a.entry  = e;
 		    ctmpa->d.a.info_used = res_list->info_used;
 		    ctmpa->d.a.serv   = res_list->serv;
 		    ctmpa->d.a.ac     = ac;
@@ -338,7 +338,7 @@ ldap_addr_select(struct pine *ps, ADDR_CHOOSE_S *ac, LDAP_SERV_RES_S **result,
 		    ctmpa->help_title = _(srch_res_help_title);
 		    ctmpa->tool       = addr_select_tool;
 		    ctmpa->d.a.ld     = res_list->ld;
-		    ctmpa->d.a.res    = e;
+		    ctmpa->d.a.entry  = e;
 		    ctmpa->d.a.info_used = res_list->info_used;
 		    ctmpa->d.a.serv   = res_list->serv;
 		    ctmpa->d.a.ac     = ac;
@@ -363,7 +363,7 @@ ldap_addr_select(struct pine *ps, ADDR_CHOOSE_S *ac, LDAP_SERV_RES_S **result,
 			ctmpa->help_title = _(srch_res_help_title);
 			ctmpa->tool       = addr_select_tool;
 			ctmpa->d.a.ld     = res_list->ld;
-			ctmpa->d.a.res    = e;
+			ctmpa->d.a.entry  = e;
 			ctmpa->d.a.info_used = res_list->info_used;
 			ctmpa->d.a.serv   = res_list->serv;
 			ctmpa->d.a.ac     = ac;
@@ -386,7 +386,7 @@ ldap_addr_select(struct pine *ps, ADDR_CHOOSE_S *ac, LDAP_SERV_RES_S **result,
 		    ctmpa->help_title = _(srch_res_help_title);
 		    ctmpa->tool       = addr_select_tool;
 		    ctmpa->d.a.ld     = res_list->ld;
-		    ctmpa->d.a.res    = e;
+		    ctmpa->d.a.entry  = e;
 		    ctmpa->d.a.info_used = res_list->info_used;
 		    ctmpa->d.a.serv   = res_list->serv;
 		    ctmpa->d.a.ac     = ac;
@@ -402,7 +402,7 @@ ldap_addr_select(struct pine *ps, ADDR_CHOOSE_S *ac, LDAP_SERV_RES_S **result,
 		ctmpa->help_title = _(srch_res_help_title);
 		ctmpa->tool       = addr_select_tool;
 		ctmpa->d.a.ld     = res_list->ld;
-		ctmpa->d.a.res    = e;
+		ctmpa->d.a.entry  = e;
 		ctmpa->d.a.info_used = res_list->info_used;
 		ctmpa->d.a.serv   = res_list->serv;
 		ctmpa->d.a.ac     = ac;
@@ -499,12 +499,11 @@ ldap_addr_select(struct pine *ps, ADDR_CHOOSE_S *ac, LDAP_SERV_RES_S **result,
 	  (*ps_global->redrawer)();
 
 	if(result && retval == 0 && ac->selected_ld && ac->selected_entry){
-	    (*result) = (LDAP_SERV_RES_S *)fs_get(sizeof(LDAP_SERV_RES_S));
+	    (*result) = (LDAP_CHOOSE_S *)fs_get(sizeof(LDAP_CHOOSE_S));
 	    (*result)->ld    = ac->selected_ld;
-	    (*result)->res   = ac->selected_entry;
+	    (*result)->selected_entry = ac->selected_entry;
 	    (*result)->info_used = ac->info_used;
 	    (*result)->serv  = ac->selected_serv;
-	    (*result)->next  = NULL;
 	}
     }
     else if(style == DisplayIfOne && got_n_mail < 1){
@@ -526,12 +525,11 @@ ldap_addr_select(struct pine *ps, ADDR_CHOOSE_S *ac, LDAP_SERV_RES_S **result,
 	else{
 	    retval = 0;
 	    if(result){
-		(*result) = (LDAP_SERV_RES_S *)fs_get(sizeof(LDAP_SERV_RES_S));
+		(*result) = (LDAP_CHOOSE_S *)fs_get(sizeof(LDAP_CHOOSE_S));
 		(*result)->ld    = first_line->d.a.ld;
-		(*result)->res   = first_line->d.a.res;
+		(*result)->selected_entry   = first_line->d.a.entry;
 		(*result)->info_used = first_line->d.a.info_used;
 		(*result)->serv  = first_line->d.a.serv;
-		(*result)->next  = NULL;
 	    }
 	}
 
@@ -556,7 +554,7 @@ addr_select_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 	}
 	else if(some_selectable){
 	    (*cl)->d.a.ac->selected_ld    = (*cl)->d.a.ld;
-	    (*cl)->d.a.ac->selected_entry = (*cl)->d.a.res;
+	    (*cl)->d.a.ac->selected_entry = (*cl)->d.a.entry;
 	    (*cl)->d.a.ac->info_used      = (*cl)->d.a.info_used;
 	    (*cl)->d.a.ac->selected_serv  = (*cl)->d.a.serv;
 	    retval = simple_exit_cmd(flags);
@@ -571,15 +569,14 @@ addr_select_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
       case MC_FWDTEXT :
       case MC_COMPOSE :
       case MC_ROLE :
-	{LDAP_SERV_RES_S *e;
+	{LDAP_CHOOSE_S *e;
 
-	  if((*cl)->d.a.ld && (*cl)->d.a.res){
-	    e = (LDAP_SERV_RES_S *)fs_get(sizeof(LDAP_SERV_RES_S));
+	  if((*cl)->d.a.ld && (*cl)->d.a.entry){
+	    e = (LDAP_CHOOSE_S *)fs_get(sizeof(LDAP_CHOOSE_S));
 	    e->ld    = (*cl)->d.a.ld;
-	    e->res   = (*cl)->d.a.res;
+	    e->selected_entry   = (*cl)->d.a.entry;
 	    e->info_used = (*cl)->d.a.info_used;
 	    e->serv  = (*cl)->d.a.serv;
-	    e->next  = NULL;
 	    if(cmd == MC_VIEW_TEXT)
 	      view_ldap_entry(ps, e);
 	    else if(cmd == MC_SAVE)

@@ -65,6 +65,9 @@ directory arranged, for the most part, by function.
       alpine/
 	Meat and potatoes of the Web Alpine Application.
 
+      alpine-2.0/
+	Meat and potatoes of the Web Alpine 2.0 Application
+
       session/
 	Alpine session management scripts used to login, establish
 	an alpine session, logout and aquire IMAP server credentials
@@ -121,6 +124,25 @@ described in the next section, you would add:
 to the configure script's command line.
 
 
+ACQUIRING EXTERNAL LIBRARIES
+----------------------------
+
+Web Alpine 2.0 makes heavy use of the functionality provided by the
+The Yahoo! User Interface Library (YUI).  Thus, to fully install Web
+Alpine, you will need to download the YUI libararies from:
+
+        http://developer.yahoo.com/yui/download/
+
+They are made available to Web Alpine 2.0 scripts thru the symbolic
+link:
+
+        web/cgi/alpine-2.0/lib/yui
+
+Simply install the downloaded library in the directory specified by
+the symbolic link, or change the link to refer to the intalled
+location.
+
+
 INSTALLING WEB ALPINE COMPONENTS
 --------------------------------
 
@@ -167,7 +189,7 @@ portion of Web Alpine available to the web server.
 
   8.  % cd /var/www
 
-  9.  % sudo ln -s /usr/local/libexec/alpine .
+  9.  % sudo ln -s /usr/local/libexec/alpine/cgi ./alpine
 
 Now adjust the web server's configuration so that it can effectively
 provide Web Alpine pages to connecting browsers by editing httpd's
@@ -196,7 +218,7 @@ defined above:
 
 If your web server offers pages other than Web Alpine, specify a
 prefix the web server should use for referencing Web Alpine pages by
-adding this line below the <Directory> entry specified above:
+adding this line before the <Directory> entry specified above:
 
       Alias /webmail/ "/var/www/alpine/"
 
@@ -323,4 +345,4 @@ what's going on and why.  If you have any questions or comments drop
 us a note <alpine-contact@cac.washington.edu>.
 
 -- 
-$Id: INSTALL 906 2008-01-11 19:15:07Z mikes@u.washington.edu $
+$Id: INSTALL 1097 2008-07-01 00:14:52Z mikes@u.washington.edu $

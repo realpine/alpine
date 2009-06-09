@@ -1,8 +1,8 @@
 /*
- * $Id: reply.h 780 2007-10-26 21:28:17Z hubert@u.washington.edu $
+ * $Id: reply.h 1069 2008-06-03 15:54:15Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@
 #define GBPT_PEEK	0x01
 #define GBPT_NOINTR	0x02
 #define GBPT_DELQUOTES	0x04
+#define	GBPT_HTML_OK	0x08
 
 
 /* flags for reply_cp_addr */
@@ -97,7 +98,7 @@ ADDRESS    *first_addr(ADDRESS *);
 char       *get_signature_lit(char *, int, int, int, int);
 int         sigdashes_are_present(char *);
 char	   *signature_path(char *, char *, size_t);
-char       *read_remote_sigfile(char *);
+char       *simple_read_remote_file(char *, char *);
 BODY	   *forward_multi_alt(MAILSTREAM *, ENVELOPE *, BODY *, long, char *, void *, gf_io_t, int);
 
 

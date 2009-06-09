@@ -1,10 +1,10 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: composer.c 847 2007-12-06 18:06:35Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: composer.c 1006 2008-03-21 21:31:58Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -841,7 +841,6 @@ HeaderEditor(int f, int n)
 		int offset, prefixlen, add_a_comma = 0;
 		size_t l, l1, l2;
 		int ambiguity, fallthru = 1;
-		EML eml;
 
 		strng = ods.cur_l->text;
 		offset = HeaderOffset(ods.cur_e);
@@ -854,16 +853,16 @@ HeaderEditor(int f, int n)
 		   && (*start
 		       && !ucs4_isspace(*start)
 		       && *start != ',')){
+
+		    end = start+1;
+
 		    while(start > strng
 			  && *(start-1)
-			  && !ucs4_isspace(*(start-1))
 		          && *(start-1) != ',')
 		      start--;
 
-		    for(end = start;
-			*end && !ucs4_isspace(*end) && *end != ',';
-			end++)
-		      ;
+		    while(ucs4_isspace(*start))
+		      start++;
 
 		    if(*end != ',' && ods.cur_l->next)
 		      add_a_comma++;
@@ -880,6 +879,28 @@ HeaderEditor(int f, int n)
 		    prefix = ucs4_to_utf8_cpystr(uprefix);
 		    fs_give((void **) &uprefix);
 
+		    /*
+		     * Ambiguity == 0 means no matches exist.
+		     *              1 means it is ambiguous and the longest
+		     *                unambiguous prefix beginning with prefix
+		     *                is in new_nickname.
+		     *              2 means it is unambiguous and the answer
+		     *                is in new_nickname
+		     *
+		     *  The expansion from == 2 doesn't have to have prefix
+		     *  as a prefix. For example, if the prefix is a prefix
+		     *  of the full name or a prefix of a nickname the answer
+		     *  might be the full address instead of the expanded
+		     *  prefix. In fact, that's probably the expected thing.
+		     *
+		     *  Due to the way the build_abook_tries sets up the tries
+		     *  it is unfortunately the case that the expanded address
+		     *  is not entered in any trie, so after you get an
+		     *  unambiguous expansion if you try TAB again at that
+		     *  point you'll probably get a no match returned instead
+		     *  of an unambiguous. So be aware of that and handle
+		     *  that case ok by falling through to header_downline.
+		     */
 		    ambiguity = (*(headents[ods.cur_e].nickcmpl))(prefix,
 					    &new_nickname, (lastch == ch), 0);
 
@@ -890,7 +911,7 @@ HeaderEditor(int f, int n)
 		      goto nomore_to_complete;
 
 		    if(new_nickname){
-			if(strlen(new_nickname) > strlen(prefix)){
+			if(strcmp(new_nickname, prefix)){
 			    /*
 			     * We're trying to work with the way
 			     * FormatLines works. It inserts text at the
@@ -971,6 +992,9 @@ HeaderEditor(int f, int n)
 
 			    HeaderFocus(ods.cur_e, offset);
 			}
+			else{
+                            (*term.t_beep)();
+			}
 
 			ambig = new_nickname;
 			new_nickname = NULL;
@@ -999,15 +1023,6 @@ HeaderEditor(int f, int n)
 
 		    UpdateHeader(0);
 		    PaintBody(0);
-
-		    /* ambiguous */
-		    if(lastch == ch){
-			eml.s = ambig;
-			if(headents[ods.cur_e].selector != NULL)
-			  emlwrite(_("%s is ambiguous, try ^T"), &eml);
-			else
-			  emlwrite(_("%s is ambiguous"), &eml);
-		    }
 
 		    if(prefix)
 		      fs_give((void **) &prefix);

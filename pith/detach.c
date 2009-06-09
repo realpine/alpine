@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: detach.c 913 2008-01-18 18:23:46Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: detach.c 1069 2008-06-03 15:54:15Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -25,7 +25,7 @@ static char rcsid[] = "$Id: detach.c 913 2008-01-18 18:23:46Z hubert@u.washingto
 #include "../pith/status.h"
 #include "../pith/addrstring.h"
 #include "../pith/bldaddr.h"
-#include "../pith/rfc2231.h"
+#include "../pith/mimedesc.h"
 #include "../pith/adjtime.h"
 #include "../pith/pipe.h"
 #include "../pith/busy.h"
@@ -202,13 +202,13 @@ detach(MAILSTREAM *stream,		/* c-client stream to use         */
 
     /* convert all text to UTF-8 */
     if(is_text){
-	charset = rfc2231_get_param(body->parameter, "charset", NULL, NULL);
+	charset = parameter_val(body->parameter, "charset");
 
 	/*
 	 * If the charset is unlabeled or unknown replace it
 	 * with the user's configured unknown charset.
 	 */
-	if(!charset || !strucmp(charset, UNKNOWN_CHARSET)){
+	if(!charset || !strucmp(charset, UNKNOWN_CHARSET) || !strucmp(charset, "us-ascii")){
 	    if(charset)
 	      fs_give((void **) &charset);
 
@@ -576,6 +576,14 @@ fetch_readc_init(FETCH_READC_S *frd, MAILSTREAM *stream, long int msgno,
     frd->size    = size;
     frd->readc	 = fetch_readc;
 
+#ifdef SMIME
+    /*
+     * The call to imap_cache below will return true in the case where
+     * we've already stashed fake data in the content of the part.
+     * This happens when an S/MIME message is decrypted.
+     */
+#endif
+
     if(modern_imap_stream(stream)
        && !imap_cache(stream, msgno, section, NULL, NULL)
        && (size > INIT_FETCH_CHUNK || (partial > 0L && partial < size))
@@ -597,10 +605,11 @@ fetch_readc_init(FETCH_READC_S *frd, MAILSTREAM *stream, long int msgno,
 	frd->chunk = (char *) fs_get ((frd->allocsize + 1) * sizeof(char));
 	frd->chunksize = frd->allocsize/2;  /* this gets doubled 1st time */
 	frd->endp  = frd->chunk;
-	frd->free_me++;
+	frd->free_me = 1;
 
 	if(!nointr)
-	  intr_handling_on();
+	  if(intr_handling_on())
+	    frd->we_turned_on = 1;
 
 	if(!(partial > 0L && partial < size)){
 	    frd->cache = so_get(CharStar, NULL, EDIT_ACCESS);
@@ -637,6 +646,9 @@ int
 fetch_readc_cleanup(void)
 {
     if(g_fr_desc){
+	if(g_fr_desc->we_turned_on)
+	  intr_handling_off();
+
 	if(g_fr_desc->chunk && g_fr_desc->free_me)
 	  fs_give((void **) &g_fr_desc->chunk);
 
@@ -652,9 +664,6 @@ fetch_readc_cleanup(void)
 	}
     }
 
-#ifndef	DOS
-    intr_handling_off();
-#endif
     return(0);
 }
 

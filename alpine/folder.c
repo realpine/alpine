@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: folder.c 954 2008-03-06 22:35:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: folder.c 1024 2008-04-07 22:58:40Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -6111,11 +6111,10 @@ int
 foreach_folder(CONTEXT_S *context, int selected, int (*test) (FOLDER_S *, void *), void *args)
 {
     int		     i, n, rv = 1;
+    int              we_turned_on = 0;
     FOLDER_S	    *fp;
 
-#ifndef	DOS
-    intr_handling_on();
-#endif
+    we_turned_on = intr_handling_on();
 
     for(i = 0, n = folder_total(FOLDERS(context)); i < n; i++){
 	if(ps_global->intr_pending){
@@ -6133,9 +6132,8 @@ foreach_folder(CONTEXT_S *context, int selected, int (*test) (FOLDER_S *, void *
 	  fp->scanned = 1;
     }
 
-#ifndef	DOS
-    intr_handling_off();
-#endif
+    if(we_turned_on)
+      intr_handling_off();
 
     return(rv);
 }

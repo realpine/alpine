@@ -1,8 +1,8 @@
 /*
- * $Id: addrbook.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
+ * $Id: addrbook.h 1004 2008-03-19 19:43:03Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,17 @@
 
 #include "../pith/adrbklib.h"
 #include "../pith/state.h"
+
+
+/*
+ * Flags to abook_nickname_complete().
+ * ANC_AFTERCOMMA means the passed in prefix
+ * looks like "stuff, stuff, prefix" and
+ * we are to peel off the stuff before the prefix,
+ * look for matches, then put the stuff back before
+ * returning the answer.
+ */
+#define ANC_AFTERCOMMA      0x1
 
 
 /* exported protoypes */

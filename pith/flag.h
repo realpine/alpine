@@ -1,5 +1,5 @@
 /*
- * $Id: flag.h 786 2007-11-02 23:23:04Z hubert@u.washington.edu $
+ * $Id: flag.h 1108 2008-07-10 05:01:13Z mikes@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -102,6 +102,7 @@
  * MN_HIDE hides messages which are not visible due to Zooming.
  * MN_EXLD hides messages which have been filtered away.
  * MN_SLCT marks messages which have been Selected.
+ * MN_SRCH marks messages that are the result of a search
  * MN_COLL marks a point in the thread tree where the view has been
  *          collapsed, hiding the messages below that point
  * MN_CHID hides messages which are collapsed out of view
@@ -122,6 +123,7 @@
 #define	MN_CHID2	0x0020	/* performance related */
 #define	MN_USOR		0x0040	/* New message which hasn't been sorted yet */
 #define	MN_STMP		0x0080	/* Temporary storage for a per-message bit */
+#define	MN_SRCH		0x0100	/* Search result */
 
 
 /* next_sorted_flagged options */

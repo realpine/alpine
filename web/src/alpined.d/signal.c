@@ -3,7 +3,7 @@ static char rcsid[] = "$Id: signal.c 91 2006-07-28 19:02:07Z mikes@u.washington.
 #endif
 
 /* ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -267,9 +267,10 @@ usr2_signal(int sig)
 /*
  * Command interrupt support.
  */
-void
+int
 intr_handling_on(void)
 {
+    return 0;
 }
 
 

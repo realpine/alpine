@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: ldap.c 701 2007-08-31 18:52:30Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: ldap.c 1006 2008-03-21 21:31:58Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ int
 ldap_addr_select(ps, ac, result, style, wp_err, srchstr)
     struct pine           *ps;
     ADDR_CHOOSE_S         *ac;
-    LDAP_SERV_RES_S      **result;
+    LDAP_CHOOSE_S        **result;
     LDAPLookupStyle        style;
     WP_ERR_S              *wp_err;
     char                  *srchstr;
@@ -71,12 +71,11 @@ ldap_addr_select(ps, ac, result, style, wp_err, srchstr)
 	        retval = 0;
 		if(result){
 		    (*result) =
-		      (LDAP_SERV_RES_S *)fs_get(sizeof(LDAP_SERV_RES_S));
+		      (LDAP_CHOOSE_S *)fs_get(sizeof(LDAP_CHOOSE_S));
 		    (*result)->ld    = tmp_rl->ld;
-		    (*result)->res   = tmp_e;
+		    (*result)->selected_entry   = tmp_e;
 		    (*result)->info_used = tmp_rl->info_used;
 		    (*result)->serv  = tmp_rl->serv;
-		    (*result)->next  = NULL;
 		}
 	    }
 	    else{
@@ -119,7 +118,8 @@ peLdapPname(mailbox, host)
     int               ecnt;
     CUSTOM_FILT_S    *filter;
     WP_ERR_S          wp_err;
-    LDAP_SERV_RES_S  *winning_e = NULL, *results = NULL;
+    LDAP_CHOOSE_S    *winning_e = NULL;
+    LDAP_SERV_RES_S  *results = NULL;
     LDAP_SERV_RES_S  *trl;
     LDAPMessage      *e;
 
@@ -256,7 +256,7 @@ free_wpldapres(wpldapr)
 	if(tmp1->str)
 	  fs_give((void **)&tmp1->str);
 	if(tmp1->reslist)
-	  free_ldap_result_list(tmp1->reslist);
+	  free_ldap_result_list(&tmp1->reslist);
     }
     fs_give((void **)&wpldapr);
     return(NULL);

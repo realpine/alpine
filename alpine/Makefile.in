@@ -15,7 +15,7 @@
 @SET_MAKE@
 
 # ========================================================================
-# Copyright 2006-2007 University of Washington
+# Copyright 2006-2008 University of Washington
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -72,7 +72,8 @@ am_alpine_OBJECTS = addrbook.$(OBJEXT) adrbkcmd.$(OBJEXT) \
 	pipe.$(OBJEXT) print.$(OBJEXT) radio.$(OBJEXT) \
 	remote.$(OBJEXT) reply.$(OBJEXT) roleconf.$(OBJEXT) \
 	send.$(OBJEXT) setup.$(OBJEXT) signal.$(OBJEXT) \
-	status.$(OBJEXT) takeaddr.$(OBJEXT) titlebar.$(OBJEXT)
+	status.$(OBJEXT) takeaddr.$(OBJEXT) titlebar.$(OBJEXT) \
+	smime.$(OBJEXT)
 nodist_alpine_OBJECTS = date.$(OBJEXT)
 alpine_OBJECTS = $(am_alpine_OBJECTS) $(nodist_alpine_OBJECTS)
 am__DEPENDENCIES_1 =
@@ -271,7 +272,7 @@ alpine_SOURCES = addrbook.c adrbkcmd.c after.c alpine.c arg.c busy.c colorconf.c
 	confscroll.c context.c dispfilt.c flagmaint.c folder.c help.c imap.c \
 	init.c kblock.c keymenu.c ldapconf.c listsel.c mailcmd.c mailindx.c \
 	mailpart.c mailview.c newuser.c pattern.c pipe.c print.c radio.c remote.c reply.c \
-	roleconf.c send.c setup.c signal.c status.c takeaddr.c titlebar.c
+	roleconf.c send.c setup.c signal.c status.c takeaddr.c titlebar.c smime.c
 
 alpine_LDADD = $(LDADD) $(INTLLIBS)
 nodist_alpine_SOURCES = date.c
@@ -400,6 +401,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/send.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/setup.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/signal.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/smime.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/status.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/takeaddr.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/titlebar.Po@am__quote@

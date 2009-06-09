@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: sequence.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: sequence.c 1008 2008-03-25 01:25:48Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -358,7 +358,7 @@ build_sequence(MAILSTREAM *stream, MSGNO_S *msgmap, long int *count)
   do their thing.
   ----*/
 int
-pseudo_selected(MSGNO_S *map)
+pseudo_selected(MAILSTREAM *stream, MSGNO_S *map)
 {
     long i, later = 0L;
 
@@ -366,12 +366,7 @@ pseudo_selected(MSGNO_S *map)
 	map->hilited = mn_m2raw(map, mn_get_cur(map));
 
 	for(i = 1L; i <= mn_get_total(map); i++)
-	  /* BUG: using the global mail_stream is kind of bogus since
-	   * everybody that calls us get's a pine stuct passed it.
-	   * perhaps a stream pointer in the message struct makes 
-	   * sense?
-	   */
-	  if(get_lflag(ps_global->mail_stream, map, i, MN_SLCT)){
+	  if(get_lflag(stream, map, i, MN_SLCT)){
 	      if(!later++){
 		  mn_set_cur(map, i);
 	      }

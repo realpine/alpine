@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: imap.c 739 2007-10-04 17:55:10Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: imap.c 1030 2008-04-10 21:26:20Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,6 +45,7 @@ static char rcsid[] = "$Id: imap.c 739 2007-10-04 17:55:10Z hubert@u.washington.
 #include "../pith/news.h"
 #include "../pith/util.h"
 #include "../pith/list.h"
+#include "../pith/margin.h"
 
 #if	(WINCRED > 0)
 #include <wincred.h>
@@ -229,6 +230,7 @@ mm_log(char *string, long int errflg)
     char        message[sizeof(ps_global->c_client_error)];
     char       *occurence;
     int         was_capitalized;
+    static char saw_kerberos_init_warning;
     time_t      now;
     struct tm  *tm_now;
 
@@ -261,9 +263,17 @@ mm_log(char *string, long int errflg)
        */
       return;
 
-    /*---- replace all "mailbox" with "folder" ------*/
     strncpy(message, string, sizeof(message));
     message[sizeof(message) - 1] = '\0';
+
+    if(errflg == WARN && srchstr(message, "try running kinit") != NULL){
+	if(saw_kerberos_init_warning)
+	  return;
+
+	saw_kerberos_init_warning = 1;
+    }
+
+    /*---- replace all "mailbox" with "folder" ------*/
     occurence = srchstr(message, "mailbox");
     while(occurence) {
 	if(!*(occurence+7)
@@ -943,7 +953,7 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 
 	save_dont_use = ps_global->dont_use_init_cmds;
 	ps_global->dont_use_init_cmds = 1;
-	flags = OE_PASSWD;
+	flags = F_ON(F_QUELL_ASTERISKS, ps_global) ? OE_PASSWD_NOAST : OE_PASSWD;
 #ifdef _WINDOWS
 	rc = os_login_dialog(mb, user, NETMAXUSER, pwd, NETMAXPASSWD, 0, 1,
 			     &preserve_password);
@@ -1393,7 +1403,7 @@ pine_sslcertquery(char *reason, char *host, char *cert)
 	gf_filter_init();
 	gf_link_filter(gf_html2plain,
 		       gf_html2plain_opt(NULL,
-					 ps_global->ttyo->screen_cols, NULL,
+					 ps_global->ttyo->screen_cols, non_messageview_margin(),
 					 &handles, NULL, GFHP_LOCAL_HANDLES));
 	gf_set_so_readc(&gc, in_store);
 	gf_set_so_writec(&pc, out_store);

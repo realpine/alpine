@@ -49,6 +49,9 @@
 #undef DF_ADDRESSBOOK
 
 /* Default configuration value */
+#undef DF_CACERT_DIR
+
+/* Default configuration value */
 #undef DF_DEFAULT_FCC
 
 /* Default configuration value */
@@ -92,6 +95,12 @@
 
 /* Default configuration value */
 #undef DF_OVERLAP
+
+/* Default configuration value */
+#undef DF_PRIVATEKEY_DIR
+
+/* Default configuration value */
+#undef DF_PUBLICCERT_DIR
 
 /* Default configuration value */
 #undef DF_REMOTE_ABOOK_HISTORY
@@ -545,6 +554,12 @@
 
 /* The size of `unsigned short', as computed by sizeof. */
 #undef SIZEOF_UNSIGNED_SHORT
+
+/* Enable S/MIME code */
+#undef SMIME
+
+/* Directory where S/MIME CACerts are located */
+#undef SMIME_SSLCERTS
 
 /* Simple spell checker: reads stdin, emits misspellings on stdout */
 #undef SPELLER

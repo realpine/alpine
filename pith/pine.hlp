@@ -1,4 +1,4 @@
-# $Id: pine.hlp 962 2008-03-14 18:34:08Z hubert@u.washington.edu $
+# $Id: pine.hlp 1136 2008-08-12 20:50:16Z mikes@u.washington.edu $
 #
 #        T H E   A L P I N E    M E S S A G E   S Y S T E M
 #
@@ -140,7 +140,7 @@ reasonable place to be called from.
 Dummy change to get revision in pine.hlp
 
 ============= h_revision =================
-$Id: pine.hlp 962 2008-03-14 18:34:08Z hubert@u.washington.edu $
+$Id: pine.hlp 1136 2008-08-12 20:50:16Z mikes@u.washington.edu $
 ============= h_news =================
 <HTML>
 <HEAD>
@@ -177,6 +177,78 @@ Additions include:
 <P>
 
 <UL>
+   <LI> Redesigned Web Alpine interface
+   <LI> Experimental <A HREF="h_mainhelp_smime">S/MIME support</A> added
+	in UNIX versions of Alpine
+   <LI> Attempt to include the attachment filename as part of the name of the
+	temporary file used when viewing an attachment with an external program.
+	Add some randomness to that filename to make it hard to predict the filename.
+	Add a filename extension, usually derived from the type/subtype, to the
+	temporary filename. This was previously done only on Windows and MacOS X.
+   <LI> Enhance address completion in the composer (TAB command) so that it looks
+	through nicknames, fullnames, and addresses from the address book; addresses
+	from the message being viewed, if any; and the results from
+	<A HREF="h_direct_config">LDAP Directory Server</A>
+	lookups for all of the defined directory servers that have the
+	<A HREF="h_config_ldap_opts_impl">&quot;Use-Implicitly-From-Composer&quot;</A>
+	feature set.
+   <LI> Make the default character set setting more liberal in what it will accept
+	from the UNIX nl_langinfo call and the various values of LANG seen in the wild
+   <LI> Remove the Alpine revision number from the titlebar in released versions
+	while leaving it there in snapshot versions
+   <LI> Add a <A HREF="h_config_quell_asterisks">feature</A> to suppress the
+	display of asterisks when you type a password for Alpine
+   <LI> Add line wrapping when displaying <EM>PRE</EM> formatted sections of HTML
+   <LI> When the
+	<A HREF="h_config_dates_to_local"><!--#echo var="FEAT_convert-dates-to-localtime"--></A>
+	feature is turned on convert not only the dates in the index screen but also
+	the dates in the MESSAGE VIEW
+</UL>
+
+<P>
+Bugs that have been addressed include:
+<P>
+
+<UL>
+   <LI> Crash when using tab-completion for selecting a Save filename
+   <LI> Make Web Alpine help text images relative for more portability
+   <LI> Fixed attach save of html parts in Web Alpine
+   <LI> Viewing, printing, exporting, replying, and bouncing of message
+	digests was broken. Replying and bouncing should not have been
+	allowed at all for digests. It would be nice to have a more standard
+	index-like view of a message digest but that has not been addressed
+	with this minor bug fix.
+   <LI> Adjust wrapping of HTML messages so that the margins specified by
+	<A HREF="h_config_viewer_margin_left"><!--#echo var="VAR_viewer-margin-left"--></A> and
+	<A HREF="h_config_viewer_margin_right"><!--#echo var="VAR_viewer-margin-right"--></A>
+	are observed correctly
+   <LI> Interrupt of WhereIs command in index was broken
+   <LI> The <A HREF="h_config_unk_char_set"><!--#echo var="VAR_unknown-character-set"--></A>
+	option did not work correctly interpreting unknown characters in message headers
+   <LI> Long address lines could cause blank continuation lines
+   <LI> Save to a local default INBOX failed if the primary collection was also local,
+	which it is by default. The save went to  ~/mail/inbox instead.
+   <LI> Make a default save folder of &quot;inbox&quot; always mean the real
+	inbox, not the inbox in the primary collection
+   <LI> Address book entries with lots of addresses would be truncated when
+	entered in the composer with a screen size wider than 270 or so charcters
+   <LI> Some fields in the index screen were truncated when the screen width was
+	wider than 256 characters
+   <LI> Crash when TABing to next folder, the next folder with new mail is a POP
+	folder, and there is a more than 10 minute pause between typing the TAB
+	and typing the Yes
+</UL>
+
+<P>
+
+Version 1.10(962)
+addressed bugs found in previous releases and had a few additions as well.
+
+<P>
+Additions included:
+<P>
+
+<UL>
    <LI> Add the possibility of setting a default role
 	(see <A HREF="h_role_select">Roles Screen</A>)
 	which may be convenient if your work flow involves acting in one
@@ -209,7 +281,7 @@ Additions include:
 </UL>
 
 <P>
-Bugs that have been addressed include:
+Bugs addressed in the 1.10(962) release included:
 <P>
 
 <UL>
@@ -1283,6 +1355,7 @@ The &quot;NextLink&quot; and &quot;PrevLink&quot; commands
   <LI> <A HREF="h_mainhelp_mouse">Using a Mouse</A>
   <LI> <A HREF="h_mainhelp_cmdlineopts">Command Line Options</A>
   <LI> <A HREF="h_mainhelp_securing">Securing Your Alpine Session</A>
+  <LI> <A HREF="h_mainhelp_smime">S/MIME</A>
   <LI> <A HREF="h_mainhelp_problems">Reporting Problems</A>
   <LI> <A HREF="X-Alpine-Config:">Show Supported Options in this Alpine</A>
   <LI> <A HREF="h_help_index">Index to Alpine's Online Help</A>
@@ -3063,6 +3136,7 @@ There are also additional details on
 <li><a href="h_config_full_auto_expunge">FEATURE: <!--#echo var="FEAT_expunge-without-confirm-everywhere"--></a>
 <li><a href="h_config_no_fcc_attach">FEATURE: <!--#echo var="FEAT_fcc-without-attachments"--></a>
 <li><a href="h_config_force_arrow">FEATURE: <!--#echo var="FEAT_force-arrow-cursor"--></a>
+<li><a href="h_config_forward_as_attachment">FEATURE: <!--#echo var="FEAT_forward-as-attachment"--></a>
 <li><a href="h_config_quell_empty_dirs">FEATURE: <!--#echo var="FEAT_quell-empty-directories"--></a>
 <li><a href="h_config_hide_nntp_path">FEATURE: <!--#echo var="FEAT_hide-nntp-path"--></a>
 <li><a href="h_config_attach_in_reply">FEATURE: <!--#echo var="FEAT_include-attachments-in-reply"--></a>
@@ -3131,8 +3205,8 @@ There are also additional details on
 <li><a href="h_config_always_spell_check">FEATURE: <!--#echo var="FEAT_spell-check-before-sending"--></a>
 <li><a href="h_config_winpos_in_config">FEATURE: <!--#echo var="FEAT_store-window-position-in-config"--></a>
 <li><a href="h_config_strip_sigdashes">FEATURE: <!--#echo var="FEAT_strip-from-sigdashes-on-reply"--></a>
-<li><a href="h_config_forward_as_attachment">FEATURE: <!--#echo var="FEAT_forward-as-attachment"--></a>
 <li><a href="h_config_strip_ws_before_send">FEATURE: <!--#echo var="FEAT_strip-whitespace-before-send"--></a>
+<li><a href="h_config_quells_asterisks">FEATURE: <!--#echo var="FEAT_suppress-asterisks-in-password-prompt"--></a>
 <li><a href="h_config_quell_attach_ext_warn">FEATURE: <!--#echo var="FEAT_quell-attachment-extension-warn"--></a>
 <li><a href="h_config_quell_attach_extra_prompt">FEATURE: <!--#echo var="FEAT_quell-attachment-extra-prompt"--></a>
 <li><a href="h_config_no_bezerk_zone">FEATURE: <!--#echo var="FEAT_quell-berkeley-format-timezone"--></a>
@@ -3177,6 +3251,7 @@ There are also additional details on
 <li><a href="h_common_folders">Folder List Command</a>
 <li><a href="h_folder_fcc">Folder Select for Fcc Explained</a>
 <li><a href="h_folder_save">Folder Select for Save Explained</a>
+<li><a href="h_folder_server_syntax">Folder Server Name Syntax</a>
 <li><a href="h_config_change_your_from">From Address, Changing</a>
 <li><a href="main_menu_tx">GENERAL INFORMATION ON THE ALPINE MESSAGE SYSTEM</a>
 <li><a href="h_pine_for_windows">GETTING HELP IN ALPINE</a>
@@ -3469,6 +3544,7 @@ There are also additional details on
 <li><a href="h_common_reply">Reply and Forward Commands</a>
 <li><a href="h_compose_richhdr">Rich Header Command</a>
 <li><a href="h_common_role">Role Command</a>
+<li><a href="h_mainhelp_smime">S/MIME</a>
 <li><a href="h_index_cmd_select">Searching for Messages</a>
 <li><a href="h_address_display">SEARCH RESULTS INDEX</a>
 <li><a href="h_address_select">SEARCH RESULTS INDEX</a>
@@ -3485,10 +3561,29 @@ There are also additional details on
 <li><a href="h_mainhelp_securing">Securing Your Alpine Session</a>
 <li><a href="h_index_cmd_select">Selecting: Select and WhereIs/Select</a>
 <li><a href="h_compose_send">Send Command</a>
+<li><a href="h_folder_server_syntax">Server Name Syntax</a>
 <li><a href="h_main_setup">Setup Command</a>
 <li><a href="X-Alpine-Config:">Show Supported Options in this Alpine</a>
 <li><a href="h_composer_sigedit">Signature Editor Commands Explained</a>
 <li><a href="h_simple_text_view">Simple Text View Screen Explained</a>
+<li><a href="h_mainhelp_smime">S/MIME</a>
+<li><a href="h_config_smime_dont_do_smime">S/MIME FEATURE: <!--#echo var="FEAT_smime-dont-do-smime"--></a>
+<li><a href="h_config_smime_encrypt_by_default">S/MIME FEATURE: <!--#echo var="FEAT_smime-encrypt-by-default"--></a>
+<li><a href="h_config_smime_remember_passphrase">S/MIME FEATURE: <!--#echo var="FEAT_smime-remember-passphrase"--></a>
+<li><a href="h_config_smime_sign_by_default">S/MIME FEATURE: <!--#echo var="FEAT_smime-sign-by-default"--></a>
+<li><a href="h_config_smime_pubcerts_in_keychain">S/MIME FEATURE: <!--#echo var="FEAT_publiccerts-in-keychain"--></a>
+<li><a href="h_config_smime_cacertcon">S/MIME OPTION: <!--#echo var="VAR_smime-cacert-container"--></a>
+<li><a href="h_config_smime_cacertdir">S/MIME OPTION: <!--#echo var="VAR_smime-cacert-directory"--></a>
+<li><a href="h_config_smime_privkeycon">S/MIME OPTION: <!--#echo var="VAR_smime-private-key-container"--></a>
+<li><a href="h_config_smime_privkeydir">S/MIME OPTION: <!--#echo var="VAR_smime-private-key-directory"--></a>
+<li><a href="h_config_smime_pubcertcon">S/MIME OPTION: <!--#echo var="VAR_smime-public-cert-container"--></a>
+<li><a href="h_config_smime_pubcertdir">S/MIME OPTION: <!--#echo var="VAR_smime-public-cert-directory"--></a>
+<li><a href="h_config_smime_transfer_cacert_to_con">S/MIME: Transfer CA Certs to Container</a>
+<li><a href="h_config_smime_transfer_cacert_to_dir">S/MIME: Transfer CA Certs to Directory</a>
+<li><a href="h_config_smime_transfer_priv_to_con">S/MIME: Transfer Private Keys to Container</a>
+<li><a href="h_config_smime_transfer_priv_to_dir">S/MIME: Transfer Private Keys to Directory</a>
+<li><a href="h_config_smime_transfer_pub_to_con">S/MIME: Transfer Public Certs to Container</a>
+<li><a href="h_config_smime_transfer_pub_to_dir">S/MIME: Transfer Public Certs to Directory</a>
 <li><a href="h_index_cmd_sort">Sort Command</a>
 <li><a href="h_compose_spell">Spell Check Command</a>
 <li><a href="h_common_suspend">Suspend Command</a>
@@ -7476,13 +7571,13 @@ the MAIN MENU, to manage your collection list.
 &lt;End of help on this topic&gt;
 </BODY>
 </HTML>
-===== h_select_nickname_screen =====
+===== h_select_address_screen =====
 <HTML>
 <HEAD>
-<TITLE>SELECT A NICKNAME SCREEN</TITLE>
+<TITLE>SELECT AN ADDRESS SCREEN</TITLE>
 </HEAD>
 <BODY>
-<H1>SELECT A NICKNAME SCREEN</H1>
+<H1>SELECT AN ADDRESS SCREEN</H1>
 <H2>COMMANDS</H2>
 <!--chtml if pinemode="function_key"-->
 <PRE>
@@ -7490,11 +7585,11 @@ Available  Commands
 -------------------------------            
 F1  Show Help Text
 F3  Exit without selecting anything
-F4  Select the highlighted nickname
-F5  Move highlight to previous nickname
-F6  Move highlight to next nickname
-F7  Previous page of nicknames
-F8  Next page of nicknames
+F4  Select the highlighted address
+F5  Move highlight to previous address
+F6  Move highlight to next address
+F7  Previous page of addresses
+F8  Next page of addresses
 F11 Print
 F12 WhereIs
 </PRE>
@@ -7502,22 +7597,22 @@ F12 WhereIs
 <PRE>
 Navigation                     General Alpine Commands
 -----------------------        ---------------------
- P  Prev Nickname               ?  Display this help text
- N  Next Nickname               E  Exit without selecting anything
+ P  Prev Address                ?  Display this help text
+ N  Next Address                E  Exit without selecting anything
  -  Previous page               %  Print
 Spc (space bar) Next page
  W  WhereIs
 
 Select Command
 ------------------------------------------------
- S  Select the highlighted nickname
+ S  Select the highlighted address
 </PRE>
 <!--chtml endif-->
 
-<H2>Description of the Select Nickname Screen</H2>
+<H2>Description of the Select Address Screen</H2>
 
-This screen just gives you an easy way to select a nickname from all of your
-address book nicknames that match the prefix typed so far.
+This screen gives you an easy way to select an address from all of
+the address book entries that match the prefix typed so far.
 
 <P><UL>
 <LI><A HREF="h_finding_help">Finding more information and requesting help</A>
@@ -13996,6 +14091,8 @@ Set this to have lookups done to this server implicitly from the composer.
 If an address doesn't look like a fully-qualified address, it will be looked
 up in your address books, and if it doesn't match a nickname there, then it
 will be looked up on the LDAP servers that have this feature set.
+The lookups will also be done when using the address completion feature
+(TAB command) in the composer if any of the serves have this feature set.
 Also see the LDAP feature
 <A HREF="h_config_ldap_opts_rhs">&quot;Lookup-Addrbook-Contents&quot;</A>
 and the Setup/Config feature
@@ -20553,6 +20650,7 @@ list below.
 <HEAD>
 <TITLE>OPTION: Set default printer</TITLE>
 </HEAD>
+<H1>OPTION: Set default printer</H1>
 <BODY>
 You may add as many print commands as you want to your personal list.
 Specify one of them as your default printer by moving to the printer
@@ -22172,6 +22270,9 @@ this <!--#echo var="VAR_unknown-character-set"--> to <CODE>WINDOWS-1251</CODE> w
 allow you to read those messages.
 Of course, if the unlabeled message is actually in some other character set,
 then you may see garbage on your screen.
+<P>
+Instead of just unlabeled text, this option also affects text which is labeled
+with the charsets &quot;X-Unknown&quot; or &quot;US-ASCII&quot;.
 
 <P>
 In the Setup/Config screen you may choose from a list of all the
@@ -28092,6 +28193,27 @@ being sent.
 &lt;End of help on this topic&gt;
 </BODY>
 </HTML>
+====== h_config_quell_asterisks =====
+<HTML>
+<HEAD>
+<TITLE>FEATURE: <!--#echo var="FEAT_suppress-asterisks-in-password-prompt"--></TITLE>
+</HEAD>
+<BODY>
+<H1>FEATURE: <!--#echo var="FEAT_suppress-asterisks-in-password-prompt"--></H1>
+<P>
+When you are running Alpine you will sometimes be asked for a password
+in a prompt on the third line from the bottom of the screen.
+Normally each password character you type will cause an asterisk to echo
+on the screen. That gives you some feedback to know that your typing is
+being recognized.
+There is a very slight security risk in doing it this way because someone
+watching over your shoulder might be able to see how many characters there
+are in your password.
+If you'd like to suppress the echoing of the asterisks set this feature.
+<P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
 ====== h_config_quell_flowed_text =====
 <HTML>
 <HEAD>
@@ -29497,7 +29619,7 @@ It will be assumed that you do want to return to the INBOX.
 <H1>FEATURE: <!--#echo var="FEAT_convert-dates-to-localtime"--></H1>
 
 Normally, the message dates that you see in the
-MESSAGE INDEX are displayed in the timezone they were sent from.
+MESSAGE INDEX and MESSAGE VIEW are displayed in the timezone they were sent from.
 For example, if a message was sent to you from a few timezones to the east
 it might appear that it was sent from the future;
 or if it was sent from somewhere to the west it might appear
@@ -29507,7 +29629,8 @@ to your local timezone to be displayed.
 <P>
 Note that this does not affect the results of Select by Date or of
 anything else other than these displayed dates.
-When viewing the message the Date header will still be shown unconverted.
+When viewing the message you may look at the original unconverted value of the Date
+header by using the <A HREF="h_common_hdrmode">HdrMode Command</A>.
 <P>
 <UL>   
 <LI><A HREF="h_finding_help">Finding more information and requesting help</A>
@@ -33235,6 +33358,794 @@ way to capture a copy to each folder.
 depending on whether your mail system delivers one or two copies of the
 message to you and on how the list works.)
 <P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+===== h_mainhelp_smime ======
+<HTML>
+<HEAD>
+<TITLE>S/MIME Overview</TITLE>
+</HEAD>
+<BODY>
+<H1>S/MIME Overview</H1>
+
+S/MIME is a standard for the public key encryption and signing of email.
+UNIX Alpine contains a basic implementation of S/MIME based on
+the <A HREF="http://www.openssl.org/">OpenSSL</A> libraries.
+To check if this version of Alpine supports S/MIME look at
+<A HREF="X-Alpine-Config:">Supported Options in this Alpine</A> and look
+for &quot;S/MIME&quot; under the &quot;Encryption&quot; heading.
+<P>
+Some limitations:
+<UL>
+   <LI> There is no PC-Alpine implementation.
+   <LI> There is no provision for checking for CRLs
+	(Certificate Revocation Lists) in Alpine.
+   <LI> This built-in S/MIME implementation is not compatible with and does not help with PGP.
+   <LI> There is no mechanism available for feeding either an entire incoming
+	or an entire outgoing message to an external
+	filter and using that external filter to do S/MIME or PGP processing.
+   <LI> Because the implementation currently uses OpenSSL, there is only a very
+	limited integration with the Mac OS Keychain (the storing and access of
+	public certificates).
+   <LI> There is no way to view or manipulate the lists of certificates from
+	within Alpine.
+</UL>
+<P>
+The S/MIME configuration screen is reached by going to the Main Menu and typing
+the &quot;S&nbsp;Setup&quot; command followed by &quot;M&nbsp;S/MIME&quot;.
+<P>
+
+<H2>S/MIME BASICS</H2>
+
+In order to digitally sign messages you send you must have a public/private key-pair.
+This may be obtained from a public Certificate Authority (CA) such as Thawte, Verisign, Comodo,
+or GoDaddy; or from a smaller CA such as a university which provides certificates for its
+users or a company which provides certificates for its workers.
+These certificates are bound to an email address, so the identity being verified is the
+email address not a person's name.
+<P>
+Mail is signed by using the sender's private key, which only the owner of the private key
+has access to.
+The signature is verified using the signer's public key, which anyone can
+have access to.
+With Alpine, the first time you receive a signed message the public key of the
+sender will be stored for future use.
+
+<P>
+Mail is encrypted using the recipient's public key and decrypted by
+the recipient with their private key.
+
+<P>
+You need a key of your own in order to sign outgoing messages and to have others
+encrypt messages sent to you.
+You do not need a key of your own to verify signed messages sent by others or to
+encrypt messages sent to others.
+
+<H2>ALPINE S/MIME CERTIFICATE STORAGE</H2>
+
+By default UNIX Alpine stores the certificates it uses in a directory in your
+home directory.
+The directory name is
+<P>
+<CENTER><SAMP>.alpine-smime</SAMP></CENTER>
+<P>
+Within that directory are three subdirectories.
+Each of the three subdirectories contains files with PEM-encoded contents,
+the default format for OpenSSL.
+The &quot;<SAMP>public</SAMP>&quot; directory contains public certificates.
+The files within that directory have names that are email addresses with the
+suffix &quot;<SAMP>.crt</SAMP>&quot; appended.
+An example filename is
+<P>
+<CENTER><SAMP>user@example.com.crt</SAMP></CENTER>
+<P>
+The &quot;<SAMP>private</SAMP>&quot; directory contains private keys, probably just one for
+your private key.
+These are also email addresses but with the suffix &quot;<SAMP>.key</SAMP>&quot; instead.
+The third directory is &quot;<SAMP>ca</SAMP>&quot; and it contains certificates for any Certificate
+Authorities that you want to trust but that aren't contained in the set of system CAs.
+Those files may have arbitrary names as long as they end with the
+suffix &quot;<SAMP>.crt</SAMP>&quot;.
+
+<H2>HOW TO SIGN AND ENCRYPT</H2>
+
+If you have a certificate you may sign outgoing messages.
+After typing the Ctrl-X command to send a message you will see the prompt
+<P>
+<CENTER><SAMP>Send message?</SAMP></CENTER>
+<P>
+Available subcommands include &quot;G&nbsp;Sign&quot; and &quot;E&nbsp;Encrypt&quot;.
+Typing the &quot;G&quot; command will change the prompt to
+<P>
+<CENTER><SAMP>Send message (Signed)?</SAMP></CENTER>
+<P>
+Typing the &quot;E&quot; command will change the prompt to
+<P>
+<CENTER><SAMP>Send message (Encrypted)?</SAMP></CENTER>
+<P>
+You may even type both to get
+<P>
+<CENTER><SAMP>Send message (Encrypted, Signed)?</SAMP></CENTER>
+<P>
+
+<H2>HOW TO READ SIGNED OR ENCRYPTED MESSAGES</H2>
+
+The reading of a signed message should not require any special action on
+your part.
+There should be an editorial addition at the start of the message which
+says either
+<P>
+<CENTER><SAMP>This message was cryptographically signed.</SAMP></CENTER>
+<P>
+or
+<P>
+<CENTER><SAMP>This message was cryptographically signed but the signature could not be verified.</SAMP></CENTER>
+<P>
+If an encrypted message is sent to you the encrypted text will not
+be shown.
+You will have to type the &quot;Ctrl-D&nbsp;Decrypt&quot; command (from the screen where
+you are viewing the message) and supply your passphrase when asked.
+<P>
+For a signed or encrypted message there is also a &quot;Ctrl-E&nbsp;Security&quot; command
+which gives you some information about the certificate used to sign or encrypt the message.
+
+<H2>MISCELLANEOUS</H2>
+
+You may have access to a private certificate in the PKCS12 format,
+which would sometimes be in a file with a &quot;.p12&quot; suffix.
+The UNIX shell command
+<P>
+<CENTER><SAMP>openssl pkcs12 -in file.p12 -out file.pem</SAMP></CENTER>
+<P>
+may work to convert that from the PKCS12 format to the PEM format.
+Then that file could be placed in the &quot;<SAMP>private</SAMP>&quot;
+directory with a filename of your email address followed by the
+suffix &quot;<SAMP>.key</SAMP>&quot;.
+
+<P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_smime_pubcertdir =====
+<HTML>
+<HEAD>
+<TITLE>S/MIME OPTION: <!--#echo var="VAR_smime-public-cert-directory"--></TITLE>
+</HEAD>
+<BODY>
+<H1>S/MIME OPTION: <!--#echo var="VAR_smime-public-cert-directory"--></H1>
+
+UNIX Alpine only.
+<P>
+If the option
+<A HREF="h_config_smime_pubcertcon"><!--#echo var="VAR_smime-public-cert-container"--></A>
+is set then this option will have no effect.
+<P>
+Normally, Public Certificates for use with S/MIME will be stored in the directory
+which is the value of this option.
+Those certificates will be stored in PEM format, one certificate per file.
+The name of the file for the certificate corresponding to
+<P>
+<CENTER><SAMP>emailaddress</SAMP></CENTER>
+<P>
+should be
+<P>
+<CENTER><SAMP>emailaddress.crt</SAMP></CENTER>
+<P>
+For example, a file for user@example.com would be in the file
+<P>
+<CENTER><SAMP>user@example.com.crt</SAMP></CENTER>
+<P>
+in this directory.
+<P>
+Use the Setup/SMIME screen to modify this variable.
+<P>
+Typically, the public certificates that you have will come from S/MIME signed
+messages that are sent to you.
+Alpine will extract the public certificate from the signed message and store
+it in the certificates directory.
+These PEM format public certificates look something like:
+<PRE>
+-----BEGIN CERTIFICATE-----
+MIIFvTCCBKWgAwIBAgIQD4fYFHVI8T20yN4nus097DANBgkqhkiG9w0BAQUFADCB
+rjELMAkGA1UEBhMCVVMxCzAJBgNVBAgTAlVUMRcwFQYDVQQHEw5TYWx0IExha2Ug
+Q2l0eTEeMBwGA1UEChMVVGhlIFVTRVJUUlVTVCBOZXR3b3JrMSEwHwYDVQQLExho
+...
+2b9KGqDyMWW/rjNnmpjzjT2ObGM7lRA8lke4FLOLajhrz4ogO3b4DFfAAM1VSZH8
+D6sOwOLJZkLY8FRsfk63K+2EMzA2+qAzMKupgeTLqXIf
+-----END CERTIFICATE-----
+</PRE>
+<P>
+<UL>   
+<LI><A HREF="h_mainhelp_smime">General S/MIME help</A>
+</UL><P>
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_smime_pubcertcon =====
+<HTML>
+<HEAD>
+<TITLE>OPTION: <!--#echo var="VAR_smime-public-cert-container"--></TITLE>
+</HEAD>
+<BODY>
+<H1>OPTION: <!--#echo var="VAR_smime-public-cert-container"--></H1>
+
+UNIX Alpine only.
+<P>
+If this option is set it will be used instead of
+<A HREF="h_config_smime_pubcertdir"><!--#echo var="VAR_smime-public-cert-directory"--></A>.
+<P>
+This option gives you a way to store certificates remotely on an IMAP server
+instead of storing the certificates one per file locally.
+In order to do that you just give this option a remote folder name for a folder
+which does not yet exist.
+The name is similar to the name you might use for a remote configuration file.
+A remote folder name might look something like:
+<P>
+<CENTER><SAMP>{myimaphost.myschool.k12.wa.us}mail/publiccerts</SAMP></CENTER>
+<P>
+See
+<A HREF="h_valid_folder_names">Valid Folder Names</A> for more information
+about the syntax of folder names.
+<P>
+Use the Setup/SMIME screen to modify this variable.
+<P>
+<UL>   
+<LI><A HREF="h_mainhelp_smime">General S/MIME help</A>
+</UL><P>
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_smime_privkeydir =====
+<HTML>
+<HEAD>
+<TITLE>OPTION: <!--#echo var="VAR_smime-private-key-directory"--></TITLE>
+</HEAD>
+<BODY>
+<H1>OPTION: <!--#echo var="VAR_smime-private-key-directory"--></H1>
+
+UNIX Alpine only.
+<P>
+In order to sign outgoing S/MIME messages you will need a
+personal digital ID certificate.
+You will usually get such a certificate from a certificate authority such as
+Thawte or CAcert.
+(In order to encrypt outgoing messages you don't need a personal digital ID, you
+need the public certificate of the recipient instead.)
+If the option
+<A HREF="h_config_smime_privkeycon"><!--#echo var="VAR_smime-private-key-container"--></A>
+is set then this option will have no effect.
+<P>
+Normally, Private Keys for use with S/MIME will be stored in the directory
+which is the value of this option.
+Those certificates will be stored in PEM format, one certificate per file.
+The name of the file for the certificate corresponding to your
+<P>
+<CENTER><SAMP>emailaddress</SAMP></CENTER>
+<P>
+should be
+<P>
+<CENTER><SAMP>emailaddress.key</SAMP></CENTER>
+<P>
+For example, if your address is user@example.com the name of the file would be
+<P>
+<CENTER><SAMP>user@example.com.key</SAMP></CENTER>
+<P>
+in this directory.
+<P>
+Use the Setup/SMIME screen to modify this variable.
+<P>
+Typically, the private key that you have will come from a Certificate
+Authority.
+The private key should be stored in a PEM format file that
+looks something like:
+<PRE>
+-----BEGIN RSA PRIVATE KEY-----
+Proc-Type: 4,ENCRYPTED
+DEK-Info: DES-EDE3-CBC,2CBD328FD84CF5C6
+
+YBEXYLgLU9NJoc1V+vJ6UvcF08RX54S6jXsmgL0b5HGkudG6fhnmHkH7+UCvM5NI
+SXO/F8iuZDfs1VGG0NyitkFZ0Zn2vfaGovBvm15gx24b2xnZDLRB7/bNZkurnK5k
+VjAjZ2xXn2hFp2GJwqRdmxYNqsKGu52B99oti5HUWuZ2GFRaWjn5hYOqeApZE2uA
+...
+oSRqfI51UdSRt0tmGhHeTvybUVrHm9eKft8TTGf+qSBqzSc55CsmoVbRzw4Nfhix
+m+4TJybNGNfAgOctSkEyY/OCb49fRRQTCBZVIhzLGGmpYmkO55HbIA==
+-----END RSA PRIVATE KEY-----
+</PRE>
+<P>
+<UL>   
+<LI><A HREF="h_mainhelp_smime">General S/MIME help</A>
+</UL><P>
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_smime_privkeycon =====
+<HTML>
+<HEAD>
+<TITLE>OPTION: <!--#echo var="VAR_smime-private-key-container"--></TITLE>
+</HEAD>
+<BODY>
+<H1>OPTION: <!--#echo var="VAR_smime-private-key-container"--></H1>
+
+UNIX Alpine only.
+<P>
+If this option is set it will be used instead of
+<A HREF="h_config_smime_privkeydir"><!--#echo var="VAR_smime-private-key-directory"--></A>.
+<P>
+This option gives you a way to store keys remotely on an IMAP server
+instead of storing the keys one per file locally.
+In order to do that you just give this option a remote folder name for a folder
+which does not yet exist.
+The name is similar to the name you might use for a remote configuration file.
+A remote folder name might look something like:
+<P>
+<CENTER><SAMP>{myimaphost.myschool.k12.wa.us}mail/privatekeys</SAMP></CENTER>
+<P>
+See
+<A HREF="h_valid_folder_names">Valid Folder Names</A> for more information
+about the syntax of folder names.
+<P>
+Use the Setup/SMIME screen to modify this variable.
+<P>
+<UL>   
+<LI><A HREF="h_mainhelp_smime">General S/MIME help</A>
+</UL><P>
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_smime_cacertdir =====
+<HTML>
+<HEAD>
+<TITLE>S/MIME OPTION: <!--#echo var="VAR_smime-cacert-directory"--></TITLE>
+</HEAD>
+<BODY>
+<H1>S/MIME OPTION: <!--#echo var="VAR_smime-cacert-directory"--></H1>
+
+UNIX Alpine only.
+<P>
+If the option
+<A HREF="h_config_smime_cacertcon"><!--#echo var="VAR_smime-cacert-container"--></A>
+is set then this option will have no effect.
+<P>
+CACert is a shorthand name for certification authority certificate.
+Normally Alpine will use the CACerts that are located in the standard system
+location for CACerts.
+It may be the case that one of your correspondents has a Digital ID which has
+been signed by a certificate authority that is not in the regular set of system certificate
+authorities.
+You may supplement the system list by adding further certificates of your own.
+These should  be stored in the directory
+which is the value of this option.
+The certificates will be stored in PEM format, one certificate per file.
+The names of the files can be anything ending in &quot;.crt&quot;.
+<P>
+Use the Setup/SMIME screen to modify this variable.
+<P>
+These PEM format CA certificates look very similar to your public
+certificates for particular email addresses
+(<A HREF="h_config_smime_pubcertdir"><!--#echo var="VAR_smime-public-cert-directory"--></A>).
+<P>
+<UL>   
+<LI><A HREF="h_mainhelp_smime">General S/MIME help</A>
+</UL><P>
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_smime_cacertcon =====
+<HTML>
+<HEAD>
+<TITLE>S/MIME OPTION: <!--#echo var="VAR_smime-cacert-container"--></TITLE>
+</HEAD>
+<BODY>
+<H1>S/MIME OPTION: <!--#echo var="VAR_smime-cacert-container"--></H1>
+
+UNIX Alpine only.
+<P>
+If this option is set it will be used instead of
+<A HREF="h_config_smime_cacertdir"><!--#echo var="VAR_smime-cacert-directory"--></A>.
+<P>
+This option gives you a way to store certificates remotely on an IMAP server
+instead of storing the certificates one per file locally.
+In order to do that you just give this option a remote folder name for a folder
+which does not yet exist.
+The name is similar to the name you might use for a remote configuration file.
+A remote folder name might look something like:
+<P>
+<CENTER><SAMP>{myimaphost.myschool.k12.wa.us}mail/cacerts</SAMP></CENTER>
+<P>
+See
+<A HREF="h_valid_folder_names">Valid Folder Names</A> for more information
+about the syntax of folder names.
+<P>
+Use the Setup/SMIME screen to modify this variable.
+<P>
+<UL>   
+<LI><A HREF="h_mainhelp_smime">General S/MIME help</A>
+</UL><P>
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+========== h_config_smime_sign_by_default ==========
+<HTML>
+<HEAD>
+<TITLE>S/MIME FEATURE: <!--#echo var="FEAT_smime-sign-by-default"--></TITLE>
+</HEAD>
+<BODY>
+<H1>S/MIME FEATURE: <!--#echo var="FEAT_smime-sign-by-default"--></H1>
+
+UNIX Alpine only.
+<P>
+This feature only has an effect if your version of Alpine includes
+support for S/MIME.
+It affects Alpine's behavior when you send a message.
+If this option is set, the &quot;Sign&quot; option will default to ON when sending messages.
+<P>
+Only the default value is affected.
+In any case, you may still toggle the Signing option on or off before sending
+with the &quot;G Sign&quot; command (provided you have a personal digital ID
+certificate).
+<P>
+<UL>   
+<LI><A HREF="h_mainhelp_smime">General S/MIME help</A>
+</UL><P>
+<P>
+
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+========== h_config_smime_pubcerts_in_keychain ==========
+<HTML>
+<HEAD>
+<TITLE>S/MIME FEATURE: <!--#echo var="FEAT_publiccerts-in-keychain"--></TITLE>
+</HEAD>
+<BODY>
+<H1>S/MIME FEATURE: <!--#echo var="FEAT_publiccerts-in-keychain"--></H1>
+
+UNIX Alpine only.
+<P>
+If this feature is set the Mac OS X default keychain will be used as the place
+to store public certificates instead of a
+<A HREF="h_config_smime_pubcertdir"><!--#echo var="VAR_smime-public-cert-directory"--></A>
+or a
+<A HREF="h_config_smime_pubcertcon"><!--#echo var="VAR_smime-public-cert-container"--></A>.
+<P>
+<UL>   
+<LI><A HREF="h_mainhelp_smime">General S/MIME help</A>
+</UL><P>
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+========== h_config_smime_dont_do_smime ==========
+<HTML>
+<HEAD>
+<TITLE>S/MIME FEATURE: <!--#echo var="FEAT_smime-dont-do-smime"--></TITLE>
+</HEAD>
+<BODY>
+<H1>S/MIME FEATURE: <!--#echo var="FEAT_smime-dont-do-smime"--></H1>
+
+UNIX Alpine only.
+<P>
+Setting this feature turns off all of Alpine's S/MIME support.
+You might want to set this if you are having trouble due to the S/MIME support.
+<P>
+<UL>   
+<LI><A HREF="h_mainhelp_smime">General S/MIME help</A>
+</UL><P>
+<P>
+
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+========== h_config_smime_encrypt_by_default ==========
+<HTML>
+<HEAD>
+<TITLE>S/MIME FEATURE: <!--#echo var="FEAT_smime-encrypt-by-default"--></TITLE>
+</HEAD>
+<BODY>
+<H1>S/MIME FEATURE: <!--#echo var="FEAT_smime-encrypt-by-default"--></H1>
+
+UNIX Alpine only.
+<P>
+This feature only has an effect if your version of Alpine includes
+support for S/MIME.
+It affects Alpine's behavior when you send a message.
+If this option is set, the &quot;Encrypt&quot; option will default to ON when sending messages.
+<P>
+Only the default value is affected.
+In any case, you may still toggle the Encrypt option on or off before sending
+with the &quot;E Encrypt&quot; command (provided you have a the public digital ID
+for the recipient).
+<P>
+<UL>   
+<LI><A HREF="h_mainhelp_smime">General S/MIME help</A>
+</UL><P>
+<P>
+
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+========== h_config_smime_remember_passphrase ==========
+<HTML>
+<HEAD>
+<TITLE>S/MIME FEATURE: <!--#echo var="FEAT_smime-remember-passphrase"--></TITLE>
+</HEAD>
+<BODY>
+<H1>S/MIME FEATURE: <!--#echo var="FEAT_smime-remember-passphrase"--></H1>
+
+UNIX Alpine only.
+<P>
+This feature only has an effect if your version of Alpine includes
+support for S/MIME.
+If this option is set, you will only have to enter your passphrase for your private key
+once during an Alpine session.
+<P>
+<UL>   
+<LI><A HREF="h_mainhelp_smime">General S/MIME help</A>
+</UL><P>
+<P>
+
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_smime_transfer_pub_to_con =====
+<HTML>
+<HEAD>
+<TITLE>S/MIME: Transfer Public Certs to Container</TITLE>
+</HEAD>
+<BODY>
+<H1>S/MIME: Transfer Public Certs to Container</H1>
+
+UNIX Alpine only.
+<P>
+The Transfer command will copy the public certificates in your configured
+<A HREF="h_config_smime_pubcertdir"><!--#echo var="VAR_smime-public-cert-directory"--></A>
+to the container in your configured
+<A HREF="h_config_smime_pubcertcon"><!--#echo var="VAR_smime-public-cert-container"--></A>.
+This might be useful if you decide to switch from using a cert directory to a cert
+container.
+<P>
+Warning: Any previous contents in the container will be lost.
+<P>
+<UL>   
+<LI><A HREF="h_mainhelp_smime">General S/MIME help</A>
+</UL><P>
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_smime_transfer_pub_to_dir =====
+<HTML>
+<HEAD>
+<TITLE>S/MIME: Transfer Public Certs to Directory</TITLE>
+</HEAD>
+<BODY>
+<H1>S/MIME: Transfer Public Certs to Directory</H1>
+
+UNIX Alpine only.
+<P>
+The Transfer command will copy the public certificates in your configured
+<A HREF="h_config_smime_pubcertcon"><!--#echo var="VAR_smime-public-cert-container"--></A>
+to the directory in your configured
+<A HREF="h_config_smime_pubcertdir"><!--#echo var="VAR_smime-public-cert-directory"--></A>.
+This might be useful if you decide to switch from using a cert container to a cert
+directory.
+<P>
+<UL>   
+<LI><A HREF="h_mainhelp_smime">General S/MIME help</A>
+</UL><P>
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_smime_transfer_priv_to_con =====
+<HTML>
+<HEAD>
+<TITLE>S/MIME: Transfer Private Keys to Container</TITLE>
+</HEAD>
+<BODY>
+<H1>S/MIME: Transfer Private Keys to Container</H1>
+
+UNIX Alpine only.
+<P>
+The Transfer command will copy the private keys in your configured
+<A HREF="h_config_smime_privkeydir"><!--#echo var="VAR_smime-private-key-directory"--></A>.
+to the container in your configured
+<A HREF="h_config_smime_privkeydir"><!--#echo var="VAR_smime-private-key-container"--></A>.
+This might be useful if you decide to switch from using a key directory to a key
+container.
+<P>
+Warning: Any previous contents in the container will be lost.
+<P>
+<UL>   
+<LI><A HREF="h_mainhelp_smime">General S/MIME help</A>
+</UL><P>
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_smime_transfer_priv_to_dir =====
+<HTML>
+<HEAD>
+<TITLE>S/MIME: Transfer Private Keys to Directory</TITLE>
+</HEAD>
+<BODY>
+<H1>S/MIME: Transfer Private Keys to Directory</H1>
+
+UNIX Alpine only.
+<P>
+The Transfer command will copy the private keys in your configured
+<A HREF="h_config_smime_privkeydir"><!--#echo var="VAR_smime-private-key-container"--></A>.
+to the directory in your configured
+<A HREF="h_config_smime_privkeydir"><!--#echo var="VAR_smime-private-key-directory"--></A>.
+This might be useful if you decide to switch from using a key container to a key
+directory.
+<P>
+<UL>   
+<LI><A HREF="h_mainhelp_smime">General S/MIME help</A>
+</UL><P>
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_smime_transfer_cacert_to_con =====
+<HTML>
+<HEAD>
+<TITLE>S/MIME: Transfer CA Certs to Container</TITLE>
+</HEAD>
+<BODY>
+<H1>S/MIME: Transfer CA Certs to Container</H1>
+
+UNIX Alpine only.
+<P>
+The Transfer command will copy the CA certificates in your configured
+<A HREF="h_config_smime_cacertdir"><!--#echo var="VAR_smime-cacert-directory"--></A>
+to the container in your configured
+<A HREF="h_config_smime_cacertcon"><!--#echo var="VAR_smime-cacert-container"--></A>.
+This might be useful if you decide to switch from using a CA cert directory to a CA cert
+container.
+<P>
+Warning: Any previous contents in the container will be lost.
+<P>
+<UL>   
+<LI><A HREF="h_mainhelp_smime">General S/MIME help</A>
+</UL><P>
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_smime_transfer_cacert_to_dir =====
+<HTML>
+<HEAD>
+<TITLE>S/MIME: Transfer CA Certs to Directory</TITLE>
+</HEAD>
+<BODY>
+<H1>S/MIME: Transfer CA Certs to Directory</H1>
+
+UNIX Alpine only.
+<P>
+The Transfer command will copy the CA certificates in your configured
+<A HREF="h_config_smime_cacertcon"><!--#echo var="VAR_smime-cacert-container"--></A>.
+to the directory in your configured
+<A HREF="h_config_smime_cacertdir"><!--#echo var="VAR_smime-cacert-directory"--></A>.
+This might be useful if you decide to switch from using a CA cert container to a CA cert
+directory.
+<P>
+<UL>   
+<LI><A HREF="h_mainhelp_smime">General S/MIME help</A>
+</UL><P>
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_smime_transfer_pubcon_to_key =====
+<HTML>
+<HEAD>
+<TITLE>S/MIME: Transfer Public Certs to Keychain</TITLE>
+</HEAD>
+<BODY>
+<H1>S/MIME: Transfer Public Certs to Keychain</H1>
+
+Mac OS X Alpine only.
+<P>
+The Transfer command will copy the public certificates in your configured
+<A HREF="h_config_smime_pubcertcon"><!--#echo var="VAR_smime-public-cert-container"--></A>
+to your default Mac OS X Keychain.
+This might be useful if you decide to switch from using a cert container to using
+the Keychain to store your public certs, which you may do by using the
+feature
+<A HREF="h_config_smime_pubcerts_in_keychain">S/MIME FEATURE: <!--#echo var="FEAT_publiccerts-in-keychain"--></A>.
+<P>
+<UL>   
+<LI><A HREF="h_mainhelp_smime">General S/MIME help</A>
+</UL><P>
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
+====== h_config_smime_transfer_pubkey_to_con =====
+<HTML>
+<HEAD>
+<TITLE>S/MIME: Transfer Public Certs to Keychain</TITLE>
+</HEAD>
+<BODY>
+<H1>S/MIME: Transfer Public Certs to Keychain</H1>
+
+UNIX Alpine only.
+<P>
+The Transfer command will copy the public certificates in your configured
+<A HREF="h_config_smime_pubcertcon"><!--#echo var="VAR_smime-public-cert-container"--></A>
+to your default Mac OS X Keychain.
+This might be useful if you decide to switch from using a cert container to using
+the Keychain to store your public certs.
+<P>
+<UL>   
+<LI><A HREF="h_mainhelp_smime">General S/MIME help</A>
+</UL><P>
+<P>
+<UL>   
+<LI><A HREF="h_finding_help">Finding more information and requesting help</A>
+</UL><P>
 &lt;End of help on this topic&gt;
 </BODY>
 </HTML>

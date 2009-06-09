@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: state.c 745 2007-10-11 18:03:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: state.c 1071 2008-06-03 22:31:05Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ static char rcsid[] = "$Id: state.c 745 2007-10-11 18:03:32Z hubert@u.washington
 #include "../pith/mailindx.h"
 #include "../pith/remote.h"
 #include "../pith/list.h"
+#include "../pith/smime.h"
 
 
 /*
@@ -84,6 +85,13 @@ new_pine_struct(void)
     p->sort_types[8]   = SortScore;
     p->sort_types[9]   = SortThread;
     p->sort_types[10]  = EndofList;
+#ifdef SMIME
+    /*
+     * We need to have access to p->smime even before calling
+     * smime_init() so that we can set do_encrypt and do_sign.
+     */
+    p->smime           = new_smime_struct();
+#endif /* SMIME */
     p->atmts           = (ATTACH_S *) fs_get(sizeof(ATTACH_S));
     p->atmts_allocated = 1;
     p->atmts->description = NULL;

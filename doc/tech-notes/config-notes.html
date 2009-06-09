@@ -1477,6 +1477,143 @@ This is not possible if your system uses TERMCAP instead of TERMINFO.
 
 <HR>
 
+<H2><A NAME="smime-general">S/MIME Overview</A></H2>
+
+UNIX <EM>Alpine</EM> only.
+<P>
+S/MIME is a standard for the public key encryption and signing of email.
+UNIX <EM>Alpine</EM> contains a basic implementation of S/MIME based on
+the <A HREF="http://www.openssl.org/">OpenSSL</A> libraries.
+<P>
+Some limitations:
+<UL>
+   <LI> There is no <EM>PC-Alpine</EM> implementation.
+   <LI> There is no provision for checking for CRLs
+	(Certificate Revocation Lists) in <EM>Alpine</EM>.
+   <LI> This built-in S/MIME implementation is not compatible with and does not help with PGP.
+   <LI> There is no mechanism available for feeding either an entire incoming
+	or an entire outgoing message to an external
+	filter and using that external filter to do S/MIME or PGP processing.
+   <LI> Because the implementation currently uses OpenSSL, there is only a very
+	limited integration with the Mac OS Keychain (the storing and access of
+	public certificates).
+   <LI> There is no way to view or manipulate the lists of certificates from
+	within <EM>Alpine</EM>.
+</UL>
+<P>
+The S/MIME configuration screen is reached by going to the Main Menu and typing
+the &quot;S&nbsp;Setup&quot; command followed by &quot;M&nbsp;S/MIME&quot;.
+<P>
+
+<H3>S/MIME BASICS</H3>
+
+In order to digitally sign messages you send you must have a public/private key-pair.
+This may be obtained from a public Certificate Authority (CA) such as Thawte, Verisign, Comodo,
+or GoDaddy; or from a smaller CA such as a university which provides certificates for its
+users or a company which provides certificates for its workers.
+These certificates are bound to an email address, so the identity being verified is the
+email address not a person's name.
+<P>
+Mail is signed by using the sender's private key, which only the owner of the private key
+has access to.
+The signature is verified using the signer's public key, which anyone can
+have access to.
+With <EM>Alpine</EM>, the first time you receive a signed message the public key of the
+sender will be stored for future use.
+
+<P>
+Mail is encrypted using the recipient's public key and decrypted by
+the recipient with their private key.
+
+<P>
+You need a key of your own in order to sign outgoing messages and to have others
+encrypt messages sent to you.
+You do not need a key of your own to verify signed messages sent by others or to
+encrypt messages sent to others.
+
+<H3>ALPINE S/MIME CERTIFICATE STORAGE</H3>
+
+By default UNIX <EM>Alpine</EM> stores the certificates it uses in a directory in your
+home directory.
+The directory name is
+<P>
+<CENTER><SAMP>.alpine-smime</SAMP></CENTER>
+<P>
+Within that directory are three subdirectories.
+Each of the three subdirectories contains files with PEM-encoded contents,
+the default format for OpenSSL.
+The &quot;<SAMP>public</SAMP>&quot; directory contains public certificates.
+The files within that directory have names that are email addresses with the
+suffix &quot;<SAMP>.crt</SAMP>&quot; appended.
+An example filename is
+<P>
+<CENTER><SAMP>user@example.com.crt</SAMP></CENTER>
+<P>
+The &quot;<SAMP>private</SAMP>&quot; directory contains private keys, probably just one for
+your private key.
+These are also email addresses but with the suffix &quot;<SAMP>.key</SAMP>&quot; instead.
+The third directory is &quot;<SAMP>ca</SAMP>&quot; and it contains certificates for any Certificate
+Authorities that you want to trust but that aren't contained in the set of system CAs.
+Those files may have arbitrary names as long as they end with the
+suffix &quot;<SAMP>.crt</SAMP>&quot;.
+
+<H3>HOW TO SIGN AND ENCRYPT</H3>
+
+If you have a certificate you may sign outgoing messages.
+After typing the Ctrl-X command to send a message you will see the prompt
+<P>
+<CENTER><SAMP>Send message?</SAMP></CENTER>
+<P>
+Available subcommands include &quot;G&nbsp;Sign&quot; and &quot;E&nbsp;Encrypt&quot;.
+Typing the &quot;G&quot; command will change the prompt to
+<P>
+<CENTER><SAMP>Send message (Signed)?</SAMP></CENTER>
+<P>
+Typing the &quot;E&quot; command will change the prompt to
+<P>
+<CENTER><SAMP>Send message (Encrypted)?</SAMP></CENTER>
+<P>
+You may even type both to get
+<P>
+<CENTER><SAMP>Send message (Encrypted, Signed)?</SAMP></CENTER>
+<P>
+
+<H3>HOW TO READ SIGNED OR ENCRYPTED MESSAGES</H3>
+
+The reading of a signed message should not require any special action on
+your part.
+There should be an editorial addition at the start of the message which
+says either
+<P>
+<CENTER><SAMP>This message was cryptographically signed.</SAMP></CENTER>
+<P>
+or
+<P>
+<CENTER><SAMP>This message was cryptographically signed but the signature could not be verified.</SAMP></CENTER>
+<P>
+If an encrypted message is sent to you the encrypted text will not
+be shown.
+You will have to type the &quot;Ctrl-D&nbsp;Decrypt&quot; command (from the screen where
+you are viewing the message) and supply your passphrase when asked.
+<P>
+For a signed or encrypted message there is also a &quot;Ctrl-E&nbsp;Security&quot; command
+which gives you some information about the certificate used to sign or encrypt the message.
+
+<H3>MISCELLANEOUS</H3>
+
+You may have access to a private certificate in the PKCS12 format,
+which would sometimes be in a file with a &quot;.p12&quot; suffix.
+The UNIX shell command
+<P>
+<CENTER><SAMP>openssl pkcs12 -in file.p12 -out file.pem</SAMP></CENTER>
+<P>
+may work to convert that from the PKCS12 format to the PEM format.
+Then that file could be placed in the &quot;<SAMP>private</SAMP>&quot;
+directory with a filename of your email address followed by the
+suffix &quot;<SAMP>.key</SAMP>&quot;.
+
+<HR>
+
 <H2><A NAME="pc-notes">Additional Notes on PC-Alpine</A></H2>
 
 Below are a few odds and ends worth mentioning about <EM>PC-Alpine</EM>.  They have

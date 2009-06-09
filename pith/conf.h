@@ -1,5 +1,5 @@
 /*
- * $Id: conf.h 961 2008-03-14 18:15:38Z mikes@u.washington.edu $
+ * $Id: conf.h 1069 2008-06-03 15:54:15Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2008 University of Washington
@@ -444,6 +444,17 @@
 #define VAR_PROMPT_FORE_COLOR	     vars[V_PROMPT_FORE_COLOR].current_val.p
 #define VAR_PROMPT_BACK_COLOR	     vars[V_PROMPT_BACK_COLOR].current_val.p
 #define VAR_VIEW_HDR_COLORS	     vars[V_VIEW_HDR_COLORS].current_val.l
+#ifdef SMIME
+#define VAR_PUBLICCERT_DIR	     vars[V_PUBLICCERT_DIR].current_val.p
+#define GLO_PUBLICCERT_DIR	     vars[V_PUBLICCERT_DIR].global_val.p
+#define VAR_PRIVATEKEY_DIR	     vars[V_PRIVATEKEY_DIR].current_val.p
+#define GLO_PRIVATEKEY_DIR	     vars[V_PRIVATEKEY_DIR].global_val.p
+#define VAR_CACERT_DIR		     vars[V_CACERT_DIR].current_val.p
+#define GLO_CACERT_DIR		     vars[V_CACERT_DIR].global_val.p
+#define VAR_PUBLICCERT_CONTAINER     vars[V_PUBLICCERT_CONTAINER].current_val.p
+#define VAR_PRIVATEKEY_CONTAINER     vars[V_PRIVATEKEY_CONTAINER].current_val.p
+#define VAR_CACERT_CONTAINER	     vars[V_CACERT_CONTAINER].current_val.p
+#endif /* SMIME */
 
 
 /*

@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: text.c 945 2008-03-05 18:56:28Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: text.c 971 2008-03-18 17:24:31Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ static char rcsid[] = "$Id: text.c 945 2008-03-05 18:56:28Z mikes@u.washington.e
 #include "../pith/charset.h"
 #include "../pith/status.h"
 #include "../pith/mailview.h"
-#include "../pith/rfc2231.h"
+#include "../pith/mimedesc.h"
 #include "../pith/detach.h"
 
 
@@ -110,20 +110,18 @@ decode_text(ATTACH_S	    *att,
     memset(filters, 0, sizeof(filters));
 
     /* charset the body part is in */
-    charset = rfc2231_get_param(att->body->parameter, "charset", NULL, NULL);
+    charset = parameter_val(att->body->parameter, "charset");
 
     /* determined if it's flowed, affects wrapping and quote coloring */
     if(att->body->type == TYPETEXT
        && !strucmp(att->body->subtype, "plain")
-       && (parmval = rfc2231_get_param(att->body->parameter,
-				       "format", NULL, NULL))){
+       && (parmval = parameter_val(att->body->parameter, "format"))){
 	if(!strucmp(parmval, "flowed"))
 	  is_flowed_msg = 1;
 	fs_give((void **) &parmval);
 
 	if(is_flowed_msg){
-	    if((parmval = rfc2231_get_param(att->body->parameter,
-					   "delsp", NULL, NULL)) != NULL){
+	    if((parmval = parameter_val(att->body->parameter, "delsp")) != NULL){
 		if(!strucmp(parmval, "yes"))
 		  is_delsp_yes = 1;
 

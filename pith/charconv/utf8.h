@@ -1,10 +1,10 @@
 /*-----------------------------------------------------------------------
- $Id: utf8.h 902 2008-01-08 17:04:58Z hubert@u.washington.edu $
+ $Id: utf8.h 1019 2008-04-02 22:09:20Z hubert@u.washington.edu $
   -----------------------------------------------------------------------*/
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -95,7 +95,11 @@ int            posting_charset_is_supported(char *);
 char          *utf8_to_charset(char *, char *, int);
 char          *comatose(long);
 char          *tose(long);
-void           line_paint(int, struct display_line *, int);
+void           line_paint(int, struct display_line *, int *);
+
+#if	!defined(_WINDOWS) && HAVE_LANGINFO_H && defined(CODESET)
+char          *nl_langinfo_codeset_wrapper(void);
+#endif
 
 
 #endif	/* PITH_CHARCONV_UTF8_INCLUDED */

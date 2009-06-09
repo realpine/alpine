@@ -1,5 +1,5 @@
 /*
- * $Id: mailview.h 945 2008-03-05 18:56:28Z mikes@u.washington.edu $
+ * $Id: mailview.h 1069 2008-06-03 15:54:15Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2008 University of Washington
@@ -149,7 +149,6 @@ int         width_at_this_position(unsigned char *, unsigned long);
 
 /* this is used in rfc2369_editorial() in format_message() */
 void	   rfc2369_display(MAILSTREAM *, MSGNO_S *, long);
-
 
 
 #endif /* PITH_MAILVIEW_INCLUDED */

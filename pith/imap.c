@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: imap.c 938 2008-02-29 18:18:49Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: imap.c 1113 2008-07-14 18:01:54Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -20,6 +20,7 @@ static char rcsid[] = "$Id: imap.c 938 2008-02-29 18:18:49Z hubert@u.washington.
 #include "../pith/msgno.h"
 #include "../pith/state.h"
 #include "../pith/flag.h"
+#include "../pith/pineelt.h"
 #include "../pith/status.h"
 #include "../pith/conftype.h"
 #include "../pith/context.h"
@@ -68,9 +69,12 @@ MMLOGIN_S  *cert_failure_list = NULL;
  * to zero this space out. We only store passwords here (char *) so we
  * don't need to worry about alignment.
  */
-static	char	   private_store[1024];
+static	volatile char private_store[1024];
 
 static	int        critical_depth = 0;
+
+/* hook to hang callback on "current" message expunge */
+void (*pith_opt_current_expunged)(long unsigned int);
 
 #ifdef	SIGINT
 RETSIGTYPE (*hold_int)(int);
@@ -238,7 +242,8 @@ mm_expunged(MAILSTREAM *stream, long unsigned int rawno)
 	      clear_index_cache_ent(stream, i++, 0);
 
 	    /* let app know what happened */
-	    mm_expunged_current(rawno);
+	    if(pith_opt_current_expunged)
+	      (*pith_opt_current_expunged)(rawno);
 	}
     }
     else{
@@ -254,9 +259,13 @@ mm_expunged(MAILSTREAM *stream, long unsigned int rawno)
 	    dprint((7, "             cannot get mail_elt(%lu)\n",
 		   rawno));
 	}
+	else if(!mc->sparep){
+	    dprint((7, "             mail_elt(%lu)->sparep is NULL\n",
+		   rawno));
+	}
 	else{
-	    dprint((7, "             mail_elt(%lu)->spare2=%d\n",
-		   rawno, (int) (mc->spare2)));
+	    dprint((7, "             mail_elt(%lu)->sparep->excluded=%d\n",
+		    rawno, (int) (((PINELT_S *) mc->sparep)->excluded)));
 	}
     }
 
@@ -304,34 +313,41 @@ mm_expunged(MAILSTREAM *stream, long unsigned int rawno)
      * data for this message after the callback.
      */
     if(rawno > 0L && rawno <= stream->nmsgs && (mc = mail_elt(stream, rawno))){
-	if(mc->spare)
+      PINELT_S *pelt = (PINELT_S *) mc->sparep;
+
+      if(pelt){
+	if(pelt->hidden)
 	  msgmap->flagged_hid--;
 
-	if(mc->spare2)
+	if(pelt->excluded)
 	  msgmap->flagged_exld--;
 
-	if(mc->spare3)
+	if(pelt->selected)
 	  msgmap->flagged_tmp--;
 
-	if(mc->spare4)
+	if(pelt->colhid)
 	  msgmap->flagged_chid--;
 
-	if(mc->spare8)
+	if(pelt->colhid2)
 	  msgmap->flagged_chid2--;
 
-	if(mc->spare5)
+	if(pelt->collapsed)
 	  msgmap->flagged_coll--;
 
-	if(mc->spare6)
+	if(pelt->tmp)
 	  msgmap->flagged_stmp--;
 
-	if(mc->spare7)
+	if(pelt->unsorted)
 	  msgmap->flagged_usor--;
 
-	if(mc->spare || mc->spare4)
+	if(pelt->searched)
+	  msgmap->flagged_srch--;
+
+	if(pelt->hidden || pelt->colhid)
 	  msgmap->flagged_invisible--;
 
 	free_pine_elt(&mc->sparep);
+      }
     }
 
     /*
@@ -1029,7 +1045,14 @@ imap_set_passwd(MMLOGIN_S **l, char *passwd, char *user, STRLIST_S *hostlist,
 void
 imap_flush_passwd_cache(int dumpcache)
 {
-    memset((void *)private_store, 0, sizeof(private_store));
+    size_t len;
+    volatile char *p;
+
+    /* equivalent of memset but can't be optimized away */
+    len = sizeof(private_store);
+    p = private_store;
+    while(len-- > 0)
+      *p++ = '\0';
 
     if(dumpcache){
 	MMLOGIN_S *l;
@@ -1067,11 +1090,11 @@ imap_flush_passwd_cache(int dumpcache)
 char *
 ps_get(size_t size)
 {
-    static char *last  = private_store;
+    static char *last  = (char *) private_store;
     char        *block = NULL;
 
     /* there is enough space */
-    if(size <= sizeof(private_store) - (last - private_store)){
+    if(size <= sizeof(private_store) - (last - (char *) private_store)){
 	block = last;
 	last += size;
     }

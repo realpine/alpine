@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: ldap.c 789 2007-11-07 00:14:45Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: ldap.c 1024 2008-04-07 22:58:40Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ int wp_nobail;
 /*
  * Hook to allow user input on whether or not to save chosen LDAP result
  */
-void (*pith_opt_save_ldap_entry)(struct pine *, LDAP_SERV_RES_S *, int);
+void (*pith_opt_save_ldap_entry)(struct pine *, LDAP_CHOOSE_S *, int);
 
 
 /*
@@ -71,7 +71,7 @@ wp_lookups(char *string, WP_ERR_S *wp_err, int recursing)
 #ifdef	ENABLE_LDAP
     LDAP_SERV_RES_S *free_when_done = NULL;
     LDAPLookupStyle style;
-    LDAP_SERV_RES_S *winning_e = NULL;
+    LDAP_CHOOSE_S *winning_e = NULL;
     LDAP_SERV_S *info = NULL;
     static char *fakedomain = "@";
     char *tmp_a_string;
@@ -136,8 +136,6 @@ wp_lookups(char *string, WP_ERR_S *wp_err, int recursing)
 			? DisplayIfOne : DisplayIfTwo;
 	auwe_rv = ldap_lookup_all(string, as.n_serv, recursing, style, NULL,
 				  &winning_e, wp_err, &free_when_done);
-	if(auwe_rv == -5)
-	  free_when_done = NULL;
     }
 
     if(winning_e && auwe_rv != -5){
@@ -181,7 +179,7 @@ wp_lookups(char *string, WP_ERR_S *wp_err, int recursing)
     }
 
     if(free_when_done)
-      free_ldap_result_list(free_when_done);
+      free_ldap_result_list(&free_when_done);
 #endif	/* ENABLE_LDAP */
 
     if(ret_a){
@@ -268,14 +266,55 @@ wp_lookups(char *string, WP_ERR_S *wp_err, int recursing)
  */
 int
 ldap_lookup_all(char *string, int who, int recursing, LDAPLookupStyle style,
-		CUSTOM_FILT_S *cust, LDAP_SERV_RES_S **winning_e,
+		CUSTOM_FILT_S *cust, LDAP_CHOOSE_S **winning_e,
 		WP_ERR_S *wp_err, LDAP_SERV_RES_S **free_when_done)
 {
-    int      i, retval;
-    LDAP_SERV_RES_S *serv_res;
-    LDAP_SERV_RES_S *rr, *head_of_result_list = NULL;
+    int              retval = -1;
+    LDAP_SERV_RES_S *head_of_result_list = NULL;
 
     wp_exit = wp_nobail = 0;
+    if(free_when_done)
+      *free_when_done = NULL;
+
+    head_of_result_list = ldap_lookup_all_work(string, who, recursing, 
+					       cust, wp_err);
+
+    if(!wp_exit)
+      retval = ask_user_which_entry(head_of_result_list, string, winning_e,
+				    wp_err,
+				    (wp_err->wp_err_occurred &&
+				     style == DisplayIfTwo) ? DisplayIfOne
+							    : style);
+
+    /*
+     * Because winning_e probably points into the result list
+     * we need to leave the result list alone and have the caller
+     * free it after they are done with winning_e.
+     */
+    if(retval != -5 && free_when_done)
+      *free_when_done = head_of_result_list;
+
+    return(retval);
+}
+
+
+/*
+ * Goes through all servers looking up string.
+ *
+ * Args  string -- String to search for
+ *          who -- Which servers to look on
+ *         cust -- Use this custom filter instead of configured filters
+ *       wp_err -- Error handling
+ *
+ * Returns  -- list of results that needs to be freed by caller
+ */
+LDAP_SERV_RES_S *
+ldap_lookup_all_work(char *string, int who, int recursing, 
+		     CUSTOM_FILT_S *cust, WP_ERR_S *wp_err)
+{
+    int              i;
+    LDAP_SERV_RES_S *serv_res;
+    LDAP_SERV_RES_S *rr, *head_of_result_list = NULL;
 
     /* If there is at least one server */
     if(ps_global->VAR_LDAP_SERVERS && ps_global->VAR_LDAP_SERVERS[0] &&
@@ -336,16 +375,7 @@ ldap_lookup_all(char *string, int who, int recursing, LDAPLookupStyle style,
 	}
     }
 
-    if(!wp_exit)
-      retval = ask_user_which_entry(head_of_result_list, string, winning_e,
-				    wp_err,
-				    (wp_err->wp_err_occurred &&
-				     style == DisplayIfTwo) ? DisplayIfOne
-							    : style);
-
-    *free_when_done = head_of_result_list;
-
-    return(retval);
+    return(head_of_result_list);
 }
 
 
@@ -369,7 +399,7 @@ ldap_lookup(LDAP_SERV_S *info, char *string, CUSTOM_FILT_S *cust,
     char     buf[900];
     char    *serv, *base, *serv_errstr;
     char    *mailattr, *snattr, *gnattr, *cnattr;
-    int      we_cancel;
+    int      we_cancel = 0, we_turned_on = 0;
     LDAP_SERV_RES_S *serv_res = NULL;
     LDAP *ld;
     long  pwdtrial = 0L;
@@ -431,7 +461,7 @@ ldap_lookup(LDAP_SERV_S *info, char *string, CUSTOM_FILT_S *cust,
 	    (string && *string) ? string : "",
 	    (string && *string) ? "\"" : "",
 	    serv);
-    intr_handling_on();		/* this erases keymenu */
+    we_turned_on = intr_handling_on();		/* this erases keymenu */
     we_cancel = busy_cue(ebuf, NULL, 0);
     if(wp_err->mangled)
       *(wp_err->mangled) = 1;
@@ -1024,7 +1054,8 @@ try_password_again:
     if(we_cancel)
       cancel_busy_cue(-1);
 
-    intr_handling_off();
+    if(we_turned_on)
+      intr_handling_off();
 
     if(serv)
       fs_give((void **)&serv);
@@ -1055,15 +1086,12 @@ try_password_again:
  *         -5   caller shouldn't free head
  */
 int
-ask_user_which_entry(LDAP_SERV_RES_S *head, char *orig, LDAP_SERV_RES_S **result,
+ask_user_which_entry(LDAP_SERV_RES_S *head, char *orig, LDAP_CHOOSE_S **result,
 		     WP_ERR_S *wp_err, LDAPLookupStyle style)
 {
     ADDR_CHOOSE_S ac;
     char          t[200];
     int           retval;
-/* This stuff should really be in alpine subdir */
-extern int ldap_addr_select(struct pine *, ADDR_CHOOSE_S *, LDAP_SERV_RES_S **,
-                            LDAPLookupStyle, WP_ERR_S *, char *);
 
     dprint((3, "ask_user_which(style=%s)\n",
 	style == AlwaysDisplayAndMailRequired ? "AlwaysDisplayAndMailRequired" :
@@ -1093,6 +1121,7 @@ extern int ldap_addr_select(struct pine *, ADDR_CHOOSE_S *, LDAP_SERV_RES_S **,
     ac.res_head = head;
 
     retval = ldap_addr_select(ps_global, &ac, result, style, wp_err, orig);
+
     switch(retval){
       case 0:		/* Ok */
 	break;
@@ -1141,7 +1170,7 @@ extern int ldap_addr_select(struct pine *, ADDR_CHOOSE_S *, LDAP_SERV_RES_S **,
 
 
 ADDRESS *
-address_from_ldap(LDAP_SERV_RES_S *winning_e)
+address_from_ldap(LDAP_CHOOSE_S *winning_e)
 {
     ADDRESS *ret_a = NULL;
 
@@ -1150,9 +1179,9 @@ address_from_ldap(LDAP_SERV_RES_S *winning_e)
 	BerElement *ber;
 
 	ret_a = mail_newaddr();
-	for(a = ldap_first_attribute(winning_e->ld, winning_e->res, &ber);
+	for(a = ldap_first_attribute(winning_e->ld, winning_e->selected_entry, &ber);
 	    a != NULL;
-	    a = ldap_next_attribute(winning_e->ld, winning_e->res, ber)){
+	    a = ldap_next_attribute(winning_e->ld, winning_e->selected_entry, ber)){
 	    int i;
 	    char  *p;
 	    char **vals;
@@ -1161,7 +1190,7 @@ address_from_ldap(LDAP_SERV_RES_S *winning_e)
 	    if(!ret_a->personal &&
 	       strcmp(a, winning_e->info_used->cnattr) == 0){
 		dprint((9, "Got cnattr:"));
-		vals = ldap_get_values(winning_e->ld, winning_e->res, a);
+		vals = ldap_get_values(winning_e->ld, winning_e->selected_entry, a);
 		for(i = 0; vals[i] != NULL; i++)
 		  dprint((9, "       %s\n",
 		         vals[i] ? vals[i] : "?"));
@@ -1174,7 +1203,7 @@ address_from_ldap(LDAP_SERV_RES_S *winning_e)
 	    else if(!ret_a->mailbox &&
 		    strcmp(a, winning_e->info_used->mailattr) == 0){
 		dprint((9, "Got mailattr:"));
-		vals = ldap_get_values(winning_e->ld, winning_e->res, a);
+		vals = ldap_get_values(winning_e->ld, winning_e->selected_entry, a);
 		for(i = 0; vals[i] != NULL; i++)
 		  dprint((9, "         %s\n",
 		         vals[i] ? vals[i] : "?"));
@@ -1533,22 +1562,20 @@ copy_ldap_serv_info(LDAP_SERV_S *src)
 
 
 void
-free_ldap_result_list(LDAP_SERV_RES_S *head)
+free_ldap_result_list(LDAP_SERV_RES_S **r)
 {
-    LDAP_SERV_RES_S *rr, *next;
+    if(r && *r){
+	free_ldap_result_list(&(*r)->next);
+	if((*r)->res)
+	  ldap_msgfree((*r)->res);
+	if((*r)->ld)
+	  ldap_unbind((*r)->ld);
+	if((*r)->info_used)
+	  free_ldap_server_info(&(*r)->info_used);
+	if((*r)->serv)
+	  fs_give((void **) &(*r)->serv);
 
-    for(rr = head; rr; rr = next){
-	if(rr->res)
-	  ldap_msgfree(rr->res);
-	if(rr->ld)
-	  ldap_unbind(rr->ld);
-	if(rr->info_used)
-	  free_ldap_server_info(&rr->info_used);
-	if(rr->serv)
-	  fs_give((void **)&rr->serv);
-	
-	next = rr->next;
-	fs_give((void **)&rr);
+	fs_give((void **) r);
     }
 }
 

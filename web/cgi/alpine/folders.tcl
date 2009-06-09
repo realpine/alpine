@@ -1,4 +1,4 @@
-# $Id: folders.tcl 796 2007-11-08 01:14:02Z mikes@u.washington.edu $
+# $Id: folders.tcl 1096 2008-06-30 22:03:35Z hubert@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -461,7 +461,7 @@ if {[info exists nopage] == 0} {
 
     if {[llength $flist]} {
       if {[catch {WPCmd PEFolder list $colid} flist]} {
-	if {[string compare $flist BADPASSWD] == 0} {
+	if {[string compare BADPASSWD [string range $flist 0 8]] == 0} {
 	  # control error messages
 	  set statmsgs [WPCmd PEInfo statmsgs]
 	  WPCmd PEMailbox newmailreset

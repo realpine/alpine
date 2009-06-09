@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: ablookup.c 949 2008-03-06 01:13:33Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: ablookup.c 1110 2008-07-11 22:01:11Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -27,14 +27,19 @@ static char rcsid[] = "$Id: ablookup.c 949 2008-03-06 01:13:33Z hubert@u.washing
 #include "../pith/addrstring.h"
 #include "../pith/ablookup.h"
 #include "../pith/options.h"
+#include "../pith/takeaddr.h"
+#ifdef	ENABLE_LDAP
+#include "../pith/ldap.h"
+#endif	/* ENABLE_LDAP */
 
 
 /*
  * Internal prototypes
  */
 int   addr_is_in_addrbook(PerAddrBook *, ADDRESS *);
-ABOOK_ENTRY_S *adrbk_list_of_possible_trie_completions(AdrBk_Trie *, AdrBk *, char *);
-void  gather_abook_entry_list(AdrBk *, AdrBk_Trie *, char *, ABOOK_ENTRY_S **);
+ABOOK_ENTRY_S *adrbk_list_of_possible_trie_completions(AdrBk_Trie *, AdrBk *, char *, unsigned);
+void  gather_abook_entry_list(AdrBk *, AdrBk_Trie *, char *, ABOOK_ENTRY_S **, unsigned);
+void  add_addr_to_return_list(ADDRESS *, unsigned, char *, int, COMPLETE_S **);
 
 
 /*
@@ -170,6 +175,88 @@ get_fcc_from_addr(struct mail_address *adr, char *buffer, size_t buflen)
 	}
 
 	ret = buffer;
+    }
+
+    if(pith_opt_save_and_restore)
+      (*pith_opt_save_and_restore)(SAR_RESTORE, &state);
+
+    memcpy(addrbook_changed_unexpectedly, save_jmp_buf, sizeof(jmp_buf));
+    ab_nesting_level--;
+
+    if(save_nesting_level)
+      fs_give((void **)&save_nesting_level);
+
+    return(ret);
+}
+
+
+/*
+ * Given an address, try to find the first address book entry that
+ * matches it and return all the other fields in the passed in pointers.
+ * Caller needs to free the four fields.
+ * Returns -1 if it can't be found, 0 if it is found.
+ */
+int
+get_contactinfo_from_addr(struct mail_address *adr, char **nick, char **full, char **fcc, char **comment)
+{
+    AdrBk_Entry *abe;
+    int          ret = -1;
+    SAVE_STATE_S state;
+    jmp_buf	 save_jmp_buf;
+    int         *save_nesting_level;
+    ADDRESS     *copied_adr;
+
+    state.savep = NULL;
+    state.stp = NULL;
+    state.dlc_to_warp_to = NULL;
+    copied_adr = copyaddr(adr);
+
+    if(ps_global->remote_abook_validity > 0)
+      (void)adrbk_check_and_fix_all(ab_nesting_level == 0, 0, 0);
+
+    save_nesting_level = cpyint(ab_nesting_level);
+    memcpy(save_jmp_buf, addrbook_changed_unexpectedly, sizeof(jmp_buf));
+    if(setjmp(addrbook_changed_unexpectedly)){
+	ret = -1;
+	if(state.savep)
+	  fs_give((void **)&(state.savep));
+	if(state.stp)
+	  fs_give((void **)&(state.stp));
+	if(state.dlc_to_warp_to)
+	  fs_give((void **)&(state.dlc_to_warp_to));
+
+	q_status_message(SM_ORDER, 3, 5, _("Resetting address book..."));
+	dprint((1,
+	    "RESETTING address book... get_contactinfo_from_addr()!\n"));
+	addrbook_reset();
+	ab_nesting_level = *save_nesting_level;
+    }
+
+    ab_nesting_level++;
+    init_ab_if_needed();
+
+    if(pith_opt_save_and_restore)
+      (*pith_opt_save_and_restore)(SAR_SAVE, &state);
+
+    abe = address_to_abe(copied_adr);
+
+    if(copied_adr)
+      mail_free_address(&copied_adr);
+
+    if(abe){
+	if(nick && abe->nickname && abe->nickname[0])
+	  *nick = cpystr(abe->nickname);
+
+	if(full && abe->fullname && abe->fullname[0])
+	  *full = cpystr(abe->fullname);
+
+	if(fcc && abe->fcc && abe->fcc[0])
+	  *fcc = cpystr(abe->fcc);
+
+	if(comment && abe->extra && abe->extra[0])
+	  *comment = cpystr(abe->extra);
+
+	ret = 0;
     }
 
     if(pith_opt_save_and_restore)
@@ -962,222 +1049,16 @@ addr_lookup(char *nickname, int *which_addrbook, int not_here)
 
 
 /*
- * Look in all of the address books for the longest unambiguous prefix
- * of a nickname which begins with the characters in "prefix".
- *
- * Args    prefix  -- The part of the nickname that has been typed so far
- *         answer  -- The answer is returned here.
- *         flags   -- ANC_AFTERCOMMA -- This means that the passed in
- *                                      prefix may be a list of comma
- *                                      separated addresses and we're only
- *                                      completing the last one.
- *
- * Returns    0 -- no nickname has prefix as a prefix
- *            1 -- more than one nickname begins with
- *                              the answer being returned
- *            2 -- the returned answer is a complete
- *                              nickname and there are no longer nicknames
- *                              which begin with the same characters
- *
- * Allocated answer is returned in answer argument.
- * Caller needs to free the answer.
- *
- * This seems like a bit of overkill to me now. Why not just get the list
- * of all the nicknames that start with prefix and if there is exactly
- * one of those it is unambiguous. I guess we might save ourselves a little
- * bit of processing time by not returning the whole list.
- * In any case, we probably shouldn't have two methods of doing this
- * completion stuff. There is this older adrbk_nick_complete() along with
- * adrbk_list_of_possible_nicks() to get a list and then there is the
- * newer list gatherer adrbk_list_of_completions() below, which uses
- * different data structures.
- * 
- */
-int
-adrbk_nick_complete(char *prefix, char **answer, unsigned flags)
-{
-    int i, k, longest_match, prefixlen, done;
-    int candidate_kth_char, l;
-    int ambiguity = 0;
-    char *saved_beginning = NULL;
-    char *ans = NULL;
-    size_t answer_allocated;
-    SAVE_STATE_S  state;
-    PerAddrBook  *pab;
-    struct unambig_s {
-	char *name;
-	int   unambig;
-    };
-    struct unambig_s *unambig;
-
-    if(answer)
-      *answer = NULL;
-
-    if(flags & ANC_AFTERCOMMA){
-	char *lastnick;
-
-	/*
-	 * Find last comma, save the part before that, operate
-	 * only on the last address.
-	 */
-	if((lastnick = strrchr(prefix ? prefix : "", ',')) != NULL){
-	    lastnick++;
-	    while(!(*lastnick & 0x80) && isspace((unsigned char) (*lastnick)))
-	      lastnick++;
-
-	    saved_beginning = cpystr(prefix);
-	    saved_beginning[lastnick-prefix] = '\0';
-	    prefix = lastnick;
-	}
-    }
-
-    /*
-     * Loop through the abooks looking for the longest unambiguous match.
-     */
-
-    init_ab_if_needed();
-
-    unambig = (struct unambig_s *) fs_get((as.n_addrbk + 1) * (sizeof(struct unambig_s)));
-    memset(unambig, 0, (as.n_addrbk + 1) * (sizeof(struct unambig_s)));
-
-    if(pith_opt_save_and_restore)
-      (*pith_opt_save_and_restore)(SAR_SAVE, &state);
-
-    for(i = 0; i < as.n_addrbk; i++){
-
-	pab = &as.adrbks[i];
-
-	if(pab->ostatus != Open && pab->ostatus != NoDisplay)
-	  init_abook(pab, NoDisplay);
-
-	unambig[i].unambig = adrbk_longest_unambig_nick(pab->address_book,
-							prefix, &unambig[i].name);
-    }
-
-    unambig[i].name = NULL;
-
-    if(pith_opt_save_and_restore)
-      (*pith_opt_save_and_restore)(SAR_RESTORE, &state);
-
-    prefixlen = strlen(prefix ? prefix : "");
-
-    /*
-     * Find the longest unambiguous of all of
-     * the longest unambiguous nicknames, if you know
-     * what I mean.
-     */
-    longest_match = 0;
-    for(i = 0; i < as.n_addrbk; i++)
-      if(unambig[i].name)
-	longest_match = MAX(longest_match, strlen(unambig[i].name));
-
-    if(longest_match < prefixlen){
-	for(i = 0; i < as.n_addrbk; i++)
-	  if(unambig[i].name)
-	    fs_give((void **) &unambig[i].name);
-	
-	fs_give((void **) &unambig);
-	return(ambiguity);
-    }
-    else if(longest_match == prefixlen){
-	ans = cpystr(prefix);
-    }
-    else{
-	answer_allocated = prefixlen + 100;
-	ans = (char *) fs_get(answer_allocated * sizeof(char));
-	strncpy(ans, prefix, prefixlen);
-	ans[prefixlen] = '\0';
-
-	/*
-	 * If we get here we know that at least one of the matches
-	 * is longer than the prefix, so we need to check to see what
-	 * the longest unambiguous match is.
-	 */
-
-	for(k = prefixlen, done = 0; !done; k++){
-	    candidate_kth_char = -1;
-	    for(i = 0; !done && i < as.n_addrbk; i++){
-		if(k > 0 && unambig[i].name && unambig[i].name[k-1] == '\0')
-		  unambig[i].name[0] = '\0';			/* mark this one done */
-
-		if(unambig[i].name && unambig[i].name[0] != '\0'){
-		    if(candidate_kth_char == -1){		/* no candidate yet */
-			candidate_kth_char = unambig[i].name[k];
-		    }
-		    else{
-			if(unambig[i].name[k] != candidate_kth_char){
-			    done++;
-			}
-		    }
-		}
-	    }
-
-	    if(!done){
-		if(candidate_kth_char == '\0')
-		  done++;
-		else{
-		    if(answer_allocated < k+2){
-			answer_allocated += 100;
-			fs_resize((void **) &ans, answer_allocated);
-		    }
-
-		    ans[k] = candidate_kth_char;
-		    ans[k+1] = '\0';
-		}
-	    }
-	}
-    }
-
-    k = 0;
-    if(ans)
-      k = strlen(ans);
-
-    ambiguity = 2;	/* start off with unambiguous */
-
-    /* determine if answer is ambiguous or not */
-    for(i = 0; ambiguity == 2 && i < as.n_addrbk; i++){
-	if(unambig[i].name
-	   && (l=strlen(unambig[i].name)) >= k
-	   && (l > k || unambig[i].unambig == 1))
-	  ambiguity = 1;
-    }
-
-    for(i = 0; i < as.n_addrbk; i++)
-      if(unambig[i].name)
-	fs_give((void **) &unambig[i].name);
-    
-    fs_give((void **) &unambig);
-
-    if(answer){
-	size_t l1, l2;
-
-	if(saved_beginning){
-	    l1 = strlen(saved_beginning);
-	    l2 = strlen(ans ? ans : "");
-	    *answer = (char *) fs_get((l1+l2+1) * sizeof(char));
-	    strncpy(*answer, saved_beginning, l1+l2);
-	    strncpy(*answer+l1, ans ? ans : "", l2);
-	    (*answer)[l1+l2] = '\0';
-	    fs_give((void **) &saved_beginning);
-	    if(ans)
-	      fs_give((void **) &ans);
-	}
-	else{
-	    fs_resize((void **) &ans, strlen(ans)+1);
-	    *answer = ans;
-	}
-    }
-
-    return(ambiguity);
-}
-
-
-/*
  * Look in all of the address books for all of the possible entries
  * that match the query string. The matches can be for the nickname,
  * for the fullname, or for the address@host part of the address.
  * All of the matches are at the starts of the strings, not a general
- * substring match.
+ * substring match. If flags has ALC_INCLUDE_LDAP defined then LDAP
+ * entries are added to the end of the list. The LDAP queries are done
+ * only for those servers that have the 'impl' feature turned on, which
+ * means that lookups should be done implicitly. This feature also
+ * controls whether or not lookups should be done when typing carriage
+ * return (instead of this which is TAB).
  *
  * Args     query  -- What the user has typed so far
  *
@@ -1186,15 +1067,19 @@ adrbk_nick_complete(char *prefix, char **answer, unsigned flags)
  * Caller needs to free the answer.
  */
 COMPLETE_S *
-adrbk_list_of_completions(char *query)
+adrbk_list_of_completions(char *query, MAILSTREAM *stream, imapuid_t uid, int flags)
 {
     int i;
     SAVE_STATE_S  state;
     PerAddrBook  *pab;
     ABOOK_ENTRY_S *list, *list2, *biglist = NULL;
-    COMPLETE_S *return_list = NULL, *new;
+    COMPLETE_S *return_list = NULL, *last_one_added = NULL, *new, *cp, *dp, *dprev;
     BuildTo toaddr;
-    char *newaddr = NULL;
+    ADDRESS *addr;
+    char buf[1000];
+    char *newaddr = NULL, *simple_addr = NULL;
+    ENVELOPE *env = NULL;
+    BODY *body = NULL;
 
     init_ab_if_needed();
 
@@ -1219,8 +1104,10 @@ adrbk_list_of_completions(char *query)
       /* eliminate any dups further along in the list */
       if(list->entrynum != NO_NEXT)
 	for(list2 = list->next; list2; list2 = list2->next)
-	  if(list2->entrynum ==  list->entrynum)
-	    list2->entrynum = NO_NEXT;
+	  if(list2->entrynum ==  list->entrynum){
+	      list2->entrynum = NO_NEXT;
+	      list->matches_bitmap |= list2->matches_bitmap;
+	  }
 
     /* build the return list */
     for(list = biglist; list; list = list->next)
@@ -1228,14 +1115,59 @@ adrbk_list_of_completions(char *query)
 	  toaddr.type = Abe;
 	  toaddr.arg.abe = adrbk_get_ae(list->ab, list->entrynum);
 	  if(our_build_address(toaddr, &newaddr, NULL, NULL, NULL) == 0){
+	      char    *reverse_fullname = NULL;
 
-	      new = new_complete_s(toaddr.arg.abe ? toaddr.arg.abe->nickname : "", newaddr);
+	      /*
+	       * ALC_FULL is a regular FullName match and that will be
+	       * captured in the full_address field. If there was also
+	       * an ALC_REVFULL match that means that the user has the
+	       * FullName entered in their addrbook as Last, First and
+	       * that is where the match was. We want to put that in
+	       * the completions structure in the rev_fullname field.
+	       */
+	      if(list->matches_bitmap & ALC_REVFULL
+	         && toaddr.arg.abe
+		 && toaddr.arg.abe->fullname && toaddr.arg.abe->fullname[0]
+		 && toaddr.arg.abe->fullname[0] != '"'
+		 && strindex(toaddr.arg.abe->fullname, ',') != NULL){
 
-	      if(return_list == NULL)
-		return_list = new;
-	      else{
-		  new->next = return_list;
+		  reverse_fullname = toaddr.arg.abe->fullname;
+	      }
+
+	      if(flags & ALC_INCLUDE_ADDRS){
+		  if(toaddr.arg.abe && toaddr.arg.abe->tag == Single
+		     && toaddr.arg.abe->addr.addr && toaddr.arg.abe->addr.addr[0]){
+		      char    *tmp_a_string;
+		      char    *fakedomain = "@";
+
+		      tmp_a_string = cpystr(toaddr.arg.abe->addr.addr);
+		      addr = NULL;
+		      rfc822_parse_adrlist(&addr, tmp_a_string, fakedomain);
+		      if(tmp_a_string)
+			fs_give((void **) &tmp_a_string);
+		     
+		      if(addr){
+			  if(addr->mailbox && addr->host
+			     && !(addr->host[0] == '@' && addr->host[1] == '\0'))
+			    simple_addr = simple_addr_string(addr, buf, sizeof(buf));
+
+			  mail_free_address(&addr);
+		      }
+		  }
+	      }
+
+	      new = new_complete_s(toaddr.arg.abe ? toaddr.arg.abe->nickname : NULL,
+				   newaddr, simple_addr, reverse_fullname,
+				   list->matches_bitmap | ALC_ABOOK);
+
+	      /* add to end of list */
+	      if(return_list == NULL){
 		  return_list = new;
+		  last_one_added = new;
+	      }
+	      else{
+		  last_one_added->next = new;
+		  last_one_added = new;
 	      }
 	  }
 
@@ -1248,19 +1180,211 @@ adrbk_list_of_completions(char *query)
 
     free_abook_entry_s(&biglist);
 
+#ifdef	ENABLE_LDAP
+    if(flags & ALC_INCLUDE_LDAP){
+	LDAP_SERV_RES_S *head_of_result_list = NULL, *res;
+	LDAP_CHOOSE_S cs;
+	WP_ERR_S wp_err;
+	LDAPMessage *e;
+
+	memset(&wp_err, 0, sizeof(wp_err));
+
+	/*
+	 * This lookup covers all servers with the impl bit set.
+	 * It uses the regular LDAP search parameters that the
+	 * user has set, not necessarily just a prefix match
+	 * like the rest of the address completion above.
+	 */
+	head_of_result_list = ldap_lookup_all_work(query, as.n_serv, 0, NULL, &wp_err);
+	for(res = head_of_result_list; res; res = res->next){
+	  for(e = ldap_first_entry(res->ld, res->res);
+	      e != NULL;
+	      e = ldap_next_entry(res->ld, e)){
+	    simple_addr = newaddr = NULL;
+	    cs.ld = res->ld;
+	    cs.selected_entry = e;
+	    cs.info_used = res->info_used;
+	    cs.serv = res->serv;
+	    addr = address_from_ldap(&cs);
+	    if(addr){
+		add_addr_to_return_list(addr, ALC_LDAP, query, flags, &return_list);
+		mail_free_address(&addr);
+	    }
+	  }
+	}
+
+	if(wp_err.error)
+	  fs_give((void **) &wp_err.error);
+
+	if(head_of_result_list)
+	  free_ldap_result_list(&head_of_result_list);
+    }
+#endif	/* ENABLE_LDAP */
+
+    /* add from current message */
+    if(uid > 0 && stream)
+      env = pine_mail_fetch_structure(stream, uid, &body, FT_UID);
+
+    /* from the envelope addresses */
+    if(env){
+	if(env->from)
+	  add_addr_to_return_list(env->from, ALC_CURR, query, flags, &return_list);
+
+	if(env->reply_to)
+	  add_addr_to_return_list(env->reply_to, ALC_CURR, query, flags, &return_list);
+
+	if(env->sender)
+	  add_addr_to_return_list(env->sender, ALC_CURR, query, flags, &return_list);
+
+	if(env->to)
+	  add_addr_to_return_list(env->to, ALC_CURR, query, flags, &return_list);
+
+	if(env->cc)
+	  add_addr_to_return_list(env->cc, ALC_CURR, query, flags, &return_list);
+
+	/*
+	 * May as well search the body for addresses.
+	 * Use this function written for TakeAddr.
+	 */
+	if(body){
+	    TA_S *talist = NULL, *tp;
+
+	    if(grab_addrs_from_body(stream, mail_msgno(stream,uid), body, &talist) > 0){
+		if(talist){
+
+		    /* rewind to start */
+		    while(talist->prev)
+		      talist = talist->prev;
+
+		    for(tp = talist; tp; tp = tp->next){
+			addr = tp->addr;
+			if(addr)
+			  add_addr_to_return_list(addr, ALC_CURR, query, flags, &return_list);
+		    }
+
+		    free_talines(&talist);
+		}
+	    }
+	}
+    }
+
+    
+    /*
+     * Check for and eliminate some duplicates.
+     * The criteria for deciding what is a duplicate is
+     * kind of ad hoc.
+     */
+    for(cp = return_list; cp; cp = cp->next)
+      for(dprev = cp, dp = cp->next; dp; ){
+        if(cp->full_address && dp->full_address
+	   && !strucmp(dp->full_address, cp->full_address)
+	   && (((cp->matches_bitmap & ALC_ABOOK)
+	        && (dp->matches_bitmap & ALC_ABOOK)
+	        && (!(dp->matches_bitmap & ALC_NICK && dp->nickname && dp->nickname[0])
+		    || ((!cp->addr && !dp->addr) || (cp->addr && dp->addr && !strucmp(cp->addr, dp->addr)))))
+	       ||
+	       (dp->matches_bitmap & ALC_CURR)
+	       ||
+	       (dp->matches_bitmap & ALC_LDAP
+	        && dp->matches_bitmap & (ALC_FULL | ALC_ADDR))
+	       ||
+	       (cp->matches_bitmap == dp->matches_bitmap
+	        && (!(dp->matches_bitmap & ALC_NICK && dp->nickname && dp->nickname[0])
+		    || (dp->nickname && cp->nickname
+		        && !strucmp(cp->nickname, dp->nickname)))))){
+	    /*
+	     * dp is equivalent to cp so eliminate dp
+	     */
+	    dprev->next = dp->next;
+	    dp->next = NULL;
+	    free_complete_s(&dp);
+	    dp = dprev;
+	}
+
+	dprev = dp;
+	dp = dp->next;
+      }
+
     return(return_list);
 }
 
 
+void
+add_addr_to_return_list(ADDRESS *addr, unsigned bitmap, char *query,
+			int flags, COMPLETE_S **return_list)
+{
+    char buf[1000];
+    char *newaddr = NULL;
+    char *simple_addr = NULL;
+    COMPLETE_S *new = NULL, *cp;
+
+    if(return_list && query && addr && addr->mailbox && addr->host){
+
+	newaddr = addr_list_string(addr, NULL, 0);
+
+	/*
+	 * If the start of the full_address actually matches the query
+	 * string then mark this as ALC_FULL. This might be helpful
+	 * when deciding on the longest unambiguous match.
+	 */
+	if(newaddr && newaddr[0] && !struncmp(newaddr, query, strlen(query)))
+	  bitmap |= ALC_FULL;
+
+	if(newaddr && newaddr[0] && flags & ALC_INCLUDE_ADDRS){
+	    if(addr->mailbox && addr->host
+	       && !(addr->host[0] == '@' && addr->host[1] == '\0'))
+	      simple_addr = simple_addr_string(addr, buf, sizeof(buf));
+
+	    if(simple_addr && !simple_addr[0])
+	      simple_addr = NULL;
+
+	    if(simple_addr && !struncmp(simple_addr, query, strlen(query)))
+	      bitmap |= ALC_ADDR;
+	}
+
+	/*
+	 * Require the bitmap match so that we don't include it
+	 * when we don't really know why it matches.
+	 */
+	if(newaddr && newaddr[0] && bitmap & (ALC_FULL | ALC_ADDR)){
+	    new = new_complete_s(NULL, newaddr, simple_addr, NULL, bitmap);
+
+	    /* add to end of list */
+	    if(*return_list == NULL){
+		*return_list = new;
+	    }
+	    else{
+		for(cp = *return_list; cp->next; cp = cp->next)
+		  ;
+
+		cp->next = new;
+	    }
+	}
+
+	if(newaddr)
+	  fs_give((void **) &newaddr);
+    }
+}
+
+
+/*
+ * nick = nickname
+ * full = whole thing, like Some Body <someb@there.org>
+ * addr = address part, like someb@there.org
+ */
 COMPLETE_S *
-new_complete_s(char *nick, char *full)
+new_complete_s(char *nick, char *full, char *addr,
+	       char *rev_fullname, unsigned matches_bitmap)
 {
     COMPLETE_S *new = NULL;
 
     new = (COMPLETE_S *) fs_get(sizeof(*new));
     memset((void *) new, 0, sizeof(*new));
-    new->nickname = cpystr(nick ? nick : "");
-    new->full_address = cpystr(full ? full : "");
+    new->nickname = nick ? cpystr(nick) : NULL;
+    new->full_address = full ? cpystr(full) : NULL;
+    new->addr = addr ? cpystr(addr) : NULL;
+    new->rev_fullname = rev_fullname ? cpystr(rev_fullname) : NULL;
+    new->matches_bitmap = matches_bitmap;
 
     return(new);
 }
@@ -1279,13 +1403,19 @@ free_complete_s(COMPLETE_S **compptr)
 	if((*compptr)->full_address)
 	  fs_give((void **) &(*compptr)->full_address);
 
+	if((*compptr)->addr)
+	  fs_give((void **) &(*compptr)->addr);
+
+	if((*compptr)->rev_fullname)
+	  fs_give((void **) &(*compptr)->rev_fullname);
+
 	fs_give((void **) compptr);
     }
 }
 
 
 ABOOK_ENTRY_S *
-new_abook_entry_s(AdrBk *ab, a_c_arg_t numarg)
+new_abook_entry_s(AdrBk *ab, a_c_arg_t numarg, unsigned bit)
 {
     ABOOK_ENTRY_S *new = NULL;
     adrbk_cntr_t entrynum;
@@ -1296,6 +1426,7 @@ new_abook_entry_s(AdrBk *ab, a_c_arg_t numarg)
     memset((void *) new, 0, sizeof(*new));
     new->ab = ab;
     new->entrynum = entrynum;
+    new->matches_bitmap = bit;
 
     return(new);
 }
@@ -1345,18 +1476,23 @@ adrbk_list_of_possible_completions(AdrBk *ab, char *prefix)
     if(!ab || !prefix)
       return(biglist);
 
-    if(ab->addr_trie){
-	list = adrbk_list_of_possible_trie_completions(ab->addr_trie, ab, prefix);
+    if(ab->nick_trie){
+	list = adrbk_list_of_possible_trie_completions(ab->nick_trie, ab, prefix, ALC_NICK);
 	combine_abook_entry_lists(&biglist, list);
     }
 
     if(ab->full_trie){
-	list = adrbk_list_of_possible_trie_completions(ab->full_trie, ab, prefix);
+	list = adrbk_list_of_possible_trie_completions(ab->full_trie, ab, prefix, ALC_FULL);
 	combine_abook_entry_lists(&biglist, list);
     }
 
-    if(ab->nick_trie){
-	list = adrbk_list_of_possible_trie_completions(ab->nick_trie, ab, prefix);
+    if(ab->addr_trie){
+	list = adrbk_list_of_possible_trie_completions(ab->addr_trie, ab, prefix, ALC_ADDR);
+	combine_abook_entry_lists(&biglist, list);
+    }
+
+    if(ab->revfull_trie){
+	list = adrbk_list_of_possible_trie_completions(ab->revfull_trie, ab, prefix, ALC_REVFULL);
 	combine_abook_entry_lists(&biglist, list);
     }
 
@@ -1370,7 +1506,8 @@ adrbk_list_of_possible_completions(AdrBk *ab, char *prefix)
  * list of them.
  */
 ABOOK_ENTRY_S *
-adrbk_list_of_possible_trie_completions(AdrBk_Trie *trie, AdrBk *ab, char *prefix)
+adrbk_list_of_possible_trie_completions(AdrBk_Trie *trie, AdrBk *ab, char *prefix,
+					unsigned bit)
 {
     AdrBk_Trie *t;
     char        *p, *lookthisup;
@@ -1430,17 +1567,17 @@ adrbk_list_of_possible_trie_completions(AdrBk_Trie *trie, AdrBk *ab, char *prefi
 	/*
 	 * Add it to the list.
 	 */
-	list = new_abook_entry_s(ab, t->entrynum);
+	list = new_abook_entry_s(ab, t->entrynum, bit);
     }
 
-    gather_abook_entry_list(ab, t->down, prefix, &list);
+    gather_abook_entry_list(ab, t->down, prefix, &list, bit);
 
     return(list);
 }
 
 
 void
-gather_abook_entry_list(AdrBk *ab, AdrBk_Trie *node, char *prefix, ABOOK_ENTRY_S **list)
+gather_abook_entry_list(AdrBk *ab, AdrBk_Trie *node, char *prefix, ABOOK_ENTRY_S **list, unsigned bit)
 {
   char *next_prefix = NULL;
   size_t l;
@@ -1453,13 +1590,13 @@ gather_abook_entry_list(AdrBk *ab, AdrBk_Trie *node, char *prefix, ABOOK_ENTRY_S
 	/*
 	 * Add it to the list.
 	 */
-	newlist = new_abook_entry_s(ab, node->entrynum);
+	newlist = new_abook_entry_s(ab, node->entrynum, bit);
 	combine_abook_entry_lists(list, newlist);
       }
 
       /* same prefix for node->right */
       if(node->right)
-        gather_abook_entry_list(ab, node->right, prefix, list);
+        gather_abook_entry_list(ab, node->right, prefix, list, bit);
 
       /* prefix is one longer for node->down */
       if(node->down){
@@ -1467,7 +1604,7 @@ gather_abook_entry_list(AdrBk *ab, AdrBk_Trie *node, char *prefix, ABOOK_ENTRY_S
 	strncpy(next_prefix, prefix ? prefix : "", l+2);
 	next_prefix[l] = node->value;
 	next_prefix[l+1] = '\0';
-	gather_abook_entry_list(ab, node->down, next_prefix, list);
+	gather_abook_entry_list(ab, node->down, next_prefix, list, bit);
 
 	if(next_prefix)
 	  fs_give((void **) &next_prefix);

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: adrbklib.c 949 2008-03-06 01:13:33Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: adrbklib.c 1069 2008-06-03 15:54:15Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -101,7 +101,6 @@ adrbk_cntr_t   lookup_nickname_in_trie(AdrBk *, char *);
 adrbk_cntr_t   lookup_address_in_trie(AdrBk *, char *);
 adrbk_cntr_t   lookup_in_abook_trie(AdrBk_Trie *, char *);
 void           free_abook_trie(AdrBk_Trie **);
-void           gather_nick_list(AdrBk_Trie *, char *, STRLIST_S **);
 adrbk_cntr_t   re_sort_particular_entry(AdrBk *, a_c_arg_t);
 void           move_ab_entry(AdrBk *, a_c_arg_t, a_c_arg_t);
 void           insert_ab_entry(AdrBk *, a_c_arg_t, AdrBk_Entry *, int);
@@ -169,8 +168,7 @@ adrbk_open(PerAddrBook *pab, char *homedir, char *warning, size_t warninglen, in
 	    goto bail_out;
 	}
 
-	if(!(ab->rd = rd_new_remdata(RemImap, ab->orig_filename,
-				     (void *)REMOTE_ABOOK_SUBTYPE))){
+	if(!(ab->rd = rd_new_remdata(RemImap, ab->orig_filename, REMOTE_ABOOK_SUBTYPE))){
 	    dprint((1,
 		   "adrbk_open: remote: new_remdata failed: %s\n",
 		   ab->orig_filename ? ab->orig_filename : "NULL"));
@@ -1007,32 +1005,55 @@ build_abook_tries(AdrBk *ab, char *warning)
     if(ab->full_trie)
       free_abook_trie(&ab->full_trie);
 
+    if(ab->revfull_trie)
+      free_abook_trie(&ab->revfull_trie);
+
     /*
-     * Go through addrbook entries and add each to the nickname trie.
-     * Add each Single entry to the address lookup trie, as well.
+     * Go through addrbook entries and add each to the tries it
+     * belongs in.
      */
     for(entry_num = 0; entry_num < ab->count; entry_num++){
 	ae = adrbk_get_ae(ab, (a_c_arg_t) entry_num);
 	if(ae){
+	    /* every nickname in the nick trie */
 	    if(ae->nickname && ae->nickname[0])
 	      add_entry_to_trie(&ab->nick_trie, ae->nickname, (a_c_arg_t) entry_num);
 
 	    if(ae->fullname && ae->fullname[0]){
-		add_entry_to_trie(&ab->full_trie, ae->fullname, (a_c_arg_t) entry_num);
+		char *reverse = NULL;
+		char *forward = NULL;
+		char *comma = NULL;
 
 		/*
 		 * We have some fullnames stored as Last, First. Put both in.
 		 */
-		if(ae->fullname[0] != '"' && strindex(ae->fullname, ',') != NULL){
-		    char *reversed;
+		if(ae->fullname[0] != '"'
+		   && (comma=strindex(ae->fullname, ',')) != NULL
+		   && comma - ae->fullname > 0){
+		    forward = adrbk_formatname(ae->fullname, NULL, NULL);
+		    if(forward && forward[0]){
+			*comma = '\0';
+			reverse = cpystr(ae->fullname);
+			*comma = ',';
+		    }
+		    else{
+			if(forward)
+			  fs_give((void **) &forward);
 
-		    reversed = adrbk_formatname(ae->fullname, NULL, NULL);
-		    if(reversed && reversed[0])
-		      add_entry_to_trie(&ab->full_trie, reversed, (a_c_arg_t) entry_num);
-
-		    if(reversed)
-		      fs_give((void **) &reversed);
+			forward = ae->fullname;
+		    }
 		}
+		else
+		  forward = ae->fullname;
+
+		if(forward)
+		  add_entry_to_trie(&ab->full_trie, forward, (a_c_arg_t) entry_num);
+
+		if(reverse)
+		  add_entry_to_trie(&ab->revfull_trie, reverse, (a_c_arg_t) entry_num);
+
+		if(forward && forward != ae->fullname)
+		  fs_give((void **) &forward);
 	    }
 
 	    if(ae->tag == Single && ae->addr.addr && ae->addr.addr[0]){
@@ -1050,7 +1071,9 @@ build_abook_tries(AdrBk *ab, char *warning)
 		  fs_give((void **) &tmp_a_string);
 
 		if(addr){
-		    simple_addr = simple_addr_string(addr, buf, sizeof(buf));
+		    if(addr->mailbox && addr->host
+		       && !(addr->host[0] == '@' && addr->host[1] == '\0'))
+		      simple_addr = simple_addr_string(addr, buf, sizeof(buf));
 
 		    /*
 		     * If the fullname wasn't set in the addrbook entry there
@@ -1236,235 +1259,6 @@ lookup_in_abook_trie(AdrBk_Trie *t, char *str)
     }
 
     return(ret);
-}
-
-
-/*
- * Look in this address book for the longest unambiguous prefix
- * of a nickname which begins with the characters in "prefix".
- *
- * Returns    0 -- no nickname has prefix as a prefix
- *            1  -- more than one nickname begins with
- *                              the answer being returned
- *            2 -- the returned answer is a complete
- *                              nickname and there are no longer nicknames
- *                              which begin with the same characters
- *
- * Allocated answer is returned in answer argument.
- * Caller needs to free the answer.
- */
-int
-adrbk_longest_unambig_nick(AdrBk *ab, char *prefix, char **answer)
-{
-    AdrBk_Trie *t;
-    int          k;
-    char        *p, *lookthisup;
-    char         buf[1000];
-    char         ans[1000];
-    int          ret = 0;
-
-    if(!ab || !prefix || !ab->nick_trie)
-      return(ret);
-
-    if(answer)
-      *answer = NULL;
-
-    ans[0] = '\0';
-    t = ab->nick_trie;
-
-    /* make lookup case independent */
-
-    for(p = prefix; *p && !(*p & 0x80) && islower((unsigned char) *p); p++)
-      ;
-
-    if(*p){
-	strncpy(buf, prefix, sizeof(buf));
-	buf[sizeof(buf)-1] = '\0';
-	for(p = buf; *p; p++)
-	  if(!(*p & 0x80) && isupper((unsigned char) *p))
-	    *p = tolower(*p);
-
-	lookthisup = buf;
-    }
-    else
-      lookthisup = prefix;
-
-    p = lookthisup;
-
-    while(*p){
-	/* search for character at this level */
-	while(t->value != *p){
-	    if(t->right == NULL)
-	      return(ret);		/* no match */
-
-	    t = t->right;
-	}
-
-	if(*++p == '\0'){		/* matched through end of prefix */
-	    strncpy(ans, prefix, sizeof(ans));
-	    ans[sizeof(ans)-1] = '\0';
-	    break;
-	}
-
-	/* need to go down to match next character */
-	if(t->down == NULL)		/* no match */
-	  return(ret);
-
-	t = t->down;
-    }
-
-    /*
-     * If ans is filled in that means we found at least one entry
-     * that matches up through the prefix. Keep going as long as
-     * unambiguous.
-     */
-    if(ans[0] && answer){
-	k = strlen(ans);
-
-	/*
-	 * entrynum == NO_NEXT means this isn't a terminal node (a complete nickname)
-	 * down means there are more possible characters
-	 * !down->right means there is only one possible next char
-	 */
-	while(t->entrynum == NO_NEXT && t->down && !t->down->right && k+1 < sizeof(ans)){
-	    ans[k++] = t->down->value;
-	    ans[k] = '\0';
-	    t = t->down;
-	}
-
-	if(t->down)
-	  ret = 1;
-	else
-	  ret = 2;
-
-	*answer = cpystr(ans);
-    }
-
-    return(ret);
-}
-
-
-/*
- * Look in this address book for all nicknames which begin
- * with the prefix prefix, and return an allocated
- * list of them.
- */
-STRLIST_S *
-adrbk_list_of_possible_nicks(AdrBk *ab, char *prefix)
-{
-    AdrBk_Trie *t;
-    char        *p, *lookthisup;
-    char         buf[1000];
-    STRLIST_S   *list = NULL;
-
-    if(!ab || !prefix || !ab->nick_trie)
-      return(list);
-
-    t = ab->nick_trie;
-
-    /* make lookup case independent */
-
-    for(p = prefix; *p && !(*p & 0x80) && islower((unsigned char) *p); p++)
-      ;
-
-    if(*p){
-	strncpy(buf, prefix, sizeof(buf));
-	buf[sizeof(buf)-1] = '\0';
-	for(p = buf; *p; p++)
-	  if(!(*p & 0x80) && isupper((unsigned char) *p))
-	    *p = tolower(*p);
-
-	lookthisup = buf;
-    }
-    else
-      lookthisup = prefix;
-
-    p = lookthisup;
-
-    while(*p){
-	/* search for character at this level */
-	while(t->value != *p){
-	    if(t->right == NULL)
-	      return(list);		/* no match */
-
-	    t = t->right;
-	}
-
-	if(*++p == '\0')		/* matched through end of prefix */
-	  break;
-
-	/* need to go down to match next character */
-	if(t->down == NULL)		/* no match */
-	  return(list);
-
-	t = t->down;
-    }
-
-    /*
-     * If we get here that means we found at least
-     * one entry that matches up through prefix.
-     * Gather_nick_list recursively adds the nicknames starting at
-     * this node.
-     */
-    if(t->entrynum != NO_NEXT){
-	/*
-	 * This is a nickname. Add it to the list.
-	 * The nickname is ans.
-	 */
-	list = new_strlist(prefix);
-    }
-
-    gather_nick_list(t->down, prefix, &list);
-
-    return(list);
-}
-
-
-void
-gather_nick_list(AdrBk_Trie *node, char *prefix, STRLIST_S **list)
-{
-  char *next_prefix = NULL;
-  size_t l;
-  STRLIST_S *newlist = NULL;
-
-  if(node){
-    if(node->entrynum != NO_NEXT || node->down || node->right){
-      l = strlen(prefix ? prefix : "");
-      if(node->entrynum != NO_NEXT){
-	/*
-	 * This is a nickname. Add it to the list.
-	 * The nickname is prefix + t->value.
-	 */
-	newlist = new_strlist(NULL);
-	newlist->name = (char *) fs_get((l+2) * sizeof(char));
-	strncpy(newlist->name, prefix ? prefix : "", l+2);
-	newlist->name[l] = node->value;
-	newlist->name[l+1] = '\0';
-	combine_strlists(list, newlist);
-      }
-
-      /* same prefix for node->right */
-      if(node->right)
-        gather_nick_list(node->right, prefix, list);
-
-      /* prefix is one longer for node->down */
-      if(node->down){
-	if(newlist)
-	  next_prefix = newlist->name;
-	else{
-	  next_prefix = (char *) fs_get((l+2) * sizeof(char));
-	  strncpy(next_prefix, prefix ? prefix : "", l+2);
-	  next_prefix[l] = node->value;
-	  next_prefix[l+1] = '\0';
-	}
-
-	gather_nick_list(node->down, next_prefix, list);
-
-	if(next_prefix && !(newlist && next_prefix == newlist->name))
-	  fs_give((void **) &next_prefix);
-      }
-    }
-  }
 }
 
 
@@ -2996,6 +2790,9 @@ adrbk_close(AdrBk *ab)
     if(ab->full_trie)
       free_abook_trie(&ab->full_trie);
 
+    if(ab->revfull_trie)
+      free_abook_trie(&ab->revfull_trie);
+
     if(we_cancel)
       cancel_busy_cue(0);
 
@@ -3104,7 +2901,7 @@ adrbk_write(AdrBk *ab, a_c_arg_t current_entry_num, adrbk_cntr_t *new_entry_num,
 			  max_addr = 0, addr_two = 0, addr_three = 0,
 			  this_nick_width, this_full_width, this_addr_width,
 			  this_fcc_width, fd, i;
-    int                   interrupt_happened = 0, we_cancel = 0;
+    int                   interrupt_happened = 0, we_cancel = 0, we_turned_on = 0;
     char                 *temp_filename = NULL;
     WIDTH_INFO_S         *widths;
 
@@ -3237,7 +3034,7 @@ adrbk_write(AdrBk *ab, a_c_arg_t current_entry_num, adrbk_cntr_t *new_entry_num,
 
     /* accept keyboard interrupts */
     if(enable_intr_handling)
-      intr_handling_on();
+      we_turned_on = intr_handling_on();
 
     if(!be_quiet){
 	tot_for_percent = MAX(ab->count, 1);
@@ -3418,8 +3215,10 @@ adrbk_write(AdrBk *ab, a_c_arg_t current_entry_num, adrbk_cntr_t *new_entry_num,
 	we_cancel = 0;
     }
 
-    if(enable_intr_handling)
-      intr_handling_off();
+    if(enable_intr_handling && we_turned_on){
+	intr_handling_off();
+	we_turned_on = 0;
+    }
 
     if(fclose(ab_stream) == EOF){
 	dprint((1, "adrbk_write: fclose for %s failed\n",
@@ -3634,7 +3433,7 @@ io_error:
     if(we_cancel)
       cancel_busy_cue(-1);
 
-    if(enable_intr_handling)
+    if(enable_intr_handling && we_turned_on)
       intr_handling_off();
 
 #ifndef	DOS
@@ -4348,7 +4147,8 @@ void
 repair_abook_tries(AdrBk *ab)
 {
     if(ab->arr){
-	AdrBk_Trie *save_nick_trie, *save_addr_trie, *save_full_trie;
+	AdrBk_Trie *save_nick_trie, *save_addr_trie,
+		   *save_full_trie, *save_revfull_trie;
 
 	save_nick_trie = ab->nick_trie;
 	ab->nick_trie = NULL;
@@ -4356,6 +4156,8 @@ repair_abook_tries(AdrBk *ab)
 	ab->addr_trie = NULL;
 	save_full_trie = ab->full_trie;
 	ab->full_trie = NULL;
+	save_revfull_trie = ab->revfull_trie;
+	ab->revfull_trie = NULL;
 	if(build_abook_tries(ab, NULL)){
 	    dprint((2, "trouble rebuilding tries, restoring\n"));
 	    if(ab->nick_trie)
@@ -4373,6 +4175,11 @@ repair_abook_tries(AdrBk *ab)
 	      free_abook_trie(&ab->full_trie);
 
 	    ab->full_trie = save_full_trie;
+
+	    if(ab->revfull_trie)
+	      free_abook_trie(&ab->revfull_trie);
+
+	    ab->revfull_trie = save_revfull_trie;
 	}
 	else{
 	    if(save_nick_trie)
@@ -4383,6 +4190,9 @@ repair_abook_tries(AdrBk *ab)
 
 	    if(save_full_trie)
 	      free_abook_trie(&save_full_trie);
+
+	    if(save_revfull_trie)
+	      free_abook_trie(&save_revfull_trie);
 	}
     }
 }
@@ -4901,7 +4711,7 @@ adrbk_sort(AdrBk *ab, a_c_arg_t current_entry_num, adrbk_cntr_t *new_entry_num, 
 {
     adrbk_cntr_t *sort_array, *inv, tmp;
     long i, j, hi, count;
-    int skip_the_sort = 0, we_cancel = 0;
+    int skip_the_sort = 0, we_cancel = 0, we_turned_on = 0;
     AdrBk_Entry ae_tmp, *ae_i, *ae_hi;
     EXPANDED_S *e, *e2, *smallest;
 
@@ -4930,7 +4740,7 @@ adrbk_sort(AdrBk *ab, a_c_arg_t current_entry_num, adrbk_cntr_t *new_entry_num, 
       skip_the_sort = 1;
 
     if(!skip_the_sort){
-	intr_handling_on();
+	we_turned_on = intr_handling_on();
 	if(!be_quiet)
 	  we_cancel = busy_cue(_("Sorting address book"), NULL, 0);
 
@@ -4949,7 +4759,8 @@ adrbk_sort(AdrBk *ab, a_c_arg_t current_entry_num, adrbk_cntr_t *new_entry_num, 
 
     dprint((9, "- adrbk_sort: done with first sort -\n"));
 
-    intr_handling_off();
+    if(we_turned_on)
+      intr_handling_off();
 
     if(skip_the_sort){
 	q_status_message(SM_ORDER, 3, 3,

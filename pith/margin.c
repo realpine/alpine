@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: margin.c 671 2007-08-15 20:28:09Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: margin.c 1028 2008-04-10 16:50:54Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -122,3 +122,16 @@ format_view_margin(void)
 }
 
 
+/*
+ * Give a margin for help and such
+ */
+int *
+non_messageview_margin(void)
+{
+    static int margin[2];
+
+    margin[0] = 0;
+    margin[1] = 4;
+
+    return(margin);
+}

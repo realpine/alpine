@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: termin.unx.c 830 2007-11-26 23:45:22Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: termin.unx.c 1014 2008-03-26 17:27:45Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -717,7 +717,7 @@ pre_screen_config_opt_enter(char *string, int string_size, char *prompt,
 
     while(return_v == -10) {
 
-	if(flags && *flags & OE_PASSWD){
+	if(flags && (*flags & (OE_PASSWD | OE_PASSWD_NOAST))){
 	    if((pw = getpass(prompt)) != NULL){
 		if(strlen(pw) < string_size){
 		    strncpy(string, pw, string_size);

@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: remote.c 745 2007-10-11 18:03:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: remote.c 1069 2008-06-03 15:54:15Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -93,7 +93,7 @@ create_the_remote_folder:
      * only have type RemImap.
      */
     prc->rd = rd_create_remote(RemImap, prc->name,
-			       (void *)REMOTE_PINERC_SUBTYPE,
+			       REMOTE_PINERC_SUBTYPE,
 			       &flags, _("Error: "),
 			       _(" Can't fetch remote configuration."));
     if(!prc->rd)
@@ -228,7 +228,7 @@ bail_out:
  * NoExists or MaybeRorW. On success, "so" will point to a storage object.
  */
 REMDATA_S *
-rd_create_remote(RemType type, char *remote_name, void *type_spec,
+rd_create_remote(RemType type, char *remote_name, char *type_spec,
 		 unsigned int *flags, char *err_prefix, char *err_suffix)
 {
     REMDATA_S *rd = NULL;
@@ -289,7 +289,7 @@ rd_create_remote(RemType type, char *remote_name, void *type_spec,
 
 
 REMDATA_S *
-rd_new_remdata(RemType type, char *remote_name, void *type_spec)
+rd_new_remdata(RemType type, char *remote_name, char *type_spec)
 {
     REMDATA_S *rd = NULL;
 
@@ -305,7 +305,7 @@ rd_new_remdata(RemType type, char *remote_name, void *type_spec)
     switch(rd->type){
       case RemImap:
 	if(type_spec)
-	  rd->t.i.special_hdr = cpystr((char *)type_spec);
+	  rd->t.i.special_hdr = cpystr(type_spec);
 
 	break;
 

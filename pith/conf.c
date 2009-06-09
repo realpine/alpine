@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: conf.c 961 2008-03-14 18:15:38Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: conf.c 1069 2008-06-03 15:54:15Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -45,6 +45,7 @@ static char rcsid[] = "$Id: conf.c 961 2008-03-14 18:15:38Z mikes@u.washington.e
 #include "../pith/tempfile.h"
 #include "../pith/icache.h"
 #include "../pith/sort.h"
+#include "../pith/smime.h"
 #include "../pith/charconv/utf8.h"
 #ifdef _WINDOWS
 #include "../pico/osdep/mswin.h"
@@ -71,7 +72,7 @@ int      var_is_in_rest_of_file(char *, char *);
 char    *skip_over_this_var(char *, char *);
 char    *native_nl(char *);
 void     set_color_val(struct variable *, int);
-int      copy_localfile_to_remotefldr(RemType, char *, char *, void *, char **);
+int      copy_localfile_to_remotefldr(RemType, char *, char *, char *, char **);
 char    *backcompat_convert_from_utf8(char *, size_t, char *);
 #ifdef	_WINDOWS
 char    *transformed_color(char *);
@@ -103,6 +104,22 @@ CONF_TXT_T cf_text_user_domain[] =		"Sets domain part of From: and local address
 CONF_TXT_T cf_text_smtp_server[] =		"List of SMTP servers for sending mail. If blank: Unix Alpine uses sendmail.";
 
 CONF_TXT_T cf_text_nntp_server[] =		"NNTP server for posting news. Also sets news-collections for news reading.";
+
+#ifdef	SMIME
+
+CONF_TXT_T cf_text_publiccertdir[] =		"Public certificates are kept in files in this directory. The files should\n# contain certificates in PEM format. The name of each file should look\n# like <emailaddress>.crt. The default directory is .alpine-smime/public.";
+
+CONF_TXT_T cf_text_privatekeydir[] =		"Private keys are kept in files in this directory. The files are in PEM format.\n# The name of a file should look like <emailaddress>.key.\n# The default directory is .alpine-smime/private.";
+
+CONF_TXT_T cf_text_cacertdir[] =		"Certificate Authority certificates (in addition to the normal CACerts for the\n# system) are kept in files in this directory. The files are in PEM format.\n# Filenames should end with .crt. The default directory is .alpine-smime/ca.";
+
+CONF_TXT_T cf_text_publiccertcontainer[] =	"If this option is set then public certificates are kept in a single container\n# \"file\" similar to a remote configuration file instead of in the\n# smime-publiccert-directory. The value can be a remote or local folder\n# specification like for a non-standard pinerc value. The default\n# is that it is not set.";
+
+CONF_TXT_T cf_text_privatekeycontainer[] =	"If this option is set then private keys are kept in a single container\n# \"file\" similar to a remote configuration file instead of in the\n# private-key-directory. The value can be a remote or local folder\n# specification like for a non-standard pinerc value. The default\n# is that it is not set.";
+
+CONF_TXT_T cf_text_cacertcontainer[] =	"If this option is set then CAcerts are kept in a single container\n# \"file\" similar to a remote configuration file instead of in the\n# ca-cert-directory. The value can be a remote or local folder\n# specification like for a non-standard pinerc value. The default\n# is that it is not set.";
+
+#endif	/* SMIME */
 
 #ifdef	ENABLE_LDAP
 CONF_TXT_T cf_text_ldap_server[] =		"LDAP servers for looking up addresses.";
@@ -838,6 +855,20 @@ static struct variable variables[] = {
 	NULL,			cf_text_window_position},
 {"cursor-style",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, NULL},
 #endif	/* _WINDOWS */
+#ifdef	SMIME
+{"smime-public-cert-directory",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	"S/MIME - Public Cert Directory",	cf_text_publiccertdir},
+{"smime-public-cert-container",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	"S/MIME - Public Cert Container",	cf_text_publiccertcontainer},
+{"smime-private-key-directory",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	"S/MIME - Private Key Directory",	cf_text_privatekeydir},
+{"smime-private-key-container",		0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	"S/MIME - Private Key Container",	cf_text_privatekeycontainer},
+{"smime-cacert-directory",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	"S/MIME - Cert Authority Directory", cf_text_cacertdir},
+{"smime-cacert-container",			0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+	"S/MIME - Cert Authority Container", cf_text_cacertcontainer},
+#endif	/* SMIME */
 #ifdef	ENABLE_LDAP
 {"ldap-servers",			0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0,
 	"LDAP Servers",		cf_text_ldap_server},
@@ -1634,6 +1665,11 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
 #ifdef	DF_VAR_SPELLER
     GLO_SPELLER			= cpystr(DF_VAR_SPELLER);
 #endif
+#ifdef	SMIME
+    GLO_PUBLICCERT_DIR		= cpystr(DF_PUBLICCERT_DIR);
+    GLO_PRIVATEKEY_DIR		= cpystr(DF_PRIVATEKEY_DIR);
+    GLO_CACERT_DIR		= cpystr(DF_CACERT_DIR);
+#endif	/* SMIME */
 
     /*
      * Default first value for addrbook list if none set.
@@ -1700,8 +1736,8 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
 #ifndef	_WINDOWS
 #if (HAVE_LANGINFO_H && defined(CODESET))
 
-    if(output_charset_is_supported(nl_langinfo(CODESET)))
-      ps->GLO_CHAR_SET = cpystr(nl_langinfo(CODESET));
+    if(output_charset_is_supported(nl_langinfo_codeset_wrapper()))
+      ps->GLO_CHAR_SET = cpystr(nl_langinfo_codeset_wrapper());
     else{
 	ps->GLO_CHAR_SET = cpystr("UTF-8");
         dprint((1,"nl_langinfo(CODESET) returns unrecognized value=\"%s\", using UTF-8 as default\n", (p=nl_langinfo(CODESET)) ? p : ""));
@@ -1894,6 +1930,7 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
     set_current_val(&vars[V_KBLOCK_PASSWD_COUNT], TRUE, TRUE);
     set_current_val(&vars[V_DEFAULT_FCC], TRUE, TRUE);
     set_current_val(&vars[V_POSTPONED_FOLDER], TRUE, TRUE);
+    set_current_val(&vars[V_TRASH_FOLDER], TRUE, TRUE);
     set_current_val(&vars[V_READ_MESSAGE_FOLDER], TRUE, TRUE);
     set_current_val(&vars[V_FORM_FOLDER], TRUE, TRUE);
     set_current_val(&vars[V_EDITOR], TRUE, TRUE);
@@ -1911,6 +1948,14 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
     set_current_val(&vars[V_KW_BRACES], TRUE, TRUE);
     set_current_val(&vars[V_OPENING_SEP], TRUE, TRUE);
     set_current_val(&vars[V_UNK_CHAR_SET], TRUE, TRUE);
+#ifdef	SMIME
+    set_current_val(&vars[V_PUBLICCERT_DIR], TRUE, TRUE);
+    set_current_val(&vars[V_PUBLICCERT_CONTAINER], TRUE, TRUE);
+    set_current_val(&vars[V_PRIVATEKEY_DIR], TRUE, TRUE);
+    set_current_val(&vars[V_PRIVATEKEY_CONTAINER], TRUE, TRUE);
+    set_current_val(&vars[V_CACERT_DIR], TRUE, TRUE);
+    set_current_val(&vars[V_CACERT_CONTAINER], TRUE, TRUE);
+#endif	/* SMIME */
 
     set_current_val(&vars[V_KEYWORDS], TRUE, TRUE);
     ps_global->keywords = init_keyword_list(VAR_KEYWORDS);
@@ -3036,6 +3081,9 @@ feature_list(int index)
 	{"store-window-position-in-config", "Store Window Position in Config",
 	 F_STORE_WINPOS_IN_CONFIG, h_config_winpos_in_config, PREF_MISC, 0},
 #endif
+	{"suppress-asterisks-in-password-prompt", "Suppress Asterisks in Password Prompt",
+	 F_QUELL_ASTERISKS, h_config_quell_asterisks,
+	 PREF_MISC, 0},
 	{"quell-attachment-extension-warn", "Suppress Attachment Extension Warning",
 	 F_QUELL_ATTACH_EXT_WARN, h_config_quell_attach_ext_warn,
 	 PREF_MISC, 0},
@@ -3125,6 +3173,20 @@ feature_list(int index)
 	 F_QUELL_PERSONAL_NAME_PROMPT, h_config_quell_personal_name_prompt, PREF_HIDDEN, 0},
 	{"quell-user-id-prompt", "Quell User ID Prompt",
 	 F_QUELL_USER_ID_PROMPT, h_config_quell_user_id_prompt, PREF_HIDDEN, 0},
+#ifdef SMIME
+	{"smime-dont-do-smime", "S/MIME -- Turn off S/MIME",
+	 F_DONT_DO_SMIME, h_config_smime_dont_do_smime, PREF_HIDDEN, 0},
+	{"smime-encrypt-by-default", "S/MIME -- Encrypt by Default",
+	 F_ENCRYPT_DEFAULT_ON, h_config_smime_encrypt_by_default, PREF_HIDDEN, 0},
+	{"smime-remember-passphrase", "S/MIME -- Remember S/MIME Passphrase",
+	 F_REMEMBER_SMIME_PASSPHRASE, h_config_smime_remember_passphrase, PREF_HIDDEN, 0},
+	{"smime-sign-by-default", "S/MIME -- Sign by Default",
+	 F_SIGN_DEFAULT_ON, h_config_smime_sign_by_default, PREF_HIDDEN, 0},
+#ifdef APPLEKEYCHAIN
+	{"publiccerts-in-keychain", "S/MIME -- Public Certs in MacOS Keychain",
+	 F_PUBLICCERTS_IN_KEYCHAIN, h_config_smime_pubcerts_in_keychain, PREF_HIDDEN, 0},
+#endif
+#endif
 	{"selectable-item-nobold", NULL,
 	 F_SLCTBL_ITEM_NOBOLD, NO_HELP, PREF_NONE, 0},
 	{"send-confirms-only-expanded", NULL,	/* exposed in Web Alpine */
@@ -6903,6 +6965,18 @@ toggle_feature(struct pine *ps, struct variable *var, FEATURE_S *f,
 	refresh_sort(ps->mail_stream, sp_msgmap(ps->mail_stream), SRT_NON);
 	break;
 
+#ifdef SMIME
+      case F_DONT_DO_SMIME :
+	smime_deinit();
+	break;
+
+#ifdef APPLEKEYCHAIN
+      case F_PUBLICCERTS_IN_KEYCHAIN :
+	smime_deinit();
+	break;
+#endif
+#endif
+
       default :
 	break;
      }
@@ -7007,7 +7081,7 @@ reset_character_set_stuff(char **err)
       ps_global->display_charmap = cpystr(ps_global->VAR_CHAR_SET);
     else{
 #if HAVE_LANGINFO_H && defined(CODESET)
-      ps_global->display_charmap = cpystr(nl_langinfo(CODESET));
+      ps_global->display_charmap = cpystr(nl_langinfo_codeset_wrapper());
 #else
       ps_global->display_charmap = cpystr("UTF-8");
 #endif
@@ -7184,7 +7258,7 @@ int
 copy_pinerc(char *local, char *remote, char **err_msg)
 {
     return(copy_localfile_to_remotefldr(RemImap, local, remote,
-					(void *)REMOTE_PINERC_SUBTYPE,
+					REMOTE_PINERC_SUBTYPE,
 					err_msg));
 }
 
@@ -7193,7 +7267,7 @@ int
 copy_abook(char *local, char *remote, char **err_msg)
 {
     return(copy_localfile_to_remotefldr(RemImap, local, remote,
-					(void *)REMOTE_ABOOK_SUBTYPE,
+					REMOTE_ABOOK_SUBTYPE,
 					err_msg));
 }
 
@@ -7210,7 +7284,7 @@ copy_abook(char *local, char *remote, char **err_msg)
  */
 int
 copy_localfile_to_remotefldr(RemType remotetype, char *local, char *remote,
-			     void *subtype, char **err_msg)
+			     char *subtype, char **err_msg)
 {
     int        retfail = -1;
     unsigned   flags;
@@ -7728,6 +7802,20 @@ config_help(int var, int feature)
       case V_LDAP_SERVERS :
 	return(h_config_ldap_servers);
 #endif
+#ifdef	SMIME
+      case V_PUBLICCERT_DIR :
+	return(h_config_smime_pubcertdir);
+      case V_PUBLICCERT_CONTAINER :
+	return(h_config_smime_pubcertcon);
+      case V_PRIVATEKEY_DIR :
+	return(h_config_smime_privkeydir);
+      case V_PRIVATEKEY_CONTAINER :
+	return(h_config_smime_privkeycon);
+      case V_CACERT_DIR :
+	return(h_config_smime_cacertdir);
+      case V_CACERT_CONTAINER :
+	return(h_config_smime_cacertcon);
+#endif
       case V_WP_COLUMNS :
 	return(h_config_wp_columns);
       default :
@@ -7810,14 +7898,14 @@ get_supported_options(void)
     /*
      * Line count:
      *   Title + blank			= 2
-     *   SSL Title + SSL line + blank	= 3
+     *   SSL Title + SSL lines + blank	= 4
      *   Auth title + blank		= 2
      *   Driver title + blank		= 2
      *   LDAP title + LDAP line 	= 2
      *   Disabled explanation + blank line = 4
      *   end				= 1
      */
-    cnt = 16;
+    cnt = 17;
     for(a = mail_lookup_auth(1); a; a = a->next)
       cnt++;
     for(d = (DRIVER *)mail_parameters(NIL, GET_DRIVERS, NIL);
@@ -7847,6 +7935,10 @@ get_supported_options(void)
       config[cnt] = cpystr(_("  TLS and SSL"));
     else
       config[cnt] = cpystr(_("  None (no TLS or SSL)"));
+#ifdef SMIME
+    if(++cnt < alcnt)
+      config[cnt] = cpystr("  S/MIME");
+#endif
 
     if(++cnt < alcnt)
       config[cnt] = cpystr("");

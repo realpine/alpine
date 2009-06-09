@@ -1,5 +1,5 @@
 /*
- * $Id: imap.h 487 2007-03-23 16:53:15Z hubert@u.washington.edu $
+ * $Id: imap.h 1033 2008-04-24 02:00:26Z mikes@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington
@@ -27,6 +27,7 @@ long    pine_sslcertquery(char *, char *, char *);
 char   *pine_newsrcquery(MAILSTREAM *, char *, char *);
 int     url_local_certdetails(char *);
 void    pine_sslfailure(char *, char *, unsigned long);
+void	mm_expunged_current(long unsigned int);
 
 #ifdef	LOCAL_PASSWD_CACHE
 int     get_passfile_passwd(char *, char *, char *, STRLIST_S *, int);

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailindx.c 922 2008-02-01 18:42:29Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailindx.c 1108 2008-07-10 05:01:13Z mikes@u.washington.edu $";
 #endif
 
 /*
@@ -2825,7 +2825,7 @@ redraw_index_body(void)
 
     (void) update_index(ps_global, current_index_state);
     if(agg)
-      pseudo_selected(current_index_state->msgmap);
+      pseudo_selected(current_index_state->stream, current_index_state->msgmap);
 }
 
 
@@ -2934,7 +2934,7 @@ away.
 void
 index_search(struct pine *state, MAILSTREAM *stream, int command_line, MSGNO_S *msgmap)
 {
-    int         rc, select_all = 0, flags, prefetch;
+    int         rc, select_all = 0, flags, prefetch, we_turned_on = 0;
     long        i, sorted_msg, selected = 0L;
     char        prompt[MAX_SEARCH+50], new_string[MAX_SEARCH+1];
     char        buf[MAX_SCREEN_COLS+1], *p;
@@ -3092,9 +3092,7 @@ index_search(struct pine *state, MAILSTREAM *stream, int command_line, MSGNO_S *
     strncpy(search_string, new_string, sizeof(search_string));
     search_string[sizeof(search_string)-1] = '\0';
 
-#ifndef	DOS
-    intr_handling_on();
-#endif
+    we_turned_on = intr_handling_on();
 
     prefetch = 0;
     for(i = sorted_msg + ((select_all)?0:1);
@@ -3169,7 +3167,7 @@ index_search(struct pine *state, MAILSTREAM *stream, int command_line, MSGNO_S *
 	   && any_lflagged(msgmap, MN_SLCT) > 0L
 	   && !any_lflagged(msgmap, MN_HIDE)
 	   && F_ON(F_AUTO_ZOOM, state))
-	  (void) zoom_index(state, stream, msgmap);
+	  (void) zoom_index(state, stream, msgmap, MN_SLCT);
 	    
 	q_status_message1(SM_ORDER, 0, 3, _("%s messages found matching word"),
 			  long2string(selected));
@@ -3183,9 +3181,8 @@ index_search(struct pine *state, MAILSTREAM *stream, int command_line, MSGNO_S *
     else
       q_status_message(SM_ORDER, 0, 3, _("Word not found"));
 
-#ifndef	DOS
-    intr_handling_off();
-#endif
+    if(we_turned_on)
+      intr_handling_off();
 }
 
 

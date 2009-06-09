@@ -1,8 +1,8 @@
 /*
- * $Id: ldapconf.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: ldapconf.h 1007 2008-03-24 19:35:31Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,8 +25,6 @@
 
 /* exported protoypes */
 #ifdef	ENABLE_LDAP
-int         ldap_addr_select(struct pine *, ADDR_CHOOSE_S *, LDAP_SERV_RES_S **,
-			     LDAPLookupStyle, WP_ERR_S *, char *);
 void	    directory_config(struct pine *, int);
 int	    ldap_radiobutton_tool(struct pine *, int, CONF_S **, unsigned);
 #endif

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcap.c 932 2008-02-21 19:42:44Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailcap.c 971 2008-03-18 17:24:31Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -22,7 +22,6 @@ static char rcsid[] = "$Id: mailcap.c 932 2008-02-21 19:42:44Z hubert@u.washingt
 #include "../pith/mimetype.h"
 #include "../pith/mimedesc.h"
 #include "../pith/status.h"
-#include "../pith/rfc2231.h"
 #include "../pith/util.h"
 #include "../pith/readfile.h"
 
@@ -77,11 +76,11 @@ int           mc_comment(char **);
 int           mc_token(char **, char **);
 void          mc_build_entry(char **);
 int           mc_sane_command(char *);
-MailcapEntry *mc_get_command(int, char *, PARAMETER *, int, int *);
+MailcapEntry *mc_get_command(int, char *, BODY *, int, int *);
 int           mc_ctype_match(int, char *, char *);
-int           mc_passes_test(MailcapEntry *, int, char *, PARAMETER *);
-char         *mc_bld_test_cmd(char *, int, char *, PARAMETER *);
-char         *mc_cmd_bldr(char *, int, char *, PARAMETER *, char *, char **);
+int           mc_passes_test(MailcapEntry *, int, char *, BODY *);
+char         *mc_bld_test_cmd(char *, int, char *, BODY *);
+char         *mc_cmd_bldr(char *, int, char *, BODY *, char *, char **);
 MailcapEntry *mc_new_entry(void);
 void          mc_free_entry(MailcapEntry **);
 
@@ -552,7 +551,7 @@ mc_sane_command(char *command)
  * mailcap entry, or NULL if none.  Command string still contains % stuff.
  */
 MailcapEntry *
-mc_get_command(int type, char *subtype, struct mail_body_parameter *params,
+mc_get_command(int type, char *subtype, BODY *body,
 	       int check_extension, int *sp_handlingp)
 {
     MailcapEntry *mc;
@@ -570,7 +569,7 @@ mc_get_command(int type, char *subtype, struct mail_body_parameter *params,
     mc_init();
 
     if(check_extension){
-	char	 *namep, *dec_namebuf = NULL, *dec_namep = NULL;
+	char     *fname;
 	MT_MAP_T  e2b;
 
 	/*
@@ -583,46 +582,34 @@ mc_get_command(int type, char *subtype, struct mail_body_parameter *params,
 	 *       typically two scans through the check_extension
 	 *       mechanism, the mailcap entry now takes precedence.
 	 */
-	if((namep = rfc2231_get_param(params, "name", NULL, NULL)) != NULL){
-	    if(namep[0] == '=' && namep[1] == '?'){
-		size_t len;
-	    /*
-	     * Here we have a client that wrongly sent us rfc2047 encoded
-	     * parameter instead of what rfc2231 suggests.  Grudgingly,
-	     * we try to fix what we didn't break.
-	     */
-		len = 4*strlen(namep);
-		dec_namebuf = (char *)fs_get((len+1)*sizeof(char));
-		dec_namep =
-		  (char *)rfc1522_decode_to_utf8((unsigned char *)dec_namebuf, len+1, namep);
-	    }
-	    if(mt_get_file_ext((char *) dec_namep ? dec_namep : namep,
-			       &e2b.from.ext)){
-		if(strlen(e2b.from.ext) < sizeof(tmp_ext) - 2){
-		    strncpy(ext = tmp_ext, e2b.from.ext - 1, sizeof(tmp_ext)); /* remember it */
-		    tmp_ext[sizeof(tmp_ext)-1] = '\0';
-		    if(mt_srch_mime_type(mt_srch_by_ext, &e2b)){
-			type = e2b.to.mime.type;		/* mapped type */
-			strncpy(subtype = tmp_subtype, e2b.to.mime.subtype,
-				sizeof(tmp_subtype)-1);
-			tmp_subtype[sizeof(tmp_subtype)-1] = '\0';
-			fs_give((void **) &e2b.to.mime.subtype);
-			params = NULL;		/* they no longer apply */
-		    }
+	if((fname = get_filename_parameter(NULL, 0, body, &e2b.from.ext)) != NULL
+	   && e2b.from.ext && e2b.from.ext[0]){
+	    if(strlen(e2b.from.ext) < sizeof(tmp_ext) - 2){
+		strncpy(ext = tmp_ext, e2b.from.ext - 1, sizeof(tmp_ext)); /* remember it */
+		tmp_ext[sizeof(tmp_ext)-1] = '\0';
+		if(mt_srch_mime_type(mt_srch_by_ext, &e2b)){
+		    type = e2b.to.mime.type;		/* mapped type */
+		    strncpy(subtype = tmp_subtype, e2b.to.mime.subtype,
+			    sizeof(tmp_subtype)-1);
+		    tmp_subtype[sizeof(tmp_subtype)-1] = '\0';
+		    fs_give((void **) &e2b.to.mime.subtype);
+		    body = NULL;		/* the params no longer apply */
 		}
 	    }
 
-	    fs_give((void **) &namep);
-	    if(dec_namebuf)
-	      fs_give((void **) &dec_namebuf);
+	    fs_give((void **) &fname);
 	}
-	else
-	  return(NULL);
+	else{
+	    if(fname)
+	      fs_give((void **) &fname);
+
+	    return(NULL);
+	}
     }
 
     for(mc = MailcapData.head; mc; mc = mc->next)
       if(mc_ctype_match(type, subtype, mc->contenttype)
-	 && mc_passes_test(mc, type, subtype, params)){
+	 && mc_passes_test(mc, type, subtype, body)){
 	  dprint((9, 
 		     "mc_get_command: type=%s/%s, command=%s\n", 
 		     body_type_names(type),
@@ -680,7 +667,7 @@ mc_ctype_match(int type, char *subtype, char *pat)
  * Returns 1 if it does pass test (exits with status 0), 0 otherwise.
  */
 int
-mc_passes_test(MailcapEntry *mc, int type, char *subtype, struct mail_body_parameter *params)
+mc_passes_test(MailcapEntry *mc, int type, char *subtype, BODY *body)
 {
     char *cmd = NULL;
     int   rv;
@@ -689,7 +676,7 @@ mc_passes_test(MailcapEntry *mc, int type, char *subtype, struct mail_body_param
 
     if(mc->testcommand
        && *mc->testcommand
-       && !(cmd = mc_bld_test_cmd(mc->testcommand, type, subtype, params)))
+       && !(cmd = mc_bld_test_cmd(mc->testcommand, type, subtype, body)))
       return(FALSE);	/* couldn't be built */
     
     if(!mc->testcommand || !cmd || !*cmd){
@@ -711,18 +698,17 @@ mc_passes_test(MailcapEntry *mc, int type, char *subtype, struct mail_body_param
 
 
 int
-mailcap_can_display(int type, char *subtype,
-		    struct mail_body_parameter *params, int check_extension)
+mailcap_can_display(int type, char *subtype, BODY *body, int check_extension)
 {
     dprint((5, "- mailcap_can_display -\n"));
 
-    return(mc_get_command(type, subtype, params,
+    return(mc_get_command(type, subtype, body,
 			  check_extension, NULL) != NULL);
 }
 
 
 MCAP_CMD_S *
-mailcap_build_command(int type, char *subtype, struct mail_body_parameter *params,
+mailcap_build_command(int type, char *subtype, BODY *body,
 		      char *tmp_file, int *needsterm, int chk_extension)
 {
     MailcapEntry *mc;
@@ -732,7 +718,7 @@ mailcap_build_command(int type, char *subtype, struct mail_body_parameter *param
 
     dprint((5, "- mailcap_build_command -\n"));
 
-    mc = mc_get_command(type, subtype, params, chk_extension, &sp_handling);
+    mc = mc_get_command(type, subtype, body, chk_extension, &sp_handling);
     if(!mc){
 	q_status_message(SM_ORDER, 3, 4, "Error constructing viewer command");
 	dprint((1,
@@ -746,7 +732,7 @@ mailcap_build_command(int type, char *subtype, struct mail_body_parameter *param
 
     if(sp_handling)
       command = cpystr(mc->command);
-    else if(!(command = mc_cmd_bldr(mc->command, type, subtype, params, tmp_file, &err)) && err && *err)
+    else if(!(command = mc_cmd_bldr(mc->command, type, subtype, body, tmp_file, &err)) && err && *err)
       q_status_message(SM_ORDER, 5, 5, err);
 
     dprint((5, "built command: %s\n", command ? command : "?"));
@@ -768,9 +754,9 @@ mailcap_build_command(int type, char *subtype, struct mail_body_parameter *param
  *    when no test's going to use the data anyway.
  */
 char *
-mc_bld_test_cmd(char *controlstring, int type, char *subtype, struct mail_body_parameter *params)
+mc_bld_test_cmd(char *controlstring, int type, char *subtype, BODY *body)
 {
-    return(mc_cmd_bldr(controlstring, type, subtype, params, NULL, NULL));
+    return(mc_cmd_bldr(controlstring, type, subtype, body, NULL, NULL));
 }
 
 
@@ -785,7 +771,7 @@ mc_bld_test_cmd(char *controlstring, int type, char *subtype, struct mail_body_p
  */
 char *
 mc_cmd_bldr(char *controlstring, int type, char *subtype,
-	    struct mail_body_parameter *parameter, char *tmp_file, char **err)
+	    BODY *body, char *tmp_file, char **err)
 {
     char        *from, *to, *s, *parm;
     int	         prefixed = 0, used_tmp_file = 0;
@@ -863,7 +849,7 @@ mc_cmd_bldr(char *controlstring, int type, char *subtype,
 		*s = '\0';
 		++from;    /* from is the part inside the brackets now */
 
-		parm = rfc2231_get_param(parameter, from, NULL, NULL);
+		parm = parameter_val(body ? body->parameter : NULL, from);
 
 		dprint((9,
 			   "mc_cmd_bldr: parameter %s = %s\n", 

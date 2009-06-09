@@ -1,8 +1,8 @@
 /*
- * $Id: ldap.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
+ * $Id: ldap.h 1007 2008-03-24 19:35:31Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 #define PITH_LDAP_INCLUDED
 
 
+#include "../pith/state.h"
 #include "../pith/adrbklib.h"
 
 
@@ -91,6 +92,18 @@ typedef struct addr_choose {
 
 
 /*
+ * This is very similar to LDAP_SERV_RES_S, but selected_entry
+ * is a single entry instead of a result list.
+ */
+typedef struct ldap_choose_results {
+    LDAP                      *ld;		/* LDAP handle */
+    LDAPMessage               *selected_entry;
+    LDAP_SERV_S               *info_used;
+    char                      *serv;
+} LDAP_CHOOSE_S;
+
+
+/*
  * How the LDAP lookup should work.
  */
 typedef	enum {AlwaysDisplay,
@@ -146,18 +159,26 @@ extern int wp_nobail;
 ADDRESS       *wp_lookups(char *, WP_ERR_S *, int);
 #ifdef	ENABLE_LDAP
 int            ldap_lookup_all(char *, int, int, LDAPLookupStyle, CUSTOM_FILT_S *,
-			       LDAP_SERV_RES_S **, WP_ERR_S *, LDAP_SERV_RES_S **);
+			       LDAP_CHOOSE_S **, WP_ERR_S *, LDAP_SERV_RES_S **);
 char	      *ldap_translate(char *, LDAP_SERV_S *);
-ADDRESS       *address_from_ldap(LDAP_SERV_RES_S *);
+ADDRESS       *address_from_ldap(LDAP_CHOOSE_S *);
 LDAP_SERV_S   *break_up_ldap_server(char *);
 void           free_ldap_server_info(LDAP_SERV_S **);
-void           free_ldap_result_list(LDAP_SERV_RES_S *);
+void           free_ldap_result_list(LDAP_SERV_RES_S **);
 void           our_ldap_memfree(void *);
 void           our_ldap_dn_memfree(void *);
 int            our_ldap_set_option(LDAP *, int, void *);
 int            ldap_v3_is_supported(LDAP *);
 int            ask_user_which_entry(LDAP_SERV_RES_S *, char *,
-				    LDAP_SERV_RES_S **, WP_ERR_S *, LDAPLookupStyle);
+				    LDAP_CHOOSE_S **, WP_ERR_S *, LDAPLookupStyle);
+LDAP_SERV_RES_S *ldap_lookup_all_work(char *, int, int, CUSTOM_FILT_S *, WP_ERR_S *);
+
+
+/*
+ * This must be defined in the application
+ */
+int         ldap_addr_select(struct pine *, ADDR_CHOOSE_S *, LDAP_CHOOSE_S **,
+			     LDAPLookupStyle, WP_ERR_S *, char *);
 #endif	/* ENABLE_LDAP */
 
 

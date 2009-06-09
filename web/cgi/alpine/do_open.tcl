@@ -1,4 +1,4 @@
-# $Id: do_open.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: do_open.tcl 1096 2008-06-30 22:03:35Z hubert@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -34,7 +34,7 @@ if {[catch {WPLoadCGIVar cancel}] == 0 && [string compare Cancel $cancel] == 0} 
     if {[string first ": no such folder" $reason] > 0} {
       catch {WPCmd PEInfo statmsg "Folder [lrange $path 1 end] doesn't exist"}
       set src $oncancel
-    } elseif {[string compare $reason BADPASSWD] == 0 || [string compare $reason "Login Error"] == 0} {
+    } elseif {[string compare BADPASSWD [string range $reason 0 8]] == 0 || [string compare $reason "Login Error"] == 0} {
       # control error messages
       set statmsgs [WPCmd PEInfo statmsgs]
       WPCmd PEMailbox newmailreset

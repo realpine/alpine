@@ -1,5 +1,5 @@
 /*
- * $Id: keymenu.h 937 2008-02-28 01:04:46Z hubert@u.washington.edu $
+ * $Id: keymenu.h 1069 2008-06-03 15:54:15Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2008 University of Washington
@@ -107,6 +107,7 @@ struct key_menu {
 #define	MC_ROLE		515
 #define	MC_LISTMGR	516
 #define	MC_THRDINDX	517
+#define	MC_SECURITY	518
 
 /* Commands within Screens */
 #define	MC_NEXTITEM	700
@@ -210,6 +211,7 @@ struct key_menu {
 #define	MC_NOT		799
 #define	MC_COLLAPSE	800
 #define	MC_CHK_RECENT	801
+#define	MC_DECRYPT	802
 
 
 /*
@@ -525,6 +527,7 @@ struct key_menu {
 #define SETUP_SIG		6
 #define SETUP_DIRECTORY		10
 #define SETUP_EXCEPT		14
+#define SETUP_SMIME		16
 #define MAIN_HELP_KEY		0
 #define MAIN_DEFAULT_KEY	3
 #define MAIN_KBLOCK_KEY		9
@@ -541,6 +544,9 @@ struct key_menu {
 #define	NUOV_RELNOTES		10
 #define	DEFAULT_KEY		3
 #define	CHANGEDEF_KEY		10
+#define SMIME_PARENT_KEY	2
+#define DECRYPT_KEY		(VIEW_PIPE_KEY + 7)
+#define SECURITY_KEY		(DECRYPT_KEY + 1)
 
 
 extern struct key_menu	cancel_keymenu,
@@ -591,7 +597,6 @@ extern struct key_menu	cancel_keymenu,
 			addr_s_km_for_url,
 			addr_s_km_exit,
 			addr_s_km_goback,
-			config_text_keymenu,
 			dir_conf_km,
 			sel_from_list,
 			sel_from_list_ctrlc,
@@ -638,7 +643,9 @@ extern struct key_menu	cancel_keymenu,
 			role_color_setting_keymenu,
 			kw_color_setting_keymenu,
 			take_export_keymenu_sm,
-			take_export_keymenu_lm;
+			take_export_keymenu_lm,
+			config_smime_helper_keymenu,
+			smime_info_keymenu;
 
 extern struct key rev_msg_keys[];
 

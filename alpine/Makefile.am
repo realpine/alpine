@@ -2,7 +2,7 @@
 ## Use aclocal -I m4; automake
 
 # ========================================================================
-# Copyright 2006-2007 University of Washington
+# Copyright 2006-2008 University of Washington
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ alpine_SOURCES = addrbook.c adrbkcmd.c after.c alpine.c arg.c busy.c colorconf.c
 	confscroll.c context.c dispfilt.c flagmaint.c folder.c help.c imap.c \
 	init.c kblock.c keymenu.c ldapconf.c listsel.c mailcmd.c mailindx.c \
 	mailpart.c mailview.c newuser.c pattern.c pipe.c print.c radio.c remote.c reply.c \
-	roleconf.c send.c setup.c signal.c status.c takeaddr.c titlebar.c
+	roleconf.c send.c setup.c signal.c status.c takeaddr.c titlebar.c smime.c
 
 alpine_LDADD = $(LDADD) $(INTLLIBS)
 

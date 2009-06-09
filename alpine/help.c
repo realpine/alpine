@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: help.c 700 2007-08-30 22:33:35Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: help.c 1028 2008-04-10 16:50:54Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ static char rcsid[] = "$Id: help.c 700 2007-08-30 22:33:35Z hubert@u.washington.
 #include "../pith/util.h"
 #include "../pith/detoken.h"
 #include "../pith/list.h"
+#include "../pith/margin.h"
 
 
 typedef struct _help_scroll {
@@ -159,7 +160,8 @@ helper_internal(HelpType text, char *frag, char *title, int flags)
 	    if(!struncmp(shown_text[0], "<html>", 6))
 	      gf_link_filter(gf_html2plain,
 			     gf_html2plain_opt("x-alpine-help:",
-					       ps_global->ttyo->screen_cols, NULL,
+					       ps_global->ttyo->screen_cols,
+					       non_messageview_margin(),
 					       &handles, NULL, GFHP_LOCAL_HANDLES));
 	    else
 	      gf_link_filter(gf_wrap, gf_wrap_filter_opt(
@@ -460,7 +462,7 @@ print_help(char **text)
 	char *p;
 
 	gf_link_filter(gf_html2plain,
-		       gf_html2plain_opt(NULL,80,NULL,
+		       gf_html2plain_opt(NULL,80,non_messageview_margin(),
 					 NULL,NULL,GFHP_STRIPPED));
 	for(i = 1; i <= 5 && text[i]; i++)
 	  if(!struncmp(text[i], "<title>", 7)
@@ -496,11 +498,10 @@ print_all_help(void)
 {
     struct help_texts *t;
     char **h;
+    int we_turned_on = 0;
 
     if(open_printer(_("all 150+ pages of help text")) == 0) {
-#ifndef	DOS
-	intr_handling_on();
-#endif
+	we_turned_on = intr_handling_on();
 	for(t = h_texts; (h = t->help_text) != NO_HELP; t++) {
 	    if(ps_global->intr_pending){
 		q_status_message(SM_ORDER, 3, 3,
@@ -511,9 +512,9 @@ print_all_help(void)
 	    print_help(h);
         }
 
-#ifndef	DOS
-	intr_handling_off();
-#endif
+	if(we_turned_on)
+	  intr_handling_off();
+
         close_printer();
     }
 }
@@ -1305,7 +1306,7 @@ pcpine_help(HelpType section)
 	    gf_link_filter(gf_html2plain,
 			   gf_html2plain_opt(NULL,
 					     ps_global->ttyo->screen_cols,
-					     NULL, NULL, NULL, GFHP_STRIPPED));
+					     non_messageview_margin(), NULL, NULL, GFHP_STRIPPED));
 
 	    if(!gf_pipe(helper_getc, pc)){
 		help_text  = (char *) store->txt;

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailview.c 940 2008-03-03 21:37:30Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailview.c 1122 2008-08-02 00:32:26Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -43,6 +43,7 @@ static char rcsid[] = "$Id: mailview.c 940 2008-03-03 21:37:30Z hubert@u.washing
 #include "send.h"
 #include "dispfilt.h"
 #include "busy.h"
+#include "smime.h"
 #include "../pith/conf.h"
 #include "../pith/filter.h"
 #include "../pith/msgno.h"
@@ -148,10 +149,7 @@ struct view_write_s {
 /*
  * Internal prototypes
  */
-void	    view_writec_init(STORE_S *, HANDLE_S **, int, int);
-void	    view_writec_destroy(void);
 void	    view_writec_killbuf(void);
-int	    view_writec(int);
 int	    view_end_scroll(SCROLL_S *);
 long	    format_size_guess(BODY *);
 int	    scroll_handle_prompt(HANDLE_S *, int);
@@ -319,9 +317,20 @@ mail_view_screen(struct pine *ps)
 	if(offset)		/* no pre-paint during resize */
 	  view_writec_killbuf();
 
+#ifdef SMIME
+	/* Attempt to handle S/MIME bodies */
+	if(ps->smime)
+	  ps->smime->need_passphrase = 0;
+
+	if(F_OFF(F_DONT_DO_SMIME, ps_global) && fiddle_smime_message(body, raw_msgno))
+	 flags |= FM_NEW_MESS; /* body was changed, force a reload */
+#endif
+
 #ifdef _WINDOWS
 	mswin_noscrollupdate(1);
 #endif
+	ps->cur_uid_stream = ps->mail_stream;
+	ps->cur_uid = mail_uid(ps->mail_stream, raw_msgno);
 	(void) format_message(raw_msgno, env, body, &handles, flags | force_prefer,
 			      view_writec);
 #ifdef _WINDOWS
@@ -399,6 +408,16 @@ mail_view_screen(struct pine *ps)
 	if(F_OFF(F_ENABLE_FULL_HDR, ps_global))
 	  clrbitn(VIEW_FULL_HEADERS_KEY, scrollargs.keys.bitmap);
 
+#ifdef SMIME
+	if(!(ps->smime && ps->smime->need_passphrase))
+	  clrbitn(DECRYPT_KEY, scrollargs.keys.bitmap);
+
+	if(F_ON(F_DONT_DO_SMIME, ps_global)){
+	    clrbitn(DECRYPT_KEY, scrollargs.keys.bitmap);
+	    clrbitn(SECURITY_KEY, scrollargs.keys.bitmap);
+	}
+#endif
+
 	if(!handles){
 	    /*
 	     * NOTE: the comment below only really makes sense if we
@@ -463,6 +482,9 @@ mail_view_screen(struct pine *ps)
       cancel_busy_cue(-1);
 
     ps->force_prefer_plain = ps->force_no_prefer_plain = 0;
+
+    ps->cur_uid_stream = NULL;
+    ps->cur_uid = 0;
 
     /*
      * Unless we're going into attachment screen,
@@ -637,8 +659,6 @@ view_end_scroll(SCROLL_S *sparms)
 }
 
 
-
-
 /*
  * format_size_guess -- Run down the given body summing the text/plain
  *			pieces we're likely to display.  It need only
@@ -666,7 +686,7 @@ format_size_guess(struct mail_bodystruct *body)
 		&& (!body->subtype || !strucmp(body->subtype, "plain"))
 		&& ((body->disposition.type
 		     && !strucmp(body->disposition.type, "inline"))
-		    || !(free_me = body_parameter(body, "name")))){
+		    || !(free_me = parameter_val(body->parameter, "name")))){
 	    /*
 	     * Handles and colored quotes cause memory overhead. Figure about
 	     * 100 bytes per level of quote per line and about 100 bytes per
@@ -1999,7 +2019,7 @@ url_local_imap(char *url)
 				      long2string(i), plural(i));
 		    /* Zoom the index! */
 		    zoom_index(ps_global, ps_global->mail_stream,
-			       ps_global->msgmap);
+			       ps_global->msgmap, MN_SLCT);
 		}
 	    }
 	}

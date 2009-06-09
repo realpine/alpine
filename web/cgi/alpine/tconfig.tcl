@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: tconfig.tcl 850 2007-12-06 23:58:57Z mikes@u.washington.edu $
+# $Id: tconfig.tcl 1008 2008-03-25 01:25:48Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -241,18 +241,21 @@ cgi_html {
 		set vtypeinp [lindex $tmpvar 0]
 		set varname [lindex $tmpvar 1]
 		set vardesc [lindex $tmpvar 2]
+
+		if {[catch {WPCmd PEConfig varget $varname}  section] == 0} {
+		  set varvals [lindex $section 0]
+		  set vartype [lindex $section 1]
+		  set vtvals [lindex $section 2]
+		  set v_is_default [lindex $section 3]
+		  set v_is_fixed [lindex $section 4]
+		} else {
+		  # UNKNOWN VAR: configure disabled?
+		  continue
+		}
+
 		switch -- $vtypeinp {
 		  var {
 		    cgi_table_row {
-		      if {[catch {WPCmd PEConfig varget $varname}  section] == 0} {
-			set varvals [lindex $section 0]
-			set vartype [lindex $section 1]
-			set vtvals [lindex $section 2]
-			set v_is_default [lindex $section 3]
-			set v_is_fixed [lindex $section 4]
-		      } else {
-			error "UNKNOWN VAR: $varname"
-		      }
 
 		      cgi_table_data align=right valign=top nowrap width=50% {
 			if {[info exists varname]} {

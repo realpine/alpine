@@ -1,8 +1,8 @@
 /*
- * $Id: mailcap.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: mailcap.h 971 2008-03-18 17:24:31Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,8 +25,8 @@ typedef struct mcap_cmd {
 
 /* exported protoypes */
 char       *mc_conf_path(char *, char *, char *, int, char *);
-int	    mailcap_can_display(int, char *, PARAMETER *, int);
-MCAP_CMD_S *mailcap_build_command(int, char *, PARAMETER *, char *, int *, int);
+int	    mailcap_can_display(int, char *, BODY *, int);
+MCAP_CMD_S *mailcap_build_command(int, char *, BODY *, char *, int *, int);
 void	    mailcap_free(void);
 
 /* currently mandatory to implement stubs */

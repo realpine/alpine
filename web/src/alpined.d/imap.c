@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: imap.c 796 2007-11-08 01:14:02Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: imap.c 1115 2008-07-17 21:21:53Z mikes@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -131,7 +131,7 @@ mm_log(char *string, long errflg)
     if(errflg == ERROR)
       ps_global->mm_log_error = 1;
 
-    if(errflg == ERROR && ps_global->noshow_error){
+    if(errflg == PARSE || (errflg == ERROR && ps_global->noshow_error)){
       strncpy(ps_global->c_client_error, message, sizeof(ps_global->c_client_error));
       ps_global->c_client_error[sizeof(ps_global->c_client_error)-1] = '\0';
     }
@@ -256,7 +256,7 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long trial, char *usethisprompt
 
     pwd[0] = '\0';
 
-    if((l = strlen(mb->orighost)) > 0 && l < WP_MAXAUTHREQ)
+    if((l = strlen(mb->orighost)) > 0 && l < CRED_REQ_SIZE)
       strcpy(peCredentialRequestor, mb->orighost);
 
     if(trial){			/* one shot only! */
@@ -388,6 +388,16 @@ alpine_tcptimeout(long elapsed, long sincelast)
 long
 alpine_sslcertquery(char *reason, char *host, char *cert)
 {
+    static char buf[256];
+    STRLIST_S *p;
+
+    for(p = peCertHosts; p; p = p->next)
+      if(!strucmp(p->name, host))
+	return(1);
+
+    peCertQuery = 1;
+    snprintf(peCredentialRequestor, CRED_REQ_SIZE, "%s++%s", host ? host : "?", reason ? reason : "UNKNOWN");
+    q_status_message(SM_ORDER, 0, 3, "SSL Certificate Problem");
     dprint((SYSDBG_INFO, "sslcertificatequery: host=%s reason=%s cert=%s\n",
 	    host ? host : "?", reason ? reason : "?",
 	    cert ? cert : "?"));
@@ -401,6 +411,9 @@ alpine_sslcertquery(char *reason, char *host, char *cert)
 void
 alpine_sslfailure(char *host, char *reason, unsigned long flags)
 {
+    peCertFailure = 1;
+    snprintf(peCredentialRequestor, CRED_REQ_SIZE, "%s++%s", host ? host : "?", reason ? reason : "UNKNOWN");
+    q_status_message1(SM_ORDER, 0, 3, "SSL Certificate Failure: %s", reason ? reason : "?");
     dprint((SYSDBG_INFO, "SSL Invalid Cert (%s) : %s", host, reason));
 }
 
@@ -501,12 +514,3 @@ alpine_get_user(char *host)
 
     return(imap_get_user(mm_login_list, hostlist));
 }    
-
-
-/*
- *
- */
-void
-mm_expunged_current(unsigned long rawno)
-{
-}

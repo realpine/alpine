@@ -1,5 +1,5 @@
 /*
- * $Id: conftype.h 961 2008-03-14 18:15:38Z mikes@u.washington.edu $
+ * $Id: conftype.h 1122 2008-08-02 00:32:26Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2008 University of Washington
@@ -25,7 +25,7 @@ typedef enum {Sapling, Seedling, Seasoned} FeatureLevel;
 
 
 /*
- * The array is initialized in init.c so the order of that initialization
+ * The array is initialized in pith/conf.c so the order of that initialization
  * must correspond to the order of the values here.  The order is
  * significant in that it determines the order that the variables
  * are written into the pinerc file and the order they show up in in the
@@ -271,6 +271,14 @@ typedef	enum {    V_PERSONAL_NAME = 0
 		, V_CURSOR_STYLE
 #endif
 #endif
+#ifdef	SMIME
+		, V_PUBLICCERT_DIR
+		, V_PUBLICCERT_CONTAINER
+		, V_PRIVATEKEY_DIR
+		, V_PRIVATEKEY_CONTAINER
+		, V_CACERT_DIR
+		, V_CACERT_CONTAINER
+#endif
 #ifdef	ENABLE_LDAP
 		, V_LDAP_SERVERS  /* should be last so make will work right */
 #endif
@@ -439,6 +447,7 @@ typedef enum {
 	F_ENABLE_ROLE_TAKE,
 	F_ENABLE_TAKE_EXPORT,
 	F_QUELL_ATTACH_EXTRA_PROMPT,
+	F_QUELL_ASTERISKS,
 	F_QUELL_ATTACH_EXT_WARN,
 	F_QUELL_FILTER_MSGS,
 	F_QUELL_FILTER_DONE_MSG,
@@ -515,6 +524,15 @@ typedef enum {
 #endif
 #ifdef	ENABLE_LDAP
 	F_ADD_LDAP_TO_ABOOK,
+#endif
+#ifdef	SMIME
+	F_DONT_DO_SMIME,
+	F_SIGN_DEFAULT_ON,
+	F_ENCRYPT_DEFAULT_ON,
+	F_REMEMBER_SMIME_PASSPHRASE,
+#ifdef	APPLEKEYCHAIN
+	F_PUBLICCERTS_IN_KEYCHAIN,
+#endif
 #endif
 	F_FEATURE_LIST_COUNT	/* Number of features */
 } FeatureList;
@@ -632,6 +650,52 @@ typedef struct nameval {
 
 
 typedef enum {Main, Post, None} EditWhich;
+
+
+#ifdef SMIME
+
+typedef enum {Directory, Container, Keychain, Nada} SmimeHolderType;
+
+typedef struct certlist {
+    char            *name;
+    void            *x509_cert;		/* this is type (X509 *) */
+    struct certlist *next;
+}CertList;
+
+typedef struct smime_stuff {
+    unsigned inited:1;
+    unsigned do_sign:1;			/* set true if signing */
+    unsigned do_encrypt:1;		/* set true if encrypting */
+    unsigned need_passphrase:1;		/* set true if loading a key failed due to lack of passphrase */
+    unsigned entered_passphrase:1;	/* user entered a passphrase */
+    unsigned already_auto_asked:1;	/* asked for passphrase automatically, not again */
+    volatile char passphrase[100];	/* storage for the entered passphrase */
+    char    *passphrase_emailaddr;	/* pointer to allocated storage */
+
+    /*
+     * If we are using the Container type it is easiest if we
+     * read in and maintain a list of certs and then write them
+     * out all at once. For Directory type we just leave the data
+     * in the individual files and read or write the individual
+     * files when needed, so we don't have a list of all the certs.
+     */
+    SmimeHolderType publictype;
+    char           *publicpath;
+    char           *publiccontent;
+    CertList       *publiccertlist;
+
+    SmimeHolderType privatetype;
+    char           *privatepath;
+    char           *privatecontent;
+    void           *personal_certs;	/* this is type (PERSONAL_CERT *) */
+
+    SmimeHolderType catype;
+    char           *capath;
+    char           *cacontent;
+
+} SMIME_STUFF_S;
+
+#endif /* SMIME */
 
 
 /* exported protoypes */

@@ -1,4 +1,4 @@
-# $Id: do_view.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: do_view.tcl 1096 2008-06-30 22:03:35Z hubert@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -106,7 +106,7 @@ if {[string compare save [string tolower $op]] == 0} {
 	    }
 
 	    if {[catch {WPCmd PEFolder exists $f_colid $folder} reason]} {
-	      if {[string compare $reason BADPASSWD] == 0} {
+	      if {[string compare BADPASSWD [string range $reason 0 8]] == 0} {
 		set oncancel "view.tcl&uid=$uid&savecancel=1"
 		set conftext "Create Folder '$folder'?"
 		lappend params [list page fr_view]

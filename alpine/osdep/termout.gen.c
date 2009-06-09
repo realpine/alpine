@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: termout.gen.c 745 2007-10-11 18:03:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: termout.gen.c 971 2008-03-18 17:24:31Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2007 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ static char rcsid[] = "$Id: termout.gen.c 745 2007-10-11 18:03:32Z hubert@u.wash
 #include "../../pith/filter.h"
 #include "../../pith/handle.h"
 #include "../../pith/conf.h"
+#include "../../pith/mimedesc.h"
 
 #include "../../pico/estruct.h"
 #include "../../pico/pico.h"
@@ -270,20 +271,15 @@ PutLine0n8b(int x, int y, register char *line, int length, HANDLE_S *handles)
 	    }
 
 	    if(!set_mime_extension_by_type(ext, mtype)){
-		char *namep, *dotp, *p;
+		char *p, *extp = NULL;
 
-		if(namep = rfc2231_get_param(h->h.attach->body->parameter,
-					     "name", NULL, NULL)){
-		    for(dotp = NULL, p = namep; *p; p++)
-		      if(*p == '.')
-			dotp = p + 1;
-
-		    if(dotp && strlen(dotp) < sizeof(ext) - 1){
-			strncpy(ext, dotp, sizeof(ext));
+		if((p = get_filename_parameter(NULL, 0, h->h.attach->body, &extp)) != NULL){
+		    if(extp){
+			strncpy(ext, extp, sizeof(ext));
 			ext[sizeof(ext)-1] = '\0';
 		    }
 
-		    fs_give((void **) &namep);
+		    fs_give((void **) &p);
 		}
 	    }
 

@@ -31,7 +31,7 @@ goto fini
 echo PC-Pine for Windows/Winsock (Win32) build sequence
 set cclntmake=makefile.nt
 set alpinemake=makefile.wnt
-if not defined ALPINE_LDAP set ALPINE_LDAP="%cd%\ldap"
+if not defined ALPINE_LDAP set ALPINE_LDAP=%cd%\ldap
 if exist "%ALPINE_LDAP%" goto yesldapwnt
 echo NOT including LDAP functionality
 set ldapinclude=
@@ -39,8 +39,8 @@ set ldaplibes=
 goto noldapwnt
 :yesldapwnt
 echo including LDAP functionality
-set ldapflags=-I\"%ALPINE_LDAP%\"/inckit -DENABLE_LDAP
-set ldaplibes=\"%ALPINE_LDAP%\"/lib/ldap32.lib
+set ldapflags=-I\"%ALPINE_LDAP%\"\inckit -DENABLE_LDAP
+set ldaplibes=\"%ALPINE_LDAP%\"\binaries\release\ldap32.lib
 :noldapwnt
 set extracflagsnq=/Zi -Od %ldapflags% -D_USE_32BIT_TIME_T -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE -DSPCL_REMARKS=\"\\\"\\\"\"
 set extralibes=
@@ -53,7 +53,7 @@ goto buildsetup
 echo Krb5ized PC-Pine for Windows/Winsock (Win32) build sequence
 set cclntmake=makefile.w2k
 set alpinemake=makefile.wnt
-if not defined ALPINE_LDAP set ALPINE_LDAP="%cd%\ldap"
+if not defined ALPINE_LDAP set ALPINE_LDAP=%cd%\ldap
 if exist "%ALPINE_LDAP%" goto yesldapw2k
 echo NOT including LDAP functionality
 set ldapinclude=
@@ -61,8 +61,8 @@ set ldaplibes=
 goto noldapw2k
 :yesldapw2k
 echo including LDAP functionality
-set ldapflags=-I\"%ALPINE_LDAP%\"/inckit -DENABLE_LDAP
-set ldaplibes=\"%ALPINE_LDAP%\"/lib/ldap32.lib
+set ldapflags=-I\"%ALPINE_LDAP%\"\inckit -DENABLE_LDAP
+set ldaplibes=\"%ALPINE_LDAP%\"\binaries\release\ldap32.lib
 :noldapw2k
 set extracflagsnq=/Zi -Od %ldapflags% -D_USE_32BIT_TIME_T -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE -DSPCFC_WINVER=\"\\\" 2000\\\"\" -DSPCL_REMARKS=\"\\\" with krb5\\\"\"
 set extralibes="secur32.lib"

@@ -1,8 +1,8 @@
 /*
- * $Id: store.h 435 2007-02-09 23:35:33Z hubert@u.washington.edu $
+ * $Id: store.h 1069 2008-06-03 15:54:15Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,15 @@
 
 
 #include "../pith/filttype.h"
+#ifdef SMIME
+#include <openssl/bio.h>
+#endif /* SMIME */
 
 
 typedef enum {CharStarStar, CharStar, FileStar,
+#ifdef SMIME
+		BioType,
+#endif /* SMIME */
 		TmpFileStar, PipeStar, ExternalText} SourceType;
 
 

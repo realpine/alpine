@@ -1,0 +1,2063 @@
+/* ========================================================================
+ * Copyright 2006-2008 University of Washington
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * ========================================================================
+ */
+
+/*** GLOBAL ***/
+body.wap
+{
+	font-family: Tahoma, Helvetica, sans-serif;
+	margin: 0 0;
+}
+form.wap
+{
+	display: inline;
+}
+select.wap, input.wap, textarea.wap, button.wap, label.wap
+{
+	font-family: Tahomaf, Helvetica, sans-serif;
+	font-size: 1.0em; /* required by IE */
+}
+td.wap, th.wap, div.wap
+{
+	white-space: nowrap;
+	font-size: .7em;
+}
+h1.wap
+{
+	display: inline;
+	font-weight: normal;
+	font-size: 1.0em;
+}
+h2.wap, h3.wap, h4.wap, h5.wap, h6.wap
+{
+	display: inline;
+}
+a.wap
+{
+	color: #003399;
+	text-decoration: none;
+}
+a.wap:hover
+{
+	text-decoration: underline;
+}
+img.wap
+{
+	border-style: none;
+}
+.rt
+{
+	text-align: right;
+}
+.lt
+{
+	text-align: left;
+}
+.frt
+{
+	float: right;
+}
+.flt
+{
+	float: left;
+}
+.right
+{
+	padding-right: 10px;
+	float: right;
+}
+.left
+{
+	float: left;
+}
+.bld
+{
+	font-weight: bold;
+}
+.top
+{
+	vertical-align: top;
+}
+.black
+{
+	color: black;
+}
+span.sp, input.sp
+{
+	background: url(../../img/cbn/spritelib.gif) no-repeat;
+}
+span.sp span
+{
+	display: none;
+}
+span.trans
+{
+	display: block;
+	width: 24px;
+	height: 24px;
+}
+
+/*** STATUS MESSAGES ***/
+div#statusMessage
+{
+	display: none;
+	position: relative;
+}
+div.status
+{
+
+	color: black;
+	margin: 0 10mm 0 20mm;
+	height: 15px;
+	overflow: hidden;
+	vertical-align: middle;
+	background: #ffffa6 url(../../img/cbn/spritelib.gif) no-repeat 0 -1104px;
+}
+
+div.status div.center
+{
+	text-align: center;
+	margin-left: 36px;
+	margin-right: 36px;
+}
+
+div.status div.edge
+{
+	text-align: left;
+	width: 32px;
+	height: 15px;
+}
+
+div.status div.cap
+{
+	width: 1px;
+	height: 15px;
+	background: #ffffa6 url(../../img/cbn/spritelib.gif) no-repeat 0 -1104px;
+}
+
+a#statuslink
+{
+	color: black;
+	text-decoration: none;
+}
+a#statuslink:hover
+{
+	text-decoration: underline;
+}
+
+/*** STATUS MESSAGE ICONS ***/
+span.spsm
+{
+	display: block;
+	width: 12px;
+	height: 12px;
+	overflow: hidden;
+	margin: 1px 0 0 10px;
+}
+span.sm1
+{
+	background-position: 0 -1056px;
+}
+span.sm2
+{
+	background-position: 0 -1080px;
+}
+
+/*** MESSAGE PRIORITY STYLES ***/
+span.prioHigh
+{
+	font-weight: bold;
+	color: #DD0000;
+}
+span.prioNorm
+{
+	color: #008800;
+}
+span.prioLow
+{
+	color: #000088;
+}
+
+/*** SKIP TO MESSAGE LIST (for screen readers and mobility impaired) ***/
+#skip a, #skip a:visited
+{
+	position: absolute;
+	top: 0;
+	left: -999px;
+	padding: 0 5px 1px 5px;
+	margin: 2px 0 0 1px;
+}
+
+#ie6Fix:active, #skip a:active, #skip a:focus, #skip a:hover
+{
+	position: absolute;
+	top: 0;
+	left: 0;
+	font-family: Verdana, Arial, Helvetica, sans-serif;
+	font-size: 10pt;
+	color: #00FF00;
+	background-color: #000000;
+}
+
+/*** PAGE LAYOUT ***/
+table.page
+{
+	background-color: #FFFFFF;
+	width: 100%;
+	height: 100%;
+}
+table.page td.checkMailandCompose
+{
+	height: 100%;
+	vertical-align: top;
+}
+table.page td.spc
+{
+	background-color: #000000;
+	width: 5px;
+}
+table.page td.topHdr
+{
+	vertical-align: bottom;
+	background: #000000 url(../../img/cbn/btnbg.gif) repeat;
+}
+table.content
+{
+	width: 100%;
+	height: 100%;
+}
+div.contentBody
+{
+	width: 100%;
+/*	font-size: 0.9em;*/
+/*	height: 100%;*/
+/*	vertical-align: top;*/
+}
+table.page img.logo
+{
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 190px;
+	height: 72px;
+	margin-bottom: 5px;
+}
+table.page span.logo
+{
+	position: absolute;
+	top: 50px;
+	left: 18px;
+	color: white;
+	font-size: .8em;
+}
+
+/*** NO SCRIPT WARNING ***/
+.noscript
+{
+	text-align: center;
+	font-size: .8em;
+	line-height: 2em;
+	background-color: #ffffa6;
+	border-left: 1px solid black;
+	border-right: 1px solid black;
+}
+
+
+/*** HEADER BUTTONS ***/
+div.hdrBtns
+{
+	float: right;
+/*	height: 2em;*/
+/*	margin: 3mm 2mm 0 0;*/
+}
+span.hdrBtnText
+{
+	display: block;
+	float: left;
+	cursor: pointer;
+}
+span.hdrBtnImg
+{
+	display: block;
+	float: left;
+	height: 16px;
+	width: 16px;
+	margin: 0 6px 0 14px;
+	cursor: pointer;
+}
+span.hbi1 { background-position: 0 -768px; }
+span.hbi2 { background-position: 0 -792px; }
+span.hbi3 { background-position: 0 -816px; }
+span.hbi4 { background-position: 0 -840px; }
+
+/*** SEARCH ***/
+.searchFormDiv
+{
+	padding: 2mm 2mm 0 2mm;
+	margin-top: 0;
+	margin-bottom: 0;
+}
+#searchForm
+{
+	margin-bottom: 0;
+	margin-top: 0;
+}
+#searchField
+{
+	width: 80%;
+}
+input.searchBtn
+{
+	width: 19px;
+	height: 19px;
+	margin-left: 2mm;
+	border: none;
+	background-position: 0 -1152px;
+}
+#searchAdvance
+{
+	float: left;
+	padding-top: 1mm;
+	padding-left: 2mm;
+}
+#searchClear
+{
+	float: right;
+	width: 2em;
+	padding-top: 1mm;
+	padding-right: 4mm;
+}
+#searchRefine
+{
+	clear: both;	
+	padding-top: 1.5mm;
+	text-align: left;
+}
+#searchResult
+{
+	clear: both;
+	padding-left: 10px;
+	padding-top: 3px;
+}
+
+span.searchMatch
+{
+	background-color: yellow;
+	font-size: larger;
+}
+
+/*** TOOLBAR ***/
+div.toolBar
+{
+	border: 1px solid yellow;
+	height: 3em;
+	background: #000000 url(../../img/cbn/btnbg.gif) repeat;
+	color: #ffffff;
+	float: left;
+	padding: 0 0 1px 0;
+}
+span.toolBarText
+{
+	display: block;
+	float: left;
+	margin: .75em 4px 0 4px;
+}
+span.toolBarImg
+{
+	display: inline-block;
+	height: 24px;
+	width: 24px;
+}
+span.toolBarBtn
+{
+	float: left;
+	margin-top: .4em;
+	margin-left: .4em;
+}
+.toolBarBtnLeft
+{
+	margin-left: 1mm;
+}
+.toolBarBtnRight
+{
+	position: absolute;
+	right: 0;
+}
+span.toolBarNav
+{
+	float: right;
+	cursor: pointer;
+	margin-top: .4em;
+}
+span.toolBarSep
+{
+	display: block;
+	height: 24px;
+	margin: 4px 2px 0 2px;
+}
+span.toolBarSepBtn
+{
+	float: left;
+}
+span.toolBarSepNav
+{
+	float: right;
+}
+div.toolBar a
+{
+	height: 3em;
+	display: block;
+	float: left;
+	color: #FFFFFF;
+}
+div.toolBar a:hover
+{
+	cursor: pointer;
+	text-decoration: none;
+	background: #000000 url(../../img/cbn/btnhi.gif) repeat;
+	color: #FFFFFF;
+}
+div.toolBarMenu
+{
+	float: left;
+}
+
+span.tbi1 { background-position: 0 -120px; }
+span.tbi2 { background-position: 0 -312px; }
+span.tbi3 { background-position: 0 -336px; }
+span.tbi4 { background-position: 0 -864px; }
+span.tbi5 { background-position: 0 -888px; }
+
+
+table.toolbarTbl
+{
+	background: #000000 url(../../img/cbn/btnbg.gif) repeat;
+	border-left: 1px solid #777777;
+	border-top: 1px solid #777777;
+	height: 38px;
+	width: 100%;
+}
+table.toolbarTbl td
+{
+	border-bottom: 1px solid #777777;
+}
+table.toolbarTbl a
+{
+	color: #FFFFFF;
+	margin: 0 0;
+}
+table.toolbarTbl a:hover
+{
+	text-decoration: none;
+	background: #000000 url(../../img/cbn/btnhi.gif) repeat;
+	color: #FFFFFF;
+}
+table.toolbarTbl td.tbPad
+{
+	border-right: 1px solid #777777;
+	padding: 0;
+	vertical-align: top;
+}
+table.toolbarTbl a
+{
+	display: block;
+	padding: 3px 8px 4px 0;
+	text-decoration: none;
+}
+table.toolbarTbl a img
+{
+/*	width: 24px;
+	height: 24px;
+	margin: 2px 0 2px 4px;
+*/
+	vertical-align: middle;
+}
+table.toolbarTbl td.dv1
+{
+/***	padding: 0 4px;
+	border: 1px solid yellow;
+****/
+}
+table.toolbarTbl td.dv1 img
+{
+/***	width: 1px;
+	height: 18px;
+***/
+}
+table.toolbarTbl td.pageText
+{
+	color: #ffffff;
+	padding-left: 5px;
+}
+table.toolbarTbl td.pageBtns
+{
+	color: #ffffff;
+}
+table.toolbarTbl td.pageBtns a, table.toolbarTbl td.pageBtns a img
+{
+	padding: 0;
+	margin: 0;
+}
+table.toolbarTbl td.pageBtns a:hover
+{
+	background: inherit;
+}
+
+
+/**** Header Context ****/
+div.wapContext {
+	height: 5em;
+}
+
+/**** Menu Bars ****/
+div.wapMenuLeft
+{
+	float: left;
+	width: 14em; /* sidebar width */
+}
+
+div.wapMenuRight
+{
+	height: 100%;
+	margin-left: 14em;
+	border-left: 4px solid black;
+}
+
+/*** LEFT COLUMN ***/
+table.leftColumn
+{
+	clear: left;
+	width: 100%;
+}
+
+/*** Sidebar ***/
+div.wapSidebar
+{
+	float: left;
+	width: 14em; /* sidebar width */
+}
+
+/*** FOLDER PANE ***/
+div.folderPane
+{
+	margin: 5px 0;
+	padding: 10px 0;
+	border-top: thin groove;
+	border-bottom: thin groove;
+}
+div.folderList div
+{
+	clear: both;
+}
+div.fld
+{
+	height: 20px;
+	line-height: 18px;
+	padding-left: 10px;
+	margin-top: 3px;
+}
+
+div.ftitle
+{
+	padding: 0 0 4px 12px;
+	font-weight: bold;
+}
+div.fld span
+{
+	color: #000000;
+}
+div.fld span.unrd
+{
+	color: #003399;
+}
+div.sel span.unrd, div.sel span, div.sel span a
+{
+	color: #ffffff;
+}
+div.sel
+{
+	color: #ffffff;
+	background: #dae7fc url(../../img/cbn/spritelib.gif) repeat-x 0 -912px;
+}
+div.sel a, div.sel a span, div.sel a:hover
+{
+	color: #ffffff;
+}
+div.folderList span.left /* requires .left class */
+{
+	text-align: left;
+}
+div.folderList span.right /* requires .right class */
+{
+	font-weight: normal;
+}
+div.folderList span.right a /* requires .right class */
+{
+	color: #003399;
+}
+div.folderList div.lnk a
+{
+	color: #003399;
+}
+
+/*** SIMPLE LIST ***/
+table.listTbl
+{
+	width: 100%;
+}
+table.listTbl td, table.listTbl th
+{
+	padding: 0 3px;
+}
+table.listTbl td img, table.listTbl th img
+{
+	vertical-align: middle;
+	width: 17px;
+	height: 17px;
+}
+table.listTbl tr.unread, h1.unread
+{
+	font-weight: bold;
+}
+table.listTbl tr.ac, table.listTbl tr.ac a
+{
+	background-color: #f4f6f8;
+}
+table.listTbl tr#sd, table.listTbl tr#sd a, tr.choice
+{
+	color: #ffffff;
+	background-color: #417bd9;
+}
+table.listTbl tbody
+{
+	overflow: auto;
+	overflow-x:hidden;
+}
+table.listTbl th.colHdr
+{
+	border-top: 0;
+	height: 17px;
+	background: #f3f3f3 url(../../img/cbn/spritelib.gif) repeat-x 0 -936px;
+}
+table.listTbl th.selColHdr a
+{
+	color: #000000;
+}
+table.listTbl th.colHdr a
+{
+	color: #000000;
+}
+table.listTbl th a:hover
+{
+	text-decoration: none;
+}
+table.listTbl th.selColHdr
+{
+	border-top: 0px;
+	height: 17px;
+	background: #d4d4d4 url(../../img/cbn/spritelib.gif) repeat-x 0 -960px;
+}
+table.listTbl th.selColHdr img.selectedDn
+{
+	width: 8px;
+	height: 8px;
+	vertical-align: middle;
+}
+table.foldermgmt td, table.foldermgmt th
+{
+	border-bottom: 1px solid #eeeeee;
+}
+table.foldermgmt a
+{
+	font-weight: bold;
+}
+table.foldermgmt td.parent a
+{
+	font-weight: normal;
+}
+table.foldermgmt img
+{
+	padding-right: 5px;
+}
+table.divider td, table.divider th
+{
+	border-bottom: 1px solid #eeeeee;
+}
+table.listTbl td.nodivider
+{
+	border-bottom: none;
+}
+
+/*** FOOTER ***/
+table.page td.footer
+{
+	color: #FFFFFF;
+	background-color: #000000;
+	height: 30px;
+}
+table.page td.footer img
+{
+	margin-right: 6px;
+	vertical-align: bottom;
+}
+table.page td.footer a
+{
+	color: white;
+}
+
+/*** MESSAGE VIEW ***/
+
+table.msgHead
+{
+	background-color: #f9f9f9;
+	border-left: 1px solid #aaaaaa;
+	border-right: 1px solid #aaaaaa;
+	border-bottom: 1px solid #aaaaaa;
+	width: 100%;
+}
+table.msgHead td.subText
+{
+	padding: 5px 0 0 6px;
+	font-size: 1.1em;
+	font-weight: normal;
+}
+table.msgHead span.right
+{
+	font-weight: normal;
+}
+table.msgHead span.right a
+{
+	color: #003399;
+}
+table.msgHead td.hdrLabel
+{
+	padding: 4px 0 0 6px;
+	/* breaks on IE if width is set to 90px or less */
+	width: 100px;
+	vertical-align: top;
+	font-weight: bold;
+}
+table.msgHead td.hdrText
+{
+	width: 100%;
+	padding: 4px 0 0 4px;
+	text-align: left;
+	white-space: normal;
+}
+table.msgHead td.hdrText span.return img
+{
+	vertical-align: top;
+}
+table.msgHead td.hdrText span.return a
+{
+	font-weight: bold;
+}
+table.msgHead td.hdrText span.contactAddr
+{
+	float: left;
+	padding-right: 5px;
+}
+
+td.contentBody
+{
+	white-space: normal;
+	padding: 10px 0 0 6px;
+}
+table.msgHead a.addContact
+{
+	color: #003399;
+	padding-left: 10px;
+	vertical-align: text-top;
+}
+table.msgHead a.addContact img
+{
+	vertical-align: text-top;
+}
+table.msgHead span.emailAddr, table.msgHead span.attach
+{
+	white-space: nowrap;
+}
+table.msgHead span.attach img
+{
+	vertical-align: middle;
+}
+table.msgHead span.attach a
+{
+	text-decoration: underline;
+	float: left;
+	padding-right: 10px;
+}
+td.msgRawHead
+{
+	font-family: courier, monospace;
+}
+
+
+
+/*** COMPOSE ***/
+table.compose
+{
+	padding: 0px 10px;
+	background-color: #f9f9f9;
+	border-left: 1px solid #aaaaaa;
+	border-right: 1px solid #aaaaaa;
+	width: 100%;
+}
+table.compose td.spc
+{
+	background-color: #f9f9f9;
+	height: 6px;
+	width: 100%;
+}
+table.compose td.spc *
+{
+	vertical-align: middle;
+}
+table.compose td.lbl
+{
+	padding-right: 5px;
+	vertical-align: top;
+	width: 1%;
+}
+table.compose td.lbl input
+{
+	width: 40px;
+}
+table.compose td.lbl label
+{
+	padding-left: 2px;
+}
+table.compose td.lbl *
+{
+	vertical-align: top;
+}
+table.compose td.mid
+{
+	width: 100%;
+	padding: 0px;
+}
+table.compose td.mid *
+{
+	vertical-align: top;
+}
+table.compose td.mid textarea, table.compose td.mid input
+{
+	border: 1px solid #aaaaaa;
+	margin: 0;
+	padding: 1px 3px 1px 3px;
+	xheight: 1.7em;
+	width: 100%;
+	overflow-y: auto;
+	word-wrap: break-word;
+}
+textarea.mid, input.mid
+{
+	height: 1.7em;
+}
+table.compose td.rgt
+{
+	padding-left: 5px;
+	vertical-align: top;
+	width: 1%;
+}
+table.compose td.rgt *
+{
+	vertical-align: top;
+}
+table.compose td.attach *
+{
+	vertical-align: middle;
+}
+table.compose img.attachment
+{
+	width: 17px;
+	height: 17px;
+}
+table.compose img.rmAttach
+{
+	vertical-align: top;
+	width: 15px;
+	height: 15px;
+}
+table.composeBody
+{
+	background-color: #f9f9f9;
+	border-left: 1px solid #aaaaaa;
+	border-right: 1px solid #aaaaaa;
+	width: 100%;
+	height: 100%;
+}
+table.composeBody td.textBody
+{
+	height: 100%;
+	padding: 10px 6px 0 6px;
+	vertical-align: top;
+}
+table.composeBody td.textBody textarea
+{
+	border: 1px solid #aaaaaa;
+	width: 100%;
+	height: 98%;
+	padding: 4px 6px;
+	word-wrap: break-word;
+}
+span#lessComposeHeaderText
+{
+	display: none;
+}
+div#moreComposeHeaders
+{
+	display: none;
+}
+div#composeAttachments
+{
+	display: none;
+}
+span.attachmentName
+{
+	white-space: nowrap;
+	padding-right: .25em;
+}
+
+/*** GENERAL FIELDS (e.g. settings, advance search, contact details, etc.) ***/
+table.fields
+{
+	width: 95%;
+	margin: 10px 20px;
+}
+table.fields td.title
+{
+	width: 20%;
+	font-weight: bold;
+	font-size: .7em;
+	vertical-align: top;
+	color: #555555;
+}
+table.fields td.body
+{
+	vertical-align: top;
+	width: 80%;
+}
+table.fields td.body *
+{
+	vertical-align: middle;
+}
+table.fields td.title, table.fields td.body
+{
+	padding: 8px 0;
+	border-bottom: 1px solid #CCCCCC;
+}
+table.fields td.nodivider
+{
+	border-bottom: none;
+}
+table.fields td span.label
+{
+	font-weight: bold;
+}
+table.fields td a
+{
+	font-weight: normal;
+}
+table.fields td *
+{
+	vertical-align: bottom;
+}
+table.fields span.tips
+{
+	color: #000000;
+	font-weight: normal;
+}
+
+
+
+/*** SETTINGS (requires "fields" class) ***/
+table.settings td.title, table.settings td.body
+{
+	padding: 12px 0;
+}
+
+div#advancedSettings
+{
+	display: none;
+}
+
+div#backToInbox
+{
+	text-align: middle;
+	line-height: 2em;
+}
+
+
+/*** CONTACTS (requires "fields" class) ***/
+table.contacts *.contactText
+{
+	width: 90%;
+}
+
+/*** CONTACTS EDITOR ***/
+form.contactEditor
+{
+	color: #555555;
+	font-size: .7em;
+	padding: 0 12px;
+}
+form.contactEditor div.contactSection
+{
+	overflow: auto;
+	padding: 8px 0;
+	border-bottom: 1px solid silver;
+}
+form.contactEditor div.context
+{
+	font-size: 1.7em;
+	font-weight: bold;
+	padding-bottom: 8px;
+}
+form.contactEditor div.contactField
+{
+	float: left;
+	font-weight: bold;
+	width: 10em;
+}
+form.contactEditor input, form.contactEditor select
+{
+	width: 370px;
+}
+form.contactEditor textarea
+{
+	height: 6em;
+	width: 370px;
+}
+
+/*** ADVANCED SEARCH ***/
+form.advanceSearch
+{
+	color: #555555;
+	font-size: .7em;
+	padding: 0 12px;
+}
+form.advanceSearch div.searchSection
+{
+	overflow: auto;
+	padding: 8px 0;
+	border-bottom: 1px solid silver;
+}
+form.advanceSearch div.context
+{
+	font-size: 1.7em;
+	font-weight: bold;
+	padding-bottom: 8px;
+}
+form.advanceSearch div.scope
+{
+	text-align: center;
+	padding: 6px 0;
+}
+form.advanceSearch div div.searchField
+{
+	line-height: 2em;
+	font-weight: bold;
+	float: left;
+	width: 8em;
+}
+form.advanceSearch div div.searchType
+{
+	float: left;
+	padding-right: 10px;
+}
+form.advanceSearch div div.searchType select
+{
+	width: 12em;
+}
+form.advanceSearch div div.searchTerm
+{
+	height: 2em;
+	line-height: 2em;
+}
+form.advanceSearch div div.searchTerm input
+{
+	width: 18em;
+}
+
+/*** CONTACTS (requires "fields" class) ***/
+div.attachfiles
+{
+	margin: 20px 20px;
+}
+div.attachfiles td
+{
+	vertical-align: middle;
+	padding: 3px 0;
+}
+
+
+/*** MAIN HEADER (i.e. RSS news feed, weather bar, storage meter) ***/
+div.hdrContent
+{
+	overflow: hidden;
+}
+div.hdrContent, div.hdrContent a
+{
+	text-decoration: none;
+	color: #FFFFFF;
+}
+div.hdrContent a:hover
+{
+	text-decoration: underline;
+}
+div.hdrContent span.RSS
+{
+	line-height: 2em;
+	clear: both;
+}
+div.wbar
+{
+	height: 15px;
+	padding: 0 5px;
+	background: #000000 url(../../img/cbn/spritelib.gif) repeat-x 0 -1128px;
+}
+div.wbar div.weather
+{
+	text-align: center;
+	float: left;
+	padding-left: 20em;
+}
+div.wbar div.usage
+{
+	float: right;
+	width: 18em;
+}
+div.hdrContent div.pageTitle
+{
+	width: 55%;
+	float: left;
+	clear: left;
+	text-align: left;
+	color: #FFFFFF;
+	font-size: 1.8em;
+	font-weight: normal;
+	padding: 4px 0 4px 5px;
+}
+div.hdrContent div.commands
+{
+	float: right;
+	margin: 8px 7px 0 0;
+}
+
+/*** INLINE MESSAGES ***/
+div#bannerConfirm
+{
+	font-weight: bold;
+	text-align: center;
+	padding: 3px 5px;
+	color: #000000;
+	background-color: #ffecda;
+	border-bottom: 1px solid #aaaaaa;
+}
+div#bannerConfirm img
+{
+	vertical-align: middle;
+}
+
+div#bannerError
+{
+	font-weight: bold;
+	text-align: center;
+	padding: 3px 5px;
+	color: #ffffff;
+	background-color: #ff0000;
+	border-bottom: 1px solid #aaaaaa;
+}
+div#bannerError img
+{
+	vertical-align: middle;
+}
+
+div.bannerPrivacy
+{
+	font-weight: bold;
+	line-height: 1.4em;
+	padding: 3px 5px;
+	background-color: #ffffd2;
+	border-bottom: 1px solid #aaaaaa;
+}
+div.bannerPrivacy a
+{
+	font-weight: normal;
+}
+div.bannerPrivacy img
+{
+	padding-right: 8px;
+	float: left;
+}
+
+
+div.bannerSearch
+{
+	text-align: center;
+	padding: 5px 60px 5px 5px;
+	background-color: #eeeeee;
+	border-bottom: 1px solid #aaaaaa;
+}
+div.bannerSearch *
+{
+	vertical-align: middle;
+}
+div.bannerSearch input.text
+{
+	width: 15em;
+}
+
+
+div#bannerSelection
+{
+	font-family: Verdana, Arial, Helvetica, sans-serif;
+	font-size: .7em;
+	display: none;
+	text-align: center;
+	padding: 4px 5px;
+	color: #000000;
+	border-bottom: 1px solid #aaaaaa;
+}
+
+
+table.bannerFolderSearch
+{
+	width: 100%;
+	padding: 5px 5px 5px 5px;
+	background-color: #e7f0ff;
+	border-bottom: 1px solid #aaaaaa;
+}
+table.bannerFolderSearch td.title
+{
+	text-align: left;
+}
+table.bannerFolderSearch td.body
+{
+	text-align: right;
+}
+table.bannerFolderSearch img
+{
+	margin-right: 5px;
+	vertical-align: middle;
+}
+table.bannerFolderSearch a
+{
+	color: #003399;
+	font-weight: bold;
+	text-decoration: underline;
+}
+
+
+/*** MOVE/COPY TO FOLDER UI ***/
+.moveToFolder *
+{
+	vertical-align: middle;
+}
+.moveToFolder input
+{
+	width: .9em;
+	height: .9em;
+}
+.moveToFolder input
+{
+	margin-top: 2px;	/* fix for IE */
+}
+.moveToFolder label
+{
+	padding-right: 4px;
+	color: #FFFFFF;
+}
+.moveToFolder select
+{
+	position: relative;
+	bottom: 8px;
+}
+
+.attachFiles
+{
+	margin: 15px;
+}
+
+.attachFiles input[type="button"]
+{
+	margin-left: 5px;
+}
+
+div.attachInput
+{
+/*	margin-left: 20%;*/
+/*	width: 80%;*/
+	margin: 2px 2px 2px 0;
+}
+div.attachInput form
+{
+	margin-bottom: 0;
+}
+
+div.drop
+{
+	background-color: #66ffff;
+}
+
+/*** Loading Notification ***/
+div#bePatient
+{
+	font-family: Verdana, Arial, Helvetica, sans-serif;
+	font-size: .6em;
+	font-weight: bold;
+	background-color: #ffffa6;
+	color: #000000;
+	padding: 4px 5px;
+	border-bottom: 2px solid black;
+	border-right: 2px solid black;
+	left: -999px;
+	top: -999px;
+	margin-left: -1px;
+	position: absolute;
+}
+
+/*** Normal Message Text  ***/
+.messageText
+{
+	margin: 10px 0 0 6px;
+	font-family: monospace;
+	white-space: pre;
+}
+
+/*** Tool Tip ***/
+div#tipDrag {
+	border: 1px solid black;
+	padding: 1px 3px;
+	background-color: #fffacd;
+	font-size: 0.7em;
+}
+
+/*** Panel Framework ***/
+/*#panel_c.yui-panel-container.shadow .underlay
+{
+	left:3px;
+	right:-3px;
+	top:3px;
+	bottom:-3px;
+	position:absolute;
+	background-color:#000;
+	opacity:0.12;
+	filter:alpha(opacity=12);
+}*/
+
+.yui-panel
+{
+	position:relative;
+	border:none;
+	overflow:visible;
+	background:transparent url(../../img/cbn/border-rt.gif) repeat-y top right;
+}
+
+.yui-panel .container-close
+{
+	position:absolute;
+	top:5px;
+	right:10px;
+	height:14px;
+	width:14px;
+	background:url(../../img/cbn/spritelib.gif) no-repeat 0 -1224px;
+}
+
+.yui-panel .hd
+{
+	border:none;
+	background:url(../../img/cbn/spritelib.gif) repeat-x 0 -1248px;
+	color:#FFF;
+	height:24px;
+	margin: 0 4px;
+	text-align:left;
+	vertical-align:middle;
+	overflow:visible;
+}
+
+.yui-panel .bd
+{
+	overflow:hidden;
+	padding: 10px;
+	border:none;
+	background:#FFF url(../../img/cbn/border-lt.gif) repeat-y; 
+	margin-right:4px;
+}
+
+.yui-panel .ft
+{
+	background:url(../../img/cbn/spritelib.gif) repeat-x 0 -1272px;
+	font-size:4px;
+	height:4px;
+	padding:0px 10px;
+	border:none
+}
+
+.yui-panel .hd span
+{
+	padding-left: 4px;
+	line-height:24px;
+	vertical-align:middle;
+	font-weight:bold;
+}
+
+.yui-panel .hd .tl
+{
+	width:4px;
+	height:24px;
+	top:0;
+	left:0;
+	background:url(../../img/cbn/spritelib.gif) no-repeat 0 -1296px;
+	position:absolute;
+}
+
+.yui-panel .hd .tr
+{
+	width:4px;
+	height:24px;
+	top:0;
+	right:0;
+	background:url(../../img/cbn/spritelib.gif) no-repeat 0 -1320px;
+	position:absolute;
+}
+
+.yui-panel .ft .bl
+{
+	width:4px;
+	height:4px;
+	bottom:0;
+	left:0;
+	background:url(../../img/cbn/spritelib.gif) no-repeat 0 -1344px;
+	position:absolute;
+}
+
+.yui-panel .ft .br
+{
+	width:4px;
+	height:4px;
+	bottom:0;
+	right:0;
+	background:url(../../img/cbn/spritelib.gif) no-repeat 0 -1348px;
+	position:absolute;
+}
+
+/*** Internal Panel Elements ***/
+div.dialogIcon
+{
+	width: 60px;
+	height:60px;
+	float: left;
+}
+
+div.alert
+{
+	background:url(../../img/cbn/alert.gif) no-repeat top center;
+}
+
+div.prompt
+{
+	background:url(../../img/cbn/question2.jpg) no-repeat top center;
+}
+
+div.dialog
+{
+	background:url(../../img/cbn/question2.jpg) no-repeat center top;
+}
+
+div#alertBody
+{
+	margin-left: 60px;
+	padding: 5px;
+}
+
+div#promptBody
+{
+	margin-left: 60px;
+	padding: 5px;
+}
+
+div#dialogBody
+{
+	margin-left: 60px;
+	width: 540px;
+	padding: 5px;
+	overflow: auto;
+}
+
+div.dialogButtons
+{
+	padding-top: 10px;
+	background-color: #ffffff;
+	text-align:right;
+}
+
+div.panelExplanation
+{
+	width: 80%;
+	text-align: center;
+	padding: 1em 0;
+}
+
+div.panelInput
+{
+	text-align: center;
+	overflow: auto;
+}
+
+div.panelInput input
+{
+	padding: 0 2px;
+	margin-left: 8px;
+}
+
+/*** Viewport Height Limiter ***/
+div#divVPHeight
+{
+	height: 100%;
+	overflow: auto;
+}
+
+/*** Compose Checkpoint Result ***/
+#formResponse
+{
+	position: absolute;
+	top: 0;
+	left: -999px;
+}
+
+/*** Sprite based images ****/
+
+/* left column icons */
+span.splc
+{
+	width: 17px;
+	height: 17px;
+	float: left;
+	margin-right: 8px;
+	margin-top: 1px;
+	cursor: pointer;
+}
+
+span.splc1
+{
+	background-position: 0 -24px;
+}
+
+span.splc2
+{
+	background-position: 0 -48px;
+}
+
+span.splc3
+{
+	background-position: 0 -72px;
+}
+
+span.splc4
+{
+	background-position: 0 -96px;
+}
+
+span.splc5
+{
+	background-position: -4px -122px;
+}
+
+span.splc6
+{
+	background-position: -3 -146px;
+}
+
+span.splc7
+{
+	background-position: 0 -168px;
+}
+
+span.splc8
+{
+	background-position: 0 -192px;
+}
+
+span.splc9
+{
+	background-position: 0 -1632px;
+}
+
+span.splc10
+{
+	background-position: 0 -1656px;
+}
+span.splc11
+{
+	background-position: 0 -1680px;
+}
+
+/* menu bar icons */
+span.spmb
+{
+	display: block;
+	width: 24px;
+	height: 24px;
+	cursor: pointer;
+}
+
+span.spmbi
+{
+	display:block;
+	line-height: 28px;
+	padding-left: 28px;
+	margin-left: 4px;
+	cursor: pointer;
+}
+
+span.spmbf
+{
+	background-position: 0 -216px;
+}
+
+span.spmbp
+{
+	background-position: 0 -240px;
+}
+
+span.spmbn
+{
+	background-position: 0 -264px;
+}
+
+span.spmbl
+{
+	background-position: 0 -288px;
+}
+
+span.spmbu
+{
+	background-position: 0 -1008px;
+}
+
+span.spmbd
+{
+	background-position: 0 -1032px;
+}
+
+span.spmb1
+{
+	margin-left: 6px;
+	background-position: 0 -312px;
+}
+
+span.spmb2
+{
+	background-position: 0 -336px;
+}
+
+span.spmb3
+{
+	width: 1px;
+	background-position: 0 -360px;
+}
+span.spmb4
+{
+	background-position: 0 -1368px;
+}
+span.spmb5
+{
+	background-position: 0 -1392px;
+}
+span.spmb6
+{
+	background-position: 0 -1416px;
+}
+span.spmb7
+{
+	background-position: 0 -116px;
+}
+span.spmb7
+{
+	background-position: 0 -116px;
+}
+span.spmb8
+{
+	background-position: 0 -1438px;
+}
+span.spmb9
+{
+	background-position: 0 -1462px;
+}
+span.spmb10
+{
+	background-position: 0 -1486px;
+}
+span.spmb11
+{
+	background-position: 0 -570px;
+}
+span.spmb12
+{
+	background-position: 0 -1510px;
+}
+span.spmb13
+{
+	background-position: 0 -140px;
+}
+span.spmb14
+{
+	background-position: 0 -1172px;
+}
+span.spmb15
+{
+	background-position: 0 -310px;
+}
+span.spmb16
+{
+	background-position: 0 -334px;
+}
+span.spmb17
+{
+	background-position: 0 -884px;
+}
+span.spmb18
+{
+	background-position: 0 -1534px;
+}
+span.spmb19
+{
+	background-position: 0 -1556px;
+}
+span.spmb20
+{
+	background-position: 0 -1582px;
+}
+span.spmb21
+{
+	background-position: 0 -1752px;
+}
+
+span.rof
+{
+	display: block;
+	float: right;
+}
+
+/*** Priority Radio Button ***/
+
+/* radio button icons */
+span.sprb
+{
+	width: 20px;
+	height: 20px;
+	display: block;
+	float: left;
+	padding-right: .3em;
+	background-position: 0 -384px;
+}
+
+span.prbc
+{
+	background-position: 0 -408px;
+}
+
+/* message list icons */
+span.spml
+{
+	display: block;
+	width: 17px;
+	height: 17px;
+}
+
+span.blank, a.mlstat span.nostar
+{
+	background-position: 0 0;
+}
+
+span.spml1
+{
+	background-position: 0 -456px;
+}
+
+span.spml2
+{
+	background-position: 0 -480px;
+}
+
+span.spml3
+{
+	background-position: 0 -504px;
+}
+
+span.spml4
+{
+	background-position: 0 -528px;
+}
+
+span.spml5
+{
+	background-position: 0 -552px;
+}
+
+span.spml6
+{
+	background-position: 0 -576px;
+}
+
+span.spml7
+{
+	background-position: 0 -600px;
+}
+
+a.mlstat:hover
+{
+	background-position: 0 0;
+}
+
+span.spml8, a.mlstat:hover span.nostar, a.mlstat:hover span.prihi, a.mlstat:hover span.prihier
+{
+	background-position: 0 -624px;
+}
+
+span.spml9, span.star
+{
+	background-position: 0 -648px;
+}
+
+span.spml10, a.mlstat span.prihi
+{
+	background-position: 0 -672px;
+}
+
+span.spml11, a.mlstat span.prihier
+{
+	background-position: 0 -696px;
+}
+
+span.spml12
+{
+	background-position: 0 -720px;
+}
+
+span.spml13
+{
+	background-position: 0 -744px;
+}
+
+/* message view icons */
+span.spmv
+{
+	display: block;
+	width: 15px;
+	height: 15px;
+}
+span.spmv1
+{
+	float: left;
+	background-position: 0 -984px;
+}
+span.spmv2
+{
+	float: left;
+	margin: 0 5px 0 5px;
+	background-position: 0 -576px;
+}
+span.spmv3
+{
+	margin-left: 3px;
+	display: inline-block;
+	background-position: 0 -1704px;
+}
+
+/* folderlist icons */
+span.spfl
+{
+	display:block;
+	height: 18px;
+	width: 18px;
+	margin-left: 4px;
+}
+span.spfl1
+{
+	background-position: 0 -1608px;
+}
+
+ul.priority li
+{
+	width: 10em;
+}
+
+/*** Folder/Contacts List Context Banner ***/
+span.spfcl
+{
+	display: block;
+	width: 20px;
+	height: 20px;
+	float: left;
+	margin-right: 8px;
+	margin-top: 1px;
+	cursor: pointer;
+}
+
+span.spfcl1
+{
+	background-position: 0 -1176px;
+}
+
+span.spfcl2
+{
+	background-position: 0 -1200px;
+}
+
+span.spfcl3
+{
+	background-position: 0 -1728px;
+}
+
+ul.sortList li
+{
+	width: 13em;
+}
+
+div.getAuth div
+{
+	padding: 6px 30px 26px 30px;
+}
+
+div.getAuth span
+{
+	width:40%;
+	display: block;
+	float: left;
+	clear: left;
+	padding-right: 10px;
+	text-align: right;
+}
+
+div.getAuth hr
+{
+	color: #ffffff;
+	background-color: #ffffff;
+	border: 0 none;
+}
+
+div.getAuth input
+{
+	width:50%;
+	display: block;
+	clear: right;
+	width: 12em;
+	text-align: left;
+}
+
+/*** Message Drag Proxy  ***/
+#msgDragProxy
+{
+	position: absolute;
+	visibility: hidden;
+	font-size: .7em;
+	top: -100px;
+	cursor: move;
+	filter:alpha(opacity=80);
+	-moz-opacity: 0.8;
+	opacity: 0.8;
+}
+#msgDragProxy div
+{
+	padding: 0 6px;
+	background-color: #d8d8d8;
+	white-space: nowrap;
+}
+.b1, .b2, .b3, .b4
+{
+	background-color: #d8d8d8;
+	font-size: 1px;
+	display:block;
+	overflow:hidden;
+}
+.b1
+{
+	height: 1px;
+	margin: 0 5px;
+}
+.b2
+{
+	height: 1px;
+	margin: 0 3px;
+}
+.b3
+{
+	height: 1px;
+	margin: 0 2px;
+}
+.b4
+{
+	height: 2px;
+	margin: 0 1px;
+}
+
+/*** Take Dialog ***/
+div.takeInstructions
+{
+	padding: 15px 5px 20px 5px;
+	text-align: center;
+}
+
+div.takeList
+{
+	font-size: .8em;
+	height: 14.5em;
+	border: 1px solid #aaaaaa;
+	overflow: auto;
+}
+
+
+/*** PRINTER FORMATTING ***/
+.printInfo
+{
+	display: none;
+}
+
+.fullHdrBtn
+{
+	vertical-align: top;
+	padding-right: 10px;
+	float: right;
+}
+
+@media print
+{
+	#leftColumn,
+	#toolBar,
+	.hdrContent,
+	#hdrLogo,
+	#ftrContent,
+	.toolbarTbl,
+	.fullHdrBtn,
+	.addContact,
+	div.bannerPrivacy
+	{
+		display: none;
+	}
+	div.printInfo {
+		background-color: grey;
+		border-bottom: 2px groove black;
+		display: block;
+	}
+	div#divVPHeight {
+		height: 100%;
+		overflow: visible;
+	}
+	table.msgHead
+	{
+		background-color: #f9f9f9;
+		border: 1px solid #aaaaaa;
+		width: 100%;
+	}
+}

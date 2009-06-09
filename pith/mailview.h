@@ -1,5 +1,5 @@
 /*
- * $Id: mailview.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: mailview.h 394 2007-01-25 20:29:45Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -39,6 +39,8 @@
 #define	FM_UTF8		0x0080		/* convert to UTF-8 from native charset in msg */
 #define	FM_NOHTMLREL	0x0200		/* no relative links			*/
 #define	FM_HTMLRELATED	0x0400		/* allow multi/related			*/
+#define	FM_FORCEPREFPLN	0x0800		/* force prefer-plain this time		*/
+#define	FM_FORCENOPREFPLN 0x1000	/* force not prefer-plain this time	*/
 
 
 #define SIGDASHES	"-- "
@@ -119,7 +121,7 @@ int	 url_hilite(long, char *, LT_INS_S **, void *);
  */
 
 int	    url_external_specific_handler(char *, int);
-int	    url_imap_folder(char *, char **, long *, long *, char **, int);
+int	    url_imap_folder(char *, char **, imapuid_t *, imapuid_t *, char **, int);
 int	    url_bogus(char *, char *);
 int	    format_header(MAILSTREAM *, long, char *, ENVELOPE *,
 			  HEADER_S *, char *, HANDLE_S **, int, gf_io_t);

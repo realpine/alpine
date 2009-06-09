@@ -3,7 +3,7 @@ static char rcsid[] = "$Id: wimap.c 73 2006-06-13 16:46:59Z hubert@u.washington.
 #endif
 
 /* ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.

@@ -1,5 +1,5 @@
 /*
- * $Id: context.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: context.h 394 2007-01-25 20:29:45Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -30,11 +30,11 @@ long	    context_create(CONTEXT_S *, MAILSTREAM *, char *);
 MAILSTREAM *context_open(CONTEXT_S *, MAILSTREAM *, char *, long, long *);
 long	    context_status(CONTEXT_S *, MAILSTREAM *, char *, long);
 long	    context_status_full(CONTEXT_S *, MAILSTREAM *, char *,
-				long, unsigned long *, unsigned long *);				
+				long, imapuid_t *, imapuid_t *);				
 long	    context_status_streamp(CONTEXT_S *, MAILSTREAM **,
 				   char *, long);
 long	    context_status_streamp_full(CONTEXT_S *, MAILSTREAM **, char *, long,
-					unsigned long *, unsigned long *);
+					imapuid_t *, imapuid_t *);
 long	    context_rename(CONTEXT_S *, MAILSTREAM *, char *, char *);
 MAILSTREAM *context_already_open_stream(CONTEXT_S *, char *, int);
 long	    context_delete(CONTEXT_S *, MAILSTREAM *, char *);

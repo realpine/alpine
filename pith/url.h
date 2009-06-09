@@ -1,5 +1,5 @@
 /*
- * $Id: url.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: url.h 392 2007-01-25 18:56:49Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -20,7 +20,7 @@
 /* exported protoypes */
 char	   *rfc1738_scan(char *, int *);
 char	   *rfc1738_str(char *);
-long	    rfc1738_num(char **);
+unsigned long rfc1738_num(char **);
 int	    rfc1738_group(char *);
 char	   *rfc1738_encode_mailto(char *);
 int	    rfc1808_tokens(char *, char **, char **, char **, char **, char **, char **);

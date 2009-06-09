@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mimedisp.c 165 2006-10-04 01:09:47Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: mimedisp.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,16 +18,17 @@ static char rcsid[] = "$Id: mimedisp.c 165 2006-10-04 01:09:47Z jpf@u.washington
 #include <system.h>
 #include <general.h>
 #include "mimedisp.h"
+#include "../charconv/utf8.h"
 
 
 /*
  * Internal prototypes
  */
 #ifdef	_WINDOWS
-int	mswin_reg_viewer(char *mime_type, char *mime_ext,
+int	mswin_reg_viewer(LPTSTR mime_type, LPTSTR mime_ext,
 			 char *cmd, int clen, int chk);
-int	mswin_reg_mime_type(char *file_ext, char *mime_type);
-int	mswin_reg_mime_ext(char *mime_type, char *file_ext);
+int	mswin_reg_mime_type(LPTSTR file_ext, LPTSTR mime_type, size_t mime_type_len);
+int	mswin_reg_mime_ext(LPTSTR mime_type, LPTSTR file_ext, size_t file_ext_len);
 
 #endif	/* WINDOWS */
 
@@ -77,8 +78,21 @@ mime_get_os_mimetype_command(char *mime_type, char *mime_ext, char *cmd,
 			     int clen, int chk, int *sp_hndlp)
 {
 #ifdef	_WINDOWS
+    int ret;
+    LPTSTR mime_type_lpt, mime_ext_lpt;
 
-    return(mswin_reg_viewer(mime_type, mime_ext, cmd, clen, chk));
+    mime_type_lpt = utf8_to_lptstr(mime_type);
+    mime_ext_lpt = utf8_to_lptstr(mime_ext);
+
+    ret = mswin_reg_viewer(mime_type_lpt, mime_ext_lpt, cmd, clen, chk);
+
+    if(mime_type_lpt)
+      fs_give((void **) &mime_type_lpt);
+
+    if(mime_ext_lpt)
+      fs_give((void **) &mime_ext_lpt);
+
+    return ret;
 
 #elif	OSX_TARGET
 
@@ -105,8 +119,47 @@ int
 mime_get_os_mimetype_from_ext(char *file_ext, char *mime_type, int mime_type_len)
 {
 #ifdef	_WINDOWS
+    int ret;
+    LPTSTR x, file_ext_lpt, mime_type_lpt;
 
-    return(mswin_reg_mime_type(file_ext, mime_type));
+    file_ext_lpt = utf8_to_lptstr(file_ext);
+
+    if(file_ext_lpt){
+	if(mime_type){
+	    mime_type_lpt = (LPTSTR) fs_get(mime_type_len * sizeof(TCHAR));
+	    x = utf8_to_lptstr(mime_type);
+	    mime_type_lpt[0] = '\0';
+	    if(x){
+		_tcsncpy(mime_type_lpt, x, mime_type_len);
+		mime_type_lpt[mime_type_len-1] = '\0';
+		fs_give((void **) &x);
+	    }
+	}
+	else
+	  mime_type_lpt = NULL;
+    }
+
+    ret = mswin_reg_mime_type(file_ext_lpt, mime_type_lpt, (size_t) mime_type_len);
+
+    /* convert answer back to UTF-8 */
+    if(ret && mime_type_lpt && mime_type){
+	char *u;
+
+	u = lptstr_to_utf8(mime_type_lpt);
+	if(u){
+	    strncpy(mime_type, u, mime_type_len);
+	    mime_type[mime_type_len-1] = '\0';
+	    fs_give((void **) &u);
+	}
+    }
+
+    if(file_ext_lpt)
+      fs_give((void **) &file_ext_lpt);
+
+    if(mime_type_lpt)
+      fs_give((void **) &mime_type_lpt);
+
+    return ret;
 
 #elif	OSX_TARGET
 
@@ -159,8 +212,47 @@ int
 mime_get_os_ext_from_mimetype(char *mime_type, char *file_ext, int file_ext_len)
 {
 #ifdef	_WINDOWS
+    int ret;
+    LPTSTR x, mime_type_lpt, file_ext_lpt;
 
-    return(mswin_reg_mime_ext(mime_type, file_ext));
+    mime_type_lpt = utf8_to_lptstr(mime_type);
+
+    if(mime_type_lpt){
+	if(file_ext){
+	    file_ext_lpt = (LPTSTR) fs_get(file_ext_len * sizeof(TCHAR));
+	    x = utf8_to_lptstr(file_ext);
+	    file_ext_lpt[0] = '\0';
+	    if(x){
+		_tcsncpy(file_ext_lpt, x, file_ext_len);
+		file_ext_lpt[file_ext_len-1] = '\0';
+		fs_give((void **) &x);
+	    }
+	}
+	else
+	  file_ext_lpt = NULL;
+    }
+
+    ret = mswin_reg_mime_ext(mime_type_lpt, file_ext_lpt, (size_t) file_ext_len);
+
+    /* convert answer back to UTF-8 */
+    if(ret && file_ext_lpt && file_ext){
+	char *u;
+
+	u = lptstr_to_utf8(file_ext_lpt);
+	if(u){
+	    strncpy(file_ext, u, file_ext_len);
+	    file_ext[file_ext_len-1] = '\0';
+	    fs_give((void **) &u);
+	}
+    }
+
+    if(mime_type_lpt)
+      fs_give((void **) &mime_type_lpt);
+
+    if(file_ext_lpt)
+      fs_give((void **) &file_ext_lpt);
+
+    return ret;
 
 #elif	OSX_TARGET
 
@@ -207,9 +299,12 @@ mime_get_os_ext_from_mimetype(char *mime_type, char *file_ext, int file_ext_len)
  * mswin_reg_viewer - 
  */
 int
-mswin_reg_viewer(char *mime_type, char *mime_ext, char *cmd, int clen, int chk)
+mswin_reg_viewer(LPTSTR mime_type, LPTSTR mime_ext, char *cmd, int clen, int chk)
 {
-    char  tmp[64], *ext;
+    TCHAR  tmp[64];
+    LPTSTR ext;
+
+    tmp[0] = '\0';
 
     /*
      * Everything's based on the file extension.
@@ -219,13 +314,13 @@ mswin_reg_viewer(char *mime_type, char *mime_ext, char *cmd, int clen, int chk)
      * look for clues that some app will handle it.
      *
      */
-    return(((mswin_reg_mime_ext(mime_type, ext = tmp)
+    return(((mswin_reg_mime_ext(mime_type, ext = tmp, sizeof(tmp)/sizeof(TCHAR))
 	    || ((ext = mime_ext) && *mime_ext
-		&& ((mswin_reg_mime_type(mime_ext, tmp)
-		     && !strcmpi(mime_type, tmp))
-		    || !strcmpi(mime_type, "application/octet-stream"))))
-	    && MSWRShellCanOpen(ext, cmd, (DWORD) clen, 0) == TRUE)
-	   || (chk && MSWRShellCanOpen(ext,cmd, (DWORD) clen, 1) == TRUE));
+		&& ((mswin_reg_mime_type(mime_ext, tmp, sizeof(tmp)/sizeof(TCHAR))
+		     && mime_type && !_tcsicmp(mime_type, tmp))
+		    || mime_type && !_tcsicmp(mime_type, TEXT("application/octet-stream")))))
+	    && MSWRShellCanOpen(ext, cmd, clen, 0) == TRUE)
+	   || (chk && MSWRShellCanOpen(ext, cmd, clen, 1) == TRUE));
 }
 
 
@@ -234,19 +329,19 @@ mswin_reg_viewer(char *mime_type, char *mime_ext, char *cmd, int clen, int chk)
  * corresponding MIME type
  */
 int
-mswin_reg_mime_type(char *file_ext, char *mime_type)
+mswin_reg_mime_type(LPTSTR file_ext, LPTSTR mime_type, size_t mime_type_len)
 {
-    char  buf[64];
-    DWORD len = 64;
+    TCHAR buf[64];
+    DWORD len = mime_type_len;
 
     if(file_ext[0] != '.'){
 	*buf = '.';
-	strncpy(buf + 1, file_ext, sizeof(buf)-1);
-	buf[sizeof(buf)-1] = '\0';
+	_tcsncpy(buf + 1, file_ext, sizeof(buf)/sizeof(TCHAR)-1);
+	buf[sizeof(buf)/sizeof(TCHAR)-1] = '\0';
 	file_ext = buf;
     }
 
-    return(MSWRPeek(HKEY_CLASSES_ROOT, file_ext, "content type",
+    return(MSWRPeek(HKEY_CLASSES_ROOT, file_ext, TEXT("content type"),
 		    mime_type, &len) == TRUE);
 }
 
@@ -256,19 +351,18 @@ mswin_reg_mime_type(char *file_ext, char *mime_type)
  * corresponding file name extension
  */
 int
-mswin_reg_mime_ext(char *mime_type, char *file_ext)
+mswin_reg_mime_ext(LPTSTR mime_type, LPTSTR file_ext, size_t file_ext_len)
 {
-    char   keybuf[128];
-    DWORD  len = 64;
+    TCHAR   keybuf[128];
+    DWORD  len = file_ext_len;
 
-    if(strlen(mime_type) < 50){
-	snprintf(keybuf, sizeof(keybuf), "MIME\\Database\\Content Type\\%s", mime_type);
-
+    if(mime_type && _tcslen(mime_type) < 50){
+	_sntprintf(keybuf, sizeof(keybuf), TEXT("MIME\\Database\\Content Type\\%s"), mime_type);
 	return(MSWRPeek(HKEY_CLASSES_ROOT, keybuf,
-			"extension", file_ext, &len) == TRUE);
+			TEXT("extension"), file_ext, &len) == TRUE);
     }
 
-    return(FALSE);
+    return FALSE;
 }
 #endif /* _WINDOWS */
 

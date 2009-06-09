@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: keymenu.c 203 2006-10-26 17:23:46Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: keymenu.c 392 2007-01-25 18:56:49Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -802,7 +802,7 @@ struct key view_keys[] =
 	HOMEKEY_MENU,
 	ENDKEY_MENU,
 	RCOMPOSE_MENU,
-	NULL_MENU,
+	{"A",N_("TogglePreferPlain"),{MC_TOGGLE,1,{'a'}},KS_NONE},
 	NULL_MENU,
 	NULL_MENU,
 	NULL_MENU,
@@ -2968,7 +2968,7 @@ menu_command(UCS keystroke, struct key_menu *menu)
 
     if(F_ON(F_USE_FK,ps_global)){
 	/* No alpha commands permitted in function key mode */
-	if(keystroke < 0x0100 && isalpha((unsigned char) keystroke))
+	if(keystroke < 0x80 && isalpha((unsigned char) keystroke))
 	  return(MC_UNKNOWN);
 
 	/* Tres simple: compute offset, and test */
@@ -2982,7 +2982,7 @@ menu_command(UCS keystroke, struct key_menu *menu)
       return(MC_UNKNOWN);
 
     /* if ascii, coerce lower case */
-    if(keystroke < 0x0100 && isupper((unsigned char) keystroke))
+    if(keystroke < 0x80 && isupper((unsigned char) keystroke))
       keystroke = tolower((unsigned char) keystroke);
 
     /* keep this here for Windows port */
@@ -3092,7 +3092,7 @@ void
 menu_init_binding(struct key_menu *menu, UCS key, int cmd, char *name, char *label, int keynum)
 {
     /* if ascii, coerce to lower case */
-    if(key < 0x0100 && isupper((unsigned char)key))
+    if(key < 0x80 && isupper((unsigned char)key))
       key = tolower((unsigned char)key);
 
     /* remove binding from any other key */
@@ -3126,7 +3126,7 @@ menu_add_binding(struct key_menu *menu, UCS key, int cmd)
 	    ;
 
 	  /* if ascii, coerce to lower case */
-	  if(key < 0x0100 && isupper((unsigned char)key))
+	  if(key < 0x80 && isupper((unsigned char)key))
 	    key = tolower((unsigned char)key);
 
 	  if(n < 0)		/* not already bound, bind it */
@@ -3149,7 +3149,7 @@ menu_clear_binding(struct key_menu *menu, UCS key)
     int i, n;
 
     /* if ascii, coerce to lower case */
-    if(key < 0x0100 && isupper((unsigned char)key))
+    if(key < 0x80 && isupper((unsigned char)key))
       key = tolower((unsigned char)key);
 
     for(i = (menu->how_many * 12) - 1;  i >= 0; i--)

@@ -1,8 +1,8 @@
 /*
- * $Id: pico.h 316 2006-12-12 01:45:02Z jpf@u.washington.edu $
+ * $Id: pico.h 381 2007-01-23 02:07:14Z jpf@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,11 +63,9 @@ struct hdr_line {
         struct  hdr_line        *prev;
 };
  
-#if defined(DOS) || defined(HELPFILE)
-#define	HELP_T	short
-#else
+
+/* must be the same as HelpType in pith/helptext.h */
 #define	HELP_T	char **
-#endif
 
  
 /* 
@@ -194,7 +192,6 @@ typedef struct pico_struct {
     int    fillcolumn;			/* where to wrap */
     int    menu_rows;			/* number of rows in menu (0 or 2) */
     long   edit_offset;			/* offset into hdr line or body */
-    int   *hibit_entered;		/* hibit input came from user */
     PATMT *attachments;			/* linked list of attachments */
     PCOLORS *colors;                    /* colors for titlebar and keymenu */
     void  *input_cs;			/* passed to mbtow() via kbseq() */
@@ -377,7 +374,7 @@ typedef struct  KBSTREE {
  */
 #ifdef	maindef
 PICO	*Pmaster = NULL;		/* composer specific stuff */
-char	*version = "4.91";		/* PICO version number */
+char	*version = "4.92";		/* PICO version number */
 
 #else
 extern	PICO *Pmaster;			/* composer specific stuff */

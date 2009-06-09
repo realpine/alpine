@@ -1,3 +1,4 @@
+# $Id: addrbook.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -300,9 +301,9 @@ cgi_html {
 		lappend common_menu {{cgi_put [cgi_nbspace]}}
 
 		if {[WPCmd PEInfo feature quit-without-confirm]} {
-		  lappend common_menu [list {} [list {cgi_puts [cgi_url "Quit WebPine" $_wp(serverpath)/session/logout.tcl?cid=[WPCmd PEInfo key]&sessid=$sessid class=navbar]}]]
+		  lappend common_menu [list {} [list {cgi_puts [cgi_url "Quit $_wp(appname)" $_wp(serverpath)/session/logout.tcl?cid=[WPCmd PEInfo key]&sessid=$sessid class=navbar]}]]
 		} else {
-		  lappend common_menu [list {} [list {cgi_puts [cgi_url "Quit WebPine" wp.tcl?page=quit&cid=[WPCmd PEInfo key] target=_top class=navbar]}]]
+		  lappend common_menu [list {} [list {cgi_puts [cgi_url "Quit $_wp(appname)" wp.tcl?page=quit&cid=[WPCmd PEInfo key] target=_top class=navbar]}]]
 		}
 	      }
 
@@ -427,7 +428,7 @@ cgi_html {
 		      }
 		      cgi_table_row bgcolor=$bgcolor {
 			set nick [lindex [lindex $entry 0] 0]
-			regsub -all "'" $nick "\\'" safenick
+			set safenick [WPPercentQuote $nick]
 
 			set nfields [llength $format]
 			if {$browse} {
@@ -442,7 +443,7 @@ cgi_html {
 			  if {$view} {
 			    cgi_table_data nowrap {
 			      if {$nonick && $i == 0} {
-				set data [cgi_url $data "wp.tcl?page=addredit&nick=[WPPercentQuote ${safenick}]&book=${bookno}&ai=${aindex}"]
+				set data [cgi_url $data "wp.tcl?page=addredit&nick=${safenick}&book=${bookno}&ai=${aindex}"]
 			      }
 			      cgi_puts [cgi_nbspace][cgi_nbspace][cgi_nbspace][cgi_nbspace]
 			    }
@@ -456,7 +457,7 @@ cgi_html {
 				    regsub -all "<" $data "\\&lt;" data
 				    regsub -all ">" $data "\\&gt;" data
 				    if {$view} {
-				      set data [cgi_url $data "wp.tcl?page=compose&nickto=[WPPercentQuote ${safenick}]&book=${bookno}&ai=${aindex}&oncancel=addrbook&cid=[WPCmd PEInfo key]"]
+				      set data [cgi_url $data "wp.tcl?page=compose&nickto=${safenick}&book=${bookno}&ai=${aindex}&oncancel=addrbook&cid=[WPCmd PEInfo key]"]
 				    }
 				    cgi_puts [cgi_font size=-1 face=courier $data]										
 				  }
@@ -468,7 +469,7 @@ cgi_html {
 					    regsub -all "<" $addr "\\&lt;" addr
 					    regsub -all ">" $addr "\\&gt;" addr
 					    if {$view} {
-					      set addr [cgi_url $addr "wp.tcl?page=compose&nickto=[WPPercentQuote ${safenick}]&book=${bookno}&ai=${aindex}&oncancel=addrbook&cid=[WPCmd PEInfo key]"]
+					      set addr [cgi_url $addr "wp.tcl?page=compose&nickto=${safenick}&book=${bookno}&ai=${aindex}&oncancel=addrbook&cid=[WPCmd PEInfo key]"]
 					    }
 					    cgi_puts [cgi_font size=-1 face=courier $addr]
 					    cgi_br
@@ -495,7 +496,7 @@ cgi_html {
 				    set text "\[Edit\]"
 				  }
 
-				  cgi_puts [cgi_url $text "wp.tcl?page=addredit&nick=[WPPercentQuote ${safenick}]&book=${bookno}&ai=${aindex}"]
+				  cgi_puts [cgi_url $text "wp.tcl?page=addredit&nick=${safenick}&book=${bookno}&ai=${aindex}"]
 				} else {
 				  if {![string length $nick]} {
 				    set nick [cgi_nbspace]

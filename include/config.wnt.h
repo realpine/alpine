@@ -404,9 +404,6 @@
 /* Avoid OSX Conflict */
 /* #undef Handle */
 
-#define HELPFILE  "pine.hlp"
-#define HELPINDEX "alpine.ndx"
-
 /* Default configuration value */
 #define INBOX_NAME "INBOX"
 
@@ -420,10 +417,10 @@
 #define MAX_FILLCOL 80
 
 /* Default configuration value */
-#define MAX_SCREEN_COLS 250
+#define MAX_SCREEN_COLS 500
 
 /* Default configuration value */
-#define MAX_SCREEN_ROWS 150
+#define MAX_SCREEN_ROWS 200
 
 /* File mode used to set readonly access */
 #undef MODE_READONLY
@@ -452,13 +449,13 @@
 #define PACKAGE_NAME "alpine"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "alpine 0.81"
+#define PACKAGE_STRING "alpine 0.82"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "alpine"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "0.81"
+#define PACKAGE_VERSION "0.82"
 
 /* Program users use to change their password */
 /* #undef PASSWD_PROG */
@@ -503,7 +500,7 @@
 /* #define SIZEOF_UNSIGNED_SHORT */
 
 /* Program pico uses to check spelling */
-/* #define SPELLER */
+#define SPELLER
 
 /* Define to 1 if the `S_IS*' macros in <sys/stat.h> do not work properly. */
 /* #define STAT_MACROS_BROKEN */
@@ -547,7 +544,7 @@
 #define UTF8_INTERNAL
 
 /* Version number of package */
-#define VERSION "0.81"
+#define VERSION "0.82"
 
 /* Windows is just too different */
 #ifndef _WINDOWS

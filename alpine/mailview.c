@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailview.c 245 2006-11-18 02:46:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailview.c 394 2007-01-25 20:29:45Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -223,7 +223,8 @@ mail_view_screen(struct pine *ps)
     char            last_was_full_header = 0;
     long            last_message_viewed = -1L, raw_msgno, offset = 0L;
     OtherMenu       save_what = FirstMenu;
-    int             we_cancel = 0, flags, i;
+    int             we_cancel = 0, flags, cmd = 0;
+    int             force_prefer = 0;
     MESSAGECACHE   *mc;
     ENVELOPE       *env;
     BODY           *body;
@@ -299,7 +300,7 @@ mail_view_screen(struct pine *ps)
 
 	flags = FM_DISPLAY|FM_UTF8;
 	if(last_message_viewed != mn_get_cur(ps->msgmap)
-	   || last_was_full_header == 2)
+	   || last_was_full_header == 2 || cmd == MC_TOGGLE)
 	  flags |= FM_NEW_MESS;
 
 	if(F_OFF(F_QUELL_FULL_HDR_RESET, ps_global)
@@ -313,7 +314,7 @@ mail_view_screen(struct pine *ps)
 #ifdef _WINDOWS
 	mswin_noscrollupdate(1);
 #endif
-	(void) format_message(raw_msgno, env, body, &handles, flags,
+	(void) format_message(raw_msgno, env, body, &handles, flags | force_prefer,
 			      view_writec);
 #ifdef _WINDOWS
 	mswin_noscrollupdate(0);
@@ -414,10 +415,16 @@ mail_view_screen(struct pine *ps)
 	scrollargs.mouse.popup = format_message_popup;
 #endif
 
-	if(((i = scrolltool(&scrollargs)) == MC_RESIZE
-	    || (i == MC_FULLHDR && ps_global->full_header == 1))
+	if(((cmd = scrolltool(&scrollargs)) == MC_RESIZE
+	    || (cmd == MC_FULLHDR && ps_global->full_header == 1))
 	   && scrollargs.start.on == Offset)
 	  offset = scrollargs.start.loc.offset;
+
+	if(cmd == MC_TOGGLE && force_prefer == 0)
+	    force_prefer = F_ON(F_PREFER_PLAIN_TEXT, ps_global) ? FM_FORCENOPREFPLN
+								: FM_FORCEPREFPLN;
+	else
+	  force_prefer = 0;
 
 	save_what = scrollargs.keys.what;
 	ps_global->unseen_in_view = 0;
@@ -1203,12 +1210,6 @@ scroll_handle_column(int line, int offset)
 
 	    break;
 
-	  case ESCAPE:
-	    if(n = match_escapes(&st->text_lines[line][++i]))
-	      i += (n-1);	/* Don't count escape for column */
-
-	    break;
-
 	  case TAB:
 	    i++;
 	    while(((++col) &  0x07) != 0) /* add tab's spaces */
@@ -1217,7 +1218,7 @@ scroll_handle_column(int line, int offset)
 	    break;
 
 	  default:
-	    col += width_at_this_position(&st->text_lines[line][i],
+	    col += width_at_this_position((unsigned char*) &st->text_lines[line][i],
 					  st->line_lengths[line] - i);
 	    i++;
 	    break;
@@ -1250,12 +1251,6 @@ scroll_handle_index(int row, int column)
 	    default :
 	      break;
 	  }
-
-	  break;
-
-	case ESCAPE :
-	  if(n = match_escapes(&st->text_lines[row][index]))
-	    index += (n - 1);
 
 	  break;
 
@@ -1321,10 +1316,6 @@ dot_on_handle(long int line, int goal)
 
 	    break;
 
-	  case ESCAPE :		/* Don't count escape in len */
-	    i += (n = match_escapes(&st->text_lines[line][i])) ? n : 1;
-	    break;
-
 	  case TAB :
 	    while(((++column) &  0x07) != 0) /* add tab's spaces */
 	      ;
@@ -1332,7 +1323,7 @@ dot_on_handle(long int line, int goal)
 	    break;
 
 	  default :
-	    column += width_at_this_position(&st->text_lines[line][i-1],
+	    column += width_at_this_position((unsigned char*) &st->text_lines[line][i-1],
 					     st->line_lengths[line] - (i-1));
 	    break;
 	}
@@ -1658,9 +1649,6 @@ url_local_handler(char *s)
 	{"ldap://", 7, url_local_ldap},
 #endif
 	{"news:", 5, url_local_news},
-#ifdef notdef
-	{"x-pine-gripe:", 13, gripe_gripe_to},
-#endif /* notdef */
 	{"x-pine-help:", 11, url_local_helper},
 	{"x-pine-phone-home:", 18, url_local_phone_home},
 	{"x-pine-config:", 14, url_local_config},
@@ -1830,7 +1818,7 @@ url_local_mailto_and_atts(char *url, PATMT *attachlist)
 	  fcc = get_fcc_based_on_to(outgoing->to);
 
 	if(attachlist)
-	  create_message_body(&body, attachlist, NULL, 0);
+	  create_message_body(&body, attachlist, 0);
 
 	pine_send(outgoing, &body, "\"MAILTO\" COMPOSE",
 		  role, fcc, &fake_reply, redraft_pos, NULL, NULL, 0);
@@ -1880,7 +1868,8 @@ url_local_imap(char *url)
     char      *folder, *mailbox = NULL, *errstr = NULL, *search = NULL,
 	       newfolder[MAILTMPLEN];
     int	       rv;
-    long       uid = 0L, uid_val = 0L, i;
+    long       i;
+    imapuid_t uid = 0L, uid_val = 0L;
     CONTEXT_S *fake_context;
     MESSAGECACHE *mc;
 
@@ -4080,12 +4069,6 @@ format_scroll_text(void)
 
 		break;
 
-	      case ESCAPE:
-		if(n = match_escapes(&st->text_lines[line][++i]))
-		  i += (n-1);	/* Don't count escape for column */
-
-		break;
-
 	      case TAB:
 		i++;
 		while(((++col) &  0x07) != 0) /* add tab's spaces */
@@ -4094,7 +4077,7 @@ format_scroll_text(void)
 		break;
 
 	      default:
-		col += width_at_this_position(&st->text_lines[line][i],
+		col += width_at_this_position((unsigned char*) &st->text_lines[line][i],
 					      st->line_lengths[line] - i);
 	        i++;				/* character count */
 		break;
@@ -4927,14 +4910,6 @@ visible_linelen(int line)
 
 	  break;
 
-	case ESCAPE:
-	  i++;
-	  if(i < st->line_lengths[line]
-	     && (n = match_escapes(&st->text_lines[line][i])))
-	    i += (n-1);			/* Don't count escape in length */
-
-	  break;
-
 	case TAB:
 	  i++;
 	  while(((++len) &  0x07) != 0)		/* add tab's spaces */
@@ -5534,7 +5509,7 @@ pcpine_help_scroll(title)
 
     if(title)
       strncpy(title, (st->parms->help.title)
-		      ? st->parms->help.title : "PC-Pine Help", 256);
+		      ? st->parms->help.title : "Alpine Help", 256);
 
     return(pcpine_help(st->parms->help.text));
 }

@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: termout.unx.c 320 2006-12-12 22:40:05Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: termout.unx.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -207,13 +207,13 @@ init_screen(void)
 	pico_set_color_options(0);
 	break;
       case COL_ANSI8:
-	pico_set_color_options(COLOR_ANSI8_OPT);
+	pico_set_color_options(COLOR_ANSI8_OPT|COLOR_ANSITRANS_OPT);
 	break;
       case COL_ANSI16:
-	pico_set_color_options(COLOR_ANSI16_OPT);
+	pico_set_color_options(COLOR_ANSI16_OPT|COLOR_ANSITRANS_OPT);
 	break;
       case COL_ANSI256:
-	pico_set_color_options(COLOR_ANSI256_OPT);
+	pico_set_color_options(COLOR_ANSI256_OPT|COLOR_ANSITRANS_OPT);
 	break;
     }
 
@@ -756,9 +756,8 @@ Writewchar(UCS ucs)
     else{
 	unsigned char obuf[MAX(MB_LEN_MAX,32)];
 	int  i, width = 0, outchars = 0, printable_ascii = 0;
-	unsigned char ch;
 
-	if(ucs < 0x80 && isascii((ch=(unsigned char) ucs)) && isprint(ch)){
+	if(ucs < 0x80 && isprint((unsigned char) ucs)){
 	    printable_ascii++;		/* efficiency shortcut */
 	    width = 1;
 	}

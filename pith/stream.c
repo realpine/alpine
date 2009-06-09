@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: stream.c 203 2006-10-26 17:23:46Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: stream.c 394 2007-01-25 20:29:45Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1766,7 +1766,7 @@ pine_mail_status(MAILSTREAM *stream, char *mailbox, long int flags)
 
 long
 pine_mail_status_full(MAILSTREAM *stream, char *mailbox, long int flags,
-		      long unsigned int *uidvalidity, long unsigned int *uidnext)
+		      imapuid_t *uidvalidity, imapuid_t *uidnext)
 {
     char        source[MAILTMPLEN], *target = NULL;
     long        ret = NIL;

@@ -1,10 +1,10 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: composer.c 294 2006-12-01 18:32:36Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: composer.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1746,23 +1746,7 @@ LineEdit(int allowedit)
              * index of the character after the inserted ch ...
              */
             if(allowedit){
-		if(headents[ods.cur_e].only_file_chars && !fallowc(ch)){
-		    char *s;
-		    UCS uu[2];
-		    
-		    uu[0] = ch;
-		    uu[1] = '\0';
-		    s = ucs4_to_utf8_cpystr(uu);
-
-		    /* no garbage in filenames */
-		    emlwrite(_("\007Can't have a '%s' in folder name"),
-			     (void *) s);
-		    if(s)
-		      fs_give((void **) &s);
-
-		    continue;
-		}
-		else if(headents[ods.cur_e].is_attach && intag(strng,ods.p_ind)){
+		if(headents[ods.cur_e].is_attach && intag(strng,ods.p_ind)){
 		    emlwrite(_("\007Can't edit attachment number!"), NULL);
 		    continue;
 		}
@@ -2512,11 +2496,15 @@ PaintHeader(int line,		/* physical line on screen */
 		   && !is_blank(curline, 0, headents[e].prwid)){
 		    for(i = 0; i < headents[e].prwid; i++)
 		      buf[i] = ' ';
+
+		    buf[i] = '\0';
 		}
 	    }
 	    else if(!is_blank(curline, 0, headents[e].prwid)){
 		for(i = 0; i < headents[e].prwid; i++)
 		  buf[i] = ' ';
+
+		buf[i] = '\0';
 	    }
 
 	    if(*(bufp = buf) != '\0'){		/* need to paint? */

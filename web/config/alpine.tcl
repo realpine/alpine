@@ -1,5 +1,5 @@
 # Web Alpine Config options
-
+# $Id$
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -11,6 +11,7 @@
 #
 # ========================================================================
 
+set _wp(appname)	Alpine
 set _wp(version)	0.80
 set _wp(admin)		admin@sample-domain.edu
 set _wp(helpdesk)	admin@sample-domain.edu

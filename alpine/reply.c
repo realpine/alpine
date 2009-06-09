@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: reply.c 245 2006-11-18 02:46:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: reply.c 394 2007-01-25 20:29:45Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ static char rcsid[] = "$Id: reply.c 245 2006-11-18 02:46:41Z hubert@u.washington
    Code here for forward and reply to mail
    A few support routines as well
 
-  This code will forward and reply to MIME messages. The Pine composer
+  This code will forward and reply to MIME messages. The Alpine composer
 at this time will only support non-text segments at the end of a
 message so, things don't always come out as one would like. If you
 always forward a message in MIME format, all will be correct.  Forwarding
@@ -560,19 +560,10 @@ reply(struct pine *pine_state, ACTION_S *role_arg)
 		/*
 		 * There is a non-ascii charset, is there conversion happening?
 		 */
-#ifdef notdef
-		if(F_ON(F_DISABLE_CHARSET_CONVERSIONS, ps_global)
-		   || !(ct=conversion_table(charset, ps_global->posting_charmap))
-		   || !ct->table){
-		    reply.orig_charset = charset;
-		    charset = NULL;
-		}
-#else /* notdef */
 		if(!(ct=conversion_table(charset, ps_global->posting_charmap)) || !ct->table){
 		    reply.orig_charset = charset;
 		    charset = NULL;
 		}
-#endif /* notdef */
 	    }
 
 	    if(charset)
@@ -599,8 +590,7 @@ reply(struct pine *pine_state, ACTION_S *role_arg)
     reply.origmbox	= cpystr(pine_state->mail_stream->original_mailbox
 				    ? pine_state->mail_stream->original_mailbox
 				    : pine_state->mail_stream->mailbox);
-    reply.data.uid.msgs = (unsigned long *) fs_get((times + 1)
-						      * sizeof(unsigned long));
+    reply.data.uid.msgs = (imapuid_t *) fs_get((times + 1) * sizeof(imapuid_t));
     if(reply.data.uid.validity = pine_state->mail_stream->uid_validity){
 	reply.flags = REPLY_UID;
 	for(i = 0; i < times ; i++)
@@ -609,7 +599,7 @@ reply(struct pine *pine_state, ACTION_S *role_arg)
     else{
 	reply.flags = REPLY_MSGNO;
 	for(i = 0; i < times ; i++)
-	  reply.data.uid.msgs[i] = (unsigned long) seq[i];
+	  reply.data.uid.msgs[i] = seq[i];
     }
 
     reply.data.uid.msgs[i] = 0;			/* tie off list */
@@ -1532,19 +1522,10 @@ forward(struct pine *ps, ACTION_S *role_arg)
 	    /*
 	     * There is a non-ascii charset, is there conversion happening?
 	     */
-#ifdef notdef
-	    if(F_ON(F_DISABLE_CHARSET_CONVERSIONS, ps_global)
-	       || !(ct=conversion_table(charset, ps_global->posting_charmap))
-	       || !ct->table){
-		reply.orig_charset = charset;
-		charset = NULL;
-	    }
-#else /* notdef */
 	    if(!(ct=conversion_table(charset, ps_global->posting_charmap)) || !ct->table){
 		reply.orig_charset = charset;
 		charset = NULL;
 	    }
-#endif /* notdef */
 	}
 
 	if(charset)

@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: remote.c 229 2006-11-13 23:14:48Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: remote.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -58,18 +58,18 @@ rd_prompt_about_forged_remote_data(int reason, REMDATA_S *rd, char *extra)
 	dprint((1, "The special header \"%s\" is missing from the last message in the folder.\nThis indicates that something is wrong.\nYou should probably answer \"No\"\nso that you don't use the corrupt data.\nThen you should investigate further.\n", special ? special : "?"));
     }
     else if(reason == -1){
-	dprint((1,  "The last message in the folder contains \"Received\" headers.\nThis usually indicates that the message was put there by the mail\ndelivery system. Pine does not add those Received headers.\nYou should probably answer \"No\" so that you don't use the corrupt data.\nThen you should investigate further.\n"));
+	dprint((1,  "The last message in the folder contains \"Received\" headers.\nThis usually indicates that the message was put there by the mail\ndelivery system. Alpine does not add those Received headers.\nYou should probably answer \"No\" so that you don't use the corrupt data.\nThen you should investigate further.\n"));
     }
     else if(reason == 0){
-	dprint((1, "The special header \"%s\" in the last message\nin the folder has an unexpected value (%s)\nafter it. This could indicate that something is wrong.\nThis value should not normally be put there by Pine.\nHowever, since there are no Received lines in the message we choose to\nbelieve that everything is ok and we will proceed.\n",
+	dprint((1, "The special header \"%s\" in the last message\nin the folder has an unexpected value (%s)\nafter it. This could indicate that something is wrong.\nThis value should not normally be put there by Alpine.\nHowever, since there are no Received lines in the message we choose to\nbelieve that everything is ok and we will proceed.\n",
 		special ? special : "?", (extra && *extra) ? extra : "?"));
     }
     else if(reason == 1){
-	dprint((1, "The special header \"%s\" in the last message\nin the folder has an unexpected value (1)\nafter it. It appears that it may have been put there by a Pine\nwith a version number less than 4.50.\nSince there are no Received lines in the message we choose to believe that\nthe header was added by an old Pine and we will proceed.\n",
+	dprint((1, "The special header \"%s\" in the last message\nin the folder has an unexpected value (1)\nafter it. It appears that it may have been put there by an Pine\nwith a version number less than 4.50.\nSince there are no Received lines in the message we choose to believe that\nthe header was added by an old Pine and we will proceed.\n",
 		special ? special : "?"));
     }
     else if(reason > 1){
-	dprint((1, "The special header \"%s\" in the last message\nin the folder has an unexpected value (%s)\nafter it. This is the right sort of value that Pine would normally put there,\nbut it doesn't match the value from the first message in the folder.\nThis may indicate that something is wrong.\nHowever, since there are no Received lines in the message we choose to\nbelieve that everything is ok and we will proceed.\n",
+	dprint((1, "The special header \"%s\" in the last message\nin the folder has an unexpected value (%s)\nafter it. This is the right sort of value that Alpine would normally put there,\nbut it doesn't match the value from the first message in the folder.\nThis may indicate that something is wrong.\nHowever, since there are no Received lines in the message we choose to\nbelieve that everything is ok and we will proceed.\n",
 		special ? special : "?", (extra && *extra) ? extra : "?"));
     }
 
@@ -114,22 +114,22 @@ rd_prompt_about_forged_remote_data(int reason, REMDATA_S *rd, char *extra)
 	    so_puts(in_store, tmp);
 	}
 	else if(reason == -1){
-	    so_puts(in_store, _("\"Received\" headers detected</CENTER><P>The last message in the folder contains \"Received\" headers. This usually indicates that the message was put there by the mail delivery system. Pine does not add those Received headers. You should probably answer \"No\" so that you don't use the corrupt data. Then you should investigate further."));
+	    so_puts(in_store, _("\"Received\" headers detected</CENTER><P>The last message in the folder contains \"Received\" headers. This usually indicates that the message was put there by the mail delivery system. Alpine does not add those Received headers. You should probably answer \"No\" so that you don't use the corrupt data. Then you should investigate further."));
 	}
 	else if(reason == 0){
-	    snprintf(tmp, sizeof(tmp), _("Unexpected value for header \"%s\"</CENTER><P>The special header \"%s\" in the last message in the folder has an unexpected value (%s) after it. This probably indicates that something is wrong. This value would not normally be put there by Pine. You should probably answer \"No\" so that you don't use the corrupt data. Then you should investigate further."),
+	    snprintf(tmp, sizeof(tmp), _("Unexpected value for header \"%s\"</CENTER><P>The special header \"%s\" in the last message in the folder has an unexpected value (%s) after it. This probably indicates that something is wrong. This value would not normally be put there by Alpine. You should probably answer \"No\" so that you don't use the corrupt data. Then you should investigate further."),
 		    special, special, (extra && *extra) ? extra : "?");
 	    tmp[sizeof(tmp)-1] = '\0';
 	    so_puts(in_store, tmp);
 	}
 	else if(reason == 1){
-	    snprintf(tmp, sizeof(tmp), _("Unexpected value for header \"%s\"</CENTER><P>The special header \"%s\" in the last message in the folder has an unexpected value (1) after it. It appears that it may have been put there by a Pine with a version number less than 4.50. If you believe that you have changed this data with an older Pine more recently than you've changed it with this version of Pine, then you can probably safely answer \"Yes\". If you do not understand why this has happened, you should probably answer \"No\" so that you don't use the corrupt data. Then you should investigate further."),
+	    snprintf(tmp, sizeof(tmp), _("Unexpected value for header \"%s\"</CENTER><P>The special header \"%s\" in the last message in the folder has an unexpected value (1) after it. It appears that it may have been put there by a Pine with a version number less than 4.50. If you believe that you have changed this data with an older Pine more recently than you've changed it with this version of Alpine, then you can probably safely answer \"Yes\". If you do not understand why this has happened, you should probably answer \"No\" so that you don't use the corrupt data. Then you should investigate further."),
 		    special, special);
 	    tmp[sizeof(tmp)-1] = '\0';
 	    so_puts(in_store, tmp);
 	}
 	else if(reason > 1){
-	    snprintf(tmp, sizeof(tmp), _("Unexpected value for header \"%s\"</CENTER><P>The special header \"%s\" in the last message in the folder has an unexpected value (%s) after it. This is the right sort of value that Pine would normally put there, but it doesn't match the value from the first message in the folder. This may indicate that something is wrong. Unless you understand why this has happened, you should probably answer \"No\" so that you don't use the corrupt data. Then you should investigate further."),
+	    snprintf(tmp, sizeof(tmp), _("Unexpected value for header \"%s\"</CENTER><P>The special header \"%s\" in the last message in the folder has an unexpected value (%s) after it. This is the right sort of value that Alpine would normally put there, but it doesn't match the value from the first message in the folder. This may indicate that something is wrong. Unless you understand why this has happened, you should probably answer \"No\" so that you don't use the corrupt data. Then you should investigate further."),
 		    special, special, (extra && *extra) ? extra : "?");
 	    tmp[sizeof(tmp)-1] = '\0';
 	    so_puts(in_store, tmp);
@@ -188,21 +188,21 @@ rd_prompt_about_forged_remote_data(int reason, REMDATA_S *rd, char *extra)
 	    tmp[sizeof(tmp)-1] = '\0';
 	}
 	else if(reason == -1){
-	    snprintf(p, sizeof(tmp)-(p-tmp), _("\"Received\" headers detected\n\nThe last message in the folder contains \"Received\" headers.\nThis usually indicates that the message was put there by the\nmail delivery system. Pine does not add those Received headers.\nYou should probably answer \"No\" so that you don't use the corrupt data.\nThen you should investigate further.\n\n"));
+	    snprintf(p, sizeof(tmp)-(p-tmp), _("\"Received\" headers detected\n\nThe last message in the folder contains \"Received\" headers.\nThis usually indicates that the message was put there by the\nmail delivery system. Alpine does not add those Received headers.\nYou should probably answer \"No\" so that you don't use the corrupt data.\nThen you should investigate further.\n\n"));
 	    tmp[sizeof(tmp)-1] = '\0';
 	}
 	else if(reason == 0){
-	    snprintf(p, sizeof(tmp)-(p-tmp), _("Unexpected value for header \"%s\"\n\nThe special header \"%s\" in the last message in the folder\nhas an unexpected value (%s) after it. This probably\nindicates that something is wrong. This value would not normally be put\nthere by Pine. You should probably answer \"No\" so that you don't use\nthe corrupt data. Then you should investigate further.\n\n"),
+	    snprintf(p, sizeof(tmp)-(p-tmp), _("Unexpected value for header \"%s\"\n\nThe special header \"%s\" in the last message in the folder\nhas an unexpected value (%s) after it. This probably\nindicates that something is wrong. This value would not normally be put\nthere by Alpine. You should probably answer \"No\" so that you don't use\nthe corrupt data. Then you should investigate further.\n\n"),
 		    special, special, (extra && *extra) ? extra : "?");
 	    tmp[sizeof(tmp)-1] = '\0';
 	}
 	else if(reason == 1){
-	    snprintf(p, sizeof(tmp)-(p-tmp), _("Unexpected value for header \"%s\"\n\nThe special header \"%s\" in the last message in the folder\nhas an unexpected value (1) after it. It appears that it may have been\nput there by a Pine with a version number less than 4.50.\nIf you believe that you have changed this data with an older Pine more\nrecently than you've changed it with this version of Pine, then you can\nprobably safely answer \"Yes\". If you do not understand why this has\nhappened, you should probably answer \"No\" so that you don't use the\ncorrupt data. Then you should investigate further.\n\n"),
+	    snprintf(p, sizeof(tmp)-(p-tmp), _("Unexpected value for header \"%s\"\n\nThe special header \"%s\" in the last message in the folder\nhas an unexpected value (1) after it. It appears that it may have been\nput there by a Pine with a version number less than 4.50.\nIf you believe that you have changed this data with an older Pine more\nrecently than you've changed it with this version of Alpine, then you can\nprobably safely answer \"Yes\". If you do not understand why this has\nhappened, you should probably answer \"No\" so that you don't use the\ncorrupt data. Then you should investigate further.\n\n"),
 		    special, special);
 	    tmp[sizeof(tmp)-1] = '\0';
 	}
 	else if(reason > 1){
-	    snprintf(p, sizeof(tmp)-(p-tmp), _("Unexpected value for header \"%s\"\n\nThe special header \"%s\" in the last message in the folder\nhas an unexpected\nvalue (%s) after it. This is\nthe right sort of value that Pine would normally put there, but it\ndoesn't match the value from the first message in the folder. This may\nindicate that something is wrong. Unless you understand why this has happened,\nyou should probably answer \"No\" so that you don't use the\ncorrupt data. Then you should investigate further.\n\n"),
+	    snprintf(p, sizeof(tmp)-(p-tmp), _("Unexpected value for header \"%s\"\n\nThe special header \"%s\" in the last message in the folder\nhas an unexpected\nvalue (%s) after it. This is\nthe right sort of value that Alpine would normally put there, but it\ndoesn't match the value from the first message in the folder. This may\nindicate that something is wrong. Unless you understand why this has happened,\nyou should probably answer \"No\" so that you don't use the\ncorrupt data. Then you should investigate further.\n\n"),
 		    special, special, (extra && *extra) ? extra : "?");
 	    tmp[sizeof(tmp)-1] = '\0';
 	}

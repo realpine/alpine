@@ -1,10 +1,10 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: bind.c 113 2006-09-01 21:54:31Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: bind.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,7 +43,7 @@ static char *helptext[] = {
     N_("\tPico Help Text"),
     " ",
     N_("\tPico is designed to be a simple, easy-to-use text editor with a"),
-    N_("\tlayout very similar to the pine mailer.  The status line at the"),
+    N_("\tlayout very similar to the Alpine mailer.  The status line at the"),
     N_("\ttop of the display shows pico's version, the current file being"),
     N_("\tedited and whether or not there are outstanding modifications"),
     N_("\tthat have not been saved.  The third line from the bottom is used"),
@@ -95,10 +95,6 @@ static char *helptext[] = {
     N_("~\t~^~O (~F~3)   Output the current buffer to a file, saving it."),
     N_("~\t~^~X (~F~2)   Exit pico, saving buffer."),
     "    ",
-    N_("\tPine and Pico are trademarks of the University of Washington."),
-    N_("\tNo commercial use of these trademarks may be made without prior"),
-    N_("\twritten permission of the University of Washington."),
-    "    ",
     N_("    End of Help."),
     " ",
     NULL
@@ -141,7 +137,7 @@ whelp(int f, int n)
 	saved_state = save_pico_state();
 	(*Pmaster->helper)(Pmaster->composer_help,
 			   Pmaster->headents
-			     ? _("Help for the Pine Composer")
+			     ? _("Help for the Alpine Composer")
 			     : _("Help for Signature Editor"),
 			   1);
 	if(saved_state){
@@ -344,23 +340,12 @@ normalize_cmd(UCS c, UCS list[][2], int sc)
 	    if(list[i][1] == NODATA)		/* no mapping ! */
 	      return(c);
 
-	    if(((FUNC&c) == FUNC) ^ ((gmode&MDFKEY) == MDFKEY))
+	    if(((FUNC&c) == FUNC) && !((gmode&MDFKEY) == MDFKEY))
 	      return(BADESC);			/* keystroke not allowed! */
 	    else
 	      return(list[i][1]);		/* never return func keys */
 	}
     }
-
-#ifdef _WINDOWS
-    /*
-     * Menu's get alpha key commands assigned to them.  Well, if we are in PF
-     * key mode then the alpha key commands don't work.  So, we flag them with
-     * a bit (MENU defined in estruct.h) so we can recognize them as different
-     * from a keyboard press.  Here we clear that flag so the command can be
-     * processed.
-     */
-    c &= ~MENU;
-#endif
 
     return(c);
 }

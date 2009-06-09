@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: colorconf.c 245 2006-11-18 02:46:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: colorconf.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -768,7 +768,7 @@ add_color_setting_disp(struct pine *ps, CONF_S **ctmp, struct variable *var,
 		       struct key_menu *cb_km, HelpType help, int indent,
 		       int which, char *fg, char *bg, int def)
 {
-    int             i, lv, count;
+    int             i, lv, count, trans_is_on, transparent;
     char	    tmp[100+1];
     char           *title   = _("HELP FOR SETTING UP COLOR");
     char           *pvalfg, *pvalbg;
@@ -777,6 +777,8 @@ add_color_setting_disp(struct pine *ps, CONF_S **ctmp, struct variable *var,
     /* find longest value's name */
     count = pico_count_in_color_table();
     lv = COLOR_BLOB_LEN;
+
+    trans_is_on = pico_trans_is_on();
 
     /* put a title before list */
     new_confline(ctmp);
@@ -816,11 +818,11 @@ add_color_setting_disp(struct pine *ps, CONF_S **ctmp, struct variable *var,
 	(*ctmp)->val2offset	 = indent + lv + 5 + SPACE_BETWEEN_DOUBLEVARS;
 	(*ctmp)->flags		|= CF_DOUBLEVAR;
 	(*ctmp)->varmem		 = CFC_SET_COLOR(which, i);
-	/*
-	 * Special case: The 2nd and 3rd arguments here have the count == 8
-	 * special case in them. See pico/osdep/unix init_color_table().
-	 */
-	(*ctmp)->value		 = new_color_line(COLOR_BLOB,
+
+	transparent = (trans_is_on && i == count-1);
+
+	(*ctmp)->value		 = new_color_line(transparent ? COLOR_BLOB_TRAN
+							      : COLOR_BLOB,
 						  fg &&
 			   !strucmp(color_to_canonical_name(fg), colorx(i)),
 						  bg &&
@@ -1947,10 +1949,11 @@ color_setting_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 	    end->tool      = NULL;
 	}
 
-	/* at least put current on some selectable line */
-	for(; *cl && ((*cl)->flags & CF_NOSELECT); *cl = next_confline(*cl))
+	/* if not selectable, find next selectable line */
+	for(; *cl && ((*cl)->flags & CF_NOSELECT) && next_confline(*cl); *cl = next_confline(*cl))
 	  ;
-	for(; *cl && ((*cl)->flags & CF_NOSELECT); *cl = prev_confline(*cl))
+	/* if no next selectable line, search backwards for one */
+	for(; *cl && ((*cl)->flags & CF_NOSELECT) && prev_confline(*cl); *cl = prev_confline(*cl))
 	  ;
 
 	rv = ps->mangled_body = 1;

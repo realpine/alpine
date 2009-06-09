@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcap.c 237 2006-11-16 04:08:15Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: mailcap.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -165,7 +165,7 @@ mc_init(void)
 	MailcapData.raw->text.data = (unsigned char *) cpystr(image_viewer);
 	mc->command		   = (char *) MailcapData.raw->text.data;
 	mc->contenttype		   = "image/*";
-	mc->label		   = "Pine Image Viewer";
+	mc->label		   = "Alpine Image Viewer";
 	dprint((5, "mailcap: using image-viewer=%s\n", 
 		   ps_global->VAR_IMAGE_VIEWER
 		     ? ps_global->VAR_IMAGE_VIEWER : "?"));

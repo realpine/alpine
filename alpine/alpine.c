@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: alpine.c 318 2006-12-12 20:15:27Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: alpine.c 393 2007-01-25 19:50:20Z jpf@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1366,10 +1366,22 @@ read_stdin_char(char *c)
 
 
 /* this default is from the array of structs below */
-#define DEFAULT_MENU_ITEM 6		/* LIST FOLDERS */
-#define ABOOK_MENU_ITEM 8		/* ADDRESS BOOK */
-#define MAX_DEFAULT_MENU_ITEM 12
-#define UNUSED 0
+#define DEFAULT_MENU_ITEM ((unsigned) 3)	/* LIST FOLDERS */
+#define ABOOK_MENU_ITEM ((unsigned) 4)		/* ADDRESS BOOK */
+#define MAX_MENU_ITEM ((unsigned) 6)
+/*
+ * Skip this many spaces between rows of main menu screen.
+ * We have    MAX_MENU_ITEM+1 = # of commands in menu
+ *            1               = copyright line
+ *            MAX_MENU_ITEM   = rows between commands
+ *            1               = extra row above commands
+ *            1               = row between commands and copyright
+ *
+ * To make it simple, if there is enough room for all of that include all the
+ * extra space, if not, cut it all out.
+ */
+#define MNSKIP(X) (((HEADER_ROWS(X)+FOOTER_ROWS(X)+(MAX_MENU_ITEM+1)+1+MAX_MENU_ITEM+1+1) <= (X)->ttyo->screen_rows) ? 1 : 0)
+
 static unsigned char menu_index = DEFAULT_MENU_ITEM;
 
 /*
@@ -1387,26 +1399,20 @@ static struct menu_key {
      */
     {N_(" %s     HELP               -  Get help using Alpine"),
      NULL, MAIN_HELP_KEY},
-    {"", NULL, UNUSED},
     {N_(" %s     COMPOSE MESSAGE    -  Compose and send%s a message"),
      /* TRANSLATORS: We think of sending an email message or posting a news message.
         The message is shown as Compose and send/post a message */
      N_("/post"), MAIN_COMPOSE_KEY},
-    {"", NULL, UNUSED},
     {N_(" %s     MESSAGE INDEX      -  View messages in current folder"),
      NULL, MAIN_INDEX_KEY},
-    {"", NULL, UNUSED},
     {N_(" %s     FOLDER LIST        -  Select a folder%s to view"),
      /* TRANSLATORS: When news is supported the message above becomes
         Select a folder OR news group to view */
      N_(" OR news group"), MAIN_FOLDER_KEY},
-    {"", NULL, UNUSED},
     {N_(" %s     ADDRESS BOOK       -  Update address book"),
      NULL, MAIN_ADDRESS_KEY},
-    {"", NULL, UNUSED},
     {N_(" %s     SETUP              -  Configure Alpine Options"),
      NULL, MAIN_SETUP_KEY},
-    {"", NULL, UNUSED},
     /* TRANSLATORS: final Main menu line */
     {N_(" %s     QUIT               -  Leave the Alpine program"),
      NULL, MAIN_QUIT_KEY}
@@ -1456,9 +1462,6 @@ main_menu_screen(struct pine *pine_state)
     struct key_menu *km;
     OtherMenu        what;
     Pos              curs_pos;
-#if defined(DOS) || defined(OS2)
-/*    extern void (*while_waiting)(); */
-#endif
 
     ps_global                 = pine_state;
     just_a_navigate_cmd       = 0;
@@ -1565,7 +1568,7 @@ main_menu_screen(struct pine *pine_state)
 	    cmd = MC_QUIT;
 	}
 #ifdef	DEBUG
-	else if(debug && ch && strchr("123456789", ch)){
+	else if(debug && ch && ch < 0x80 && strchr("123456789", ch)){
 	    int olddebug;
 
 	    olddebug = debug;
@@ -1615,88 +1618,6 @@ main_menu_screen(struct pine *pine_state)
 	    continue;
 	}
 #endif	/* DEBUG */
-#if	defined(DOS) && !defined(_WINDOWS)
-	else if(ch == 'h'){
-/* while we're testing DOS */
-#include <malloc.h>
-	    int    heapresult;
-	    int    totalused = 0;
-	    int    totalfree = 0;
-	    long   totalusedbytes = 0L;
-	    long   totalfreebytes = 0L;
-	    long   largestinuse = 0L;
-	    long   largestfree = 0L, freeaccum = 0L;
-
-	    _HEAPINFO hinfo;
-	    extern long coreleft();
-	    extern void dumpmetacache();
-
-	    hinfo._pentry = NULL;
-	    while((heapresult = _heapwalk(&hinfo)) == _HEAPOK){
-		if(hinfo._useflag == _USEDENTRY){
-		    totalused++;
-		    totalusedbytes += (long)hinfo._size; 
-		    if(largestinuse < (long)hinfo._size)
-		      largestinuse = (long)hinfo._size;
-		}
-		else{
-		    totalfree++;
-		    totalfreebytes += (long)hinfo._size;
-		}
-
-		if(hinfo._useflag == _USEDENTRY){
-		    if(freeaccum > largestfree) /* remember largest run */
-		      largestfree = freeaccum;
-
-		    freeaccum = 0L;
-		}
-		else
-		  freeaccum += (long)hinfo._size;
-	    }
-
-	    snprintf(tmp_20k_buf, SIZEOF_20KBUF,
-		  "use: %d (%ld, %ld lrg), free: %d (%ld, %ld lrg), DOS: %ld", 
-		    totalused, totalusedbytes, largestinuse,
-		    totalfree, totalfreebytes, largestfree, coreleft());
-	    tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
-	    q_status_message(SM_ORDER, 5, 7, tmp_20k_buf);
-
-	    switch(heapresult/* = _heapchk()*/){
-	      case _HEAPBADPTR:
-		q_status_message(SM_ORDER | SM_DING, 1, 2,
-				 "ERROR - Bad ptr in heap");
-		break;
-	      case _HEAPBADBEGIN:
-		q_status_message(SM_ORDER | SM_DING, 1, 2,
-				 "ERROR - Bad start of heap");
-		break;
-	      case _HEAPBADNODE:
-		q_status_message(SM_ORDER | SM_DING, 1, 2,
-				 "ERROR - Bad node in heap");
-		break;
-	      case _HEAPEMPTY:
-		q_status_message(SM_ORDER, 1, 2, "Heap OK - empty");
-		break;
-	      case _HEAPEND:
-		q_status_message(SM_ORDER, 1, 2, "Heap checks out!");
-		break;
-	      case _HEAPOK:
-		q_status_message(SM_ORDER, 1, 2, "Heap checks out!");
-		break;
-	      default:
-		q_status_message1(SM_ORDER | SM_DING, 1, 2,
-				  "BS from heapchk: %d",
-				  (void *)heapresult);
-		break;
-	    }
-
-	    /*       dumpmetacache(ps_global->mail_stream);*/
-	    /* DEBUG: heapcheck() */
-	    /*       q_status_message1(SM_ORDER, 1, 3,
-		     " * * There's %ld bytes of core left for Alpine * * ", 
-		     (void *)coreleft());*/
-	}
-#endif	/* DOS for testing */
 	else{
 	    cmd = menu_command(ch, km);
 
@@ -1746,8 +1667,8 @@ help_case :
 
 	    /*---------- Previous item in menu ----------*/
 	  case MC_PREVITEM :
-	    if(menu_index > 1) {
-		menu_index -= 2;  /* 2 to skip the blank lines */
+	    if(menu_index > 0) {
+		menu_index--;
 		pine_state->mangled_body = 1;
 		if(km->which == 0)
 		  pine_state->mangled_footer = 1;
@@ -1763,8 +1684,8 @@ help_case :
 
 	    /*---------- Next item in menu ----------*/
 	  case MC_NEXTITEM :
-	    if(menu_index < (unsigned)(MAX_DEFAULT_MENU_ITEM-1)){
-		menu_index += 2;
+	    if(menu_index < MAX_MENU_ITEM){
+		menu_index++;
 		pine_state->mangled_body = 1;
 		if(km->which == 0)
 		  pine_state->mangled_footer = 1;
@@ -1881,6 +1802,7 @@ setup_case :
 	    {   
 		MOUSEPRESS mp;
 		unsigned char ndmi;
+		struct pine *ps = pine_state;
 
 		mouse_get_last (NULL, &mp);
 
@@ -1901,36 +1823,39 @@ setup_case :
 		}
 		else {
 #endif
-		    ndmi = mp.row - 3;
-		    if (mp.row >= 3 && !(ndmi & 0x01)
-			&& ndmi <= (unsigned)MAX_DEFAULT_MENU_ITEM
-			&& ndmi < pine_state->ttyo->screen_rows
-					       - 4 - FOOTER_ROWS(ps_global)) {
+		    if (mp.row >= (HEADER_ROWS(ps) + MNSKIP(ps)))
+		      ndmi = (mp.row+1 - HEADER_ROWS(ps) - (MNSKIP(ps)+1))/(MNSKIP(ps)+1);
+
+		    if (mp.row >= (HEADER_ROWS(ps) + MNSKIP(ps))
+			&& !(MNSKIP(ps) && (mp.row+1) & 0x01)
+			&& ndmi <= MAX_MENU_ITEM
+			&& FOOTER_ROWS(ps) + (ndmi+1)*(MNSKIP(ps)+1)
+			    + MNSKIP(ps) + FOOTER_ROWS(ps) <= ps->ttyo->screen_rows){
 			if(mp.doubleclick){
 			    switch(ndmi){	/* fake main_screen request */
 			      case 0 :
 				goto help_case;
 
-			      case 2 :
+			      case 1 :
 				pine_state->next_screen = compose_screen;
 				return;
 
-			      case 4 :
+			      case 2 :
 				pine_state->next_screen = mail_index_screen;
 				return;
 
-			      case 6 :
+			      case 3 :
 				pine_state->next_screen = folder_screen;
 				return;
 
-			      case 8 :
+			      case 4 :
 				pine_state->next_screen = addr_book_screen;
 				return;
 
-			      case 10 :
+			      case 5 :
 				goto setup_case;
 
-			      case 12 :
+			      case 6 :
 				pine_state->next_screen = quit_screen;
 				return;
 
@@ -2004,7 +1929,8 @@ main_redrawer(void)
   Result: main menu is displayed
   ----*/
 void
-show_main_screen(struct pine *ps, int quick_draw, OtherMenu what, struct key_menu *km, int km_popped, Pos *cursor_pos)
+show_main_screen(struct pine *ps, int quick_draw, OtherMenu what,
+		 struct key_menu *km, int km_popped, Pos *cursor_pos)
 {
     if(ps->painted_body_on_startup || ps->painted_footer_on_startup){
 	ps->mangled_screen = 0;		/* only worry about it here */
@@ -2119,76 +2045,85 @@ show_main_screen(struct pine *ps, int quick_draw, OtherMenu what, struct key_men
 void
 do_menu(int quick_draw, Pos *cursor_pos, struct key_menu *km)
 {
-    int  dline, indent, longest = 0;
-    char buf[MAX_DEFAULT_MENU_ITEM+1][6*MAX_SCREEN_COLS+1];
-    char buf2[6*MAX_SCREEN_COLS+1];
+    struct pine *ps = ps_global;
+    int  dline, indent, longest = 0, cmd;
+    char buf[4*MAX_SCREEN_COLS+1];
+    char buf2[4*MAX_SCREEN_COLS+1];
     static int last_inverse = -1;
     Pos pos;
 
+    /* find the longest command */
+    for(cmd = 0; cmd < sizeof(mkeys)/(sizeof(mkeys[1])); cmd++){
+	memset((void *) buf, ' ', sizeof(buf));
+        snprintf(buf, sizeof(buf), mkeys[cmd].key_and_name[0] ? _(mkeys[cmd].key_and_name) : "",
+		(F_OFF(F_USE_FK,ps)
+		 && km->keys[mkeys[cmd].key_index].name)
+		   ? km->keys[mkeys[cmd].key_index].name : "",
+		(ps->VAR_NEWS_SPEC && mkeys[cmd].news_addition && mkeys[cmd].news_addition[0])
+		  ? _(mkeys[cmd].news_addition) : "");
+	buf[sizeof(buf)-1] = '\0';
 
-    /*
-     * Build all the menu lines...
-     */
-    for(dline = 0; dline < sizeof(mkeys)/(sizeof(mkeys[1])); dline++){
-	memset((void *)buf[dline], ' ', 6*MAX_SCREEN_COLS * sizeof(char));
-	if(dline <= MAX_DEFAULT_MENU_ITEM)
-          snprintf(buf[dline], 6*MAX_SCREEN_COLS+1, mkeys[dline].key_and_name[0] ? _(mkeys[dline].key_and_name) : "",
-		(F_OFF(F_USE_FK,ps_global)
-		 && km->keys[mkeys[dline].key_index].name)
-		   ? km->keys[mkeys[dline].key_index].name : "",
-		(ps_global->VAR_NEWS_SPEC && mkeys[dline].news_addition && mkeys[dline].news_addition[0])
-		  ? _(mkeys[dline].news_addition) : "");
-	buf[dline][6*MAX_SCREEN_COLS] = '\0';
-
-	if(longest < (indent = utf8_width(buf[dline])))
+	if(longest < (indent = utf8_width(buf)))
 	  longest = indent;
-
-	/* put back space at end of string */
-	if(strlen(buf[dline]) <= 6*MAX_SCREEN_COLS)
-	  buf[dline][strlen(buf[dline])] = ' ';	/* buf's really tied off below */
     }
 
-    indent = MAX(((ps_global->ttyo->screen_cols - longest)/2) - 1, 0);
+    indent = MAX(((ps->ttyo->screen_cols - longest)/2) - 1, 0);
 
-    /* leave room for keymenu, status line, and trademark message */
-    for(dline = 3;
-	dline - 3 < sizeof(mkeys)/sizeof(mkeys[1])
-	  && dline < ps_global->ttyo->screen_rows-(FOOTER_ROWS(ps_global)+1);
-	dline++){
-	if(quick_draw && !(dline-3 == last_inverse
-			   || dline-3 == menu_index))
-	  continue;
+    dline = HEADER_ROWS(ps) + MNSKIP(ps);
+    for(cmd = 0; cmd < sizeof(mkeys)/(sizeof(mkeys[1])); cmd++){
+	/* leave room for copyright and footer */
+	if(dline + MNSKIP(ps) + 1 + FOOTER_ROWS(ps) >= ps->ttyo->screen_rows)
+	  break;
 
-	if(dline-3 == menu_index)
+	if(quick_draw && !(cmd == last_inverse || cmd == menu_index)){
+	    dline += (1 + MNSKIP(ps));
+	    continue;
+	}
+
+	if(cmd == menu_index)
 	  StartInverse();
 
-	utf8_pad_to_width(buf2, buf[dline-3], sizeof(buf2),
-		    MIN(ps_global->ttyo->screen_cols-indent,longest+1), 1);
-	pos.row = dline;
+	memset((void *) buf, ' ', sizeof(buf));
+        snprintf(buf, sizeof(buf), mkeys[cmd].key_and_name[0] ? _(mkeys[cmd].key_and_name) : "",
+		(F_OFF(F_USE_FK,ps)
+		 && km->keys[mkeys[cmd].key_index].name)
+		   ? km->keys[mkeys[cmd].key_index].name : "",
+		(ps->VAR_NEWS_SPEC && mkeys[cmd].news_addition && mkeys[cmd].news_addition[0])
+		  ? _(mkeys[cmd].news_addition) : "");
+	buf[sizeof(buf)-1] = '\0';
+
+	utf8_pad_to_width(buf2, buf, sizeof(buf2),
+			  MIN(ps->ttyo->screen_cols-indent,longest+1), 1);
+	pos.row = dline++;
 	pos.col = indent;
         PutLine0(pos.row, pos.col, buf2);
 
-	if(dline-3 == menu_index){
+	if(MNSKIP(ps))
+	  dline++;
+
+	if(cmd == menu_index){
 	    if(cursor_pos){
 		cursor_pos->row = pos.row;
+		/* 6 is 1 for the letter plus 5 spaces */
 		cursor_pos->col = pos.col + 6;
-		if(F_OFF(F_USE_FK,ps_global))
+		if(F_OFF(F_USE_FK,ps))
 		  cursor_pos->col++;
 
-		cursor_pos->col = MIN(cursor_pos->col, ps_global->ttyo->screen_cols);
+		cursor_pos->col = MIN(cursor_pos->col, ps->ttyo->screen_cols);
 	    }
 
 	    EndInverse();
 	}
     }
 
+
     last_inverse = menu_index;
 
-    if(!quick_draw){	/* the devi.. uh, I mean, lawyer made me do it. */
+    if(!quick_draw && FOOTER_ROWS(ps)+1 < ps->ttyo->screen_rows){
 	utf8_to_width(buf2, LEGAL_NOTICE, sizeof(buf2),
-		      ps_global->ttyo->screen_cols-3, NULL);
-	PutLine0(ps_global->ttyo->screen_rows - (FOOTER_ROWS(ps_global)+1),
-		 MAX(0, ((ps_global->ttyo->screen_cols-utf8_width(buf2))/2)),
+		      ps->ttyo->screen_cols-3, NULL);
+	PutLine0(ps->ttyo->screen_rows - (FOOTER_ROWS(ps)+1),
+		 MAX(0, ((ps->ttyo->screen_cols-utf8_width(buf2))/2)),
 		 buf2);
     }
 
@@ -3413,11 +3348,14 @@ pcpine_main_cursor(col, row)
 {
     unsigned char ndmi;
 
-    ndmi = (unsigned char) row - 3;
-    if(row >= 3 && !(ndmi & 0x01)
-       && ndmi <= (unsigned) MAX_DEFAULT_MENU_ITEM
-       && ndmi < ps_global->ttyo->screen_rows - 4 - FOOTER_ROWS(ps_global)
-       && !(ndmi & 0x01))
+    if (row >= (HEADER_ROWS(ps_global) + MNSKIP(ps_global)))
+      ndmi = (row+1 - HEADER_ROWS(ps_global) - (MNSKIP(ps_global)+1))/(MNSKIP(ps_global)+1);
+
+    if (row >= (HEADER_ROWS(ps_global) + MNSKIP(ps_global))
+	&& !(MNSKIP(ps_global) && (row+1) & 0x01)
+	&& ndmi <= MAX_MENU_ITEM
+	&& FOOTER_ROWS(ps_global) + (ndmi+1)*(MNSKIP(ps_global)+1)
+	    + MNSKIP(ps_global) + FOOTER_ROWS(ps_global) <= ps_global->ttyo->screen_rows)
       return(MSWIN_CURSOR_HAND);
     else
       return(MSWIN_CURSOR_ARROW);

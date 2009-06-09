@@ -147,9 +147,9 @@ BEGIN
         END
         MENUITEM SEPARATOR
         MENUITEM "Use &Dialog Boxes",           IDM_OPT_USEDIALOGS
+	MENUITEM "Erase Preserved &Passwords",  IDM_OPT_ERASE_CREDENTIALS
         MENUITEM SEPARATOR
         MENUITEM "&IMAP Telemetry",             IDM_OPT_IMAPTELEM
-        MENUITEM SEPARATOR
         MENUITEM "&New Mail Window",            IDM_OPT_NEWMAILWIN
     END
     POPUP "&Help"
@@ -243,8 +243,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,81,0,0
- PRODUCTVERSION 0,81,0,0
+ FILEVERSION 0,82,0,0
+ PRODUCTVERSION 0,82,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -270,12 +270,12 @@ BEGIN
             VALUE "FileDescription", "Alpine\0"
 #endif
 #endif
-            VALUE "FileVersion", "0.8\0"
+            VALUE "FileVersion", "0.82\0"
             VALUE "InternalName", "alpine\0"
-            VALUE "LegalCopyright", "Copyright 2006\0"
+            VALUE "LegalCopyright", "Copyright 2006-2007\0"
             VALUE "OriginalFilename", "alpine.exe\0"
             VALUE "ProductName", "alpine\0"
-            VALUE "ProductVersion", "0.8\0"
+            VALUE "ProductVersion", "0.82\0"
         END
     END
     BLOCK "VarFileInfo"
@@ -285,6 +285,9 @@ BEGIN
 END
 
 #endif    // !_MAC
+
+
+#include "..\..\pico\osdep\mswin_spell.dlg"
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -347,7 +350,7 @@ BEGIN
     DEFPUSHBUTTON   "Help '^G'",IDC_GETHELP,87,52,79,14
 END
 
-IDD_LOGINDLG DIALOG DISCARDABLE  0, 0, 213, 106
+IDD_LOGINDLG DIALOG DISCARDABLE  0, 0, 213, 111
 STYLE DS_MODALFRAME | DS_SETFOREGROUND | DS_CENTER | WS_MINIMIZEBOX |
     WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Alpine Login"
@@ -360,8 +363,11 @@ BEGIN
     EDITTEXT        IDC_RLOGINE,45,42,133,12,ES_AUTOHSCROLL
     LTEXT           "Password: ",IDC_RPWTEXT,7,57,36,8
     EDITTEXT        IDC_RPASSWORD,45,55,133,12,ES_PASSWORD | ES_AUTOHSCROLL
-    DEFPUSHBUTTON   "OK",IDOK,47,85,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,106,85,50,14
+    CONTROL         "Preserve this password for future logins",
+                    IDC_PRESPASS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,45,70,
+                    165,8
+    DEFPUSHBUTTON   "OK",IDOK,47,90,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,106,90,50,14
 END
 
 IDD_LOGINDLG2 DIALOG DISCARDABLE  0, 0, 281, 222
@@ -377,6 +383,9 @@ BEGIN
     EDITTEXT        IDC_RLOGINE,82,96,133,12,ES_AUTOHSCROLL
     LTEXT           "Password: ",IDC_RPWTEXT,44,120,36,8
     EDITTEXT        IDC_RPASSWORD,82,118,133,12,ES_PASSWORD | ES_AUTOHSCROLL
+    CONTROL         "Preserve this password for future logins",
+                    IDC_PRESPASS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,82,138,
+                    165,8
     DEFPUSHBUTTON   "OK",IDOK,65,196,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,131,196,50,14
 END
@@ -577,7 +586,7 @@ END
 
 STRINGTABLE DISCARDABLE 
 BEGIN
-    IDS_BYLINE              "ALPINE Copyright 2006 University of Washington"
+    IDS_BYLINE              "Copyright 2006-2007 University of Washington"
     IDS_APPNAME             "Alpine"
     IDS_APPIDENT            "alpine"
 END

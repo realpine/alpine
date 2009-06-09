@@ -1,5 +1,5 @@
 #!./tclsh
-
+# $Id: tconfig.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -709,6 +709,7 @@ cgi_html {
 				}
 			      }
 
+			      if {0} {
 			      cgi_table_row {
 
 				if {[WPCmd PEInfo feature enable-aggregate-command-set]} {
@@ -746,21 +747,21 @@ cgi_html {
 				}
 
 				if {[set i [expr {[llength $fmt] - 2}]] > 0} {
-				  cgi_table_data colspan=3 bgcolor=#ffffff {
+				  cgi_table_data colspan=3 "bgcolor=#ffffff" {
 				    cgi_table border=0 cellpadding=0 cellspacing=0 width=100% {
 				      cgi_table_row {
 					cgi_td width=50% align=center [cgi_img [WPimg dot2] width=1 height=1]
-					cgi_td width=50% align=center bgcolor=#000000 [cgi_img [WPimg dot2] width=1 height=1]
+					cgi_td width=50% align=center "bgcolor=#000000" [cgi_img [WPimg dot2] width=1 height=1]
 				      }
 				    }
 				  }
 
-				  cgi_td colspan=[expr {3 * $i}] bgcolor=#000000 [cgi_img [WPimg blackdot] width=1]
+				  cgi_td colspan=[expr {3 * $i}] "bgcolor=#000000" [cgi_img [WPimg blackdot] width=1]
 
-				  cgi_table_data colspan=3 bgcolor=#ffffff {
+				  cgi_table_data colspan=3 "bgcolor=#ffffff" {
 				    cgi_table border=0 cellpadding=0 cellspacing=0 width=100% {
 				      cgi_table_row {
-					cgi_td width=50% align=center bgcolor=#000000 [cgi_img [WPimg dot2] width=1 height=1]
+					cgi_td width=50% align=center "bgcolor=#000000" [cgi_img [WPimg dot2] width=1 height=1]
 					cgi_td width=50% align=center [cgi_img [WPimg dot2] width=1 height=1]
 				      }
 				    }
@@ -775,18 +776,50 @@ cgi_html {
 			      }
 
 			      cgi_table_row {
-				cgi_table_data align=center colspan=$cols bgcolor=#ffffff "style=\"padding: 12\"" {
+				cgi_table_data align=center colspan=$cols "bgcolor=#ffffff" "style=\"padding: 12\"" {
 				  cgi_select iop {
-				    #cgi_option {[Adjust Index Field]} value=
+
 				    cgi_option "Move Field Left" value=left
 				    cgi_option "Move Field Right" value=right
 				    cgi_option "Widen Field " value=widen
 				    cgi_option "Narrow Field" value=narrow
 				    cgi_option "Remove Field" value=remove
 				  }
-				  cgi_submit_button "adjust=Change" 
+				  cgi_submit_button "adjust=Change"
 				}
 			      }
+			      } else {
+
+
+			      cgi_table_row {
+				if {[WPCmd PEInfo feature enable-aggregate-command-set]} {
+				  cgi_table_data "bgcolor=#ffffff" {
+				    cgi_put [cgi_img [WPimg dot2]]
+				  }
+
+				  cgi_td width=1 [cgi_img [WPimg dot2] width=1]
+
+				  set cols 2
+				} else {
+				  set cols 0
+				}
+
+				set fmturl "wp.tcl?page=conf_process&wv=msgl&adjust=Change&cid=[WPCmd PEInfo key]&oncancel=$oncancel&index-format=[WPPercentQuote $fmt]"
+				foreach fme $fmt {
+				  cgi_table_data colspan=2 nowrap "bgcolor=#ffffff" align=center valign=middle {
+				    set cellurl "${fmturl}&ifield=[lindex $fme 0]"
+				    cgi_puts [cgi_url [cgi_img [WPimg if_left] border=0 "alt=Move Field Left" height=11 width=11] "${cellurl}&iop=left" target=_top]
+				    cgi_puts [cgi_url [cgi_img [WPimg if_wider] border=0 "alt=Widen Field" height=11 width=11] "${cellurl}&iop=widen" target=_top]
+				    cgi_puts [cgi_url [cgi_img [WPimg if_remove] border=0 "alt=Remove Field" height=11 width=11] "${cellurl}&iop=remove" target=_top]
+				    cgi_puts [cgi_url [cgi_img [WPimg if_narrow2] border=0 "alt=Narrow Field" height=11 width=11] "${cellurl}&iop=narrow" target=_top]
+				    cgi_puts [cgi_url [cgi_img [WPimg if_right] border=0 "alt=Move Field Right" height=11 width=11] "${cellurl}&iop=right" target=_top]
+				  }
+
+				  cgi_td width=1 [cgi_img [WPimg dot2] width=1]
+				}
+			      }
+			      }
+
 			    }
 
 			    if {[catch {WPCmd PEConfig indextokens} tokens] == 0} {

@@ -4,7 +4,7 @@ static char rcsid[] = "$Id: termin.unx.c 193 2006-10-20 17:09:26Z mikes@u.washin
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,7 +55,6 @@ static char rcsid[] = "$Id: termin.unx.c 193 2006-10-20 17:09:26Z mikes@u.washin
 /* global to tell us if the window was resized. */
 static int DidResize = FALSE;
 
-int win_dialog_opt_enter(char *, int, char *, ESCKEY_S *, HelpType, int *);
 int pine_window_resize_callback(void);
 
 /*----------------------------------------------------------------------
@@ -250,7 +249,8 @@ win_dialog_opt_enter(char *utf8string, int utf8string_size, char *utf8prompt,
     if(utf8string)
       saved_string = cpystr(utf8string);
 
-    help_text = get_help_text(help);
+    /* assumption here is that HelpType is char **  */
+    help_text = help;
 
     n = utf8string_size;
     string = (UCS *) fs_get(n * sizeof(UCS));
@@ -268,8 +268,6 @@ win_dialog_opt_enter(char *utf8string, int utf8string_size, char *utf8prompt,
 			    (flags && *flags & OE_PASSWD),
 			    button_list,
 			    help_text, flags ? *flags : OE_NONE);
-
-    free_list_array(&help_text);
 
     for(i = 0; i < 12; i++){
 	if(free_names[i])

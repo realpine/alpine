@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: charset.c 237 2006-11-16 04:08:15Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: charset.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -80,7 +80,7 @@ charset_alias(char *cs)
 
 
 char *
-body_charset(MAILSTREAM *stream, long int msgno, char *section)
+body_charset(MAILSTREAM *stream, long int msgno, unsigned char *section)
 {
     BODY *body;
     char *charset;
@@ -425,8 +425,8 @@ rfc1522_decode(unsigned char *d, size_t len, char *s, char **charset)
 	char	  *newcharset = NULL;
 	SIZEDTEXT  text, ctext;
 
-	text.size = strlen(rv);
-	text.data = (unsigned char *) rv;
+	text.size = strlen((char *) rv);
+	text.data = rv;
 	memset(&ctext, 0, sizeof(SIZEDTEXT));
 	if(utf8_text(&text, xlit, &ctext, 0L)){
 	    char *ntc;
@@ -439,7 +439,7 @@ rfc1522_decode(unsigned char *d, size_t len, char *s, char **charset)
 	      fs_give((void **) &ctext.data);
 
 	    /* copy up to <len> bytes of whole characters */
-	    iutf8ncpy(rv, ntc, len);
+	    iutf8ncpy((char *) rv, ntc, len);
 	    rv[len-1] = '\0';
 
 	    fs_give((void **) &ntc);
@@ -748,17 +748,6 @@ conversion_table(char *from_cs, char *to_cs)
 	return(&null_tab);
     }
 
-#ifdef notdef
-    if(F_OFF(F_DISABLE_2022_JP_CONVERSIONS, ps_global) &&
-       !strucmp(to_cs,"ISO-2022-JP") && utf8_charset("EUC-JP")) {
-#ifdef _WINDOWS
-	to_cs = "SHIFT-JIS";	/* Windows uses Shift-JIS internally */
-#else
-	to_cs = "EUC-JP";	/* assume EUC-JP internally */
-#endif
-    }
-#endif /* notdef */
-
     /*
      * First check to see if we are already set up for this pair of charsets.
      */
@@ -963,7 +952,15 @@ convert_possibly_encoded_str_to_utf8(char **strp)
     bufp = (char *) fs_get(len);
 
     decoded = (char *) rfc1522_decode((unsigned char *) bufp, len, *strp, &charset);
-    if(decoded != (*strp) && charset && !strucmp(charset, "utf-8")){
+    if(decoded == (*strp) || charset && strucmp(charset, "utf-8")){
+	new = convert_to_utf8(*strp, charset, 0);
+	if(new){
+	    fs_give((void **) strp);
+	    *strp = new;
+	}
+	/* else, already UTF-8 */
+    }
+    else{
 	if((lensrc=strlen(*strp)) >= (lenresult=strlen(decoded))){
 	    strncpy(*strp, decoded, lensrc);
 	    (*strp)[lensrc-1] = '\0';
@@ -979,14 +976,6 @@ convert_possibly_encoded_str_to_utf8(char **strp)
 		*strp = cpystr(decoded);
 	    }
 	}
-    }
-    else{
-	new = convert_to_utf8(*strp, charset, 0);
-	if(new){
-	    fs_give((void **) strp);
-	    *strp = new;
-	}
-	/* else, already UTF-8 */
     }
 
     if(charset)

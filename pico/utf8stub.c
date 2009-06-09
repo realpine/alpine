@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: utf8stub.c 245 2006-11-18 02:46:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: utf8stub.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ static char rcsid[] = "$Id: utf8stub.c 245 2006-11-18 02:46:41Z hubert@u.washing
 
 
 #include <system.h>
+#include "utf8stub.h"
 
 
 /*
@@ -47,10 +48,10 @@ fs_give (void **block)
   *block = NULL;
 }
 
-int
+void
 fatal(char *s)
 {
-    return 0;
+    ;
 }
 
 

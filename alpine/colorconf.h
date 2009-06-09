@@ -1,8 +1,8 @@
 /*
- * $Id: colorconf.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: colorconf.h 380 2007-01-23 00:09:18Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@
 #define SAMPEXC "[Exception]"
 #define SBS 1	/* space between samples */
 #define COLOR_BLOB "<    >"
+#define COLOR_BLOB_TRAN "<TRAN>"
 #define COLOR_BLOB_LEN 6
 #define COLOR_INDENT 3
 #define COLORNOSET "  [ Colors below may not be set until color is turned on above ]"
@@ -46,7 +47,7 @@
  * of the particular SPEC_COLOR_S this CONF_S is associated with.
  * Capiche?
  */
-#define	CFC_ICOLOR(V)		((V)->varmem & 0xff)
+#define	CFC_ICOLOR(V)		((V)->varmem & 0xffff)
 #define	CFC_ICUST(V)		((V)->varmem >> 16)
 #define	CFC_SET_COLOR(I, C)	(((I) << 16) | (C))
 #define	CFC_ICUST_INC(V)	CFC_SET_COLOR(CFC_ICUST(V) + 1, CFC_ICOLOR(V))

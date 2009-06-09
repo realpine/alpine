@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcmd.c 233 2006-11-15 23:56:21Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailcmd.c 394 2007-01-25 20:29:45Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -1773,7 +1773,8 @@ cross_delete_crossposts(MAILSTREAM *stream)
 	CONTEXT_S   *fake_context;
 	char	    *xref, *p, *group, *uidp,
 		    *newgrp, newfolder[MAILTMPLEN];
-	long	     i, uid, hostlatch = 0L;
+	long	     i, hostlatch = 0L;
+	imapuid_t    uid;
 	int	     we_cancel = 0;
 	MESSAGECACHE *mc;
 
@@ -1825,14 +1826,14 @@ cross_delete_crossposts(MAILSTREAM *stream)
 							+ (newgrp - newfolder))
 				 && folder_index(group, fake_context,
 						 FI_FOLDER) >= 0){
-				  if(uid = atol(uidp)){
+				  if(uid = strtoul(uidp, NULL, 10)){
 				      strncpy(newgrp, group, sizeof(newfolder)-(newgrp-newfolder));
 				      newfolder[sizeof(newfolder)-1] = '\0';
 				      if(tstream = pine_mail_open(NULL,
 								  newfolder,
 								  SP_USEPOOL,
 								  NULL)){
-					  mail_flag(tstream, long2string(uid),
+					  mail_flag(tstream, ulong2string(uid),
 						    "\\DELETED",
 						    ST_SET | ST_UID);
 					  pine_mail_close(tstream);

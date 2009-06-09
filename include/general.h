@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------
-  $Id: general.h 229 2006-11-13 23:14:48Z hubert@u.washington.edu $
+  $Id: general.h 394 2007-01-25 20:29:45Z hubert@u.washington.edu $
   ----------------------------------------------------------------------*/
 
 /* ========================================================================
@@ -122,6 +122,13 @@
  * so a 32 bit signed integer could hold them all.
  */
 typedef UINT32 UCS;
+
+/*
+ * The type of an IMAP UID, which is a 32-bit unsigned int.
+ * This could be UINT32 instead of unsigned long but we use
+ * unsigned long because that's what c-client uses.
+ */
+typedef unsigned long imapuid_t;
 
 
 #endif /* _GENERAL_INCLUDED */

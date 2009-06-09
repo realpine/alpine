@@ -1,7 +1,7 @@
 #!./tclsh
-
+# $Id: detach.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
 # ========================================================================
-# Copyright 2006 University of Washington
+# Copyright 2006-2007 University of Washington
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -65,27 +65,26 @@ WPEval $detach_vars {
   for {set n 0} {1} {incr n} {
 
     set rhandle [WPCmd PESession random 64]
-    set cfile [file join $_wp(fileroot) $_wp(detachpath) detach.${rhandle}.control]
-    set dfile [file join $_wp(fileroot) $_wp(detachpath) detach.${rhandle}.data]
+    set cfile [file join $_wp(fileroot) $_wp(detachpath) detach.${rhandle}-control]
+    set dfile [file join $_wp(fileroot) $_wp(detachpath) detach.${rhandle}-data]
 
     if {[file exists $cfile] == 0 && [file exists $dfile] == 0} {
-      if {[catch {open $cfile {RDWR CREAT EXCL} [cgi_tmpfile_permissions]} cfd]
-	  || [catch {open $dfile {RDWR CREAT EXCL} [cgi_tmpfile_permissions]} dfd]} {
-	if {[info exists dfd]} {
-	  catch {close $cfd}
-	  catch {file delete -force $cfile}
-	  set errstr $dfd
-	} else {
-	  set errstr $cfd
-	}
-
-	error [list _action Detach "Cannot create command/control files: [cgi_quote_html $errstr]" "Please close this window"]
+      if {[catch {open $cfile {RDWR CREAT EXCL} [cgi_tmpfile_permissions]} cfd]} {
+	error [list _action Detach "Cannot create control file: [cgi_quote_html $cfd]" "Please close this window"]
       } else {
-	# exec chmod [cgi_tmpfile_permissions] $cfile
-	# exec chmod [cgi_tmpfile_permissions] $dfile
-	close $dfd
-	break
+	exec echo ${rhandle}-control | [file join $_wp(cgipath) [WPCmd PEInfo set wp_ver_dir] whackatch.tcl] >& /dev/null &
       }
+
+      if {[catch {open $dfile {RDWR CREAT EXCL} [cgi_tmpfile_permissions]} dfd]} {
+	catch {close $cfd}
+	error [list _action Detach "Cannot create command file: [cgi_quote_html $dfd]" "Please close this window"]
+      } else {
+	exec echo ${rhandle}-data | [file join $_wp(cgipath) [WPCmd PEInfo set wp_ver_dir] whackatch.tcl] >& /dev/null &
+      }
+
+      # exec chmod [cgi_tmpfile_permissions] $cfile
+      # exec chmod [cgi_tmpfile_permissions] $dfile
+      break
     } elseif {$n > 4} {
       error [list _action Detach "Command file creation limit" "Please close this window"]
     }
@@ -181,7 +180,4 @@ WPEval $detach_vars {
     cgi_puts "URI: ${redirect}${safegivenname}?h=${rhandle}${straytmp}"
     cgi_puts "Location: ${redirect}${safegivenname}?h=${rhandle}${straytmp}"
   }
-
-  exec echo $rhandle | [file join $_wp(cgipath) [WPCmd PEInfo set wp_ver_dir] whackatch.tcl] >& /dev/null &
-
 }

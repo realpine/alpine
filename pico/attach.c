@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: attach.c 205 2006-10-26 23:04:44Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: attach.c 343 2006-12-22 18:25:39Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -19,6 +19,7 @@ static char rcsid[] = "$Id: attach.c 205 2006-10-26 23:04:44Z hubert@u.washingto
 
 #include "headers.h"
 #include "../pith/charconv/filesys.h"
+#include "../pith/string.h"
 
 #include <math.h>
 
@@ -444,8 +445,8 @@ SyncAttach(void)
 
     if(ki){
 	if((knwn = (PATMT **)malloc((ki+1) * (sizeof(PATMT *)))) == NULL){
-	    emlwrite("\007Can't allocate space for %d known attachment array entries", 
-		     (void *) (ki + 1));
+	    emlwrite("\007Can't allocate space for %s known attachment array entries", 
+		     comatose(ki + 1));
 	    rv = -1;
 	    goto exit_early;
 	}
@@ -466,8 +467,8 @@ SyncAttach(void)
     nbld = nbld > ki ? nbld : ki + 1;           
 
     if((bld = (PATMT **)malloc(nbld * (sizeof(PATMT *)))) == NULL){
-	emlwrite("\007Can't allocate space for %d build array entries",
-		 (void *) nbld);
+	emlwrite("\007Can't allocate space for %s build array entries",
+		 comatose(nbld));
 	rv = -1;
 	goto exit_early;
     }
@@ -479,8 +480,8 @@ SyncAttach(void)
 
 	if(bi == nbld){		                /* need to grow build array? */
 	    if((bld = (PATMT **)realloc(bld, ++nbld * sizeof(PATMT *))) == NULL){
-		emlwrite("\007Can't resize build array to %d entries ",
-			 (void *) nbld);
+		emlwrite("\007Can't resize build array to %s entries ",
+			 comatose(nbld));
 		rv = -1;
 		goto exit_early;
 	    }
@@ -828,10 +829,10 @@ ParseAttach(struct hdr_line **lp,		/* current header line      */
 	    }
 	    else if(c == ',' || c == ' '){
 		/* TRANSLATORS: Attchmnt is an abbreviation for Attachment and
-		   the %c is replaced with the character that is not
+		   the %s is replaced with the character that is not
 		   allowed in the name. */
-		emlwrite(_("\007Attchmnt: '%c' not allowed in file name"), 
-			  (void *)(int)c);
+		emlwrite(_("\007Attchmnt: '%s' not allowed in file name"), 
+			  (c == ',') ? "," : "space");
 		rv = -1;
 		level = TG;			/* eat rest of garbage */
 		break;
@@ -994,8 +995,10 @@ process_tag:					/* enclosed in []         */
 	    }
 	    else if(!(lbln || quoted)
 		    && (c == ',' || c == ' ' || c == '[' || c == ']')){
-		emlwrite(_("\007Attchmnt: '%c' not allowed in file name"),
-			  (void *)(int)c);
+		emlwrite(_("\007Attchmnt: '%s' not allowed in file name"),
+			  c == ',' ? ","
+			    : c == ' ' ? "space"
+			      : c == '[' ? "[" : "]");
 		rv = -1;			/* bad char in file name */
 		level = TG;			/* gobble garbage */
 	    }

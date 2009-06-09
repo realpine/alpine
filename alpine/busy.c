@@ -3,7 +3,7 @@ static char rcsid[] = "$Id: signal.c 138 2006-09-22 22:12:03Z mikes@u.washington
 #endif
 
 /* ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,7 +49,7 @@ static int       final_message_pri;
 static percent_done_t percent_done_ptr;
 
 #define	MAX_SPINNER_WIDTH	32
-#define	MAX_SPINNER_ELEMENTS	24
+#define	MAX_SPINNER_ELEMENTS	28
 
 static int spinner = 0;
 static struct _spinner {
@@ -58,18 +58,19 @@ static struct _spinner {
 	char *bars[MAX_SPINNER_ELEMENTS];
 } spinners[] = {
     {4, 8, {"|   ", " /  ", " _  ", "  \\ ", "  | ", "  \\ ", " _  ", "/   "}},
+    {4, 8, {"_ _ ", "\\ \\ ", " | |", " / /", " _ _", " / /", " | |", "\\ \\ "}},
     {4, 8, {"_   ", "\\   ", " |  ", "  / ", "  _ ", "  \\ ", " |  ", "/   "}},
     {4, 8, {"_   ", "\\   ", " |  ", "  / ", "  _ ", "  / ", " |  ", "\\   "}},
     {4, 4, {" .  ", " o  ", " O  ", " o  "}},
     {4, 4, {"... ", " .. ", ". . ", "..  "}},
     {4, 4, {".oOo", "oOo.", "Oo.o", "o.oO"}},
-    {9, 10,{".       .", " .     . ", "  .   .  ", "   . .   ",
-            "    .    ", "    +    ", "    *    ", "    X    ",
-	    "    #    ", "         "}},
+    {7, 9, {".     .", " .   . ", "  . .  ",
+            "   .   ", "   +   ", "   *   ", "   X   ",
+	    "   #   ", "       "}},
     {4, 4, {". O ", "o o ", "O . ", "o o "}},
-    {4, 24,{"|   ", "/   ", "_   ", "\\   ", " |  ", " /  ", " _  ", " \\  ",
-            "  | ", "  / ", "  _ ", "  \\ ", "   |", "  \\ ", "  _ ", "  / ",
-	    "  | ", " \\  ", " _  ", " /  ", " |  ", "\\   ", "_   ", "/   "}},
+    {4, 26,{"|   ", "/   ", "_   ", "\\   ", " |  ", " /  ", " _  ", " \\  ",
+            "  | ", "  / ", "  _ ", "  \\ ", "   |", "   |", "  \\ ", "  _ ", "  / ",
+	    "  | ", " \\  ", " _  ", " /  ", " |  ", "\\   ", "_   ", "/   ", "|   "}},
     {4, 8, {"*   ", "-*  ", "--* ", " --*", "  --", "   -", "    ", "    "}},
     {4, 2, {"\\/\\/", "/\\/\\"}},
     {4, 4, {"\\|/|", "|\\|/", "/|\\|", "|/|\\"}},

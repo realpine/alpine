@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: folder.c 245 2006-11-18 02:46:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: folder.c 343 2006-12-22 18:25:39Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -2485,7 +2485,7 @@ folder_processor(int cmd, MSGNO_S *msgmap, SCROLL_S *sparms)
   
             /*--------------- Invalid Command --------------*/
       default: 
-	q_status_message1(SM_ORDER, 0, 2, "MIKE:  fix cmd = %x", (void *) cmd);
+	q_status_message1(SM_ORDER, 0, 2, "fix this: cmd = %s", comatose(cmd));
 	break;
     }
 

@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: newmail.c 229 2006-11-13 23:14:48Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: newmail.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,44 +14,6 @@ static char rcsid[] = "$Id: newmail.c 229 2006-11-13 23:14:48Z hubert@u.washingt
  *
  * ========================================================================
  */
-
-/*----------------------------------------------------------------------
-
-            T H E    P I N E    M A I L   S Y S T E M
-
-   Laurence Lundblade and Mike Seibel
-   Networks and Distributed Computing
-   Computing and Communications
-   University of Washington
-   Administration Builiding, AG-44
-   Seattle, Washington, 98195, USA
-   Internet: lgl@CAC.Washington.EDU
-             mikes@CAC.Washington.EDU
-
-   Please address all bugs and comments to "pine-bugs@cac.washington.edu"
-
-
-   Pine and Pico are registered trademarks of the University of Washington.
-   No commercial use of these trademarks may be made without prior written
-   permission of the University of Washington.
-
-   Pine, Pico, and Pilot software and its included text are Copyright
-   1989-2006 by the University of Washington.
-
-   The full text of our legal notices is contained in the file called
-   CPYRIGHT, included with this distribution.
-
-
-   Pine is in part based on The Elm Mail System:
-    ***********************************************************************
-    *  The Elm Mail System  -  Revision: 2.13                             *
-    *                                                                     *
-    * 			Copyright (c) 1986, 1987 Dave Taylor              *
-    * 			Copyright (c) 1988, 1989 USENET Community Trust   *
-    ***********************************************************************
- 
-
-  ----------------------------------------------------------------------*/
 
 #include "../pith/headers.h"
 #include "../pith/newmail.h"

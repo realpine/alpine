@@ -1,10 +1,10 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pilot.c 168 2006-10-04 18:31:00Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pilot.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -129,8 +129,10 @@ main(int argc, char *argv[])
 
     if(display_character_set)
       display_charmap = cpstr(display_character_set);
+#if   HAVE_LANGINFO_H && defined(CODESET)
     else
       display_charmap = cpstr(nl_langinfo(CODESET));
+#endif
 
     if(!display_charmap)
       display_charmap = cpstr("US-ASCII");
@@ -143,7 +145,7 @@ main(int argc, char *argv[])
 #undef cpstr
 
     if(use_system_translation){
-#if	(HAVE_WCHAR_H && HAVE_WCRTOMB && HAVE_WCWIDTH && HAVE_MBSTOWCS && !defined(_WINDOWS))
+#if	PREREQ_FOR_SYS_TRANSLATION
 	use_system++;
 	/* This modifies its arguments */
 	if(setup_for_input_output(use_system, &display_charmap, &keyboard_charmap,
@@ -195,8 +197,8 @@ main(int argc, char *argv[])
 
     curbp->b_mode |= gmode;		/* and set default modes*/
     if(get_input_timeout())
-      emlwrite(_("Checking for new mail every %D seconds"),
-	        (void *) get_input_timeout());
+      emlwrite(_("Checking for new mail every %s seconds"),
+	        comatose(get_input_timeout()));
 
 
     set_browser_title(PILOT_VERSION);

@@ -1,8 +1,8 @@
 /*
- * $Id: init.h 152 2006-09-29 01:42:04Z mikes@u.washington.edu $
+ * $Id: init.h 380 2007-01-23 00:09:18Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@
 #define ALPINE_VERSION		PACKAGE_VERSION
 
 #define	LEGAL_NOTICE \
-   "Copyright 2006 University of Washington"
+   "Copyright 2006-2007 University of Washington"
 
 
 /* exported protoypes */

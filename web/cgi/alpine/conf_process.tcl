@@ -1,5 +1,5 @@
 #!./tclsh
-
+# $Id: conf_process.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -759,6 +759,8 @@ proc wpGetRuleAction {tosave} {
 
 		  set _cgi_uservar(oncancel) [WPPercentQuote "conf_process&wv=rule&filters-sz=${fakesz}&${fakeimg}.x=1&${fakeimg}.y=1&oncancel=main.tcl"]
 		  set script help
+		} elseif {[catch {wpGetVar headers}] == 0} {
+		  WPCmd PEInfo statmsg "Should CREATE HEADER"		  
 		} else {
 		  switch -- $subop {
 		    edit -

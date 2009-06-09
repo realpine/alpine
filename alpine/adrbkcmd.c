@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: adrbkcmd.c 245 2006-11-18 02:46:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: adrbkcmd.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1246,7 +1246,7 @@ _("\n to use single quotation marks; for example: George 'Husky' Washington."));
     if(rc == -2 || rc == -3){
 	q_status_message1(SM_ORDER | SM_DING, 3, 4,
 			_("Error updating address book: %s"),
-			rc == -2 ? error_description(errno) : "Pine bug");
+			rc == -2 ? error_description(errno) : "Alpine bug");
     }
     else if(rc == 0
        && strucmp(nick, nick_saved_for_pico_check) != 0
@@ -1732,11 +1732,11 @@ ab_modify_abook_list(int edit, int global, int abook_num, char *def_serv, char *
 char *t1 =
 /* TRANSLATORS: The next few lines go together to explain how to add
    the address book entry the user is working on. */
-_(" To add a local address book that will be accessed *only* by Pine running\n on this machine, leave the server field blank.");
+_(" To add a local address book that will be accessed *only* by Alpine running\n on this machine, leave the server field blank.");
 char *t2 =
 _(" To add an address book that will be accessed by IMAP, fill in the\n server name.");
 char *t3 =
-_(" (NOTE: An address book cannot be accessed by IMAP from\n one Pine and as a local file from another. It is either always accessed\n by IMAP or it is a local address book which is never accessed by IMAP.)");
+_(" (NOTE: An address book cannot be accessed by IMAP from\n one Alpine and as a local file from another. It is either always accessed\n by IMAP or it is a local address book which is never accessed by IMAP.)");
 char *t4 =
 _(" In the Folder field, type the remote folder name or local file name.");
 char *t5 =
@@ -1959,9 +1959,9 @@ _(" To exit and save the configuration, press ^X. To cancel, press ^C.");
 	    if(set_variable_list(global ? V_GLOB_ADDRBOOK : V_ADDRESSBOOK,
 				 new_list, TRUE, ew)){
 		if(edit)
-		  q_status_message(SM_ORDER, 0, 3, _("Change cancelled: couldn't save pine configuration file"));
+		  q_status_message(SM_ORDER, 0, 3, _("Change cancelled: couldn't save configuration file"));
 		else
-		  q_status_message(SM_ORDER, 0, 3, _("Add cancelled: couldn't save pine configuration file"));
+		  q_status_message(SM_ORDER, 0, 3, _("Add cancelled: couldn't save configuration file"));
 
 		set_current_val(&vars[global ? V_GLOB_ADDRBOOK : V_ADDRESSBOOK],
 				TRUE, FALSE);
@@ -2388,7 +2388,7 @@ convert_sigs_to_literal(struct pine *ps, int interactive)
 		so_puts(store,
     _("\nto a literal signature, which means it is contained in your"));
 		so_puts(store,
-    _("\nPine configuration instead of being in a file of its own."));
+    _("\nAlpine configuration instead of being in a file of its own."));
 		so_puts(store,
     _("\nIf that configuration is copied to a remote folder then the"));
 		so_puts(store,
@@ -2396,7 +2396,7 @@ convert_sigs_to_literal(struct pine *ps, int interactive)
 		so_puts(store,
     _("\nChanges to the signature file itself will no longer have any"));
 		so_puts(store,
-    _("\neffect on Pine but you may still edit the signature with the"));
+    _("\neffect on Alpine but you may still edit the signature with the"));
 		so_puts(store,
     _("\nSetup/Signature command.\n"));
 
@@ -2502,7 +2502,7 @@ convert_sigs_to_literal(struct pine *ps, int interactive)
 	    /* TRANSLATORS: several lines that go together */
 	    _("\nto a literal signature, which means it is contained in your"));
 				so_puts(store,
-	    _("\nPine configuration instead of being in a file of its own."));
+	    _("\nAlpine configuration instead of being in a file of its own."));
 				so_puts(store,
 	    _("\nIf that configuration is copied to a remote folder then the"));
 				so_puts(store,
@@ -2510,7 +2510,7 @@ convert_sigs_to_literal(struct pine *ps, int interactive)
 				so_puts(store,
 	    _("\nChanges to the signature file itself will no longer have any"));
 				so_puts(store,
-	    _("\neffect on Pine. You may edit the signature with the"));
+	    _("\neffect on Alpine. You may edit the signature with the"));
 				so_puts(store,
 	    _("\nSetup/Rules/Roles command.\n"));
 
@@ -2565,7 +2565,7 @@ warn_about_rule_files(struct pine *ps)
 
 	/* TRANSLATORS: several lines that go together */
 	so_puts(store, _("\nSome of your Rules are contained in Rule files instead of being directly"));
-	so_puts(store, _("\ncontained in your Pine configuration file. To make those rules"));
+	so_puts(store, _("\ncontained in your Alpine configuration file. To make those rules"));
 	so_puts(store, _("\navailable remotely you will need to move them out of the files."));
 	so_puts(store, _("\nThat can be done using the Shuffle command in the appropriate"));
 	so_puts(store, _("\nSetup/Rules subcommands.\n"));
@@ -2710,7 +2710,7 @@ convert_pinerc_to_remote(struct pine *ps, char *rem_pinerc_prefix)
     rem_pinerc[sizeof(rem_pinerc)-1] = '\0';
 
     if(*rem_pinerc == '\0'){
-	snprintf(prompt, sizeof(prompt), _("Name of server to contain remote Pine config : "));
+	snprintf(prompt, sizeof(prompt), _("Name of server to contain remote Alpine config : "));
 	prompt[sizeof(prompt)-1] = '\0';
 	help = NO_HELP;
 	while(1){
@@ -2836,19 +2836,19 @@ convert_pinerc_to_remote(struct pine *ps, char *rem_pinerc_prefix)
 
 	/* TRANSLATORS: several lines that go together */
 	so_puts(store, _("\nYou may want to save a copy of this information!"));
-	so_puts(store, _("\n\nYour Pine configuration data has been copied to"));
+	so_puts(store, _("\n\nYour Alpine configuration data has been copied to"));
 	so_puts(store, "\n\n   ");
 	so_puts(store, rem_pinerc);
 	so_puts(store, "\n");
 	so_puts(store, _("\nTo use that remote configuration from this computer you will"));
-	so_puts(store, _("\nhave to change the way you start Pine by using the command line option"));
-	so_puts(store, _("\n\"pine -p <remote_folder>\". The command should probably be"));
+	so_puts(store, _("\nhave to change the way you start Alpine by using the command line option"));
+	so_puts(store, _("\n\"alpine -p <remote_folder>\". The command should probably be"));
 #ifdef	_WINDOWS
 	so_puts(store, "\n\n   ");
 	so_puts(store, "alpine -p ");
 	so_puts(store, rem_pinerc);
 	so_puts(store, "\n");
-	so_puts(store, _("\nWith PC-Pine, you may want to create a shortcut which"));
+	so_puts(store, _("\nWith PC-Alpine, you may want to create a shortcut which"));
 	so_puts(store, _("\nhas the required arguments."));
 #else
 	so_puts(store, "\n\n   ");
@@ -2857,9 +2857,9 @@ convert_pinerc_to_remote(struct pine *ps, char *rem_pinerc_prefix)
 	so_puts(store, "\"\n");
 	so_puts(store, _("\nThe quotes are there around the last argument to protect the special"));
 	so_puts(store, _("\ncharacters in the folder name (like braces) from the command shell"));
-	so_puts(store, _("\nyou use. If you are not running Pine from a command shell which knows"));
+	so_puts(store, _("\nyou use. If you are not running Alpine from a command shell which knows"));
 	so_puts(store, _("\nabout quoting, it is possible you will have to remove those quotes"));
-	so_puts(store, _("\nfrom the command. For example, if you also use PC-Pine you will probably"));
+	so_puts(store, _("\nfrom the command. For example, if you also use PC-Alpine you will probably"));
 	so_puts(store, _("\nwant to create a shortcut, and you would not need the quotes there."));
 	so_puts(store, _("\nWithout the quotes, the command might look like"));
 	so_puts(store, "\n\n   ");
@@ -2870,7 +2870,7 @@ convert_pinerc_to_remote(struct pine *ps, char *rem_pinerc_prefix)
 	so_puts(store, _("\nit more convenient."));
 #endif
 	so_puts(store, _("\n\nIf you want to use your new remote configuration for this session, quit"));
-	so_puts(store, _("\nPine now and restart with the changed command line options mentioned above.\n"));
+	so_puts(store, _("\nAlpine now and restart with the changed command line options mentioned above.\n"));
 
 	memset(&sargs, 0, sizeof(SCROLL_S));
 	sargs.text.text  = so_text(store);
@@ -4153,7 +4153,7 @@ ab_export(struct pine *ps, long int cur_line, int command_line, int agg)
 
     if(ps->restricted){
 	q_status_message(SM_ORDER, 0, 3,
-	    "Pine demo can't export addresses to files");
+	    "Alpine demo can't export addresses to files");
 	return(ret);
     }
 
@@ -4498,9 +4498,9 @@ ab_forward(struct pine *ps, long int cur_line, int agg)
     outgoing             = mail_newenvelope();
     outgoing->message_id = generate_message_id();
     if(agg && as.selections > 1)
-      outgoing->subject = cpystr("Forwarded address book entries from Pine");
+      outgoing->subject = cpystr("Forwarded address book entries from Alpine");
     else
-      outgoing->subject = cpystr("Forwarded address book entry from Pine");
+      outgoing->subject = cpystr("Forwarded address book entry from Alpine");
 
     body                                      = mail_newbody();
     body->type                                = TYPEMULTIPART;
@@ -4563,9 +4563,9 @@ ab_forward(struct pine *ps, long int cur_line, int agg)
     pb->id          = generate_message_id();
     pb->subtype     = cpystr("DIRECTORY");
     if(agg && as.selections > 1)
-      pb->description = cpystr("Pine addressbook entries");
+      pb->description = cpystr("Alpine addressbook entries");
     else
-      pb->description = cpystr("Pine addressbook entry");
+      pb->description = cpystr("Alpine addressbook entry");
 
     pb->parameter            = mail_newbody_parameter();
     pb->parameter->attribute = cpystr("profile");

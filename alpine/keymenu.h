@@ -1,8 +1,8 @@
 /*
- * $Id: keymenu.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: keymenu.h 380 2007-01-23 00:09:18Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -251,7 +251,7 @@ struct key_menu {
 #define	MAIN_MENU	{"M", N_("Main Menu"), \
 			 {MC_MAIN, 1, {'m'}}, \
 			 KS_MAINMENU}
-#define	QUIT_MENU	{"Q", N_("Quit Pine"), \
+#define	QUIT_MENU	{"Q", N_("Quit Alpine"), \
 			 {MC_QUIT, 1, {'q'}}, \
 			 KS_EXIT}
 /* TRANSLATORS: go to Previous Message */

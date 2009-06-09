@@ -1,5 +1,5 @@
 /*
- * $Id: remtype.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: remtype.h 394 2007-01-25 20:29:45Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -46,9 +46,9 @@ typedef struct remote_data {
 	char	     *chk_date;		/* Date of last message              */
 	unsigned long chk_nmsgs;	/* Number of messages in folder      */
 	unsigned long shouldbe_nmsgs;	/* Number which should be in folder  */
-	unsigned long uidvalidity;	/* UIDVALIDITY of folder             */
-	unsigned long uidnext;		/* UIDNEXT of folder                 */
-	unsigned long uid;		/* UID of last message in folder     */
+	imapuid_t     uidvalidity;	/* UIDVALIDITY of folder             */
+	imapuid_t     uidnext;		/* UIDNEXT of folder                 */
+	imapuid_t     uid;		/* UID of last message in folder     */
       }i;
     }t;
 } REMDATA_S;

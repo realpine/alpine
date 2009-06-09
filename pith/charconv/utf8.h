@@ -1,10 +1,10 @@
 /*-----------------------------------------------------------------------
- $Id: utf8.h 254 2006-11-21 21:54:24Z hubert@u.washington.edu $
+ $Id: utf8.h 384 2007-01-24 01:22:15Z hubert@u.washington.edu $
   -----------------------------------------------------------------------*/
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,25 @@
 
 
 /*
+ * The data in vl and dl is UCS-4 characters.
+ * They are arrays of size vlen and dlen of unsigned longs.
+ */
+struct display_line {
+    int   row, col;	/* where display starts					*/
+    UCS  *vl;		/* virtual line, the actual data string			*/
+    int   vlen;		/* size of vl array					*/
+    int   vused;	/* elements of vl in use				*/
+    int   vbase;	/* index into array, first virtual char on display	*/
+    UCS  *dl;		/* visible part of virtual line on display		*/
+    UCS  *olddl;
+    int   dlen;		/* size of dl array					*/
+    int   dwid;		/* screenwidth avail for dl				*/
+    void  (*movecursor)(int, int);
+    void  (*writechar)(UCS);
+};
+
+
+/*
  * Exported Prototypes
  */
 void           init_utf8_display(int, void *);
@@ -45,13 +64,14 @@ unsigned       ucs4_str_width_ptr_to_ptr(UCS *, UCS *);
 UCS           *ucs4_particular_width(UCS*, int);
 UCS           *utf8_to_ucs4_cpystr(char *);
 char          *ucs4_to_utf8_cpystr(UCS *);
+char          *ucs4_to_utf8_cpystr_n(UCS *, int);
 #ifdef _WINDOWS
 LPTSTR         utf8_to_lptstr(LPSTR);
 LPSTR          lptstr_to_utf8(LPTSTR);
 LPTSTR         ucs4_to_lptstr(UCS *);
 UCS           *lptstr_to_ucs4(LPTSTR);
 #endif /* _WINDOWS */
-int            utf8_to_ucs4_oneatatime(int, unsigned char *, size_t, unsigned char **, UCS *);
+int            utf8_to_ucs4_oneatatime(int, unsigned char *, size_t, unsigned char **, UCS *, int *);
 size_t         ucs4_strlen(UCS *s);
 int            ucs4_strcmp(UCS *s1, UCS *s2);
 UCS           *ucs4_cpystr(UCS *s);
@@ -73,6 +93,8 @@ int            input_charset_is_supported(char *);
 int            output_charset_is_supported(char *);
 int            posting_charset_is_supported(char *);
 char          *utf8_to_charset(char *, char *, int);
+char          *comatose(long);
+void           line_paint(int, struct display_line *, int *);
 
 
 #endif	/* PITH_CHARCONV_UTF8_INCLUDED */

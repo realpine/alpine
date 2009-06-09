@@ -1,7 +1,7 @@
 #!./tclsh
 
 # ========================================================================
-# Copyright 2006 University of Washington
+# Copyright 2006-2007 University of Washington
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ cgi_eval {
       exit
     }
 
-    set cmdfile [file join $_wp(detachpath) detach.${h}.control]
+    set cmdfile [file join $_wp(detachpath) detach.${h}-control]
 
     if {[file exists $cmdfile] == 0} {
       WPInfoPage "Webpine Error" [font size=+2 "Stale Handle Reference"] "Please click the attachment link to view this attachment."

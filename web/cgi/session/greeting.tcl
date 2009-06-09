@@ -1,5 +1,5 @@
 #!./tclsh
-
+# $Id: greeting.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -198,7 +198,7 @@ cgi_eval {
 
 	  cgi_table_row {
 	    cgi_table_data align=center valign=bottom height=18% colspan=8 {
-	      set intro "Welcome to Alpine"
+	      set intro "Welcome to $_wp(appname)"
 	      if {[info exists env(REMOTE_USER)]} {
 		set conf [subst [lindex [lindex $_wp(hosts) 0] 2]]
 		set pldap [file join $_wp(bin) $_wp(pldap)]

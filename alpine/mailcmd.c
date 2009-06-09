@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcmd.c 245 2006-11-18 02:46:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailcmd.c 392 2007-01-25 18:56:49Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -308,7 +308,8 @@ static ESCKEY_S flag_text_opt[] = {
           Returns 1 if the message number or attachment to show changed 
  ---*/
 int
-process_cmd(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap, int command, CmdWhere in_index, int *force_mailchk)
+process_cmd(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
+	    int command, CmdWhere in_index, int *force_mailchk)
 {
     int           question_line, a_changed, we_cancel, flags = 0, ret;
     int           notrealinbox;
@@ -1391,6 +1392,11 @@ get_out:
 
 	}
 
+	a_changed = TRUE;
+	break;
+
+
+      case MC_TOGGLE :
 	a_changed = TRUE;
 	break;
 
@@ -3109,7 +3115,7 @@ cmd_export(struct pine *state, MSGNO_S *msgmap, int qline, int aopt)
 
     if(ps_global->restricted){
 	q_status_message(SM_ORDER, 0, 3,
-	    "Pine demo can't export messages to files");
+	    "Alpine demo can't export messages to files");
 	return rv;
     }
 
@@ -3434,7 +3440,7 @@ cmd_export(struct pine *state, MSGNO_S *msgmap, int qline, int aopt)
 	    }
 
 	    zero_atmts(state->atmts);
-	    describe_mime(b, "", 1, 1, 0);
+	    describe_mime(b, "", 1, 1, 0, 0);
 
 	    a = state->atmts;
 	    if(a && a->description)		/* skip main body part */
@@ -3714,7 +3720,10 @@ fini:
  *            12  user chose 12 command from opts
  */
 int
-get_export_filename(struct pine *ps, char *filename, char *deefault, char *full_filename, size_t len, char *prompt_msg, char *lister_msg, ESCKEY_S *optsarg, int *rflags, int qline, int flags)
+get_export_filename(struct pine *ps, char *filename, char *deefault,
+		    char *full_filename, size_t len, char *prompt_msg,
+		    char *lister_msg, ESCKEY_S *optsarg, int *rflags,
+		    int qline, int flags)
 {
     char      dir[MAXPATH+1], dir2[MAXPATH+1];
     char      precolon[MAXPATH+1], postcolon[MAXPATH+1];
@@ -3778,6 +3787,7 @@ get_export_filename(struct pine *ps, char *filename, char *deefault, char *full_
 	homedir=1;
     }
 
+    postcolon[0] = '\0';
     strncpy(precolon, dir, sizeof(precolon));
     precolon[sizeof(precolon)-1] = '\0';
     if(deefault){
@@ -3987,8 +3997,8 @@ get_export_filename(struct pine *ps, char *filename, char *deefault, char *full_
 		     * Just building the directory name in dir2,
 		     * full_filename is overloaded.
 		     */
-		    snprintf(full_filename, sizeof(full_filename), "%.*s", MIN(fn-tmp,len-1), tmp);
-		    full_filename[sizeof(full_filename)-1] = '\0';
+		    snprintf(full_filename, len, "%.*s", MIN(fn-tmp,len-1), tmp);
+		    full_filename[len-1] = '\0';
 		    strncpy(postcolon, full_filename, sizeof(postcolon)-1);
 		    postcolon[sizeof(postcolon)-1] = '\0';
 		    build_path(dir2, !dir[0] ? p = (char *)getcwd(NULL,MAXPATH)
@@ -5572,7 +5582,7 @@ cmd_pipe(struct pine *state, MSGNO_S *msgmap, int aopt)
 
     if(ps_global->restricted){
 	q_status_message(SM_ORDER | SM_DING, 0, 4,
-			 "Pine demo can't pipe messages");
+			 "Alpine demo can't pipe messages");
 	return rv;
     }
     else if(!any_messages(msgmap, NULL, "to Pipe"))
@@ -5878,7 +5888,7 @@ list_mgmt_text(RFC2369_S *data, long int msgno)
 		  }
 
 		  if(data[i].data[j].error){
-		      so_puts(store, "<P>Unfortunately, Pine can not offer");
+		      so_puts(store, "<P>Unfortunately, Alpine can not offer");
 		      so_puts(store, " to take direct action based upon it");
 		      so_puts(store, " because it was improperly formatted.");
 		      so_puts(store, " The unrecognized data associated with");
@@ -6903,7 +6913,7 @@ select_by_date(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct searc
 
 			if(stream->dtb && stream->dtb->flags & DR_NEWS){
 			    strncpy(seq,
-				    long2string(mail_uid(stream, rawno)),
+				    ulong2string(mail_uid(stream, rawno)),
 				    sizeof(seq));
 			    seq[sizeof(seq)-1] = '\0';
 			    mail_fetch_overview(stream, seq, NULL);
@@ -7240,16 +7250,7 @@ select_by_text(MAILSTREAM *stream, MSGNO_S *msgmap, long int msgno, struct searc
 	if(!*sval)
 	  origcharset[0] = '\0';
 
-#ifdef notdef
-	/* if it isn't ascii, use user's charset */
-	charset = (*sval &&
-		   ps_global->display_charmap &&
-		   ps_global->display_charmap[0])
-		     ? ps_global->display_charmap
-		     : "US-ASCII";
-#else /* notdef */
 	charset = (*sval) ? "UTF-8" : "US-ASCII";
-#endif /* notdef */
     }
 
     if(*origcharset)
@@ -8053,15 +8054,14 @@ select_sort(struct pine *state, int ql, SortOrder *sort, int *rev)
 
 	sortsel.reverse = mn_get_revsort (state->msgmap);
 	sortsel.cursort = mn_get_sort (state->msgmap);
-	sortsel.helptext = get_help_text (h_select_sort);
+	/* assumption here that HelpType is char **  */
+	sortsel.helptext = h_select_sort;
 	sortsel.rval = 0;
 
 	if ((retval = os_sortdialog (&sortsel))) {
 	    *sort = sortsel.cursort;
 	    *rev  = sortsel.reverse;
         }
-
-	free_list_array(&sortsel.helptext);
 
 	return (retval);
     }

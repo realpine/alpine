@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: imap.c 283 2006-11-30 15:57:11Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: imap.c 394 2007-01-25 20:29:45Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -628,7 +628,7 @@ imap_referral(MAILSTREAM *stream, char *ref, long int code)
 
     if(ref && !struncmp(ref, "imap://", 7)){
 	char *folder = NULL;
-	long  uid_val, uid;
+	imapuid_t uid_val, uid;
 	int rv;
 
 	rv = url_imap_folder(ref, &folder, &uid, &uid_val, NULL, 1);

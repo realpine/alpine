@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: filesys.c 254 2006-11-21 21:54:24Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: filesys.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,50 +50,6 @@ static char rcsid[] = "$Id: filesys.c 254 2006-11-21 21:54:24Z hubert@u.washingt
 #  include <ndir.h>
 # endif
 #endif
-
-
-/*
- * big bitmap of ASCII characters allowed in a file name
- * (needs reworking for other char sets)
- */
-unsigned char okinfname[32] = {
-      0,    0, 			/* ^@ - ^G, ^H - ^O  */
-      0,    0,			/* ^P - ^W, ^X - ^_  */
-      0x80, 0x17,		/* SP - ' ,  ( - /   */
-      0xff, 0xc4,		/*  0 - 7 ,  8 - ?   */
-      0x7f, 0xff,		/*  @ - G ,  H - O   */
-      0xff, 0xe1,		/*  P - W ,  X - _   */
-      0x7f, 0xff,		/*  ` - g ,  h - o   */
-      0xff, 0xf6,		/*  p - w ,  x - DEL */
-      0,    0, 			/*  > DEL   */
-      0,    0,			/*  > DEL   */
-      0,    0, 			/*  > DEL   */
-      0,    0, 			/*  > DEL   */
-      0,    0 			/*  > DEL   */
-};
-
-
-
-
-/*
- * fallowc - returns TRUE if c is allowable in filenames, FALSE otw
- *
- *     We're trying to prevent the users from shooting themselves in the foot.
- */
-int
-fallowc(UCS ucs)
-{
-#ifdef notdef
-    unsigned char c;
-
-    if(ucs < 0x80){
-      c = ucs;
-      return(okinfname[c>>3] & 0x80>>(c&7));
-    }
-    else
-#endif /* notdef */
-      return(1);
-}
 
 
 /*

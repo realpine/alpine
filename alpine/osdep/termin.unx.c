@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: termin.unx.c 217 2006-11-04 02:52:05Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: termin.unx.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -652,7 +652,7 @@ end_keyboard(int use_fkeys)
  */
 int
 pre_screen_config_opt_enter(char *string, int string_size, char *prompt,
-			    ESCKEY_S *escape_list, char **help, int *flags)
+			    ESCKEY_S *escape_list, HelpType help, int *flags)
 {
     char *pw;
     int   return_v = -10;

@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailindx.c 212 2006-11-01 19:06:05Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailindx.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -3406,28 +3406,22 @@ index_popup(stream,  msgmap, full)
     view_index_popup[n].type = tTail;
 
     if((n = mswin_popup(view_index_popup)) == 1 && full){
-	static int lastWind;
 	char title[GETTEXT_TITLELEN+1];
 	void	*text;
 	long	len;
 	int	format;
 
 	/* Launch text in alt window. */
-#if	0
-	if (mp.flags & M_KEY_CONTROL)
-	  lastWind = 0;
-#endif
 	if (index_gettext_callback (title, sizeof(title), &text,
 				    &len, &format)) {
 	    if (format == GETTEXT_TEXT) 
-	      lastWind = mswin_displaytext (title, text, (size_t)len, 
-					    NULL, lastWind, 0);
+	      mswin_displaytext (title, text, (size_t)len, NULL, NULL, MSWIN_DT_USEALTWINDOW);
 	    else if (format == GETTEXT_LINES) 
-	      lastWind = mswin_displaytext (title, NULL, 0,
-					    text, lastWind, 0);
+	      mswin_displaytext (title, NULL, 0, text, NULL, MSWIN_DT_USEALTWINDOW);
 	}
     }
 }
+
 
 char *
 pcpine_help_index(title)
@@ -3437,7 +3431,7 @@ pcpine_help_index(title)
      * Title is size 256 in pico. Put in args.
      */
     if(title)
-      strncpy(title, "PC-Pine MESSAGE INDEX Help", 256);
+      strncpy(title, "Alpine MESSAGE INDEX Help", 256);
 
     return(pcpine_help(h_mail_index));
 }
@@ -3450,7 +3444,7 @@ pcpine_help_index_simple(title)
      * Title is size 256 in pico. Put in args.
      */
     if(title)
-      strncpy(title, "PC-Pine SELECT MESSAGE Help", 256);
+      strncpy(title, "Alpine SELECT MESSAGE Help", 256);
 
     return(pcpine_help(h_simple_index));
 }

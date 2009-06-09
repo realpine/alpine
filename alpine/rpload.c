@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: rpload.c 203 2006-10-26 17:23:46Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: rpload.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -180,7 +180,7 @@ main(argc, argv)
 	    if(force)
 	      delete_existing++;
 	    else{
-		fprintf(stderr, "Folder \"%s\"\ndoes not appear to be a Pine remote \"%s\" folder.\nUse -f to force.\n", remote, ptype(type));
+		fprintf(stderr, "Folder \"%s\"\ndoes not appear to be an Alpine remote \"%s\" folder.\nUse -f to force.\n", remote, ptype(type));
 		fprintf(stderr, "-f will cause %ld messages to be deleted\n",
 			stream->nmsgs);
 		exit(-1);
@@ -262,7 +262,7 @@ check_for_header_msg(stream)
     try = pinerc;
     strncpy((char *)sl->text.data, try, len);
     sl->text.data[len] = '\0';
-    sl->text.size = strlen(sl->text.data);
+    sl->text.size = strlen((char *) sl->text.data);
 
     if(stream && (h=mail_fetch_header(stream,1L,NULL,sl,NULL,FT_PEEK))){
 
@@ -274,7 +274,7 @@ check_for_header_msg(stream)
 	try = abook;
 	strncpy((char *)sl->text.data, try, len);
 	sl->text.data[len] = '\0';
-	sl->text.size = strlen(sl->text.data);
+	sl->text.size = strlen((char *) sl->text.data);
 	if(stream && (h=mail_fetch_header(stream,1L,NULL,sl,NULL,FT_PEEK))){
 
 	    if(strlen(h) >= sl->text.size && !struncmp(h, try, sl->text.size))
@@ -286,7 +286,7 @@ check_for_header_msg(stream)
 	try = sig;
 	strncpy((char *)sl->text.data, try, len);
 	sl->text.data[len] = '\0';
-	sl->text.size = strlen(sl->text.data);
+	sl->text.size = strlen((char *) sl->text.data);
 	if(stream && (h=mail_fetch_header(stream,1L,NULL,sl,NULL,FT_PEEK))){
 
 	    if(strlen(h) >= sl->text.size && !struncmp(h, try, sl->text.size))
@@ -488,7 +488,7 @@ add_initial_msg(stream, mailbox, special_hdr)
     buf[sizeof(buf)-1] = '\0';
 
     if(!strucmp(special_hdr, REMOTE_ABOOK_SUBTYPE)){
-	strncat(buf, "This folder contains a single Pine addressbook.\015\012", sizeof(buf)-strlen(buf)-1);
+	strncat(buf, "This folder contains a single Alpine addressbook.\015\012", sizeof(buf)-strlen(buf)-1);
 	strncat(buf, "This message is just an explanatory message.\015\012", sizeof(buf)-strlen(buf)-1);
 	strncat(buf, "The last message in the folder is the live addressbook data.\015\012", sizeof(buf)-strlen(buf)-1);
 	strncat(buf, "The rest of the messages contain previous revisions of the addressbook data.\015\012", sizeof(buf)-strlen(buf)-1);
@@ -496,7 +496,7 @@ add_initial_msg(stream, mailbox, special_hdr)
 	strncat(buf, "which come after it.\015\012", sizeof(buf)-strlen(buf)-1);
     }
     else if(!strucmp(special_hdr, REMOTE_PINERC_SUBTYPE)){
-	strncat(buf, "This folder contains a Pine config file.\015\012", sizeof(buf)-strlen(buf)-1);
+	strncat(buf, "This folder contains an Alpine config file.\015\012", sizeof(buf)-strlen(buf)-1);
 	strncat(buf, "This message is just an explanatory message.\015\012", sizeof(buf)-strlen(buf)-1);
 	strncat(buf, "The last message in the folder is the live config data.\015\012", sizeof(buf)-strlen(buf)-1);
 	strncat(buf, "The rest of the messages contain previous revisions of the data.\015\012", sizeof(buf)-strlen(buf)-1);
@@ -504,7 +504,7 @@ add_initial_msg(stream, mailbox, special_hdr)
 	strncat(buf, "which come after it.\015\012", sizeof(buf)-strlen(buf)-1);
     }
     else{
-	strncat(buf, "This folder contains remote Pine data.\015\012", sizeof(buf)-strlen(buf)-1);
+	strncat(buf, "This folder contains remote Alpine data.\015\012", sizeof(buf)-strlen(buf)-1);
 	strncat(buf, "This message is just an explanatory message.\015\012", sizeof(buf)-strlen(buf)-1);
 	strncat(buf, "The last message in the folder is the live data.\015\012", sizeof(buf)-strlen(buf)-1);
 	strncat(buf, "The rest of the messages contain previous revisions of the data.\015\012", sizeof(buf)-strlen(buf)-1);

@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: alpineldap.c 152 2006-09-29 01:42:04Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: alpineldap.c 391 2007-01-25 03:53:59Z mikes@u.washington.edu $";
 #endif
 
 /* ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -68,7 +68,7 @@ static char rcsid[] = "$Id: alpineldap.c 152 2006-09-29 01:42:04Z mikes@u.washin
 struct pine *ps_global;                         /* THE global variable! */
 char         tmp_20k_buf[20480];
 
-char	  *peSockName;
+char	  *peSocketName;
 
 #ifdef ENABLE_LDAP
 WPLDAP_S *wpldap_global;
@@ -94,6 +94,7 @@ main(argc, argv)
      int   argc;
      char *argv[];
 {
+#ifdef ENABLE_LDAP
     struct pine *pine_state;
     char *p = NULL, *userid = NULL, *domain = NULL, *pname;
     struct variable *vars;
@@ -168,5 +169,9 @@ done:
     free_pine_struct(&pine_state);
 
     exit(rv);
+#else
+    fprintf(stderr, "%s: Not built with LDAP support\n", argv[0]);
+    exit(-1);
+#endif
 }
 

@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: filter.c 293 2006-12-01 01:24:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: filter.c 390 2007-01-25 02:48:29Z mikes@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -162,10 +162,10 @@ static	jmp_buf   gf_error_state;
 
 #define	GF_END(FI, FO)	(GF_OP_END(FI), GF_IP_END(FO))
 
-#define	GF_FLUSH(F)	((int)(GF_IP_END(F), (*(F)->f)((F), GF_DATA), \
-			       GF_IP_INIT(F), GF_EIB_INIT(F)))
-#define	GF_FLUSH_GLO(F)	((int)(GF_IP_END_GLO(F), (*(F)->f)((F), GF_DATA), \
-			       GF_IP_INIT_GLO(F), GF_EIB_INIT_GLO(F)))
+#define	GF_FLUSH(F)	((GF_IP_END(F), (*(F)->f)((F), GF_DATA), \
+			       GF_IP_INIT(F), GF_EIB_INIT(F)) ? 1 : 0)
+#define	GF_FLUSH_GLO(F)	((GF_IP_END_GLO(F), (*(F)->f)((F), GF_DATA), \
+			       GF_IP_INIT_GLO(F), GF_EIB_INIT_GLO(F)) ? 1 : 0)
 
 #define	GF_PUTC(F, C)	((int)(*ip++ = (C), (ip >= eib) ? GF_FLUSH(F) : 1))
 #define	GF_PUTC_GLO(F, C) ((int)(*(*ipp)++ = (C), ((*ipp) >= (*eibp)) ? GF_FLUSH_GLO(F) : 1))
@@ -464,7 +464,7 @@ gf_fwritec_windows(int c)
 
     /* outchars should be 1 or 0 (if in middle of a UTF-8 char) */
     if(outchars = utf8_to_ucs4_oneatatime(c, gf_out.cbuf, sizeof(gf_out.cbuf),
-					  &gf_out.cbufp, &ucs))
+					  &gf_out.cbufp, &ucs, NULL))
       if(write_a_wide_char(ucs, gf_out.file) == EOF)
 	rv = 0;
 
@@ -1960,80 +1960,120 @@ gf_sjis_to_2022_jp(FILTER_S *f, int flg)
  */
 
 /*
- * to help manage line wrapping.
+ * utf8 conversion options
  */
 typedef	struct _utf8_s {
-    char *charset;
-    long  size;
+    CHARSET	  *charset;
+    unsigned long  ucsc;
 } UTF8_S;
 
+#define	UTF8_BLOCK	1024
+#define	UTF8_EOB(f)	((f)->line + (f)->f2 - 1)
+#define	UTF8_ADD(f, c) \
+			{ \
+			    if(p >= eobuf){ \
+				f->f2 += UTF8_BLOCK; \
+				fs_resize((void **)&f->line, \
+				      (size_t) f->f2 * sizeof(char)); \
+				eobuf = UTF8_EOB(f); \
+				p = eobuf - UTF8_BLOCK; \
+			    } \
+			    *p++ = c; \
+			}
+#define	GF_UTF8_FLUSH(f)	{ \
+				    register long n; \
+				    SIZEDTEXT     intext, outtext; \
+				    intext.data = (unsigned char *) f->line; \
+				    intext.size = p - f->line; \
+				    memset(&outtext, 0, sizeof(SIZEDTEXT)); \
+				    if(utf8_text_cs(&intext, ((UTF8_S *) f->opt)->charset, &outtext, NULL, NULL)){ \
+					for(n = 0; n < outtext.size; n++) \
+					  GF_PUTC(f->next, outtext.data[n]); \
+					if(intext.data != outtext.data) \
+					  fs_give((void **) &outtext.data); \
+				    } \
+				    else{ \
+					for(n = 0; n < intext.size; n++) \
+					  GF_PUTC(f->next, '?'); \
+				    } \
+				}
 
 
 /*
- * given text to UTF-8 filter
+ * gf_utf8 - text in specified charset to to UTF-8 filter
+ *           Process line-at-a-time rather than character
+ *           because ISO-2022-JP.  Call utf8_text_cs by hand
+ *           rather than utf8_text to reduce the cost of
+ *           utf8_charset() for each line.
  */
 void
 gf_utf8(FILTER_S *f, int flg)
 {
+    register char *p = f->linep;
+    register char *eobuf = UTF8_EOB(f);
     GF_INIT(f, f->next);
 
     if(flg == GF_DATA){
+	register int state = f->f1;
 	register unsigned char c;
 
 	while(GF_GETC(f, c)){
-	    if(f->linep - f->line < f->n)
-	      *(f->linep)++ = (c & 0xff);
-	    else
-	      panic("c-client lied: buf too small");
+
+	    switch(state){
+	      case CCR :
+		state = DFL;
+		if(c == '\012'){
+		    GF_UTF8_FLUSH(f);
+		    p = f->line;
+		    GF_PUTC(f->next, '\015');
+		    GF_PUTC(f->next, '\012');
+		}
+		else{
+		    UTF8_ADD(f, '\015');
+		    UTF8_ADD(f, c);
+		}
+		
+		break;
+
+	      default :
+		if(c == '\015'){
+		    state = CCR;
+		}
+		else
+		  UTF8_ADD(f, c);
+	    }
 	}
 
 	GF_END(f, f->next);
     }
     else if(flg == GF_EOD){
-	SIZEDTEXT text, ctext;
 
-	text.size = f->linep - f->line;
-	text.data = f->line;
-	memset(&ctext, 0, sizeof(SIZEDTEXT));
-	if(utf8_text(&text, ((UTF8_S *) f->opt)->charset, &ctext, 0L)){
-	    register long n;
-
-	    for(n = 0; n < ctext.size; n++)
-	      GF_PUTC(f->next, ctext.data[n]);
-
-	    if(text.data != ctext.data)
-	      fs_give((void **) &ctext.data);
-	}
-	else{
-	    register char *p;
-
-	    for(p = f->line; p != f->linep; p++)
-	      GF_PUTC(f->next, *p);
-	}
+	if(p != f->line)
+	  GF_UTF8_FLUSH(f);
 
 	fs_give((void **) &f->line);
-	fs_give((void **) &((UTF8_S *) f->opt)->charset);
 	fs_give((void **) &f->opt);
 	GF_FLUSH(f->next);
 	(*f->next->f)(f->next, GF_EOD);
     }
     else if(GF_RESET){
 	dprint((9, "-- gf_reset utf8\n"));
-	f->n = ((UTF8_S *) f->opt)->size;
-	f->line = f->linep = (char *) fs_get(f->n * sizeof(char));
+	f->f1 = DFL;
+	f->f2 = UTF8_BLOCK;		/* input buffer length */
+	f->line = p = (char *) fs_get(f->f2 * sizeof(char));
     }
 
+    f->linep = p;
 }
 
 
 void *
-gf_utf8_opt(char *charset, long int src_size)
+gf_utf8_opt(char *charset)
 {
     UTF8_S *utf8;
 
     utf8 = (UTF8_S *) fs_get(sizeof(UTF8_S));
-    utf8->charset = cpystr(charset);
-    utf8->size = src_size;
+    utf8->charset = (CHARSET *) utf8_charset(charset);
     return((void *) utf8);
 }
 
@@ -2440,10 +2480,11 @@ gf_enriched2plain_opt(int plain)
 #define	HTML_BUF_LEN	2048		/* max scratch buffer length */
 #define	MAX_ENTITY	20		/* maximum length of an entity */
 #define	MAX_ELEMENT	72		/* maximum length of an element */
+#define HTML_MOREDATA	0		/* expect more entity data */
+#define HTML_ENTITY	1		/* valid entity collected */
 #define	HTML_BADVALUE	0x0100		/* good data, but bad entity value */
 #define	HTML_BADDATA	0x0200		/* bad data found looking for entity */
 #define	HTML_LITERAL	0x0400		/* Literal character value */
-#define HTML_EXTVALUE   0x0800          /* good data, extended value (Unicode) */
 #define	HTML_NEWLINE	0x010A		/* hard newline */
 #define	HTML_DOBOLD	0x0400		/* Start Bold display */
 #define	HTML_ID_GET	0		/* indent func: return current val */
@@ -2533,6 +2574,9 @@ typedef struct html_data {
     int		prefix_used;
     long        line_bufsize;           /* current size of the line buffer */
     COLOR_PAIR *color;
+    unsigned char  utf8buf[6];		/* utf8->ucs4 conversion accumulator */
+    unsigned char *utf8bufp;		/* utf8->ucs4 conversion pointer */
+    unsigned char *utf8bufendp;		/* utf8->ucs4 conversion pointer */
     unsigned	wrapstate:1;		/* whether or not to wrap output */
     unsigned	li_pending:1;		/* <LI> next token expected */
     unsigned	de_pending:1;		/* <DT> or <DD> next token expected */
@@ -2579,7 +2623,8 @@ typedef	struct _html_opts {
 #define	IS_LITERAL(C)	(HTML_LITERAL & (C))
 #define	HD(X)		((HTML_DATA_S *)(X)->data)
 #define	ED(X)		(HD(X)->el_data)
-#define	HTML_ISSPACE(C)	(IS_LITERAL(C) == 0 && isspace((unsigned char) (C)))
+#define	ASCII_ISSPACE(C) ((C) < 0x80 && isspace((unsigned char) (C)))
+#define	HTML_ISSPACE(C)	(IS_LITERAL(C) == 0 && ((C) == HTML_NEWLINE || ASCII_ISSPACE(C)))
 #define	NEW_CLCTR(X)	{						\
 			   ED(X) = (CLCTR_S *)fs_get(sizeof(CLCTR_S));  \
 			   memset(ED(X), 0, sizeof(CLCTR_S));	\
@@ -2687,7 +2732,7 @@ typedef	struct _html_opts {
 #define	HTML_DUMP_LIT(F, S, L)	{					    \
 				   int i, c;				    \
 				   for(i = 0; i < (L); i++){		    \
-				       c = isspace((unsigned char)(S)[i])   \
+				       c = ASCII_ISSPACE((unsigned char)(S)[i])   \
 					     ? (S)[i]			    \
 					     : MAKE_LITERAL((S)[i]);	    \
 				       HTML_TEXT(F, c);			    \
@@ -2828,7 +2873,7 @@ int	html_element_collector(FILTER_S *, int);
 int	html_element_flush(CLCTR_S *);
 void	html_element_comment(FILTER_S *, char *);
 void	html_element_output(FILTER_S *, int);
-int	html_entity_collector(FILTER_S *, int, char **);
+int	html_entity_collector(FILTER_S *, int, UCS *, char **);
 void	html_a_prefix(FILTER_S *);
 void	html_a_finish(HANDLER_S *);
 void	html_a_output_prefix(FILTER_S *, int);
@@ -2838,8 +2883,9 @@ int	html_indent(FILTER_S *, int, int);
 void	html_blank(FILTER_S *, int);
 void	html_newline(FILTER_S *);
 void	html_output(FILTER_S *, int);
+void	html_output_normal(FILTER_S *, int, int);
 void	html_output_flush(FILTER_S *);
-void	html_output_centered(FILTER_S *, int);
+void	html_output_centered(FILTER_S *, int, int);
 void	html_centered_handle(int *, char *, int);
 void	html_centered_putc(WRAPLINE_S *, int);
 void	html_centered_flush(FILTER_S *);
@@ -2857,216 +2903,272 @@ void	html_putc(FILTER_S *, int);
  */
 static struct html_entities {
     char *name;			/* entity name */
-    unsigned int   value;       /* entity value */
-    char  *plain;		/* plain text representation */
-    unsigned char altvalue;     /* non-Unicode equivalent */
+    UCS   value;		/* UCS entity value */
+    char  *plain;		/* US-ASCII representation */
 } entity_tab[] = {
-    {"quot",	042},		/* Double quote sign */
-    {"amp",	046},		/* Ampersand */
-    {"bull",	052},		/* Bullet */
-    {"ndash",	055},		/* Dash */
-    {"mdash",	055},		/* Dash */
-    {"lt",	074},		/* Less than sign */
-    {"gt",	076},		/* Greater than sign */
-    {"nbsp",	0240, " "},	/* no-break space */
-    {"iexcl",	0241},		/* inverted exclamation mark */
-    {"cent",	0242},		/* cent sign */
-    {"pound",	0243},		/* pound sterling sign */
-    {"curren",	0244, "CUR"},	/* general currency sign */
-    {"yen",	0245},		/* yen sign */
-    {"brvbar",	0246, "|"},	/* broken (vertical) bar */
-    {"sect",	0247},		/* section sign */
-    {"uml",	0250, "\""},		/* umlaut (dieresis) */
-    {"copy",	0251, "(C)"},	/* copyright sign */
-    {"ordf",	0252, "a"},	/* ordinal indicator, feminine */
-    {"laquo",	0253, "<<"},	/* angle quotation mark, left */
-    {"not",	0254, "NOT"},	/* not sign */
-    {"shy",	0255, "-"},	/* soft hyphen */
-    {"reg",	0256, "(R)"},	/* registered sign */
-    {"macr",	0257},		/* macron */
-    {"deg",	0260, "DEG"},	/* degree sign */
-    {"plusmn",	0261, "+/-"},	/* plus-or-minus sign */
-    {"sup2",	0262},		/* superscript two */
-    {"sup3",	0263},		/* superscript three */
-    {"acute",	0264, "'"},	/* acute accent */
-    {"micro",	0265},		/* micro sign */
-    {"para",	0266},		/* pilcrow (paragraph sign) */
-    {"middot",	0267},		/* middle dot */
-    {"cedil",	0270},		/* cedilla */
-    {"sup1",	0271},		/* superscript one */
-    {"ordm",	0272, "o"},	/* ordinal indicator, masculine */
-    {"raquo",	0273, ">>"},	/* angle quotation mark, right */
-    {"frac14",	0274, " 1/4"},	/* fraction one-quarter */
-    {"frac12",	0275, " 1/2"},	/* fraction one-half */
-    {"frac34",	0276, " 3/4"},	/* fraction three-quarters */
-    {"iquest",	0277},		/* inverted question mark */
-    {"Agrave",	0300, "A"},	/* capital A, grave accent */
-    {"Aacute",	0301, "A"},	/* capital A, acute accent */
-    {"Acirc",	0302, "A"},	/* capital A, circumflex accent */
-    {"Atilde",	0303, "A"},	/* capital A, tilde */
-    {"Auml",	0304, "AE"},	/* capital A, dieresis or umlaut mark */
-    {"Aring",	0305, "A"},	/* capital A, ring */
-    {"AElig",	0306, "AE"},	/* capital AE diphthong (ligature) */
-    {"Ccedil",	0307, "C"},	/* capital C, cedilla */
-    {"Egrave",	0310, "E"},	/* capital E, grave accent */
-    {"Eacute",	0311, "E"},	/* capital E, acute accent */
-    {"Ecirc",	0312, "E"},	/* capital E, circumflex accent */
-    {"Euml",	0313, "E"},	/* capital E, dieresis or umlaut mark */
-    {"Igrave",	0314, "I"},	/* capital I, grave accent */
-    {"Iacute",	0315, "I"},	/* capital I, acute accent */
-    {"Icirc",	0316, "I"},	/* capital I, circumflex accent */
-    {"Iuml",	0317, "I"},	/* capital I, dieresis or umlaut mark */
-    {"ETH",	0320, "DH"},	/* capital Eth, Icelandic */
-    {"Ntilde",	0321, "N"},	/* capital N, tilde */
-    {"Ograve",	0322, "O"},	/* capital O, grave accent */
-    {"Oacute",	0323, "O"},	/* capital O, acute accent */
-    {"Ocirc",	0324, "O"},	/* capital O, circumflex accent */
-    {"Otilde",	0325, "O"},	/* capital O, tilde */
-    {"Ouml",	0326, "OE"},	/* capital O, dieresis or umlaut mark */
-    {"times",	0327, "x"},	/* multiply sign */
-    {"Oslash",	0330, "O"},	/* capital O, slash */
-    {"Ugrave",	0331, "U"},	/* capital U, grave accent */
-    {"Uacute",	0332, "U"},	/* capital U, acute accent */
-    {"Ucirc",	0333, "U"},	/* capital U, circumflex accent */
-    {"Uuml",	0334, "UE"},	/* capital U, dieresis or umlaut mark */
-    {"Yacute",	0335, "Y"},	/* capital Y, acute accent */
-    {"THORN",	0336, "P"},	/* capital THORN, Icelandic */
-    {"szlig",	0337, "ss"},	/* small sharp s, German (sz ligature) */
-    {"agrave",	0340, "a"},	/* small a, grave accent */
-    {"aacute",	0341, "a"},	/* small a, acute accent */
-    {"acirc",	0342, "a"},	/* small a, circumflex accent */
-    {"atilde",	0343, "a"},	/* small a, tilde */
-    {"auml",	0344, "ae"},	/* small a, dieresis or umlaut mark */
-    {"aring",	0345, "a"},	/* small a, ring */
-    {"aelig",	0346, "ae"},	/* small ae diphthong (ligature) */
-    {"ccedil",	0347, "c"},	/* small c, cedilla */
-    {"egrave",	0350, "e"},	/* small e, grave accent */
-    {"eacute",	0351, "e"},	/* small e, acute accent */
-    {"ecirc",	0352, "e"},	/* small e, circumflex accent */
-    {"euml",	0353, "e"},	/* small e, dieresis or umlaut mark */
-    {"igrave",	0354, "i"},	/* small i, grave accent */
-    {"iacute",	0355, "i"},	/* small i, acute accent */
-    {"icirc",	0356, "i"},	/* small i, circumflex accent */
-    {"iuml",	0357, "i"},	/* small i, dieresis or umlaut mark */
-    {"eth",	0360, "dh"},	/* small eth, Icelandic */
-    {"ntilde",	0361, "n"},	/* small n, tilde */
-    {"ograve",	0362, "o"},	/* small o, grave accent */
-    {"oacute",	0363, "o"},	/* small o, acute accent */
-    {"ocirc",	0364, "o"},	/* small o, circumflex accent */
-    {"otilde",	0365, "o"},	/* small o, tilde */
-    {"ouml",	0366, "oe"},	/* small o, dieresis or umlaut mark */
-    {"divide",	0367, "/"},	/* divide sign */
-    {"oslash",	0370, "o"},	/* small o, slash */
-    {"ugrave",	0371, "u"},	/* small u, grave accent */
-    {"uacute",	0372, "u"},	/* small u, acute accent */
-    {"ucirc",	0373, "u"},	/* small u, circumflex accent */
-    {"uuml",	0374, "ue"},	/* small u, dieresis or umlaut mark */
-    {"yacute",	0375, "y"},	/* small y, acute accent */
-    {"thorn",	0376, "p"},	/* small thorn, Icelandic */
-    {"yuml",	0377, "y"},	/* small y, dieresis or umlaut mark */
-    {"#8192", 0x2000, NULL, 040},  /* 2000 en quad */
-    {"#8193", 0x2001, NULL, 040},  /* 2001 em quad */
-    {"#8194", 0x2002, NULL, 040},  /* 2002 en space  */
-    {"#8195", 0x2003, NULL, 040},  /* 2003 em space  */
-    {"#8196", 0x2004, NULL, 040},  /* 2004 thick space */
-    {"#8197", 0x2005, NULL, 040},  /* 2005 mid space */
-    {"#8198", 0x2006, NULL, 040},  /* 2006 thin space */
-    {"#8199", 0x2007, NULL, 040},  /* 2007 figure space */
-    {"#8200", 0x2008, NULL, 040},  /* 2008 punctuation space */
-    {"#8201", 0x2009, NULL, 040},  /* 2009 thin space */
-    {"#8202", 0x200A, NULL, 0},    /* 200A hair space */
-    {"#8203", 0x200B, NULL, 0},    /* 200B zero width space */
-    {"#8204", 0x200C, NULL, 0},    /* 200C zero width non-joiner */
-    {"#8205", 0x200D, NULL, 0},    /* 200D zero width joiner */
-    {"#8206", 0x200E, NULL, 0},    /* 200E left-to-right mark */
-    {"#8207", 0x200F, NULL, 0},    /* 200F right to left mark */
-    {"#8208", 0x2010, NULL, 055},  /* 2010 hyphen */
-    {"#8209", 0x2011, NULL, 055},  /* 2011 no-break hyphen */
-    {"#8210", 0x2012, NULL, 055},  /* 2012 figure dash */
-    {"#8211", 0x2013, NULL, 055},  /* 2013 en dash */
-    {"#8212", 0x2014, NULL, 055},  /* 2014 em dash */
-    {"#8213", 0x2015, "--", 0},    /* 2015 horizontal bar */
-    {"#8214", 0x2016, "||", 0},    /* 2016 double vertical line */
-    {"#8215", 0x2017, "__", 0},    /* 2017 double low line */
-    {"#8216", 0x2018, NULL, 0140}, /* 2018 left single quotation mark */
-    {"#8217", 0x2019, NULL, 047},  /* 2019 right single quotation mark */
-    {"#8218", 0x201A, NULL, 054},  /* 201A single low-9 quotation mark */
-    {"#8219", 0x201B, NULL, 0140}, /* 201B single high reversed-9 quotation mark */
-    {"#8220", 0x201C, NULL, 042},  /* 201C left double quote */
-    {"#8221", 0x201D, NULL, 042},  /* 201D right double quote */
-    {"#8222", 0x201E, ",,", 0},    /* 201E double low-9 quotation mark */
-    {"#8223", 0x201F, "``", 0},    /* 201F double high reversed-9 quotation mark  */
-    {"#8224", 0x2020, NULL, 0},    /* 2020 dagger */
-    {"#8225", 0x2021, NULL, 0},    /* 2021 double dagger */
-    {"#8226", 0x2022, NULL, 0267}, /* 2022 bullet */
-    {"#8227", 0x2023, NULL, 0},    /* 2023 triangular bullet */
-    {"#8228", 0x2024, NULL, 056},  /* 2024 one dot leader */
-    {"#8229", 0x2025, "..", 0},    /* 2025 two dot leader */
-    {"#8230", 0x2026, "...", 0},   /* 2026 ellipsis */
-    {"#8231", 0x2027, "-", 0267},  /* 2027 hyphenation point */
-    {"#8232", 0x2028, NULL, 0},    /* 2028 line separator */
-    {"#8233", 0x2029, NULL, 0266}, /* 2029 paragraph separator */
-    {"#8234", 0x202A, NULL, 0},    /* 202A left-to-right embedding */
-    {"#8235", 0x202B, NULL, 0},    /* 202B right-to-left embedding */
-    {"#8236", 0x202C, NULL, 0},    /* 202C pop directional formatting */
-    {"#8237", 0x202D, NULL, 0},    /* 202D left-to-right override */
-    {"#8238", 0x202E, NULL, 0},    /* 202E right-to-left override */
-    {"#8239", 0x202F, NULL, 040},  /* 202F narrow no-break space */
-    {"#8240", 0x2030, "%.", 0},    /* 2030 per mille */
-    {"#8241", 0x2031, "%..", 0},   /* 2031 per ten thousand */
-    {"#8242", 0x2032, NULL, 047},  /* 2032 prime */
-    {"#8243", 0x2033, "\'\'", 0},  /* 2033 double prime */
-    {"#8244", 0x2034, "\'\'\'", 0}, /* 2034 triple prime */
-    {"#8245", 0x2035, NULL, 0140}, /* 2035 reversed prime */
-    {"#8246", 0x2036, "``", 0},    /* 2036 reversed double prime */
-    {"#8247", 0x2037, "```", 0},   /* 2037 reversed triple prime */
-    {"#8248", 0x2038, NULL, 0136}, /* 2038 caret */
-    {"#8249", 0x2039, NULL, 074},  /* 2039 single left angle quotation mark */
-    {"#8250", 0x203A, NULL, 076},  /* 203A single right angle quotation mark  */
-    {"#8251", 0x203B, NULL, 0},    /* 203B reference mark */
-    {"#8252", 0x203C, "!!", 0},    /* 203C double exclamation mark */
-    {"#8253", 0x203D, NULL, 041},  /* 203D interrobang */
-    {"#8254", 0x203E, "-", 0257},  /* 203E overline */
-    {"#8255", 0x203F, NULL, 0137}, /* 203F undertie */
-    {"#8256", 0x2040, NULL, 0},    /* 2040 character tie */
-    {"#8257", 0x2041, NULL, 0},    /* 2041 caret insertion point */
-    {"#8258", 0x2042, NULL, 0},    /* 2042 asterism */
-    {"#8259", 0x2043, NULL, 0},    /* 2043 hyphen bullet */
-    {"#8260", 0x2044, NULL, 057},  /* 2044 fraction slash */
-    {"#8261", 0x2045, NULL, 0133}, /* 2045 left square bracket w/quill */
-    {"#8262", 0x2046, NULL, 0135}, /* 2046 right square bracket w/quill */
-    {"#8263", 0x2047, "??", 0},    /* 2047 double question mark */
-    {"#8264", 0x2048, "?!", 0},    /* 2048 question exclamation mark */
-    {"#8265", 0x2049, "!?", 0},    /* 2049 exclamation question mark */
-    {"#8266", 0x204A, NULL, 0},    /* 204A tironian sign et */
-    {"#8267", 0x204B, NULL, 0},    /* 204B reverse pilcrow */
-    {"#8268", 0x204C, NULL, 0},    /* 204C black left bullet */
-    {"#8269", 0x204D, NULL, 0},    /* 204D black right bullet */
-    {"#8270", 0x204E, NULL, 0},    /* 204E low asterisk */
-    {"#8271", 0x204F, NULL, 0},    /* 204F reversed semicolon */
-    {"#8272", 0x2050, NULL, 0},    /* 2050 close up */
-    {"#8273", 0x2051, NULL, 0},    /* 2051 two vertical asterisks */
-    {"#8274", 0x2052, NULL, 0},    /* 2052 commercial minus */
-    {"#8275", 0x2053, NULL, 0},    /* 2053 reserved */
-    {"#8276", 0x2054, NULL, 0},    /* 2054 reserved */
-    {"#8277", 0x2055, NULL, 0},    /* 2055 reserved */
-    {"#8278", 0x2056, NULL, 0},    /* 2056 reserved */
-    {"#8279", 0x2057, "\'\'\'\'", 0}, /* 2057 quad prime */
-    {"#8280", 0x2058, NULL, 0},    /* 2058 reserved */
-    {"#8281", 0x2059, NULL, 0},    /* 2059 reserved */
-    {"#8282", 0x205A, NULL, 0},    /* 205A reserved */
-    {"#8283", 0x205B, NULL, 0},    /* 205B reserved */
-    {"#8284", 0x205C, NULL, 0},    /* 205C reserved */
-    {"#8285", 0x205D, NULL, 0},    /* 205D reserved */
-    {"#8286", 0x205E, NULL, 0},    /* 205E reserved */
-    {"#8287", 0x205F, NULL, 040},  /* 205F medium math space */
-    {"#8288", 0x2060, NULL, 0},    /* 2060 word joiner */
-    {"#8289", 0x2061, NULL, 0},    /* 2061 function application */
-    {"#8290", 0x2062, NULL, 0},    /* 2062 invisible times */
-    {"#8291", 0x2063, NULL, 0},    /* 2063 invisible separator */
-    {"#8364", 0x20AC, "EUR", 0},   /* 20AC euro symbol */
-    {"#8482", 0x2122, "[tm]", 0},  /* 2122 trademark symbol */
-    {NULL,	0}
+    {"quot",		0x0022},	    /* 34 - quotation mark */
+    {"amp",		0x0026},	    /* 38 - ampersand */
+    {"apos",		0x0027},	    /* 39 - apostrophe */
+    {"lt",		0x003C},	    /* 60 - less-than sign */
+    {"gt",		0x003E},	    /* 62 - greater-than sign */
+    {"nbsp",		0x00A0, " "},	    /* 160 - no-break space */
+    {"iexcl",		0x00A1},	    /* 161 - inverted exclamation mark */
+    {"cent",		0x00A2},	    /* 162 - cent sign */
+    {"pound",		0x00A3},	    /* 163 - pound sign */
+    {"curren",		0x00A4, "CUR"},	    /* 164 - currency sign */
+    {"yen",		0x00A5},	    /* 165 - yen sign */
+    {"brvbar",		0x00A6, "|"},	    /* 166 - broken bar */
+    {"sect",		0x00A7},	    /* 167 - section sign */
+    {"uml",		0x00A8, "\""},	    /* 168 - diaeresis */
+    {"copy",		0x00A9, "(C)"},	    /* 169 - copyright sign */
+    {"ordf",		0x00AA, "a"},	    /* 170 - feminine ordinal indicator */
+    {"laquo",		0x00AB, "<<"},	    /* 171 - left-pointing double angle quotation mark */
+    {"not",		0x00AC, "NOT"},	    /* 172 - not sign */
+    {"shy",		0x00AD, "-"},	    /* 173 - soft hyphen */
+    {"reg",		0x00AE, "(R)"},	    /* 174 - registered sign */
+    {"macr",		0x00AF},	    /* 175 - macron */
+    {"deg",		0x00B0, "DEG"},	    /* 176 - degree sign */
+    {"plusmn",		0x00B1, "+/-"},	    /* 177 - plus-minus sign */
+    {"sup2",		0x00B2},	    /* 178 - superscript two */
+    {"sup3",		0x00B3},	    /* 179 - superscript three */
+    {"acute",		0x00B4, "'"},	    /* 180 - acute accent */
+    {"micro",		0x00B5},	    /* 181 - micro sign */
+    {"para",		0x00B6},	    /* 182 - pilcrow sign */
+    {"middot",		0x00B7},	    /* 183 - middle dot */
+    {"cedil",		0x00B8},	    /* 184 - cedilla */
+    {"sup1",		0x00B9},	    /* 185 - superscript one */
+    {"ordm",		0x00BA, "o"},	    /* 186 - masculine ordinal indicator */
+    {"raquo",		0x00BB, ">>"},	    /* 187 - right-pointing double angle quotation mark */
+    {"frac14",		0x00BC, " 1/4"},    /* 188 - vulgar fraction one quarter */
+    {"frac12",		0x00BD, " 1/2"},    /* 189 - vulgar fraction one half */
+    {"frac34",		0x00BE, " 3/4"},    /* 190 - vulgar fraction three quarters */
+    {"iquest",		0x00BF},	    /* 191 - inverted question mark */
+    {"Agrave",		0x00C0, "A"},	    /* 192 - latin capital letter a with grave */
+    {"Aacute",		0x00C1, "A"},	    /* 193 - latin capital letter a with acute */
+    {"Acirc",		0x00C2, "A"},	    /* 194 - latin capital letter a with circumflex */
+    {"Atilde",		0x00C3, "A"},	    /* 195 - latin capital letter a with tilde */
+    {"Auml",		0x00C4, "AE"},	    /* 196 - latin capital letter a with diaeresis */
+    {"Aring",		0x00C5, "A"},	    /* 197 - latin capital letter a with ring above */
+    {"AElig",		0x00C6, "AE"},	    /* 198 - latin capital letter ae */
+    {"Ccedil",		0x00C7, "C"},	    /* 199 - latin capital letter c with cedilla */
+    {"Egrave",		0x00C8, "E"},	    /* 200 - latin capital letter e with grave */
+    {"Eacute",		0x00C9, "E"},	    /* 201 - latin capital letter e with acute */
+    {"Ecirc",		0x00CA, "E"},	    /* 202 - latin capital letter e with circumflex */
+    {"Euml",		0x00CB, "E"},	    /* 203 - latin capital letter e with diaeresis */
+    {"Igrave",		0x00CC, "I"},	    /* 204 - latin capital letter i with grave */
+    {"Iacute",		0x00CD, "I"},	    /* 205 - latin capital letter i with acute */
+    {"Icirc",		0x00CE, "I"},	    /* 206 - latin capital letter i with circumflex */
+    {"Iuml",		0x00CF, "I"},	    /* 207 - latin capital letter i with diaeresis */
+    {"ETH",		0x00D0, "DH"},	    /* 208 - latin capital letter eth */
+    {"Ntilde",		0x00D1, "N"},	    /* 209 - latin capital letter n with tilde */
+    {"Ograve",		0x00D2, "O"},	    /* 210 - latin capital letter o with grave */
+    {"Oacute",		0x00D3, "O"},	    /* 211 - latin capital letter o with acute */
+    {"Ocirc",		0x00D4, "O"},	    /* 212 - latin capital letter o with circumflex */
+    {"Otilde",		0x00D5, "O"},	    /* 213 - latin capital letter o with tilde */
+    {"Ouml",		0x00D6, "O"},	    /* 214 - latin capital letter o with diaeresis */
+    {"times",		0x00D7, "x"},	    /* 215 - multiplication sign */
+    {"Oslash",		0x00D8, "O"},	    /* 216 - latin capital letter o with stroke */
+    {"Ugrave",		0x00D9, "U"},	    /* 217 - latin capital letter u with grave */
+    {"Uacute",		0x00DA, "U"},	    /* 218 - latin capital letter u with acute */
+    {"Ucirc",		0x00DB, "U"},	    /* 219 - latin capital letter u with circumflex */
+    {"Uuml",		0x00DC, "UE"},	    /* 220 - latin capital letter u with diaeresis */
+    {"Yacute",		0x00DD, "Y"},	    /* 221 - latin capital letter y with acute */
+    {"THORN",		0x00DE, "P"},	    /* 222 - latin capital letter thorn */
+    {"szlig",		0x00DF, "ss"},	    /* 223 - latin small letter sharp s (German <a href="/wiki/Eszett" title="Eszett">Eszett</a>) */
+    {"agrave",		0x00E0, "a"},	    /* 224 - latin small letter a with grave */
+    {"aacute",		0x00E1, "a"},	    /* 225 - latin small letter a with acute */
+    {"acirc",		0x00E2, "a"},	    /* 226 - latin small letter a with circumflex */
+    {"atilde",		0x00E3, "a"},	    /* 227 - latin small letter a with tilde */
+    {"auml",		0x00E4, "ae"},	    /* 228 - latin small letter a with diaeresis */
+    {"aring",		0x00E5, "a"},	    /* 229 - latin small letter a with ring above */
+    {"aelig",		0x00E6, "ae"},	    /* 230 - latin lowercase ligature ae */
+    {"ccedil",		0x00E7, "c"},	    /* 231 - latin small letter c with cedilla */
+    {"egrave",		0x00E8, "e"},	    /* 232 - latin small letter e with grave */
+    {"eacute",		0x00E9, "e"},	    /* 233 - latin small letter e with acute */
+    {"ecirc",		0x00EA, "e"},	    /* 234 - latin small letter e with circumflex */
+    {"euml",		0x00EB, "e"},	    /* 235 - latin small letter e with diaeresis */
+    {"igrave",		0x00EC, "i"},	    /* 236 - latin small letter i with grave */
+    {"iacute",		0x00ED, "i"},	    /* 237 - latin small letter i with acute */
+    {"icirc",		0x00EE, "i"},	    /* 238 - latin small letter i with circumflex */
+    {"iuml",		0x00EF, "i"},	    /* 239 - latin small letter i with diaeresis */
+    {"eth",		0x00F0, "dh"},	    /* 240 - latin small letter eth */
+    {"ntilde",		0x00F1, "n"},	    /* 241 - latin small letter n with tilde */
+    {"ograve",		0x00F2, "o"},	    /* 242 - latin small letter o with grave */
+    {"oacute",		0x00F3, "o"},	    /* 243 - latin small letter o with acute */
+    {"ocirc",		0x00F4, "o"},	    /* 244 - latin small letter o with circumflex */
+    {"otilde",		0x00F5, "o"},	    /* 245 - latin small letter o with tilde */
+    {"ouml",		0x00F6, "oe"},	    /* 246 - latin small letter o with diaeresis */
+    {"divide",		0x00F7, "/"},	    /* 247 - division sign */
+    {"oslash",		0x00F8, "o"},	    /* 248 - latin small letter o with stroke */
+    {"ugrave",		0x00F9, "u"},	    /* 249 - latin small letter u with grave */
+    {"uacute",		0x00FA, "u"},	    /* 250 - latin small letter u with acute */
+    {"ucirc",		0x00FB, "u"},	    /* 251 - latin small letter u with circumflex */
+    {"uuml",		0x00FC, "ue"},	    /* 252 - latin small letter u with diaeresis */
+    {"yacute",		0x00FD, "y"},	    /* 253 - latin small letter y with acute */
+    {"thorn",		0x00FE, "p"},	    /* 254 - latin small letter thorn */
+    {"yuml",		0x00FF, "y"},	    /* 255 - latin small letter y with diaeresis */
+    {"OElig",		0x0152, "OE"},	    /* 338 - latin capital ligature oe */
+    {"oelig",		0x0153, "oe"},	    /* 339 - latin small ligature oe */
+    {"Scaron",		0x0160, "S"},	    /* 352 - latin capital letter s with caron */
+    {"scaron",		0x0161, "s"},	    /* 353 - latin small letter s with caron */
+    {"Yuml",		0x0178, "Y"},	    /* 376 - latin capital letter y with diaeresis */
+    {"fnof",		0x0192, "f"},	    /* 402 - latin small letter f with hook */
+    {"circ",		0x02C6},	    /* 710 - modifier letter circumflex accent */
+    {"tilde",		0x02DC, "~"},	    /* 732 - small tilde */
+    {"Alpha",		0x0391},	    /* 913 - greek capital letter alpha */
+    {"Beta",		0x0392},	    /* 914 - greek capital letter beta */
+    {"Gamma",		0x0393},	    /* 915 - greek capital letter gamma */
+    {"Delta",		0x0394},	    /* 916 - greek capital letter delta */
+    {"Epsilon",		0x0395},	    /* 917 - greek capital letter epsilon */
+    {"Zeta",		0x0396},	    /* 918 - greek capital letter zeta */
+    {"Eta",		0x0397},	    /* 919 - greek capital letter eta */
+    {"Theta",		0x0398},	    /* 920 - greek capital letter theta */
+    {"Iota",		0x0399},	    /* 921 - greek capital letter iota */
+    {"Kappa",		0x039A},	    /* 922 - greek capital letter kappa */
+    {"Lambda",		0x039B},	    /* 923 - greek capital letter lamda */
+    {"Mu",		0x039C},	    /* 924 - greek capital letter mu */
+    {"Nu",		0x039D},	    /* 925 - greek capital letter nu */
+    {"Xi",		0x039E},	    /* 926 - greek capital letter xi */
+    {"Omicron",		0x039F},	    /* 927 - greek capital letter omicron */
+    {"Pi",		0x03A0},	    /* 928 - greek capital letter pi */
+    {"Rho",		0x03A1},	    /* 929 - greek capital letter rho */
+    {"Sigma",		0x03A3},	    /* 931 - greek capital letter sigma */
+    {"Tau",		0x03A4},	    /* 932 - greek capital letter tau */
+    {"Upsilon",		0x03A5},	    /* 933 - greek capital letter upsilon */
+    {"Phi",		0x03A6},	    /* 934 - greek capital letter phi */
+    {"Chi",		0x03A7},	    /* 935 - greek capital letter chi */
+    {"Psi",		0x03A8},	    /* 936 - greek capital letter psi */
+    {"Omega",		0x03A9},	    /* 937 - greek capital letter omega */
+    {"alpha",		0x03B1},	    /* 945 - greek small letter alpha */
+    {"beta",		0x03B2},	    /* 946 - greek small letter beta */
+    {"gamma",		0x03B3},	    /* 947 - greek small letter gamma */
+    {"delta",		0x03B4},	    /* 948 - greek small letter delta */
+    {"epsilon",		0x03B5},	    /* 949 - greek small letter epsilon */
+    {"zeta",		0x03B6},	    /* 950 - greek small letter zeta */
+    {"eta",		0x03B7},	    /* 951 - greek small letter eta */
+    {"theta",		0x03B8},	    /* 952 - greek small letter theta */
+    {"iota",		0x03B9},	    /* 953 - greek small letter iota */
+    {"kappa",		0x03BA},	    /* 954 - greek small letter kappa */
+    {"lambda",		0x03BB},	    /* 955 - greek small letter lamda */
+    {"mu",		0x03BC},	    /* 956 - greek small letter mu */
+    {"nu",		0x03BD},	    /* 957 - greek small letter nu */
+    {"xi",		0x03BE},	    /* 958 - greek small letter xi */
+    {"omicron",		0x03BF},	    /* 959 - greek small letter omicron */
+    {"pi",		0x03C0},	    /* 960 - greek small letter pi */
+    {"rho",		0x03C1},	    /* 961 - greek small letter rho */
+    {"sigmaf",		0x03C2},	    /* 962 - greek small letter final sigma */
+    {"sigma",		0x03C3},	    /* 963 - greek small letter sigma */
+    {"tau",		0x03C4},	    /* 964 - greek small letter tau */
+    {"upsilon",		0x03C5},	    /* 965 - greek small letter upsilon */
+    {"phi",		0x03C6},	    /* 966 - greek small letter phi */
+    {"chi",		0x03C7},	    /* 967 - greek small letter chi */
+    {"psi",		0x03C8},	    /* 968 - greek small letter psi */
+    {"omega",		0x03C9},	    /* 969 - greek small letter omega */
+    {"thetasym",	0x03D1},	    /* 977 - greek theta symbol */
+    {"upsih",		0x03D2},	    /* 978 - greek upsilon with hook symbol */
+    {"piv",		0x03D6},	    /* 982 - greek pi symbol */
+    {"ensp",		0x2002},	    /* 8194 - en space */
+    {"emsp",		0x2003},	    /* 8195 - em space */
+    {"thinsp",		0x2009},	    /* 8201 - thin space */
+    {"zwnj",		0x200C},	    /* 8204 - zero width non-joiner */
+    {"zwj",		0x200D},	    /* 8205 - zero width joiner */
+    {"lrm",		0x200E},	    /* 8206 - left-to-right mark */
+    {"rlm",		0x200F},	    /* 8207 - right-to-left mark */
+    {"ndash",		0x2013},	    /* 8211 - en dash */
+    {"mdash",		0x2014},	    /* 8212 - em dash */
+    {"#8213",		 0x2015, "--"},	    /* 2015 - horizontal bar */
+    {"#8214",		 0x2016, "||"},	    /* 2016 - double vertical line */
+    {"#8215",		 0x2017, "__"},	    /* 2017 - double low line */
+    {"lsquo",		0x2018},	    /* 8216 - left single quotation mark */
+    {"rsquo",		0x2019},	    /* 8217 - right single quotation mark */
+    {"sbquo",		0x201A},	    /* 8218 - single low-9 quotation mark */
+    {"ldquo",		0x201C},	    /* 8220 - left double quotation mark */
+    {"rdquo",		0x201D},	    /* 8221 - right double quotation mark */
+    {"bdquo",		0x201E, ",,"},	    /* 8222 - double low-9 quotation mark */
+    {"#8223",		0x201F, "``"},	    /* 201F -  double high reversed-9 quotation mark  */
+    {"dagger",		0x2020},	    /* 8224 - dagger */
+    {"Dagger",		0x2021},	    /* 8225 - double dagger */
+    {"bull",		0x2022, "*"},	    /* 8226 - bullet */
+    {"hellip",		0x2026},	    /* 8230 - horizontal ellipsis */
+    {"permil",		0x2030},	    /* 8240 - per mille sign */
+    {"prime",		0x2032, "\'"},	    /* 8242 - prime */
+    {"Prime",		0x2033, "\'\'"},    /* 8243 - double prime */
+    {"#8244",		0x2034, "\'\'\'"},  /* 2034 - triple prime */
+    {"lsaquo",		0x2039},	    /* 8249 - single left-pointing angle quotation mark */
+    {"rsaquo",		0x203A},	    /* 8250 - single right-pointing angle quotation mark */
+    {"#8252",		0x203C, "!!"},	    /* 203C - double exclamation mark */
+    {"oline",		0x203E, "-"},	    /* 8254 - overline */
+    {"frasl",		0x2044},	    /* 8260 - fraction slash */
+    {"#8263",		0x2047, "??"},	    /* 2047 - double question mark */
+    {"#8264",		0x2048, "?!"},	    /* 2048 - question exclamation mark */
+    {"#8265",		0x2049, "!?"},	    /* 2049 - exclamation question mark */
+    {"#8279",		0x2057, "\'\'\'\'"}, /* 2057 - quad prime */
+    {"euro",		0x20AC, "EUR"},	    /* 8364 - euro sign */
+    {"image",		0x2111},	    /* 8465 - black-letter capital i */
+    {"weierp",		0x2118},	    /* 8472 - script capital p (<a href="/wiki/Weierstrass" title="Weierstrass">Weierstrass</a> p) */
+    {"real",		0x211C},	    /* 8476 - black-letter capital r */
+    {"trade",		0x2122, "[tm]"},    /* 8482 - trademark sign */
+    {"alefsym",		0x2135},	    /* 8501 - alef symbol */
+    {"larr",		0x2190},	    /* 8592 - leftwards arrow */
+    {"uarr",		0x2191},	    /* 8593 - upwards arrow */
+    {"rarr",		0x2192},	    /* 8594 - rightwards arrow */
+    {"darr",		0x2193},	    /* 8595 - downwards arrow */
+    {"harr",		0x2194},	    /* 8596 - left right arrow */
+    {"crarr",		0x21B5},	    /* 8629 - downwards arrow with corner leftwards */
+    {"lArr",		0x21D0},	    /* 8656 - leftwards double arrow */
+    {"uArr",		0x21D1},	    /* 8657 - upwards double arrow */
+    {"rArr",		0x21D2},	    /* 8658 - rightwards double arrow */
+    {"dArr",		0x21D3},	    /* 8659 - downwards double arrow */
+    {"hArr",		0x21D4},	    /* 8660 - left right double arrow */
+    {"forall",		0x2200},	    /* 8704 - for all */
+    {"part",		0x2202},	    /* 8706 - partial differential */
+    {"exist",		0x2203},	    /* 8707 - there exists */
+    {"empty",		0x2205},	    /* 8709 - empty set */
+    {"nabla",		0x2207},	    /* 8711 - nabla */
+    {"isin",		0x2208},	    /* 8712 - element of */
+    {"notin",		0x2209},	    /* 8713 - not an element of */
+    {"ni",		0x220B},	    /* 8715 - contains as member */
+    {"prod",		0x220F},	    /* 8719 - n-ary product */
+    {"sum",		0x2211},	    /* 8721 - n-ary summation */
+    {"minus",		0x2212},	    /* 8722 - minus sign */
+    {"lowast",		0x2217},	    /* 8727 - asterisk operator */
+    {"radic",		0x221A},	    /* 8730 - square root */
+    {"prop",		0x221D},	    /* 8733 - proportional to */
+    {"infin",		0x221E},	    /* 8734 - infinity */
+    {"ang",		0x2220},	    /* 8736 - angle */
+    {"and",		0x2227},	    /* 8743 - logical and */
+    {"or",		0x2228},	    /* 8744 - logical or */
+    {"cap",		0x2229},	    /* 8745 - intersection */
+    {"cup",		0x222A},	    /* 8746 - union */
+    {"int",		0x222B},	    /* 8747 - integral */
+    {"there4",		0x2234},	    /* 8756 - therefore */
+    {"sim",		0x223C},	    /* 8764 - tilde operator */
+    {"cong",		0x2245},	    /* 8773 - congruent to */
+    {"asymp",		0x2248},	    /* 8776 - almost equal to */
+    {"ne",		0x2260},	    /* 8800 - not equal to */
+    {"equiv",		0x2261},	    /* 8801 - identical to (equivalent to) */
+    {"le",		0x2264},	    /* 8804 - less-than or equal to */
+    {"ge",		0x2265},	    /* 8805 - greater-than or equal to */
+    {"sub",		0x2282},	    /* 8834 - subset of */
+    {"sup",		0x2283},	    /* 8835 - superset of */
+    {"nsub",		0x2284},	    /* 8836 - not a subset of */
+    {"sube",		0x2286},	    /* 8838 - subset of or equal to */
+    {"supe",		0x2287},	    /* 8839 - superset of or equal to */
+    {"oplus",		0x2295},	    /* 8853 - circled plus */
+    {"otimes",		0x2297},	    /* 8855 - circled times */
+    {"perp",		0x22A5},	    /* 8869 - up tack */
+    {"sdot",		0x22C5},	    /* 8901 - dot operator */
+    {"lceil",		0x2308},	    /* 8968 - left ceiling */
+    {"rceil",		0x2309},	    /* 8969 - right ceiling */
+    {"lfloor",		0x230A},	    /* 8970 - left floor */
+    {"rfloor",		0x230B},	    /* 8971 - right floor */
+    {"lang",		0x2329},	    /* 9001 - left-pointing angle bracket */
+    {"rang",		0x232A},	    /* 9002 - right-pointing angle bracket */
+    {"loz",		0x25CA},	    /* 9674 - lozenge */
+    {"spades",		0x2660},	    /* 9824 - black spade suit */
+    {"clubs",		0x2663},	    /* 9827 - black club suit */
+    {"hearts",		0x2665},	    /* 9829 - black heart suit */
+    {"diams",		0x2666}		    /* 9830 - black diamond suit */
 };
 
 
@@ -3368,7 +3470,7 @@ html_i(HANDLER_S *hd, int ch, int cmd)
 {
     if(cmd == GF_DATA){
 	/* include LITERAL in spaceness test! */
-	if(hd->x && !isspace((unsigned char) (ch & 0xff))){
+	if(hd->x && !ASCII_ISSPACE((unsigned char) (ch & 0xff))){
 	    HTML_ITALIC(hd->html_data, 1);
 	    hd->x = 0;
 	}
@@ -3395,7 +3497,7 @@ html_b(HANDLER_S *hd, int ch, int cmd)
 {
     if(cmd == GF_DATA){
 	/* include LITERAL in spaceness test! */
-	if(hd->x && !isspace((unsigned char) (ch & 0xff))){
+	if(hd->x && !ASCII_ISSPACE((unsigned char) (ch & 0xff))){
 	    HTML_BOLD(hd->html_data, 1);
 	    hd->x = 0;
 	}
@@ -3422,7 +3524,7 @@ html_s(HANDLER_S *hd, int ch, int cmd)
 {
     if(cmd == GF_DATA){
 	/* include LITERAL in spaceness test! */
-	if(hd->x && !isspace((unsigned char) (ch & 0xff))){
+	if(hd->x && !ASCII_ISSPACE((unsigned char) (ch & 0xff))){
 	    HTML_STRIKE(hd->html_data, 1);
 	    hd->x = 0;
 	}
@@ -3449,7 +3551,7 @@ html_big(HANDLER_S *hd, int ch, int cmd)
 {
     if(cmd == GF_DATA){
 	/* include LITERAL in spaceness test! */
-	if(hd->x && !isspace((unsigned char) (ch & 0xff))){
+	if(hd->x && !ASCII_ISSPACE((unsigned char) (ch & 0xff))){
 	    HTML_BIG(hd->html_data, 1);
 	    hd->x = 0;
 	}
@@ -3476,7 +3578,7 @@ html_small(HANDLER_S *hd, int ch, int cmd)
 {
     if(cmd == GF_DATA){
 	/* include LITERAL in spaceness test! */
-	if(hd->x && !isspace((unsigned char) (ch & 0xff))){
+	if(hd->x && !ASCII_ISSPACE((unsigned char) (ch & 0xff))){
 	    HTML_SMALL(hd->html_data, 1);
 	    hd->x = 0;
 	}
@@ -3539,8 +3641,10 @@ html_img(HANDLER_S *hd, int ch, int cmd)
 	    sprintf(buf, "%d", h->key);
 	    n = strlen(buf);
 	    HTML_TEXT(hd->html_data, n);
-	    for(i = 0; i < n; i++)
-	      HTML_TEXT(hd->html_data, buf[i]);
+	    for(i = 0; i < n; i++){
+		unsigned int uic = buf[i];
+		HTML_TEXT(hd->html_data, uic);
+	    }
 
 	    return(0);
 	}
@@ -4408,7 +4512,7 @@ int
 html_h2(HANDLER_S *hd, int ch, int cmd)
 {
     if(cmd == GF_DATA){
-	if((hd->x & HTML_HX_ULINE) && !isspace((unsigned char) (ch & 0xff))){
+	if((hd->x & HTML_HX_ULINE) && !ASCII_ISSPACE((unsigned char) (ch & 0xff))){
 	    HTML_ULINE(hd->html_data, 1);
 	    hd->x ^= HTML_HX_ULINE;	/* only once! */
 	}
@@ -4458,7 +4562,7 @@ int
 html_h3(HANDLER_S *hd, int ch, int cmd)
 {
     if(cmd == GF_DATA){
-	if((hd->x & HTML_HX_ULINE) && !isspace((unsigned char) (ch & 0xff))){
+	if((hd->x & HTML_HX_ULINE) && !ASCII_ISSPACE((unsigned char) (ch & 0xff))){
 	    HTML_ULINE(hd->html_data, 1);
 	    hd->x ^= HTML_HX_ULINE;	/* only once! */
 	}
@@ -4941,7 +5045,7 @@ html_element_collector(FILTER_S *fd, int ch)
 	     * no "--" after ! or non-whitespace between comments - bad
 	     */
 	    if(ED(fd)->len < 2 || (!ED(fd)->start_comment
-				   && !isspace((unsigned char) ch)))
+				   && !ASCII_ISSPACE((unsigned char) ch)))
 	      ED(fd)->badform = 1;	/* non-comment! */
 
 	    ED(fd)->hyphen = 0;
@@ -5001,7 +5105,7 @@ html_element_collector(FILTER_S *fd, int ch)
     if(ED(fd)->quoted
        || isalnum(ch)
        || strchr("-.!", ch)
-       || (ED(fd)->hit_equal && !isspace((unsigned char) ch))){
+       || (ED(fd)->hit_equal && !ASCII_ISSPACE((unsigned char) ch))){
 	if(ED(fd)->len < ((ED(fd)->element || !ED(fd)->hit_equal)
 			       ? HTML_BUF_LEN:MAX_ELEMENT)){
 	    ED(fd)->buf[(ED(fd)->len)++] = ch;
@@ -5009,7 +5113,7 @@ html_element_collector(FILTER_S *fd, int ch)
 	else
 	  ED(fd)->overrun = 1;		/* flag it broken */
     }
-    else if(isspace((unsigned char) ch) || ch == '='){
+    else if(ASCII_ISSPACE((unsigned char) ch) || ch == '='){
 	if(html_element_flush(ED(fd))){
 	    ED(fd)->badform = 1;
 	    return(0);		/* else, we ain't done yet */
@@ -5093,7 +5197,7 @@ html_element_comment(FILTER_S *f, char *s)
 {
     char *p;
 
-    while(*s && isspace((unsigned char) *s))
+    while(*s && ASCII_ISSPACE((unsigned char) *s))
       s++;
 
     /*
@@ -5128,7 +5232,7 @@ html_element_comment(FILTER_S *f, char *s)
 		    removing_leading_white_space(s);
 		    removing_trailing_white_space(s);
 		    if(*s == '-' && *(s+1) == 'r'){ /* readable file? */
-			for(s += 2; *s && isspace((unsigned char) *s); s++)
+			for(s += 2; *s && ASCII_ISSPACE((unsigned char) *s); s++)
 			  ;
 
 
@@ -5218,7 +5322,7 @@ html_element_comment(FILTER_S *f, char *s)
 		    p = (ps_global->VAR_BUGS_FULLNAME
 			 && ps_global->VAR_BUGS_FULLNAME[0])
 			    ? ps_global->VAR_BUGS_FULLNAME
-			    : "Place to report Pine Bugs";
+			    : "Place to report Alpine Bugs";
 		}
 		else if(!strcmp(s, "_BUGS_ADDRESS_")){
 		    p = (ps_global->VAR_BUGS_ADDRESS
@@ -5299,10 +5403,10 @@ html_element_output(FILTER_S *f, int ch)
 
 
 /*
- * collect html entities and return its value when done.
+ * collect html entity and return its UCS value when done.
  *
- * Returns 0		 : we need more data
- *	   1-255	 : char value of entity collected
+ * Returns HTML_MOREDATA : we need more data
+ *	   HTML_ENTITY	 : entity collected
  *	   HTML_BADVALUE : good data, but no named match or out of range
  *	   HTML_BADDATA  : invalid input
  *
@@ -5314,84 +5418,60 @@ html_element_output(FILTER_S *f, int ch)
  *  - numeric vals are 0-255 except for the ranges: 0-8, 11-31, 127-159.
  */
 int
-html_entity_collector(FILTER_S *f, int ch, char **alternate)
+html_entity_collector(FILTER_S *f, int ch, UCS *ucs, char **alt)
 {
     static char len = 0;
-    static char buf[MAX_ENTITY];
-    int rv = 0, i;
+    static char buf[MAX_ENTITY+2];
+    int		rv, i;
 
-    if((len == 0)
-	 ? (isalpha((unsigned char) ch) || ch == '#')
-	 : ((isdigit((unsigned char) ch)
-	     || (isalpha((unsigned char) ch) && buf[0] != '#'))
-	    && len < MAX_ENTITY - 1)){
-	buf[len++] = ch;
+    if(len == MAX_ENTITY){
+	rv = HTML_BADDATA;
     }
-    else if((isspace((unsigned char) ch) || ch == ';') && len &&
-	    len < MAX_ENTITY){
+    else if((len == 0)
+	      ? (isalpha((unsigned char) ch) || ch == '#')
+	      : ((isdigit((unsigned char) ch)
+		  || (isalpha((unsigned char) ch) && buf[0] != '#')))){
+	buf[len++] = ch;
+	return(HTML_MOREDATA);
+    }
+    else if(ch == ';' || ASCII_ISSPACE((unsigned char) ch)){
 	buf[len] = '\0';		/* got something! */
-	switch(buf[0]){
-	  case '#' :
-	    rv = atoi(&buf[1]);
-	    if(ps_global->pass_ctrl_chars
-	       || (ps_global->pass_c1_ctrl_chars && rv >= 0x80 && rv < 0xA0)
-	       || (rv == '\t' || rv == '\n' || rv == '\r'
-		   || (rv > 31 && rv < 127) || (rv > 159 && rv < 256)
-		   || (rv >= 0x2000 && rv <=0x2063)
-		   || (rv == 0x20AC) || (rv == 0x2122))){
-		if(alternate || rv > 0377){
-		    if(alternate)
-		      *alternate = NULL;
-		    for(i = 0; entity_tab[i].name; i++)
-		      if(entity_tab[i].value == rv){
-			  if(alternate)
-			    *alternate = entity_tab[i].plain;
-			  if(entity_tab[i].altvalue)
-			    rv = entity_tab[i].altvalue;
-			  break;
-		      }
-		    if(rv > 0377){
-			if(entity_tab[i].name && entity_tab[i].plain)
-			  rv = HTML_EXTVALUE;
-			else
-			  rv = HTML_BADVALUE;
-		    }
-		}
+	if(buf[0] == '#'){
+	    *ucs = (UCS) strtoul(&buf[1], NULL, 10);
+	    if(alt){
+		*alt = NULL;
+		for(i = 0; i < sizeof(entity_tab)/sizeof(struct html_entities); i++)
+		  if(entity_tab[i].value == *ucs){
+		      *alt = entity_tab[i].plain;
+		      break;
+		  }
 	    }
-	    else
-	      rv = HTML_BADVALUE;
 
-	    break;
-
-	  default :
-	    rv = HTML_BADVALUE;		/* in case we fail below */
-	    for(i = 0; entity_tab[i].name; i++)
+	    len = 0;
+	    return(HTML_ENTITY);
+	}
+	else{
+	    rv = HTML_BADVALUE;		/* in case of no match */
+	    for(i = 0; i < sizeof(entity_tab)/sizeof(struct html_entities); i++)
 	      if(strcmp(entity_tab[i].name, buf) == 0){
-		  rv = entity_tab[i].value;
-		  if(alternate)
-		    *alternate = entity_tab[i].plain;
+		  *ucs = entity_tab[i].value;
+		  if(alt)
+		    *alt = entity_tab[i].plain;
 
-		  break;
+		  len = 0;
+		  return(HTML_ENTITY);
 	      }
-
-	    break;
 	}
     }
     else
       rv = HTML_BADDATA;		/* bogus input! */
 
-    if(rv){				/* nonzero return, clean up */
-	if(rv > 0xff && alternate
-	    && rv != HTML_EXTVALUE){	/* provide bogus data to caller */
-	    if(len < MAX_ENTITY)
-	      buf[len] = '\0';
-
-	    *alternate = buf;
-	}
-
-	len = 0;
+    if(alt){
+	buf[len]   = '\0';
+	*alt	   = buf;
     }
 
+    len = 0;
     return(rv);
 }
 
@@ -5431,17 +5511,20 @@ gf_html2plain(FILTER_S *f, int flg)
 	    if(f->t){
 		int   i;
 		char *alt = NULL;
+		UCS   ucs;
 
-		switch(i = html_entity_collector(f, c, &alt)){
-		  case 0:		/* more data required? */
+		switch(html_entity_collector(f, c, &ucs, &alt)){
+		  case HTML_MOREDATA:	/* more data required? */
 		    continue;		/* go get another char */
 
 		  case HTML_BADVALUE :
 		  case HTML_BADDATA :
 		    /* if supplied, process bogus data */
 		    HTML_PROC(f, '&');
-		    for(; *alt; alt++)
-		      HTML_PROC(f, *alt);
+		    for(; *alt; alt++){
+			unsigned int uic = *alt;
+			HTML_PROC(f, uic);
+		    }
 
 		    if(c == '&' && !HD(f)->quoted){
 			f->t = '&';
@@ -5456,19 +5539,35 @@ gf_html2plain(FILTER_S *f, int flg)
 		    f->t = 0;		/* don't come back */
 
 		    /*
-		     * Map some of the undisplayable entities?
+		     * do something with UCS codepoint.  If it's
+		     * not displayable then use the alt version 
+		     * otherwise 
+		     * cvt UCS to UTF-8 and toss into next filter.
 		     */
-		    if(((HD(f)->alt_entity && i > 127)
-			   || i == HTML_EXTVALUE) && alt && alt[0]){
-			for(; *alt; alt++){
-			    c = MAKE_LITERAL(*alt);
+		    if(ucs > 127 && wcellwidth(ucs) < 0){
+			if(alt){
+			    for(; *alt; alt++){
+				c = MAKE_LITERAL(*alt);
+				HTML_PROC(f, c);
+			    }
+
+			    continue;
+			}
+			else
+			  c = MAKE_LITERAL('?');
+		    }
+		    else{
+			unsigned char utf8buf[8], *p1, *p2;
+
+			p2 = utf8_put(p1 = (unsigned char *) utf8buf, (unsigned long) ucs);
+			for(; p1 < p2; p1++){
+			    c = MAKE_LITERAL(*p1);
 			    HTML_PROC(f, c);
 			}
 
 			continue;
 		    }
 
-		    c = MAKE_LITERAL(i);
 		    break;
 		}
 	    }
@@ -5527,6 +5626,7 @@ gf_html2plain(FILTER_S *f, int flg)
 	HD(f)->line_bufsize = HTML_BUF_LEN; /* initial bufsize of line */
 	HD(f)->alt_entity =  (!ps_global->display_charmap
 			      || strucmp(ps_global->display_charmap, "iso-8859-1"));
+	HD(f)->utf8bufp = HD(f)->utf8bufendp = HD(f)->utf8buf;
     }
 }
 
@@ -5609,170 +5709,78 @@ html_newline(FILTER_S *f)
 void
 html_output(FILTER_S *f, int ch)
 {
-    if(CENTER_BIT(f)){			/* center incoming text */
-	html_output_centered(f, ch);
-    }
-    else{
-	static short embedded = 0; /* BUG: reset on entering filter */
-	static char *color_ptr = NULL;
+    UCS uc;
+    int width;
+    void (*o_f)(FILTER_S *, int, int) = CENTER_BIT(f) ? html_output_centered : html_output_normal;
 
-	if(HD(f)->centered){
-	    html_centered_flush(f);
-	    fs_give((void **) &HD(f)->centered->line.buf);
-	    fs_give((void **) &HD(f)->centered->word.buf);
-	    fs_give((void **) &HD(f)->centered);
+    /*
+     * if ch is a control token, just pass it on, else, collect
+     * utf8-encoded characters to determine width,then feed into
+     * output routines
+     */
+    if(ch == TAG_EMBED || (ch > 0xff && IS_LITERAL(ch) == 0)){
+	(*o_f)(f, ch, 1);
+    }
+    else if(utf8_to_ucs4_oneatatime(ch & 0xff, HD(f)->utf8buf, sizeof(HD(f)->utf8buf),
+				    &(HD(f)->utf8bufp), &uc, &width)){
+	unsigned char *cp;
+
+	for(cp = HD(f)->utf8buf; cp <= HD(f)->utf8bufendp; cp++){
+	    (*o_f)(f, *cp, width);
+	    width = 0;		/* only count it once */
 	}
 
-	if(HD(f)->wrapstate){
-	    if(ch == HTML_NEWLINE){		/* hard newline */
-		html_output_flush(f);
-		html_newline(f);
+	HD(f)->utf8bufp = HD(f)->utf8bufendp = HD(f)->utf8buf;
+    }
+    else
+      HD(f)->utf8bufendp = HD(f)->utf8bufp;
+    /* else do nothing until we have a full character */
+}
+
+
+void
+html_output_normal(FILTER_S *f, int ch, int width)
+{
+    static short embedded = 0; /* BUG: reset on entering filter */
+    static char *color_ptr = NULL;
+
+    if(HD(f)->centered){
+	html_centered_flush(f);
+	fs_give((void **) &HD(f)->centered->line.buf);
+	fs_give((void **) &HD(f)->centered->word.buf);
+	fs_give((void **) &HD(f)->centered);
+    }
+
+    if(HD(f)->wrapstate){
+	if(ch == HTML_NEWLINE){		/* hard newline */
+	    html_output_flush(f);
+	    html_newline(f);
+	}
+	else
+	  HD(f)->blanks = 0;		/* reset blank line counter */
+
+	if(ch == TAG_EMBED){	/* takes up no space */
+	    embedded = 1;
+	    HTML_LINEP_PUTC(f, TAG_EMBED);
+	}
+	else if(embedded){	/* ditto */
+	    if(ch == TAG_HANDLE)
+	      embedded = -1;	/* next ch is length */
+	    else if(ch == TAG_FGCOLOR || ch == TAG_BGCOLOR){
+		if(!HD(f)->color)
+		  HD(f)->color = new_color_pair(NULL, NULL);
+
+		if(ch == TAG_FGCOLOR)
+		  color_ptr = HD(f)->color->fg;
+		else
+		  color_ptr = HD(f)->color->bg;
+
+		embedded = 11;
 	    }
-	    else
-	      HD(f)->blanks = 0;		/* reset blank line counter */
-
-	    if(ch == TAG_EMBED){	/* takes up no space */
-		embedded = 1;
-		HTML_LINEP_PUTC(f, TAG_EMBED);
-	    }
-	    else if(embedded){	/* ditto */
-		if(ch == TAG_HANDLE)
-		  embedded = -1;	/* next ch is length */
-		else if(ch == TAG_FGCOLOR || ch == TAG_BGCOLOR){
-		    if(!HD(f)->color)
-		      HD(f)->color = new_color_pair(NULL, NULL);
-
-		    if(ch == TAG_FGCOLOR)
-		      color_ptr = HD(f)->color->fg;
-		    else
-		      color_ptr = HD(f)->color->bg;
-
-		    embedded = 11;
-		}
-		else if(embedded < 0){
-		    embedded = ch;	/* number of embedded chars */
-		}
-		else{
-		    embedded--;
-		    if(color_ptr)
-		      *color_ptr++ = ch;
-
-		    if(embedded == 0 && color_ptr){
-			*color_ptr = '\0';
-			color_ptr = NULL;
-		    }
-		}
-
-		HTML_LINEP_PUTC(f, ch);
-	    }
-	    else if(HTML_ISSPACE(ch)){
-		html_output_flush(f);
+	    else if(embedded < 0){
+		embedded = ch;	/* number of embedded chars */
 	    }
 	    else{
-		if(HD(f)->prefix)
-		  html_a_prefix(f);
-
-		if(++f->f2 >= WRAP_COLS(f)){
-		    HTML_LINEP_PUTC(f, ch & 0xff);
-		    HTML_FLUSH(f);
-		    html_newline(f);
-		    if(HD(f)->in_anchor)
-		      html_write_anchor(f, HD(f)->in_anchor);
-		}
-		else
-		  HTML_LINEP_PUTC(f, ch & 0xff);
-	    }
-	}
-	else{
-	    if(HD(f)->prefix)
-	      html_a_prefix(f);
-
-	    html_output_flush(f);
-
-	    switch(embedded){
-	      case 0 :
-		switch(ch){
-		  default :
-		    f->n++;			/* inc displayed char count */
-		    HD(f)->blanks = 0;		/* reset blank line counter */
-		    html_putc(f, ch & 0xff);
-		    break;
-
-		  case TAG_EMBED :	/* takes up no space */
-		    html_putc(f, TAG_EMBED);
-		    embedded = -2;
-		    break;
-
-		  case HTML_NEWLINE :		/* newline handling */
-		    if(!f->n)
-		      break;
-
-		  case '\n' :
-		    html_newline(f);
-
-		  case '\r' :
-		    break;
-		}
-
-		break;
-
-	      case -2 :
-		embedded = 0;
-		switch(ch){
-		  case TAG_HANDLE :
-		    embedded = -1;	/* next ch is length */
-		    break;
-
-		  case TAG_BOLDON :
-		    BOLD_BIT(f) = 1;
-		    break;
-
-		  case TAG_BOLDOFF :
-		    BOLD_BIT(f) = 0;
-		    break;
-
-		  case TAG_ULINEON :
-		    ULINE_BIT(f) = 1;
-		    break;
-
-		  case TAG_ULINEOFF :
-		    ULINE_BIT(f) = 0;
-		    break;
-
-		  case TAG_FGCOLOR :
-		    if(!HD(f)->color)
-		      HD(f)->color = new_color_pair(NULL, NULL);
-
-		    color_ptr = HD(f)->color->fg;
-		    embedded = 11;
-		    break;
-
-		  case TAG_BGCOLOR :
-		    if(!HD(f)->color)
-		      HD(f)->color = new_color_pair(NULL, NULL);
-
-		    color_ptr = HD(f)->color->bg;
-		    embedded = 11;
-		    break;
-
-		  case TAG_HANDLEOFF :
-		    ch = TAG_INVOFF;
-		    HD(f)->in_anchor = 0;
-		    break;
-
-		  default :
-		    break;
-		}
-
-		html_putc(f, ch);
-		break;
-
-	      case -1 :
-		embedded = ch;	/* number of embedded chars */
-		html_putc(f, ch);
-		break;
-
-	      default :
 		embedded--;
 		if(color_ptr)
 		  *color_ptr++ = ch;
@@ -5781,10 +5789,129 @@ html_output(FILTER_S *f, int ch)
 		    *color_ptr = '\0';
 		    color_ptr = NULL;
 		}
+	    }
 
-		html_putc(f, ch);
+	    HTML_LINEP_PUTC(f, ch);
+	}
+	else if(HTML_ISSPACE(ch)){
+	    html_output_flush(f);
+	}
+	else{
+	    if(HD(f)->prefix)
+	      html_a_prefix(f);
+
+	    if((f->f2 += width) >= WRAP_COLS(f)){
+		HTML_LINEP_PUTC(f, ch & 0xff);
+		HTML_FLUSH(f);
+		html_newline(f);
+		if(HD(f)->in_anchor)
+		  html_write_anchor(f, HD(f)->in_anchor);
+	    }
+	    else
+	      HTML_LINEP_PUTC(f, ch & 0xff);
+	}
+    }
+    else{
+	if(HD(f)->prefix)
+	  html_a_prefix(f);
+
+	html_output_flush(f);
+
+	switch(embedded){
+	  case 0 :
+	    switch(ch){
+	      default :
+		f->n += width;			/* inc displayed char count */
+		HD(f)->blanks = 0;		/* reset blank line counter */
+		html_putc(f, ch & 0xff);
+		break;
+
+	      case TAG_EMBED :	/* takes up no space */
+		html_putc(f, TAG_EMBED);
+		embedded = -2;
+		break;
+
+	      case HTML_NEWLINE :		/* newline handling */
+		if(!f->n)
+		  break;
+
+	      case '\n' :
+		html_newline(f);
+
+	      case '\r' :
 		break;
 	    }
+
+	    break;
+
+	  case -2 :
+	    embedded = 0;
+	    switch(ch){
+	      case TAG_HANDLE :
+		embedded = -1;	/* next ch is length */
+		break;
+
+	      case TAG_BOLDON :
+		BOLD_BIT(f) = 1;
+		break;
+
+	      case TAG_BOLDOFF :
+		BOLD_BIT(f) = 0;
+		break;
+
+	      case TAG_ULINEON :
+		ULINE_BIT(f) = 1;
+		break;
+
+	      case TAG_ULINEOFF :
+		ULINE_BIT(f) = 0;
+		break;
+
+	      case TAG_FGCOLOR :
+		if(!HD(f)->color)
+		  HD(f)->color = new_color_pair(NULL, NULL);
+
+		color_ptr = HD(f)->color->fg;
+		embedded = 11;
+		break;
+
+	      case TAG_BGCOLOR :
+		if(!HD(f)->color)
+		  HD(f)->color = new_color_pair(NULL, NULL);
+
+		color_ptr = HD(f)->color->bg;
+		embedded = 11;
+		break;
+
+	      case TAG_HANDLEOFF :
+		ch = TAG_INVOFF;
+		HD(f)->in_anchor = 0;
+		break;
+
+	      default :
+		break;
+	    }
+
+	    html_putc(f, ch);
+	    break;
+
+	  case -1 :
+	    embedded = ch;	/* number of embedded chars */
+	    html_putc(f, ch);
+	    break;
+
+	  default :
+	    embedded--;
+	    if(color_ptr)
+	      *color_ptr++ = ch;
+
+	    if(embedded == 0 && color_ptr){
+		*color_ptr = '\0';
+		color_ptr = NULL;
+	    }
+
+	    html_putc(f, ch);
+	    break;
 	}
     }
 }
@@ -5823,7 +5950,7 @@ html_output_flush(FILTER_S *f)
  * html_output_centered - managed writing centered text
  */
 void
-html_output_centered(FILTER_S *f, int ch)
+html_output_centered(FILTER_S *f, int ch, int width)
 {
     if(!HD(f)->centered){		/* new text? */
 	html_output_flush(f);
@@ -5883,7 +6010,7 @@ html_output_centered(FILTER_S *f, int ch)
 
 	html_centered_putc(&HD(f)->centered->word, ch);
     }
-    else if(isspace((unsigned char) ch)){
+    else if(ASCII_ISSPACE((unsigned char) ch)){
 	if(!HD(f)->centered->space++){	/* end of a word? flush! */
 	    int i;
 
@@ -6403,7 +6530,7 @@ gf_control_filter(FILTER_S *f, int flg)
 
 	    if(((c < 0x20 || c == 0x7f)
 		|| (c >= 0x80 && c < 0xA0 && !filt_only_c0))
-	       && !(isspace((unsigned char) c)
+	       && !(ASCII_ISSPACE((unsigned char) c)
 		    || c == '\016' || c == '\017' || c == '\033')){
 		GF_PUTC(f->next, c >= 0x80 ? '~' : '^');
 		GF_PUTC(f->next, (c == 0x7f) ? '?' : (c & 0x1f) + '@');
@@ -7417,7 +7544,7 @@ gf_wrap(FILTER_S *f, int flg)
 						 && WRAP_TAGS(f))
 					     || (i == ',' && WRAP_COMMA(f)
 						 && !WRAP_QUOTED(f))
-					     || (i < 0x80 && isspace((unsigned char) i)));
+					     || ASCII_ISSPACE(i));
 	WRAP_SPACES(f) = so_get(CharStar, NULL, EDIT_ACCESS);
 	if(WRAP_UTF8(f))
 	  WRAP_UTF8BUFP(f) = &WRAP_UTF8BUF(f, 0);
@@ -7464,7 +7591,8 @@ wrap_flush_embed(FILTER_S *f, unsigned char **ipp, unsigned char **eibp, unsigne
 }
 
 int
-wrap_flush_s(FILTER_S *f, char *s, int n, int w, unsigned char **ipp, unsigned char **eibp, unsigned char **opp, unsigned char **eobp, int flags)
+wrap_flush_s(FILTER_S *f, char *s, int n, int w, unsigned char **ipp,
+	     unsigned char **eibp, unsigned char **opp, unsigned char **eobp, int flags)
 {
     f->n += w;
 

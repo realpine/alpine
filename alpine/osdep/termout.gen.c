@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: termout.gen.c 229 2006-11-13 23:14:48Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: termout.gen.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -225,8 +225,6 @@ PutLine0n8b(int x, int y, register char *line, int length, HANDLE_S *handles)
 		break;
 	    }					/* tag with handle, skip it */
 	}	
-	else if(c == '\033')			/* check for iso-2022 escape */
-	  Writechar(c, match_escapes(line));
 	else
 	  Writechar(c, 0);
     }

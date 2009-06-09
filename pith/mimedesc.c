@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mimedesc.c 155 2006-09-29 23:28:46Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mimedesc.c 389 2007-01-24 22:49:09Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -58,7 +58,8 @@ The description strings filled in are malloced and should be freed.
 
   ----*/
 void
-describe_mime(struct mail_bodystruct *body, char *prefix, int num, int should_show, int multalt)
+describe_mime(struct mail_bodystruct *body, char *prefix, int num,
+	      int should_show, int multalt, int flags)
 {
     PART      *part;
     char       numx[512], string[800], *description;
@@ -82,10 +83,12 @@ describe_mime(struct mail_bodystruct *body, char *prefix, int num, int should_sh
 	     * don't directly recognize unless that's all there is.
 	     */
 	    for(part=body->nested.part, n=1; part; part=part->next, n++)
-	      if(F_ON(F_PREFER_PLAIN_TEXT, ps_global) &&
-		 part->body.type == TYPETEXT &&
-		 (!part->body.subtype || 
-		  !strucmp(part->body.subtype, "PLAIN"))){
+	      if(flags & FM_FORCEPREFPLN
+	         || (!(flags & FM_FORCENOPREFPLN)
+		     && F_ON(F_PREFER_PLAIN_TEXT, ps_global)
+		     && part->body.type == TYPETEXT
+		     && (!part->body.subtype
+			 || !strucmp(part->body.subtype, "PLAIN")))){
 		if((effort = mime_show(&part->body)) != SHOW_ALL_EXT){
 		  best_effort = effort;
 		  alt_to_show = n;
@@ -154,7 +157,7 @@ describe_mime(struct mail_bodystruct *body, char *prefix, int num, int should_sh
 	    describe_mime(&(part->body),
 			  (part->body.type == TYPEMULTIPART) ? numx : prefix,
 			  n, (n == alt_to_show || !alt_to_show),
-			  alt_to_show != 0);
+			  alt_to_show != 0, flags);
 	}
     }
     else{
@@ -255,7 +258,7 @@ describe_mime(struct mail_bodystruct *body, char *prefix, int num, int should_sh
 	    body = body->nested.msg->body;
 	    snprintf(numx, sizeof(numx), "%.*s%d.", sizeof(numx)-20, prefix, num);
 	    numx[sizeof(numx)-1] = '\0';
-	    describe_mime(body, numx, 1, should_show, 0);
+	    describe_mime(body, numx, 1, should_show, 0, flags);
         }
     }
 }

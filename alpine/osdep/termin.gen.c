@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: termin.gen.c 302 2006-12-05 18:43:36Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: termin.gen.c 384 2007-01-24 01:22:15Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,8 @@ static char rcsid[] = "$Id: termin.gen.c 302 2006-12-05 18:43:36Z hubert@u.washi
 
 #include "../../pith/osdep/color.h"
 
+#include "../../pith/charconv/utf8.h"
+
 #include "../../pith/debug.h"
 #include "../../pith/newmail.h"
 #include "../../pith/conf.h"
@@ -38,17 +40,17 @@ static char rcsid[] = "$Id: termin.gen.c 302 2006-12-05 18:43:36Z hubert@u.washi
 #include "../folder.h"
 #include "../keymenu.h"
 #include "../send.h"
+#include "../radio.h"
 
 #ifdef _WINDOWS
 #include "../../pico/osdep/mswin.h"
+#include "termin.wnt.h"
+#include "termout.wnt.h"
+#else
+#include "termout.unx.h"
 #endif
 
 #include "termin.gen.h"
-
-
-
-/* internal prototypes */
-void line_paint(int, int *);
 
 
 #ifdef	_WINDOWS
@@ -189,7 +191,7 @@ read_command(char **utf8str)
 	newdestp = utf8_put(utf8buf, (unsigned long) ucs);
 	if(newdestp - utf8buf > 1){	/* this should happen */
 	    if(utf8str)
-	      *utf8str = utf8buf;
+	      *utf8str = (char *) utf8buf;
 
 	    dprint((9, "Read command: looks like user typed non-ascii command 0x%x %s: returning KEY_UTF8\n", ucs, pretty_command(ucs)));
 	    ucs = KEY_UTF8;
@@ -205,24 +207,6 @@ read_command(char **utf8str)
 
     return(ucs);
 }
-
-
-/*
- * The data in vl and dl is UCS-4 characters.
- * They are arrays of size vlen and dlen of unsigned longs.
- */
-static struct display_line {
-    int   row, col;	/* where display starts					*/
-    UCS  *vl;		/* virtual line, the actual data string			*/
-    int   vlen;		/* size of vl array					*/
-    int   vused;	/* elements of vl in use				*/
-    int   vbase;	/* index into array, first virtual char on display	*/
-    UCS  *dl;		/* visible part of virtual line on display		*/
-    UCS  *olddl;
-    int   dlen;		/* size of dl array					*/
-    int   dwid;		/* screenwidth avail for dl				*/
-} dline;
-
 
 
 /*---------------------------------------------------------------------- 
@@ -288,11 +272,11 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
                    real_y_base, km_popped, passwd;
     char         **help_text;
     long	   fkey_table[12];
-    int            save_pass_c1_ctrl_chars;
     struct	   key_menu *km;
     bitmap_t	   bitmap;
     COLOR_PAIR    *lastc = NULL, *promptc = NULL;
     struct variable *vars = ps_global->vars;
+    struct display_line dline;
 #ifdef	_WINDOWS
     int		   cursor_shown;
 #endif
@@ -318,9 +302,6 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 				  escape_list, help, flags));
 #endif
 
-    /* stop FILTER_THIS from filtering these UTF-8 octets */
-    save_pass_c1_ctrl_chars = ps_global->pass_c1_ctrl_chars;
-    ps_global->pass_c1_ctrl_chars = 1;
 
     /*
      * Utf8string comes in as UTF-8. We'll convert it to a UCS-4 array and operate on
@@ -373,11 +354,8 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 	fkey_table[i+j] = escape_list[i].ch;
     }
 
-#if defined(HELPFILE)
-    help_text = (help != NO_HELP) ? get_help_text(help) : (char **)NULL;
-#else
+    /* assumption that HelpType is char **  */
     help_text = help;
-#endif
     if(help_text){			/*---- Show help text -----*/
 	int width = ps_global->ttyo->screen_cols - x_base;
 
@@ -403,11 +381,6 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 	    else
 	      PutLine0(real_y_base + 1 + j, x_base, help_text[j]);
 	}
-
-#if defined(HELPFILE)
-	free_list_array(&help_text);
-#endif
-
     }
     else{
 	clrbitmap(bitmap);
@@ -464,7 +437,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
      */
     if((dline.dwid = cols - (x_base + prompt_width)) < MIN_OPT_ENT_WIDTH){
 	char *p;
-	int got_width;
+	unsigned got_width;
 
 	/*
 	 * Scoot prompt pointer forward at least (MIN_OPT_ENT_WIDTH - dline.dwid) screencells.
@@ -492,6 +465,9 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
     memset(dline.dl,    0, dline.dlen * sizeof(UCS));
     memset(dline.olddl, 0, dline.dlen * sizeof(UCS));
 
+    dline.movecursor = MoveCursor;
+    dline.writechar  = Writewchar;
+
     dline.row   = real_y_base;
     dline.col   = x_base + prompt_width;
 
@@ -513,7 +489,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 	field_pos++;
 
     passwd = (flags && *flags & OE_PASSWD) ? 1 : 0;
-    line_paint(field_pos, &passwd);
+    line_paint(field_pos, &dline, &passwd);
 
     /*----------------------------------------------------------------------
       The main loop
@@ -582,7 +558,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 	    if(field_pos >= string_size || string[field_pos] == '\0')
               goto bleep;
 
-	    line_paint(++field_pos, &passwd);
+	    line_paint(++field_pos, &dline, &passwd);
 	    break;
 
 	    /*--------------- KEY LEFT ---------------*/
@@ -591,7 +567,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 	    if(field_pos <= 0)
 	      goto bleep;
 
-	    line_paint(--field_pos, &passwd);
+	    line_paint(--field_pos, &dline, &passwd);
 	    break;
 
           /*-------------------- WORD SKIP --------------------*/
@@ -612,7 +588,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 		  && !isalnum((unsigned char) string[field_pos]))
 	      field_pos++;
 
-	    line_paint(field_pos, &passwd);
+	    line_paint(field_pos, &dline, &passwd);
 	    break;
 
           /*--------------------  RETURN --------------------*/
@@ -647,7 +623,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 	      *s2 = s2[1];
 
 	    *s2 = 0;			/* Copy last NULL */
-	    line_paint(field_pos, &passwd);
+	    line_paint(field_pos, &dline, &passwd);
 	    if(flags)		/* record change if requested  */
 	      *flags |= OE_USER_MODIFIED;
 
@@ -666,7 +642,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 
 		kill_buffer = ucs4_cpystr(&string[field_pos = i]);
 		string[field_pos] = '\0';
-		line_paint(field_pos, &passwd);
+		line_paint(field_pos, &dline, &passwd);
 		if(flags)		/* record change if requested  */
 		  *flags |= OE_USER_MODIFIED;
 	    }
@@ -709,7 +685,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 
 	    dline.vused = ucs4_strlen(string);
             fs_give((void **) &kb);
-	    line_paint(field_pos, &passwd);
+	    line_paint(field_pos, &dline, &passwd);
             break;
             
 	    /*-------------------- Interrupt --------------------*/
@@ -737,13 +713,13 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
           case ctrl('A'):
 	  case KEY_HOME:
             /*-------------------- Start of line -------------*/
-	    line_paint(field_pos = 0, &passwd);
+	    line_paint(field_pos = 0, &dline, &passwd);
             break;
 
           case ctrl('E'):
 	  case KEY_END:
             /*-------------------- End of line ---------------*/
-	    line_paint(field_pos = dline.vused, &passwd);
+	    line_paint(field_pos = dline.vused, &dline, &passwd);
             break;
 
 	    /*-------------------- Help --------------------*/
@@ -774,7 +750,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 		PutLine0(real_y_base, x_base, utf8prompt);
 		memset(dline.dl,    0, dline.dlen * sizeof(UCS));
 		memset(dline.olddl, 0, dline.dlen * sizeof(UCS));
-		line_paint(field_pos, &passwd);
+		line_paint(field_pos, &dline, &passwd);
 		break;
 	    }
 
@@ -799,56 +775,79 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 
 	      switch(mp.button){
 		case M_BUTTON_LEFT :			/* position cursor */
-		  mp.col -= x_base + prompt_width;	/* normalize column */
+		  mp.col -= dline.col;
 
 		  /*
-		   * We have to figure out which character is in mp.col.
+		   * We have to figure out which character is under the cursor.
 		   * This is complicated by the fact that characters may
 		   * be other than one cell wide.
 		   */
-		  if(dline.vbase > 0 && mp.col == 0){
-		      field_pos = dline.vbase - 1;
-		      dline.vbase = field_pos - 1;
-		  }
+
+		  /* the -1 is for the '<' when text is offscreen left */
+		  w = (dline.vbase > 0) ? mp.col-1 : mp.col;
+
+		  if(mp.col <= 0)
+		    field_pos = dline.vbase - 1;
 		  else{
-		      i = 1;
-		      w = ucs4_str_width_a_to_b(dline.vl, dline.vbase, dline.vbase+i-1);
-		      while(w + ((dline.vbase > 0) ? 1 : 0) < mp.col){
-			  i++;
-			  w = ucs4_str_width_a_to_b(dline.vl, dline.vbase, dline.vbase+i-1);
-		      }
+		    if(dline.vused <= dline.vbase
+		       || ucs4_str_width_a_to_b(dline.vl,dline.vbase,dline.vused-1) <= w)
+		      field_pos = dline.vused;
+		    else{
+		      /*
+		       * Find index of 1st character that causes the
+		       * width to be > w.
+		       */
+		      for(i = 0;
+			  ucs4_str_width_a_to_b(dline.vl,dline.vbase,dline.vbase+i) <= w;
+			  i++)
+			;
 
-		      field_pos = MIN(dline.vbase + i, ucs4_strlen(string));
+		      field_pos = dline.vbase + i;
+		    }
 		  }
+		  
+		  field_pos = MIN(MAX(field_pos, 0), dline.vused);
 
-		  line_paint(field_pos, &passwd);
+		  /* just allow line_paint to choose vbase */
+		  line_paint(field_pos, &dline, &passwd);
 		  break;
 
 		case M_BUTTON_RIGHT :
 #ifdef	_WINDOWS
-		  mp.col -= x_base + prompt_width;	/* normalize column */
 
 		  /*
-		   * We have to figure out which character is in mp.col.
-		   * This is complicated by the fact that characters may
-		   * be other than one cell wide.
+		   * Same as M_BUTTON_LEFT except we paste in text after
+		   * moving the cursor.
 		   */
-		  if(dline.vbase > 0 && mp.col == 0){
-		      field_pos = dline.vbase - 1;
-		      dline.vbase = field_pos - 1;
-		  }
+
+		  mp.col -= dline.col;
+
+		  /* the -1 is for the '<' when text is offscreen left */
+		  w = (dline.vbase > 0) ? mp.col-1 : mp.col;
+
+		  if(mp.col <= 0)
+		    field_pos = dline.vbase - 1;
 		  else{
-		      i = 1;
-		      w = ucs4_str_width_a_to_b(dline.vl, dline.vbase, dline.vbase+i-1);
-		      while(w + ((dline.vbase > 0) ? 1 : 0) < mp.col){
-			  i++;
-			  w = ucs4_str_width_a_to_b(dline.vl, dline.vbase, dline.vbase+i-1);
-		      }
+		    if(dline.vused <= dline.vbase
+		       || ucs4_str_width_a_to_b(dline.vl,dline.vbase,dline.vused-1) <= w)
+		      field_pos = dline.vused;
+		    else{
+		      /*
+		       * Find index of 1st character that causes the
+		       * width to be > w.
+		       */
+		      for(i = 0;
+			  ucs4_str_width_a_to_b(dline.vl,dline.vbase,dline.vbase+i) <= w;
+			  i++)
+			;
 
-		      field_pos = MIN(dline.vbase + i, ucs4_strlen(string));
+		      field_pos = dline.vbase + i;
+		    }
 		  }
+		  
+		  field_pos = MIN(MAX(field_pos, 0), dline.vused);
 
-		  line_paint(field_pos, &passwd);
+		  line_paint(field_pos, &dline, &passwd);
 
 		  mswin_allowpaste(MSWIN_PASTE_LINE);
 		  mswin_paste_popup();
@@ -874,7 +873,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 	      goto cancel;
 
 	    if(i < 0){
-	      line_paint(field_pos, &passwd);
+	      line_paint(field_pos, &dline, &passwd);
 	      break;			/* no changes, get on with life */
 	    }
 	    /* Else fall into redraw */
@@ -918,7 +917,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 		fs_resize((void **) &dline.olddl, (size_t) dline.dlen * sizeof(UCS));
 		memset(dline.dl,    0, dline.dlen * sizeof(UCS));
 		memset(dline.olddl, 0, dline.dlen * sizeof(UCS));
-		line_paint(field_pos, &passwd);
+		line_paint(field_pos, &dline, &passwd);
             }
 
             fflush(stdout);
@@ -954,8 +953,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 		  break;
 	    }
 
-	    /* see save_pass_c1_ctrl_chars in this code */
-	    if(ucs < 0x100 && FILTER_THIS((unsigned char) ucs)){
+	    if(ucs < 0x80 && FILTER_THIS((unsigned char) ucs)){
        bleep:
 		putc(BELL, stdout);
 		continue;
@@ -971,7 +969,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 	      *s2 = *(s2-1);
 
 	    string[field_pos++] = ucs;
-	    line_paint(field_pos, &passwd);
+	    line_paint(field_pos, &dline, &passwd);
 	    if(flags)		/* record change if requested  */
 	      *flags |= OE_USER_MODIFIED;
 		    
@@ -1026,203 +1024,7 @@ optionally_enter(char *utf8string, int y_base, int x_base, int utf8string_size,
 	ps_global->mangled_body = 1;
     }
 
-    ps_global->pass_c1_ctrl_chars = save_pass_c1_ctrl_chars;
-
     return(return_v);
-}
-
-
-/*
- * line_paint - where the real work of managing what is displayed gets done.
- *              The passwd variable is overloaded: if non-zero, don't
- *              output anything, else only blat blank chars across line
- *              once and use this var to tell us we've already written the 
- *              line.
- */
-void
-line_paint(int offset, int *passwd)
-                 			/* current dot offset into vl */
-                 			/* flag to hide display of chars */
-{
-    int i, w, w2, already_got_one = 0;
-    int vfirst, vlast, dfirst, dlast, vi, di;
-    int new_vbase;
-
-    /*
-     * for now just leave line blank, but maybe do '*' for each char later
-     */
-    if(*passwd){
-	if(*passwd > 1)
-	  return;
-	else
-	  *passwd = 2;		/* only blat once */
-
-	i = 0;
-	MoveCursor(dline.row, dline.col);
-	while(i++ <= dline.dwid)
-	  Writechar(' ', 0);
-
-	MoveCursor(dline.row, dline.col);
-	return;
-    }
-
-    /*
-     * vl is the virtual line (the actual data). We operate on it by typing
-     * characters to be added and deleting and so forth. In this routine we
-     * copy a subset of those UCS-4 characters in vl into dl, the display
-     * array, and show that subset on the screen.
-     *
-     * Offset is the location of the cursor in vl.
-     *
-     * We will display the string starting from vbase.
-     * We have dwid screen cells to work in.
-     * We may have to adjust vbase in order to display the
-     * part of the string that contains the cursor.
-     *
-     * We'll make the display look like
-     *   vl    a b c d e f g h i j k l m
-     *             xxxxxxxxxxxxx  <- width dwid window
-     *             < d e f g h >
-     *               |
-     *             vbase
-     * The < will be there if vbase > 0.
-     * The > will be there if the string from vbase to the
-     * end can't all fit in the window.
-     */
-
-    memset(dline.dl, 0, dline.dlen * sizeof(UCS));
-
-    /*
-     * Adjust vbase so offset is not out of the window to the right.
-     * (The +2 in w + 2 is for a possible " >" if the string goes past
-     *  the right hand edge of the window and if the last visible character
-     * is double wide. We don't want the offset to be under that > character.)
-     */
-    for(w = ucs4_str_width_a_to_b(dline.vl, dline.vbase, offset);
-	w + 2 + (dline.vbase ? 1 : 0) > dline.dwid;
-        w = ucs4_str_width_a_to_b(dline.vl, dline.vbase, offset)){
-	/*
-	 * offset is off the window to the right
-	 * It looks like   a b c d e f g h
-	 *                   |         |
-	 *               vbase         offset
-	 * and offset is either past the right edge,
-	 * or right at the right edge (and maybe under >),
-	 * or one before right at the edge (and maybe on space
-	 * for half a character).
-	 *
-	 * Since the characters may be double width it is slightly
-	 * complicated to figure out how far to increase vbase.
-	 * We're going to scoot over past width w/2 characters and
-	 * then see if that's sufficient.
-	 */
-	new_vbase = dline.vbase + 1;
-	for(w2 = ucs4_str_width_a_to_b(dline.vl, dline.vbase+1, new_vbase);
-	    w2 < dline.dwid/2;
-	    w2 = ucs4_str_width_a_to_b(dline.vl, dline.vbase+1, new_vbase))
-	  new_vbase++;
-
-	dline.vbase = new_vbase;
-    }
-
-    /* adjust so offset is not out of the window to the left */
-    while(dline.vbase > 0 && dline.vbase >= offset){
-	/* add about dwid/2 more width */
-	new_vbase = dline.vbase - 1;
-	for(w2 = ucs4_str_width_a_to_b(dline.vl, new_vbase, dline.vbase);
-	    w2 < (dline.dwid+1)/2 && new_vbase > 0;
-	    w2 = ucs4_str_width_a_to_b(dline.vl, new_vbase, dline.vbase))
-	  new_vbase--;
-
-	/* but don't let it get too small, recheck off right end */
-	for(w = ucs4_str_width_a_to_b(dline.vl, new_vbase, offset);
-	    w + 2 + (new_vbase ? 1 : 0) > dline.dwid;
-	    w = ucs4_str_width_a_to_b(dline.vl, dline.vbase, offset))
-	  new_vbase++;
-
-	dline.vbase = MAX(new_vbase, 0);
-    }
-
-    if(dline.vbase == 1 && wcellwidth(dline.vl[0]) == 1)
-      dline.vbase = 0;
-	 
-    vfirst = dline.vbase;
-    dfirst = 0;
-    if(dline.vbase > 0){			/* off screen cue left */
-	dfirst = 1;				/* index which matches vfirst */
-	dline.dl[0] = '<';
-    }
-
-    vlast = dline.vused-1;			/* end */
-    w = ucs4_str_width_a_to_b(dline.vl, vfirst, vlast);
-
-    if(w + dfirst > dline.dwid){			/* off window right */
-
-	/* find last ucs character to be printed */
-	while(w + dfirst > dline.dwid - 1)	/* -1 for > */
-	  w = ucs4_str_width_a_to_b(dline.vl, vfirst, --vlast);
-
-	/* worry about double-width characters */
-	if(w + dfirst == dline.dwid - 1){	/* no prob, hit it exactly */
-	    dlast = dfirst + vlast - vfirst + 1;	/* +1 for > */
-	    dline.dl[dlast] = '>';
-	}
-	else{
-	    dlast = dfirst + vlast - vfirst + 1;
-	    dline.dl[dlast++] = ' ';
-	    dline.dl[dlast] = '>';
-	}
-    }
-    else
-      dlast = dfirst + vlast - vfirst;
-
-    /*
-     * Copy the relevant part of the virtual line into the display line.
-     */
-    for(vi = vfirst, di = dfirst; vi <= vlast; vi++, di++)
-      dline.dl[di] = dline.vl[vi];
-
-    /*
-     * Add spaces to clear the rest of the line.
-     * We have dwid total space to fill.
-     */
-    w = ucs4_str_width_a_to_b(dline.dl, 0, dlast);	/* width through dlast */
-    for(di = dlast+1, i = dline.dwid - w; i > 0 ; i--)
-      dline.dl[di++] = ' ';
-
-    /*
-     * Draw from left to right, skipping until we get to
-     * something that is different. Characters may be different
-     * widths than they were initially so paint from there the
-     * rest of the way.
-     */
-    for(di = 0; dline.dl[di]; di++){
-	if(already_got_one || dline.dl[di] != dline.olddl[di]){
-	    /* move cursor first time */
-	    if(!already_got_one++){
-		w = (di > 0) ? ucs4_str_width_a_to_b(dline.dl, 0, di-1) : 0;
-		MoveCursor(dline.row, dline.col + w);
-	    }
-
-	    Writewchar(dline.dl[di]);
-	    dline.olddl[di] = dline.dl[di];
-	}
-    }
-
-    memset(&dline.olddl[di], 0, (dline.dlen - di) * sizeof(UCS));
-
-    /*
-     * Move the cursor to the offset.
-     *
-     * The offset is relative to the start of the virtual array. We need
-     * to find the location on the screen. The offset into the display array
-     * will be offset-vbase+dfirst. We want to be at the start of that
-     * character, so we need to find the width of all the characters up
-     * to that point.
-     */
-    w = (offset > 0) ? ucs4_str_width_a_to_b(dline.dl, 0, offset-dline.vbase+dfirst-1) : 0;
-
-    MoveCursor(dline.row, dline.col + w);
 }
 
 
@@ -1237,34 +1039,14 @@ line_paint(int offset, int *passwd)
 UCS
 validatekeys(UCS ch)
 {
-#ifndef _WINDOWS
-    if(F_ON(F_USE_FK,ps_global)) {
+    if(F_ON(F_USE_FK,ps_global)){
 	if(ch >= 'a' && ch <= 'z')
 	  return(KEY_JUNK);
-    } else {
+    }
+    else{
 	if(ch >= PF1 && ch <= PF12)
 	  return(KEY_JUNK);
     }
-#else
-    /*
-     * In windows menu items are bound to a single key command which
-     * gets inserted into the input stream as if the user had typed
-     * that key.  But all the menues are bonund to alphakey commands,
-     * not PFkeys.  to distinguish between a keyboard command and a
-     * menu command we insert a flag (KEY_MENU_FLAG) into the
-     * command value when setting up the bindings in
-     * configure_menu_items().  Here we strip that flag.
-     */
-    if(F_ON(F_USE_FK,ps_global)) {
-	if(ch >= 'a' && ch <= 'z' && !(ch & KEY_MENU_FLAG))
-	  return(KEY_JUNK);
-	ch &= ~ KEY_MENU_FLAG;
-    } else {
-	ch &= ~ KEY_MENU_FLAG;
-	if(ch >= PF1 && ch <= PF12)
-	  return(KEY_JUNK);
-    }
-#endif
 
     return(ch);
 }

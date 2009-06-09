@@ -1,5 +1,5 @@
 /*
- * $Id: string.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: string.h 392 2007-01-25 18:56:49Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -101,12 +101,12 @@ char	   *week_abbrev(int);
 int	    month_num(char *);
 void	    parse_date(char *, struct date *);
 char	   *repeat_char(int, int);
-char	   *comatose(long);
 char	   *byte_string(long);
 char	   *enth_string(int);
 char       *fold(char *, int, int, char *, char *, unsigned);
 char	   *strsquish(char *, size_t, char *, int);
 char	   *long2string(long);
+char	   *ulong2string(unsigned long);
 char	   *int2string(int);
 char	   *strtoval(char *, int *, int, int, int, char *, size_t, char *);
 char	   *strtolval(char *, long *, long, long, long, char *, size_t, char *);

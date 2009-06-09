@@ -1,9 +1,9 @@
-# $Id: pine.hlp 323 2006-12-13 00:16:02Z jpf@u.washington.edu $
+# $Id: pine.hlp 392 2007-01-25 18:56:49Z hubert@u.washington.edu $
 #
 #        T H E   A L P I N E    M E S S A G E   S Y S T E M
 #
 #/* ========================================================================
-# * Copyright 2006 University of Washington
+# * Copyright 2006-2007 University of Washington
 # *
 # * Licensed under the Apache License, Version 2.0 (the "License");
 # * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ first and turns this into a C file (helptext.c) of text strings that
 are compiled and linked. The other program, cmplhlp2.sh, turns this
 into a .h file (helptext.h) with extern string definitions of the
 strings in the .c file.  The code that actually processes these files
-while pine is running is in help.c
+while alpine is running is in help.c
 
 The lines with "===== xxxx ====" divide the different help screens.  The
 xxx is the name of the variable that strings will be put in, which are
@@ -166,6 +166,65 @@ addresses bugs found in previous releases and has a few additions as well.
 Additions include:
 <P>
 <UL>
+   <LI> Added PC-Alpine aspell interface from Michael Sartain.
+        Install library code from http://aspell.net/win32/
+   <LI> PC-Alpine &quot;View in New Window&quot; command will now use a new
+        window instead of reusing the existing window if the Ctrl key
+	is held down while clicking (Sartain)
+   <LI> Links in PC-Alpine viewing windows and IMAP telemetry window are selectable (Sartain)
+   <LI> Attempted to improve password preserving behavior for Windows and MacOS
+   <LI> Added transparent color for UNIX Alpine, explained a bit in <A HREF="h_config_color_style">Color Style</A> help
+   <LI> Added a some 24-hour clock SMARTDATETIME configuration options for dates in the
+	<A HREF="h_config_index_format">Index-Format</A> option.
+   <LI> Make it possible to enter long filenames at the Ctrl-J attachment prompts and the insert file prompt in the composer
+   <LI> Allow more columns on screen for tiny fonts
+   <LI> Added TogglePreferPlain toggle in message view screen (see
+	<A HREF="h_config_prefer_plain_text">Prefer-Plain-Text</A>)
+   <LI> (Experimental) There is a hotkey (Ctrl-Shift-E) in PC-Alpine
+        text windows (IMAP telemetry, message view windows) to make
+	the window ReadWrite. This might, for example, be useful as a
+	clipboard window while composing in the main window.
+</UL>
+
+<P>
+Bugs that have been addressed in this release include:
+<P>
+
+<UL>
+   <LI> Crash when removing last HEADER COLOR in Setup/Kolor
+   <LI> Crash in Windows version when closing New Mail Window
+   <LI> Crash in Windows version when selecting with mouse in New Mail window
+        or IMAP Telemetry window
+   <LI> Double free error in Keychain code
+   <LI> Crash when both pthread and debugging are defined (the default) on some systems
+   <LI> Crash caused by aggregate Bounce
+   <LI> Copy and Copy Append didn't work in Windows version
+   <LI> Display of text/html special characters was broken
+   <LI> Improve index date display for bad dates
+   <LI> Tab completion didn't work in some Save prompts
+   <LI> Address book fullname encoding problems
+   <LI> Address book display problems
+   <LI> Address book problems when changing nicknames
+   <LI> In PC-Alpine registry lookups of handlers for mime types
+        (like APPLICATION/MSWORD) wasn't working correctly
+   <LI> Non-ascii fullnames in Lcc field were not encoded correctly
+   <LI> Mouse paste didn't work in PC-Alpine when entering text on the status
+	line at the bottom, click caused Alpine to hang
+   <LI> When editing filter with a Folder List there was a false complaint
+        that an incoming folder didn't exist
+   <LI> Reply delimiter wrong when replying to message with no Date header
+   <LI> Some text attachments displayed with incorrect line breaks
+   <LI> Improve code portability
+</UL>
+
+<P>
+Version 0.81
+addressed bugs found in previous releases and had a few additions as well.
+
+<P>
+Additions included:
+<P>
+<UL>
    <LI> More improvements to configure script
    <LI> Removed Disable-Active-Status-Messages feature and replaced it with
 <A HREF="h_config_active_msg_interval">Active-Msg-Updates-Per-Second</A>. Added a
@@ -179,7 +238,7 @@ configuration options for dates in the
 </UL>
 
 <P>
-Bugs that have been addressed in this release include:
+Bugs addressed in the 0.81 release included:
 <P>
 
 <UL>
@@ -197,7 +256,7 @@ Bugs that have been addressed in this release include:
 
 <P>
 Version 0.8
-addressed bugs found in previous releases and has a few additions as well.
+addressed bugs found in previous releases and had a few additions as well.
 
 <P>
 Additions included:
@@ -209,8 +268,13 @@ of "pith/" core routine library.
 based on GNU Build System's autotools.  NOTE, the included imap library
 build is not based on autotools, so some features will not work however
 it should get built automatically during the Alpine build process.
-   <LI> Web-based version included built on TCL designed to run under
+   <LI> Web-based version included. It is built on TCL designed to run under
 a suitable CGI-supporting web server such as Apache.
+   <LI> Alpine uses Unicode internally and is capable of understanding
+most character sets. It should be capable of displaying any left to right
+character sets if running in a UTF-8 terminal emulator or on Windows with
+suitable fonts. Code has been somewhat prepared for localization, but no
+translations are available yet.
 </UL>
 
 <P>
@@ -278,17 +342,14 @@ page at
 <CENTER><A HREF="http://www.washington.edu/alpine/credits.html">http://www.washington.edu/alpine/credits</A></CENTER>
 
 <P>
-Pico is a trademark of the University of Washington.
-
-<P>
-Alpine, Pico and Pilot Copyright 1989-2005 University of Washington
+Alpine Copyright 2006-2007 University of Washington
 
 <P>
 Additional legal notices can be found <A HREF="h_news_legal">here</A>
 or at the web URL:
 
 <P>
-<CENTER><A HREF="http://www.washington.edu/alpine/legal.html">http://www.washington.edu/alpine/legal</A></CENTER>
+<CENTER><A HREF="http://www.washington.edu/alpine/overview/legal.html">http://www.washington.edu/alpine/overview/legal</A></CENTER>
 
 <P>
 &lt;End of Release Notes&gt;
@@ -792,8 +853,8 @@ Alpine and its constituent programs are covered by the Apache License Version 2.
 <BODY>
 <H1>Information on &quot;Missing Mail&quot; and the &quot;mbox&quot; driver</H1>
 
-Beginning with Alpine 4.00 (but also with earlier versions of the
-University of Washington's imapd server), a new INBOX access method is
+Beginning with Pine 4.00 (Pine came before Alpine)
+a new INBOX access method is
 available as part of the standard configuration.  It is called the
 &quot;mbox&quot; driver and it works like this:<P>
 
@@ -803,8 +864,6 @@ If the file &quot;mbox&quot; exists in the user's home directory, and
 is in Unix mailbox format, then when INBOX is opened this file will be
 selected as INBOX instead of the mail spool file.  Messages will be
 automatically transferred from the mail spool file into the mbox
-file. Beginning with Alpine 4.01, a message is displayed whenever Alpine
-copies messages from the system mail spool directory to the mbox
 file.
 </BLOCKQUOTE>
 
@@ -839,10 +898,10 @@ and add &quot;mbox&quot; to it:
 There is an extensive section on locking in the Alpine technical notes;
 this information is intended to provide answers to some common questions:<P>
 <OL>
-<LI> Why did locking change in Alpine 4.00?<BR>
+<LI> Why did locking change in Pine 4.00?<BR>
 The actual locking mechanisms did not change in 4.00.
 What changed is that when one particular locking mechanism used by Alpine 
-fails, Alpine now issues a warning message.  Prior to 4.00, the locking
+fails, Alpine now issues a warning message.  Prior to Pine 4.00, the locking
 failure would occur, but no warning was issued.<P>
 
 <LI> Is this what the &quot;Mailbox vulnerable&quot; message is about?<BR>
@@ -906,7 +965,7 @@ mailbox format folders, these are used to coordinate access between
 multiple Alpine sessions.  <P>
 
 <LI> What about the 
-<A HREF="h_config_quell_lock_failure_warnings">&quot;Quell-Lock-Failure-Warnings&quot;</A> feature added in Alpine 4.01?<BR>
+<A HREF="h_config_quell_lock_failure_warnings">&quot;Quell-Lock-Failure-Warnings&quot;</A> feature added in Pine 4.01?<BR>
 This is for people who are content to live dangerously, or who have
 specific knowledge that the spool directory lockfiles are superfluous on
 their system (because both Alpine and the mail delivery program are using 
@@ -4140,7 +4199,7 @@ Navigating&nbsp;the&nbsp;List&nbsp;of&nbsp;Messages&nbsp;&nbsp;&nbsp;&nbsp;&nbsp
 &nbsp;P&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Display&nbsp;previous&nbsp;message&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;G&nbsp;&nbsp;&nbsp;<A HREF="h_common_goto">Goto</A>&nbsp;a&nbsp;specified&nbsp;folder<BR>
 &nbsp;N&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Display&nbsp;next&nbsp;message&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;H&nbsp;&nbsp;&nbsp;<A HREF="h_common_hdrmode">Full&nbsp;header&nbsp;mode</A>&nbsp;on/off<BR>
 &nbsp;J&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<A HREF="h_common_jump">Jump</A>&nbsp;to&nbsp;a&nbsp;specific&nbsp;message&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp;&nbsp;Select&nbsp;Current&nbsp;message<BR>
-Tab&nbsp;&nbsp;&nbsp;&nbsp;<A HREF="h_common_nextnew">Next&nbsp;new</A>&nbsp;message<BR>
+Tab&nbsp;&nbsp;&nbsp;&nbsp;<A HREF="h_common_nextnew">Next&nbsp;new</A>&nbsp;message&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;&nbsp;&nbsp;<A HREF="h_config_prefer_plain_text">Toggle&nbsp;Prefer Plain Text</A><BR>
 <BR>
 General&nbsp;Alpine&nbsp;Commands<BR>
 ---------------------<BR>
@@ -4428,8 +4487,7 @@ selection criteria listed above (by Text or Number or ...).
 You may use select as many times as you wish to get the selected set right.
 <P>
 
-Also, starting with Alpine 4.00, the WhereIs command has a new feature 
-(Ctrl-X) to
+The WhereIs command has a feature (Ctrl-X) to
 select all the messages which match the WhereIs search. WhereIs searches
 through just the text which appears on the MESSAGE INDEX screen.
 This method is often slower than using the select command itself, unless the
@@ -7018,10 +7076,7 @@ If you
 or your system administrator have defined more than one collection or if
 you have a collection (for newsgroups or email folders) defined on your 
 system, then you will see the COLLECTION LIST screen first when choosing 
-FOLDER LIST from Alpine's MAIN MENU.  (This selection level is new in Alpine 4.00; 
-previous versions showed all folder 
-collections on the FOLDER LIST screen, with a &quot;Select Here to See
-Expanded List&quot; button to reveal the folders in them.)
+FOLDER LIST from Alpine's MAIN MENU.
 <P>
 <H2>Why have multiple folder collections?</H2>
 <P>
@@ -17377,7 +17432,7 @@ the Regional Options control panel may be used to set the Short date
 format. At the programming level, the strftime routine is what Alpine
 uses to print the date.</DD>
   <DT>SMARTDATEISO</DT> <DD>DATEISO format. See text above.</DD>
-  <DT>SMARTDATESHORTISO</DT> <DD>DATESHORTISO format.</DD>
+  <DT>SMARTDATESHORTISO</DT> <DD>SHORTDATEISO format.</DD>
   <DT>SMARTDATES1</DT> <DD>SHORTDATE1 format.</DD>
   <DT>SMARTDATES2</DT> <DD>SHORTDATE2 format.</DD>
   <DT>SMARTDATES3</DT> <DD>SHORTDATE3 format.</DD>
@@ -17387,24 +17442,34 @@ uses to print the date.</DD>
 
 <DT>SMARTDATETIME alternatives</DT>
 <DD>
-There are several versions of SMARTDATETIME which are all the same except
+There are several versions of SMARTDATETIME which are all very similar.
+The ones which end in 24 use a 24-hour clock for Today's messages instead
+of a 12-hour clock.
+The other variation is
 for the way they format dates far in the past.
-SMARTDATETIME formats the date using the information from your locale settings
+SMARTDATETIME and SMARTDATETIME24 format the date using the information from your locale settings
 to format the date string. It may end up formatting dates so that they look
 like DATEISO tokens, or SHORTDATE2 tokens, or something else entirely.
-If you want more control you may use one of the following.
+The possible choices are:
   <DL>
-  <DT>SMARTDATE</DT> <DD>Locale specific. Control this with the
+  <DT>SMARTDATETIME</DT> <DD>Locale specific. Control this with the
 LC_TIME locale setting on a UNIX system. On Windows
 the Regional Options control panel may be used to set the Short date
 format. At the programming level, the strftime routine is what Alpine
 uses to print the date.</DD>
+  <DT>SMARTDATETIME24</DT> <DD>Use TIME24 for Today</DD>
   <DT>SMARTDATETIMEISO</DT> <DD>DATEISO format. See text above.</DD>
-  <DT>SMARTDATETIMESHORTISO</DT> <DD>DATESHORTISO format.</DD>
+  <DT>SMARTDATETIMEISO24</DT> <DD>Use TIME24 for Today</DD>
+  <DT>SMARTDATETIMESHORTISO</DT> <DD>SHORTDATEISO format.</DD>
+  <DT>SMARTDATETIMESHORTISO24</DT> <DD>Use TIME24 for Today</DD>
   <DT>SMARTDATETIMES1</DT> <DD>SHORTDATE1 format.</DD>
+  <DT>SMARTDATETIMES124</DT> <DD>Use TIME24 for Today</DD>
   <DT>SMARTDATETIMES2</DT> <DD>SHORTDATE2 format.</DD>
+  <DT>SMARTDATETIMES224</DT> <DD>Use TIME24 for Today</DD>
   <DT>SMARTDATETIMES3</DT> <DD>SHORTDATE3 format.</DD>
+  <DT>SMARTDATETIMES324</DT> <DD>Use TIME24 for Today</DD>
   <DT>SMARTDATETIMES4</DT> <DD>SHORTDATE4 format.</DD>
+  <DT>SMARTDATETIMES424</DT> <DD>Use TIME24 for Today</DD>
   </DL>
 </DD>
 
@@ -19883,7 +19948,7 @@ as any other folder from a suitable FOLDER LIST screen.
 
 <P>
 You may find that the <A HREF="h_rules_roles">&quot;Roles&quot;</A>
-facility introduced in Alpine 4.10 can be used
+facility can be used
 to replace the Form Letter Folder.
 
 <P>
@@ -22125,7 +22190,7 @@ Use the Setup/Printer screen to modify this variable.
 <BODY>
 <H1>OPTION: Patterns</H1>
 
-The option Patterns is obsolete in Alpine 4.50 and later, replaced by the
+The option Patterns is obsolete in Alpine and in Pine 4.50 and later, replaced by the
 options Patterns-Roles, Patterns-Filters, Patterns-Scores, Patterns-Indexcolors,
 and Patterns-Other.
 Patterns-Scores and Patterns-Filters have been replaced since then by
@@ -22148,7 +22213,7 @@ Use the Setup/Rules screens to modify these variable.
 <H1>OPTION: Patterns-Roles</H1>
 
 List of rules used for roles.
-The option Patterns is obsolete in Alpine 4.50 and later, replaced by this and
+The option Patterns is obsolete in Alpine and in Pine 4.50 and later, replaced by this and
 other options.
 <P>
 Use the Setup/Rules/Roles screen to modify this variable.
@@ -22169,7 +22234,7 @@ Use the Setup/Rules/Roles screen to modify this variable.
 
 List of rules used for filters.
 This option is actually called Patterns-Filters2 now.
-Patterns-Filters is obsolete in Alpine 4.50 and later, as is the option Patterns.
+Patterns-Filters is obsolete in Alpine and in Pine 4.50 and later, as is the option Patterns.
 <P>
 Use the Setup/Rules/Filters screen to modify this variable.
 <P>
@@ -22189,7 +22254,7 @@ Use the Setup/Rules/Filters screen to modify this variable.
 
 List of rules used for scoring.
 This option is actually called Patterns-Scores2 now.
-Patterns-Scores is obsolete in Alpine 4.50 and later, as is the option Patterns.
+Patterns-Scores is obsolete in Alpine and in Pine 4.50 and later, as is the option Patterns.
 <P>
 Use the Setup/Rules/SetScores screen to modify this variable.
 <P>
@@ -23111,8 +23176,8 @@ is set to the default
 Reply-Indent-String set to &quot;&gt;&quot;.
 <P>
 By default, this setting will only work on messages that are flowed, which is
-the default way of sending messages for many mail clients including versions
-of Alpine after 4.60.  Enable the feature
+the default way of sending messages for many mail clients including
+Alpine.  Enable the feature
 <A HREF="h_config_quote_replace_noflow">Quote-Replace-Nonflowed</A>
 to also have quote-replacement performed on non-flowed messages.
 <P>
@@ -26385,7 +26450,7 @@ use that.
 <BODY>
 <H1>FEATURE: Strip-Whitespace-Before-Send</H1>
 <P>
-Starting with Alpine 4.60, trailing whitespace is no longer stripped from
+By default, trailing whitespace is not stripped from
 a message before sending.  Trailing whitespace should have no effect on an
 email message, and in flowed text can aid in delimiting paragraphs.
 However, the old behavior of stripping trailing whitespace was in place
@@ -26761,7 +26826,7 @@ be used to select the previous item in the same way.
 This feature modifies the behavior of Alpine's Print command.
 <P>
 By default, Alpine's print command is available by pressing the "%" key.  
-(This command is a substantial change from Alpine versions before 4.00 -- 
+(This command is a substantial change from Pine versions before 4.00 -- 
 where the print command was "Y" -- based on numerous complaints about 
 printing being invoked inadvertently, since Y also means "Yes.")  
 
@@ -26975,7 +27040,7 @@ no longer be there.
 <H1>FEATURE: Prefer-Plain-Text</H1>
 
 A message being viewed may contain alternate versions of the same content.
-Those alternate versions are ordered by the sending software such that the
+Those alternate versions are supposed to be ordered by the sending software such that the
 first alternative is the least preferred and the last alternative is the
 most preferred. Alpine will normally display the most-preferred version that
 it knows how to display. This is most often encountered where the two
@@ -26984,6 +27049,17 @@ HTML version listed last as the most preferred.
 <P>
 If this option is set, then any plain text version will be preferred to
 all other versions.
+<P>
+When viewing a message there is a command &quot;A TogglePreferPlain&quot;
+which will temporarily change the sense of this option.
+If this option is set you will first see the plain text version of a
+message.
+If you then type the &quot;A&quot; command, you will see the alternate version,
+most likely HTML, instead.
+Typing the &quot;A&quot; command a second time will switch it back.
+Alternatively, if the present option is not set you will originally see
+the HTML version of the message and typing &quot;A&quot; will switch to
+the plain text version.
 <P>
 &lt;End of help on this topic&gt;
 </BODY>
@@ -28196,8 +28272,18 @@ Some terminal emulators use a pre-ANSI scheme which swaps
 the colors blue and red and the colors yellow and cyan.
 This will cause the default colors to be different, but other than that
 things should work fine.
+There is also a 9th color available, the last one shown, which is the default
+color from the terminal emulator.
+When used as a background color some people refer to this color as
+&quot;transparent&quot;, which is why the letters &quot;TRAN&quot; are
+shown in the color swatch of the SETUP COLOR screen.
+The foreground transparent color is shown as
+the color of the &quot;TRAN&quot; text.
+(The transparent color will not work correctly in a PC-Alpine configuration.)
 The escape sequences used to set the background colors are the same
 as for the foreground colors except a &quot;4&quot; replaces the &quot;3&quot;.
+The escape sequences for foreground and background default colors (transparent)
+are 39m and 49m.
 <P>
 Note: With the Tera Term terminal emulator this setting works well.
 You should also have the Tera Term &quot;Full color&quot; option turned OFF.
@@ -28218,7 +28304,8 @@ except the &quot;4&quot; is replaced with &quot;10&quot;.
 You can tell if the 16 colors are working by turning on this option
 and then going into one of the color configuration screens, for example,
 the configuration screen for Normal Color.
-If you see 16 different colors to select from, it's working.
+If you see 16 different colors to select from (plus a 17th for
+the transparent color), it's working.
 </DD>
 
 <DT>force-xterm-256color</DT>
@@ -28226,16 +28313,21 @@ If you see 16 different colors to select from, it's working.
 have support for 256 colors.
 The escape sequences used to set the foreground colors are
 
-  <P><CENTER>ESC&nbsp;[&nbsp;38&nbsp; ; &nbsp; 5&nbsp; ; &nbsp; &lt;color_number&gt;&nbsp;m</CENTER><P>
-
+  <P><CENTER>ESC&nbsp;[&nbsp;38&nbsp;;&nbsp;5&nbsp;;&nbsp;&lt;color_number&gt;&nbsp;m</CENTER><P>
 
 where the color_number is an ASCII digit between 0 and 255.
 Background colors are the same with the 38 replaced with a 48.
 The numbers 0 through 15 are probably similar to the 16 color version
 above, then comes a 6x6x6 color cube, followed by 24 colors of gray.
+The terminal default (transparent) color is the 257th color at the bottom.
 Some terminal emulators will misinterpret these escape sequences causing
 the terminal to blink or overstrike characters or to do something else
 undesirable.
+<P>
+The PuTTY terminal emulator has an option called &quot;Allow terminal to
+use xterm 256-colour mode&quot; which allows PuTTY to work well with
+this 256-color setting.
+
 </DD>
 </DL>
 
@@ -29515,7 +29607,7 @@ really want to view the selected attachment.
 
 <P>
 If this feature is set, you will <B>not</B> be prompted to confirm
-your selection.  Prior to Alpine 4.50, the default behavior was to not
+your selection.  Prior to Alpine and to Pine 4.50, the default behavior was to not
 prompt. This feature was added for those wanting to preserve that
 behavior (along with 
 <A HREF="h_config_quell_attach_extension_warn">Quell-Attachment-Extension-Warn</A>).
@@ -29544,7 +29636,7 @@ file's extension.
 <P>
 This feature can be used along side 
 <A HREF="h_config_quell_attach_extra_prompt">Quell-Attachment-Extra-Prompt</A>
-to preserve the behavior exhibited in versions prior to Alpine 4.50.
+to preserve the behavior exhibited in Pine versions prior to Pine 4.50.
 <P>
 <UL>   
 <LI><A HREF="h_finding_help">Finding more information and requesting help</A>
@@ -30685,41 +30777,41 @@ directory lookup to your address book.
 ===== h_patterns_compat_behavior =====
 <HTML>
 <HEAD>
-<TITLE>Rules Behavior Changes in Alpine 4.50</TITLE>
+<TITLE>Rules Behavior Changes in Pine 4.50</TITLE>
 </HEAD>
 <BODY>
-<H1>Rules Behavior Changes in Alpine 4.50</H1>
+<H1>Rules Behavior Changes in Pine 4.50</H1>
 
-In Alpine 4.50 and later, Rules which contain unrecognized elements
+In Alpine, Rules which contain unrecognized elements
 are ignored.
 In most cases, the unrecognized elements will be something that was
 added as a new Rules feature in a later version of Alpine.
-In versions of Alpine <EM>prior</EM> to 4.50, Alpine did <EM>not</EM>
+In versions of Pine <EM>prior</EM> to 4.50, Pine did <EM>not</EM>
 ignore rules which contained unrecognized elements.
-For example, a new element of Rules which was added in Alpine 4.50 is
+For example, a new element of Rules which was added in Pine 4.50 is
 Age interval.
-Suppose you add an Indexcolor rule, using version 4.50 or later, that colors
+Suppose you add an Indexcolor rule, using version Pine 4.50 or later, that colors
 all messages older than a week red.
-Now, if you run Alpine 4.44 using that same configuration file, it will not
+Now, if you run Pine 4.44 using that same configuration file, it will not
 recognize the Age interval and so will just ignore it.
 That means that all messages will match that rule so all messages will
-be colored red when using version 4.44.
+be colored red when using Pine version 4.44.
 
 <P>
-This behavior was considered a bug so it is fixed in 4.50 and later.
-However, since the behavior still exists in versions prior to 4.50 and
+This behavior was considered a bug so it is fixed in Alpine and Pine 4.50 and later.
+However, since the behavior still exists in versions prior to Pine 4.50 and
 since Filtering is a potentially destructive operation, another measure
 was taken to attempt to avoid unintentional Filtering of messages.
-The first time that you run a Alpine which is version 4.50 or greater,
+The first time that you run Alpine or a Pine which is version 4.50 or greater,
 the rules in your Filters configuration variable (&quot;Patterns-Filters&quot;)
 will be copied to a new Filters configuration variable
 with a different name (&quot;Patterns-Filters2&quot;).
-From then on, Alpine version 4.50 or higher will continue to use the new
+From then on, Alpine will continue to use the new
 variable.
-Of course, Alpine version 4.44 or lower will continue to use the old
+Of course, Pine version 4.44 or lower will continue to use the old
 variable.
-That means that if you are using one version of Alpine which is 4.50 or
-newer and also using a version which is older than 4.50, they will not
+That means that if you are using Alpine
+and also using a version of Pine which is older than 4.50, they will not
 share the configuration information about Filters.
 If you make a change in one version you won't see it in the other version.
 

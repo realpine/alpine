@@ -1,3 +1,4 @@
+# $Id: fr_seldate.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #

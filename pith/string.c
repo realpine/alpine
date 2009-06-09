@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: string.c 147 2006-09-28 02:25:13Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: string.c 392 2007-01-25 18:56:49Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,7 +43,6 @@ static char rcsid[] = "$Id: string.c 147 2006-09-28 02:25:13Z mikes@u.washington
       - month_num      Calculate month number from month/year string
       - cannon_date    Formalize format of a some what formatted date
       - repeat_char    Returns a string n chars long
-      - comatose       Format number with nice commas
       - fold           Inserts newlines for folding at whitespace.
       - byte_string    Format number of bytes with Kb, Mb, Gb or bytes
       - enth-string    Format number i.e. 1: 1st, 983: 983rd....
@@ -380,7 +379,7 @@ char *
 short_str(char *src, char *buf, size_t buflen, int wid, WhereDots where)
 {
     char *ans;
-    int   alen, first, second;
+    unsigned alen, first, second;
 
     if(wid <= 0){
 	ans = buf;
@@ -399,7 +398,7 @@ short_str(char *src, char *buf, size_t buflen, int wid, WhereDots where)
 	}
 	else{
 	    char *q;
-	    int got_width;
+	    unsigned got_width;
 
 	    /*
 	     * first == length of preellipsis text
@@ -609,14 +608,9 @@ char *
 iutf8ncpy(char *d, char *s, int n)
 {
     register int i;
-    int save_pass_c1_ctrl_chars;
 
     if(!d || !s)
       return(NULL);
-
-    /* stop FILTER_THIS from filtering these UTF-8 octets */
-    save_pass_c1_ctrl_chars = ps_global->pass_c1_ctrl_chars;
-    ps_global->pass_c1_ctrl_chars = 1;
 
     /*
      * BUG: this needs to get improved to actually count the
@@ -624,7 +618,7 @@ iutf8ncpy(char *d, char *s, int n)
      * a multi-byte character.
      */
     for(i = 0; i < n && (d[i] = *s) != '\0'; s++, i++)
-      if(FILTER_THIS(*s)){	/* see save_pass_c1_ctrl_chars in this code */
+      if((unsigned char)(*s) < 0x80 && FILTER_THIS(*s)){
 	  if(i+1 < n){
 	      d[i]   = '^';
 	      d[++i] = *s + '@';
@@ -712,8 +706,6 @@ iutf8ncpy(char *d, char *s, int n)
 	  }
       }
 
-    ps_global->pass_c1_ctrl_chars = save_pass_c1_ctrl_chars;
-
     return(d);
 }
 
@@ -733,7 +725,7 @@ istrncpy(char *d, char *s, int n)
       return(NULL);
     
     do
-      if(*s && FILTER_THIS(*s)
+      if(*s && (unsigned char)(*s) < 0x80 && FILTER_THIS(*s)
 	 && !(*(s+1) && *s == ESCAPE && match_escapes(s+1))){
 	if(n-- > 0){
 	    c = (unsigned char) *s;
@@ -1089,12 +1081,12 @@ parse_date(char *given_date, struct date *d)
 
 /*----------------------------------------------------------------------
      Create a little string of blanks of the specified length.
-   Max n is 255. Can use up to e repeat_char results at once.
+   Max n is MAX_SCREEN_COLS. Can use up to e repeat_char results at once.
   ----*/
 char *
 repeat_char(int n, int c)
 {
-    static char bb[3][256];
+    static char bb[3][MAX_SCREEN_COLS+1];
     static int whichbb = 0;
     char *b;
 
@@ -1110,53 +1102,6 @@ repeat_char(int n, int c)
 
     return(bb[whichbb]);
 }
-
-
-/*----------------------------------------------------------------------
-        Turn a number into a string with comma's
-
-   Args: number -- The long to be turned into a string. 
-
-  Result: pointer to static string representing number with commas
-  Can use up to 3 comatose results at once.
-  ---*/
-char *
-comatose(long int number)
-{
-    long        i, x, done_one;
-    static char buf[3][50];
-    static int whichbuf = 0;
-    char       *b;
-
-    whichbuf = (whichbuf + 1) % 3;
-
-    if(number == 0){
-        strncpy(buf[whichbuf], "0", sizeof(buf[0]));
-	buf[whichbuf][sizeof(buf[0])-1] = '\0';
-        return(buf[whichbuf]);
-    }
-    
-    done_one = 0;
-    b = buf[whichbuf];
-    for(i = 1000000000; i >= 1; i /= 1000) {
-	x = number / i;
-	number = number % i;
-	if(x != 0 || done_one) {
-	    if(b != buf[whichbuf] && (b-buf[whichbuf]) <  sizeof(buf[0]))
-	      *b++ = ',';
-
-	    snprintf(b, sizeof(buf[0])-(b-buf[whichbuf]), done_one ? "%03ld" : "%d", x);
-	    b += strlen(b);
-	    done_one = 1;
-	}
-    }
-
-    if(b-buf[whichbuf] < sizeof(buf[0]))
-      *b = '\0';
-
-    return(buf[whichbuf]);
-}
-
 
 
 /*----------------------------------------------------------------------
@@ -1475,6 +1420,17 @@ long2string(long int l)
     snprintf(string, sizeof(string), "%ld", l);
     return(string);
 }
+
+
+char *
+ulong2string(unsigned long int l)
+{
+    static char string[20];
+
+    snprintf(string, sizeof(string), "%lu", l);
+    return(string);
+}
+
 
 char *
 int2string(int i)

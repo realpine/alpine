@@ -1,5 +1,5 @@
 /*
- * $Id: conftype.h 295 2006-12-02 01:35:46Z mikes@u.washington.edu $
+ * $Id: conftype.h 394 2007-01-25 20:29:45Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -568,9 +568,9 @@ typedef enum {ParsePers, ParsePersPost, ParseGlobal, ParseFixed} ParsePinerc;
 /* data stored in a line in the metadata file */
 typedef struct remote_data_meta {
     char         *local_cache_file;
-    unsigned long uidvalidity;
-    unsigned long uidnext;
-    unsigned long uid;
+    imapuid_t     uidvalidity;
+    imapuid_t     uidnext;
+    imapuid_t     uid;
     unsigned long nmsgs;
     char          read_status;	/* 'R' for readonly, 'W' for readwrite */
     char         *date;

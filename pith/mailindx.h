@@ -1,5 +1,5 @@
 /*
- * $Id: mailindx.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: mailindx.h 394 2007-01-25 20:29:45Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -39,7 +39,7 @@ int	       get_index_line_color(MAILSTREAM *, SEARCHSET *, PAT_STATE **, COLOR_P
 void	       setup_for_index_index_screen(void);
 void	       setup_for_thread_index_screen(void);
 INDEX_PARSE_T *itoken(int);
-void	       load_overview(MAILSTREAM *, unsigned long, OVERVIEW *, unsigned long);
+void	       load_overview(MAILSTREAM *, unsigned long, OVERVIEW *, imapuid_t);
 ICE_S	      *build_header_work(struct pine *, MAILSTREAM  *, MSGNO_S *, long, long, int, int *);
 char	      *simple_index_line(char *, size_t, int, ICE_S *, long);
 int	       resent_to_us(INDEXDATA_S *);

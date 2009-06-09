@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pattern.c 312 2006-12-11 18:06:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pattern.c 394 2007-01-25 20:29:45Z hubert@u.washington.edu $";
 #endif
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -976,7 +976,7 @@ parse_pat_file(char *filename)
 		    if(strcmp(buf, PATTERN_MAGIC) == 0){
 			if(atoi(PATTERN_FILE_VERS) < atoi(buf + len + 1))
 			  q_status_message1(SM_ORDER, 0, 4,
-  "Pattern file \"%.200s\" is made by newer Pine, will try to use it anyway",
+  "Pattern file \"%.200s\" is made by newer Alpine, will try to use it anyway",
 					    filename);
 
 			ok++;
@@ -4502,26 +4502,6 @@ match_pattern(PATGRP_S *patgrp, MAILSTREAM *stream, struct search_set *searchset
 	  if((mc = mail_elt(stream, i)) != NULL)
 	    mc->searched = NIL;
 
-#ifdef notdef
-	if(charset && *charset &&  /* convert if charset not ASCII or UTF-8 */
-	  !(((charset[0] == 'U') || (charset[0] == 'u')) &&
-	    ((((charset[1] == 'S') || (charset[1] == 's')) &&
-	      (charset[2] == '-') &&
-	      ((charset[3] == 'A') || (charset[3] == 'a')) &&
-	      ((charset[4] == 'S') || (charset[4] == 's')) &&
-	      ((charset[5] == 'C') || (charset[5] == 'c')) &&
-	      ((charset[6] == 'I') || (charset[6] == 'i')) &&
-	      ((charset[7] == 'I') || (charset[7] == 'i')) && !charset[8]) ||
-	     (((charset[1] == 'T') || (charset[1] == 't')) &&
-	      ((charset[2] == 'F') || (charset[2] == 'f')) &&
-	      (charset[3] == '-') && (charset[4] == '8') && !charset[5])))){
-	    if(utf8_charset(charset))
-	      utf8_searchpgm (pgm,charset);
-	    else
-	      charset_unknown++;
-	}
-#endif /* notdef */
-
 	if(!charset_unknown && mail_search_msg(stream,msgno,section,pgm)
 	   && msgno > 0L && msgno <= stream->nmsgs
 	   && (mc = mail_elt(stream, msgno)))
@@ -4538,13 +4518,7 @@ match_pattern(PATGRP_S *patgrp, MAILSTREAM *stream, struct search_set *searchset
 	 * sort of error, but for now we would just continue on
 	 * to the next filter.
 	 */
-#ifdef notdef
-    We should be able to get rid of all the charset support stuff in the
-    supporting routines now.
-	pine_mail_search_full(stream, charset, pgm, flags);
-#else
 	pine_mail_search_full(stream, "UTF-8", pgm, flags);
-#endif /* !notdef */
     }
 
     /* we searched without the not, reverse it */
@@ -6727,7 +6701,7 @@ void
 process_filter_patterns(MAILSTREAM *stream, MSGNO_S *msgmap, long int recent)
 {
     long	  i, n, raw, orig_nmsgs;
-    unsigned long uid;
+    imapuid_t     uid;
     int           we_cancel = 0, any_msgs = 0, any_to_filter = 0;
     int		  exbits, nt = 0, pending_actions = 0, for_debugging = 0;
     int           cleared_index_cache = 0;
@@ -6926,12 +6900,7 @@ process_filter_patterns(MAILSTREAM *stream, MSGNO_S *msgmap, long int recent)
 		pgm = match_pattern_srchpgm(pat->patgrp, stream,
 					    &charset, srchset);
 
-#ifdef notdef
-		pine_mail_search_full(stream, charset, pgm, flags);
-#else
 		pine_mail_search_full(stream, "UTF-8", pgm, flags);
-#endif /* !notdef */
-
 
 		/* check scores */
 		if(scores_are_used(SCOREUSE_GET) & SCOREUSE_FILTERS &&

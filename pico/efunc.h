@@ -1,5 +1,5 @@
 /*
- * $Id: efunc.h 135 2006-09-22 18:56:49Z hubert@u.washington.edu $
+ * $Id: efunc.h 334 2006-12-19 01:26:30Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -240,5 +240,6 @@ extern	int quote_match(UCS *, LINE *, UCS *, int);
 extern	int ucs4_isalnum(UCS);
 extern	int ucs4_isalpha(UCS);
 extern	int ucs4_isspace(UCS);
+extern	int ucs4_ispunct(UCS);
 
 #endif	/* EFUNC_H */

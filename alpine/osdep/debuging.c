@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: debuging.c 239 2006-11-16 20:27:56Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: debuging.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -114,7 +114,7 @@ init_debug(void)
 	    }
 	}
 
-	dprint((0, "Debug output of the Pine program (debug=%d debug_imap=%d). Version %s (%s)\n%s\n",
+	dprint((0, "Debug output of the Alpine program (debug=%d debug_imap=%d). Version %s (%s)\n%s\n",
 	       debug, ps_global->debug_imap,
 	       ALPINE_VERSION,
 	       SYSTYPE ? SYSTYPE : "?",
@@ -296,7 +296,15 @@ output_debug_msg(int dlevel, char *fmt, ...)
 #ifdef DEBUGJOURNAL
 
     if(dlevel <= 9 || dlevel <= debug){
-	char    b[64000];
+	/*
+	 * Make this static in order to move it off of
+	 * the stack. We were getting "random" crashes
+	 * on some systems when this size interacted with
+	 * pthread stack size somehow. Taking it off of
+	 * the stack ought to fix that without us having to
+	 * understand how it all works.
+	 */
+	static char b[64000];
 
 	va_start(args, fmt);
 	vsnprintf(b, sizeof(b), fmt, args);

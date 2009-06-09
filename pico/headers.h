@@ -1,8 +1,8 @@
 /*
- * $Id: headers.h 217 2006-11-04 02:52:05Z jpf@u.washington.edu $
+ * $Id: headers.h 380 2007-01-23 00:09:18Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,6 +44,7 @@
 #include "keydefs.h"
 #include "edef.h"
 #include "efunc.h"
+#include "utf8stub.h"
 
 /* include osdep proto's defn's */
 #include "osdep/altedit.h"

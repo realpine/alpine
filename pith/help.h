@@ -1,8 +1,8 @@
 /*
- * $Id: help.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: help.h 380 2007-01-23 00:09:18Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,9 +50,6 @@ extern int       rm_not_right_now;
 
 /* exported protoypes */
 HelpType    help_name2section(char *, int);
-#if defined(DOS) || defined(HELPFILE)
-char	  **get_help_text(HelpType); 
-#endif
 void        debugjournal_to_file(FILE *);
 void	    add_review_message(char *, int);
 

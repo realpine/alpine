@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: confscroll.c 320 2006-12-12 22:40:05Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: confscroll.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -474,7 +474,7 @@ conf_scroll_screen(struct pine *ps, OPT_SCREEN_S *screen, CONF_S *start_line, ch
       q_status_message1(SM_ORDER, 1, 3,
 			/* TRANSLATORS: "Config file not changeable," is what replaces the %s */
 			_("%s can't change options or settings"),
-			ps_global->restricted ? "Pine demo"
+			ps_global->restricted ? "Alpine demo"
 					      : _("Config file not changeable,"));
 
     screen->current    = start_line;
@@ -1239,7 +1239,7 @@ no_down:
 		else
 		  q_status_message1(SM_ORDER|SM_DING, 1, 3,
 		     _("%s can't change options or settings"),
-		     ps_global->restricted ? "Pine demo"
+		     ps_global->restricted ? "Alpine demo"
 					   : _("Config file not changeable,"));
 	    }
 	    else if(screen->current->tool){
@@ -2728,13 +2728,13 @@ radiobutton_tool(struct pine *ps, int cmd, CONF_S **cl, unsigned int flags)
 			pico_set_color_options(0);
 			break;
 		      case COL_ANSI8:
-			pico_set_color_options(COLOR_ANSI8_OPT);
+			pico_set_color_options(COLOR_ANSI8_OPT|COLOR_ANSITRANS_OPT);
 			break;
 		      case COL_ANSI16:
-			pico_set_color_options(COLOR_ANSI16_OPT);
+			pico_set_color_options(COLOR_ANSI16_OPT|COLOR_ANSITRANS_OPT);
 			break;
 		      case COL_ANSI256:
-			pico_set_color_options(COLOR_ANSI256_OPT);
+			pico_set_color_options(COLOR_ANSI256_OPT|COLOR_ANSITRANS_OPT);
 			break;
 		    }
 
@@ -2933,7 +2933,8 @@ update_option_screen(struct pine *ps, OPT_SCREEN_S *screen, Pos *cursor_pos)
     int		   dline, w, save = '\0';
     CONF_S	  *top_line, *ctmp;
     char          *value;
-    int            want_width, got_width, first_width;
+    unsigned       got_width;
+    int            want_width, first_width;
     char          *saveptr = NULL;
 
 #ifdef _WINDOWS
@@ -3140,7 +3141,8 @@ update_option_screen(struct pine *ps, OPT_SCREEN_S *screen, Pos *cursor_pos)
 		     */
 		    if(p[0] == '(' && p[2] == ')' &&
 		       p[3] == ' ' && p[4] == ' ' &&
-		       !strncmp(p+5, COLOR_BLOB, COLOR_BLOB_LEN)){
+		       (!strncmp(p+5, COLOR_BLOB, COLOR_BLOB_LEN)
+		        || !strncmp(p+5, COLOR_BLOB_TRAN, COLOR_BLOB_LEN))){
 			COLOR_PAIR  *lastc = NULL, *newc = NULL;
 
 			MoveCursor(dline+HEADER_ROWS(ps), ctmp->valoffset);
@@ -3188,7 +3190,8 @@ update_option_screen(struct pine *ps, OPT_SCREEN_S *screen, Pos *cursor_pos)
 
 			if(p[0] == '(' && p[2] == ')' &&
 			   p[3] == ' ' && p[4] == ' ' &&
-			   !strncmp(p+5, COLOR_BLOB, COLOR_BLOB_LEN)){
+			   (!strncmp(p+5, COLOR_BLOB, COLOR_BLOB_LEN)
+			    || !strncmp(p+5, COLOR_BLOB_TRAN, COLOR_BLOB_LEN))){
 			    COLOR_PAIR  *lastc = NULL, *newc = NULL;
 
 			    MoveCursor(dline+HEADER_ROWS(ps), ctmp->val2offset);
@@ -3708,7 +3711,8 @@ text_pretty_value(struct pine *ps, CONF_S *cl)
     char *p, *pval, **lval, lastchar = '\0';
     char *left_paren = NULL, *left_quote = NULL;
     int   editing_except, fixed, uvalset, uvalposlen;
-    int   comments, except_set, avail_width, got_width;
+    unsigned got_width;
+    int   comments, except_set, avail_width;
     int   norm_with_except = 0, norm_with_except_inherit = 0;
     int   inherit_line = 0;
 
@@ -5332,13 +5336,13 @@ fix_side_effects(struct pine *ps, struct variable *var, int revert)
 		pico_set_color_options(0);
 		break;
 	      case COL_ANSI8:
-		pico_set_color_options(COLOR_ANSI8_OPT);
+		pico_set_color_options(COLOR_ANSI8_OPT|COLOR_ANSITRANS_OPT);
 		break;
 	      case COL_ANSI16:
-		pico_set_color_options(COLOR_ANSI16_OPT);
+		pico_set_color_options(COLOR_ANSI16_OPT|COLOR_ANSITRANS_OPT);
 		break;
 	      case COL_ANSI256:
-		pico_set_color_options(COLOR_ANSI256_OPT);
+		pico_set_color_options(COLOR_ANSI256_OPT|COLOR_ANSITRANS_OPT);
 		break;
 	    }
 

@@ -1,29 +1,15 @@
 #line 2 "mswin.h"
 /*
+ * ========================================================================
+ * Copyright 2006-2007 University of Washington
  *
- * Program:	Operating system dependent routines - Microsoft Windows 3.1
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Thomas Unger
- * Networks and Distributed Computing
- * Computing and Communications
- * University of Washington
- * Administration Builiding, AG-44
- * Seattle, Washington, 98195, USA
- * Internet: tunger@cac.washington.edu
- *
- * Please address all bugs and comments to "pine-bugs@cac.washington.edu"
- *
- *
- * Pine and Pico are registered trademarks of the University of Washington.
- * No commercial use of these trademarks may be made without prior written
- * permission of the University of Washington.
- * 
- * Pine, Pico, and Pilot software and its included text are Copyright
- * 1989-2004 by the University of Washington.
- * 
- * The full text of our legal notices is contained in the file called
- * CPYRIGHT, included with this distribution.
+ * ========================================================================
  */
 
 
@@ -180,6 +166,8 @@ typedef char *(*cbstr_t)(char *);
  */
 #define MSWIN_DT_NODELETE	0x0001	/* Don't delete text when 
 					 * window closes. */
+#define MSWIN_DT_USEALTWINDOW   0x0002	/* Put text in alt window if already
+					 * open. Open if not. */
 
 /*
  * functions from mswin.c
@@ -218,7 +206,8 @@ int		mswin_getwindow (char *fontName, size_t nfontName,
 				 char *fontSize, size_t nfontSize,
 				 char *fontStyle, size_t nfontStyle,
 				 char *windowPosition, size_t nwindowPosition,
-				 char *forecolor, char *backColor,
+				 char *foreColor, size_t nforeColor,
+				 char *backColor, size_t nbackColor,
 				 char *cursorStyle, size_t ncursorStyle,
 				 char *fontCharSet, size_t nfontCharSet);
 void            mswin_noscrollupdate (int flag);
@@ -306,8 +295,11 @@ void		mswin_exec_err_msg (char *what, int status, char *buf,
 int		mswin_onexit_del (char *path);
 int		mswin_set_quit_confirm (int);
 void		mswin_showhelpmsg (WINHAND hWnd, char **helplines);
-int		mswin_displaytext (char *title, char *pText, size_t textLen, 
-			char **pLines, int windRef, int flags);
+
+typedef struct MSWIN_TEXTWINDOW MSWIN_TEXTWINDOW;
+MSWIN_TEXTWINDOW *mswin_displaytext (char *title, char *pText, size_t textLen,
+			             char **pLines, MSWIN_TEXTWINDOW *mswin_tw,
+			             int flags);
 int		mswin_imaptelemetry(char *msg);
 void		mswin_enableimaptelemetry(int state);
 int             mswin_newmailwin(int is_us, char *from,
@@ -335,6 +327,11 @@ int		mswin_select(char *utf8prompt, MDlgButton *button_list,
 int		mswin_yesno(UCS *);
 int		mswin_yesno_utf8(char *);
 
+BOOL		MSWRShellCanOpen(LPTSTR key, char *cmdbuf, int clen, int allow_noreg);
+BOOL		MSWRPeek(HKEY hRootKey, LPTSTR subkey, LPTSTR valstr,
+			 LPTSTR data, DWORD *dlen);
+int             mswin_store_pass_prompt(void);
+void            mswin_set_erasecreds_callback(cbvoid_t);
 
 #ifdef	MSC_MALLOC
 /*
@@ -398,12 +395,12 @@ int     sleep (int);
 /*
  * Registry setting constants
  */
-#define	MSWR_PINE_RC	1
-#define	MSWR_PINE_DIR	2
-#define	MSWR_PINE_EXE	3
-#define MSWR_PINE_AUX   4
-#define MSWR_PINE_POS   5
-#define MSWR_PINE_CONF  6
+#define	MSWR_PINE_RC	       1
+#define	MSWR_PINE_DIR	       2
+#define	MSWR_PINE_EXE	       3
+#define MSWR_PINE_AUX          4
+#define MSWR_PINE_POS          5
+#define MSWR_PINE_CONF         6
 
 #define MSWR_SDC_MAIL 1
 #define MSWR_SDC_NEWS 2

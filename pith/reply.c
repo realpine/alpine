@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: reply.c 296 2006-12-02 01:47:06Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: reply.c 387 2007-01-24 18:42:22Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1603,12 +1603,16 @@ get_reply_data(ENVELOPE *env, ACTION_S *role, IndexColType type, char *buf, size
     buf[0] = '\0';
 
     switch(type){
-      case iRDate: case iSDate: case iSTime: case iSDateTime:
+      case iRDate: case iSDate: case iSTime:
       case iS1Date: case iS2Date: case iS3Date: case iS4Date:
       case iSDateIso: case iSDateIsoS:
       case iSDateS1: case iSDateS2: case iSDateS3: case iSDateS4: 
+      case iSDateTime:
       case iSDateTimeIso: case iSDateTimeIsoS:
       case iSDateTimeS1: case iSDateTimeS2: case iSDateTimeS3: case iSDateTimeS4: 
+      case iSDateTime24:
+      case iSDateTimeIso24: case iSDateTimeIsoS24:
+      case iSDateTimeS124: case iSDateTimeS224: case iSDateTimeS324: case iSDateTimeS424: 
       case iDateIso: case iDateIsoS: case iTime24: case iTime12:
       case iDay: case iDayOrdinal: case iDay2Digit:
       case iMonAbb: case iMonLong: case iMon: case iMon2Digit:
@@ -1616,7 +1620,7 @@ get_reply_data(ENVELOPE *env, ACTION_S *role, IndexColType type, char *buf, size
       case iDate: case iLDate:
       case iTimezone: case iDayOfWeekAbb: case iDayOfWeek:
 	if(env && env->date && env->date[0] && maxlen >= 20)
-	  date_str(env->date, type, 1, buf, maxlen+1);
+	  date_str((char *) env->date, type, 1, buf, maxlen+1);
 
 	break;
 
@@ -1799,19 +1803,23 @@ reply_delimiter(ENVELOPE *env, ACTION_S *role, gf_io_t pc)
     /* preserve exact default behavior from before */
     if(!strcmp(buf, DEFAULT_REPLY_INTRO)){
 	struct date d;
+	int include_date;
 
-	parse_date(env->date, &d);
-	gf_puts("On ", pc);			/* All delims have... */
-	if(d.wkday != -1){			/* "On day, date month year" */
-	    gf_puts(week_abbrev(d.wkday), pc);	/* in common */
-	    gf_puts(", ", pc);
+	parse_date((char *) env->date, &d);
+	include_date = !(d.day == -1 || d.month == -1 || d.year == -1);
+	if(include_date){
+	    gf_puts("On ", pc);			/* All delims have... */
+	    if(d.wkday != -1){			/* "On day, date month year" */
+		gf_puts(week_abbrev(d.wkday), pc);	/* in common */
+		gf_puts(", ", pc);
+	    }
+
+	    gf_puts(int2string(d.day), pc);
+	    (*pc)(' ');
+	    gf_puts(month_abbrev(d.month), pc);
+	    (*pc)(' ');
+	    gf_puts(int2string(d.year), pc);
 	}
-
-	gf_puts(int2string(d.day), pc);
-	(*pc)(' ');
-	gf_puts(month_abbrev(d.month), pc);
-	(*pc)(' ');
-	gf_puts(int2string(d.year), pc);
 
 	if(env->from
 	   && ((env->from->personal && env->from->personal[0])
@@ -1819,12 +1827,18 @@ reply_delimiter(ENVELOPE *env, ACTION_S *role, gf_io_t pc)
 	    char buftmp[MAILTMPLEN];
 
 	    a_little_addr_string(env->from, buftmp, sizeof(buftmp)-1);
-	    gf_puts(", ", pc);
+	    if(include_date)
+	      gf_puts(", ", pc);
+
 	    gf_puts(buftmp, pc);
 	    gf_puts(" wrote:", pc);
 	}
-	else
-	  gf_puts(", it was written:", pc);
+	else{
+	    if(include_date)
+	      gf_puts(", it was written", pc);
+	    else
+	      gf_puts("It was written", pc);
+	}
 
     }
     else{
@@ -2501,17 +2515,20 @@ get_body_part_text(MAILSTREAM *stream, struct mail_bodystruct *body, long int ms
 
     charset = rfc2231_get_param(body->parameter, "charset", NULL, NULL);
 
+    flags |= FM_UTF8;
     if(charset && strucmp(charset, "utf-8") && strucmp(charset, "us-ascii")){
 	/* translate filtered message text to UTF-8? */
 	if(utf8able(charset)){
-	    flags |= FM_UTF8;
 	    filters[filtcnt].filter = gf_utf8;
-	    filters[filtcnt++].data = gf_utf8_opt(charset, body->size.bytes);
+	    filters[filtcnt++].data = gf_utf8_opt(charset);
 
 	    if(ret_charset)
 	      *ret_charset = "UTF-8";
 	}
-	/* else, BUG: what to do if not transliterable? */
+	else{
+	    /* BUG: what to do if not transliterable? */
+	    flags &= ~FM_UTF8;
+	}
     }
 
     /*

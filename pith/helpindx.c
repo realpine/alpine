@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: helpindx.c 198 2006-10-25 03:49:01Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: helpindx.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,8 +22,7 @@ static char rcsid[] = "$Id: helpindx.c 198 2006-10-25 03:49:01Z jpf@u.washington
  *
  */
 
-#include <stdio.h>
-#include <ctype.h>
+#include "system.h"
 
 #define	HELP_KEY_MAX	64		/* maximum length of a key */
 
@@ -67,7 +66,7 @@ main(int argc, char **argv)
         exit(-1);
     }
 
-    fprintf(hhp,"/*\n * Pine Help text header file\n */\n");
+    fprintf(hhp,"/*\n * Alpine Help text header file\n */\n");
     fprintf(hhp,"\n#ifndef PITH_HELPTEXT_INCLUDED\n#define PITH_HELPTEXT_INCLUDED\n");
     fprintf(hhp,"\n#define\tHELP_KEY_MAX\t%d\n", HELP_KEY_MAX);
     fprintf(hhp,"\ntypedef\tshort\tHelpType;\n");

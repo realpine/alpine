@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: help.c 205 2006-10-26 23:04:44Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: help.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,148 +38,18 @@ help_name2section(char *url, int url_len)
 {
     char		name[256];
     HelpType		newhelp = NO_HELP;
-#ifdef	HELPFILE
-    HelpType		t;
-#else
     struct help_texts *t;
-#endif
 
     snprintf(name, sizeof(name), "%.*s", MIN(url_len,sizeof(name)), url);
 
-#ifdef	HELPFILE
-    {
-	int		  i;
-	char	  buf[MAILTMPLEN];
-	FILE	 *helpfile;
-	struct hindx  hindex_record;
-
-	/*
-	 * Make sure index file is available,
-	 * and read appropriate record
-	 */
-	build_path(buf, ps_global->pine_dir, HELPINDEX, sizeof(buf));
-	if(helpfile = our_fopen(buf, "rb")){
-	    for(t = 0; t < LASTHELP; t++){
-		i = fseek(helpfile, t * sizeof(struct hindx), SEEK_SET) == 0
-		     && fread((void *) &hindex_record,
-			      sizeof(struct hindx), 1 ,helpfile) == 1;
-
-		if(!i){	/* problem in fseek or read */
-		    q_status_message(SM_ORDER | SM_DING, 3, 5,
-		   "No Help!  Can't locate proper offset for help text file.");
-		    break;
-		}
-
-		if(!strucmp(hindex_record.key, name)){
-		    newhelp = t;
-		    break;
-		}
-	    }
-
-	    fclose(helpfile);
-	}
-	else
-	  q_status_message1(SM_ORDER | SM_DING, 3, 5,
-			    "No Help!  Index \"%.200s\" not found.", buf);
-
-    }
-#else
     for(t = h_texts; t->help_text != NO_HELP; t++)
       if(!strucmp(t->tag, name)){
 	  newhelp = t->help_text;
 	  break;
       }
-#endif
 
     return(newhelp);
 }
-
-
-#ifdef HELPFILE
-
-/*
- * get_help_text - return the help text associated with index
- *                 in an array of pointers to each line of text.
- */
-char **
-get_help_text(index)
-    HelpType index;
-{
-    int  i, len;
-    char buf[1024], **htext, *tmp;
-    struct hindx hindex_record;
-    FILE *helpfile;
-
-    if(index < 0 || index >= LASTHELP)
-	return(NULL);
-
-    /* make sure index file is available, and read appropriate record */
-    build_path(buf, ps_global->pine_dir, HELPINDEX, sizeof(buf));
-    if(!(helpfile = our_fopen(buf, "rb"))){
-	q_status_message1(SM_ORDER,3,5,
-	    "No Help!  Index \"%.200s\" not found.", buf);
-	return(NULL);
-    }
-
-    i = fseek(helpfile, index * sizeof(struct hindx), SEEK_SET) == 0
-	 && fread((void *)&hindex_record,sizeof(struct hindx),1,helpfile) == 1;
-
-    fclose(helpfile);
-    if(!i){	/* problem in fseek or read */
-        q_status_message(SM_ORDER, 3, 5,
-		  "No Help!  Can't locate proper offset for help text file.");
-	return(NULL);
-    }
-
-    /* make sure help file is open */
-    build_path(buf, ps_global->pine_dir, HELPFILE, sizeof(buf));
-    if((helpfile = our_fopen(buf, "rb")) == NULL){
-	q_status_message2(SM_ORDER,3,5,"No Help!  \"%.200s\" : %.200s", buf,
-			  error_description(errno));
-	return(NULL);
-    }
-
-    if(fseek(helpfile, hindex_record.offset, SEEK_SET) != 0
-       || fgets(buf, sizeof(buf) - 1, helpfile) == NULL
-       || strncmp(hindex_record.key, buf, strlen(hindex_record.key))){
-	/* problem in fseek, or don't see key */
-        q_status_message(SM_ORDER, 3, 5,
-		     "No Help!  Can't locate proper entry in help text file.");
-	fclose(helpfile);
-	return(NULL);
-    }
-
-    htext = (char **)fs_get(sizeof(char *) * (hindex_record.lines + 1));
-
-    for(i = 0; i < hindex_record.lines; i++){
-	if(fgets(buf, sizeof(buf) - 1, helpfile) == NULL){
-	    htext[i] = NULL;
-	    free_list_array(&htext);
-	    fclose(helpfile);
-            q_status_message(SM_ORDER,3,5,"No Help!  Entry not in help text.");
-	    return(NULL);
-	}
-
-	if(*buf){
-	    if((len = strlen(buf)) > 1
-	       && (buf[len-2] == '\n' || buf[len-2] == '\r'))
-	      buf[len-2] = '\0';
-	    else if(buf[len-1] == '\n' || buf[len-1] == '\r')
-	      buf[len-1] = '\0';
-
-	    htext[i] = cpystr(buf);
-	}
-	else
-	  htext[i] = cpystr("");
-    }
-
-    htext[i] = NULL;
-
-    fclose(helpfile);
-    return(htext);
-}
-
-#endif	/* HELPFILE */
 
 
 #ifdef DEBUG

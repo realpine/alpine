@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailview.c 237 2006-11-16 04:08:15Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: mailview.c 394 2007-01-25 20:29:45Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -229,13 +229,16 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 
 	    wrapit = 1;
 	    if(flgs & (FM_UTF8 | FM_DISPLAY)){
+		flgs |= FM_UTF8;
 		if(strucmp((char *) charset, "us-ascii") && strucmp((char *) charset, "utf-8")){
 		    /* translate message text to UTF-8 */
 		    if(utf8able(charset)){
-			flgs |= FM_UTF8;
-			gf_link_filter(gf_utf8, gf_utf8_opt(charset, strlen(text2)));
+			gf_link_filter(gf_utf8, gf_utf8_opt(charset));
 		    }
-		    /* else, BUG: what if we can't transliterate? */
+		    else{
+			/* BUG: what if we can't transliterate? */
+			flgs &= ~FM_UTF8;
+		    }
 		}
 	    }
 	    else
@@ -314,7 +317,7 @@ format_message(long int msgno, ENVELOPE *env, struct mail_bodystruct *body,
 
     if(flgs & FM_NEW_MESS) {
 	zero_atmts(ps_global->atmts);
-	describe_mime(body, "", 1, 1, 0);
+	describe_mime(body, "", 1, 1, 0, flgs);
     }
 
     /*=========== Format the header into the buffer =========*/
@@ -1539,8 +1542,8 @@ url_external_specific_handler(char *url, int len)
 
 
 int
-url_imap_folder(char *true_url, char **folder, long int *uid_val,
-		long int *uid, char **search, int silent)
+url_imap_folder(char *true_url, char **folder, imapuid_t *uid_val,
+		imapuid_t *uid, char **search, int silent)
 {
     char *url, *scheme, *p, *cmd, *server = NULL,
 	 *user = NULL, *auth = NULL, *mailbox = NULL,
@@ -2054,7 +2057,7 @@ format_raw_header(MAILSTREAM *stream, long int msgno, char *section, gf_io_t pc)
 		if(ISRFCEOL(h))		/* all done! */
 		  return(FHT_OK);
 	    }
-	    else if(FILTER_THIS(*h) &&
+	    else if((unsigned char)(*h) < 0x80 && FILTER_THIS(*h) &&
 		    !(*(h+1) && *h == ESCAPE && match_escapes(h+1))){
 		c = (unsigned char) *h++;
 		if(!((*pc)(c >= 0x80 ? '~' : '^')
@@ -2605,11 +2608,6 @@ format_raw_hdr_string(char *start, char *finish, gf_io_t pc, char *oacs, int fla
     size_t	   n, len;
     char	   ch, *charset;
     int		   rv = FHT_OK;
-    int save_pass_c1_ctrl_chars;
-
-    /* stop FILTER_THIS from filtering these UTF-8 octets */
-    save_pass_c1_ctrl_chars = ps_global->pass_c1_ctrl_chars;
-    ps_global->pass_c1_ctrl_chars = 1;
 
     ch = *finish;
     *finish = '\0';
@@ -2637,7 +2635,7 @@ format_raw_hdr_string(char *start, char *finish, gf_io_t pc, char *oacs, int fla
 
 	  current += 2;
       }
-      else if(FILTER_THIS(*current) &&
+      else if((unsigned char)(*current) < 0x80 && FILTER_THIS(*current) &&
 	     !(*(current+1) && *current == ESCAPE && match_escapes(current+1))){
 	  c = (unsigned char) *current++;
 	  if(!((*pc)(c >= 0x80 ? '~' : '^')
@@ -2651,8 +2649,6 @@ format_raw_hdr_string(char *start, char *finish, gf_io_t pc, char *oacs, int fla
       fs_give((void **) &tmp);
 
     *finish = ch;
-
-    ps_global->pass_c1_ctrl_chars = save_pass_c1_ctrl_chars;
 
     return(rv);
 }
@@ -2725,28 +2721,18 @@ format_header_charset(char *oa_cset, char **new_csetp, int free_new_csetp)
 int
 format_env_puts(char *s, gf_io_t pc)
 {
-    int save_pass_c1_ctrl_chars;
-
     if(ps_global->pass_ctrl_chars)
       return(gf_puts(s, pc));
 
-    /* stop FILTER_THIS from filtering these UTF-8 octets */
-    save_pass_c1_ctrl_chars = ps_global->pass_c1_ctrl_chars;
-    ps_global->pass_c1_ctrl_chars = 1;
-
     for(; *s; s++)
-      if(FILTER_THIS(*s) && !(*(s+1) && *s == ESCAPE && match_escapes(s+1))){
+      if((unsigned char)(*s) < 0x80 && FILTER_THIS(*s) && !(*(s+1) && *s == ESCAPE && match_escapes(s+1))){
 	  if(!((*pc)((unsigned char) (*s) >= 0x80 ? '~' : '^')
 	       && (*pc)((*s == 0x7f) ? '?' : (*s & 0x1f) + '@')))
-	    ps_global->pass_c1_ctrl_chars = save_pass_c1_ctrl_chars;
 	    return(0);
       }
-      else if(!(*pc)(*s)){
-	ps_global->pass_c1_ctrl_chars = save_pass_c1_ctrl_chars;
+      else if(!(*pc)(*s))
 	return(0);
-      }
 
-    ps_global->pass_c1_ctrl_chars = save_pass_c1_ctrl_chars;
     return(1);
 }
 

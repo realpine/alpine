@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: word.c 154 2006-09-29 18:00:57Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: word.c 334 2006-12-19 01:26:30Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -179,6 +179,12 @@ int
 ucs4_isspace(UCS c)
 {
     return(c < 0xff && isspace((unsigned char) c) || SPECIAL_SPACE(c));
+}
+
+int
+ucs4_ispunct(UCS c)
+{
+     return !ucs4_isalnum(c) && !ucs4_isspace(c);
 }
 
 #ifdef	MAYBELATER
@@ -380,13 +386,30 @@ delbword(int f, int n)
 
 /*
  * Return TRUE if the character at dot is a character that is considered to be
- * part of a word. The word character list is hard coded. Should be setable.
+ * part of a word.
  */
 int
 inword(void)
 {
-    return(curwp->w_doto < llength(curwp->w_dotp)
-	   && ucs4_isalnum(lgetc(curwp->w_dotp, curwp->w_doto).c));
+     if(curwp->w_doto < llength(curwp->w_dotp))
+     {
+         if(ucs4_isalnum(lgetc(curwp->w_dotp, curwp->w_doto).c))
+         {
+             return(TRUE);
+         }
+         else if(ucs4_ispunct(lgetc(curwp->w_dotp, curwp->w_doto).c))
+         {
+             if((curwp->w_doto > 1) &&
+                 ucs4_isalnum(lgetc(curwp->w_dotp, curwp->w_doto - 1).c) &&
+                 (curwp->w_doto + 1 < llength(curwp->w_dotp)) &&
+                 ucs4_isalnum(lgetc(curwp->w_dotp, curwp->w_doto + 1).c))
+             {
+                 return(TRUE);
+             }
+         }
+     }
+
+     return(FALSE);
 }
 
 

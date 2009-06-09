@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: status.c 272 2006-11-27 22:57:25Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: status.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -757,7 +757,7 @@ output_message(SMQ_T *mq_entry)
 		"* What follows is an advisory message.  After reading it  *", 
 		
 		pad, "",
-		"* simply hit \"Return\" to continue your Pine session.      *", 
+		"* simply hit \"Return\" to continue your Alpine session.    *", 
 		pad, "",
 		"*                                                         *",
 		pad, "", i ?

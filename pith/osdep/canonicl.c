@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: canonicl.c 207 2006-10-27 18:35:10Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: canonicl.c 341 2006-12-21 23:44:18Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -16,6 +16,7 @@ static char rcsid[] = "$Id: canonicl.c 207 2006-10-27 18:35:10Z hubert@u.washing
  */
 
 #include "../../c-client/mail.h"
+extern unsigned char *lcase(unsigned char *);
 
 #ifdef _WINDOWS
 /* wingdi.h uses ERROR (!) and we aren't using the c-client ERROR so... */

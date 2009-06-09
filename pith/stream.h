@@ -1,5 +1,5 @@
 /*
- * $Id: stream.h 296 2006-12-02 01:47:06Z hubert@u.washington.edu $
+ * $Id: stream.h 394 2007-01-25 20:29:45Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -76,8 +76,8 @@ typedef struct pine_per_stream_data {
     time_t        last_chkpnt_done;
     time_t        last_use_time;
     time_t        last_activity;
-    unsigned long saved_uid_validity;
-    unsigned long saved_uid_last;
+    imapuid_t     saved_uid_validity;
+    imapuid_t     saved_uid_last;
     char         *saved_cur_msg_id;
     unsigned      unsorted_newmail:1;
     unsigned      need_to_rethread:1;
@@ -434,7 +434,7 @@ long	       pine_mail_ping(MAILSTREAM *);
 void	       pine_mail_check(MAILSTREAM *);
 int	       pine_mail_list(MAILSTREAM *, char *, char *, unsigned *);
 long	       pine_mail_status(MAILSTREAM *, char *, long);
-long	       pine_mail_status_full(MAILSTREAM *, char *, long, unsigned long *, unsigned long *);
+long	       pine_mail_status_full(MAILSTREAM *, char *, long, imapuid_t *, imapuid_t *);
 int	       check_for_move_mbox(char *, char *, size_t, char **);
 MAILSTREAM    *already_open_stream(char *, int);
 void	       pine_imap_cmd_happened(MAILSTREAM *, char *, long);

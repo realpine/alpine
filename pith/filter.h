@@ -1,8 +1,8 @@
 /*
- * $Id: filter.h 140 2006-09-26 19:30:49Z hubert@u.washington.edu $
+ * $Id: filter.h 388 2007-01-24 18:57:42Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -147,7 +147,7 @@ void	    gf_native8bitjapanese_to_2022_jp(FILTER_S *, int);
 void	    gf_euc_to_2022_jp(FILTER_S *, int);
 void	    gf_sjis_to_2022_jp(FILTER_S *, int);
 void	    gf_utf8(FILTER_S *, int);
-void	   *gf_utf8_opt(char *, long);
+void	   *gf_utf8_opt(char *);
 void	    gf_rich2plain(FILTER_S *, int);
 void	   *gf_rich2plain_opt(int);
 void	    gf_enriched2plain(FILTER_S *, int);

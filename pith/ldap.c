@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: ldap.c 284 2006-11-30 15:59:01Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: ldap.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1666,69 +1666,6 @@ our_ldap_set_option(LDAP *ld, int option, void *optdata)
 int
 ldap_v3_is_supported(LDAP *ld)
 {
-#ifdef notdef
-    int         v3_is_supported_by_server = 0;
-    LDAPVersion ver;
-    int         our_proto_vers;
-
-    /*
-     * It shouldn't really be necessary to figure out that _we_ support
-     * version 3, we know we do if LDAPAPI >= 15. But we're just making sure.
-     */
-    (void)ldap_version(&ver);
-    our_proto_vers = (int)(ver.protocol_version/100.0);
-    /* we can talk LDAPv3 instead of LDAPv2, but can server? */
-    if(our_proto_vers > 2){
-	LDAPMessage *result, *e;
-	int          i;
-	char        *attrs[2];
-	char        *a;
-	char       **vals;
-	BerElement  *ber;
-
-	attrs[0] = "supportedLDAPVersion";
-	attrs[1] = NULL;
-
-	/*
-	 * Figure out if the server supports v3. This code is derived from
-	 * the code in the Netscape SDK programmer's manual.
-	 *
-	 * Set automatic referral processing off,
-	 * search for the root DSE,
-	 * get the supportedLDAPVersion attribute,
-	 * and see if version "3" is supported.
-	 */
-	if(our_ldap_set_option(ld, LDAP_OPT_REFERRALS, LDAP_OPT_OFF) == 0 &&
-	   ldap_search_ext_s(ld, "", LDAP_SCOPE_BASE, "(objectclass=*)", attrs,
-			     0, NULL, NULL, NULL, 0, &result) == LDAP_SUCCESS){
-	    /* only one entry should have matched, get that entry */
-	    if((e = ldap_first_entry(ld, result)) != NULL &&
-	       (a = ldap_first_attribute(ld, e, &ber)) != NULL &&
-	       (vals = ldap_get_values(ld, e, a)) != NULL){
-		for(i = 0; vals[i] != NULL; i++){
-		    if(!strcmp("3", vals[i])){
-		      v3_is_supported_by_server++;
-		      break;
-		    }
-		}
-
-		/* free memory */
-		ldap_value_free(vals);
-		our_ldap_memfree(a);
-		if(ber)
-		  ber_free(ber, 0);
-	    }
-
-	    ldap_msgfree(result);
-	}
-
-	/* Turn automatic referral processing back on. */
-	(void)our_ldap_set_option(ld, LDAP_OPT_REFERRALS, LDAP_OPT_ON);
-    }
-
-    return(v3_is_supported_by_server);
-#endif /* notdef */
-
     return(1);
 }
 

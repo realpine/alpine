@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: adrbklib.c 229 2006-11-13 23:14:48Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: adrbklib.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -609,7 +609,7 @@ try_again:
      * and address lookups will work after we open. However, we're going to
      * check the sort order and if it is out of order we'll sort and then
      * have to rebuild the tries. So instead of building the tries here,
-     * build them in the caller if necessary.
+     * build them in the caller if necessary, for performance reasons.
      */
     if(ab->arr
        && build_abook_tries(ab, (warning && !*warning) ? warning : NULL)){
@@ -1766,33 +1766,6 @@ adrbk_formatname(char *fullname, char **first, char **last)
     else
       new_name = cpystr(fullname);
 
-    /*
-     * If the name is not ascii we encode it will be UTF-8.
-     * We need to encode it.
-     */
-#ifdef notdef
-Need to figure out when encoding is wanted or not.
-    test.data = new_name;
-    test.size = strlen(new_name);
-    if((cs = utf8_infercharset(&test)) && (cs->type == CT_UTF8)){
-	char *s;
-	size_t ll;
-
-	/* re-encode in original charset */
-	s = rfc1522_encode(tmp_20k_buf,
-			   SIZEOF_20KBUF, (unsigned char *) new_name, "UTF-8");
-	if(s != new_name){
-	    if(strlen(s) > (ll=strlen(new_name))){
-		fs_give((void **)&new_name);
-		new_name = cpystr(s);
-	    }
-	    else
-	      strncpy(new_name, s, ll+1);
-	}
-    }
-#endif /* notdef */
-
-    
     return(new_name);
 }
 
@@ -2031,6 +2004,8 @@ adrbk_add(AdrBk *ab, a_c_arg_t old_entry_num, char *nickname, char *fullname,
     else{
         /*----- Updating an existing entry ----*/
 
+	int fix_tries = 0;
+
 	if(ae->tag != tag)
 	  return -3;
 
@@ -2043,6 +2018,7 @@ adrbk_add(AdrBk *ab, a_c_arg_t old_entry_num, char *nickname, char *fullname,
 	   && nickname != NULL
 	   && strcmp(nickname, ae->nickname) != 0){
 	    need_write++;
+	    fix_tries++;
 	    /* can use already alloc'd space */
             if(ae->nickname != NULL && nickname != NULL &&
 	       strlen(nickname) <= strlen(ae->nickname)){
@@ -2118,6 +2094,7 @@ adrbk_add(AdrBk *ab, a_c_arg_t old_entry_num, char *nickname, char *fullname,
 	       && address != NULL
 	       && strcmp(address, ae->addr.addr) != 0){
 		need_write++;
+		fix_tries++;
 		if(ae->addr.addr != NULL && address != NULL &&
 		   strlen(address) <= strlen(ae->addr.addr)){
 
@@ -2147,8 +2124,11 @@ adrbk_add(AdrBk *ab, a_c_arg_t old_entry_num, char *nickname, char *fullname,
 	 * old_enum is where ae is currently located
 	 * put it where it belongs
 	 */
-	if(need_write)
-	  new_enum = re_sort_particular_entry(ab, (a_c_arg_t) old_enum);
+	if(need_write){
+	    new_enum = re_sort_particular_entry(ab, (a_c_arg_t) old_enum);
+	    if(old_enum != new_enum)
+	      fix_tries++;
+	}
 	else
 	  new_enum = old_enum;
 
@@ -2158,6 +2138,9 @@ adrbk_add(AdrBk *ab, a_c_arg_t old_entry_num, char *nickname, char *fullname,
 
         if(resort_happened)
 	  *resort_happened = (old_enum != new_enum);
+
+	if(fix_tries)
+	  repair_abook_tries(ab);
 
 	if(write_it && need_write)
 	  retval = adrbk_write(ab, enable_intr, be_quiet, 1);
@@ -3167,7 +3150,7 @@ adrbk_write(AdrBk *ab, int enable_intr_handling, int be_quiet, int write_to_remo
 			      (ab->type == Imap) ? "cache " : "",
 			      ab->filename);
 	    q_status_message(SM_ORDER | SM_DING, 5, 7,
-    _("If another Pine is running, quit that Pine before updating address book."));
+    _("If another Alpine is running, quit that Alpine before updating address book."));
 	}
 #endif	/* _WINDOWS */
 	goto io_error;
@@ -3739,9 +3722,9 @@ backcompat_encoding_for_abook(char *buf1, size_t buf1len, char *buf2,
 	if(trythischarset){
 	    SIZEDTEXT src, dst;
 
-	    src.data = srcstr;
-	    src.size = strlen(src.data);
-	    dst.data = buf1;
+	    src.data = (unsigned char *) srcstr;
+	    src.size = strlen(srcstr);
+	    dst.data = (unsigned char *) buf1;
 	    dst.size = buf1len;
 	    if(utf8_cstext(&src, trythischarset, &dst, 0)){
 		if(dst.size < buf1len)
@@ -3755,7 +3738,7 @@ backcompat_encoding_for_abook(char *buf1, size_t buf1len, char *buf2,
 	}
 
 	if(!encoded){
-	    encoded = rfc1522_encode(buf1, buf1len, srcstr, "UTF-8");
+	    encoded = rfc1522_encode(buf1, buf1len, (unsigned char *) srcstr, "UTF-8");
 	    REPLACE_NEWLINES_WITH_SPACE(encoded);
 	}
     }

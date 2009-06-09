@@ -1,5 +1,5 @@
 #!./tclsh
-
+# $Id: common.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -222,7 +222,7 @@ WPEval $ops_vars {
 	    for {set i 0} {$i < [llength $fc]} {incr i} {
 	      set f [lindex $fc $i]
 
-	      if {[WPCmd PEFolder exists [lindex $f 0] [lindex $f 1]]} {
+	      if {0 == [catch {WPCmd PEFolder exists [lindex $f 0] [lindex $f 1]} result] && $result} {
 		cgi_br
 
 		set fn [lindex $f 1]
@@ -269,9 +269,9 @@ WPEval $ops_vars {
 
 	cgi_division "style=\"padding: 12px 0 10px $padleft\"" {
 	  if {[WPCmd PEInfo feature quit-without-confirm]} {
-	    cgi_puts [cgi_url "Quit Alpine" $_wp(serverpath)/session/logout.tcl?cid=[WPCmd PEInfo key]&sessid=$sessid target=_top class=navbar]
+	    cgi_puts [cgi_url "Quit $_wp(appname)" $_wp(serverpath)/session/logout.tcl?cid=[WPCmd PEInfo key]&sessid=$sessid target=_top class=navbar]
 	  } else {
-	    cgi_puts [cgi_url "Quit Alpine" wp.tcl?page=quit&cid=[WPCmd PEInfo key] target=_top class=navbar]
+	    cgi_puts [cgi_url "Quit $_wp(appname)" wp.tcl?page=quit&cid=[WPCmd PEInfo key] target=_top class=navbar]
 	  }
 	}
       }

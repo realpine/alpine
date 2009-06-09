@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: context.c 237 2006-11-16 04:08:15Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: context.c 394 2007-01-25 20:29:45Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -412,8 +412,7 @@ context_status(CONTEXT_S *context, MAILSTREAM *stream, char *name, long int opt)
 
 long
 context_status_full(CONTEXT_S *context, MAILSTREAM *stream, char *name,
-		    long int opt, long unsigned int *uidvalidity,
-		    long unsigned int *uidnext)
+		    long int opt, imapuid_t *uidvalidity, imapuid_t *uidnext)
 {
     char tmp[MAILTMPLEN];	/* build FQN from ambiguous name */
     long flags = opt;
@@ -445,8 +444,7 @@ context_status_streamp(CONTEXT_S *context, MAILSTREAM **streamp, char *name, lon
 
 long
 context_status_streamp_full(CONTEXT_S *context, MAILSTREAM **streamp, char *name,
-			    long int opt, long unsigned int *uidvalidity,
-			    long unsigned int *uidnext)
+			    long int opt, imapuid_t *uidvalidity, imapuid_t *uidnext)
 {
     MAILSTREAM *stream;
     char        tmp[MAILTMPLEN];	/* build FQN from ambiguous name */

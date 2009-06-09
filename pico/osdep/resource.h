@@ -26,9 +26,13 @@
 #define IDR_ACCEL_PINE                  115
 #define IDD_SELECTFLAG                  115
 #define IDM_FILE_PRINT                  116
+#define IDD_LOGINDLG                    116
 #define IDM_OPT_TOOLBAR                 117
+#define IDD_CONFIGDLG                   117
 #define IDM_OPT_TOOLBARPOS              118
+#define IDD_CFVARSDLG                   118
 #define IDM_OPT_USEDIALOGS              119
+#define IDD_LOGINDLG2                   119
 #define IDM_OPT_USEACCEL                120
 #define IDM_OPT_IMAPTELEM               121
 #define IDM_EDIT_SEL_ALL                122
@@ -40,8 +44,8 @@
 #define IDM_MI_SORTDATE                 128
 #define IDM_MI_SORTSIZE                 129
 #define IDM_MI_SORTORDERSUB             130
-#define	IDM_MI_SORTSCORE		131
-#define	IDM_MI_SORTTHREAD               132
+#define IDM_MI_SORTSCORE                131
+#define IDM_MI_SORTTHREAD               132
 #define IDM_MI_SORTREVERSE              133
 #define IDM_MI_FLAGIMPORTANT            134
 #define IDM_MI_FLAGNEW                  135
@@ -96,18 +100,21 @@
 #define IDM_MI_SELECTCUR                196
 #define IDM_MI_UNDO                     197
 #define IDM_MI_SPELLCHK                 198
-#define	IDM_OPT_CARETBLOCK		200
-#define	IDM_OPT_CARETSMALLBLOCK		201
-#define	IDM_OPT_CARETHBAR		202
-#define	IDM_OPT_CARETVBAR		203
-#define	IDM_OPT_NEWMAILWIN		204
+#define IDD_ARGLIST                     199
+#define IDM_OPT_CARETBLOCK              200
+#define IDM_OPT_CARETSMALLBLOCK         201
+#define IDM_OPT_CARETHBAR               202
+#define IDM_OPT_CARETVBAR               203
+#define IDM_OPT_NEWMAILWIN              204
+#define IDM_EDIT_CLEAR                  205
+#define IDM_OPT_ERASE_CREDENTIALS       205
 #define ALPINEMENU                      300
 #define COMPOSERMENU                    301
 #define ALPINEICON                      400
 #define NEWMAILICON                     401
-#define	PICOHAND			402
+#define PICOHAND                        402
 #define MCLOSEDICON                     403
-#define ALPINESPLASH			501
+#define ALPINESPLASH                    501
 #define IDD_ABOUTICON                   0x210
 #define IDD_VERSION                     0x212
 #define IDD_BYLINE                      0x213
@@ -117,9 +124,51 @@
 #define IDC_RESPONCE                    1002
 #define IDC_PROMPT                      1003
 #define IDC_GETHELP                     1004
+#define IDC_SORTARRIVAL                 1005
+#define IDC_SORTFIRSTBUTTON             IDC_SORTARRIVAL
+#define IDC_SORTORDERSUB                1006
+#define IDC_SORTSUBJECT                 1007
+#define IDC_SORTSIZE                    1008
+#define IDC_SORTCC                      1009
+#define IDC_SORTTO                      1010
+#define IDC_SORTFROM                    1011
+#define IDC_SORTDATE                    1012
+#define IDC_SORTTHREAD                  1013
+#define IDC_SORTSCORE                   1014
+#define IDC_SORTLASTBUTTON              IDC_SORTSCORE
+#define IDC_SORTREVERSE                 1015
 #define IDC_FLAGCOL1                    1016
 #define IDC_FLAGCOL2                    1017
 #define IDC_BUTTON2                     1018
+#define IDC_ARGTEXT                     1019
+#define IDC_RLOGINE                     1020
+#define IDC_RPASSWORD                   1021
+#define IDC_RPWTEXT                     1022
+#define IDC_PRESPASS                    1023
+#define IDC_CONFRRADIO                  1023
+#define IDC_CFV_PNAME                   1023
+#define IDC_CONFLRADIO                  1024
+#define IDC_CFV_EMAILADR                1024
+#define IDC_CONFSRVRTXT                 1025
+#define IDC_CFV_MSERVER                 1025
+#define IDC_CONFESERVER                 1026
+#define IDC_CFV_IMAP                    1026
+#define IDC_CONFUNTXT                   1027
+#define IDC_CFV_POP3                    1027
+#define IDC_CONFEUSERNAME               1028
+#define IDC_CFV_LOGIN                   1028
+#define IDC_CONFDFLTFLDR                1029
+#define IDC_CFV_SMTPSERVER              1029
+#define IDC_CONFFLDRTXT                 1030
+#define IDC_CFV_DEFMAILER               1030
+#define IDC_CONFEFLDRNAME               1031
+#define IDC_CFV_DEFNEWSRDR              1031
+#define IDC_CONFFNTXT                   1032
+#define IDC_CONFEFN                     1033
+#define IDC_CONFBROWSE                  1034
+#define IDC_CONFDFLTSET                 1035
+#define IDC_CONFTEXT                    1036
+#define IDC_STATIC                      -1
 
 // Next default values for new objects
 // 
@@ -127,7 +176,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        116
 #define _APS_NEXT_COMMAND_VALUE         122
-#define _APS_NEXT_CONTROL_VALUE         1018
+#define _APS_NEXT_CONTROL_VALUE         1023
 #define _APS_NEXT_SYMED_VALUE           103
 #endif
 #endif

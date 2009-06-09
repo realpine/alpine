@@ -1,8 +1,8 @@
 /*
- * $Id: estruct.h 320 2006-12-12 22:40:05Z hubert@u.washington.edu $
+ * $Id: estruct.h 380 2007-01-23 00:09:18Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@
 #define NFILEN  200                     /* # of bytes, file name        */
 #endif
 #define NBUFN   16                      /* # of bytes, buffer name      */
-#define NLINE   256                     /* # of bytes, line             */
+#define NLINE   500                     /* # of bytes, line             */
 #define	NSTRING	256			/* # of bytes, string buffers	*/
 #define NPAT    80                      /* # of bytes, pattern          */
 #define FARAWAY 1000                    /* Huge number                  */
@@ -243,6 +243,7 @@ typedef	struct CELL {
 #define COLOR_ANSI8_OPT		0x01
 #define COLOR_ANSI16_OPT	0x02
 #define COLOR_ANSI256_OPT	0x04
+#define COLOR_ANSITRANS_OPT	0x08
 
 /*
  * All text is kept in circularly linked lists of "LINE" structures. These

@@ -1,5 +1,5 @@
 #!./tclsh
-
+# $Id: compose.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -74,7 +74,7 @@ proc fieldname {name} {
 }
 
 proc default_fcc {itemval} {
-  global fccdefault
+  global fccdefault f_name f_colid
 
   if {[catch {WPCmd PEFolder collections} collections]} {
     set collections ""
@@ -84,6 +84,9 @@ proc default_fcc {itemval} {
   if {[llength $itemval] == 2} {
     set fcccol [lindex $itemval 0]
     set fccname [lindex $itemval 1]
+  } elseif {[string length $f_name]} {
+    set fcccol $f_colid
+    set fccname $f_name
   } elseif {[info exists fccdefault] || [catch {WPCmd PECompose fccdefault} fccdefault] == 0} {
     set fcccol [lindex $fccdefault 0]
     set fccname [lindex $fccdefault 1]

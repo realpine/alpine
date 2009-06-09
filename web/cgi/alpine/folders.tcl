@@ -1,3 +1,4 @@
+# $Id: folders.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -213,9 +214,9 @@ set common_menu {
       {
 	# * * * * LOGOUT * * * *
 	if {[WPCmd PEInfo feature quit-without-confirm]} {
-	  cgi_puts [cgi_url "Quit WebPine" $_wp(serverpath)/session/logout.tcl?cid=[WPCmd PEInfo key]&sessid=$sessid target=_top class=navbar]
+	  cgi_puts [cgi_url "Quit $_wp(appname)" $_wp(serverpath)/session/logout.tcl?cid=[WPCmd PEInfo key]&sessid=$sessid target=_top class=navbar]
 	} else {
-	  cgi_puts [cgi_url "Quit WebPine" wp.tcl?page=quit&cid=[WPCmd PEInfo key] target=_top class=navbar]
+	  cgi_puts [cgi_url "Quit $_wp(appname)" wp.tcl?page=quit&cid=[WPCmd PEInfo key] target=_top class=navbar]
 	}
       }
     }

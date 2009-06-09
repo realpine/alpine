@@ -1,8 +1,8 @@
 /*
- * $Id: keydefs.h 120 2006-09-18 18:53:01Z hubert@u.washington.edu $
+ * $Id: keydefs.h 380 2007-01-23 00:09:18Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,46 +31,39 @@
 #undef CTRL
 #define CTRL		0x1000000
 #define FUNC		0x2000000
-#if defined(DOS) || defined(OS2)
-#define MENU		0x4000000
-#endif
 
 #define KEY_BASE	0x40000000
-#define CCONV_NEEDMORE	KEY_BASE+1	/* need more octets */
-#define CCONV_BADCHAR	KEY_BASE+2	/* can tell it's bad conversion */
-#define CCONV_EOF	KEY_BASE+3	/* can tell it's bad conversion */
+#define CCONV_NEEDMORE	(KEY_BASE+1)	/* need more octets */
+#define CCONV_BADCHAR	(KEY_BASE+2)	/* can tell it's bad conversion */
+#define CCONV_EOF	(KEY_BASE+3)
 
 /*
  * defs for keypad and function keys...
  */
-#define KEY_UP		KEY_BASE+100
-#define KEY_DOWN	KEY_BASE+101
-#define KEY_RIGHT	KEY_BASE+102
-#define KEY_LEFT	KEY_BASE+103
-#define KEY_PGUP	KEY_BASE+104
-#define KEY_PGDN	KEY_BASE+105
-#define KEY_HOME	KEY_BASE+106
-#define KEY_END		KEY_BASE+107
-#define KEY_DEL		KEY_BASE+108
-#define BADESC		KEY_BASE+109
-#define KEY_MOUSE	KEY_BASE+110	/* Fake key to indicate mouse event. */
-#define KEY_SCRLUPL	KEY_BASE+111
-#define KEY_SCRLDNL	KEY_BASE+112
-#define KEY_SCRLTO	KEY_BASE+113
-#define KEY_XTERM_MOUSE	KEY_BASE+114
-#define KEY_DOUBLE_ESC	KEY_BASE+115
-#define KEY_SWALLOW_Z	KEY_BASE+116
-#define KEY_SWAL_UP	KEY_BASE+117	/* These four have to be in the same order */
-#define KEY_SWAL_DOWN	KEY_BASE+118	/* as KEY_UP, KEY_DOWN, ...                */
-#define KEY_SWAL_RIGHT	KEY_BASE+119
-#define KEY_SWAL_LEFT	KEY_BASE+120
-#define KEY_KERMIT	KEY_BASE+121
-#define KEY_JUNK	KEY_BASE+122
-#define KEY_RESIZE	KEY_BASE+123  /* Fake key to cause resize. */
-
-#define KEY_MENU_FLAG	0x1000		/* maybe 0x10000000 ?? */
-
-#define KEY_MASK	0x13FF		/* ??? */
+#define KEY_UP		(KEY_BASE+0x100)
+#define KEY_DOWN	(KEY_BASE+0x101)
+#define KEY_RIGHT	(KEY_BASE+0x102)
+#define KEY_LEFT	(KEY_BASE+0x103)
+#define KEY_PGUP	(KEY_BASE+0x104)
+#define KEY_PGDN	(KEY_BASE+0x105)
+#define KEY_HOME	(KEY_BASE+0x106)
+#define KEY_END		(KEY_BASE+0x107)
+#define KEY_DEL		(KEY_BASE+0x108)
+#define BADESC		(KEY_BASE+0x109)
+#define KEY_MOUSE	(KEY_BASE+0x10a)
+#define KEY_SCRLUPL	(KEY_BASE+0x10b)
+#define KEY_SCRLDNL	(KEY_BASE+0x10c)
+#define KEY_SCRLTO	(KEY_BASE+0x10d)
+#define KEY_XTERM_MOUSE	(KEY_BASE+0x10e)
+#define KEY_DOUBLE_ESC	(KEY_BASE+0x10f)
+#define KEY_SWALLOW_Z	(KEY_BASE+0x110)
+#define KEY_SWAL_UP	(KEY_BASE+0x111)	/* These four have to be in the same order */
+#define KEY_SWAL_DOWN	(KEY_BASE+0x112)	/* as KEY_UP, KEY_DOWN, ...                */
+#define KEY_SWAL_RIGHT	(KEY_BASE+0x113)
+#define KEY_SWAL_LEFT	(KEY_BASE+0x114)
+#define KEY_KERMIT	(KEY_BASE+0x115)
+#define KEY_JUNK	(KEY_BASE+0x116)
+#define KEY_RESIZE	(KEY_BASE+0x117)
 
 /*
  * Don't think we are using the fact that this is zero anywhere,
@@ -78,31 +71,30 @@
  */
 #define NO_OP_COMMAND	0x0	/* no-op for short timeouts      */
 
-#define NO_OP_IDLE	KEY_BASE+124	/* no-op for >25 second timeouts */
-#define READY_TO_READ	KEY_BASE+125
-#define BAIL_OUT	KEY_BASE+126
-#define PANIC_NOW	KEY_BASE+127
-#define READ_INTR	KEY_BASE+128
-#define NODATA		KEY_BASE+129
-#define KEY_UTF8	KEY_BASE+130
-#define KEY_UNKNOWN	KEY_BASE+131
+#define NO_OP_IDLE	(KEY_BASE+0x120)	/* no-op for >25 second timeouts */
+#define READY_TO_READ	(KEY_BASE+0x121)
+#define BAIL_OUT	(KEY_BASE+0x122)
+#define PANIC_NOW	(KEY_BASE+0x123)
+#define READ_INTR	(KEY_BASE+0x124)
+#define NODATA		(KEY_BASE+0x125)
+#define KEY_UTF8	(KEY_BASE+0x126)
+#define KEY_UNKNOWN	(KEY_BASE+0x127)
  
 /*
  * defines for function keys
- * I think this depend on being in order but not on the specific values
  */
-#define F1      KEY_BASE+200      /* Function key one              */
-#define F2      KEY_BASE+201      /* Function key two              */
-#define F3      KEY_BASE+202      /* Function key three            */
-#define F4      KEY_BASE+203      /* Function key four             */
-#define F5      KEY_BASE+204      /* Function key five             */
-#define F6      KEY_BASE+205      /* Function key six              */
-#define F7      KEY_BASE+206      /* Function key seven            */
-#define F8      KEY_BASE+207      /* Function key eight            */
-#define F9      KEY_BASE+208      /* Function key nine             */
-#define F10     KEY_BASE+209      /* Function key ten              */
-#define F11     KEY_BASE+210      /* Function key eleven           */
-#define F12     KEY_BASE+211      /* Function key twelve           */
+#define F1      (KEY_BASE+FUNC+0)      /* Function key one              */
+#define F2      (KEY_BASE+FUNC+1)      /* Function key two              */
+#define F3      (KEY_BASE+FUNC+2)      /* Function key three            */
+#define F4      (KEY_BASE+FUNC+3)      /* Function key four             */
+#define F5      (KEY_BASE+FUNC+4)      /* Function key five             */
+#define F6      (KEY_BASE+FUNC+5)      /* Function key six              */
+#define F7      (KEY_BASE+FUNC+6)      /* Function key seven            */
+#define F8      (KEY_BASE+FUNC+7)      /* Function key eight            */
+#define F9      (KEY_BASE+FUNC+8)      /* Function key nine             */
+#define F10     (KEY_BASE+FUNC+9)      /* Function key ten              */
+#define F11     (KEY_BASE+FUNC+0xa)    /* Function key eleven           */
+#define F12     (KEY_BASE+FUNC+0xb)    /* Function key twelve           */
 
 /* 1st tier pine function keys */
 #define PF1	F1

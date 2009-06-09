@@ -1,5 +1,5 @@
 #!./tclsh
-
+# $Id: init.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -200,7 +200,7 @@ cgi_eval {
 	    }
 
 	    cgi_table_data {
-	      cgi_puts [cgi_font size=+2 "Logging into Alpine"]
+	      cgi_puts [cgi_font size=+2 "Logging into $_wp(appname)"]
 	    }
 	  }
 

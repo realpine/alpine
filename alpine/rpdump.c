@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: rpdump.c 203 2006-10-26 17:23:46Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: rpdump.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -193,7 +193,7 @@ main(argc, argv)
 	 */
 	rtype = check_for_header_msg(stream);
 	if(!force && rtype == NotSet){
-	    fprintf(stderr, "Folder \"%s\"\ndoes not appear to be a Pine remote data folder.\nUse -f to force.\n", remote);
+	    fprintf(stderr, "Folder \"%s\"\ndoes not appear to be an Alpine remote data folder.\nUse -f to force.\n", remote);
 	    mail_close(stream);
 	    exit(-1);
 	}
@@ -279,7 +279,7 @@ check_for_header_msg(stream)
     try = pinerc;
     strncpy((char *) sl->text.data, try, len);
     sl->text.data[len] = '\0';
-    sl->text.size = strlen(sl->text.data);
+    sl->text.size = strlen((char *) sl->text.data);
 
     if(stream && (h=mail_fetch_header(stream,1L,NULL,sl,NULL,FT_PEEK))){
 
@@ -291,7 +291,7 @@ check_for_header_msg(stream)
 	try = abook;
 	strncpy((char *)sl->text.data, try, len);
 	sl->text.data[len] = '\0';
-	sl->text.size = strlen(sl->text.data);
+	sl->text.size = strlen((char *) sl->text.data);
 	if(stream && (h=mail_fetch_header(stream,1L,NULL,sl,NULL,FT_PEEK))){
 
 	    if(strlen(h) >= sl->text.size && !struncmp(h, try, sl->text.size))
@@ -303,7 +303,7 @@ check_for_header_msg(stream)
 	try = sig;
 	strncpy((char *) sl->text.data, try, len);
 	sl->text.data[len] = '\0';
-	sl->text.size = strlen(sl->text.data);
+	sl->text.size = strlen((char *) sl->text.data);
 	if(stream && (h=mail_fetch_header(stream,1L,NULL,sl,NULL,FT_PEEK))){
 
 	    if(strlen(h) >= sl->text.size && !struncmp(h, try, sl->text.size))

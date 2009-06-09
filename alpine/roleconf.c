@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: roleconf.c 245 2006-11-18 02:46:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: roleconf.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1816,7 +1816,7 @@ role_config_addfile(struct pine *ps, CONF_S **cl, long int rflags)
     struct variable *vars = ps->vars;
 
     if(ps->restricted){
-	q_status_message(SM_ORDER, 0, 3, "Pine demo can't read files");
+	q_status_message(SM_ORDER, 0, 3, "Alpine demo can't read files");
 	return(rv);
     }
 
@@ -2830,12 +2830,12 @@ role_config_edit_screen(struct pine *ps, PAT_S *def, char *title, long int rflag
 	char msg[MAX_SCREEN_COLS+1];
 
 	snprintf(msg, sizeof(msg),
-		_("Rule contains unknown %s element, possibly from newer Pine"),
+		_("Rule contains unknown %s element, possibly from newer Alpine"),
 		(def->patgrp && def->patgrp->bogus) ? "pattern" : "action");
 	msg[sizeof(msg)-1] = '\0';
 	q_status_message(SM_ORDER | SM_DING, 7, 7, msg);
 	q_status_message(SM_ORDER | SM_DING, 7, 7,
-		_("Editing with this version of Pine will destroy information"));
+		_("Editing with this version of Alpine will destroy information"));
         flush_status_messages(0);
     }
 
@@ -6234,8 +6234,10 @@ check_role_folders(char **lst, unsigned int action)
 	  else
 	    cntxt = default_save_context(ps_global->context_list);
 
-	  if(!(exists=folder_exists(cntxt, cur_fn)) &&
-    (action || !folder_is_nick(cur_fn,FOLDERS(ps_global->context_current), 0))){
+	  if(!(exists=folder_exists(cntxt, cur_fn))
+	    && (action
+		|| (ps_global->context_list->use & CNTXT_INCMNG
+		    && !folder_is_nick(cur_fn,FOLDERS(ps_global->context_list), 0)))){
 	    if(cntxt && (action == 1)){
 	      space -= 37;		/* for fixed part of prompt below */
 	      w1 = MAX(1,MIN(strlen(cur_fn),space/2));

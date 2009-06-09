@@ -1,5 +1,5 @@
 /*
- * $Id: mimedesc.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: mimedesc.h 389 2007-01-24 22:49:09Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -22,7 +22,7 @@
 
 
 /* exported prototypes */
-void	    describe_mime(BODY *, char *, int, int, int);
+void	    describe_mime(BODY *, char *, int, int, int, int);
 void	    zero_atmts(ATTACH_S *);
 char	   *body_type_names(int);
 char	   *type_desc(int, char *, PARAMETER *, PARAMETER *, int);

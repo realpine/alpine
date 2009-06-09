@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: filesys.c 265 2006-11-23 00:51:10Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: filesys.c 341 2006-12-21 23:44:18Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -26,6 +26,8 @@ static char rcsid[] = "$Id: filesys.c 265 2006-11-23 00:51:10Z hubert@u.washingt
 
 #include <system.h>
 #include <general.h>
+
+#include "../../c-client/fs.h"
 
 /* includable WITHOUT dependency on pico */
 #include "../../pico/keydefs.h"

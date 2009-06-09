@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: imap.c 305 2006-12-07 23:43:31Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: imap.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,19 +41,46 @@ static char rcsid[] = "$Id: imap.c 305 2006-12-07 23:43:31Z hubert@u.washington.
 #include "../pith/filter.h"
 #include "../pith/news.h"
 #include "../pith/util.h"
-#ifdef _WINDOWS
- #if defined(WINVER) && WINVER >= 0x0501
-  #include <wincred.h>
-  #define TNAME     "UWash_Alpine_"
-  #define TNAMESTAR "UWash_Alpine_*"
- #endif
+
+#if defined(_WINDOWS) && defined(WINVER) && WINVER >= 0x0501
+#include <wincred.h>
+#define TNAME     "UWash_Alpine_"
+#define TNAMESTAR "UWash_Alpine_*"
+
+/*
+ * WinCred Function prototypes
+ */
+typedef BOOL (WINAPI CREDWRITEW) ( __in PCREDENTIALW Credential, __in DWORD Flags );
+typedef BOOL (WINAPI CREDENUMERATEW) ( __in LPCWSTR Filter, __reserved DWORD Flags,
+        __out DWORD *Count, __deref_out_ecount(*Count) PCREDENTIALW **Credential );
+typedef BOOL (WINAPI CREDDELETEW) ( __in LPCWSTR TargetName, __in DWORD Type,
+        __reserved DWORD Flags );
+typedef VOID (WINAPI CREDFREE) ( __in PVOID Buffer );
+
+/*
+ * WinCred functions
+ */
+int              g_CredInited = 0;  // 1 for loaded successfully,
+                                    // -1 for not available.
+                                    // 0 for not initialized yet.
+CREDWRITEW       *g_CredWriteW;
+CREDENUMERATEW   *g_CredEnumerateW;
+CREDDELETEW      *g_CredDeleteW;
+CREDFREE         *g_CredFree;
+
 #endif
 
 #ifdef OSX_TARGET
 #include <Security/SecKeychain.h>
 #include <Security/SecKeychainItem.h>
 #include <Security/SecKeychainSearch.h>
-#define TNAME     "UWash_Alpine"
+#define TNAME       "UWash_Alpine"
+#define TNAMEPROMPT "UWash_Alpine_Prompt_For_Password"
+
+int   macos_store_pass_prompt(void);
+void  macos_set_store_pass_prompt(int);
+
+static int storepassprompt = -1;
 #endif
 
 
@@ -69,7 +96,9 @@ char  xlate_out(char);
 char *passfile_name(char *, char *, size_t);
 int   read_passfile(char *, MMLOGIN_S **);
 void  write_passfile(char *, MMLOGIN_S *);
-#endif
+int   preserve_prompt(void);
+void  ask_erase_credentials(void);
+#endif	/* PASSFILE */
 
 
 static	char *details_cert, *details_host, *details_reason;
@@ -294,6 +323,7 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
     HelpType  help ;
     int       len, rc, q_line, flags;
     int       oespace, avail, need, save_dont_use;
+    int       preserve_password = -1;
     struct servent *sv;
 
     dprint((9, "mm_login_work trial=%ld user=%s service=%s%s%s%s%s\n",
@@ -395,7 +425,7 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 	    dprint((9, "mm_login: found a password in passfile to try\n"));
 	    return;
 	}
-#endif
+#endif	/* PASSFILE */
 
 	/*
 	 * If no explicit user name supplied and we've not logged in
@@ -407,7 +437,7 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 #ifdef	PASSFILE
 	    ||
 	    (last = get_passfile_user(ps_global->pinerc, hostlist))
-#endif
+#endif	/* PASSFILE */
 								   )){
 	    strncpy(user, last, NETMAXUSER);
 	    dprint((9, "mm_login: found user=%s\n",
@@ -435,7 +465,7 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 		  user ? user : "?"));
 		return;
 	    }
-#endif
+#endif	/* PASSFILE */
 	}
 
 #if !defined(DOS) && !defined(OS2)
@@ -465,7 +495,7 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 		dprint((9, "mm_login:ui: found a password in passfile to try\n"));
 		return;
 	    }
-#endif
+#endif	/* PASSFILE */
 	}
 #endif
     }
@@ -631,25 +661,23 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 	    save_dont_use = ps_global->dont_use_init_cmds;
 	    ps_global->dont_use_init_cmds = 1;
 #ifdef _WINDOWS
-	    if(!ps_global->ttyo){
-		if(!*user && *defuser){
-		    strncpy(user, defuser, sizeof(user));
-		    user[sizeof(user)-1] = '\0';
-		}
-
-		rc = os_login_dialog(mb, user, NETMAXUSER, pwd, NETMAXPASSWD,
-#ifdef PASSFILE
-				is_using_passfile() ? 1 :
-#endif /* PASSFILE */
-				0, 0);
-		ps_global->dont_use_init_cmds = save_dont_use;
-		if(rc == 0 && *user && *pwd)
-		  goto nopwpmt;
+	    if(!*user && *defuser){
+		strncpy(user, defuser, sizeof(user));
+		user[sizeof(user)-1] = '\0';
 	    }
-	    else
-#endif /* _WINDOWS */
+
+	    rc = os_login_dialog(mb, user, NETMAXUSER, pwd, NETMAXPASSWD,
+#ifdef PASSFILE
+				 is_using_passfile() ? 1 :
+#endif	/* PASSFILE */
+				 0, 0, &preserve_password);
+	    ps_global->dont_use_init_cmds = save_dont_use;
+	    if(rc == 0 && *user && *pwd)
+	      goto nopwpmt;
+#else /* !_WINDOWS */
 	    rc = optionally_enter(user, q_line, 0, NETMAXUSER,
 				  prompt, NULL, help, &flags);
+#endif /* !_WINDOWS */
 	    ps_global->dont_use_init_cmds = save_dont_use;
 
 	    if(rc == 3) {
@@ -697,7 +725,7 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 			    hostlist, (mb->sslflag||mb->tlsflag), 0, 0);
 	    return;
 	}
-#endif
+#endif	/* PASSFILE */
     }
     else if(trial == 0 && altuserforcache){
 	if(imap_get_passwd(mm_login_list, pwd, altuserforcache, hostlist,
@@ -711,7 +739,7 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 			    hostlist, (mb->sslflag||mb->tlsflag), 0, 0);
 	    return;
 	}
-#endif
+#endif	/* PASSFILE */
     }
 
     /*
@@ -876,12 +904,12 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
 	ps_global->dont_use_init_cmds = 1;
 	flags = OE_PASSWD;
 #ifdef _WINDOWS
-	if(!ps_global->ttyo)
-	  rc = os_login_dialog(mb, user, NETMAXUSER, pwd, NETMAXPASSWD, 0, 1);
-	else
-#endif
+	rc = os_login_dialog(mb, user, NETMAXUSER, pwd, NETMAXPASSWD, 0, 1,
+			     &preserve_password);
+#else /* !_WINDOWS */
         rc = optionally_enter(pwd, q_line, 0, NETMAXPASSWD,
 			      prompt, NULL, help, &flags);
+#endif /* !_WINDOWS */
 	ps_global->dont_use_init_cmds = save_dont_use;
 
         if(rc == 3) {
@@ -909,8 +937,10 @@ mm_login_work(NETMBX *mb, char *user, char *pwd, long int trial,
     /* if requested, remember it on disk for next session */
     set_passfile_passwd(ps_global->pinerc, pwd,
 		        altuserforcache ? altuserforcache : user, hostlist,
-			(mb->sslflag||mb->tlsflag));
-#endif
+			(mb->sslflag||mb->tlsflag),
+			(preserve_password == -1 ? 0
+			 : (preserve_password == 0 ? 2 :1)));
+#endif	/* PASSFILE */
 }
 
 
@@ -975,21 +1005,21 @@ mm_diskerror (MAILSTREAM *stream, long int errcode, long int serious)
 #define	DE_STR2	\
    "The reported error number is %s.  The last reported mail error was:"
     static char *de_msg[] = {
-	"Please try to correct the error preventing Pine from saving your",
+	"Please try to correct the error preventing Alpine from saving your",
 	"mail folder.  For example if the disk is out of space try removing",
 	"unneeded files.  You might also contact your system administrator.",
 	"",
-	"Both Pine's File Browser and an option to enter the system's",
+	"Both Alpine's File Browser and an option to enter the system's",
 	"command prompt are offered to aid in fixing the problem.  When",
 	"you believe the problem is resolved, choose the \"Retry\" option.",
 	"Be aware that messages may be lost or this folder left in an",
-	"inaccessible condition if you exit or kill Pine before the problem",
+	"inaccessible condition if you exit or kill Alpine before the problem",
 	"is resolved.",
 	NULL};
     static char *de_shell_msg[] = {
 	"\n\nPlease attempt to correct the error preventing saving of the",
 	"mail folder.  If you do not know how to correct the problem, contact",
-	"your system administrator.  To return to Pine, type \"exit\".",
+	"your system administrator.  To return to Alpine, type \"exit\".",
 	NULL};
 
     dprint((0,
@@ -1545,7 +1575,7 @@ pine_sslfailure(char *host, char *reason, long unsigned int flags)
 
     so_puts(store, "\n");
 
-    strncpy(buf, _("This is just an informational message. With the current setup, SSL/TLS will not work. If this error re-occurs every time you run Pine, your current setup is not compatible with the configuration of your mail server. You may want to add the option"), sizeof(buf));
+    strncpy(buf, _("This is just an informational message. With the current setup, SSL/TLS will not work. If this error re-occurs every time you run Alpine, your current setup is not compatible with the configuration of your mail server. You may want to add the option"), sizeof(buf));
     folded = fold(buf, cols, cols, "", "", FLD_NONE);
     so_puts(store, folded);
     fs_give((void **)&folded);
@@ -1952,11 +1982,18 @@ read_passfile(pinerc, l)
     if(using_passfile == 0)
       return(using_passfile);
 
+    if(!g_CredInited){
+	if(init_wincred_funcs() != 1){
+	    using_passfile = 0;
+	    return(using_passfile);
+	}
+    }
+
     dprint((9, "read_passfile\n"));
 
     using_passfile = 1;
 
-    if(CredEnumerate(lfilter, 0, &count, &pcred)){
+    if(g_CredEnumerateW(lfilter, 0, &count, &pcred)){
 	if(pcred){
 	    for(k = 0; k < count; k++){
 
@@ -2016,7 +2053,7 @@ read_passfile(pinerc, l)
 		  fs_give((void **) &target);
 	    }
 
-	    CredFree((PVOID) pcred);
+	    g_CredFree((PVOID) pcred);
 	}
     }
 
@@ -2061,6 +2098,7 @@ read_passfile(pinerc, l)
 	    SecKeychainAttributeList *attrList = NULL;
 	    UInt32 blength = 0;
 	    char *blob = NULL;
+	    char *blobcopy = NULL;	/* NULL terminated copy */
 	    
 	    UInt32 tags[] = {kSecAccountItemAttr,
 			     kSecServiceItemAttr};
@@ -2084,6 +2122,10 @@ read_passfile(pinerc, l)
 						     (void **) &blob);
 		if(rc == 0 && attrList){
 		    dprint((10, "read_passfile: SecKeychainItemCopyAttributesAndData succeeded, count=%d\n", attrList->count));
+
+		    blobcopy = (char *) fs_get((blength + 1) * sizeof(char));
+		    strncpy(blobcopy, (char *) blob, blength);
+		    blobcopy[blength] = '\0';
 
 		    for(k = 0; k < attrList->count; k++){
 
@@ -2110,12 +2152,12 @@ read_passfile(pinerc, l)
 			user   = ui[1];
 			sflags = ui[2];
 
-		        for(i = 0, j = 3; blob[i] && j < 5; j++){
-			    for(ui[j] = &blob[i]; blob[i] && blob[i] != '\t'; i++)
+		        for(i = 0, j = 3; blobcopy[i] && j < 5; j++){
+			    for(ui[j] = &blobcopy[i]; blobcopy[i] && blobcopy[i] != '\t'; i++)
 			      ;					/* find end of data */
 
-			    if(blob[i])
-			      blob[i++] = '\0';			/* tie off data */
+			    if(blobcopy[i])
+			      blobcopy[i++] = '\0';			/* tie off data */
 		        }
 
 			passwd   = ui[3];
@@ -2139,6 +2181,9 @@ read_passfile(pinerc, l)
 			imap_set_passwd(l, passwd, user, hostlist, flags & 0x01, 0, 0);
 		    }
 
+		    if(blobcopy)
+		      fs_give((void **) & blobcopy);
+
 		    SecKeychainItemFreeAttributesAndData(attrList, (void *) blob);
 		}
 		else{
@@ -2147,6 +2192,7 @@ read_passfile(pinerc, l)
 		}
 
 	        CFRelease(itemRef);
+		itemRef = NULL;
 	    }
 
 	    CFRelease(searchRef);
@@ -2265,7 +2311,7 @@ write_passfile(pinerc, l)
 	    cred.CredentialBlobSize = strlen(blob)+1;
 	    cred.CredentialBlob = (LPBYTE) &blob;
 	    cred.Persist = CRED_PERSIST_ENTERPRISE;
-	    CredWrite(&cred, 0);
+	    g_CredWriteW(&cred, 0);
 
 	    fs_give((void **) &ltarget);
 	}
@@ -2311,6 +2357,7 @@ write_passfile(pinerc, l)
 	if(rc == errSecDuplicateItem){
 	    /* fix existing entry */
 	    dprint((10, "write_passfile: SecKeychainAddGenericPassword found existing entry\n"));
+	    itemRef = NULL;
 	    if(!(rc=SecKeychainFindGenericPassword(NULL,
 				  	   strlen(target), target,
 					   strlen(TNAME), TNAME,
@@ -2326,9 +2373,6 @@ write_passfile(pinerc, l)
 	        dprint((10, "write_passfile: SecKeychainFindGenericPassword returned rc=%d\n", rc));
 	    }
 	}
-
-	if(itemRef)
-	  CFRelease(itemRef);
     }
 
 #else /* generic unix */
@@ -2377,16 +2421,28 @@ erase_windows_credentials(void)
     DWORD count, k;
     PCREDENTIAL *pcred;
 
-    if(CredEnumerate(lfilter, 0, &count, &pcred)){
+    if(g_CredEnumerateW(lfilter, 0, &count, &pcred)){
 	if(pcred){
 	    for(k = 0; k < count; k++)
-	      CredDelete(pcred[k]->TargetName, CRED_TYPE_GENERIC, 0);
+	      g_CredDeleteW(pcred[k]->TargetName, CRED_TYPE_GENERIC, 0);
 
-	    CredFree((PVOID) pcred);
+	    g_CredFree((PVOID) pcred);
 	}
     }
  #endif /* !XP */
 }
+
+void
+ask_erase_credentials(void)
+{
+    if(want_to(_("Erase previously preserved passwords"), 'y', 'x', NO_HELP, WT_NORM) == 'y'){
+	erase_windows_credentials();
+	q_status_message(SM_ORDER, 3, 3, "All preserved passwords have been erased");
+    }
+    else
+      q_status_message(SM_ORDER, 3, 3, "Previously preserved passwords will not be erased");
+}
+
 #endif /* _WINDOWS */
 
 
@@ -2431,27 +2487,190 @@ get_passfile_user(pinerc, hostlist)
 
 
 
+int
+preserve_prompt(void)
+{
 #ifdef _WINDOWS
-#define PRESERVE_PROMPT _("Preserve password for next login")
-#else
-#define PRESERVE_PROMPT _("Preserve password on DISK for next login")
-#endif
+    /* 
+     * This prompt was going to be able to be turned on and off via a registry
+     * setting controlled from the config menu.  We decided to always use the
+     * dialog for login, and there the prompt is unobtrusive enough to always
+     * be in there.  As a result, windows should never reach this, but now
+     * OS X somewhat uses the behavior just described.
+     */
+    if(mswin_store_pass_prompt()
+       && (want_to(_("Preserve password for next login"),
+		  'y', 'x', NO_HELP, WT_NORM)
+	   == 'y'))
+      return(1);
+    else
+      return(0);
+#elif OSX_TARGET
+    int rc;
+    if(rc = macos_store_pass_prompt()){
+	if(want_to(_("Preserve password for next login"),
+		   'y', 'x', NO_HELP, WT_NORM)
+	   == 'y'){
+	    if(rc == -1){
+		macos_set_store_pass_prompt(1);
+		q_status_message(SM_ORDER, 4, 4,
+		   _("Stop \"Preserve passwords?\" prompts by deleting Alpine Keychain entry"));
+	    }
+	    return(1);
+	}
+	else if(rc == -1){
+	    macos_set_store_pass_prompt(0);
+	    q_status_message(SM_ORDER, 4, 4,
+		   _("Restart \"Preserve passwords?\" prompts by deleting Alpine Keychain entry"));
+	}
+	return(0);
+    }
+    return(0);
+#else /* generic unix */
+    return(want_to(_("Preserve password on DISK for next login"), 
+		   'y', 'x', NO_HELP, WT_NORM)
+	   == 'y');
+#endif /* !_WINDOWS */
+
+}
+
+
+#ifdef	OSX_TARGET
+
+/*
+ *  Returns:
+ *   1 if store pass prompt is set in the "registry" to on
+ *   0 if set to off
+ *   -1 if not set to anything
+ */
+int
+macos_store_pass_prompt(void)
+{
+    char *data = NULL;
+    UInt32 len = 0;
+    int rc = -1;
+    int val;
+
+    if(storepassprompt == -1){
+	if(!(rc=SecKeychainFindGenericPassword(NULL, 0, NULL,
+					       strlen(TNAMEPROMPT),
+					       TNAMEPROMPT, &len,
+					       (void **) &data, NULL))){
+	    val = (len == 1 && data && data[0] == '1');
+	}
+    }
+
+    if(storepassprompt == -1 && !rc){
+	if(val)
+	  storepassprompt = 1;
+	else
+	  storepassprompt = 0;
+    }
+
+    return(storepassprompt);
+}
+
+
+void
+macos_set_store_pass_prompt(int val)
+{
+    storepassprompt = val ? 1 : 0;
+    
+    SecKeychainAddGenericPassword(NULL, 0, NULL, strlen(TNAMEPROMPT),
+				  TNAMEPROMPT, 1, val ? "1" : "0", NULL);
+}
+
+
+void
+macos_erase_keychain(void)
+{
+    SecKeychainAttributeList attrList;
+    SecKeychainSearchRef searchRef = NULL;
+    SecKeychainAttribute attrs1[] = {
+	{ kSecAccountItemAttr, strlen(TNAME), TNAME }
+    };
+    SecKeychainAttribute attrs2[] = {
+	{ kSecAccountItemAttr, strlen(TNAMEPROMPT), TNAMEPROMPT }
+    };
+
+    dprint((9, "macos_erase_keychain\n"));
+
+    /*
+     * Seems like we ought to be able to combine attrs1 and attrs2
+     * into a single array, but I couldn't get it to work.
+     */
+
+    /* search for only our items in the keychain */
+    attrList.count = 1;
+    attrList.attr = attrs1;
+
+    if(!SecKeychainSearchCreateFromAttributes(NULL,
+					      kSecGenericPasswordItemClass,
+                                              &attrList,
+                                              &searchRef)){
+	if(searchRef){
+	    SecKeychainItemRef itemRef = NULL;
+
+	    /*
+	     * Go through each item we found and put it
+	     * into our list.
+	     */
+	    while(!SecKeychainSearchCopyNext(searchRef, &itemRef) && itemRef){
+	        dprint((10, "read_passfile: SecKeychainSearchCopyNext got one\n"));
+		SecKeychainItemDelete(itemRef);
+	        CFRelease(itemRef);
+	    }
+
+	    CFRelease(searchRef);
+	}
+    }
+
+    attrList.count = 1;
+    attrList.attr = attrs2;
+
+    if(!SecKeychainSearchCreateFromAttributes(NULL,
+					      kSecGenericPasswordItemClass,
+                                              &attrList,
+                                              &searchRef)){
+	if(searchRef){
+	    SecKeychainItemRef itemRef = NULL;
+	    
+	    /*
+	     * Go through each item we found and put it
+	     * into our list.
+	     */
+	    while(!SecKeychainSearchCopyNext(searchRef, &itemRef) && itemRef){
+		SecKeychainItemDelete(itemRef);
+	        CFRelease(itemRef);
+	    }
+
+	    CFRelease(searchRef);
+	}
+    }
+}
+
+#endif /* OSX_TARGET */
+
 
 /*
  * set_passfile_passwd - set the password file entry associated with
  *            cache.  The file is assumed to be in the same directory
  *            as the pinerc with the name defined above.
+ *            already_prompted: 0 not prompted
+ *                              1 prompted, answered yes
+ *                              2 prompted, answered no
  */
 void
-set_passfile_passwd(pinerc, passwd, user, hostlist, altflag)
+set_passfile_passwd(pinerc, passwd, user, hostlist, altflag, already_prompted)
     char      *pinerc, *passwd, *user;
     STRLIST_S *hostlist;
-    int	       altflag;
+    int	       altflag, already_prompted;
 {
     dprint((10, "set_passfile_passwd\n"));
     if((passfile_cache || read_passfile(pinerc, &passfile_cache))
        && !ps_global->nowrite_passfile
-       && want_to(PRESERVE_PROMPT, 'y', 'x', NO_HELP, WT_NORM) == 'y'){
+       && ((already_prompted == 0 && preserve_prompt())
+	   || already_prompted == 1)){
 	imap_set_passwd(&passfile_cache, passwd, user, hostlist, altflag, 0, 0);
 	write_passfile(pinerc, passfile_cache);
     }
@@ -2473,7 +2692,7 @@ update_passfile_hostlist(pinerc, user, hostlist, altflag)
     STRLIST_S *hostlist;
     int        altflag;
 {
-#ifdef _WINDOWS
+#ifdef	 _WINDOWS
     return;
 #else /* !_WINDOWS */
     MMLOGIN_S *l;
@@ -2497,4 +2716,54 @@ update_passfile_hostlist(pinerc, user, hostlist, altflag)
     }
 #endif /* !_WINDOWS */
 }
+
+
+#if defined(_WINDOWS) && defined(WINVER) && WINVER >= 0x0501
+/*
+ * Load and init the WinCred structure.
+ * This gives us a way to skip the WinCred code
+ * if the dll doesn't exist.
+ */
+int
+init_wincred_funcs()
+{
+    if(!g_CredInited)
+    {
+        HMODULE hmod;
+
+        // Assume the worst.
+        g_CredInited = -1;
+
+        hmod = LoadLibrary(TEXT("advapi32.dll"));
+        if(hmod)
+        {
+            FARPROC fpCredWriteW;
+            FARPROC fpCredEnumerateW;
+            FARPROC fpCredDeleteW;
+            FARPROC fpCredFree;
+
+            fpCredWriteW     = GetProcAddress(hmod, "CredWriteW");
+            fpCredEnumerateW = GetProcAddress(hmod, "CredEnumerateW");
+            fpCredDeleteW    = GetProcAddress(hmod, "CredDeleteW");
+            fpCredFree       = GetProcAddress(hmod, "CredFree");
+
+            if(fpCredWriteW && fpCredEnumerateW  && fpCredDeleteW && fpCredFree)
+            {
+                g_CredWriteW     = (CREDWRITEW *)fpCredWriteW;
+                g_CredEnumerateW = (CREDENUMERATEW *)fpCredEnumerateW;
+                g_CredDeleteW    = (CREDDELETEW *)fpCredDeleteW;
+                g_CredFree       = (CREDFREE *)fpCredFree;
+
+                g_CredInited = 1;
+            }
+        }
+
+	mswin_set_erasecreds_callback(ask_erase_credentials);
+    }
+
+    return g_CredInited;
+}
+
+#endif	 /* _WINDOWS */
+
 #endif	/* PASSFILE */

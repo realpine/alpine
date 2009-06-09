@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: conf.c 321 2006-12-13 00:03:25Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: conf.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -87,7 +87,7 @@ int	(*pith_opt_remote_pinerc_failure)(void);
 Some definitions to keep the static "variable" array below 
 a bit more readable...
   ----*/
-CONF_TXT_T cf_text_comment[] = "#\n# Pine configuration file\n#\n# This file sets the configuration options used by Pine and PC-Alpine. These\n# options are usually set from within Pine or PC-Alpine. There may be a\n# system-wide configuration file which sets the defaults for some of the\n# variables. On Unix, run pine -conf to see how system defaults have been set.\n# For variables that accept multiple values, list elements are\
+CONF_TXT_T cf_text_comment[] = "#\n# Alpine configuration file\n#\n# This file sets the configuration options used by Alpine and PC-Alpine. These\n# options are usually set from within Alpine or PC-Alpine. There may be a\n# system-wide configuration file which sets the defaults for some of the\n# variables. On Unix, run alpine -conf to see how system defaults have been set.\n# For variables that accept multiple values, list elements are\
  separated by\n# commas. A line beginning with a space or tab is considered to be a\n# continuation of the previous line. For a variable to be unset its value must\n# be blank. To set a variable to the empty string its value should be \"\".\n# You can override system defaults by setting a variable to the empty string.\n# Lines beginning with \"#\" are comments, and ignored by Alpine.\n";
 
 
@@ -97,7 +97,7 @@ CONF_TXT_T cf_text_user_id[] =		"Your login/e-mail user name";
 
 CONF_TXT_T cf_text_user_domain[] =		"Sets domain part of From: and local addresses in outgoing mail.";
 
-CONF_TXT_T cf_text_smtp_server[] =		"List of SMTP servers for sending mail. If blank: Unix Pine uses sendmail.";
+CONF_TXT_T cf_text_smtp_server[] =		"List of SMTP servers for sending mail. If blank: Unix Alpine uses sendmail.";
 
 CONF_TXT_T cf_text_nntp_server[] =		"NNTP server for posting news. Also sets news-collections for news reading.";
 
@@ -105,15 +105,15 @@ CONF_TXT_T cf_text_nntp_server[] =		"NNTP server for posting news. Also sets new
 CONF_TXT_T cf_text_ldap_server[] =		"LDAP servers for looking up addresses.";
 #endif	/* ENABLE_LDAP */
 
-CONF_TXT_T cf_text_wp_indexheight[] =		"WebPine index table row height";
+CONF_TXT_T cf_text_wp_indexheight[] =		"WebAlpine index table row height";
 
-CONF_TXT_T cf_text_wp_indexlines[] =		"WebPine number of index lines in table";
+CONF_TXT_T cf_text_wp_indexlines[] =		"WebAlpine number of index lines in table";
 
-CONF_TXT_T cf_text_wp_aggstate[] =		"WebPine aggregate operations tab state";
+CONF_TXT_T cf_text_wp_aggstate[] =		"WebAlpine aggregate operations tab state";
 
-CONF_TXT_T cf_text_wp_state[] =			"WebPine various aspects of cross-session state";
+CONF_TXT_T cf_text_wp_state[] =			"WebAlpine various aspects of cross-session state";
 
-CONF_TXT_T cf_text_wp_columns[] =		"WebPine preferred width for message display in characters";
+CONF_TXT_T cf_text_wp_columns[] =		"WebAlpine preferred width for message display in characters";
 
 CONF_TXT_T cf_text_inbox_path[] =		"Path of (local or remote) INBOX, e.g. ={mail.somewhere.edu}inbox\n# Normal Unix default is the local INBOX (usually /usr/spool/mail/$USER).";
 
@@ -131,7 +131,7 @@ CONF_TXT_T cf_text_default_saved[] =	"Over-rides default path for saved-msg fold
 
 CONF_TXT_T cf_text_postponed_folder[] =	"Over-rides default path for postponed messages folder, e.g. =pm (which uses\n# first folder collection dir) or ={host4}pm (using home dir on host4).\n# Default: postponed-msgs (Unix) or POSTPOND.MTX (PC) in default fldr coltn.";
 
-CONF_TXT_T cf_text_mail_directory[] =	"Pine compares this value with the first folder collection directory.\n# If they match (or no folder collections are defined), and the directory\n# does not exist, Pine will create and use it. Default: ~/mail";
+CONF_TXT_T cf_text_mail_directory[] =	"Alpine compares this value with the first folder collection directory.\n# If they match (or no folder collections are defined), and the directory\n# does not exist, Alpine will create and use it. Default: ~/mail";
 
 CONF_TXT_T cf_text_read_message_folder[] =	"If set, specifies where already-read messages will be moved upon quitting.";
 
@@ -145,9 +145,9 @@ CONF_TXT_T cf_text_global_address_book[] =	"List of file or path names for globa
 
 CONF_TXT_T cf_text_address_book[] =	"List of file or path names for personal addressbook(s).\n# Default: ~/.addressbook (Unix) or \\PINE\\ADDRBOOK (PC)\n# Syntax: optnl-label path-name";
 
-CONF_TXT_T cf_text_feature_list[] =	"List of features; see Pine's Setup/options menu for the current set.\n# e.g. feature-list= select-without-confirm, signature-at-bottom\n# Default condition for all of the features is no-.";
+CONF_TXT_T cf_text_feature_list[] =	"List of features; see Alpine's Setup/options menu for the current set.\n# e.g. feature-list= select-without-confirm, signature-at-bottom\n# Default condition for all of the features is no-.";
 
-CONF_TXT_T cf_text_initial_keystroke_list[] =	"Pine executes these keys upon startup (e.g. to view msg 13: i,j,1,3,CR,v)";
+CONF_TXT_T cf_text_initial_keystroke_list[] =	"Alpine executes these keys upon startup (e.g. to view msg 13: i,j,1,3,CR,v)";
 
 CONF_TXT_T cf_text_default_composer_hdrs[] =	"Only show these headers (by default) when composing messages";
 
@@ -233,15 +233,15 @@ CONF_TXT_T cf_text_personal_print_cat[] =	"Which category default print command 
 
 CONF_TXT_T cf_text_standard_printer[] =	"The system wide standard printers";
 
-CONF_TXT_T cf_text_last_time_prune_quest[] =	"Set by Pine; controls beginning-of-month sent-mail pruning.";
+CONF_TXT_T cf_text_last_time_prune_quest[] =	"Set by Alpine; controls beginning-of-month sent-mail pruning.";
 
-CONF_TXT_T cf_text_last_version_used[] =	"Set by Pine; controls display of \"new version\" message.";
+CONF_TXT_T cf_text_last_version_used[] =	"Set by Alpine; controls display of \"new version\" message.";
 
 CONF_TXT_T cf_text_disable_drivers[] =		"List of mail drivers to disable.";
 
 CONF_TXT_T cf_text_disable_auths[] =		"List of SASL authenticators to disable.";
 
-CONF_TXT_T cf_text_remote_abook_metafile[] =	"Set by Pine; contains data for caching remote address books.";
+CONF_TXT_T cf_text_remote_abook_metafile[] =	"Set by Alpine; contains data for caching remote address books.";
 
 CONF_TXT_T cf_text_old_patterns[] =		"Patterns is obsolete, use patterns-xxx";
 
@@ -273,9 +273,9 @@ CONF_TXT_T cf_text_forced_abook[] =	"Force these address book entries into all w
 
 CONF_TXT_T cf_text_kblock_passwd[] =	"This is a number between 1 and 5.  It is the number of times a user will\n# have to enter a password when they run the keyboard lock command in the\n# main menu.  Default is 1.";
 
-CONF_TXT_T cf_text_sendmail_path[] =	"This names the path to an alternative program, and any necessary arguments,\n# to be used in posting mail messages.  Example:\n#                    /usr/lib/sendmail -oem -t -oi\n# or,\n#                    /usr/local/bin/sendit.sh\n# The latter a script found in Pine distribution's contrib/util directory.\n# NOTE: The program MUST read the message to be posted on standard input,\n#       AND operate in the style of sendmail's \"-t\" option.";
+CONF_TXT_T cf_text_sendmail_path[] =	"This names the path to an alternative program, and any necessary arguments,\n# to be used in posting mail messages.  Example:\n#                    /usr/lib/sendmail -oem -t -oi\n# or,\n#                    /usr/local/bin/sendit.sh\n# The latter a script found in Alpine distribution's contrib/util directory.\n# NOTE: The program MUST read the message to be posted on standard input,\n#       AND operate in the style of sendmail's \"-t\" option.";
 
-CONF_TXT_T cf_text_oper_dir[] =	"This names the root of the tree to which the user is restricted when reading\n# and writing folders and files.  For example, on Unix ~/work confines the\n# user to the subtree beginning with their work subdirectory.\n# (Note: this alone is not sufficient for preventing access.  You will also\n# need to restrict shell access and so on, see Pine Technical Notes.)\n# Default: not set (so no restriction)";
+CONF_TXT_T cf_text_oper_dir[] =	"This names the root of the tree to which the user is restricted when reading\n# and writing folders and files.  For example, on Unix ~/work confines the\n# user to the subtree beginning with their work subdirectory.\n# (Note: this alone is not sufficient for preventing access.  You will also\n# need to restrict shell access and so on, see Alpine Technical Notes.)\n# Default: not set (so no restriction)";
 
 CONF_TXT_T cf_text_in_fltr[] = 		"This variable takes a list of programs that message text is piped into\n# after MIME decoding, prior to display.";
 
@@ -295,7 +295,7 @@ CONF_TXT_T cf_text_index_format[] =	"This gives a format for displaying the inde
 
 CONF_TXT_T cf_text_overlap[] =		"The number of lines of overlap when scrolling through message text";
 
-CONF_TXT_T cf_text_maxremstreams[] =	"The maximum number of non-stayopen remote connections that pine will use";
+CONF_TXT_T cf_text_maxremstreams[] =	"The maximum number of non-stayopen remote connections that Alpine will use";
 
 CONF_TXT_T cf_text_permlocked[] =	"A list of folders that should be left open once opened (INBOX is implicit)";
 
@@ -317,11 +317,11 @@ CONF_TXT_T cf_text_news_active[] =	"Path and filename of news configuration's ac
 
 CONF_TXT_T cf_text_news_spooldir[] =	"Directory containing system's news data.\n# The default is typically \"/usr/spool/news\"";
 
-CONF_TXT_T cf_text_upload_cmd[] =	"Path and filename of the program used to upload text from your terminal\n# emulator's into Pine's composer.";
+CONF_TXT_T cf_text_upload_cmd[] =	"Path and filename of the program used to upload text from your terminal\n# emulator's into Alpine's composer.";
 
 CONF_TXT_T cf_text_upload_prefix[] =	"Text sent to terminal emulator prior to invoking the program defined by\n# the upload-command variable.\n# Note: _FILE_ will be replaced with the temporary file used in the upload.";
 
-CONF_TXT_T cf_text_download_cmd[] =	"Path and filename of the program used to download text via your terminal\n# emulator from Pine's export and save commands.";
+CONF_TXT_T cf_text_download_cmd[] =	"Path and filename of the program used to download text via your terminal\n# emulator from Alpine's export and save commands.";
 
 CONF_TXT_T cf_text_download_prefix[] =	"Text sent to terminal emulator prior to invoking the program defined by\n# the download-command variable.\n# Note: _FILE_ will be replaced with the temporary file used in the downlaod.";
 
@@ -335,27 +335,27 @@ CONF_TXT_T cf_text_newmail_fifo_path[] = "Sets the filename for the newmail fifo
 
 CONF_TXT_T cf_text_nmw_width[] = "Sets the width for the NewMail screen.";
 
-CONF_TXT_T cf_text_user_input_timeo[] =	"If no user input for this many hours, Pine will exit if in an idle loop\n# waiting for a new command.  If set to zero (the default), then there will\n# be no timeout.";
+CONF_TXT_T cf_text_user_input_timeo[] =	"If no user input for this many hours, Alpine will exit if in an idle loop\n# waiting for a new command.  If set to zero (the default), then there will\n# be no timeout.";
 
 CONF_TXT_T cf_text_debug_mem[] =	"Debug-memory is obsolete";
 
-CONF_TXT_T cf_text_tcp_open_timeo[] =	"Sets the time in seconds that Pine will attempt to open a network\n# connection.  The default is 30, the minimum is 5, and the maximum is\n# system defined (typically 75).";
+CONF_TXT_T cf_text_tcp_open_timeo[] =	"Sets the time in seconds that Alpine will attempt to open a network\n# connection.  The default is 30, the minimum is 5, and the maximum is\n# system defined (typically 75).";
 
 CONF_TXT_T cf_text_tcp_read_timeo[] =	"Network read warning timeout. The default is 15, the minimum is 5, and the\n# maximum is 1000.";
 
 CONF_TXT_T cf_text_tcp_write_timeo[] =	"Network write warning timeout. The default is 0 (unset), the minimum\n# is 5 (if not 0), and the maximum is 1000.";
 
-CONF_TXT_T cf_text_tcp_query_timeo[] =	"If this much time has elapsed at the time of a tcp read or write\n# timeout, pine will ask if you want to break the connection.\n# Default is 60 seconds, minimum is 5, maximum is 1000.";
+CONF_TXT_T cf_text_tcp_query_timeo[] =	"If this much time has elapsed at the time of a tcp read or write\n# timeout, Alpine will ask if you want to break the connection.\n# Default is 60 seconds, minimum is 5, maximum is 1000.";
 
-CONF_TXT_T cf_text_rsh_open_timeo[] =	"Sets the time in seconds that Pine will attempt to open a UNIX remote\n# shell connection.  The default is 15, min is 5, and max is unlimited.\n# Zero disables rsh altogether.";
+CONF_TXT_T cf_text_rsh_open_timeo[] =	"Sets the time in seconds that Alpine will attempt to open a UNIX remote\n# shell connection.  The default is 15, min is 5, and max is unlimited.\n# Zero disables rsh altogether.";
 
 CONF_TXT_T cf_text_rsh_path[] =		"Sets the name of the command used to open a UNIX remote shell connection.\n# The default is typically /usr/ucb/rsh.";
 
 CONF_TXT_T cf_text_rsh_command[] =	"Sets the format of the command used to open a UNIX remote\n# shell connection.  The default is \"%s %s -l %s exec /etc/r%sd\"\n# NOTE: the 4 (four) \"%s\" entries MUST exist in the provided command\n# where the first is for the command's path, the second is for the\n# host to connect to, the third is for the user to connect as, and the\n# fourth is for the connection method (typically \"imap\")";
 
-CONF_TXT_T cf_text_ssh_open_timeo[] =	"Sets the time in seconds that Pine will attempt to open a UNIX secure\n# shell connection.  The default is 15, min is 5, and max is unlimited.\n# Zero disables ssh altogether.";
+CONF_TXT_T cf_text_ssh_open_timeo[] =	"Sets the time in seconds that Alpine will attempt to open a UNIX secure\n# shell connection.  The default is 15, min is 5, and max is unlimited.\n# Zero disables ssh altogether.";
 
-CONF_TXT_T cf_text_inc_check_timeo[] =	"Sets the time in seconds that Pine will attempt to open a network\n# connection when checking for new unseen messages in an incoming folder.\n#  The default is 5.";
+CONF_TXT_T cf_text_inc_check_timeo[] =	"Sets the time in seconds that Alpine will attempt to open a network\n# connection when checking for new unseen messages in an incoming folder.\n#  The default is 5.";
 
 CONF_TXT_T cf_text_inc_check_interval[] = "Sets the approximate number of seconds between checks for unseen messages\n# in incoming folders. The default is 180.";
 
@@ -365,7 +365,7 @@ CONF_TXT_T cf_text_ssh_path[] =		"Sets the name of the command used to open a UN
 
 CONF_TXT_T cf_text_ssh_command[] =	"Sets the format of the command used to open a UNIX secure\n# shell connection.  The default is \"%s %s -l %s exec /etc/r%sd\"\n# NOTE: the 4 (four) \"%s\" entries MUST exist in the provided command\n# where the first is for the command's path, the second is for the\n# host to connect to, the third is for the user to connect as, and the\n# fourth is for the connection method (typically \"imap\")";
 
-CONF_TXT_T cf_text_version_threshold[] = "Sets the version number Pine will use as a threshold for offering\n# its new version message on startup.";
+CONF_TXT_T cf_text_version_threshold[] = "Sets the version number Alpine will use as a threshold for offering\n# its new version message on startup.";
 
 CONF_TXT_T cf_text_archived_folders[] =	"List of folder pairs; the first indicates a folder to archive, and the\n# second indicates the folder read messages in the first should\n# be moved to.";
 
@@ -1609,10 +1609,11 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
      * the conversion process.
      */
     set_collation(0, 1);
-#ifdef _WINDOWS
-    ps->GLO_CHAR_SET = cpystr("UTF-8");
-#else
+
+#if PREREQ_FOR_SYS_TRANSLATION
     ps->GLO_CHAR_SET = cpystr(nl_langinfo(CODESET));
+#else
+    ps->GLO_CHAR_SET = cpystr("UTF-8");
 #endif
 
     set_current_val(&vars[V_CHAR_SET], TRUE, TRUE);
@@ -2221,7 +2222,8 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
     {
 	char foreColor[64], backColor[64];
 
-	mswin_getwindow(NULL, 0, NULL, 0, NULL, 0, NULL, 0, foreColor, backColor,
+	mswin_getwindow(NULL, 0, NULL, 0, NULL, 0, NULL, 0,
+			foreColor, sizeof(foreColor), backColor, sizeof(backColor),
 			NULL, 0, NULL, 0);
 	if(!GLO_NORM_FORE_COLOR)
 	  GLO_NORM_FORE_COLOR = cpystr(foreColor);
@@ -2856,13 +2858,6 @@ feature_list(int index)
 	 F_CHECK_MAIL_ONQUIT, h_config_check_mail_onquit, PREF_MISC},
 	{"confirm-role-even-for-default",
 	 F_ROLE_CONFIRM_DEFAULT, h_config_confirm_role, PREF_MISC},
-#ifdef notdef
-	{"disable-2022-jp-conversions",
-	 F_DISABLE_2022_JP_CONVERSIONS, h_config_disable_2022_jp_conv,
-								 PREF_MISC},
-	{"disable-charset-conversions",
-	 F_DISABLE_CHARSET_CONVERSIONS, h_config_disable_cset_conv, PREF_MISC},
-#endif /* notdef */
 	{"disable-keymenu",
 	 F_BLANK_KEYMENU, h_config_blank_keymenu, PREF_MISC},
 	{"disable-take-fullname-in-addresses",
@@ -3162,7 +3157,7 @@ process_feature_list(struct pine *ps, char **list, int old_growth, int hir, int 
      * Turn on gratuitous '>From ' quoting, if requested...
      */
     mail_parameters(NULL, SET_FROMWIDGET,
-		    (void  *)(F_ON(F_QUOTE_ALL_FROMS, ps) ? 1 : 0));
+		    F_ON(F_QUOTE_ALL_FROMS, ps) ? VOIDT : NIL);
 
     /*
      * Turn off .lock creation complaints...
@@ -5742,9 +5737,9 @@ backcompat_convert_from_utf8(char *buf, size_t buflen, char *srcstr)
 	if(trythischarset){
 	    SIZEDTEXT src, dst;
 
-	    src.data = srcstr;
-	    src.size = strlen(src.data);
-	    dst.data = buf;
+	    src.data = (unsigned char *) srcstr;
+	    src.size = strlen(srcstr);
+	    dst.data = (unsigned char *) buf;
 	    dst.size = buflen;
 	    if(utf8_cstext(&src, trythischarset, &dst, 0)){
 		if(dst.size < buflen)
@@ -5752,7 +5747,7 @@ backcompat_convert_from_utf8(char *buf, size_t buflen, char *srcstr)
 
 		dst.data[buflen-1] = '\0';
 
-		converted = dst.data;
+		converted = (char *) dst.data;
 	    }
 	}
 
@@ -5803,7 +5798,7 @@ quit_to_edit_msg(PINERC_S *prc)
 {
     /* TRANSLATORS: The %s is either "Postload " or nothing. A Postload config file
        is a type of config file. */
-    q_status_message1(SM_ORDER, 3, 4, _("Must quit Pine to change %sconfig file."),
+    q_status_message1(SM_ORDER, 3, 4, _("Must quit Alpine to change %sconfig file."),
 		      (prc == ps_global->post_prc) ? "Postload " : "");
 }
 
@@ -6681,7 +6676,7 @@ toggle_feature(struct pine *ps, struct variable *var, FEATURE_S *f,
     if(on_before != F_ON(f->id, ps))
      switch(f->id){
       case F_QUOTE_ALL_FROMS :
-	mail_parameters(NULL,SET_FROMWIDGET,(void *)(F_ON(f->id,ps) ? 1 : 0));
+	mail_parameters(NULL,SET_FROMWIDGET,F_ON(f->id,ps) ? VOIDT : NIL);
 	break;
 
       case F_FAKE_NEW_IN_NEWS :
@@ -6704,22 +6699,22 @@ toggle_feature(struct pine *ps, struct variable *var, FEATURE_S *f,
 
       case F_HIDE_NNTP_PATH :
 	mail_parameters(NULL, SET_NNTPHIDEPATH,
-			(void *)(F_ON(f->id, ps) ? 1 : 0));
+			F_ON(f->id, ps) ? VOIDT : NIL);
 	break;
 
       case F_MAILDROPS_PRESERVE_STATE :
 	mail_parameters(NULL, SET_SNARFPRESERVE,
-			(void *)(F_ON(f->id, ps) ? 1 : 0));
+			F_ON(f->id, ps) ? VOIDT : NIL);
 	break;
 
       case F_DISABLE_SHARED_NAMESPACES :
 	mail_parameters(NULL, SET_DISABLEAUTOSHAREDNS,
-			(void *)(F_ON(f->id, ps) ? 1 : 0));
+			F_ON(f->id, ps) ? VOIDT : NIL);
 	break;
 
       case F_QUELL_LOCK_FAILURE_MSGS :
 	mail_parameters(NULL, SET_LOCKEACCESERROR,
-			(void *)(F_ON(f->id, ps) ? 1 : 0));
+			F_ON(f->id, ps) ? VOIDT : NIL);
 	break;
 
       case F_MULNEWSRC_HOSTNAMES_AS_TYPED :
@@ -6729,7 +6724,7 @@ toggle_feature(struct pine *ps, struct variable *var, FEATURE_S *f,
 
       case F_QUELL_INTERNAL_MSG :
 	mail_parameters(NULL, SET_USERHASNOLIFE,
-			(void *)(F_ON(f->id, ps) ? 1 : 0));
+			F_ON(f->id, ps) ? VOIDT : NIL);
 	break;
 
       case F_DISABLE_SETLOCALE_COLLATE :
@@ -6850,11 +6845,11 @@ reset_character_set_stuff(char **err)
 
     if(ps_global->VAR_CHAR_SET)
       ps_global->display_charmap = cpystr(ps_global->VAR_CHAR_SET);
-    else {
-#ifdef _WINDOWS
-      ps_global->display_charmap = cpystr("UTF-8");
-#else
+    else{
+#if HAVE_LANGINFO_H && defined(CODESET)
       ps_global->display_charmap = cpystr(nl_langinfo(CODESET));
+#else
+      ps_global->display_charmap = cpystr("UTF-8");
 #endif
     }
 
@@ -6870,7 +6865,7 @@ reset_character_set_stuff(char **err)
       ps_global->keyboard_charmap = cpystr("US-ASCII");
 
     if(F_ON(F_USE_SYSTEM_TRANS, ps_global)){
-#if	(HAVE_WCHAR_H && HAVE_WCRTOMB && HAVE_WCWIDTH && HAVE_MBSTOWCS && !defined(_WINDOWS))
+#if	PREREQ_FOR_SYS_TRANSLATION
 	use_system++;
 	/* This modifies its arguments */
 	if(setup_for_input_output(use_system, &ps_global->display_charmap,

@@ -1,10 +1,10 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: browse.c 292 2006-12-01 01:00:51Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: browse.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -197,7 +197,7 @@ static char *sa_BrowseHelpText[] = {
 N_("Help for Pilot (PIne's Looker-upper Of Things"),
 " ",
 N_("\tPilot is a simple, display-oriented file system browser based on the"),
-N_("~\tPine message system composer.  As with Pine, commands are displayed at"),
+N_("~\tAlpine message system composer.  As with Alpine, commands are displayed at"),
 N_("~\tthe bottom of the screen, and context-sensitive help is provided."),
 " ",
 N_("~\tPilot displays the current working directory at the top of the screen."),
@@ -232,11 +232,6 @@ N_("~\t~C\tCopy the selected file."),
 N_("~\t~E\tEdit the selected file."),
 N_("~\t\tNote: Pilot invokes ~p~i~c~o, or the program defined by the ~E~D~I~T~O~R"),
 N_("~\t\t      environment variable, to edit the file."),
-" ",
-" ",
-N_("\tPine and Pico are trademarks of the University of Washington."),
-N_("\tNo commercial use of these trademarks may be made without prior"),
-N_("\twritten permission of the University of Washington."),
 " ",
 N_("End of Pilot Help."),
 NULL

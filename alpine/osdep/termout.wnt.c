@@ -4,7 +4,7 @@ static char rcsid[] = "$Id: termout.unx.c 159 2006-10-02 22:00:13Z hubert@u.wash
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -208,7 +208,8 @@ get_windsize(struct ttyo *ttyo)
     mswin_getwindow(fontName, sizeof(fontName), fontSize, sizeof(fontSize),
 		    fontStyle, sizeof(fontStyle),
 		    windowPosition, sizeof(windowPosition),
-		    foreColor, backColor,
+		    foreColor, sizeof(foreColor),
+		    backColor, sizeof(backColor),
 		    cursorStyle, sizeof(cursorStyle),
 		    fontCharSet, sizeof(fontCharSet));
 
@@ -585,8 +586,9 @@ typedef struct DLG_LOGINDATA {
     int                  userlen;
     LPTSTR               pwd;
     int                  pwdlen;
-    int                  pwc;
+    int                  pwc;  /* set if we're using passfiles and we don't know user yet */
     int                  fixuser;
+    int                  prespass;  /* if user wants to preserve the password */
     int                  rv;
 } DLG_LOGINDATA;
 
@@ -725,7 +727,7 @@ os_argsdialog (char **arg_text)
  */
 int
 os_login_dialog (NETMBX *mb, char *user_utf8, int userlen,
-		 char *pwd_utf8, int pwdlen, int pwc, int fixuser)
+		 char *pwd_utf8, int pwdlen, int pwc, int fixuser, int *prespass)
 {
     DLGPROC	dlgprc;
     HINSTANCE	hInst;
@@ -779,6 +781,8 @@ os_login_dialog (NETMBX *mb, char *user_utf8, int userlen,
 	    pwd_utf8[pwdlen - 1] = '\0';
 	    fs_give((void **) &tpwd_utf8);
 	}
+	if(prespass)
+	  (*prespass) = dlgpw.prespass;
     }
 
     return(dlgpw.rv);
@@ -967,13 +971,14 @@ login_dialog_proc (HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	fs_give((void **) &host_lptstr);
 
 	if(mb->sslflag || mb->tlsflag)
-	  SetWindowText(hDlg, TEXT("PC-Pine Login  +"));
+	  SetWindowText(hDlg, TEXT("Alpine Login  +"));
 	else
-	  SetWindowText(hDlg, TEXT("PC-Pine Insecure Login"));
+	  SetWindowText(hDlg, TEXT("Alpine Insecure Login"));
 
 	if(dlglogin->pwc){
 	    EnableWindow(GetDlgItem(hDlg, IDC_RPASSWORD),0);
 	    EnableWindow(GetDlgItem(hDlg, IDC_RPWTEXT),0);
+	    EnableWindow(GetDlgItem(hDlg, IDC_PRESPASS),0);
 	}
 	if(mb->user && *mb->user){
 	    LPTSTR user_lptstr;
@@ -1004,6 +1009,8 @@ login_dialog_proc (HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	    GetDlgItemText(hDlg, IDC_RPASSWORD, pwd, dlglogin->pwdlen - 1);
 	    user[dlglogin->userlen - 1] = '\0';
 	    pwd[dlglogin->pwdlen - 1] = '\0';
+	    dlglogin->prespass = (IsDlgButtonChecked(hDlg, IDC_PRESPASS) == BST_CHECKED);
+
 	    EndDialog (hDlg, LOWORD(wParam));
 	    dlglogin->rv = 0;
 	    ret = TRUE;
@@ -1421,7 +1428,7 @@ config_vars_dialog_proc (HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		}
 		else{
 		    MessageBox(hDlg, TEXT("Invalid email address.  Should be username@domain"),
-			       TEXT("PC-Pine"), MB_ICONWARNING | MB_OK);
+			       TEXT("Alpine"), MB_ICONWARNING | MB_OK);
 		    return(TRUE);
 		}
 
@@ -1572,7 +1579,7 @@ config_dialog_proc (HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
   	dlgcfg = (DLG_CONFIGDATA *)lParam;
   	SetWindowLong (hDlg, WINDOW_USER_DATA, (LONG) dlgcfg);
 	if(ps_global->install_flag)
-	  SetDlgItemText(hDlg, IDC_CONFTEXT, TEXT("Please specify where PC-Pine should create (or look for) your personal configuration file."));
+	  SetDlgItemText(hDlg, IDC_CONFTEXT, TEXT("Please specify where Alpine should create (or look for) your personal configuration file."));
 	SetDlgItemText(hDlg, IDC_CONFEFLDRNAME, TEXT("remote_pinerc"));
 	if(*dlgcfg->confpath){
 	    if(dlgcfg->confpath[0] == '{'){
@@ -1723,7 +1730,7 @@ config_dialog_proc (HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		removing_leading_and_trailing_white_space(utf8_srvr);
 		if(!*utf8_srvr){
 		    MessageBox(hDlg, TEXT("IMAP Server field empty"),
-			       TEXT("PC-Pine"), MB_ICONWARNING | MB_OK);
+			       TEXT("Alpine"), MB_ICONWARNING | MB_OK);
 		    if(utf8_srvr)
 		      fs_give((void **) &utf8_srvr);
 
@@ -1744,7 +1751,7 @@ config_dialog_proc (HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		    removing_leading_and_trailing_white_space(utf8_fldrname);
 		    if(!*utf8_fldrname){
 			MessageBox(hDlg, TEXT("Configuration Folder Name field empty"),
-				   TEXT("PC-Pine"), MB_ICONWARNING | MB_OK);
+				   TEXT("Alpine"), MB_ICONWARNING | MB_OK);
 			if(utf8_srvr)
 			  fs_give((void **) &utf8_srvr);
 
@@ -1762,7 +1769,7 @@ config_dialog_proc (HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		    + strlen(utf8_fldrname)
 		    + 11) > dlgcfg->confpathlen){
 		    MessageBox(hDlg, TEXT("Config path too long"),
-			       TEXT("PC-Pine"), MB_ICONWARNING | MB_OK);
+			       TEXT("Alpine"), MB_ICONWARNING | MB_OK);
 		    if(utf8_srvr)
 		      fs_give((void **) &utf8_srvr);
 
@@ -1797,7 +1804,7 @@ config_dialog_proc (HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		removing_leading_and_trailing_white_space(utf8_fn);
 		if(!*utf8_fn){
 		    MessageBox(hDlg, TEXT("Configuration File Name field empty"),
-			       TEXT("PC-Pine"), MB_ICONWARNING | MB_OK);
+			       TEXT("Alpine"), MB_ICONWARNING | MB_OK);
 		    if(utf8_fn)
 		      fs_give((void **) &utf8_fn);
 
@@ -1806,7 +1813,7 @@ config_dialog_proc (HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 		if(strlen(utf8_fn) >= dlgcfg->confpathlen){
 		    MessageBox(hDlg, TEXT("Config path too long"),
-			       TEXT("PC-Pine"), MB_ICONWARNING | MB_OK);
+			       TEXT("Alpine"), MB_ICONWARNING | MB_OK);
 		    if(utf8_fn)
 		      fs_give((void **) &utf8_fn);
 

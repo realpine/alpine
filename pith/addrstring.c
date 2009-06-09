@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: addrstring.c 203 2006-10-26 17:23:46Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: addrstring.c 341 2006-12-21 23:44:18Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -321,7 +321,7 @@ rfc822_write_address_decode(char *dest, size_t destlen, struct mail_address *adr
 
 		if(p && (char *) p != a->personal){
 		    fs_give((void **) &a->personal);
-		    a->personal = cpystr(p);
+		    a->personal = cpystr((char *) p);
 		}
 	    }
 	}
@@ -333,7 +333,7 @@ rfc822_write_address_decode(char *dest, size_t destlen, struct mail_address *adr
 
 	    if(p && (char *) p != a->mailbox){
 		fs_give((void **) &a->mailbox);
-		a->mailbox = cpystr(p);
+		a->mailbox = cpystr((char *) p);
 	    }
 	}
     }

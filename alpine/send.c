@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: send.c 283 2006-11-30 15:57:11Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: send.c 392 2007-01-25 18:56:49Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -92,8 +92,8 @@ void	   post_compose_filters(BODY *);
 int	   filter_message_text(char *, ENVELOPE *, BODY *, STORE_S **, METAENV *);
 void	   pine_send_newsgroup_name(char *, char*, size_t);
 void       outgoing2strings(METAENV *, BODY *, void **, PATMT **);
-void       strings2outgoing(METAENV *, BODY **, PATMT *, char *, int);
-void	   create_message_body_text(BODY *, char *, int);
+void       strings2outgoing(METAENV *, BODY **, PATMT *, int);
+void	   create_message_body_text(BODY *, int);
 void	   free_attachment_list(PATMT **);
 void       set_mime_flowed_text(BODY *);
 void	   set_body_size(BODY *);
@@ -744,7 +744,7 @@ compose_mail(char *given_to, char *fcc_arg, ACTION_S *role_arg,
 	body->type = TYPETEXT;
 
 	if(attach)
-	  create_message_body(&body, attach, NULL, 0);
+	  create_message_body(&body, attach, 0);
     }
 
     ps_global->prev_screen = compose_screen;
@@ -1128,10 +1128,9 @@ pine_simple_send(ENVELOPE *outgoing,	/* envelope for outgoing message */
     while(!done){
 	int flags;
 
+	outgoing2strings(header, *body, &messagebuf, NULL);
+
 	if(flagsarg & SS_PROMPTFORTO){
-
-	    outgoing2strings(header, *body, &messagebuf, NULL);
-
 	    resize_len = MAX(MAXPATH, strlen(*tobufp));
 	    fs_resize((void **) tobufp, resize_len+1);
 
@@ -1194,7 +1193,7 @@ pine_simple_send(ENVELOPE *outgoing,	/* envelope for outgoing message */
 		  continue;
 	    }
 
-	    if(**tobufp != '\0'){
+	    if(*tobufp && **tobufp != '\0'){
 		char *errbuf, *addr;
 		int   tolen;
 
@@ -1235,7 +1234,7 @@ pine_simple_send(ENVELOPE *outgoing,	/* envelope for outgoing message */
 			int  verbose_label = 0;
 			ESCKEY_S opts[13];
 
-			strings2outgoing(header, body, NULL, NULL, 0);
+			strings2outgoing(header, body, NULL, 0);
 
 			if((flagsarg & SS_PROMPTFORTO)
 			   && ((x = check_addresses(header)) == CA_BAD 
@@ -1686,7 +1685,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 	  REPLY_S *reply, REDRAFT_POS_S *redraft_pos, char *lcc_arg,
 	  PINEFIELD *custom, int sticky_fcc)
 {
-    int			i, fixed_cnt, total_cnt, index, hibit_entered,
+    int			i, fixed_cnt, total_cnt, index,
 			editor_result = 0, body_start = 0, use_news_order = 0;
     char	       *p, *addr, *fcc, *fcc_to_free = NULL;
     char	       *start_here_name = NULL;
@@ -2310,7 +2309,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 
 	      default:
 		q_status_message1(SM_ORDER,3,7,
-		    "Internal error: Address header %d", (void *)index);
+		    "Internal error: Address header %s", comatose(index));
 		break;
 	    }
 
@@ -2816,9 +2815,6 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 	cancel_busy_cue(-1);
         flush_status_messages(1);
 
-	pbf->hibit_entered = &hibit_entered;
-	*pbf->hibit_entered = 0;
-
 	/* turn off user input timeout when in composer */
 	saved_user_timeout = ps_global->hours_to_timeout;
 	ps_global->hours_to_timeout = 0;
@@ -2847,15 +2843,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 	  free_attachment_list(&pbf->attachments);
 
         /* Turn strings back into structures */
-        strings2outgoing(&header, body, pbf->attachments,
-#ifdef notdef
-/***
- *** We don't want to base the charset on the original charset anymore.
- ***/
-			 reply ? reply->orig_charset :
-#endif /* notdef */
-						     NULL,
-			 flowing_requested);
+        strings2outgoing(&header, body, pbf->attachments, flowing_requested);
 
         /* Make newsgroups NULL if it is "" (so won't show up in headers) */
 	if(outgoing->newsgroups){
@@ -3141,7 +3129,7 @@ pine_send(ENVELOPE *outgoing, struct mail_bodystruct **body,
 			if(i)
 			  sstrncpy(&p, ",", SIZEOF_20KBUF-(p-tmp_20k_buf));
 
-			sstrncpy(&p,long2string(reply->data.uid.msgs[i]),SIZEOF_20KBUF-(p-tmp_20k_buf));
+			sstrncpy(&p,ulong2string(reply->data.uid.msgs[i]),SIZEOF_20KBUF-(p-tmp_20k_buf));
 		    }
 
 		    tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
@@ -5462,7 +5450,7 @@ outgoing2strings(METAENV *header, struct mail_bodystruct *bod, void **text, PATM
     routines.
  -----*/
 void
-strings2outgoing(METAENV *header, struct mail_bodystruct **bod, PATMT *attach, char *charset, int flow_it)
+strings2outgoing(METAENV *header, struct mail_bodystruct **bod, PATMT *attach, int flow_it)
 {
     PINEFIELD *pf;
     int we_cancel = 0;
@@ -5473,53 +5461,12 @@ strings2outgoing(METAENV *header, struct mail_bodystruct **bod, PATMT *attach, c
      * turn any local address strings into address lists
      */
     for(pf = header->local; pf && pf->name; pf = pf->next)
-      if(pf->scratch){
-	  /*
-	   * If we edited this header, then we use the edited version.
-	   * Otherwise we usually use the original, which may contain charset
-	   * information that we preserved.
-	   *
-	   * If we are using the original because we haven't edited it,
-	   * we need to make sure it is valid. Check for .RAW-FIELD..
-	   * We need to toss out that pf->addr and use the one in pf->scratch,
-	   * which was decoded before we went into pico.
-	   *
-	   * Special case: For subject, if there was no original subject but
-	   * there was a default from customized-hdrs, need to copy that
-	   * as if we edited it.
-	   */
-#ifdef notdef
-	  if((pf->canedit && ((HE(pf) && HE(pf)->dirty)
-			      || (pf->type == Address
-				  && pf->addr
-				  && *pf->addr
-				  && (*pf->addr)->host
-				  && !strcmp((*pf->addr)->host,".RAW-FIELD."))))
-	     || (pf->type == Subject && *pf->scratch && !*pf->text))
-#endif /* notdef */
-	 {
-		char *the_address = NULL;
+	if(pf->scratch){
+	    char *the_address = NULL;
 
 	      switch(pf->type){
 		case Address :
 		  removing_trailing_white_space(pf->scratch);
-#ifdef notdef
-		  /*
-		   * If encoded exists, that means that build_address filled
-		   * it in when expanding an addrbook nickname so as to
-		   * preserve the charset information.
-		   * If it wasn't edited at all, we don't go through here
-		   * and we just use the original addr, which still has
-		   * the charset info in it.
-		   */
-		  if(HE(pf)){
-		      PrivateTop *pt;
-
-		      pt = (PrivateTop *)HE(pf)->bldr_private;
-		      if(pt && pt->encoded && pt->encoded->etext)
-			the_address = pt->encoded->etext;
-		  }
-#endif /* notdef */
 
 		  if((the_address || *pf->scratch) && pf->addr){
 		      ADDRESS     *new_addr = NULL;
@@ -5549,18 +5496,14 @@ strings2outgoing(METAENV *header, struct mail_bodystruct **bod, PATMT *attach, c
 
 		  break;
 	      }
-	  }
 
-	  fs_give((void **)&pf->scratch);	/* free now useless text */
-      }
+	    fs_give((void **)&pf->scratch);	/* free now useless text */
+	}
 
     if(bod && *bod)
       post_compose_filters(*bod);
 
-/****
- Note: charset is always NULL now
- ****/
-    create_message_body(bod, attach, charset, flow_it);
+    create_message_body(bod, attach, flow_it);
     pine_encode_body(*bod);
 
     if(we_cancel)
@@ -5575,7 +5518,7 @@ changed from TEXT to MULTIPART if there are attachments to be added
 and it is not already multipart. 
   ----*/
 void
-create_message_body(struct mail_bodystruct **b, PATMT *attach, char *charset, int flow_it)
+create_message_body(struct mail_bodystruct **b, PATMT *attach, int flow_it)
 {
     PART       *p, **pp;
     PATMT      *pa;
@@ -5583,9 +5526,6 @@ create_message_body(struct mail_bodystruct **b, PATMT *attach, char *charset, in
     void       *file_contents;
     PARAMETER **parmp;
     char       *lc;
-/****
- Note: charset is always NULL now.
- ****/
 
     TIME_STAMP("create_body start.", 1);
     /*
@@ -5597,7 +5537,7 @@ create_message_body(struct mail_bodystruct **b, PATMT *attach, char *charset, in
 	if((*b)->type == TYPETEXT && (*b)->encoding == ENC7BIT)
 	  (*b)->encoding = ENCOTHER;
 
-	create_message_body_text(*b, charset, flow_it);
+	create_message_body_text(*b, flow_it);
 
 	if(F_ON(F_COMPOSE_ALWAYS_DOWNGRADE, ps_global)
 	   || !((*b)->encoding == ENC8BIT
@@ -5636,7 +5576,7 @@ create_message_body(struct mail_bodystruct **b, PATMT *attach, char *charset, in
     if(!text_body){
 	/*-- Now type must be MULTIPART with first part text --*/
 	(*b)->nested.part->body.encoding = ENCOTHER;
-	create_message_body_text(&((*b)->nested.part->body), charset, flow_it);
+	create_message_body_text(&((*b)->nested.part->body), flow_it);
     }
 
     /*------ Go through the parts list remove those to be deleted -----*/
@@ -5652,7 +5592,7 @@ create_message_body(struct mail_bodystruct **b, PATMT *attach, char *charset, in
 	       */
 
 	      if((*pp)->body.description)
-		orig_descp = (char *) rfc1522_decode(tmp_20k_buf, SIZEOF_20KBUF,
+		orig_descp = (char *) rfc1522_decode((unsigned char *) tmp_20k_buf, SIZEOF_20KBUF,
 					    (*pp)->body.description, &cs);
 
 	      if(!(*pp)->body.description	/* update description? */
@@ -5800,14 +5740,9 @@ create_message_body(struct mail_bodystruct **b, PATMT *attach, char *charset, in
  * 
  */
 void
-create_message_body_text(struct mail_bodystruct *b, char *charset, int flow_it)
+create_message_body_text(struct mail_bodystruct *b, int flow_it)
 {
-/****
- Note: charset is always NULL now.
- ****/
-    set_mime_type_by_grope(b,
-			   (pbf && pbf->hibit_entered && *pbf->hibit_entered)
-			   ? NULL : charset);
+    set_mime_type_by_grope(b, NULL);
     if(F_OFF(F_QUELL_FLOWED_TEXT, ps_global)
        && F_OFF(F_STRIP_WS_BEFORE_SEND, ps_global)
        && flow_it)

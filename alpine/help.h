@@ -1,8 +1,8 @@
 /*
- * $Id: help.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: help.h 380 2007-01-23 00:09:18Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,6 @@
 /* exported protoypes */
 int	    url_local_helper(char *);
 int	    url_local_config(char *);
-int	    gripe_gripe_to(char *);
 void	    init_helper_getc(char **);
 int	    helper_getc(char *);
 int	    helper(HelpType, char *, int);

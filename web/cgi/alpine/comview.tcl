@@ -1,5 +1,5 @@
 #!./tclsh
-
+# $Id: comview.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -173,7 +173,7 @@ WPEval $comview_vars {
 	      # * * * * ANTISPAM * * * *
 	      if {([info exists _wp(spamaddr)] && [string length $_wp(spamaddr)])
 		  || ([info exists _wp(spamfolder)] && [string length $_wp(spamfolder)])} {
-		cgi_submit_button "op=Report Spam" class="viewop" "style=\"margin-right: 4\""
+		cgi_submit_button "op=Report Spam" class="viewop" "style=\"margin-right: 4; color: white; background-color: black\""
 	      }
 	    }
 	  }

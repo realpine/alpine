@@ -1,5 +1,5 @@
 /*
- * $Id: foldertype.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: foldertype.h 394 2007-01-25 20:29:45Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -46,8 +46,8 @@ typedef struct folder {
     unsigned	    subscribed:1;		/* selected by user	      */
     unsigned	    unseen_valid:1;		/* unseen count is valid      */
     unsigned long   varhash;			/* hash of var for incoming   */
-    unsigned long   uidvalidity;		/* only for #move folder      */
-    unsigned long   uidnext;			/* only for #move folder      */
+    imapuid_t       uidvalidity;		/* only for #move folder      */
+    imapuid_t       uidnext;			/* only for #move folder      */
     char	   *nickname;			/* folder's short name        */
     unsigned long   unseen;			/* for monitoring unseen      */
     unsigned long   recent;			/* for monitoring unseen      */

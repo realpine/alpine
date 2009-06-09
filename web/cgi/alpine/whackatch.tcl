@@ -1,5 +1,5 @@
 #!./tclsh
-
+# $Id: whackatch.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -16,7 +16,7 @@
 #  Purpose:  CGI script to cleanup requested attachment
 
 #  Input:
-#   attachment handle 
+#   ext - attachment file extension
 
 #  Output:
 #
@@ -25,29 +25,22 @@
 source ./alpine.tcl
 
 # seconds to pause before rechecking for abandanded attachment files
-set abandoned 60
+set abandoned 300
 
-if {[gets stdin handle] >= 0 && [regexp {^[A-Za-z0-9]+$} $handle handle] == 1} {
+# no dots allowed
+if {[gets stdin ext] >= 0 && [regexp {^[A-Za-z0-9\-]+$} $ext ext] == 1} {
 
-  set flist [file join $_wp(fileroot) $_wp(detachpath) detach.${handle}.control]
-  lappend flist [file join $_wp(fileroot) $_wp(detachpath) detach.${handle}.data]
+  set towhack [file join $_wp(fileroot) $_wp(detachpath) detach.${ext}]
 
-  for {set cleanup 0} {$cleanup == 0} {} {
+  while {1} {
     set timein [clock seconds]
 
     after [expr {$abandoned * 1000}]
 
-    foreach f $flist {
-      if {($timein - [file atime $f]) > $abandoned} {
-	set cleanup 1
-      } else {
-	set cleanup 0
-	break
-      }
+    if {[catch {file atime $towhack} atime] || ($timein - $atime) > $abandoned} {
+      break
     }
   }
 
-  foreach f $flist {
-    catch {exec /bin/rm -f $f}
-  }
+  catch {exec /bin/rm -f $towhack}
 }

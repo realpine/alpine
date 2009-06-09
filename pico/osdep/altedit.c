@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: altedit.c 291 2006-11-30 22:05:58Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: altedit.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -296,12 +296,6 @@ alt_editor(int f, int n)
       (*Pmaster->tty_fix)(1);
 
     /*
-     * Editor may have set a hibit, we don't know. Assume it did.
-     */
-    if(!f && Pmaster && Pmaster->hibit_entered)
-     *Pmaster->hibit_entered = 1;
-
-    /*
      * replace edited text with new text 
      */
     curbp->b_flag &= ~BFCHG;		/* make sure old text gets blasted */
@@ -467,12 +461,6 @@ alt_editor(int f, int n)
     switch (status) {
 
     case 0:
-	/*
-	 * Editor may have set a hibit, we don't know. Assume it did.
-	 */
-	if(!f && Pmaster && Pmaster->hibit_entered)
-	 *Pmaster->hibit_entered = 1;
-
 	/*
 	 * Success:  replace edited text with new text 
 	 */

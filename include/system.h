@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------
-  $Id: system.h 306 2006-12-07 23:47:48Z hubert@u.washington.edu $
+  $Id: system.h 337 2006-12-20 00:41:10Z hubert@u.washington.edu $
   ----------------------------------------------------------------------*/
 
 /* ========================================================================
@@ -91,6 +91,8 @@ void *memset(void *, int, size_t);
 #else
 # define collator strucmp
 #endif
+
+#define PREREQ_FOR_SYS_TRANSLATION (HAVE_WCHAR_H && HAVE_WCRTOMB && HAVE_WCWIDTH && HAVE_MBSTOWCS && HAVE_LANGINFO_H && defined(CODESET) && !defined(_WINDOWS))
 
 /* System uin32 definition */
 #if	HAVE_STDINT_H

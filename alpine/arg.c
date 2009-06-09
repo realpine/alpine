@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: arg.c 242 2006-11-17 00:47:18Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: arg.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -67,7 +67,7 @@ static char args_err_missing_copyabook[] =	N_("missing argument for option \"-co
 
 
 static char *args_pine_args[] = {
-N_("Possible Starting Arguments for Pine program:"),
+N_("Possible Starting Arguments for Alpine program:"),
 "",
 N_(" Argument\tMeaning"),
 N_(" <addrs>...\tGo directly into composer sending to given address"),
@@ -101,7 +101,7 @@ N_(" -I <keystroke_list>   Initial keystrokes to be executed"),
 N_(" -n <number>\tEntry in index to begin on"),
 N_(" -o \t\tReadOnly - Open first folder read-only"),
 N_(" -conf\t\tConfiguration - Print out fresh global configuration. The"),
-N_("\t\tvalues of your global configuration affect all Pine users"),
+N_("\t\tvalues of your global configuration affect all Alpine users"),
 N_("\t\ton your system unless they have overridden the values in their"),
 N_("\t\tpinerc files."),
 N_(" -pinerc <file>\tConfiguration - Put fresh pinerc configuration in <file>"),
@@ -111,12 +111,12 @@ N_(" -P <pine.conf>\tUse alternate pine.conf file"),
 #else
 N_(" -aux <aux_files_dir>\tUse this with remote pinerc"),
 N_(" -P <pine.conf>\tUse pine.conf file for default settings"),
-N_(" -nosplash \tDisable the PC-Pine splash screen"),
+N_(" -nosplash \tDisable the PC-Alpine splash screen"),
 #endif
 #ifdef PASSFILE
-#ifdef _WINDOWS
+#if defined(_WINDOWS) || defined(OSX_TARGET)
 N_(" -erase_stored_passwords\tEliminate any stored passwords"),
-#else /* !_WINDOWS */
+#else /* !(_WINDOWS|OSX_TARGET) */
 N_(" -passfile <fully_qualified_filename>\tSet the password file to something other"),
 N_("\t\tthan the default"),
 #endif /* !_WINDOWS */
@@ -264,12 +264,16 @@ Loop: while(--ac > 0)
 		goto Loop;   /* already taken care of in WinMain */
 #endif
 #ifdef PASSFILE
-#ifdef _WINDOWS
+#if defined(_WINDOWS) || defined(OSX_TARGET)
 	      else if(strcmp(*av, "erase_stored_passwords") == 0){
+#ifdef _WINDOWS
 		  erase_windows_credentials();
+#else
+		  macos_erase_keychain();
+#endif
 		  goto Loop;
 	      }
-#else /* !_WINDOWS */
+#else /* !(_WINDOWS or OSX_TARGET) */
 	      else if(strcmp(*av, "passfile") == 0){
 		  if(--ac){
 		      if((str = *++av) != NULL){
@@ -493,11 +497,11 @@ Loop: while(--ac > 0)
 		      else if(!strucmp(*av, "clear")){
 			  if(!mswin_reg(MSWR_OP_BLAST, MSWR_NULL, NULL, 0))
 			    display_args_err(
-				       _("Pine related Registry values removed."),
+				       _("Alpine related Registry values removed."),
 				       NULL, 0);
 			  else
 			    display_args_err(
-		      _("Not all Pine related Registry values could be removed"),
+		      _("Not all Alpine related Registry values could be removed"),
 				       NULL, 0);
 			  exit(0);
 		      }
@@ -836,7 +840,7 @@ Loop: while(--ac > 0)
     if(do_version){
 	extern char datestamp[], hoststamp[];
 
-	snprintf(tmp_20k_buf, SIZEOF_20KBUF, "Pine %s built %s on %s",
+	snprintf(tmp_20k_buf, SIZEOF_20KBUF, "Alpine %s built %s on %s",
 		 ALPINE_VERSION, datestamp, hoststamp);
 	tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
 	display_args_err(tmp_20k_buf, NULL, 0);

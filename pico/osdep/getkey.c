@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: getkey.c 217 2006-11-04 02:52:05Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: getkey.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -273,10 +273,6 @@ GetKey(void)
 	(*term.t_beep)();
 	break;
     }
-
-/* review what hibit_entered means */
-    if(ch & ~0x7f && Pmaster && Pmaster->hibit_entered)
-      *Pmaster->hibit_entered = 1;
 
     if (ch >= 0x00 && ch <= 0x1F)       /* C0 control -> C-     */
       ch = CTRL | (ch+'@');
@@ -559,9 +555,6 @@ MapMSKEYtoPK (int c)
 	case MSWIN_KEY_NODATA:		return (NODATA);
     }
 
-    if(c & 0x80 && Pmaster && Pmaster->hibit_entered)
-      *Pmaster->hibit_entered = 1;
-    
     /* Control keys. */
     if (c < ' ') 
 	return (CTRL | (c + '@'));

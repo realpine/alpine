@@ -1,6 +1,6 @@
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,34 +11,26 @@
  * ========================================================================
  */
 
-#define WIN31 
+#define WIN31
 #define STRICT
 
 #define	termdef	1			/* don't define "term" external */
 
-#include <system.h>
-#include <general.h>
+#include "../headers.h"
 
 #include <stdarg.h>
 #include <ddeml.h>
 
 #include "mswin.h"
-#include "msmenu.h"
 #include "resource.h"
-
-#include "read.h"
-
-#include "../estruct.h"
-#include "../mode.h"
-#include "../pico.h"
-#include "../keydefs.h"
-#include "../edef.h"
-#include "../efunc.h"
 
 #include "../../pith/osdep/pipe.h"
 #include "../../pith/osdep/canaccess.h"
 
 #include "../../pith/charconv/filesys.h"
+#include "../../pith/charconv/utf8.h"
+
+#include "mswin_tw.h"
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  *
@@ -58,23 +50,21 @@
 #endif
 
 
-/* 
- * Define which debugging is deisred.  Generally only FDEBUG. 
+/*
+ * Define which debugging is desired.  Generally only FDEBUG.
  */
 #define FDEBUG		/* Standard file debugging. */
 
 #undef SDEBUG		/* Verbose debugging of startup and windows handling*/
 #undef CDEBUG		/* Verbose debugging of character input timeing. */
 
-#undef OWN_DEBUG_FILE	/* Define if we want to write to our own debug file, 
+#undef OWN_DEBUG_FILE	/* Define if we want to write to our own debug file,
 			 * not pine's. */
 
 
-/* Max size permitted for the screen.  Larger than ever expec, but small
- * enough to prevent errors.  And small enough that the size of the
- * screen strucure is less than 64K. */
-#define MAXNROW			180
-#define MAXNCOLUMN		256
+/* Max size permitted for the screen. */
+#define MAXNROW			200
+#define MAXNCOLUMN		NLINE
 
 #define MINNROW			10	/* Minimum screen size */
 #define MINNCOLUMN		32
@@ -137,7 +127,7 @@
 					     the OnTask list. */
 #define MY_TIMER_VERY_SHORT_PERIOD (UINT)500  /* used when SIGALRM and alarm()
 						 is set. */
-#define MY_TIMER_EXCEEDINGLY_SHORT_PERIOD (UINT)80 /* used when 
+#define MY_TIMER_EXCEEDINGLY_SHORT_PERIOD (UINT)80 /* used when
 						 gAllowMouseTracking is set */
 
 #define TIMER_FAIL_MESSAGE TEXT("Failed to get all necessary Windows resources (timers).  Alpine will run, but may not be able to keep the connection to the server alive.  Quitting other applications and restarting Alpine may solve the problem.")
@@ -214,7 +204,6 @@
 
 /* Offsets to objects in window extra storage. */
 #define GWL_PTTYINFO		0	/* Offset in Window extra storage. */
-#define GWL_PTEXTINFO		0	/* Offset in Window extra storage. */
 
 /*
  *
@@ -306,7 +295,7 @@ typedef struct tagTTYINFO {
     CORD	xScroll, yScroll;	/* ?? */
     CORD	xOffset, yOffset;	/* Offset from the left and top of
 					 * window contents. */
-    CORD	nColumn, nRow;		/* Current position of cursor in 
+    CORD	nColumn, nRow;		/* Current position of cursor in
 				         * cells. */
     CORD	xChar, yChar;		/* Width of a char in pixels. */
     int		yCurOffset;		/* offset of cursor Y-size */
@@ -334,6 +323,7 @@ typedef struct tagTTYINFO {
 } TTYINFO, *PTTYINFO ;
 
 
+#define MAXCLEN (MAX(MAXCOLORLEN,RGBLEN+1))
 typedef struct MSWINColor {
     char		*colorName;
     char		*canonicalName;
@@ -361,16 +351,7 @@ typedef struct ontask {
     char		path[PATH_MAX+1];
 } OnTaskItem;
 
-
-typedef struct _telemetry_data {
-    HWND    hWnd;
-    long    size, count;
-    LPTSTR  title;
-    LPTSTR *ring;
-} IMAPTelem;
-
 typedef void (__cdecl *SignalType)(int);
-
 
 typedef	struct _iconlist {
     HICON  hIcon;
@@ -388,10 +369,26 @@ typedef	struct _iconlist {
  *
  *++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
+LOCAL void *
+MyGetWindowLongPtr(HWND hwnd, int nIndex)
+{
+    return (void *)(LONG_PTR)GetWindowLongPtr(hwnd, nIndex);
+}
+
+LOCAL LONG_PTR
+MySetWindowLongPtr(HWND hwnd, int nIndex, void *NewLongPtr)
+{
+// warning C4244: 'function': conversion from 'LONG_PTR' to 'LONG',
+//  possible loss of data
+#pragma warning(push)
+#pragma warning(disable: 4244)
+    return SetWindowLongPtr(hwnd, nIndex, (LONG_PTR)NewLongPtr);
+#pragma warning(pop)
+}
 
 #ifdef	WIN32
-#define	GET_HINST( hWnd )  ((HINSTANCE) GetWindowLong( hWnd, GWL_HINSTANCE ))
-#define	GET_ID( hWnd )  ((WORD) GetWindowLong( hWnd, GWL_ID ))
+#define	GET_HINST( hWnd )  ((HINSTANCE) MyGetWindowLongPtr( hWnd, GWLP_HINSTANCE ))
+#define	GET_ID( hWnd )  (LOWORD(MyGetWindowLongPtr( hWnd, GWLP_ID )))
 #else
 #define GET_HINST( hWnd )  ((HINSTANCE) GetWindowWord( hWnd, GWW_HINSTANCE ))
 #define	GET_ID( hWnd )  ((WORD) GetWindowWord( hWnd, GWW_ID ))
@@ -401,16 +398,17 @@ typedef	struct _iconlist {
 
 
 /* function prototypes (private) */
+int app_main (int argc, char *argv[]);
 
 void		WinExit (void);
-void		TWScrollTimer (HWND hWnd);
+
 LOCAL BOOL	InitApplication (HANDLE);
 LOCAL HWND	InitInstance (HANDLE, int);
-LOCAL void	MakeArgv (HINSTANCE hInstance, LPSTR cmdLine, int *pargc, 
+LOCAL void	MakeArgv (HINSTANCE hInstance, LPSTR cmdLine, int *pargc,
 				CHAR ***pargv);
 LOCAL LRESULT NEAR	CreateTTYInfo (HWND hWnd);
 LOCAL BOOL NEAR	DestroyTTYInfo (HWND hWnd);
-LOCAL int	ResizeTTYScreen (HWND hWnd, PTTYINFO pTTYInfo, 
+LOCAL int	ResizeTTYScreen (HWND hWnd, PTTYINFO pTTYInfo,
 					int newNRow, int newNColumn);
 LOCAL BOOL	ResetTTYFont (HWND, PTTYINFO, LOGFONT *);
 LOCAL BOOL	EraseTTY (HWND, HDC);
@@ -439,7 +437,7 @@ LOCAL BOOL	MoveTTYCursor (HWND);
 LOCAL BOOL	ProcessTTYKeyDown (HWND hWnd, TCHAR bOut, DWORD keyData);
 LOCAL BOOL	ProcessTTYKeyUp (HWND hWnd, TCHAR key, DWORD keyData);
 LOCAL BOOL	ProcessTTYCharacter (HWND hWnd, TCHAR bOut, DWORD keyData);
-LOCAL BOOL	ProcessTTYMouse (HWND hWnd, int mevent, int button, CORD xPos, 
+LOCAL BOOL	ProcessTTYMouse (HWND hWnd, int mevent, int button, CORD xPos,
 					CORD yPos, WPARAM keys);
 LOCAL BOOL	ProcessTTYFileDrop (HANDLE wParam);
 LOCAL void	ProcessTimer (void);
@@ -447,13 +445,13 @@ LOCAL BOOL	WriteTTYBlock (HWND, LPTSTR, int);
 LOCAL BOOL	WriteTTYText (HWND, LPTSTR, int);
 LOCAL BOOL	WriteTTYChar (HWND, TCHAR);
 
-LOCAL VOID	GoModalDialogBoxParam (HINSTANCE, LPTSTR, HWND, 
+LOCAL VOID	GoModalDialogBoxParam (HINSTANCE, LPTSTR, HWND,
 					DLGPROC, LPARAM);
 LOCAL BOOL	SelectTTYFont (HWND);
 LOCAL void	SetColorAttribute (COLORREF *cf, char *colorName);
 LOCAL void	SetReverseColor (void);
 LOCAL BOOL	ConvertRGBString (char *colorName, COLORREF *cf);
-LOCAL char     *ConvertStringRGB (char *colorName, COLORREF colorRef);
+LOCAL char     *ConvertStringRGB (char *colorName, size_t ncolorName, COLORREF colorRef);
 LOCAL BOOL	ScanInt (char *str, int min, int max, int *val);
 
 LOCAL void	TBToggle (HWND);
@@ -463,6 +461,15 @@ LOCAL void	TBHide (HWND);
 LOCAL void	TBSwap (HWND, int);
 LOCAL unsigned  scrwidth(LPTSTR lpText, int nLength);
 LOCAL long      pscreen_offset_from_cord(int row, int col, PTTYINFO pTTYInfo);
+
+LOCAL int       struncmp(char *o, char *r, int n);
+LOCAL int       tcsucmp(LPTSTR o, LPTSTR r);
+LOCAL int       strucmp(char *o, char *r);
+LOCAL int       _print_send_page(void);
+
+/* defined in region.c */
+int            copyregion(int f, int n);
+
 
 #ifdef ACCELERATORS
 #ifdef ACCELERATORS_OPT
@@ -491,8 +498,6 @@ LOCAL void	FlushWriteAccum (void);
 
 LOCAL int       mswin_reg_lptstr(int, int, LPTSTR, size_t);
 
-LOCAL BOOL	MSWRPeek(HKEY hRootKey, LPTSTR subkey, LPTSTR valstr,
-			 LPTSTR data, DWORD *dlen);
 LOCAL BOOL	MSWRPoke(HKEY hKey, LPTSTR subkey, LPTSTR valstr, LPTSTR data);
 LOCAL int	MSWRClear(HKEY hKey, LPTSTR pSubKey);
 LOCAL void	MSWRAlpineSet(HKEY hRootKey, LPTSTR subkey, LPTSTR val,
@@ -501,9 +506,6 @@ LOCAL int       MSWRProtocolSet(HKEY hKey, int type, LPTSTR path_lptstr);
 LOCAL void	MSWRAlpineSetHandlers(int update, LPTSTR path);
 LOCAL int	MSWRAlpineGet(HKEY hKey, LPTSTR subkey, LPTSTR val,
 			       LPTSTR data_lptstr, size_t len);
-
-LOCAL BOOL	MSWRShellCanOpen(LPTSTR key, char *cmdbuf, DWORD clen,
-				 int allow_noreg);
 
 LOCAL void	MSWIconAddList(int row, int id, HICON hIcon);
 LOCAL int	MSWIconPaint(int row, HDC hDC);
@@ -551,30 +553,6 @@ LOCAL void	MyTimerSet (void);
 
 LOCAL LRESULT	ConfirmExit (void);
 
-LOCAL BOOL	TWErase (HWND hWnd, HDC hDC);
-LOCAL void	TWPaint (HWND hWnd);
-LOCAL void	TWScroll (HWND hWnd, int wScrollCode, int nPos);
-LOCAL void	TWHScroll (HWND hWnd, int wScrollCode, int nPos);
-#ifdef	WIN32
-LOCAL void	TWMouseWheel (HWND hWnd, int xPos, int yPos,
-			      int fwKeys, int zDelta);
-#endif
-LOCAL int	TWMeasureLine (LPTSTR text);
-LOCAL void	TWChar (HWND hWnd, WPARAM , LPARAM keyData);
-LOCAL BOOL	TWKeyDown (HWND hWnd, WORD key, DWORD keyData);
-LOCAL BOOL	TWKeyUp (HWND hWnd, WORD key, DWORD keyData);
-LOCAL BOOL	TWMouseDown (HWND hWnd, int button, CORD xPos, CORD yPos, 
-			WPARAM keys);
-LOCAL BOOL	TWMouseUp (HWND hWnd, int button, CORD xPos, CORD yPos, 
-			WPARAM keys);
-LOCAL BOOL	TWMouseTrack (HWND hWnd, CORD xPos, CORD yPos);
-LOCAL BOOL	TWEditCopy (HWND hWnd);
-LOCAL BOOL	TWEditSelectAll (HWND hWnd);
-
-LOCAL void	TWSetSize (HWND hWnd, UINT wParam, UINT height, UINT width);
-LOCAL void	TWPrint (HWND hWnd);
-
-
 LOCAL void	CQInit (void);
 LOCAL BOOL	CQAvailable (void);
 LOCAL BOOL	CQAdd (UCS c, DWORD keyData);
@@ -583,7 +561,7 @@ LOCAL UCS	CQGet ();
 
 LOCAL void	MQInit (void);
 LOCAL BOOL	MQAvailable (void);
-LOCAL BOOL	MQAdd (int mevent, int button, int nRow, int nColumn, 
+LOCAL BOOL	MQAdd (int mevent, int button, int nRow, int nColumn,
 				int keys, int flags);
 LOCAL BOOL	MQGet (MEvent * pmouse);
 LOCAL BOOL	MQClear (int flag);
@@ -595,19 +573,20 @@ LOCAL DWORD	ExplainSystemErr(void);
 LOCAL void	RestoreMouseCursor();
 
 LOCAL BYTE	mswin_string2charsetid(LPTSTR);
-LOCAL int       mswin_charsetid2string (LPTSTR fontCharSet,
+LOCAL int   mswin_charsetid2string (LPTSTR fontCharSet,
 					size_t nfontCharSet, BYTE lfCharSet);
-LOCAL int       mswin_text_win_init(IMAPTelem **ppWin);
-LOCAL int       mswin_text_win_strlen(LPTSTR str);
-int       mswin_text_win_puts(char *, IMAPTelem *);
-int       mswin_text_win_puts_lptstr(LPTSTR, IMAPTelem *);
-int       mswin_displaytext_lptstr (LPTSTR, LPTSTR, size_t, LPTSTR *, int, int);
+
+LOCAL int       mswin_tw_init(MSWIN_TEXTWINDOW *mswin_tw, int id,
+                              LPCTSTR title);
+LOCAL MSWIN_TEXTWINDOW *mswin_tw_displaytext_lptstr (LPTSTR, LPTSTR, size_t,
+                                                     LPTSTR *, MSWIN_TEXTWINDOW *mswin_tw,
+                                                     int);
+LOCAL void	mswin_tw_print_callback(MSWIN_TEXTWINDOW *mswin_tw);
 
 
 /* Functions exported to MS Windows. */
 
 LRESULT FAR PASCAL __export PWndProc (HWND, UINT, WPARAM, LPARAM);
-LRESULT FAR PASCAL __export TWWndProc (HWND, UINT, WPARAM, LPARAM);
 BOOL FAR PASCAL __export ToolBarProc (HWND, UINT, WPARAM, LPARAM);
 LRESULT FAR PASCAL __export TBBtnProc (HWND, UINT, WPARAM, LPARAM);
 BOOL FAR PASCAL __export AboutDlgProc (HWND, UINT, WPARAM, LPARAM);
@@ -635,7 +614,6 @@ TCHAR			gszAppName[45];
 LOCAL TCHAR		TempBuf [MAXLEN_TEMPSTR];
 
 LOCAL TCHAR		gszTTYClass[] = TEXT("PineWnd");
-LOCAL TCHAR		gszTextClass[] = TEXT("PineText");
 LOCAL int		gAppIdent = APP_UNKNOWN;
 
 LOCAL int		gNMW_width;
@@ -670,7 +648,7 @@ LOCAL BOOL		gMouseTracking = FALSE;	/* Keeps track of when we are
 						 * tracking the mouse. */
 LOCAL FARPROC		gWSBlockingProc = NULL;
 LOCAL DLGPROC		gToolBarProc = NULL;
-LOCAL WNDPROC		gTBBtnProc = NULL; 
+LOCAL WNDPROC		gTBBtnProc = NULL;
 
 LOCAL BOOL		gAllowCopy = FALSE;
 LOCAL BOOL		gAllowCut = FALSE;
@@ -683,16 +661,11 @@ LOCAL MEvent		gMTEvent;
 LOCAL BOOL		gKeyControlDown = FALSE;/* Keep track of the control
 						 * key position. */
 
-LOCAL BOOL		TWKeyControlDown = FALSE;/* Keep track of text window
-						 * control key position. */
-LOCAL BOOL		TWKeyShiftDown = FALSE;/* Keep track of text window
-						 * shift key position. */
-
 LOCAL cbstr_t		gHelpGenCallback = NULL;
-LOCAL BOOL		gfHelpGenMenu = FALSE;	/* TRUE when help menu 
+LOCAL BOOL		gfHelpGenMenu = FALSE;	/* TRUE when help menu
 						 * installed. */
 LOCAL cbstr_t		gHelpCallback = NULL;
-LOCAL BOOL		gfHelpMenu = FALSE;	/* TRUE when help menu 
+LOCAL BOOL		gfHelpMenu = FALSE;	/* TRUE when help menu
 						 * installed. */
 LOCAL char		*gpCloseText;
 
@@ -715,11 +688,16 @@ LOCAL cbvoid_t  	gPeriodicCallback = NULL; /* Function to call. */
 LOCAL DWORD		gPeriodicCBTimeout = 0;   /* Time of next call. */
 LOCAL DWORD		gPeriodicCBTime = 0;	  /* Delay between calls. */
 
-LOCAL IMAPTelem        *gpIMAPTelem = NULL;
+//=========================================================================
+// n
+//=========================================================================
+MSWIN_TEXTWINDOW        gMswinAltWin = {0};
+MSWIN_TEXTWINDOW        gMswinNewMailWin = {0};
+
+MSWIN_TEXTWINDOW        gMswinIMAPTelem = {0};
 LOCAL cbvoid_t          gIMAPDebugONCallback = NULL;
 LOCAL cbvoid_t          gIMAPDebugOFFCallback = NULL;
-
-LOCAL IMAPTelem        *gpNewMailWin = NULL;
+LOCAL cbvoid_t          gEraseCredsCallback = NULL;
 
 LOCAL cbvoid_t        	gConfigScreenCallback = NULL;
 
@@ -727,8 +705,8 @@ LOCAL cbarg_t		gMouseTrackCallback = NULL;
 
 /* Currently only implement one SIGNAL so only need single variable. */
 LOCAL SignalType	gSignalAlarm = SIG_DFL;
-LOCAL DWORD		gAlarmTimeout = 0;	/* Time alarm expires in 
-						 * seconds 
+LOCAL DWORD		gAlarmTimeout = 0;	/* Time alarm expires in
+						 * seconds
 						 * (GetTickCount()/1000) */
 LOCAL SignalType	gSignalHUP = SIG_DFL;
 
@@ -743,7 +721,10 @@ LOCAL IconList	       *gIconList = NULL;
  * operate with 16-color xterms. When editing a color and writing the color
  * into the config file, we use the canonical_name (middle column). So if
  * the user chooses green from the menu we write color010 in the config
- * file. We display that as green later. The xterm also displays that as
+ * file. [This has changed. Now we put the RGB value in the config file
+ * instead. We leave this so that we can interpret color010 in the config
+ * file from old versions of pine.]
+ * We display that as green later. The xterm also displays that as
  * green, because the bright green (color010) on the xterm is what we want
  * to consider to be green, and the other one (color002) is dark green.
  * And dark green sucks.
@@ -751,25 +732,25 @@ LOCAL IconList	       *gIconList = NULL;
  * user the set color display, since the last eight are repeats.
  */
 LOCAL MSWINColor  MSWINColorTable[] =  {
-	"black",	"black",	RGB(0,0,0),
-	"red",		"color009",	RGB(255,0,0),
-	"green",	"color010",	RGB(0,255,0),
-	"yellow",	"color011",	RGB(255,255,0),
-	"blue",		"color012",	RGB(0,0,255),
-	"magenta",	"color013",	RGB(255,0,255),
-	"cyan",		"color014",	RGB(0,255,255),
-	"white",	"color015",	RGB(255,255,255),
-	"colorlgr",	"colorlgr",	RGB(192,192,192),	/* lite gray */
-	"colormgr",	"colormgr",	RGB(128,128,128),	/* med. gray */
-	"colordgr",	"colordgr",	RGB(64,64,64),		/* dark gray */
-	"color008",	"color008",	RGB(0,0,0),
-	"color009",	"color009",	RGB(255,0,0),
-	"color010",	"color010",	RGB(0,255,0),
-	"color011",	"color011",	RGB(255,255,0),
-	"color012",	"color012",	RGB(0,0,255),
-	"color013",	"color013",	RGB(255,0,255),
-	"color014",	"color014",	RGB(0,255,255),
-	"color015",	"color015",	RGB(255,255,255),
+	"black",	"000,000,000",	RGB(0,0,0),
+	"red",		"255,000,000",	RGB(255,0,0),
+	"green",	"000,255,000",	RGB(0,255,0),
+	"yellow",	"255,255,000",	RGB(255,255,0),
+	"blue",		"000,000,255",	RGB(0,0,255),
+	"magenta",	"255,000,255",	RGB(255,0,255),
+	"cyan",		"000,255,255",	RGB(0,255,255),
+	"white",	"255,255,255",	RGB(255,255,255),
+	"colorlgr",	"192,192,192",	RGB(192,192,192),	/* lite gray */
+	"colormgr",	"128,128,128",	RGB(128,128,128),	/* med. gray */
+	"colordgr",	"064,064,064",	RGB(64,64,64),		/* dark gray */
+	"color008",	"000,000,000",	RGB(0,0,0),
+	"color009",	"255,000,000",	RGB(255,0,0),
+	"color010",	"000,255,000",	RGB(0,255,0),
+	"color011",	"255,255,000",	RGB(255,255,0),
+	"color012",	"000,000,255",	RGB(0,0,255),
+	"color013",	"255,000,255",	RGB(255,0,255),
+	"color014",	"000,255,255",	RGB(0,255,255),
+	"color015",	"255,255,255",	RGB(255,255,255),
 	NULL,		NULL,		0
 };
 
@@ -809,14 +790,13 @@ wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 {
     CHAR		**argv;
     int			argc, i, nosplash = 0;
-    MSG			msg;
     char               *cmdline_utf8;
 
     ghInstance = hInstance;
     if (!hPrevInstance)
 	if (!InitApplication( hInstance ))
 	    return ( FALSE ) ;
-    
+
 #ifdef OWN_DEBUG_FILE	/* Want to write to seperate memdebug.txt file. */
     mswin_debugfile = fopen ("memdebug.txt", "w");
     fprintf (mswin_debugfile, "Beginning of mswin debug log\n");
@@ -831,13 +811,13 @@ wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
     if (NULL == (ghTTYWnd = InitInstance (hInstance, nCmdShow)))
 	return (FALSE);
 
-    /* I'm sure there's an easier way to do this, WideCharToMultiByte? */
+    /* cmdline_utf8 memory is never freed */
     cmdline_utf8 = lptstr_to_utf8(lpszCmdLine);
 
     MakeArgv (hInstance, cmdline_utf8, &argc, &argv);
 
     for(i = 0; i < argc; i++)
-      if(strcmp(argv[i], "-nosplash") == 0){
+      if(strcmp((const char *)argv[i], "-nosplash") == 0){
 	  nosplash = 1;
 	  break;
       }
@@ -845,16 +825,13 @@ wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
     if(nosplash == 0){
 	ghSplashWnd = CreateDialog(hInstance,
 				   MAKEINTRESOURCE( SPLASHDLGBOX ),
-				   ghTTYWnd, SplashDlgProc);
+				   ghTTYWnd, (DLGPROC)SplashDlgProc);
 	ShowWindow (ghSplashWnd, SW_SHOWNORMAL);
     }
 
     atexit (WinExit);
 
-    app_main (argc, argv);
-
-    if(cmdline_utf8)
-      fs_give((void **) &cmdline_utf8);
+    app_main (argc, (char **)argv);
 
     return (TRUE);
 }
@@ -864,7 +841,7 @@ void
 WinExit (void)
 {
     MSG			msg;
-    
+
     if (ghTTYWnd == NULL)
 	return;
 
@@ -900,12 +877,12 @@ WinExit (void)
  *        Handle to this instance of the application.
  *
  *--------------------------------------------------------------------------*/
-LOCAL BOOL  
+LOCAL BOOL
 InitApplication (HANDLE hInstance)
 {
     WNDCLASS  wndclass;
 
-    /* 
+    /*
      * Register tty window class.
      */
     wndclass.style =         0;  /* CS_NOCLOSE; */
@@ -919,24 +896,6 @@ InitApplication (HANDLE hInstance)
     wndclass.hbrBackground = (HBRUSH) (COLOR_WINDOW + 1);
     wndclass.lpszMenuName =  MAKEINTRESOURCE (ALPINEMENU);
     wndclass.lpszClassName = gszTTYClass ;
-
-    if (!RegisterClass (&wndclass))
-	    return (FALSE);
-
-    
-    /* 
-     * Register text window class.
-     */
-    wndclass.style =         CS_BYTEALIGNWINDOW;
-    wndclass.lpfnWndProc =   TWWndProc;
-    wndclass.cbClsExtra =    0;
-    wndclass.cbWndExtra =    sizeof (LONG);
-    wndclass.hInstance =     hInstance ;
-    wndclass.hIcon =         LoadIcon (hInstance, MAKEINTRESOURCE( ALPINEICON));
-    wndclass.hCursor =       LoadCursor (NULL, IDC_ARROW);
-    wndclass.hbrBackground = (HBRUSH) (COLOR_WINDOW + 1);
-    wndclass.lpszMenuName =  MAKEINTRESOURCE (TEXTWINMENU);
-    wndclass.lpszClassName = gszTextClass ;
 
     return (RegisterClass (&wndclass));
 }
@@ -956,7 +915,7 @@ InitApplication (HANDLE hInstance)
  *        How do we show the window?
  *
 /*--------------------------------------------------------------------------*/
-LOCAL HWND  
+LOCAL HWND
 InitInstance (HANDLE hInstance, int nCmdShow)
 {
     HWND       hTTYWnd;
@@ -964,7 +923,7 @@ InitInstance (HANDLE hInstance, int nCmdShow)
     SCROLLINFO scrollInfo;
 
 #ifdef SDEBUG
-    if (mswin_debug >= 5) 
+    if (mswin_debug >= 5)
 	fprintf (mswin_debugfile, "InitInstance:::  entered, nCmdShow %d\n",
 		nCmdShow);
 #endif
@@ -977,7 +936,7 @@ InitInstance (HANDLE hInstance, int nCmdShow)
 		       CW_USEDEFAULT, CW_USEDEFAULT,
 		       CW_USEDEFAULT, CW_USEDEFAULT,
 		       HWND_DESKTOP, NULL, hInstance, NULL);
-	       
+	
     scrollInfo.cbSize = sizeof(SCROLLINFO);
     scrollInfo.fMask = SIF_DISABLENOSCROLL | SIF_PAGE | SIF_RANGE | SIF_POS;
     scrollInfo.nMin = 0;
@@ -987,7 +946,7 @@ InitInstance (HANDLE hInstance, int nCmdShow)
     SetScrollInfo(hTTYWnd, SB_VERT, &scrollInfo, FALSE);
     EnableScrollBar (hTTYWnd, SB_VERT, ESB_DISABLE_BOTH);
 
-    if (NULL == hTTYWnd) 
+    if (NULL == hTTYWnd)
 	    return (NULL);
 
     ghTTYWnd = hTTYWnd;
@@ -1011,9 +970,9 @@ InitInstance (HANDLE hInstance, int nCmdShow)
     CQInit ();
     MQInit ();
 
-    
+
     /*
-     * Load a resource with the name of the application.  Compare to 
+     * Load a resource with the name of the application.  Compare to
      * known applications to determine who we are running under.
      * currently, only differentiation is the WINSOCK blocking hook.
      */
@@ -1023,7 +982,7 @@ InitInstance (HANDLE hInstance, int nCmdShow)
 	gWSBlockingProc = MakeProcInstance ( (FARPROC) NoMsgsAreSent,
 					      hInstance);
     }
-    else if (_tcscmp (appIdent, APP_PICO_IDENT) == 0) 
+    else if (_tcscmp (appIdent, APP_PICO_IDENT) == 0)
 	gAppIdent = APP_PICO;
     else
 	gAppIdent = APP_UNKNOWN;
@@ -1043,14 +1002,13 @@ InitInstance (HANDLE hInstance, int nCmdShow)
  *  Parameters:
  *	cmdLine		- Command line.
  *	*argc		- Count of words.
- *	***argc		- Pointer to Pointer to array of pointers to 
+ *	***argc		- Pointer to Pointer to array of pointers to
  *			  characters.
  *
  *--------------------------------------------------------------------------*/
 LOCAL void
 MakeArgv (HINSTANCE hInstance, char *cmdLine_utf8, int *pargc, CHAR ***pargv)
 {
-    int			argc;
     CHAR		**argv;
     LPSTR		c;
     BOOL		inWord, inQuote;
@@ -1058,7 +1016,7 @@ MakeArgv (HINSTANCE hInstance, char *cmdLine_utf8, int *pargc, CHAR ***pargv)
 #define CMD_PATH_LEN    128
     LPTSTR		modPath_lptstr;
     DWORD		mpLen;
-    
+
 
     /* Count words in cmdLine. */
     wordCount = 0;
@@ -1092,13 +1050,13 @@ MakeArgv (HINSTANCE hInstance, char *cmdLine_utf8, int *pargc, CHAR ***pargv)
     mpLen = GetModuleFileName (hInstance, modPath_lptstr, CMD_PATH_LEN);
     if (mpLen > 0) {
 	*(modPath_lptstr + mpLen) = '\0';
-        *(argv++) = lptstr_to_utf8(modPath_lptstr);
+        *(argv++) = (unsigned char *)lptstr_to_utf8(modPath_lptstr);
     }
     else
-      *(argv++) = "Alpine/Pico";
+      *(argv++) = (unsigned char *)"Alpine/Pico";
 
     MemFree((void *)modPath_lptstr);
-    
+
     /* Now break up command line. */
     inWord = FALSE;
     inQuote = FALSE;
@@ -1118,10 +1076,10 @@ MakeArgv (HINSTANCE hInstance, char *cmdLine_utf8, int *pargc, CHAR ***pargv)
 		inWord = TRUE;
 		if(*c == '"'){
 		  inQuote = TRUE;
-		  *(argv++) = c+1;
+		  *(argv++) = (unsigned char *)c+1;
 		}
 		else
-		  *(argv++) = c;
+		  *(argv++) = (unsigned char *)c;
 	    }
 	}
     }
@@ -1142,7 +1100,7 @@ MakeArgv (HINSTANCE hInstance, char *cmdLine_utf8, int *pargc, CHAR ***pargv)
  *     As documented for Window procedures.
  *
 /*--------------------------------------------------------------------------*/
-LRESULT FAR PASCAL __export 
+LRESULT FAR PASCAL __export
 PWndProc (HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 #ifdef CDEBUG
@@ -1156,70 +1114,58 @@ PWndProc (HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	 MyTimerSet ();
          return (CreateTTYInfo (hWnd));
 
-    case WM_COMMAND: 
+    case WM_COMMAND:
 	switch ((WORD) wParam) {
 
         case IDM_OPT_SETFONT:
 	    SelectTTYFont (hWnd);
 	    break ;
-	    
+	
 	case IDM_OPT_FONTSAMEAS:
 	    PrintFontSameAs (hWnd);
 	    break;
-	    
+	
 	case IDM_OPT_TOOLBAR:
 	    TBToggle (hWnd);
 	    break;
-	    
+	
 	case IDM_OPT_TOOLBARPOS:
 	    TBPosToggle (hWnd);
 	    break;
-	    
+	
 	case IDM_OPT_USEDIALOGS: {
 	    PTTYINFO	pTTYInfo;
-	    
+	
 	    gfUseDialogs = !gfUseDialogs;
-	    pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO);
-	    if (pTTYInfo) 
+	    pTTYInfo = (PTTYINFO)(LONG_PTR)MyGetWindowLongPtr (hWnd, GWL_PTTYINFO);
+	    if (pTTYInfo)
 		DidResize (pTTYInfo);
 	    break;
             }
 
-	case IDM_OPT_IMAPTELEM: {
-	    HMENU hMenu;
+	case IDM_OPT_ERASE_CREDENTIALS:
+	    if(gEraseCredsCallback)
+	      (*gEraseCredsCallback)();
+	    break;
 
-	    if(mswin_text_win_init(&gpIMAPTelem))
-	      break;
-	    if(hMenu = GetMenu(ghTTYWnd))
-	      CheckMenuItem (hMenu, IDM_OPT_IMAPTELEM,
-			     MF_BYCOMMAND | MF_CHECKED);
-
-	    if(gIMAPDebugONCallback)
-	      (*gIMAPDebugONCallback)();
-
+	case IDM_OPT_IMAPTELEM:
+	    mswin_tw_init(&gMswinIMAPTelem, (int)LOWORD(wParam),
+                TEXT("IMAP Telemetry"));
 	    SetFocus (ghTTYWnd);
 	    break;
-	}
 
-	case IDM_OPT_NEWMAILWIN: {
-	    HMENU hMenu;
-
-	    if(mswin_text_win_init(&gpNewMailWin))
-	      break;
-	    if(hMenu = GetMenu(ghTTYWnd))
-	      CheckMenuItem (hMenu, IDM_OPT_NEWMAILWIN,
-			     MF_BYCOMMAND | MF_CHECKED);
-
+	case IDM_OPT_NEWMAILWIN:
+	    mswin_tw_init(&gMswinNewMailWin, (int)LOWORD(wParam),
+                TEXT("New Mail View"));
 	    SetFocus (ghTTYWnd);
 	    break;
-	}
 
 #ifdef ACCELERATORS_OPT
 	case IDM_OPT_USEACCEL:
 	    AccelCtl (hWnd, ACCEL_TOGGLE, TRUE);
 	    break;
-#endif	    
-	    
+#endif	
+	
 	case IDM_OPT_SETPRINTFONT:
 	    PrintFontSelect (hWnd);
 	    break;
@@ -1244,28 +1190,28 @@ PWndProc (HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             GoModalDialogBoxParam ( GET_HINST( hWnd ),
                                        MAKEINTRESOURCE( ABOUTDLGBOX ),
                                        hWnd,
-                                       AboutDlgProc, (LPARAM) 0 ) ;
+                                       (DLGPROC)AboutDlgProc, (LPARAM) 0 ) ;
             break;
 	
 	case IDM_EDIT_CUT:
 	    EditCut ();
 	    break;
-	    
+	
 	case IDM_EDIT_COPY:
 	    EditCopy ();
 	    break;
-	    
+	
 	case IDM_EDIT_COPY_APPEND:
 	    EditCopyAppend ();
 	    break;
-	    
+	
 	case IDM_EDIT_PASTE:
 	    EditPaste ();
 #ifdef ACCELERATORS
 	    UpdateAccelerators (hWnd);
 #endif
 	    break;
-	    
+	
 	case IDM_EDIT_CANCEL_PASTE:
 	    EditCancelPaste ();
 #ifdef ACCELERATORS
@@ -1276,7 +1222,7 @@ PWndProc (HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	case IDM_EDIT_SEL_ALL :
 	  EditSelectAll();
 	  break;
-	    
+	
 	case IDM_HELP:
 	    MSWHelpShow (gHelpCallback);
 	    break;
@@ -1299,9 +1245,9 @@ PWndProc (HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	case IDM_MI_SORTORDERSUB :
 	case IDM_MI_SORTSCORE :
 	case IDM_MI_SORTTHREAD :
-	  SortHandler(wParam - IDM_MI_SORTSUBJECT, 0);
+	  SortHandler((int)(wParam - IDM_MI_SORTSUBJECT), 0);
 	  break;
-	    
+	
 	case IDM_MI_SORTREVERSE :
 	  SortHandler(-1, 1);
 	  break;
@@ -1310,7 +1256,7 @@ PWndProc (HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	case IDM_MI_FLAGNEW :
 	case IDM_MI_FLAGANSWERED :
 	case IDM_MI_FLAGDELETED :
-	  FlagHandler(wParam - IDM_MI_FLAGIMPORTANT, 0);
+	  FlagHandler((int)(wParam - IDM_MI_FLAGIMPORTANT), 0);
 	  break;
 
 	default:
@@ -1333,29 +1279,29 @@ PWndProc (HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	break;
 
     case WM_ERASEBKGND:
-	if (IsIconic (hWnd)) 
+	if (IsIconic (hWnd))
 	    return (DefWindowProc (hWnd, WM_ICONERASEBKGND, wParam, lParam));
 	else
 	    EraseTTY (hWnd, (HDC) wParam);
 	break;
 	
     case WM_QUERYDRAGICON:
-	return ((DWORD)ghNormalIcon);
+	return ((LRESULT)ghNormalIcon);
 
     case WM_PAINT:
 	PaintTTY (hWnd);
         break ;
-	 
+	
     case WM_GETMINMAXINFO:
 	GetMinMaxInfoTTY (hWnd, (MINMAXINFO __far *)lParam);
 	break;
 
     case WM_SIZE:
-        SizeTTY (hWnd, wParam, HIWORD(lParam), LOWORD(lParam));
+        SizeTTY (hWnd, (int)wParam, HIWORD(lParam), LOWORD(lParam));
 	break ;
 
     case WM_SIZING :
-	return(SizingTTY(hWnd, wParam, (LPRECT) lParam));
+	return(SizingTTY(hWnd, (int)wParam, (LPRECT) lParam));
 	
     case WM_MOVE:
 /*	MoveTTY (hWnd, (int) LOWORD(lParam), (int) HIWORD(lParam));  */
@@ -1378,7 +1324,7 @@ PWndProc (HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	}
 
 	break;
-		 
+		
 
     /*
      * WM_KEYDOWN is sent for every "key press" and reports on the
@@ -1386,7 +1332,7 @@ PWndProc (HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
      * WM_CHAR is a synthetic event, created from KEYDOWN and KEYUP
      * events.  It includes processing or control and shift characters.
      * But does not get generated for extended keys suchs as arrow
-     * keys. 
+     * keys.
      * I'm going to try to use KEYDOWN for processing just extended keys
      * and let CHAR handle the the rest.
      *
@@ -1401,7 +1347,7 @@ PWndProc (HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	mswin_showcursor(FALSE);
         ProcessTTYCharacter (hWnd, (TCHAR)wParam, (DWORD)lParam);
         break ;
-	 
+	
     case WM_KEYDOWN:
       if (ProcessTTYKeyDown (hWnd, (TCHAR) wParam, (DWORD)lParam))
 	    return (0);
@@ -1422,7 +1368,7 @@ PWndProc (HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         }
 
         return( DefWindowProc( hWnd, uMsg, wParam, lParam ) ) ;
-	    
+	
     case WM_SYSKEYDOWN:
 	if (gFkeyCallback && (*gFkeyCallback)(0, 0)
 	    && LOBYTE (wParam) == VK_F10
@@ -1443,7 +1389,7 @@ PWndProc (HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	
 
     case WM_LBUTTONDOWN:
-	ProcessTTYMouse (hWnd, M_EVENT_DOWN, M_BUTTON_LEFT, LOWORD (lParam), 
+	ProcessTTYMouse (hWnd, M_EVENT_DOWN, M_BUTTON_LEFT, LOWORD (lParam),
 			 HIWORD (lParam), wParam);
 	break;
 
@@ -1454,27 +1400,27 @@ PWndProc (HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	break;
 
     case WM_MBUTTONDOWN:
-	ProcessTTYMouse (hWnd, M_EVENT_DOWN, M_BUTTON_MIDDLE, LOWORD (lParam), 
+	ProcessTTYMouse (hWnd, M_EVENT_DOWN, M_BUTTON_MIDDLE, LOWORD (lParam),
 		 HIWORD (lParam), wParam);
 	break;
 
     case WM_MBUTTONUP:
-	ProcessTTYMouse (hWnd, M_EVENT_UP, M_BUTTON_MIDDLE, LOWORD (lParam), 
+	ProcessTTYMouse (hWnd, M_EVENT_UP, M_BUTTON_MIDDLE, LOWORD (lParam),
 			 HIWORD (lParam), wParam);
 	break;
 
     case WM_RBUTTONDOWN:
-	ProcessTTYMouse (hWnd, M_EVENT_DOWN, M_BUTTON_RIGHT, LOWORD (lParam), 
+	ProcessTTYMouse (hWnd, M_EVENT_DOWN, M_BUTTON_RIGHT, LOWORD (lParam),
 			 HIWORD (lParam), wParam);
 	break;
 
     case WM_RBUTTONUP:
-	ProcessTTYMouse (hWnd, M_EVENT_UP, M_BUTTON_RIGHT, LOWORD (lParam), 
+	ProcessTTYMouse (hWnd, M_EVENT_UP, M_BUTTON_RIGHT, LOWORD (lParam),
 			 HIWORD (lParam), wParam);
 	break;
 	
     case WM_MOUSEMOVE:
-	ProcessTTYMouse (hWnd, M_EVENT_TRACK, 0, LOWORD (lParam), 
+	ProcessTTYMouse (hWnd, M_EVENT_TRACK, 0, LOWORD (lParam),
 			HIWORD (lParam), wParam);
 	break;
 
@@ -1491,7 +1437,7 @@ PWndProc (HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         break;
 	
     case WM_SETCURSOR:
-	/* Set cursor.  If in client, leave as is.  Otherwise, pass to 
+	/* Set cursor.  If in client, leave as is.  Otherwise, pass to
 	 * DefWindow Proc */
 	if (LOWORD(lParam) == HTCLIENT) {
 	    SetCursor (ghCursorCurrent);
@@ -1537,16 +1483,16 @@ PWndProc (HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	    CQAdd (gpTTYInfo->menuItems[KS_EXIT - KS_RANGESTART].miKey, 0);
 	}
 	else if (gSignalHUP != SIG_DFL && gSignalHUP != SIG_IGN) {
-	    if (MessageBox (hWnd, 
+	    if (MessageBox (hWnd,
 			    TEXT("Abort PINE/PICO, possibly losing current work?"),
-			    gszAppName, MB_OKCANCEL | MB_ICONQUESTION) == IDOK) 
+			    gszAppName, MB_OKCANCEL | MB_ICONQUESTION) == IDOK)
 		HUPDeliver ();
 	}
-	break;	    
+	break;	
 
 
     default:
-callDef:	   
+callDef:	
         return( DefWindowProc( hWnd, uMsg, wParam, lParam ) ) ;
     }
     return 0L ;
@@ -1566,7 +1512,7 @@ callDef:
  *        Handle to main window.
  *
  *-------------------------------------------------------------------------*/
-LOCAL LRESULT NEAR 
+LOCAL LRESULT NEAR
 CreateTTYInfo (HWND hWnd)
 {
     HMENU		hMenu;
@@ -1575,7 +1521,7 @@ CreateTTYInfo (HWND hWnd)
     int			i, ppi;
     HDC			hDC;
 #ifdef SDEBUG
-    if (mswin_debug >= 5) 
+    if (mswin_debug >= 5)
 	fprintf (mswin_debugfile, "CreateTTYInfo:::  entered\n");
 #endif
 
@@ -1613,12 +1559,12 @@ CreateTTYInfo (HWND hWnd)
 
     /* Clear menu item array. */
     pTTYInfo->curWinMenu = ALPINEMENU;
-    for (i = 0; i < KS_COUNT; ++i) 
+    for (i = 0; i < KS_COUNT; ++i)
 	pTTYInfo->menuItems[i].miActive = FALSE;
     pTTYInfo->menuItemsCurrent = FALSE;
 
     /* Clear resize callback procs. */
-    for (i = 0; i < RESIZE_CALLBACK_ARRAY_SIZE; ++i) 
+    for (i = 0; i < RESIZE_CALLBACK_ARRAY_SIZE; ++i)
 	pTTYInfo->resizer[i] = NULL;
 
 
@@ -1646,12 +1592,12 @@ CreateTTYInfo (HWND hWnd)
 
     /* set TTYInfo handle before any further message processing. */
 
-    SetWindowLong (hWnd, GWL_PTTYINFO, (LPARAM) pTTYInfo);
+    MySetWindowLongPtr (hWnd, GWL_PTTYINFO, pTTYInfo);
 
     /* reset the character information, etc. */
 
     ResetTTYFont (hWnd, pTTYInfo, &newFont);
-    
+
 
 
     hMenu = GetMenu (hWnd);
@@ -1674,12 +1620,12 @@ CreateTTYInfo (HWND hWnd)
  *        handle to TTY window
  *
  *-------------------------------------------------------------------------*/
-LOCAL BOOL NEAR 
+LOCAL BOOL NEAR
 DestroyTTYInfo (HWND hWnd)
 {
     PTTYINFO			pTTYInfo;
 
-    pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO);
+    pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO);
     if (pTTYInfo == NULL)
 	return (FALSE);
 
@@ -1705,7 +1651,7 @@ DestroyTTYInfo (HWND hWnd)
 
 
 /*---------------------------------------------------------------------------
- *  void  ResizeTTYScreen( HWND hWnd, PTTYINFO pTTYInfo, 
+ *  void  ResizeTTYScreen( HWND hWnd, PTTYINFO pTTYInfo,
  *					int newNrow, int newNColumn);
  *
  *  Description:
@@ -1729,18 +1675,18 @@ ResizeTTYScreen (HWND hWnd, PTTYINFO pTTYInfo, int newNRow, int newNColumn)
     int			 r, i;
     extern TERM		 term;
 
-    
+
     if (newNColumn < MINNCOLUMN)
 	    newNColumn = MINNCOLUMN;
     if (newNRow < MINNROW)
 	    newNRow = MINNROW;
 
 #ifdef SDEBUG
-    if (mswin_debug >= 5) 
+    if (mswin_debug >= 5)
 	fprintf (mswin_debugfile, "ResizeTTYScreen:::  entered, new row %d, col %d\n",
 		newNRow, newNColumn);
 #endif
-    
+
 	
     SelClear ();
     cells = newNColumn * newNRow;
@@ -1762,8 +1708,8 @@ ResizeTTYScreen (HWND hWnd, PTTYINFO pTTYInfo, int newNRow, int newNColumn)
     }
 
 
-    /* 
-     * Clear new screen. 
+    /*
+     * Clear new screen.
      */
 
     for(i = 0; i < cells; i++){
@@ -1777,13 +1723,13 @@ ResizeTTYScreen (HWND hWnd, PTTYINFO pTTYInfo, int newNRow, int newNColumn)
     for(r = 0; r < cells; r++)
 	pNewAttrib[r] = tmpAttrib;
 
-    /* 
-     * Copy old screen onto new screen. 
+    /*
+     * Copy old screen onto new screen.
      */
     if (pTTYInfo->pScreen != NULL) {
 
 	for (r = 1; r <= newNRow && r <= pTTYInfo->actNRow; ++r) {
-	    pSource = pTTYInfo->pScreen + ((pTTYInfo->actNRow - r) * 
+	    pSource = pTTYInfo->pScreen + ((pTTYInfo->actNRow - r) *
 						    pTTYInfo->actNColumn);
 	    pDest = pNewScreen + ((newNRow - r) * newNColumn);
 	    len = MIN (newNColumn, pTTYInfo->actNColumn);
@@ -1802,16 +1748,16 @@ ResizeTTYScreen (HWND hWnd, PTTYINFO pTTYInfo, int newNRow, int newNColumn)
 	    memcpy (pDestAtt, pSourceAtt, len * sizeof(CharAttrib));
 	}
 
-	pTTYInfo->nColumn = MIN (pTTYInfo->nColumn, newNColumn);
-	pTTYInfo->nRow = MAX (0, 
+	pTTYInfo->nColumn = (CORD)MIN (pTTYInfo->nColumn, newNColumn);
+	pTTYInfo->nRow = (CORD)MAX (0,
 			pTTYInfo->nRow + (newNRow - pTTYInfo->actNRow));
 	MemFree (pTTYInfo->pScreen);
 	MemFree (pTTYInfo->pCellWidth);
 	MemFree (pTTYInfo->pAttrib);
     }
     else {
-	pTTYInfo->nColumn = MIN (pTTYInfo->nColumn, newNColumn);
-	pTTYInfo->nRow = MIN (pTTYInfo->nRow, newNRow);
+	pTTYInfo->nColumn = (CORD)MIN (pTTYInfo->nColumn, newNColumn);
+	pTTYInfo->nRow = (CORD)MIN (pTTYInfo->nRow, newNRow);
     }
 
     pTTYInfo->pScreen = pNewScreen;
@@ -1819,21 +1765,21 @@ ResizeTTYScreen (HWND hWnd, PTTYINFO pTTYInfo, int newNRow, int newNColumn)
     pTTYInfo->pAttrib = pNewAttrib;
     pTTYInfo->actNColumn = newNColumn;
     pTTYInfo->actNRow = newNRow;
-    
-    
+
+
     /* Repaint whole screen. */
     pTTYInfo->screenDirty = TRUE;
     pTTYInfo->eraseScreen = TRUE;
     InvalidateRect (hWnd, NULL, FALSE);
 
-    
-    
+
+
     /* Pico specific. */
     if (term.t_nrow == 0) {
-	term.t_nrow = newNRow - 1;
-	term.t_ncol = newNColumn;
+	term.t_nrow = (short)(newNRow - 1);
+	term.t_ncol = (short)newNColumn;
     }
-    
+
 
     return (TRUE);
 }
@@ -1851,7 +1797,7 @@ ResizeTTYScreen (HWND hWnd, PTTYINFO pTTYInfo, int newNRow, int newNColumn)
  *        pointer to TTY info structure
  *
 /*--------------------------------------------------------------------------*/
-LOCAL BOOL  
+LOCAL BOOL
 ResetTTYFont (HWND hWnd, PTTYINFO pTTYInfo, LOGFONT *newFont)
 {
     HDC			hDC;
@@ -1860,12 +1806,10 @@ ResetTTYFont (HWND hWnd, PTTYINFO pTTYInfo, LOGFONT *newFont)
     int			newNRow;
     int			newNColumn;
     BOOL		newsize;
-    int			i;
-/*	RECT		rcWindow;*/
 
 
 #ifdef SDEBUG
-    if (mswin_debug >= 5) 
+    if (mswin_debug >= 5)
 	fprintf (mswin_debugfile, "ResetTTYFont:::  entered, curent window size X %d, Y %d\n",
 		pTTYInfo->xSize, pTTYInfo->ySize);
 #endif
@@ -1873,7 +1817,7 @@ ResetTTYFont (HWND hWnd, PTTYINFO pTTYInfo, LOGFONT *newFont)
 
     if (NULL == pTTYInfo)
 	    return (FALSE);
-    
+
     SelClear ();
 
     /*
@@ -1887,7 +1831,7 @@ ResetTTYFont (HWND hWnd, PTTYINFO pTTYInfo, LOGFONT *newFont)
     GetTextMetrics (hDC, &tm);
     ReleaseDC (hWnd, hDC);
 
-    
+
     /*
      * Replace old font.
      */
@@ -1896,22 +1840,22 @@ ResetTTYFont (HWND hWnd, PTTYINFO pTTYInfo, LOGFONT *newFont)
     pTTYInfo->hTTYFont = hFont;
     memcpy (&pTTYInfo->lfTTYFont, newFont, sizeof (LOGFONT));
 
-    
+
     /* Update the char cell size. */
-    pTTYInfo->xChar = tm.tmAveCharWidth;
-    pTTYInfo->yChar = tm.tmHeight + tm.tmExternalLeading;
+    pTTYInfo->xChar = (CORD)tm.tmAveCharWidth;
+    pTTYInfo->yChar = (CORD)(tm.tmHeight + tm.tmExternalLeading);
 
     /* Update the current number of rows and cols.  Don't allow
      * either to be less than zero. */
-    newNRow = MAX (MINNROW, 
-	    MIN (MAXNROW, 
+    newNRow = MAX (MINNROW,
+	    MIN (MAXNROW,
 		(pTTYInfo->ySize - pTTYInfo->toolBarSize - (2 * MARGINE_TOP))/
 				pTTYInfo->yChar));
-    newNColumn = MAX (MINNCOLUMN, 
+    newNColumn = MAX (MINNCOLUMN,
 	    MIN (MAXNCOLUMN, (pTTYInfo->xSize - (2 * pTTYInfo->xOffset))/
 				    pTTYInfo->xChar));
 
-    newsize = newNRow != pTTYInfo->actNRow || 
+    newsize = newNRow != pTTYInfo->actNRow ||
 		    newNColumn != pTTYInfo->actNColumn;
     if (newsize)
 	    ResizeTTYScreen (hWnd, pTTYInfo, newNRow, newNColumn);
@@ -1941,7 +1885,7 @@ ResetTTYFont (HWND hWnd, PTTYINFO pTTYInfo, LOGFONT *newFont)
  *
  *  Description:
  *     Erase the tty background.
- *     
+ *
  *
  *  Parameters:
  *     HWND hWnd
@@ -1953,7 +1897,7 @@ EraseTTY (HWND hWnd, HDC hDC)
 {
     RECT	erect;
     HBRUSH	hBrush;
-    
+
 
     GetClientRect (hWnd, &erect);
     hBrush = CreateSolidBrush (gpTTYInfo->rgbBGColor);
@@ -1978,7 +1922,7 @@ EraseTTY (HWND hWnd, HDC hDC)
  *
 /*--------------------------------------------------------------------------*/
 LOCAL BOOL
-PaintTTY (HWND hWnd) 
+PaintTTY (HWND hWnd)
 {
     int          nRow, nCol;		/* Top left corner of update. */
     int		 nEndRow, nEndCol;	/* lower right corner of update. */
@@ -1989,7 +1933,7 @@ PaintTTY (HWND hWnd)
     CharAttrib	*pAttrib;
     HDC          hDC;
     LOGFONT	 tmpFont;
-    HFONT        hOrigFont, hOldFont, hTmpFont;
+    HFONT        hOrigFont, hOldFont = NULL, hTmpFont;
     PTTYINFO    pTTYInfo;
     PAINTSTRUCT  ps;
     RECT         rect;
@@ -2002,12 +1946,12 @@ PaintTTY (HWND hWnd)
 
 
 #ifdef CDEBUG
-    if (mswin_debug >= 9) 
+    if (mswin_debug >= 9)
 	fprintf (mswin_debugfile, "PaintTTY:::  entered\n");
 #endif
-    
-    
-    pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO);
+
+
+    pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO);
     if (pTTYInfo == NULL)
 	return (FALSE);
 
@@ -2016,7 +1960,7 @@ PaintTTY (HWND hWnd)
 
     hDC = BeginPaint (hWnd, &ps);
     rect = ps.rcPaint;
-    
+
     hOrigFont = SelectObject (hDC, pTTYInfo->hTTYFont);
     SetTextColor (hDC, pTTYInfo->rgbFGColor);
     SetBkColor (hDC, pTTYInfo->rgbBGColor);
@@ -2033,7 +1977,7 @@ PaintTTY (HWND hWnd)
 	    ((rect.right - pTTYInfo->xOffset - 1) / pTTYInfo->xChar));
 
     pLastAttrib = NULL;
-    
+
     /* Erase screen if necessary. */
     if (pTTYInfo->eraseScreen) {
 	erect.top = 0;
@@ -2065,7 +2009,7 @@ PaintTTY (HWND hWnd)
     erect.left = 0;
     erect.right = pTTYInfo->xSize;
     FrameRect3D (hDC, &erect, FRAME_3D_SIZE, FALSE);
-    
+
     /* Paint rows of text. */
     for (; nRow <= nEndRow; nRow++)    {
 	nVertPos = (nRow * pTTYInfo->yChar) + pTTYInfo->yOffset;
@@ -2111,9 +2055,9 @@ PaintTTY (HWND hWnd)
 			tmpFont.lfHeight = - pTTYInfo->yChar;
 			tmpFont.lfWidth  = - pTTYInfo->xChar;
 
-			tmpFont.lfUnderline = (pNewAttrib->style
+			tmpFont.lfUnderline = (BYTE)((pNewAttrib->style
 							    & CHAR_ATTR_ULINE)
-							    == CHAR_ATTR_ULINE;
+							    == CHAR_ATTR_ULINE);
 
 			hTmpFont = CreateFontIndirect (&tmpFont);
 
@@ -2142,7 +2086,7 @@ PaintTTY (HWND hWnd)
 		      SetBkColor (hDC, pNewAttrib->rgbBG);
 		}
 	    }
-	    
+	
 	    /* Find run of similar attributes. */
 	    count = 1;
 	    pAttrib = pTTYInfo->pAttrib + (offset + 1);
@@ -2164,7 +2108,7 @@ PaintTTY (HWND hWnd)
 		rect.right = nHorzPos + pTTYInfo->xChar * scrwidth(pTTYInfo->pScreen+offset, count);
 	    }
 	    else{
-		/* Paint run of characters from nRow, col to nRow, col + count 
+		/* Paint run of characters from nRow, col to nRow, col + count
 		 * rect.top and rect.bottom have already been calculated. */
 		nHorzPos = (col * pTTYInfo->xChar) + pTTYInfo->xOffset;
 		rect.left = nHorzPos;
@@ -2244,7 +2188,7 @@ FillRectColor(HDC hDC, RECT * pRC, COLORREF color)
  *		a button); otherwise, the rectangle will look sunk.
  *
  */
-void 
+void
 FrameRect3D(HDC hdc, RECT * pRC, int width, BOOL raised)
 {
     COLORREF	hilite, shadow;
@@ -2286,28 +2230,28 @@ FrameRect3D(HDC hdc, RECT * pRC, int width, BOOL raised)
  *	  Info structure that Windows would like us to fill.
  *
 /*--------------------------------------------------------------------------*/
-LOCAL BOOL  
+LOCAL BOOL
 GetMinMaxInfoTTY (HWND hWnd, MINMAXINFO __far *lpmmi)
 {
     PTTYINFO		pTTYInfo;
-    
-    
+
+
 #ifdef SDEBUG
-    if (mswin_debug >= 5) 
+    if (mswin_debug >= 5)
 	fprintf (mswin_debugfile, "GetMinMaxInfoTTY:::  entered\n");
 #endif
-    
-    
-    pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO);
+
+
+    pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO);
     if (pTTYInfo == NULL)
 	return (FALSE);
 
     lpmmi->ptMaxTrackSize.x = lpmmi->ptMaxSize.x = MIN (lpmmi->ptMaxSize.x,
 			    pTTYInfo->xChar * MAXNCOLUMN + WIN_X_BORDER_SIZE);
-    lpmmi->ptMaxTrackSize.y = lpmmi->ptMaxSize.y = MIN (lpmmi->ptMaxSize.y, 
+    lpmmi->ptMaxTrackSize.y = lpmmi->ptMaxSize.y = MIN (lpmmi->ptMaxSize.y,
 			    pTTYInfo->yChar * MAXNROW + WIN_Y_BORDER_SIZE);
 
-    lpmmi->ptMinTrackSize.x = MAX (WIN_MIN_X_SIZE, 
+    lpmmi->ptMinTrackSize.x = MAX (WIN_MIN_X_SIZE,
 		    pTTYInfo->xChar * MINNCOLUMN + WIN_X_BORDER_SIZE);
     lpmmi->ptMinTrackSize.y = MAX (WIN_MIN_Y_SIZE,
 		    pTTYInfo->yChar * MINNROW + WIN_Y_BORDER_SIZE);
@@ -2336,19 +2280,19 @@ GetMinMaxInfoTTY (HWND hWnd, MINMAXINFO __far *lpmmi)
  *        new horizontal size
  *
 /*--------------------------------------------------------------------------*/
-LOCAL BOOL  
+LOCAL BOOL
 AboutToSizeTTY (HWND hWnd, WINDOWPOS *winPos)
 {
     PTTYINFO	pTTYInfo;
 
-    
-    pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO);
+
+    pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO);
     if (pTTYInfo == NULL)
 	    return ( FALSE );
 
 #ifdef SDEBUG
-    if (mswin_debug >= 5) 
-	fprintf (mswin_debugfile, "AboutToSizeTTY:::  After x%lx, pos %d, %d, size %d, %d, flags x%x\n", 
+    if (mswin_debug >= 5)
+	fprintf (mswin_debugfile, "AboutToSizeTTY:::  After x%lx, pos %d, %d, size %d, %d, flags x%x\n",
 	    winPos->hwndInsertAfter, winPos->x, winPos->y, winPos->cx,
 	    winPos->cy, winPos->flags);
 
@@ -2361,7 +2305,7 @@ AboutToSizeTTY (HWND hWnd, WINDOWPOS *winPos)
     if (pTTYInfo->fMinimized && pTTYInfo->fDesiredSize &&
 	    (winPos->flags & (SWP_NOSIZE | SWP_NOMOVE)) == 0) {
 #ifdef SDEBUG
-	if (mswin_debug >= 5) 
+	if (mswin_debug >= 5)
 	    fprintf (mswin_debugfile, "AboutToSizeTTY:::  substitue pos (%d, %d), size (%d, %d)\n",
 		    pTTYInfo->xDesPos, pTTYInfo->yDesPos,
 		    pTTYInfo->xDesSize, pTTYInfo->yDesSize);
@@ -2377,7 +2321,7 @@ AboutToSizeTTY (HWND hWnd, WINDOWPOS *winPos)
 
 
 /*---------------------------------------------------------------------------
- *  BOOL  SizeTTY( HWND hWnd, int fwSizeType, CORD wVertSize, 
+ *  BOOL  SizeTTY( HWND hWnd, int fwSizeType, CORD wVertSize,
  *					CORD wHorzSize)
  *
  *  Description:
@@ -2394,27 +2338,25 @@ AboutToSizeTTY (HWND hWnd, WINDOWPOS *winPos)
  *        new horizontal size
  *
 /*--------------------------------------------------------------------------*/
-LOCAL BOOL  
+LOCAL BOOL
 SizeTTY (HWND hWnd, int fwSizeType, CORD wVertSize, CORD wHorzSize)
 {
-/*  int		nScrollAmt ;*/
     PTTYINFO	pTTYInfo;
     int		newNColumn;
     int		newNRow;
-    int		i;
 
 
 #ifdef SDEBUG
-    if (mswin_debug >= 5) 
+    if (mswin_debug >= 5)
 	fprintf (mswin_debugfile, "SizeTTY:::  entered, sizeType %d, New screen size %d, %d pixels\n",
 		fwSizeType, wHorzSize, wVertSize);
 #endif
 
-    pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO);
+    pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO);
     if (pTTYInfo == NULL)
 	    return ( FALSE );
 
-    
+
     /*
      * Is the window being minimized?
      */
@@ -2424,23 +2366,23 @@ SizeTTY (HWND hWnd, int fwSizeType, CORD wVertSize, CORD wHorzSize)
     }
 
 
-    
+
     pTTYInfo->fMinimized = FALSE;
-	    
-	    
-    pTTYInfo->ySize = (int) wVertSize;
-    newNRow = MAX(MINNROW, MIN(MAXNROW, 
-	    (pTTYInfo->ySize - pTTYInfo->toolBarSize - (2 * MARGINE_TOP)) / 
+	
+	
+    pTTYInfo->ySize = (CORD) wVertSize;
+    newNRow = MAX(MINNROW, MIN(MAXNROW,
+	    (pTTYInfo->ySize - pTTYInfo->toolBarSize - (2 * MARGINE_TOP)) /
 				    pTTYInfo->yChar));
-    if (pTTYInfo->toolBarTop)		    
+    if (pTTYInfo->toolBarTop)		
 	pTTYInfo->yOffset = MARGINE_TOP + pTTYInfo->toolBarSize;
     else
 	pTTYInfo->yOffset = MARGINE_TOP;
-	    
+	
 
-    pTTYInfo->xSize = (int) wHorzSize;
-    newNColumn = MAX(MINNCOLUMN, 
-		    MIN(MAXNCOLUMN, (pTTYInfo->xSize - (2 * MARGINE_LEFT)) / 
+    pTTYInfo->xSize = (CORD) wHorzSize;
+    newNColumn = MAX(MINNCOLUMN,
+		    MIN(MAXNCOLUMN, (pTTYInfo->xSize - (2 * MARGINE_LEFT)) /
 		    pTTYInfo->xChar));
     pTTYInfo->xOffset = MARGINE_LEFT;
 
@@ -2453,17 +2395,17 @@ SizeTTY (HWND hWnd, int fwSizeType, CORD wVertSize, CORD wHorzSize)
     InvalidateRect (hWnd, NULL, FALSE);
 
     if (pTTYInfo->hTBWnd) {
-	if (pTTYInfo->toolBarTop) 
+	if (pTTYInfo->toolBarTop)
 	    /* Position at top of window. */
-	    SetWindowPos (pTTYInfo->hTBWnd, HWND_TOP, 
-		    0, 0, 
-		    wHorzSize, pTTYInfo->toolBarSize, 
+	    SetWindowPos (pTTYInfo->hTBWnd, HWND_TOP,
+		    0, 0,
+		    wHorzSize, pTTYInfo->toolBarSize,
 		    SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
 	else
 	    /* Position at bottom of window. */
-	    SetWindowPos (pTTYInfo->hTBWnd, HWND_TOP, 
-		    0, pTTYInfo->ySize - pTTYInfo->toolBarSize, 
-		    wHorzSize, pTTYInfo->toolBarSize, 
+	    SetWindowPos (pTTYInfo->hTBWnd, HWND_TOP,
+		    0, pTTYInfo->ySize - pTTYInfo->toolBarSize,
+		    wHorzSize, pTTYInfo->toolBarSize,
 		    SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
     }
 
@@ -2491,14 +2433,14 @@ SizeTTY (HWND hWnd, int fwSizeType, CORD wVertSize, CORD wHorzSize)
  *        screen coords of drag rectangle in and desired size on return
  *
 /*--------------------------------------------------------------------------*/
-LOCAL BOOL  
+LOCAL BOOL
 SizingTTY (HWND hWnd, int fwSide, LPRECT pRect)
 {
     PTTYINFO pTTYInfo;
     int	     newNRow, newNCol, xClient, yClient,
 	     xSys, ySys, xDiff, yDiff;
 
-    pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO);
+    pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO);
     if (pTTYInfo == NULL)
 	return (FALSE);
 
@@ -2575,7 +2517,7 @@ SizingTTY (HWND hWnd, int fwSide, LPRECT pRect)
  *  BOOL  MoveTTY (HWND hWnd, int xPos, int yPos)
  *
  *  Description:
- *     Notes the fact that the window has moved. 
+ *     Notes the fact that the window has moved.
  *     Only real purpose is so we can tell pine which can the write the
  *     new window position to the 'pinerc' file.
  *
@@ -2584,17 +2526,15 @@ SizingTTY (HWND hWnd, int fwSide, LPRECT pRect)
  *        handle to TTY window
  *
  *     int xPos, yPos
- *	  New position of the top left corner. 
+ *	  New position of the top left corner.
  *
  *
 /*--------------------------------------------------------------------------*/
-LOCAL BOOL  
+LOCAL BOOL
 MoveTTY (HWND hWnd, int xPos, int yPos)
 {
-    int		i;
-    
 #ifdef SDEBUG
-    if (mswin_debug >= 5) 
+    if (mswin_debug >= 5)
 	fprintf (mswin_debugfile, "MoveTTY:::  entered\n");
 #endif
 
@@ -2645,34 +2585,34 @@ MoveTTY (HWND hWnd, int xPos, int yPos)
  *	behavior can confuses the scroll function, causing it to
  *	miss mouse up events.  We avoid this by setting gScrolling TRUE
  *	when this routine is entered and FALSE when this routine exits
- *	All PeekMessage processors avoid processing any message when 
+ *	All PeekMessage processors avoid processing any message when
  *	gScrolling is TRUE.
  *
 /*--------------------------------------------------------------------------*/
 LOCAL void
 ScrollTTY (HWND hWnd, int wScrollCode, int nPos, HWND hScroll)
-{    
+{
     PTTYINFO	pTTYInfo;
-    TCHAR	cmd;
-    long	scroll_pos;
+    TCHAR	cmd = 0;
+    long	scroll_pos = 0;
     BOOL	noAction = FALSE;
     BOOL	didScroll;
     FARPROC	prevBlockingProc;
-	    
+	
 
-    
-    pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO);
+
+    pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO);
 
     if (pTTYInfo == NULL || gScrolling)
 	return;
 
     gScrolling = TRUE;
-    if (gWSBlockingProc != NULL) 
+    if (gWSBlockingProc != NULL)
 	prevBlockingProc = WSASetBlockingHook (gWSBlockingProc);
-    
-    
-    
-    
+
+
+
+
     switch (wScrollCode) {
     case SB_BOTTOM:
 	cmd = MSWIN_KEY_SCROLLTO;
@@ -2715,9 +2655,9 @@ ScrollTTY (HWND hWnd, int wScrollCode, int nPos, HWND hScroll)
 	break;
     }
 
-    
+
     /*
-     * If there is a scroll callback call that.  If there is no scroll 
+     * If there is a scroll callback call that.  If there is no scroll
      * callback or the callback says it did not handle the event (returned,
      * FALSE) queue the scroll cmd.
      */
@@ -2727,10 +2667,10 @@ ScrollTTY (HWND hWnd, int wScrollCode, int nPos, HWND hScroll)
 	if (gScrollCallback != NULL) {
 	    /* Call scrolling callback.  Set blocking hook to our routine
 	     * which prevents messages from being dispatched. */
-	    if (gWSBlockingProc != NULL) 
+	    if (gWSBlockingProc != NULL)
 		WSASetBlockingHook (gWSBlockingProc);
 	    didScroll = gScrollCallback (cmd, scroll_pos);
-	    if (gWSBlockingProc != NULL) 
+	    if (gWSBlockingProc != NULL)
 		WSAUnhookBlockingHook ();
         }
 	/*
@@ -2754,7 +2694,7 @@ ScrollTTY (HWND hWnd, int wScrollCode, int nPos, HWND hScroll)
  *  Description:
  *      Respond to a WM_MOUSEWHEEL event by calling scroll callback
  *      ala ScrollTTY.
- *      
+ *
  *
 /*--------------------------------------------------------------------------*/
 LOCAL void
@@ -2766,8 +2706,8 @@ MouseWheelTTY (HWND hWnd, int xPos, int yPos, int fwKeys, int zDelta)
     FARPROC	prevBlockingProc;
     SCROLLINFO	scrollInfo;
     static int  zDelta_accumulated;
-	 
-    pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO);
+	
+    pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO);
 
     if (pTTYInfo == NULL || gScrolling)
 	return;
@@ -2780,12 +2720,12 @@ MouseWheelTTY (HWND hWnd, int xPos, int yPos, int fwKeys, int zDelta)
       return;
 
     gScrolling = TRUE;
-    if (gWSBlockingProc != NULL) 
+    if (gWSBlockingProc != NULL)
 	prevBlockingProc = WSASetBlockingHook (gWSBlockingProc);
 
     if(fwKeys == MK_MBUTTON)
        zDelta *= 2;			/* double the effect! */
-    
+
     if(abs(zDelta += zDelta_accumulated) < WHEEL_DELTA){
 	zDelta_accumulated = zDelta;
     }
@@ -2801,10 +2741,10 @@ MouseWheelTTY (HWND hWnd, int xPos, int yPos, int fwKeys, int zDelta)
 	if (gScrollCallback != NULL) {
 	    /* Call scrolling callback.  Set blocking hook to our routine
 	     * which prevents messages from being dispatched. */
-	    if (gWSBlockingProc != NULL) 
+	    if (gWSBlockingProc != NULL)
 	      WSASetBlockingHook (gWSBlockingProc);
 	    (void) gScrollCallback (cmd, scroll_pos);
-	    if (gWSBlockingProc != NULL) 
+	    if (gWSBlockingProc != NULL)
 	      WSAUnhookBlockingHook ();
 	}
     }
@@ -2823,7 +2763,7 @@ MouseWheelMultiplier()
     /* HKEY_CURRENT_USER\Control Panel\Desktop holds the key */
     gsMWMultiplier = (MSWRPeek(HKEY_CURRENT_USER, TEXT("Control Panel\\Desktop"),
 			       TEXT("WheelScrollLines"), lines, &llen) == TRUE)
-		       ? _ttoi(lines) : 1;
+		       ? (short)_ttoi(lines) : 1;
 }
 #endif
 
@@ -2839,7 +2779,7 @@ MouseWheelMultiplier()
  *        handle to TTY window
  *
  *     int wStyle
- *	  New style to take on 
+ *	  New style to take on
  *
 /*--------------------------------------------------------------------------*/
 LOCAL void
@@ -2847,7 +2787,7 @@ CaretTTY (HWND hWnd, CARETS cStyle)
 {
     PTTYINFO  pTTYInfo;
 
-    if(pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO)){
+    if(pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO)){
 	pTTYInfo->cCaretStyle = cStyle;
 	CaretCreateTTY (hWnd);
 	DidResize (gpTTYInfo);
@@ -2874,7 +2814,7 @@ CaretCreateTTY (HWND hWnd)
 {
     PTTYINFO  pTTYInfo;
 
-    if(pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO)){
+    if(pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO)){
 	int n = 0, x, y;
 
 	switch(pTTYInfo->cCaretStyle){
@@ -2934,17 +2874,17 @@ NoMsgsAreSent (void)
  *        handle to TTY window
  *
 /*--------------------------------------------------------------------------*/
-LOCAL BOOL  
+LOCAL BOOL
 SetTTYFocus (HWND hWnd)
 {
     PTTYINFO  pTTYInfo;
 
 #ifdef SDEBUG
-    if (mswin_debug >= 5) 
+    if (mswin_debug >= 5)
 	fprintf (mswin_debugfile, "SetTTYFocus:::  entered\n");
 #endif
 
-    pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO);
+    pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO);
     if (pTTYInfo == NULL)
       return (FALSE);
 
@@ -2971,16 +2911,16 @@ SetTTYFocus (HWND hWnd)
  *        handle to TTY window
  *
 /*--------------------------------------------------------------------------*/
-LOCAL BOOL  
+LOCAL BOOL
 KillTTYFocus (HWND hWnd)
 {
     PTTYINFO  pTTYInfo;
 
 #ifdef SDEBUG
-    if (mswin_debug >= 5) 
+    if (mswin_debug >= 5)
 	fprintf (mswin_debugfile, "KillTTYFocus:::  entered\n");
 #endif
-    pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO);
+    pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO);
     if (pTTYInfo == NULL)
 	    return (FALSE);
 
@@ -3009,12 +2949,12 @@ KillTTYFocus (HWND hWnd)
  *        handle to TTY window
  *
 /*--------------------------------------------------------------------------*/
-LOCAL BOOL  
+LOCAL BOOL
 MoveTTYCursor (HWND hWnd)
 {
     PTTYINFO  pTTYInfo;
 
-    pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO);
+    pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO);
     if (pTTYInfo == NULL)
 	    return (FALSE);
 
@@ -3034,9 +2974,9 @@ MoveTTYCursor (HWND hWnd)
  *  BOOL  ProcessTTYKeyDown ( HWND hWnd, WORD bOut, DWORD keyData )
  *
  *  Description:
- *	Called to process MW_KEYDOWN message.  We are only interested in 
- *	virtual keys that pico/pine use.  All others get passed on to 
- *	the default message handler.  Regular key presses will return 
+ *	Called to process MW_KEYDOWN message.  We are only interested in
+ *	virtual keys that pico/pine use.  All others get passed on to
+ *	the default message handler.  Regular key presses will return
  *	latter as a WM_CHAR message, with SHIFT and CONTROL processing
  *	already done.
  *
@@ -3054,13 +2994,13 @@ MoveTTYCursor (HWND hWnd)
  *	  Additional flags passed in lParam for WM_KEYDOWN
  *
 /*--------------------------------------------------------------------------*/
-LOCAL BOOL  
+LOCAL BOOL
 ProcessTTYKeyDown (HWND hWnd, TCHAR key, DWORD keyData)
 {
     TCHAR		myKey;
-    
-    
-    if (key == VK_CONTROL) 
+
+
+    if (key == VK_CONTROL)
 	gKeyControlDown = TRUE;
 
     /* Special keys. */
@@ -3116,7 +3056,7 @@ ProcessTTYKeyDown (HWND hWnd, TCHAR key, DWORD keyData)
 	     * generated a control character.  So, in ProcessTTYChar
 	     * is ignore the 0x1e characters.
 	     */
-	    if (gKeyControlDown) 
+	    if (gKeyControlDown)
 		myKey = 0x1e;
 	    else
 		return (FALSE);
@@ -3125,7 +3065,7 @@ ProcessTTYKeyDown (HWND hWnd, TCHAR key, DWORD keyData)
 	    /*
 	     * Ctrl-_ is used to invoke alternate editor.
 	     */
-	    if (gKeyControlDown) 
+	    if (gKeyControlDown)
 		myKey = 0x1f;
 	    else
 		return (FALSE);
@@ -3134,7 +3074,7 @@ ProcessTTYKeyDown (HWND hWnd, TCHAR key, DWORD keyData)
 	    /*
 	     * Ctrl-@ (null) is used to advance to the next word.
 	     */
-	    if (gKeyControlDown) 
+	    if (gKeyControlDown)
 		myKey = '\0';
 	    else
 		return (FALSE);
@@ -3154,7 +3094,7 @@ ProcessTTYKeyDown (HWND hWnd, TCHAR key, DWORD keyData)
  *  BOOL  ProcessTTYKeyUp ( HWND hWnd, WORD bOut, DWORD keyData )
  *
  *  Description:
- *	Called to process MW_KEYDOWN message. 
+ *	Called to process MW_KEYDOWN message.
  *	Used only to detect when the control key goes up.
  *
  *  Parameters:
@@ -3168,13 +3108,10 @@ ProcessTTYKeyDown (HWND hWnd, TCHAR key, DWORD keyData)
  *	  Additional flags passed in lParam for WM_KEYDOWN
  *
 /*--------------------------------------------------------------------------*/
-LOCAL BOOL  
+LOCAL BOOL
 ProcessTTYKeyUp (HWND hWnd, TCHAR key, DWORD keyData)
 {
-    TCHAR		myKey;
-    
-    
-    if (key == VK_CONTROL) 
+    if (key == VK_CONTROL)
 	gKeyControlDown = FALSE;
 
 #if 0
@@ -3198,7 +3135,7 @@ dtime()
     timestring[0] = '\0';
     t = time((time_t *) 0);
     _ftime(&timebuffer);
-    sprintf(timestring, "%.8s.%03ld", ctime(&t)+11, timebuffer.millitm);
+    snprintf(timestring, sizeof(timestring), "%.8s.%03ld", ctime(&t)+11, timebuffer.millitm);
 
     return(timestring);
 }
@@ -3219,7 +3156,7 @@ dtime()
  *        byte from keyboard
  *
 /*--------------------------------------------------------------------------*/
-LOCAL BOOL  
+LOCAL BOOL
 ProcessTTYCharacter (HWND hWnd, TCHAR bOut, DWORD keyData)
 {
 
@@ -3256,8 +3193,8 @@ ProcessTTYCharacter (HWND hWnd, TCHAR bOut, DWORD keyData)
  *
  *  Description:
  *	This is the central control for all mouse events.  Every event
- *	gets put into a queue to wait for the upper layer.  
- * 
+ *	gets put into a queue to wait for the upper layer.
+ *
  *	The upper's input routine calls checkmouse() which pulls the
  *	mouse event off the input queue.  checkmouse() has a list of
  *	of screen regions.  Some regions correspond to a "menu" item
@@ -3273,7 +3210,7 @@ ProcessTTYCharacter (HWND hWnd, TCHAR bOut, DWORD keyData)
  *	The one exception is that now pico interprets mouse drag events
  *	in the body.  pico signals that it wants to track the mouse
  *	by calling mswin_allowmousetrack().  This will 1) turn off
- *	our mouse tracking and 2) cause mouse movement events to 
+ *	our mouse tracking and 2) cause mouse movement events to
  *	be put on the mouse queue.
  *
  *
@@ -3285,7 +3222,7 @@ ProcessTTYCharacter (HWND hWnd, TCHAR bOut, DWORD keyData)
  *        byte from keyboard
  *
 /*--------------------------------------------------------------------------*/
-LOCAL BOOL  
+LOCAL BOOL
 ProcessTTYMouse (HWND hWnd, int mevent, int button,
 		 CORD xPos, CORD yPos, WPARAM winkeys)
 {
@@ -3293,7 +3230,7 @@ ProcessTTYMouse (HWND hWnd, int mevent, int button,
     int		nColumn;
     int		keys;
 
-    /* 
+    /*
      * Convert to cell position.
      */
     nColumn = (xPos - gpTTYInfo->xOffset) / gpTTYInfo->xChar;
@@ -3304,7 +3241,7 @@ ProcessTTYMouse (HWND hWnd, int mevent, int button,
 	--nRow;
 
     /*
-     * Convert window's keys. 
+     * Convert window's keys.
      */
     keys = 0;
     if (winkeys & MK_CONTROL)
@@ -3326,7 +3263,7 @@ ProcessTTYMouse (HWND hWnd, int mevent, int button,
 	  mswin_setcursor(MSWIN_CURSOR_ARROW);
     }
 
-    /* 
+    /*
      * Tracking event or mouse up/down?
      */
     if ((unsigned long) mevent == M_EVENT_TRACK) {
@@ -3335,22 +3272,22 @@ ProcessTTYMouse (HWND hWnd, int mevent, int button,
 	 */
 	if (gAllowMouseTrack) {
 	    /* For tracking, Button info is different. */
-	    if (keys & MK_LBUTTON) 
+	    if (keys & MK_LBUTTON)
 		button = M_BUTTON_LEFT;
-	    else if (keys & MK_MBUTTON) 
+	    else if (keys & MK_MBUTTON)
 		button = M_BUTTON_MIDDLE;
-	    else if (keys & MK_RBUTTON) 
+	    else if (keys & MK_RBUTTON)
 		button = M_BUTTON_RIGHT;
-	    MQAdd (mevent, button, nRow, nColumn, keys, 
+	    MQAdd (mevent, button, nRow, nColumn, keys,
 		    MSWIN_MF_REPLACING);
         }
-	else 
+	else
 	    SelTrackMouse (nRow, nColumn);
     }
     else{
 	/*
 	 * Tracking.  Only start tracking mouse down in the text region
-	 * But allow mouse up anywhere. 
+	 * But allow mouse up anywhere.
 	 */
 	if ( (nRow >= 0 && nRow < gpTTYInfo->actNRow &&
 		   nColumn >= 0 && nColumn < gpTTYInfo->actNColumn)
@@ -3413,7 +3350,7 @@ ProcessTTYMouse (HWND hWnd, int mevent, int button,
  *
  *  Description:
  *     Process the periodic timer calls.
- *     
+ *
  *
  *  Parameters:
  *	None.
@@ -3427,20 +3364,20 @@ ProcessTimer (void)
 	AlarmDeliver ();
 
     /* Time to make the periodic callback. */
-    if (gPeriodicCallback != NULL && 
+    if (gPeriodicCallback != NULL &&
 	    GetTickCount() / 1000 > gPeriodicCBTimeout) {
-	gPeriodicCBTimeout = GetTickCount() / 1000 + 
+	gPeriodicCBTimeout = GetTickCount() / 1000 +
 						gPeriodicCBTime;
 	gPeriodicCallback ();
     }
-    
-    /* 
+
+    /*
      * If tracking the mouse, insert a fake mouse tracking message
      * At the last know location of the mouse.
      */
     if (gAllowMouseTrack) {
 	gMTEvent.event = M_EVENT_TRACK;
-	MQAdd (gMTEvent.event, gMTEvent.button, gMTEvent.nRow, 
+	MQAdd (gMTEvent.event, gMTEvent.button, gMTEvent.nRow,
 		gMTEvent.nColumn, gMTEvent.keys, MSWIN_MF_REPLACING);
     }
 }
@@ -3464,7 +3401,7 @@ ProcessTimer (void)
  *        length of block
  *
 /*--------------------------------------------------------------------------*/
-LOCAL BOOL  
+LOCAL BOOL
 WriteTTYBlock (HWND hWnd, LPTSTR lpBlock, int nLength)
 {
     int				i, j, width;
@@ -3473,7 +3410,7 @@ WriteTTYBlock (HWND hWnd, LPTSTR lpBlock, int nLength)
     BOOL			fNewLine;
     long			offset;
 
-    pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO);
+    pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO);
     if (pTTYInfo == NULL)
 	    return (FALSE);
 
@@ -3491,7 +3428,7 @@ WriteTTYBlock (HWND hWnd, LPTSTR lpBlock, int nLength)
 			    ? scrwidth(pTTYInfo->pScreen+offset-1, 1) : 0;
 
 	    if(pTTYInfo->nColumn > 0)
-	      pTTYInfo->nColumn -= width;
+	      pTTYInfo->nColumn = (CORD)(pTTYInfo->nColumn - width);
 
 	    MoveTTYCursor (hWnd);
 	    break;
@@ -3538,7 +3475,7 @@ WriteTTYBlock (HWND hWnd, LPTSTR lpBlock, int nLength)
 			 (pTTYInfo->actNRow - 1) * pTTYInfo->actNColumn * sizeof(CharAttrib));
 
 		/* initialize new row n-1 to zero */
-		memset ((CharAttrib *) (pTTYInfo->pAttrib + 
+		memset ((CharAttrib *) (pTTYInfo->pAttrib +
 			    (pTTYInfo->actNRow - 1) * pTTYInfo->actNColumn),
 			0, pTTYInfo->actNColumn*sizeof(CharAttrib));
 
@@ -3568,8 +3505,8 @@ WriteTTYBlock (HWND hWnd, LPTSTR lpBlock, int nLength)
 	    /* Line Wrap. */
 	    if (pTTYInfo->nColumn < pTTYInfo->actNColumn - 1)
 		    pTTYInfo->nColumn++ ;
-	    else if (pTTYInfo->autoWrap == WRAP_ON || 
-		    (pTTYInfo->autoWrap == WRAP_NO_SCROLL && 
+	    else if (pTTYInfo->autoWrap == WRAP_ON ||
+		    (pTTYInfo->autoWrap == WRAP_NO_SCROLL &&
 			    pTTYInfo->nRow < pTTYInfo->actNRow - 1)) {
 		    fNewLine = pTTYInfo->fNewLine;
 		    pTTYInfo->fNewLine = FALSE;
@@ -3588,7 +3525,7 @@ WriteTTYBlock (HWND hWnd, LPTSTR lpBlock, int nLength)
  *
  *  Description:
  *	Like WriteTTYBlock but optimized for strings that are text only,
- *	no carrage control characters. 
+ *	no carrage control characters.
  *
  *  Parameters:
  *     HWND hWnd
@@ -3601,32 +3538,30 @@ WriteTTYBlock (HWND hWnd, LPTSTR lpBlock, int nLength)
  *        length of block
  *
 /*--------------------------------------------------------------------------*/
-LOCAL BOOL  
+LOCAL BOOL
 WriteTTYText (HWND hWnd, LPTSTR lpText, int nLength)
 {
     int				i;
     PTTYINFO			pTTYInfo;
     RECT			rect;
-    BOOL			fNewLine;
     long			offset, endOffset;
     long			colEnd;
     long			screenEnd;
-    BOOL			wraper;
     int                         screenwidth;
 
-    
-    pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO);
+
+    pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO);
     if (pTTYInfo == NULL)
       return ( FALSE );
 
-    
+
     /* Calculate offset of cursor, end of current column, and end of screen */
     offset = pscreen_offset_from_cord(pTTYInfo->nRow, pTTYInfo->nColumn, pTTYInfo);
 
     colEnd = (pTTYInfo->nRow + 1) * pTTYInfo->actNColumn;
     screenEnd = pTTYInfo->actNRow * pTTYInfo->actNColumn;
-    
-    
+
+
     /* Text is allowed to wrap around to subsequent lines, but not past end
      * of screen */
     endOffset = offset + nLength;
@@ -3647,22 +3582,22 @@ WriteTTYText (HWND hWnd, LPTSTR lpText, int nLength)
 	rect.top = (pTTYInfo->nRow * pTTYInfo->yChar) + pTTYInfo->yOffset;
 	rect.bottom = rect.top + pTTYInfo->yChar;
 	/* Advance cursor on cur line but not past end. */
-	pTTYInfo->nColumn = MIN(pTTYInfo->nColumn + screenwidth, 
-				pTTYInfo->actNColumn - 1);
+	pTTYInfo->nColumn = (CORD)MIN(pTTYInfo->nColumn + screenwidth,
+				      pTTYInfo->actNColumn - 1);
     }
     else {
-	/* Wraps across multiple lines.  Calculate one rect to cover all 
+	/* Wraps across multiple lines.  Calculate one rect to cover all
 	 * lines. */
 	rect.left = 0;
 	rect.right = pTTYInfo->xSize;
 	rect.top = (pTTYInfo->nRow * pTTYInfo->yChar) + pTTYInfo->yOffset;
-	rect.bottom = ((((offset + nLength) / pTTYInfo->actNColumn) + 1) * 
+	rect.bottom = ((((offset + nLength) / pTTYInfo->actNColumn) + 1) *
 			pTTYInfo->yChar) + pTTYInfo->yOffset;
-	pTTYInfo->nRow = endOffset / pTTYInfo->actNColumn;
-	pTTYInfo->nColumn = endOffset % pTTYInfo->actNColumn;
+	pTTYInfo->nRow = (CORD)(endOffset / pTTYInfo->actNColumn);
+	pTTYInfo->nColumn = (CORD)(endOffset % pTTYInfo->actNColumn);
     }
-    
-    
+
+
     /* Apply text and attributes to screen in one smooth motion. */
     for(i = 0; i < nLength; i++)
       (pTTYInfo->pScreen+offset)[i] = lpText[i];
@@ -3693,25 +3628,21 @@ WriteTTYText (HWND hWnd, LPTSTR lpText, int nLength)
  *	  character being written.
  *
 /*--------------------------------------------------------------------------*/
-LOCAL BOOL  
+LOCAL BOOL
 WriteTTYChar (HWND hWnd, TCHAR ch)
 {
-    int				i;
     PTTYINFO			pTTYInfo;
     RECT			rect;
-    BOOL			fNewLine;
     long			offset;
-    long			colEnd;
-    long			screenEnd;
 
-    
-    pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO);
+
+    pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO);
     if (pTTYInfo == NULL)
 	return (FALSE);
 
     offset = (pTTYInfo->nRow * pTTYInfo->actNColumn) +
 	    pTTYInfo->nColumn;
-    
+
     *(pTTYInfo->pScreen + offset) = ch;
     pTTYInfo->pCellWidth[offset] = wcellwidth((UCS)ch) * pTTYInfo->xChar;
     pTTYInfo->pAttrib[offset] = pTTYInfo->curAttrib;
@@ -3722,14 +3653,14 @@ WriteTTYChar (HWND hWnd, TCHAR ch)
     rect.bottom = rect.top + pTTYInfo->yChar;
     pTTYInfo->screenDirty = TRUE;
     InvalidateRect (hWnd, &rect, FALSE);
-    
-    
+
+
 
     /* Line Wrap. */
     if (pTTYInfo->nColumn < pTTYInfo->actNColumn - 1)
 	pTTYInfo->nColumn++ ;
-    else if ((pTTYInfo->autoWrap == WRAP_ON || 
-	      pTTYInfo->autoWrap == WRAP_NO_SCROLL) && 
+    else if ((pTTYInfo->autoWrap == WRAP_ON ||
+	      pTTYInfo->autoWrap == WRAP_NO_SCROLL) &&
 		    pTTYInfo->nRow < pTTYInfo->actNRow - 1) {
        pTTYInfo->nRow++;
        pTTYInfo->nColumn = 0;
@@ -3752,7 +3683,7 @@ WriteTTYChar (HWND hWnd, TCHAR ch)
  *     that the lpDlgProc is not a procedure instance
  *
 /*--------------------------------------------------------------------------*/
-LOCAL VOID  
+LOCAL VOID
 GoModalDialogBoxParam( HINSTANCE hInstance, LPTSTR lpszTemplate,
                                  HWND hWnd, DLGPROC lpDlgProc, LPARAM lParam )
 {
@@ -3776,7 +3707,7 @@ GoModalDialogBoxParam( HINSTANCE hInstance, LPTSTR lpszTemplate,
  *     Same as standard dialog procedures.
  *
 /*--------------------------------------------------------------------------*/
-BOOL FAR PASCAL __export 
+BOOL FAR PASCAL __export
 AboutDlgProc (HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
    switch (uMsg) {
@@ -3784,12 +3715,11 @@ AboutDlgProc (HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
       {
          int          idModeString ;
          TCHAR        szTemp [81];
-         DWORD        dwFreeMemory, dwWinFlags ;
 
          /* sets up version number for PINE */
          GetDlgItemText (hDlg, IDD_VERSION, szTemp, sizeof(szTemp)/sizeof(TCHAR));
 	 /* szTemp is unicode, mswin_compilation_date etc are cast as %S in mswin.rc */
-         wsprintf (TempBuf, szTemp, mswin_specific_winver(),
+         _sntprintf (TempBuf, sizeof(TempBuf)/sizeof(TCHAR), szTemp, mswin_specific_winver(),
 		   mswin_majorver(), mswin_minorver(),
 		   mswin_compilation_remarks(),
 		   mswin_compilation_date());
@@ -3825,8 +3755,6 @@ AboutDlgProc (HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 
 /*---------------------------------------------------------------------------
- *  BOOL FAR PASCAL __export SplashDlgProc( HWND hDlg, UINT uMsg,
- *                                WPARAM wParam, LPARAM lParam )
  *
  *  Description:
  *     Simulates the Windows System Dialog Box.
@@ -3835,7 +3763,7 @@ AboutDlgProc (HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
  *     Same as standard dialog procedures.
  *
 /*--------------------------------------------------------------------------*/
-BOOL FAR PASCAL __export 
+BOOL FAR PASCAL __export
 SplashDlgProc (HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     static  HBITMAP hbmpSplash;
@@ -3869,7 +3797,6 @@ SplashDlgProc (HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	    POINT	 stPoint;
 	    BITMAP	 stBitmap;
 	    HGDIOBJ	 hObject;
-	    PAINTSTRUCT	 ps;
 
 	  if((hMemDC = CreateCompatibleDC((HDC) wParam)) != NULL){
 	      hObject = SelectObject(hMemDC, hbmpSplash);
@@ -3889,7 +3816,7 @@ SplashDlgProc (HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 	  return(TRUE);
       }
-     
+
       break;
 
       case WM_CLOSE:
@@ -3971,14 +3898,14 @@ SelectTTYFontHook(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
  *        handle to settings dialog
  *
 /*--------------------------------------------------------------------------*/
-LOCAL BOOL  
+LOCAL BOOL
 SelectTTYFont (HWND hWnd)
 {
     CHOOSEFONT		cfTTYFont;
     LOGFONT		newFont, origFont;
     PTTYINFO		pTTYInfo;
 
-    pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO);
+    pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO);
     if (pTTYInfo == NULL)
 	return (FALSE);
 
@@ -4027,7 +3954,7 @@ SelectTTYFont (HWND hWnd)
 
 /*
  * Set a specific color (forground, background, reverse, normal) to
- * the color specified by name. 
+ * the color specified by name.
  */
 LOCAL void
 SetColorAttribute (COLORREF *cf, char *colorName)
@@ -4063,8 +3990,8 @@ ScanInt (char *str, int min, int max, int *val)
     char	*c;
     int		v;
     int		neg = 1;
-    
-    
+
+
     if (str == NULL) return (FALSE);
     if (*str == '\0' || strlen (str) > 9) return (FALSE);
 
@@ -4084,7 +4011,7 @@ ScanInt (char *str, int min, int max, int *val)
     v = atoi (str) * neg;
 
     /* Check constraints. */
-    if (v < min || v > max) 
+    if (v < min || v > max)
 	return (FALSE);
     *val = v;
     return (TRUE);
@@ -4111,7 +4038,7 @@ ConvertRGBString (char *colorName, COLORREF *cf)
 
     /* Is the name in the global color table? */
     for(ct = MSWINColorTable; ct->colorName; ct++)
-      if(!struncmp(ct->colorName, colorName, strlen(ct->colorName))){
+      if(!struncmp(ct->colorName, colorName, (int)strlen(ct->colorName))){
 	  *cf = ct->colorRef;
 	  return(TRUE);
       }
@@ -4134,7 +4061,7 @@ ConvertRGBString (char *colorName, COLORREF *cf)
 
 
 LOCAL char *
-ConvertStringRGB(char *colorName, COLORREF colorRef)
+ConvertStringRGB(char *colorName, size_t ncolorName, COLORREF colorRef)
 {
     MSWINColor *cf;
 
@@ -4143,11 +4070,13 @@ ConvertStringRGB(char *colorName, COLORREF colorRef)
 	cf++)
       ;
 
-    if(cf->colorName)
-      strcpy(colorName, cf->colorName);
+    if(cf->colorName){
+	strncpy(colorName, cf->colorName, ncolorName);
+	colorName[ncolorName-1] = '\0';
+    }
     else
-      sprintf(colorName, "%.3d,%.3d,%.3d",
-	      GetRValue(colorRef), GetGValue(colorRef), GetBValue(colorRef));
+      snprintf(colorName, ncolorName, "%.3d,%.3d,%.3d",
+	       GetRValue(colorRef), GetGValue(colorRef), GetBValue(colorRef));
 
     return(colorName);
 }
@@ -4157,8 +4086,7 @@ ConvertStringRGB(char *colorName, COLORREF colorRef)
  * Map from integer color value to canonical color name.
  */
 char *
-colorx(color)
-    int color;
+colorx(int color)
 {
     MSWINColor *ct;
     static char cbuf[RGBLEN+1];
@@ -4170,7 +4098,7 @@ colorx(color)
     }
 
     /* not supposed to get here */
-    sprintf(cbuf, "color%03.3d", color);
+    snprintf(cbuf, sizeof(cbuf), "color%03.3d", color);
     return(cbuf);
 }
 
@@ -4182,8 +4110,7 @@ colorx(color)
  * Returns a pointer to the canonical name of the color.
  */
 char *
-color_to_canonical_name(s)
-    char *s;
+color_to_canonical_name(char *s)
 {
     int		i, j, n, rgb[3];
     MSWINColor *ct;
@@ -4194,7 +4121,7 @@ color_to_canonical_name(s)
       return(NULL);
 
     for(ct = MSWINColorTable; ct->colorName; ct++)
-      if(!struncmp(ct->colorName, s, strlen(ct->colorName)))
+      if(!struncmp(ct->colorName, s, (int)strlen(ct->colorName)))
 	break;
 
     if(ct->colorName)
@@ -4225,7 +4152,7 @@ color_to_canonical_name(s)
     if(ct->colorName)
       return(ct->canonicalName);
     else{
-	sprintf(cn, "%.3d,%.3d,%.3d",
+	snprintf(cn, sizeof(cn), "%.3d,%.3d,%.3d",
 	        GetRValue(cr), GetGValue(cr), GetBValue(cr));
 	return(cn);
     }
@@ -4242,12 +4169,12 @@ TBToggle (HWND hWnd)
 {
     PTTYINFO		pTTYInfo;
 
-    
-    pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO);
+
+    pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO);
     if (pTTYInfo == NULL)
 	return;
 
-    if (pTTYInfo->toolBarSize > 0) 
+    if (pTTYInfo->toolBarSize > 0)
 	TBHide (hWnd);
     else
 	TBShow (hWnd);
@@ -4258,10 +4185,9 @@ LOCAL void
 TBPosToggle (HWND hWnd)
 {
     PTTYINFO		pTTYInfo;
-    RECT		rc;
 
-    
-    pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO);
+
+    pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO);
     if (pTTYInfo == NULL)
 	return;
 
@@ -4279,12 +4205,12 @@ TBShow (HWND hWnd)
     PTTYINFO		pTTYInfo;
     RECT		rc;
 
-    
-    pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO);
+
+    pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO);
     if (pTTYInfo == NULL)
 	return;
 
-    
+
     /*
      * Make sure the tool bar not already shown.
      */
@@ -4297,10 +4223,10 @@ TBShow (HWND hWnd)
      * Make procinstance for dialog funciton.
      */
     HideCaret (hWnd);
-    if (gToolBarProc == NULL) 
+    if (gToolBarProc == NULL)
 	gToolBarProc = (DLGPROC) MakeProcInstance( (FARPROC) ToolBarProc,
                                                 ghInstance ) ;
-    if (gTBBtnProc == NULL) 
+    if (gTBBtnProc == NULL)
 	gTBBtnProc = (WNDPROC) MakeProcInstance( (FARPROC) TBBtnProc,
 						ghInstance ) ;
 
@@ -4324,7 +4250,7 @@ TBShow (HWND hWnd)
      * Adjust the window size.
      */
     GetWindowRect (pTTYInfo->hTBWnd, &rc);	/* Get Toolbar size. */
-    pTTYInfo->toolBarSize = rc.bottom - rc.top;
+    pTTYInfo->toolBarSize = (CORD)(rc.bottom - rc.top);
 
     GetClientRect (hWnd, &rc);			/* Get TTY window size. */
     SizeTTY (hWnd, 0, (CORD)rc.bottom, (CORD)rc.right);
@@ -4337,8 +4263,8 @@ TBHide (HWND hWnd)
 {
     PTTYINFO		pTTYInfo;
     RECT		rc;
-    
-    pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO);
+
+    pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO);
     if (pTTYInfo == NULL)
 	return;
 
@@ -4348,11 +4274,11 @@ TBHide (HWND hWnd)
 
     DestroyWindow (pTTYInfo->hTBWnd);
     pTTYInfo->hTBWnd = NULL;
-    if (pTTYInfo->toolBarBtns != NULL) 
+    if (pTTYInfo->toolBarBtns != NULL)
 	MemFree (pTTYInfo->toolBarBtns);
     pTTYInfo->toolBarBtns = NULL;
 
-    
+
     /*
      * Adjust the window size.
      */
@@ -4367,8 +4293,8 @@ TBSwap (HWND hWnd, int newID)
 {
     PTTYINFO		pTTYInfo;
     RECT		rc;
-    
-    pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO);
+
+    pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO);
     if (pTTYInfo == NULL)
 	return;
 
@@ -4382,11 +4308,11 @@ TBSwap (HWND hWnd, int newID)
 
     DestroyWindow (pTTYInfo->hTBWnd);
     pTTYInfo->hTBWnd = NULL;
-    if (pTTYInfo->toolBarBtns != NULL) 
+    if (pTTYInfo->toolBarBtns != NULL)
 	MemFree (pTTYInfo->toolBarBtns);
     pTTYInfo->toolBarBtns = NULL;
-    
-    
+
+
 
     /*
      * Create the new dialog box.
@@ -4402,30 +4328,30 @@ TBSwap (HWND hWnd, int newID)
     pTTYInfo->curToolBarID = newID;
     SetFocus (hWnd);		/* Return focus to parent. */
 
-    
+
     /*
      * Fit new tool bar into old tool bars position.  This assumes that
      * all tool bars are about the same height.
      */
     GetClientRect (hWnd, &rc);			/* Get TTY window size. */
-    if (pTTYInfo->toolBarTop) 
+    if (pTTYInfo->toolBarTop)
 	/* Position at top of window. */
-	SetWindowPos (pTTYInfo->hTBWnd, HWND_TOP, 
-		0, 0, 
-		rc.right, pTTYInfo->toolBarSize, 
+	SetWindowPos (pTTYInfo->hTBWnd, HWND_TOP,
+		0, 0,
+		rc.right, pTTYInfo->toolBarSize,
 		SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
     else
 	/* Position at bottom of window. */
-	SetWindowPos (pTTYInfo->hTBWnd, HWND_TOP, 
-		0, pTTYInfo->ySize - pTTYInfo->toolBarSize, 
-		rc.right, pTTYInfo->toolBarSize, 
+	SetWindowPos (pTTYInfo->hTBWnd, HWND_TOP,
+		0, pTTYInfo->ySize - pTTYInfo->toolBarSize,
+		rc.right, pTTYInfo->toolBarSize,
 		SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
-    
+
     ShowCaret (hWnd);
 }
 
-    
-BOOL FAR PASCAL __export 
+
+BOOL FAR PASCAL __export
 ToolBarProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     RECT		rc;
@@ -4436,25 +4362,25 @@ ToolBarProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     int			btnCount;
     int			i;
     PTTYINFO		pTTYInfo;
-    
-    
+
+
     pTTYInfo = gpTTYInfo;
-    
+
     ret = FALSE;
     switch (msg) {
-	    
+	
     case WM_INITDIALOG:
 	/* Fit dialog to window. */
 	GetWindowRect (hWnd, &rc);
 	height = rc.bottom - rc.top;
 	GetClientRect (GetParent (hWnd), &rc);
-	SetWindowPos (hWnd, HWND_TOP, 0, 0, rc.right, height, 
+	SetWindowPos (hWnd, HWND_TOP, 0, 0, rc.right, height,
 			SWP_NOZORDER | SWP_NOACTIVATE);
 
 	/* Count child windows.*/
 	btnCount = 0;
-	for (hCld = GetWindow (hWnd, GW_CHILD); 
-	     hCld; 
+	for (hCld = GetWindow (hWnd, GW_CHILD);
+	     hCld;
 	     hCld = GetWindow (hCld, GW_HWNDNEXT))
 		++btnCount;
 
@@ -4464,13 +4390,14 @@ ToolBarProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	pTTYInfo->toolBarBtns = MemAlloc (sizeof (BtnList) * (btnCount + 1));
 	
 	/* Subclass all child windows. */
-	for (i = 0, hCld = GetWindow (hWnd, GW_CHILD); 
-	    hCld; 
+	for (i = 0, hCld = GetWindow (hWnd, GW_CHILD);
+	    hCld;
 	    ++i, hCld = GetWindow (hCld, GW_HWNDNEXT)) {
 	    pTTYInfo->toolBarBtns[i].wndID = GET_ID (hCld);
-	    pTTYInfo->toolBarBtns[i].wndProc = (WNDPROC) GetWindowLong (hCld, 
-						    GWL_WNDPROC);
-	    SetWindowLong (hCld, GWL_WNDPROC, (DWORD)TBBtnProc);
+	    pTTYInfo->toolBarBtns[i].wndProc =
+					(WNDPROC)(LONG_PTR)MyGetWindowLongPtr (hCld,
+					GWLP_WNDPROC);
+	    MySetWindowLongPtr (hCld, GWLP_WNDPROC, (void *)(LONG_PTR)TBBtnProc);
         }
         pTTYInfo->toolBarBtns[i].wndID = 0;
 	pTTYInfo->toolBarBtns[i].wndProc = NULL;
@@ -4501,7 +4428,7 @@ ToolBarProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	    }
 
 	    hBrush = CreateSolidBrush (GetSysColor (COLOR_ACTIVEBORDER));
-	    return ((BOOL) (pTTYInfo->hTBBrush = hBrush));
+	    return ((BOOL)!!(pTTYInfo->hTBBrush = hBrush));
         }
     }
     return (ret);
@@ -4511,7 +4438,7 @@ ToolBarProc (HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 /*
  * Subclass toolbar button windows.
  *
- * These buttons will automatically return the input focus to 
+ * These buttons will automatically return the input focus to
  * the toolbar's parent
  */
 LRESULT FAR PASCAL __export
@@ -4523,8 +4450,8 @@ TBBtnProc (HWND hBtn, UINT uMsg, WPARAM wParam, LPARAM lParam)
     WORD		id;
     LRESULT		ret;
     WNDPROC		wndProc;
-    
-    
+
+
     /*
      * Find previous window proc.
      */
@@ -4535,12 +4462,12 @@ TBBtnProc (HWND hBtn, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	    goto FoundWindow;
     /* Whoops!  Didn't find window, don't know how to pass message. */
     return (0);
-    
-    
+
+
 FoundWindow:
     wndProc = pTTYInfo->toolBarBtns[i].wndProc;
-     
-    
+
+
 
     if (uMsg == WM_LBUTTONUP || uMsg == WM_MBUTTONUP || uMsg == WM_RBUTTONUP) {
 	/*
@@ -4553,7 +4480,7 @@ FoundWindow:
 	    SetFocus (hPrnt);
 	return (ret);
     }
-    
+
     return (CallWindowProc (wndProc, hBtn, uMsg, wParam, lParam));
 }
 
@@ -4564,19 +4491,15 @@ FoundWindow:
 LOCAL UINT
 UpdateEditAllowed(HWND hWnd)
 {
-    HMENU		hMenu;
-    HMENU		hCmdMenu;
-    BOOL		brc;
     PTTYINFO		pTTYInfo;
-    int			i;
     UINT		fAccel = EM_NONE;
-    
-    if((pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO)) != NULL){
+
+    if((pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO)) != NULL){
 	if(EditPasteAvailable())
 	  fAccel |= (EM_PST | EM_PST_ABORT);
 	else if(IsClipboardFormatAvailable (CF_UNICODETEXT) && gPasteEnabled)
 	  fAccel |= EM_PST;
-    
+
 	if(SelAvailable()){
 	    fAccel |= (EM_CP | EM_CP_APPEND);
 	}
@@ -4607,9 +4530,9 @@ AccelCtl (HWND hWnd, int ctl, BOOL saveChange)
 {
     PTTYINFO		pTTYInfo;
     BOOL		load, changed;
-    
-    
-    pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO);
+
+
+    pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO);
     if (pTTYInfo == NULL)
 	return;
 
@@ -4627,22 +4550,22 @@ AccelCtl (HWND hWnd, int ctl, BOOL saveChange)
 	load = FALSE;
 	break;
     }
-    
+
     changed = FALSE;
     if (load && pTTYInfo->hAccel == NULL) {
 	/* Load em up. */
-	pTTYInfo->hAccel = LoadAccelerators (ghInstance, 
+	pTTYInfo->hAccel = LoadAccelerators (ghInstance,
 					MAKEINTRESOURCE (IDR_ACCEL_PINE));
 	changed = TRUE;
     }
     else if(!load && pTTYInfo->hAccel) {
 	/* unload em. */
-	FreeResource (pTTYInfo->hAccel);    
+	FreeResource (pTTYInfo->hAccel);
 	pTTYInfo->hAccel = NULL;
 	changed = TRUE;
     }
-    
-    if (changed && saveChange) 
+
+    if (changed && saveChange)
 	DidResize (pTTYInfo);
 }
 #endif
@@ -4657,9 +4580,7 @@ LOCAL void
 AccelManage (HWND hWnd, long accels)
 {
     PTTYINFO		pTTYInfo;
-    BOOL		load, changed;
     ACCEL		accelarray[EM_MAX_ACCEL];
-    HACCEL		hAccel;
     int			n;
     static ACCEL am_cp = {
 	FVIRTKEY | FCONTROL | FSHIFT | FNOINVERT, 'C', IDM_EDIT_COPY
@@ -4679,9 +4600,9 @@ AccelManage (HWND hWnd, long accels)
     static ACCEL am_cut = {
 	FVIRTKEY | FCONTROL | FSHIFT | FNOINVERT, 'X', IDM_EDIT_CUT
     };
-    
-    pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO);
-    if (pTTYInfo == NULL || pTTYInfo->fAccel == accels)
+
+    pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO);
+    if (pTTYInfo == NULL || pTTYInfo->fAccel == (UINT)accels)
 	return;
 
     if(pTTYInfo->hAccel){
@@ -4748,7 +4669,7 @@ LOCAL void
 SelRSet (int oStart, int oEnd)
 {
     CharAttrib	*pca;
-    
+
     for (pca = gpTTYInfo->pAttrib + oStart; oStart < oEnd; ++pca, ++oStart)
       pca->style |= CHAR_ATTR_SEL;
 }
@@ -4758,7 +4679,7 @@ LOCAL void
 SelRClear (int oStart, int oEnd)
 {
     CharAttrib	*pca;
-    
+
     for (pca = gpTTYInfo->pAttrib + oStart; oStart < oEnd; ++pca, ++oStart)
 	pca->style &= ~CHAR_ATTR_SEL;
 }
@@ -4770,12 +4691,12 @@ SelRInvalidate (int oStart, int oEnd)
     RECT	rect;
     int		sRow, sCol;
     int		eRow, eCol;
-    
+
     sRow = oStart / gpTTYInfo->actNColumn;
     sCol = oStart % gpTTYInfo->actNColumn;
     eRow = oEnd   / gpTTYInfo->actNColumn;
     eCol = oEnd   % gpTTYInfo->actNColumn;
-    
+
     rect.top = (sRow * gpTTYInfo->yChar) + gpTTYInfo->yOffset;
     rect.bottom = ((eRow+1) * gpTTYInfo->yChar) + gpTTYInfo->yOffset;
     if (sRow == eRow) {
@@ -4783,7 +4704,7 @@ SelRInvalidate (int oStart, int oEnd)
 	rect.right = ((eCol+1) * gpTTYInfo->xChar) + gpTTYInfo->xOffset;
     } else {
 	rect.left = gpTTYInfo->xOffset;
-	rect.right = (gpTTYInfo->actNColumn * gpTTYInfo->xChar) + 
+	rect.right = (gpTTYInfo->actNColumn * gpTTYInfo->xChar) +
 			gpTTYInfo->xOffset;
     }
     InvalidateRect (ghTTYWnd, &rect, FALSE);
@@ -4831,7 +4752,7 @@ SelClear (void)
     int		a, p;
     int		s, e;
 
-    if (!SelSelected) 
+    if (!SelSelected)
 	return;
 
     /* Convert the anchor and point coordinates to offsets then
@@ -4862,7 +4783,7 @@ SelTrackXYMouse (int xPos, int yPos)
 {
     int		nRow;
     int		nColumn;
-    
+
     nColumn = (xPos - gpTTYInfo->xOffset) / gpTTYInfo->xChar;
     nRow = (yPos - gpTTYInfo->yOffset) / gpTTYInfo->yChar;
 
@@ -4877,8 +4798,7 @@ LOCAL void
 SelTrackMouse (int nRow, int nColumn)
 {
     int		a, p, n;
-    int		s, e;
-    
+
     if (!SelTracking)
 	return;
 
@@ -4896,7 +4816,7 @@ SelTrackMouse (int nRow, int nColumn)
     a = (SelAnchorRow * gpTTYInfo->actNColumn) + SelAnchorCol;
     p = (SelPointerRow * gpTTYInfo->actNColumn) + SelPointerCol;
     n = (nRow * gpTTYInfo->actNColumn) + nColumn;
-    
+
     /* If previous position same as current position, do nothing. */
     if (p == n)
 	return;
@@ -4955,14 +4875,14 @@ SelAvailable (void)
 
 
 /*
- * Copy screen data to clipboard.  Actually appends data from screen to 
+ * Copy screen data to clipboard.  Actually appends data from screen to
  * existing handle so as we can implement a "Copy Append" to append to
- * existing clipboard data.  
+ * existing clipboard data.
  *
- * The screen does not have real line terminators.  We decide where the 
+ * The screen does not have real line terminators.  We decide where the
  * actual screen data ends by scanning the line (row) from end backwards
  * to find the first non-space.
- * 
+ *
  * I don't know how many bytes of data I'll be appending to the clipboard.
  * So I implemented in two passes.  The first finds all the row starts
  * and length while the second copies the data.
@@ -4978,15 +4898,15 @@ SelDoCopy (HANDLE hCB, DWORD lenCB)
     int			row, c1, c2;	/* temp row and column indexes. */
     int			totalLen;	/* total len of new data. */
     CopyRow		*rowTable, *rp;	/* pointers to table of rows. */
-    BOOL		noLastCRLF;
-    
+    BOOL		noLastCRLF = FALSE;
+
 
     if (OpenClipboard (ghTTYWnd)) {		/* ...and we get the CB. */
       if (EmptyClipboard ()) {		/* ...and clear previous CB.*/
 
 
 	/* Find the start and end row and column. */
-	if ( (SelAnchorRow * gpTTYInfo->actNColumn) + SelAnchorCol < 
+	if ( (SelAnchorRow * gpTTYInfo->actNColumn) + SelAnchorCol <
 	     (SelPointerRow * gpTTYInfo->actNColumn) + SelPointerCol) {
 	    sRow = SelAnchorRow;
 	    sCol = SelAnchorCol;
@@ -5014,16 +4934,16 @@ SelDoCopy (HANDLE hCB, DWORD lenCB)
 	    c2 = (row == eRow ? eCol : gpTTYInfo->actNColumn);
 
 	    /* Calculate pointer to beginning of this line. */
-	    rp->pRow = gpTTYInfo->pScreen + 
+	    rp->pRow = gpTTYInfo->pScreen +
 		    ((row * gpTTYInfo->actNColumn) + c1);
 
-	    /* Back down from end column to find first non space. 
+	    /* Back down from end column to find first non space.
 	     * noLastCRLF indicates if it looks like the selection
 	     * should include a CRLF on the end of the line.  It
 	     * gets set for each line, but only the setting for the
 	     * last line in the selection is remembered (which is all
 	     * we're interested in). */
-	    p2 = gpTTYInfo->pScreen + 
+	    p2 = gpTTYInfo->pScreen +
 		    ((row * gpTTYInfo->actNColumn) + c2);
 	    noLastCRLF = TRUE;
 	    while (c2 > c1) {
@@ -5075,8 +4995,8 @@ SelDoCopy (HANDLE hCB, DWORD lenCB)
       }
     }
     return;
-    
-    
+
+
 	/* Error exit. */
 Fail2:	MemFree (rowTable);
 Fail1:	GlobalFree (hCB);
@@ -5099,7 +5019,7 @@ LOCAL void
 FlushWriteAccum (void)
 {
     if (gpTTYInfo->writeAccumCount > 0) {
-	WriteTTYText (ghTTYWnd, gpTTYInfo->writeAccum, 
+	WriteTTYText (ghTTYWnd, gpTTYInfo->writeAccum,
 					gpTTYInfo->writeAccumCount);
 	gpTTYInfo->writeAccumCount = 0;
     }
@@ -5228,10 +5148,10 @@ PopupConfig(HMENU hMenu, MPopup *members, int *n)
 	    mitem.fType  = MFT_STRING;
 	    if(mitem.hSubMenu = CreatePopupMenu()){
 		/* members->label.string is still just a char * */
-		_sntprintf(tcbuf, sizeof(tcbuf)/sizeof(TCHAR), 
+		_sntprintf(tcbuf, sizeof(tcbuf)/sizeof(TCHAR),
 			   TEXT("%S"), members->label.string);
 		mitem.dwTypeData = tcbuf;
-		mitem.cch	 = _tcslen(tcbuf);
+		mitem.cch	 = (UINT)_tcslen(tcbuf);
 		InsertMenuItem(hMenu, index, TRUE, &mitem);
 
 		PopupConfig(mitem.hSubMenu, members->data.submenu, n);
@@ -5263,10 +5183,10 @@ PopupConfig(HMENU hMenu, MPopup *members, int *n)
 		}
 
 		mitem.fType	 = MFT_STRING;
-		_sntprintf(tcbuf, sizeof(tcbuf)/sizeof(TCHAR), 
+		_sntprintf(tcbuf, sizeof(tcbuf)/sizeof(TCHAR),
 			   TEXT("%S"), members->label.string);
 		mitem.dwTypeData = tcbuf;
-		mitem.cch	 = _tcslen(tcbuf);
+		mitem.cch	 = (UINT)_tcslen(tcbuf);
 		break;
 	    }
 
@@ -5396,7 +5316,7 @@ CopyCutPopup(HWND hWnd, UINT fAllowed)
 
 
 /*
- * 
+ *
  */
 void
 pico_popup()
@@ -5483,7 +5403,7 @@ pico_popup()
 
 
 /*
- * 
+ *
  */
 void
 mswin_paste_popup()
@@ -5527,10 +5447,10 @@ mswin_paste_popup()
 void
 mswin_keymenu_popup()
 {
-    HMENU	 hBarMenu, hBarSubMenu, hMenu;
+    HMENU	 hBarMenu, hMenu;
     MENUITEMINFO mitem;
     POINT	 point;
-    int		 i, j, k, n, count, subcount;
+    int		 i, j, n;
     TCHAR	 tcbuf[256];
 
     /*
@@ -5552,10 +5472,10 @@ mswin_keymenu_popup()
 			mitem.fState = MFS_ENABLED;
 			mitem.fType = MFT_STRING;
 			/* miLabel is still plain old char *, not utf8 */
-			_sntprintf(tcbuf, sizeof(tcbuf)/sizeof(TCHAR), 
+			_sntprintf(tcbuf, sizeof(tcbuf)/sizeof(TCHAR),
 				   TEXT("%S"), gpTTYInfo->menuItems[j].miLabel);
 			mitem.dwTypeData = tcbuf;
-			mitem.cch = _tcslen(tcbuf);
+			mitem.cch = (UINT)_tcslen(tcbuf);
 			InsertMenuItem(hMenu, n++, TRUE, &mitem);
 
 			if(j + KS_RANGESTART == IDM_MI_SCREENHELP
@@ -5568,7 +5488,7 @@ mswin_keymenu_popup()
 			    _sntprintf(tcbuf, sizeof(tcbuf)/sizeof(TCHAR),
 				       TEXT("%S"), "Help in New Window");
 			    mitem.dwTypeData = tcbuf;
-			    mitem.cch = _tcslen(tcbuf);
+			    mitem.cch = (UINT)_tcslen(tcbuf);
 			    InsertMenuItem(hMenu, n++, TRUE, &mitem);
 			}
 		    }
@@ -5607,7 +5527,7 @@ mswin_registericon(int row, int id, char *utf8_file)
     /* Already registered? */
     for(pIcon = gIconList; pIcon; pIcon = pIcon->next)
       if(pIcon->id == id){
-	  pIcon->row = row;
+	  pIcon->row = (short)row;
 	  return;
       }
 
@@ -5639,7 +5559,7 @@ MSWIconAddList(int row, int id, HICON hIcon)
     memset(*ppIcon, 0, sizeof(IconList));
     (*ppIcon)->hIcon = hIcon;
     (*ppIcon)->id = id;
-    (*ppIcon)->row = row;
+    (*ppIcon)->row = (short)row;
 }
 
 
@@ -5647,7 +5567,6 @@ int
 MSWIconPaint(int row, HDC hDC)
 {
     IconList *pIcon;
-    HICON     hIcon;
     int	      rv = 0;
 
     for(pIcon = gIconList; pIcon && pIcon->row != row; pIcon = pIcon->next)
@@ -5707,7 +5626,7 @@ mswin_setnewmailwidth (int width)
 /*
  * Event handler to deal with File Drop events
  */
-LOCAL BOOL  
+LOCAL BOOL
 ProcessTTYFileDrop (HANDLE wDrop)
 {
     HDROP hDrop = wDrop;
@@ -5728,7 +5647,7 @@ ProcessTTYFileDrop (HANDLE wDrop)
     if (pos.y < gpTTYInfo->yOffset)
 	--row;
 
-    for(n = DragQueryFile(hDrop, -1, NULL, 0), i = 0; i < n; i++){
+    for(n = DragQueryFile(hDrop, (UINT)-1, NULL, 0), i = 0; i < n; i++){
 	DragQueryFile(hDrop, i, fname, 1024);
 	utf8_fname = lptstr_to_utf8(fname);
 	gpTTYInfo->dndhandler (row, col, utf8_fname);
@@ -5782,20 +5701,20 @@ mswin_setresizecallback (int (*cb)())
 {
     int		i;
     int		e;
-    
-    
+
+
     /*
      * Look through whole array for this call back function.  Don't
      * insert duplicate.  Also look for empty slot.
      */
     e = -1;
     for (i = 0; i < RESIZE_CALLBACK_ARRAY_SIZE; ++i) {
-	if (gpTTYInfo->resizer[i] == cb) 
+	if (gpTTYInfo->resizer[i] == cb)
 	    return (0);
-        if (e == -1 && gpTTYInfo->resizer[i] == NULL) 
+        if (e == -1 && gpTTYInfo->resizer[i] == NULL)
 	    e = i;
     }
-    
+
     /*
      * Insert in empty slot or return an error.
      */
@@ -5815,7 +5734,7 @@ mswin_clearresizecallback (int (*cb)())
 {
     int		i;
     int		status;
-    
+
     status = -1;
     for (i = 0; i < RESIZE_CALLBACK_ARRAY_SIZE; ++i) {
 	if (gpTTYInfo->resizer[i] == cb) {
@@ -6004,18 +5923,18 @@ mswin_setwindow(char *fontName_utf8, char *fontSize_utf8, char *fontStyle_utf8,
     int			showWin = 1;
     LPTSTR              fontName_lpt = NULL;
     LPTSTR              fontCharSet_lpt;
-    
+
 #ifdef SDEBUG
-    if (mswin_debug >= 5) 
+    if (mswin_debug >= 5)
 	fprintf (mswin_debugfile, "mswin_setwindow:::  entered, minimized:  %d\n",
 		gpTTYInfo->fMinimized);
 #endif
 
     /* Require a font name to set font info. */
-    if(fontName_utf8 != NULL && *fontName_utf8 != '\0' && 
+    if(fontName_utf8 != NULL && *fontName_utf8 != '\0' &&
 	(fontName_lpt = utf8_to_lptstr(fontName_utf8)) &&
 	_tcslen(fontName_lpt) <= LF_FACESIZE - 1){
-	    
+	
 	hDC = GetDC(ghTTYWnd);
 	ppi = GetDeviceCaps(hDC, LOGPIXELSY);
 	ReleaseDC(ghTTYWnd, hDC);
@@ -6060,7 +5979,7 @@ mswin_setwindow(char *fontName_utf8, char *fontSize_utf8, char *fontStyle_utf8,
 
     if(fontName_lpt)
       fs_give((void **) &fontName_lpt);
-    
+
     /*
      * Set window position.  String format is:  CxR+X+Y
      * Where C is the number of columns, R is the number of rows,
@@ -6077,7 +5996,7 @@ mswin_setwindow(char *fontName_utf8, char *fontSize_utf8, char *fontStyle_utf8,
 	 * Flag characters are at the end of the string.  Strip them
 	 * off till we get to a number.
 	 */
-	i = strlen(wp) - 1;
+	i = (int)strlen(wp) - 1;
 	while(i > 0 && (*(wp+i) < '0' || *(wp+i) > '9')){
 	    if(*(wp+i) == 't' || *(wp+i) == 'b'){
 		toolBar = TRUE;
@@ -6170,18 +6089,18 @@ mswin_setwindow(char *fontName_utf8, char *fontSize_utf8, char *fontStyle_utf8,
 	    }
 
 	    /* Calculate new window pos and size. */
-	    wXSize = wXBorder + (wColumns * gpTTYInfo->xChar) + 
+	    wXSize = wXBorder + (wColumns * gpTTYInfo->xChar) +
 						    (2 * gpTTYInfo->xOffset);
-	    wYSize = wYBorder + (wRows * gpTTYInfo->yChar) + 
+	    wYSize = wYBorder + (wRows * gpTTYInfo->yChar) +
 				    gpTTYInfo->toolBarSize + (2 * MARGINE_TOP);
-	    if(!gpTTYInfo->fMinimized) 
+	    if(!gpTTYInfo->fMinimized)
 	      MoveWindow(ghTTYWnd, wXPos, wYPos, wXSize, wYSize, TRUE);
 	    else{
 		gpTTYInfo->fDesiredSize = TRUE;
-		gpTTYInfo->xDesPos = wXPos;
-		gpTTYInfo->yDesPos = wYPos;
-		gpTTYInfo->xDesSize = wXSize;
-		gpTTYInfo->yDesSize = wYSize;
+		gpTTYInfo->xDesPos = (CORD)wXPos;
+		gpTTYInfo->yDesPos = (CORD)wYPos;
+		gpTTYInfo->xDesSize = (CORD)wXSize;
+		gpTTYInfo->yDesSize = (CORD)wYSize;
 	    }
         }
     }
@@ -6210,7 +6129,7 @@ mswin_showwindow()
 
 /*
  * Retreive the current font name, font size, and window position
- * These get stored in the pinerc file and will be passed to 
+ * These get stored in the pinerc file and will be passed to
  * mswin_setwindow() when pine starts up.  See pinerc for comments
  * on the format.
  */
@@ -6219,7 +6138,8 @@ mswin_getwindow(char *fontName_utf8, size_t nfontName,
 		char *fontSize_utf8, size_t nfontSize,
 		char *fontStyle_utf8, size_t nfontStyle,
 		char *windowPosition, size_t nwindowPosition,
-		char *foreColor, char *backColor,
+		char *foreColor, size_t nforeColor,
+		char *backColor, size_t nbackColor,
 		char *caretStyle, size_t ncaretStyle,
 		char *fontCharSet_utf8, size_t nfontCharSet)
 {
@@ -6227,7 +6147,7 @@ mswin_getwindow(char *fontName_utf8, size_t nfontName,
     int			ppi;
     RECT		wndRect;
     char	       *t;
-    
+
     if(fontName_utf8 != NULL){
 	t = lptstr_to_utf8(gpTTYInfo->lfTTYFont.lfFaceName);
 	if(strlen(t) < nfontName)
@@ -6296,7 +6216,7 @@ mswin_getwindow(char *fontName_utf8, size_t nfontName,
 	    if(wndRect.top < 0)
 	      wndRect.top = 0;
 
-	    snprintf(windowPosition, nwindowPosition, "%dx%d+%d+%d", gpTTYInfo->actNColumn, 
+	    snprintf(windowPosition, nwindowPosition, "%dx%d+%d+%d", gpTTYInfo->actNColumn,
 		    gpTTYInfo->actNRow, wndRect.left, wndRect.top);
         }
 
@@ -6318,10 +6238,10 @@ mswin_getwindow(char *fontName_utf8, size_t nfontName,
     }
 
     if(foreColor != NULL)
-      ConvertStringRGB(foreColor, gpTTYInfo->rgbFGColor);
+      ConvertStringRGB(foreColor, nforeColor, gpTTYInfo->rgbFGColor);
 
     if(backColor != NULL)
-      ConvertStringRGB(backColor, gpTTYInfo->rgbBGColor);
+      ConvertStringRGB(backColor, nbackColor, gpTTYInfo->rgbBGColor);
 
     if(caretStyle != NULL){
 	int i;
@@ -6396,9 +6316,8 @@ mswin_setscrollrange (long page, long max)
 void
 mswin_setscrollpos (long pos)
 {
-    int	       ipos;
     SCROLLINFO scrollInfo;
-    
+
     if (pos != gpTTYInfo->scrollPos) {
 	scrollInfo.cbSize = sizeof(SCROLLINFO);
 	scrollInfo.fMask = SIF_PAGE | SIF_RANGE;
@@ -6433,7 +6352,6 @@ mswin_getscrollto (void)
    return (gpTTYInfo->scrollTo);
 }
 
-
 /*
  * install function to deal with LINEDOWN events
  */
@@ -6463,6 +6381,11 @@ mswin_setflagcallback (cbarg_t cbfunc)
     gFlagCallback = cbfunc;
 }
 
+void
+mswin_set_erasecreds_callback (cbvoid_t cbfunc)
+{
+    gEraseCredsCallback = cbfunc;
+}
 
 /*
  * install function to deal with header mode flipping
@@ -6510,7 +6433,7 @@ mswin_setselectedcallback (cbarg_t cbfunc)
 int
 mswin_newmailwinon (void)
 {
-    return(gpNewMailWin ? 1 : 0);
+    return(gMswinNewMailWin.hwnd ? 1 : 0);
 }
 
 
@@ -6558,7 +6481,7 @@ mswin_setprintfont(char *fontName, char *fontSize,
 
     /* Require a font name to set font info. */
     if(fn != NULL && *fn != '\0' && lstrlen(fn) <= LF_FACESIZE - 1){
-	    
+	
 	_tcsncpy(gPrintFontName, fn, sizeof(gPrintFontName)/sizeof(TCHAR));
 	gPrintFontName[sizeof(gPrintFontName)/sizeof(TCHAR)-1] = 0;
 	if(fstyle){
@@ -6601,13 +6524,13 @@ mswin_getprintfont(char *fontName_utf8, size_t nfontName,
 		   char *fontCharSet_utf8, size_t nfontCharSet)
 {
     if(gPrintFontName[0] == '\0' || gPrintFontSameAs){
-	if(fontName_utf8 != NULL) 
+	if(fontName_utf8 != NULL)
 	    *fontName_utf8 = '\0';
-	if(fontSize_utf8 != NULL) 
+	if(fontSize_utf8 != NULL)
 	    *fontSize_utf8 = '\0';
-	if(fontStyle_utf8 != NULL) 
+	if(fontStyle_utf8 != NULL)
 	    *fontStyle_utf8 = '\0';
-	if(fontCharSet_utf8 != NULL) 
+	if(fontCharSet_utf8 != NULL)
 	    *fontCharSet_utf8 = '\0';
     }
     else{
@@ -6656,9 +6579,9 @@ mswin_sethelptextcallback(cbstr_t cbfunc)
     HMENU		hMenu;
 
     gHelpCallback = cbfunc;
-    
+
     hMenu = GetMenu (ghTTYWnd);
-    if (hMenu == NULL) 
+    if (hMenu == NULL)
 	return (1);
 
     return(MSWHelpSetMenu (hMenu));
@@ -6675,9 +6598,9 @@ mswin_setgenhelptextcallback(cbstr_t cbfunc)
     HMENU		hMenu;
 
     gHelpGenCallback = cbfunc;
-    
+
     hMenu = GetMenu (ghTTYWnd);
-    if (hMenu == NULL) 
+    if (hMenu == NULL)
 	return (1);
 
     return(MSWHelpSetMenu (hMenu));
@@ -6695,13 +6618,13 @@ MSWHelpSetMenu(HMENU hMenu)
      * Find menu and update it.
      */
     count = GetMenuItemCount (hMenu);
-    if (count == -1) 
+    if (count == -1)
 	return (1);
-    
+
     hMenu = GetSubMenu (hMenu, count - 1);
-    if (hMenu == NULL) 
+    if (hMenu == NULL)
 	return (1);
-    
+
     /*
      * Insert or delete generic help item
      */
@@ -6747,7 +6670,7 @@ MSWHelpSetMenu(HMENU hMenu)
 
 
 /*
- * Set the text displayed when someone tries to close the application 
+ * Set the text displayed when someone tries to close the application
  * the wrong way.
  */
 void
@@ -6768,17 +6691,17 @@ mswin_yeild (void)
     MSG		msg;
     DWORD	start;
     int		didmsg = FALSE;
-    
+
     if (gScrolling)
 	return (TRUE);
-    
+
     start = GetTickCount ();
 #ifdef CDEBUG
-    if (mswin_debug > 16) 
+    if (mswin_debug > 16)
 	fprintf (mswin_debugfile, "mswin_yeild:: Entered\n");
 #endif
     if (PeekMessage (&msg, NULL, 0, 0, PM_REMOVE)) {
-	if (gpTTYInfo->hAccel == NULL || 
+	if (gpTTYInfo->hAccel == NULL ||
 		!TranslateAccelerator (ghTTYWnd, gpTTYInfo->hAccel, &msg)) {
 	    TranslateMessage (&msg);
 	    DispatchMessage (&msg);
@@ -6786,7 +6709,7 @@ mswin_yeild (void)
 	}
     }
 #ifdef CDEBUG
-    if (mswin_debug > 16) 
+    if (mswin_debug > 16)
 	fprintf (mswin_debugfile, "mswin_yeild::  Delay %ld msec\n",
 		GetTickCount () - start);
 #endif
@@ -6795,7 +6718,7 @@ mswin_yeild (void)
 
 
 /*
- *	Called to see if we can process input. 
+ *	Called to see if we can process input.
  *	We can't process input when we are in a scrolling mode.
  */
 int
@@ -6813,8 +6736,7 @@ mswin_charavail (void)
 {
     MSG		msg;
     BOOL	ca, pa, ma;
-    DWORD	start;
-    
+
     if (gScrolling)
 	return (FALSE);
 
@@ -6832,24 +6754,24 @@ mswin_charavail (void)
     pa = EditPasteAvailable ();
 #ifdef CDEBUG
     start = GetTickCount ();
-    if (mswin_debug > 16) 
+    if (mswin_debug > 16)
 	fprintf (mswin_debugfile, "%s mswin_charavail::  Entered, ca %d, pa %d\n",dtime(),ca,pa);
 #endif
-    if ((ca || pa) && GetTickCount () < gGMLastCall + GM_MAX_TIME) 
+    if ((ca || pa) && GetTickCount () < gGMLastCall + GM_MAX_TIME)
         ma = PeekMessage (&msg, NULL, 0, 0, PM_NOYIELD | PM_REMOVE);
     else {
         ma = GetMessage (&msg, NULL, 0, 0);
 	gGMLastCall = GetTickCount ();
     }
     if (ma) {
-	if (gpTTYInfo->hAccel == NULL || 
+	if (gpTTYInfo->hAccel == NULL ||
 		!TranslateAccelerator (ghTTYWnd, gpTTYInfo->hAccel, &msg)) {
 	    TranslateMessage (&msg);
 	    DispatchMessage (&msg);
 	}
     }
 #ifdef CDEBUG
-    if (mswin_debug > 16) 
+    if (mswin_debug > 16)
 	fprintf (mswin_debugfile, "%s mswin_charavail::  Delay %ld msec\n",
 		dtime(), GetTickCount () - start);
 #endif
@@ -6866,8 +6788,7 @@ mswin_getc (void)
 {
     BOOL	ca, pa, ma;
     MSG		msg;
-    DWORD	start;
-    
+
     if (gScrolling)
 	return (MSWIN_KEY_NODATA);
 
@@ -6890,21 +6811,21 @@ mswin_getc (void)
 	fprintf (mswin_debugfile, "mswin_getc::  Entered, ca %d pa %d\n", ca, pa);
     }
 #endif
-    if ((ca || pa) && GetTickCount () < gGMLastCall + GM_MAX_TIME) 
+    if ((ca || pa) && GetTickCount () < gGMLastCall + GM_MAX_TIME)
         ma = PeekMessage (&msg, NULL, 0, 0, PM_NOYIELD | PM_REMOVE);
     else {
         ma = GetMessage (&msg, NULL, 0, 0);
 	gGMLastCall = GetTickCount ();
     }
     if (ma) {
-	if (gpTTYInfo->hAccel == NULL || 
+	if (gpTTYInfo->hAccel == NULL ||
 		!TranslateAccelerator (ghTTYWnd, gpTTYInfo->hAccel, &msg)) {
 	    TranslateMessage (&msg);
 	    DispatchMessage (&msg);
 	}
     }
 #ifdef CDEBUG
-    if (mswin_debug > 16) 
+    if (mswin_debug > 16)
 	fprintf (mswin_debugfile, "mswin_getc::  Delay %ld msec\n",
 		GetTickCount () - start);
 #endif
@@ -6929,10 +6850,8 @@ mswin_getc (void)
 UCS
 mswin_getc_fast (void)
 {
-    MSG		msg;
-    
     RestoreMouseCursor();
-    
+
     if (EditPasteAvailable ()) {
 	SelClear ();
 	return (EditPasteGet ());
@@ -6962,7 +6881,7 @@ mswin_flush_input(void)
 
     while(GetQueueStatus(QS_INPUT))
       (void) mswin_getc();
-    
+
     /* And we clear Pine's character input queue, too. */
     CQInit();
 }
@@ -6980,8 +6899,8 @@ mswin_move (int row, int column)
 	return (-1);
     if (column < 0 || column >= gpTTYInfo->actNColumn)
 	return (-1);
-    gpTTYInfo->nRow = row;
-    gpTTYInfo->nColumn = column;
+    gpTTYInfo->nRow = (CORD)row;
+    gpTTYInfo->nColumn = (CORD)column;
     MoveTTYCursor (ghTTYWnd);
     return (0);
 }
@@ -7007,7 +6926,7 @@ mswin_getscreensize (int *row, int *column)
     *row = gpTTYInfo->actNRow;
     *column = gpTTYInfo->actNColumn;
 #ifdef SDEBUG
-    if (mswin_debug >= 5) 
+    if (mswin_debug >= 5)
 	fprintf (mswin_debugfile, "mswin_getscreensize::: reported size %d, %d\n",
 		*row, *column);
 #endif
@@ -7085,7 +7004,7 @@ mswin_puts (char *utf8_str)
 	return (-1);
     if(!(lptstr_str = utf8_to_lptstr(utf8_str)))
       return(-1);
-    strLen = _tcslen (lptstr_str);
+    strLen = (int)_tcslen (lptstr_str);
     if (strLen > 0)
 	WriteTTYText (ghTTYWnd, lptstr_str, strLen);
 
@@ -7108,7 +7027,7 @@ mswin_puts_n (char *utf8_str, int n)
     for (lptstr_p = lptstr_str; n > 0 && *lptstr_p; n--, lptstr_p++)
 	;
     if (lptstr_p > lptstr_str)
-	WriteTTYText (ghTTYWnd, lptstr_str, lptstr_p-lptstr_str);
+	WriteTTYText (ghTTYWnd, lptstr_str, (int)(lptstr_p - lptstr_str));
 
     fs_give((void **) &lptstr_str);
     return (0);
@@ -7155,7 +7074,7 @@ mswin_putc (UCS ucs)
 }
 
 
-/* 
+/*
  * ibmoutc - output a single character with the right attributes, but
  *           don't advance the cursor
  */
@@ -7164,9 +7083,9 @@ mswin_outc (char c)
 {
     RECT	rect;
     long	offset;
-    
+
     FlushWriteAccum ();
-    
+
     switch (c) {
     case ASCII_BEL:
 	MessageBeep (0);
@@ -7190,7 +7109,7 @@ mswin_outc (char c)
 	rect.left = (gpTTYInfo->nColumn * gpTTYInfo->xChar) +
 		gpTTYInfo->xOffset;
 	rect.right = rect.left + gpTTYInfo->xChar;
-	rect.top = (gpTTYInfo->nRow * gpTTYInfo->yChar) + 
+	rect.top = (gpTTYInfo->nRow * gpTTYInfo->yChar) +
 		gpTTYInfo->yOffset;
 	rect.bottom = rect.top + gpTTYInfo->yChar;
 	gpTTYInfo->screenDirty = TRUE;
@@ -7225,7 +7144,7 @@ mswin_rev (int state)
 	
 
 /*
- * Get current reverse video state. 
+ * Get current reverse video state.
  */
 int
 mswin_getrevstate (void)
@@ -7285,9 +7204,9 @@ mswin_eeol (void)
     int         *cwStart;
     long	length, i;
     RECT	rect;
-    
+
     FlushWriteAccum ();
-    
+
     /* From current position to end of line. */
     length = gpTTYInfo->actNColumn - gpTTYInfo->nColumn;		
 
@@ -7299,7 +7218,7 @@ mswin_eeol (void)
 	cStart[i] = (TCHAR)(' ');
 	cwStart[i] = gpTTYInfo->xChar;
     }
-    
+
     aStart = gpTTYInfo->pAttrib
 		      + (gpTTYInfo->nRow * gpTTYInfo->actNColumn)
 		      + gpTTYInfo->nColumn;
@@ -7309,10 +7228,10 @@ mswin_eeol (void)
 	aStart->rgbBG = gpTTYInfo->curAttrib.rgbBG;
     }
 
-    rect.left = (gpTTYInfo->nColumn * gpTTYInfo->xChar) + 
+    rect.left = (gpTTYInfo->nColumn * gpTTYInfo->xChar) +
 	    gpTTYInfo->xOffset;
     rect.right = gpTTYInfo->xSize;
-    rect.top = (gpTTYInfo->nRow * gpTTYInfo->yChar) + 
+    rect.top = (gpTTYInfo->nRow * gpTTYInfo->yChar) +
 	    gpTTYInfo->yOffset;
     rect.bottom = rect.top + gpTTYInfo->yChar;
     gpTTYInfo->screenDirty = TRUE;
@@ -7333,7 +7252,7 @@ mswin_eeop (void)
     int         *cwStart;
     long	length, i;
     RECT	rect;
-    
+
     FlushWriteAccum ();
     /* From current position to end of screen. */
 
@@ -7341,9 +7260,9 @@ mswin_eeop (void)
 			+ gpTTYInfo->nColumn;
     cwStart = gpTTYInfo->pCellWidth + (gpTTYInfo->nRow * gpTTYInfo->actNColumn)
 			+ gpTTYInfo->nColumn;
-    length = (gpTTYInfo->pScreen
+    length = (long)((gpTTYInfo->pScreen
 			      + (gpTTYInfo->actNColumn * gpTTYInfo->actNRow))
-			      - cStart;
+			      - cStart);
     for(i = 0; i < length; i ++){
 	cStart[i] = (TCHAR)(' ');
 	cwStart[i] = gpTTYInfo->xChar;
@@ -7358,12 +7277,12 @@ mswin_eeop (void)
 	aStart->rgbFG = gpTTYInfo->curAttrib.rgbFG;
 	aStart->rgbBG = gpTTYInfo->curAttrib.rgbBG;
     }
-    
+
     /* Invalidate a rectangle that includes all of the current line down
      * to the bottom of the window. */
     rect.left = 0;
     rect.right = gpTTYInfo->xSize;
-    rect.top = (gpTTYInfo->nRow * gpTTYInfo->yChar) + 
+    rect.top = (gpTTYInfo->nRow * gpTTYInfo->yChar) +
 	    gpTTYInfo->yOffset;
     rect.bottom = gpTTYInfo->ySize;
     gpTTYInfo->screenDirty = TRUE;
@@ -7391,9 +7310,9 @@ void
 mswin_pause (int seconds)
 {
     DWORD	stoptime;
-    
+
     stoptime = GetTickCount () + (DWORD) seconds * 1000;
-    while (stoptime > GetTickCount ()) 
+    while (stoptime > GetTickCount ())
 	mswin_yeild ();
 }
 	
@@ -7411,7 +7330,7 @@ mswin_flush (void)
      */
     FlushWriteAccum ();
     UpdateWindow (ghTTYWnd);
-    
+
     return (0);
 }
 
@@ -7429,7 +7348,7 @@ mswin_fflush (FILE *f)
     }
     else
 	fflush (f);
-    
+
     return(0);
 }
 
@@ -7478,7 +7397,7 @@ RestoreMouseCursor()
 
 
 /*
- * Display message in windows dialog box. 
+ * Display message in windows dialog box.
  */
 void
 mswin_messagebox (char *msg_utf8, int err)
@@ -7570,9 +7489,6 @@ mswin_allowcopycut (getc_t copyfunc)
 void
 mswin_addclipboard(char *s)
 {
-/*************
- * To be cleaned up for CF_UNICODETEXT later
- *************/
     HANDLE  hCB;
     char   *pCB;
     size_t  sSize;
@@ -7605,14 +7521,14 @@ void
 mswin_allowmousetrack (int b)
 {
     gAllowMouseTrack = b;
-    if (b) 
+    if (b)
 	SelClear ();
     MyTimerSet ();
 }
 
 
 /*
- * register's callback to warn 
+ * register's callback to warn
  */
 void
 mswin_mousetrackcallback(cbarg_t cbfunc)
@@ -7712,7 +7628,6 @@ void
 UpdateTrayIcon(DWORD dwMsg, HICON hIcon, LPTSTR tip)
 {
     NOTIFYICONDATA nt;
-    BOOL	   status;
 
     nt.cbSize = sizeof (nt);
     nt.hWnd   = ghTTYWnd;
@@ -7775,7 +7690,7 @@ mswin_menuitemclear (void)
 {
     int			i;
     HWND		hWnd;
-    
+
 
     for (i = 0; i < KS_COUNT; ++i) {
 	gpTTYInfo->menuItems[i].miActive = FALSE;
@@ -7803,7 +7718,7 @@ mswin_menuitemadd (UCS key, char *label, int menuitem, int flags)
     HWND		hWnd;
 
     if (menuitem >= KS_RANGESTART && menuitem <= KS_RANGEEND) {
-	 
+	
 	gpTTYInfo->menuItemsCurrent = FALSE;
 	
 	i = menuitem - KS_RANGESTART;
@@ -7829,19 +7744,19 @@ mswin_menuitemadd (UCS key, char *label, int menuitem, int flags)
  * corresponding character into the char input queue.
  */
 void
-ProcessMenuItem (HWND hWnd, WPARAM wParam) 
+ProcessMenuItem (HWND hWnd, WPARAM wParam)
 {
     PTTYINFO		pTTYInfo;
     int			i;
 
-    pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO);
+    pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO);
     if (pTTYInfo == NULL)
 	return;
 
-    
+
     if (wParam >= KS_RANGESTART && wParam <= KS_RANGEEND) {
-	i = wParam - KS_RANGESTART;
-	if (pTTYInfo->menuItems[i].miActive) 
+	i = (int)(wParam - KS_RANGESTART);
+	if (pTTYInfo->menuItems[i].miActive)
 	    CQAdd (pTTYInfo->menuItems[i].miKey, 0);
     }
 }
@@ -7856,8 +7771,8 @@ mswin_setwindowmenu (int menu)
     int		oldmenu;
     HMENU	holdmenu;
     HMENU	hmenu;
-    
-    
+
+
     oldmenu = gpTTYInfo->curWinMenu;
     holdmenu = GetMenu (ghTTYWnd);
     if (gpTTYInfo->curWinMenu != menu) {
@@ -7909,14 +7824,14 @@ LPTSTR		P_LineText;	/* Pointer to line buffer. */
 
 
 /*
- * Define the margin as number of lines at top and bottom of page. 
+ * Define the margin as number of lines at top and bottom of page.
  * (might be better to define as a percent of verticle page size)
  */
 #define VERTICLE_MARGIN		3	/* lines at top and bottom of page. */
 #define HORIZONTAL_MARGIN	1	/* margine at left & right in chars */
 
 /*
- * Several errors that can be reported. 
+ * Several errors that can be reported.
  */
 #define PE_DIALOG_FAILED	1
 #define PE_USER_CANCEL		2
@@ -7949,36 +7864,36 @@ LOCAL struct pe_error_message {
 
 
 /*
- * Send text in the line buffer to the printer.  
+ * Send text in the line buffer to the printer.
  * Advance to next page if necessary.
  */
 LOCAL int
 _print_send_line (void)
 {
     int		status;
-    
+
     status = 0;
-    if (P_CurCol > 0) 
-	TextOut (P_PrintDC, P_LeftOffset, 
-				P_TopOffset + (P_CurRow * P_RowHeight), 
+    if (P_CurCol > 0)
+	TextOut (P_PrintDC, P_LeftOffset,
+				P_TopOffset + (P_CurRow * P_RowHeight),
 		P_LineText, P_CurCol);
     P_CurCol = 0;
-    if (++P_CurRow >= P_PageRows) 
+    if (++P_CurRow >= P_PageRows)
 	status = _print_send_page ();
 	
     return (status);
 }
 
-    
+
 
 /*
- * Advance one page. 
+ * Advance one page.
  */
 int
-_print_send_page ()
+_print_send_page (void)
 {
     DWORD status;
-    
+
     if((status = EndPage (P_PrintDC)) > 0){
 	P_CurRow = 0;
 	if((status = StartPage (P_PrintDC)) > 0){
@@ -8044,12 +7959,12 @@ mswin_print_ready(WINHAND hWnd, LPTSTR docDesc)
     int			status;
     HFONT		oldFont;
     LOGFONT		newFont;
-    
-    
+
+
     status = 0;
     P_PrintDC = NULL;
 
-    
+
     /*
      * Show print dialog.
      */
@@ -8058,14 +7973,14 @@ mswin_print_ready(WINHAND hWnd, LPTSTR docDesc)
     pd.hwndOwner = (hWnd ? (HWND) hWnd : ghTTYWnd);
     pd.hDevMode = NULL;
     pd.hDevNames = NULL;
-    pd.Flags = PD_ALLPAGES | PD_NOSELECTION | PD_NOPAGENUMS | 
+    pd.Flags = PD_ALLPAGES | PD_NOSELECTION | PD_NOPAGENUMS |
 	    PD_HIDEPRINTTOFILE | PD_RETURNDC;
     pd.nCopies = 1;
-    if(PrintDlg (&pd) == 0) 
+    if(PrintDlg (&pd) == 0)
 	return(_print_map_dlg_error (CommDlgExtendedError()));
 
     /*
-     * Returns the device name which we could use to remember what printer 
+     * Returns the device name which we could use to remember what printer
      * they selected.  But instead, we just toss them.
      */
     if (pd.hDevNames)
@@ -8077,13 +7992,13 @@ mswin_print_ready(WINHAND hWnd, LPTSTR docDesc)
      * Get the device drawing context.
      * (does PringDlg() ever return success but fail to return a DC?)
      */
-    if (pd.hDC != NULL) 
+    if (pd.hDC != NULL)
 	P_PrintDC = pd.hDC;
     else {
         status = PE_DIALOG_FAILED;
 	goto Done;
     }
-    
+
     /*
      * Start Document
      */
@@ -8099,7 +8014,7 @@ mswin_print_ready(WINHAND hWnd, LPTSTR docDesc)
 	P_PrintDC = NULL;
 	goto Done;
     }
-    
+
     /*
      * Printer font is either same as window font, or is it's own
      * font.
@@ -8114,7 +8029,7 @@ mswin_print_ready(WINHAND hWnd, LPTSTR docDesc)
 	 * as we see on the screen.
 	 */
 	hDC = GetDC (ghTTYWnd);			/* Temp screen DC. */
-	ppi = (int) ((float)GetDeviceCaps (hDC, VERTRES) / 
+	ppi = (int) ((float)GetDeviceCaps (hDC, VERTRES) /
 		    ((float) GetDeviceCaps (hDC, VERTSIZE) / 25.3636));
 #ifdef FDEBUG
 	if (mswin_debug >= 8) {
@@ -8148,7 +8063,7 @@ mswin_print_ready(WINHAND hWnd, LPTSTR docDesc)
 	    fprintf (mswin_debugfile, "                    printer res %d ppi, font height %d pixels\n",
 		ppi, -newFont.lfHeight);
 	    fprintf (mswin_debugfile, "                    paper height %d pixel, %d mm\n",
-		    GetDeviceCaps (P_PrintDC, VERTRES), 
+		    GetDeviceCaps (P_PrintDC, VERTRES),
 		    GetDeviceCaps (P_PrintDC, VERTSIZE));
 	}
 #endif
@@ -8186,18 +8101,18 @@ mswin_print_ready(WINHAND hWnd, LPTSTR docDesc)
 	DeleteDC (P_PrintDC);
 	goto Done;
     }
-    
-    
+
+
     /*
-     * Start page.  
+     * Start page.
      * Must select font for each page or it returns to default.
-     * Windows seems good about maping selected font to a font that 
+     * Windows seems good about maping selected font to a font that
      * will actually print on the printer.
      */
     StartPage (P_PrintDC);
     oldFont = SelectObject (P_PrintDC, P_hFont);
-    
-    
+
+
     /*
      * Find out about the font we got and set up page size and margins.
      * This assumes all pages are the same size - which seems reasonable.
@@ -8205,19 +8120,19 @@ mswin_print_ready(WINHAND hWnd, LPTSTR docDesc)
     GetTextMetrics (P_PrintDC, &tm);
     xChar = tm.tmAveCharWidth;			
     P_RowHeight = tm.tmHeight + tm.tmExternalLeading;
-    
+
     /* HORZRES and VERTRES report size of page in printer pixels. */
     P_PageColumns = GetDeviceCaps (P_PrintDC, HORZRES) / xChar;
     P_PageRows = GetDeviceCaps (P_PrintDC, VERTRES) / P_RowHeight;
-    
+
     /* We allow a margin at top and bottom measured in text rows. */
     P_PageRows -= VERTICLE_MARGIN * 2;
     P_TopOffset = VERTICLE_MARGIN * P_RowHeight;
-    
+
     /* And allow for a left and right margine measured in characters. */
     P_PageColumns -= HORIZONTAL_MARGIN * 2;
     P_LeftOffset = HORIZONTAL_MARGIN * xChar;
-    
+
     P_CurRow = 0;			/* Start counting at row 0. */
     P_CurCol = 0;			/* At character 0. */
     P_LineText = (LPTSTR) MemAlloc((P_PageColumns + 1) * sizeof(TCHAR));
@@ -8232,14 +8147,14 @@ mswin_print_ready(WINHAND hWnd, LPTSTR docDesc)
 	status = PE_OUT_OF_MEMORY;
 	goto Done;
     }
-    
-    
+
+
 Done:
     return (status);
 }
 
 
-/* 
+/*
  * Called when printing is done.
  * xxx what happens if there is an error?  Will this get called?
  */
@@ -8270,9 +8185,9 @@ char *
 mswin_print_error(int error_code)
 {
     int i;
-    
+
     for(i = 0; P_ErrorMessages[i].error_message != NULL; ++i)
-      if(P_ErrorMessages[i].error_code == error_code) 
+      if(P_ErrorMessages[i].error_code == error_code)
 	return(P_ErrorMessages[i].error_message);
 
     return("(Unknown error)");
@@ -8280,7 +8195,7 @@ mswin_print_error(int error_code)
 
 
 /*
- * Add a single character to the current line.  
+ * Add a single character to the current line.
  * Only handles CRLF carrage control.
  */
 int
@@ -8324,8 +8239,8 @@ mswin_print_char_utf8(int c)
     UCS ucs;
     TCHAR tc;
     int ret = 0;
-    
-    if(utf8_to_ucs4_oneatatime(c, cbuf, sizeof(cbuf), &cbufp, &ucs)){
+
+    if(utf8_to_ucs4_oneatatime(c, cbuf, sizeof(cbuf), &cbufp, &ucs, NULL)){
 	/* bogus conversion ignores UTF-16 */
 	tc = (TCHAR) ucs;
 	ret = mswin_print_char(tc);
@@ -8333,7 +8248,7 @@ mswin_print_char_utf8(int c)
 
     return(ret);
 }
-    
+
 
 /*
  * Send a string to the printer.
@@ -8386,13 +8301,13 @@ LOCAL TCHAR gLastDir[PATH_MAX];
  * direcory.
  */
 static void
-FillInitialDir (LPCTSTR *iDir, LPTSTR targDir) 
+FillInitialDir (LPCTSTR *iDir, LPTSTR targDir)
 {
     if (_tcslen (gHomeDir) == 0) {
 	_tcscpy (gHomeDir, targDir);
 	*iDir = targDir;
     }
-    else if (_tcscmp (gHomeDir, targDir) == 0 && *gLastDir) 
+    else if (_tcscmp (gHomeDir, targDir) == 0 && *gLastDir)
 	    *iDir = gLastDir;
 	else
 	    *iDir = targDir;
@@ -8452,7 +8367,8 @@ mswin_savefile(char *dir_utf8, int nMaxDName, char *fName_utf8, int nMaxFName)
 
     len = sizeof(moniker)/sizeof(TCHAR);
     if(extlist_lpt && MSWRPeek(HKEY_CLASSES_ROOT, extlist_lpt, NULL, moniker, &len) == TRUE){
-	len = 64;		/* arbitrary number */
+	len = sizeof(filters)/sizeof(TCHAR);
+	filters[0] = '\0';
 	if(MSWRPeek(HKEY_CLASSES_ROOT, moniker, NULL, filters, &len) == TRUE)
 	  _sntprintf(filters + _tcslen(filters),
 		     sizeof(filters)/sizeof(TCHAR) - _tcslen(filters),
@@ -8834,7 +8750,7 @@ mswin_multopenfile(char *dir_utf8, int nMaxDName, char *fName_utf8,
 	    dir_utf8[nMaxDName-1] = '\0';
 	    fs_give((void **) &cp);
 	}
-	    
+	
 	/*
 	 * The file names are all in the same directory and are separated
 	 * by '\0' characters and terminated by double '\0'.
@@ -8847,7 +8763,7 @@ mswin_multopenfile(char *dir_utf8, int nMaxDName, char *fName_utf8,
 	for(q=fName_utf8, p=fName_lpt + ofn.nFileOffset; *p; p += _tcslen(p)+1){
 	    cp = lptstr_to_utf8(p);
 	    if(cp){
-		sstrncpy(&q, cp, nMaxFName-(q-fName_utf8));
+		sstrncpy(&q, cp, (int)(nMaxFName-(q-fName_utf8)));
 		if(q-fName_utf8 < nMaxFName){
 		    *q++ = '\0';
 		    if(q-fName_utf8 < nMaxFName)
@@ -8890,61 +8806,75 @@ mswin_multopenfile(char *dir_utf8, int nMaxDName, char *fName_utf8,
  * pico_XXcolor() - each function sets a particular attribute
  */
 void
-pico_nfcolor(s)
-char *s;
+pico_nfcolor(char *s)
 {
-    char cbuf[MAXCOLORLEN+1];
+    char cbuf[MAXCLEN];
 
     if(s){
 	SetColorAttribute (&gpTTYInfo->rgbFGColor, s);
 	pico_set_nfg_color();
 
-	if(the_normal_color)
-	  strcpy(the_normal_color->fg,
-	         ConvertStringRGB(cbuf, gpTTYInfo->rgbFGColor));
+	if(the_normal_color){
+	  strncpy(the_normal_color->fg,
+	          ConvertStringRGB(cbuf, sizeof(cbuf), gpTTYInfo->rgbFGColor),
+		  MAXCOLORLEN+1);
+	  the_normal_color->fg[MAXCOLORLEN] = '\0';
+	}
     }
     else{
 	gpTTYInfo->rgbFGColor = GetSysColor (COLOR_WINDOWTEXT);
 	if(the_normal_color)
 	  free_color_pair(&the_normal_color);
     }
+
+    // Update all textwindows with the new FG color.
+    mswin_tw_setcolor((MSWIN_TEXTWINDOW *)-1,
+        gpTTYInfo->rgbFGColor, gpTTYInfo->rgbBGColor);
 }
 
 
 void
-pico_nbcolor(s)
-char *s;
+pico_nbcolor(char *s)
 {
-    char cbuf[MAXCOLORLEN+1];
+    char cbuf[MAXCLEN];
 
     if(s){
 	SetColorAttribute (&gpTTYInfo->rgbBGColor, s);
 	pico_set_nbg_color();
 
-	if(the_normal_color)
-	  strcpy(the_normal_color->bg,
-	         ConvertStringRGB(cbuf, gpTTYInfo->rgbBGColor));
+	if(the_normal_color){
+	  strncpy(the_normal_color->bg,
+	          ConvertStringRGB(cbuf, sizeof(cbuf), gpTTYInfo->rgbBGColor),
+		  MAXCOLORLEN+1);
+	  the_normal_color->fg[MAXCOLORLEN] = '\0';
+	}
     }
     else{
 	gpTTYInfo->rgbBGColor = GetSysColor (COLOR_WINDOW);
 	if(the_normal_color)
 	  free_color_pair(&the_normal_color);
     }
+
+    // Update all textwindows with the new BG color.
+    mswin_tw_setcolor((MSWIN_TEXTWINDOW *)-1,
+        gpTTYInfo->rgbFGColor, gpTTYInfo->rgbBGColor);
 }
 
 
 void
-pico_rfcolor(s)
-char *s;
+pico_rfcolor(char *s)
 {
-    char cbuf[MAXCOLORLEN+1];
+    char cbuf[MAXCLEN];
 
     if(s){
 	SetColorAttribute (&gpTTYInfo->rgbRFGColor, s);
 
-	if(the_rev_color)
-	  strcpy(the_rev_color->fg,
-	         ConvertStringRGB(cbuf, gpTTYInfo->rgbRFGColor));
+	if(the_rev_color){
+	  strncpy(the_rev_color->fg,
+	          ConvertStringRGB(cbuf, sizeof(cbuf), gpTTYInfo->rgbRFGColor),
+		  MAXCOLORLEN+1);
+	  the_rev_color->fg[MAXCOLORLEN] = '\0';
+	}
     }
     else{
 	gpTTYInfo->rgbRFGColor = GetSysColor (COLOR_HIGHLIGHTTEXT);
@@ -8955,17 +8885,19 @@ char *s;
 
 
 void
-pico_rbcolor(s)
-char *s;
+pico_rbcolor(char *s)
 {
-    char cbuf[MAXCOLORLEN+1];
+    char cbuf[MAXCLEN];
 
     if(s){
 	SetColorAttribute (&gpTTYInfo->rgbRBGColor, s);
 
-	if(the_rev_color)
-	  strcpy(the_rev_color->bg,
-	         ConvertStringRGB(cbuf, gpTTYInfo->rgbRBGColor));
+	if(the_rev_color){
+	  strncpy(the_rev_color->bg,
+	          ConvertStringRGB(cbuf, sizeof(cbuf), gpTTYInfo->rgbRBGColor),
+		  MAXCOLORLEN+1);
+	  the_rev_color->bg[MAXCOLORLEN] = '\0';
+	}
     }
     else{
 	gpTTYInfo->rgbRBGColor = GetSysColor (COLOR_HIGHLIGHT);
@@ -9005,7 +8937,7 @@ color_to_asciirgb(char *colorName)
     int          l;
 
     if(ConvertRGBString(colorName, &cf)){
-	sprintf(c_to_a_buf, "%.3d,%.3d,%.3d",
+	snprintf(c_to_a_buf, sizeof(c_to_a_buf), "%.3d,%.3d,%.3d",
 		GetRValue(cf), GetGValue(cf), GetBValue(cf));
     }
     else{
@@ -9021,11 +8953,11 @@ color_to_asciirgb(char *colorName)
 	 * sucked up when they're encountered.
 	 */
 	strncpy(c_to_a_buf, "xxxxxxxxxxx", RGBLEN);
-	l = strlen(colorName);
+	l = (int)strlen(colorName);
 	strncpy(c_to_a_buf, colorName, (l < RGBLEN) ? l : RGBLEN);
 	c_to_a_buf[RGBLEN] = '\0';
     }
-    
+
     return(c_to_a_buf);
 }
 
@@ -9054,24 +8986,24 @@ pico_set_normal_color()
 COLOR_PAIR *
 pico_get_rev_color()
 {
-    char fgbuf[MAXCOLORLEN+1], bgbuf[MAXCOLORLEN+1];
+    char fgbuf[MAXCLEN], bgbuf[MAXCLEN];
 
     if(!the_rev_color)
       the_rev_color =
-	   new_color_pair(ConvertStringRGB(fgbuf,gpTTYInfo->rgbRFGColor),
-			  ConvertStringRGB(bgbuf,gpTTYInfo->rgbRBGColor));
+	   new_color_pair(ConvertStringRGB(fgbuf,sizeof(fgbuf),gpTTYInfo->rgbRFGColor),
+			  ConvertStringRGB(bgbuf,sizeof(bgbuf),gpTTYInfo->rgbRBGColor));
     return(the_rev_color);
 }
 
 COLOR_PAIR *
 pico_get_normal_color()
 {
-    char fgbuf[MAXCOLORLEN+1], bgbuf[MAXCOLORLEN+1];
+    char fgbuf[MAXCLEN], bgbuf[MAXCLEN];
 
     if(!the_normal_color)
       the_normal_color =
-	   new_color_pair(ConvertStringRGB(fgbuf,gpTTYInfo->rgbFGColor),
-			  ConvertStringRGB(bgbuf,gpTTYInfo->rgbBGColor));
+	   new_color_pair(ConvertStringRGB(fgbuf,sizeof(fgbuf),gpTTYInfo->rgbFGColor),
+			  ConvertStringRGB(bgbuf,sizeof(bgbuf),gpTTYInfo->rgbBGColor));
     return(the_normal_color);
 }
 
@@ -9085,11 +9017,9 @@ pico_get_normal_color()
  * color pair, otherwise returns NULL.
  */
 COLOR_PAIR *
-pico_set_colors(fg, bg, flags)
-    char *fg, *bg;
-    int   flags;
+pico_set_colors(char *fg, char *bg, int flags)
 {
-    COLOR_PAIR *cp = NULL, *rev = NULL;
+    COLOR_PAIR *cp = NULL;
 
     if(flags & PSC_RET)
       cp = pico_get_cur_color();
@@ -9153,8 +9083,7 @@ pico_get_color_options()
 
 
 void
-pico_set_color_options(opts)
-    unsigned opts;
+pico_set_color_options(unsigned int opts)
 {
 }
 
@@ -9162,10 +9091,10 @@ pico_set_color_options(opts)
 COLOR_PAIR *
 pico_get_cur_color()
 {
-    char fgbuf[MAXCOLORLEN+1], bgbuf[MAXCOLORLEN+1];
+    char fgbuf[MAXCLEN], bgbuf[MAXCLEN];
 
-    return(new_color_pair(ConvertStringRGB(fgbuf,gpTTYInfo->curAttrib.rgbFG),
-			  ConvertStringRGB(bgbuf,gpTTYInfo->curAttrib.rgbBG)));
+    return(new_color_pair(ConvertStringRGB(fgbuf,sizeof(fgbuf),gpTTYInfo->curAttrib.rgbFG),
+			  ConvertStringRGB(bgbuf,sizeof(bgbuf),gpTTYInfo->curAttrib.rgbBG)));
 }
 
 
@@ -9211,11 +9140,12 @@ mswin_rgbchoice(char *pOldRGB)
     }
 
     if(ChooseColor(&cc)){
-	char rgbbuf[16], *p;
+	char rgbbuf[MAXCLEN], *p;
 
-	ConvertStringRGB(rgbbuf, cc.rgbResult);
-	if(p = MemAlloc((RGBLEN + 1) * sizeof(char))){
-	    strcpy(p, rgbbuf);
+	ConvertStringRGB(rgbbuf, sizeof(rgbbuf), cc.rgbResult);
+	if(p = MemAlloc(MAXCLEN * sizeof(char))){
+	    strncpy(p, rgbbuf, MAXCLEN);
+	    p[MAXCLEN-1] = '\0';
 	    return(p);
 	}
     }
@@ -9262,7 +9192,7 @@ void (__cdecl * __cdecl signal (int sig,void (__cdecl *hndlr)(int)))(int)
 	oldValue = SIG_IGN;
 	break;
     }
-    
+
     return (oldValue);
 }
 #endif
@@ -9275,7 +9205,7 @@ int
 mswin_alarm (int seconds)
 {
     int		prevtime;
-    
+
     prevtime = gAlarmTimeout ? (gAlarmTimeout - (GetTickCount () / 1000)): 0;
     gAlarmTimeout = seconds ? (GetTickCount() / 1000) + seconds : 0;
     MyTimerSet ();
@@ -9329,21 +9259,21 @@ PrintFontSameAs (HWND hWnd)
     HDC			hDC;
     int			ppi;
     PTTYINFO		pTTYInfo;
-    
-    
-    pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO);
+
+
+    pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO);
     if (pTTYInfo == NULL)
 	return;
-    
+
     if (gPrintFontSameAs) {
-	    
+	
 	/* No longer same as window font.  Use window font as starting point
 	 * for new printer font.  User may later modify printer font. */
 	hDC = GetDC (hWnd);
 	ppi = GetDeviceCaps (hDC, LOGPIXELSY);
 	ReleaseDC (ghTTYWnd, hDC);
 	ExtractFontInfo(&pTTYInfo->lfTTYFont,
-			gPrintFontName, sizeof(gPrintFontName)/sizeof(TCHAR), 
+			gPrintFontName, sizeof(gPrintFontName)/sizeof(TCHAR),
 			&gPrintFontSize,
 			gPrintFontStyle, sizeof(gPrintFontStyle)/sizeof(TCHAR),
 			ppi,
@@ -9351,7 +9281,7 @@ PrintFontSameAs (HWND hWnd)
 	gPrintFontSameAs = FALSE;
     }
     else {
-	    
+	
 	/* Set to be same as the printer font.  Destroy printer font info
 	 * and set "sameAs" flag to TRUE. */
 	gPrintFontName[0] = '\0';
@@ -9373,13 +9303,13 @@ PrintFontSelect (HWND hWnd)
     int			ppi;
     HDC			hDC;
 
-    
+
 
     hDC = GetDC (hWnd);
     ppi = GetDeviceCaps (hDC, LOGPIXELSY);
     ReleaseDC (ghTTYWnd, hDC);
 
-    
+
     newFont.lfHeight =  -MulDiv (gPrintFontSize, ppi, 72);
     _tcsncpy(newFont.lfFaceName, gPrintFontName, LF_FACESIZE);
     newFont.lfFaceName[LF_FACESIZE-1] = 0;
@@ -9401,7 +9331,7 @@ PrintFontSelect (HWND hWnd)
     newFont.lfClipPrecision =  CLIP_DEFAULT_PRECIS;
     newFont.lfQuality =        DEFAULT_QUALITY;
     newFont.lfPitchAndFamily = FIXED_PITCH;
-    
+
 
     cfTTYFont.lStructSize    = sizeof (CHOOSEFONT);
     cfTTYFont.hwndOwner      = hWnd ;
@@ -9409,7 +9339,7 @@ PrintFontSelect (HWND hWnd)
     cfTTYFont.rgbColors      = 0;
     cfTTYFont.lpLogFont      = &newFont;
     cfTTYFont.Flags          = CF_BOTH | CF_FIXEDPITCHONLY |
-	    CF_INITTOLOGFONTSTRUCT | CF_ANSIONLY | 
+	    CF_INITTOLOGFONTSTRUCT | CF_ANSIONLY |
 	    CF_FORCEFONTEXIST | CF_LIMITSIZE;
     cfTTYFont.nSizeMin	     = FONT_MIN_SIZE;
     cfTTYFont.nSizeMax	     = FONT_MAX_SIZE;
@@ -9422,7 +9352,7 @@ PrintFontSelect (HWND hWnd)
     if (ChooseFont (&cfTTYFont)) {
 	ExtractFontInfo(&newFont,
 			gPrintFontName, sizeof(gPrintFontName)/sizeof(TCHAR),
-			&gPrintFontSize, 
+			&gPrintFontSize,
 			gPrintFontStyle, sizeof(gPrintFontStyle)/sizeof(TCHAR),
 			ppi,
 			gPrintFontCharSet, sizeof(gPrintFontCharSet)/sizeof(TCHAR));
@@ -9442,7 +9372,7 @@ ExtractFontInfo(LOGFONT *pFont, LPTSTR fontName, size_t nfontName,
     TCHAR		*sep[] = {TEXT(""), TEXT(", ")};
     int			iSep = 0;
 
-    
+
     _tcsncpy(fontName, pFont->lfFaceName, nfontName);
     fontName[nfontName-1] = '\0';
 
@@ -9472,9 +9402,9 @@ LOCAL void
 DidResize (PTTYINFO pTTYInfo)
 {
     int			i;
-    
+
     for (i = 0; i < RESIZE_CALLBACK_ARRAY_SIZE; ++i) {
-	if (pTTYInfo->resizer[i] != NULL) 
+	if (pTTYInfo->resizer[i] != NULL)
 	    pTTYInfo->resizer[i] (pTTYInfo->actNRow, pTTYInfo->actNColumn);
     }
     /*
@@ -9488,7 +9418,7 @@ DidResize (PTTYINFO pTTYInfo)
 
 
 	
-    
+
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  *
  *        Cut, Copy, and Paste operations
@@ -9504,21 +9434,20 @@ LOCAL void
 UpdateMenu (HWND hWnd)
 {
     HMENU		hMenu;
-    BOOL		brc;
     PTTYINFO		pTTYInfo;
     int			i;
 #ifdef	ACCELERATORS
     UINT		fAccel = EM_NONE;
 #endif
-    
-    pTTYInfo = (PTTYINFO) GetWindowLong (hWnd, GWL_PTTYINFO);
+
+    pTTYInfo = (PTTYINFO) MyGetWindowLongPtr (hWnd, GWL_PTTYINFO);
     if (pTTYInfo == NULL)
 	return;
 
     hMenu = GetMenu (hWnd);
     if (hMenu == NULL)
 	return;
-    
+
     if (ghPaste) {
 	/* Currently pasting so disable paste and enable cancel paste. */
 	EnableMenuItem (hMenu, IDM_EDIT_PASTE, MF_BYCOMMAND|MF_GRAYED);
@@ -9528,7 +9457,7 @@ UpdateMenu (HWND hWnd)
 #endif
     }
     else {
-	/* 
+	/*
 	 * Not pasting.  If text is available on clipboard and we are
 	 * at a place where we can paste, enable past menu option.
 	 */
@@ -9543,7 +9472,7 @@ UpdateMenu (HWND hWnd)
 
 	EnableMenuItem (hMenu, IDM_EDIT_CANCEL_PASTE, MF_BYCOMMAND|MF_GRAYED);
     }
-    
+
     if (SelAvailable ()) {
 	EnableMenuItem (hMenu, IDM_EDIT_CUT, MF_BYCOMMAND|MF_GRAYED);
 	EnableMenuItem (hMenu, IDM_EDIT_COPY, MF_BYCOMMAND|MF_ENABLED);
@@ -9572,7 +9501,7 @@ UpdateMenu (HWND hWnd)
 	}
         else {
 	    EnableMenuItem (hMenu, IDM_EDIT_COPY, MF_BYCOMMAND | MF_GRAYED);
-	    EnableMenuItem (hMenu, IDM_EDIT_COPY_APPEND, 
+	    EnableMenuItem (hMenu, IDM_EDIT_COPY_APPEND,
 				MF_BYCOMMAND | MF_GRAYED);	
 	}
     }
@@ -9582,13 +9511,13 @@ UpdateMenu (HWND hWnd)
      */
     if (gPrintFontName[0] == '\0') {
 	CheckMenuItem (hMenu, IDM_OPT_FONTSAMEAS, MF_BYCOMMAND | MF_CHECKED);
-	EnableMenuItem (hMenu, IDM_OPT_SETPRINTFONT, 
+	EnableMenuItem (hMenu, IDM_OPT_SETPRINTFONT,
 						MF_BYCOMMAND | MF_GRAYED);
     }
     else {
-	CheckMenuItem (hMenu, IDM_OPT_FONTSAMEAS, 
+	CheckMenuItem (hMenu, IDM_OPT_FONTSAMEAS,
 						MF_BYCOMMAND | MF_UNCHECKED);
-	EnableMenuItem (hMenu, IDM_OPT_SETPRINTFONT, 
+	EnableMenuItem (hMenu, IDM_OPT_SETPRINTFONT,
 						MF_BYCOMMAND | MF_ENABLED);
     }
 
@@ -9607,10 +9536,10 @@ UpdateMenu (HWND hWnd)
      * Check toolbar menu.
      */
     EnableMenuItem (hMenu, IDM_OPT_TOOLBAR, MF_BYCOMMAND | MF_ENABLED);
-    CheckMenuItem (hMenu, IDM_OPT_TOOLBAR, MF_BYCOMMAND | 
+    CheckMenuItem (hMenu, IDM_OPT_TOOLBAR, MF_BYCOMMAND |
 	    (pTTYInfo->toolBarSize > 0 ? MF_CHECKED : MF_UNCHECKED));
     EnableMenuItem (hMenu, IDM_OPT_TOOLBARPOS, MF_BYCOMMAND | MF_ENABLED);
-    CheckMenuItem (hMenu, IDM_OPT_TOOLBARPOS, MF_BYCOMMAND | 
+    CheckMenuItem (hMenu, IDM_OPT_TOOLBARPOS, MF_BYCOMMAND |
 	    (pTTYInfo->toolBarTop > 0 ? MF_CHECKED : MF_UNCHECKED));
 
 
@@ -9619,10 +9548,17 @@ UpdateMenu (HWND hWnd)
      * Check the dialogs menu.
      */
     /* xxx EnableMenuItem (hMenu, IDM_OPT_USEDIALOGS, MF_BYCOMMAND | MF_ENABLED);*/
-    CheckMenuItem (hMenu, IDM_OPT_USEDIALOGS, MF_BYCOMMAND | 
+    CheckMenuItem (hMenu, IDM_OPT_USEDIALOGS, MF_BYCOMMAND |
 	    (gfUseDialogs ? MF_CHECKED : MF_UNCHECKED));
+
+    /*
+     * Enable the Erase Credentials menu
+     */
+    EnableMenuItem (hMenu, IDM_OPT_ERASE_CREDENTIALS,
+		    MF_BYCOMMAND | (gEraseCredsCallback ? MF_ENABLED : MF_GRAYED));
+    
 #ifdef ACCELERATORS_OPT
-    CheckMenuItem (hMenu, IDM_OPT_USEACCEL, MF_BYCOMMAND | 
+    CheckMenuItem (hMenu, IDM_OPT_USEACCEL, MF_BYCOMMAND |
 	    (pTTYInfo->hAccel ? MF_CHECKED : MF_UNCHECKED));
 #endif
 
@@ -9658,7 +9594,7 @@ UpdateMenu (HWND hWnd)
     }
 
     /*
-     * 
+     *
      */
     if(gHdrCallback){
 	i = (*gHdrCallback)(0, 0);
@@ -9667,7 +9603,7 @@ UpdateMenu (HWND hWnd)
     }
 
     /*
-     * 
+     *
      */
     if(gZoomCallback){
 	i = (*gZoomCallback)(0, 0);
@@ -9735,8 +9671,8 @@ LOCAL void
 EditCut (void)
 {
     HANDLE		hCB;
-    
-    if(gCopyCutFunction == kremove){
+
+    if(gCopyCutFunction == (getc_t)kremove){
 	hCB = GlobalAlloc (GMEM_MOVEABLE, 0);
 	if (hCB != NULL) {
 	    kdelete();		/* Clear current kill buffer. */
@@ -9758,17 +9694,17 @@ mswin_killbuftoclip (getc_t copyfunc)
 {
     HANDLE		hCB;
     getc_t		oldfunc;
-   
+
     /* Save old copy function. */
     oldfunc = gCopyCutFunction;
     gCopyCutFunction = copyfunc;
-    
+
     /* Allocate clip buffer. */
     hCB = GlobalAlloc (GMEM_MOVEABLE, 0);
     if (hCB != NULL) {
 	EditDoCopyData (hCB, 0);
     }
-    
+
     /* restore copy function. */
     gCopyCutFunction = oldfunc;
 }
@@ -9776,29 +9712,29 @@ mswin_killbuftoclip (getc_t copyfunc)
 
 
 /*
- * Copy region to kill buffer. 
+ * Copy region to kill buffer.
  */
 LOCAL void
 EditCopy (void)
 {
     HANDLE		hCB;
-    
+
     if (SelAvailable()) {
 	/* This is a copy of the windows selection. */
 	hCB = GlobalAlloc (GMEM_MOVEABLE, 0);
-	if (hCB != NULL) 
+	if (hCB != NULL)
 	    SelDoCopy (hCB, 0);
-    } 
+    }
     else {
-	    
+	
 	/* Otherwise, it's a Pico/Pine copy. */
-	if(gCopyCutFunction == kremove){
+	if(gCopyCutFunction == (getc_t)kremove){
 	    kdelete();		/* Clear current kill buffer. */
 	    copyregion (1, 0);
 	}
 
 	hCB = GlobalAlloc (GMEM_MOVEABLE, 0);
-	if (hCB != NULL) 
+	if (hCB != NULL)
 	    EditDoCopyData (hCB, 0);
     }
 }
@@ -9816,7 +9752,7 @@ EditCopyAppend (void)
     HANDLE	hMyCopy;
     TCHAR	*pCB;
     TCHAR	*pMyCopy;
-    size_t	cbSize;
+    size_t	cbSize = 0;
 
     /* Attempt to copy clipboard data to my own handle. */
     hMyCopy = NULL;
@@ -9825,11 +9761,11 @@ EditCopyAppend (void)
 	if (hCB != NULL) {			/* And can get data. */
 	    pCB = GlobalLock (hCB);
 	    cbSize = _tcslen (pCB);		/* It's a null term string. */
-	    hMyCopy = GlobalAlloc (GMEM_MOVEABLE, (cbSize+1)*sizeof(char));
+	    hMyCopy = GlobalAlloc (GMEM_MOVEABLE, (cbSize+1)*sizeof(*pCB));
 	    if (hMyCopy != NULL) {		/* And can get memory. */
 		pMyCopy = GlobalLock (hMyCopy);
 		if (pMyCopy != NULL) {
-		    memcpy (pMyCopy, pCB, cbSize*sizeof(TCHAR));  /* Copy data. */
+		    memcpy (pMyCopy, pCB, cbSize*sizeof(*pCB));  /* Copy data. */
 		    GlobalUnlock (hMyCopy);
 		}
 		else {
@@ -9841,31 +9777,24 @@ EditCopyAppend (void)
 	}					/* GetClipboardData. */
 	CloseClipboard ();
     }					/* OpenClipboard. */
-    
+
 
 
     /* Now, if I got a copy, append current selection to that
      * and stuff it back into the clipboard. */
     if (hMyCopy != NULL) {
 	if (SelAvailable ()) {
-	    SelDoCopy (hMyCopy, cbSize);
+	    SelDoCopy (hMyCopy, (DWORD)cbSize);
 	}
 	else {
-	    if(gCopyCutFunction == kremove) {
+	    if(gCopyCutFunction == (getc_t)kremove) {
 		kdelete();		/* Clear current kill buffer. */
 		copyregion (1, 0);
 	    }
-	    EditDoCopyData (hMyCopy, cbSize);
+	    EditDoCopyData (hMyCopy, (DWORD)cbSize);
 	}
     }
 }
-
-
-
-
-
-
-
 
 
 /*
@@ -9933,11 +9862,10 @@ EditDoCopyData (HANDLE hCB, DWORD lenCB)
 		    GlobalFree (hCB);
 		}
 	    }
-	    CloseClipboard (); 
+	    CloseClipboard ();
         }
     }
 }
-
 
 
 /*
@@ -9951,7 +9879,7 @@ EditPaste (void)
     LPTSTR	pCB;
     LPTSTR	pPaste;
     size_t	cbSize;
-   
+
     if (ghPaste == NULL) {		/* If we are not already pasting. */
 	if (OpenClipboard (ghTTYWnd)) {		/* And can get clipboard. */
 	    hCB = GetClipboardData (CF_UNICODETEXT);
@@ -9985,7 +9913,7 @@ EditPaste (void)
 		    gPasteBytesRemain = cbSize;
 		    gPasteWasCR = FALSE;
 #ifdef FDEBUG
-		    if (mswin_debug > 8) 
+		    if (mswin_debug > 8)
 			fprintf (mswin_debugfile, "EditPaste::  Paste %d bytes\n",
 				    gPasteBytesRemain);
 #endif
@@ -10008,11 +9936,6 @@ EditPaste (void)
 LOCAL void
 EditCancelPaste (void)
 {
-    HANDLE	hCB;
-    char	*pCB;
-    char	*pPaste;
-    size_t	cbSize;
-   
     if (ghPaste != NULL) {	/* Must be pasting. */
 	GlobalUnlock (ghPaste);	/* Then Unlock... */
 	GlobalFree (ghPaste);	/* ...and free the paste buffer. */
@@ -10020,7 +9943,7 @@ EditCancelPaste (void)
 	gpPasteNext = NULL;		/* Just being tidy. */
 	gPasteBytesRemain = 0;	/* ditto. */
 #ifdef FDEBUG
-	if (mswin_debug > 8) 
+	if (mswin_debug > 8)
 	    fprintf (mswin_debugfile, "EditCancelPaste::  Free Paste Data\n");
 #endif
     }
@@ -10048,12 +9971,12 @@ EditPasteGet (void)
 		    b = (TCHAR) *gpPasteNext++;
 		    --gPasteBytesRemain;
 	        }
-		else 
+		else
 		    b = MSWIN_KEY_NODATA;  /* Ignore last LF. */
 	    }
 	    gPasteWasCR = (b == (TCHAR)ASCII_CR);
 #ifdef FDEBUG
-	    if (mswin_debug > 8) 
+	    if (mswin_debug > 8)
 		fprintf (mswin_debugfile, "EditPasteGet::  char %c, gPasteWasCR %d, gPasteBytesRemain %d\n",
 			b, gPasteWasCR, gPasteBytesRemain);
 #endif
@@ -10065,7 +9988,7 @@ EditPasteGet (void)
 	    gpPasteNext = NULL;		/* Just being tidy. */
 	    gPasteBytesRemain = 0;	/* ditto. */
 #ifdef FDEBUG
-	    if (mswin_debug > 8) 
+	    if (mswin_debug > 8)
 		fprintf (mswin_debugfile, "EditPasteGet::  Free Paste Data\n");
 #endif
         }
@@ -10135,7 +10058,7 @@ MSWHelpShow (cbstr_t fpHelpCallback)
 	char title[256], *help;
 
 	if(help = (*fpHelpCallback) (title))
-	  mswin_displaytext (title, help, strlen(help), NULL, 0, 0);
+	  mswin_displaytext (title, help, strlen(help), NULL, NULL, 0);
     }
 }
 
@@ -10160,8 +10083,8 @@ MyTimerSet (void)
 	period = my_timer_period;
 
     if (period != gTimerCurrentPeriod) {
-	if (SetTimer (ghTTYWnd, MY_TIMER_ID, period, NULL) == 0) 
-		MessageBox (ghTTYWnd, TIMER_FAIL_MESSAGE, NULL, 
+	if (SetTimer (ghTTYWnd, MY_TIMER_ID, period, NULL) == 0)
+		MessageBox (ghTTYWnd, TIMER_FAIL_MESSAGE, NULL,
 			     MB_OK | MB_ICONINFORMATION);
         else
 	    gTimerCurrentPeriod = period;
@@ -10203,7 +10126,7 @@ mswin_setperiodiccallback (cbvoid_t periodiccb, long period)
  */
 int
 mswin_exec_and_wait (char *utf8_whatsit, char *utf8_command,
-		     char *utf8_infile, char *utf8_outfile, 
+		     char *utf8_infile, char *utf8_outfile,
 		     int *exit_val, unsigned mswe_flags)
 {
     MEvent		mouse;
@@ -10293,14 +10216,14 @@ mswin_exec_and_wait (char *utf8_whatsit, char *utf8_command,
 		rc = mswin_getc();
 		brc = mswin_getmouseevent (&mouse);
 
-		if (rc != MSWIN_KEY_NODATA || 
+		if (rc != MSWIN_KEY_NODATA ||
 		    (brc && mouse.event == M_EVENT_DOWN)) {
 		    if(mswe_flags & MSWIN_EAW_CTRL_C_CANCELS){
 			if(rc < ' ' && (rc + '@' == 'C')) /* dumb way of saying ctrl-C */
 			  rc = IDCANCEL;
 		    }
 		    else{
-			rc = MessageBox (ghTTYWnd, waitingFor, lptstr_whatsit, 
+			rc = MessageBox (ghTTYWnd, waitingFor, lptstr_whatsit,
 					 MB_ICONSTOP | MB_OKCANCEL);
 		    }
 		    SelClear ();
@@ -10331,7 +10254,7 @@ mswin_exec_and_wait (char *utf8_whatsit, char *utf8_command,
 	    }
 	}
 
-	if (gpTTYInfo->fMinimized) 
+	if (gpTTYInfo->fMinimized)
 	  ShowWindow (ghTTYWnd, SW_SHOWNORMAL);
 
 	BringWindowToTop (ghTTYWnd);
@@ -10373,7 +10296,6 @@ int
 mswin_shell_exec(char *command_utf8, HINSTANCE *pChildProc)
 {
     int		      quoted = 0;
-    DWORD	      rc;
     SHELLEXECUTEINFO  shell_info;
     LPTSTR            command_lpt, free_command_lpt;
     LPTSTR            p, q, parm = NULL;
@@ -10464,7 +10386,7 @@ mswin_shell_exec(char *command_utf8, HINSTANCE *pChildProc)
 
     ShellExecuteEx(&shell_info);
 
-    if((int) shell_info.hInstApp > 32){
+    if((int)(LONG_PTR)shell_info.hInstApp > 32){
 	if(pChildProc)
 	  *pChildProc = shell_info.hProcess;
 
@@ -10503,7 +10425,7 @@ mswin_exec_err_msg(char *what, int status, char *buf, size_t buflen)
     }
 }
 
-	    
+	
 int
 mswin_set_quit_confirm (int confirm)
 {
@@ -10515,7 +10437,7 @@ mswin_set_quit_confirm (int confirm)
 /*
  * Called when Windows is in shutting down.  Before actually shutting down
  * Windows goes around to all the applications and asks if it is OK with
- * them to shut down (WM_QUERYENDSESSION).  
+ * them to shut down (WM_QUERYENDSESSION).
  * If gConfirmExit is set, ask the user if they want to exit.
  * Returning zero will stop the shutdown, non-zero allows it to proceed.
  */
@@ -10524,7 +10446,7 @@ ConfirmExit (void)
 {
     TCHAR	msg[256];
     int		rc;
-    
+
     if(gConfirmExit){
 	_sntprintf(msg, sizeof(msg)/sizeof(TCHAR),
 		   TEXT("Exiting may cause you to lose work in %s, Exit?"),
@@ -10545,7 +10467,7 @@ ConfirmExit (void)
  *++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
 /*
- * Useful def's 
+ * Useful def's
  */
 #define	MSWR_KEY_MAX	128
 #define	MSWR_VAL_MAX	128
@@ -10572,11 +10494,11 @@ static struct mswin_reg_key mswin_pine_regs[] = {
     {HKEY_CURRENT_USER, MSWR_ROOT, {TEXT("PineAux"), NULL}},
     {HKEY_CURRENT_USER, MSWR_ROOT, {TEXT("PinePos"), NULL}},
     {HKEY_LOCAL_MACHINE,
-     TEXT("Software\\Clients\\Mail\\Alpine"), 
+     TEXT("Software\\Clients\\Mail\\Alpine"),
      {TEXT(""), TEXT("DLLPath"), NULL}},
     {HKEY_LOCAL_MACHINE, TEXT("Software\\Clients\\Mail\\Alpine\\Protocols\\Mailto\\DefaultIcon"),
      {TEXT(""), NULL}},
-    {HKEY_LOCAL_MACHINE, 
+    {HKEY_LOCAL_MACHINE,
      TEXT("Software\\Clients\\Mail\\Alpine\\Protocols\\Mailto\\shell\\open\\command"),
      {TEXT(""), NULL}},
    {HKEY_LOCAL_MACHINE,
@@ -10623,7 +10545,9 @@ mswin_reg(int op, int tree, char *data_utf8, size_t size)
 	    data_lptstr[0] = '\0';
 	}
     }
+
     rv = mswin_reg_lptstr(op, tree, data_lptstr, size);
+
     if(data_utf8 && data_lptstr){
 	char *t_utf8str;
 	if(size){
@@ -10674,7 +10598,7 @@ mswin_reg_lptstr(int op, int tree, LPTSTR data_lptstr, size_t size)
 	    break;
 
 	  default :
-	   break; 
+	   break;
 	}
     }
     else if(op & MSWR_OP_GET){
@@ -10687,7 +10611,7 @@ mswin_reg_lptstr(int op, int tree, LPTSTR data_lptstr, size_t size)
 			       TEXT("PineConf"), data_lptstr, size));
 	  case MSWR_PINE_AUX :
 	    return(MSWRAlpineGet(HKEY_CURRENT_USER, NULL,
-			       TEXT("PineAux"), data_lptstr, size));			       
+			       TEXT("PineAux"), data_lptstr, size));			
 	  case MSWR_PINE_DIR :
 	    return(MSWRAlpineGet(HKEY_LOCAL_MACHINE, NULL,
 			       TEXT("Pinedir"), data_lptstr, size));
@@ -10698,14 +10622,14 @@ mswin_reg_lptstr(int op, int tree, LPTSTR data_lptstr, size_t size)
 	    return(MSWRAlpineGet(HKEY_CURRENT_USER, NULL,
 			       TEXT("PinePos"), data_lptstr, size));
 	  default :
-	   break; 
+	   break;
 	}
     }
     else if(op & MSWR_OP_BLAST){
         int rv = 0;
 
 	/* UN-Register as a mail client on this system */
-	rv += 
+	rv +=
 	  MSWRClear(HKEY_LOCAL_MACHINE, TEXT("SOFTWARE\\Clients\\Mail\\Alpine"));
 
 	/* UN-Register as a news client on this system */
@@ -10719,7 +10643,7 @@ mswin_reg_lptstr(int op, int tree, LPTSTR data_lptstr, size_t size)
 	rv +=
 	  MSWRClear(HKEY_LOCAL_MACHINE, MSWR_ROOT);
 
-	rv += 
+	rv +=
 	  MSWRClear(HKEY_CURRENT_USER, MSWR_ROOT);
 	if(rv) return -1;
     }
@@ -10763,7 +10687,7 @@ mswin_reg_dump()
     regtext[tlines] = MemAlloc((_tcslen(tmpbuf) + 1) * sizeof(TCHAR));
     _tcsncpy(regtext[tlines++], tmpbuf, _tcslen(tmpbuf)+1);
     while(i < lines && mswin_pine_regs[i].rkey){
-	_sntprintf(tmpbuf, tmpbuflen, TEXT("[ %s\\%s ]"), 
+	_sntprintf(tmpbuf, tmpbuflen, TEXT("[ %s\\%s ]"),
 	      mswin_pine_regs[i].rhk == HKEY_LOCAL_MACHINE ?
 		   TEXT("HKEY_LOCAL_MACHINE") : TEXT("HKEY_CURRENT_USER"),
 		   mswin_pine_regs[i].rkey);
@@ -10835,7 +10759,7 @@ MSWRAlpineSet(HKEY hRootKey, LPTSTR subkey, LPTSTR val, int update, LPTSTR data)
 		      NULL, &hKey, NULL) == ERROR_SUCCESS){
 	if(update || RegQueryValueEx(hKey, val, NULL, NULL,
 				      NULL, NULL) != ERROR_SUCCESS)
-	  RegSetValueEx(hKey, val, 0, REG_SZ, (LPBYTE)data, (_tcslen(data)+1)*sizeof(TCHAR));
+	  RegSetValueEx(hKey, val, 0, REG_SZ, (LPBYTE)data, (DWORD)(_tcslen(data)+1)*sizeof(TCHAR));
 
 	RegCloseKey(hKey);
     }
@@ -10847,7 +10771,7 @@ LOCAL int
 MSWRAlpineGet(HKEY hKey, LPTSTR subkey, LPTSTR val, LPTSTR data_lptstr, size_t len)
 {
     TCHAR keybuf[MSWR_KEY_MAX+1];
-    DWORD dlen = len;
+    DWORD dlen = (DWORD)len;
 
     _sntprintf(keybuf, MSWR_KEY_MAX+1, TEXT("%s%s%s"), MSWR_ROOT,
 	    (subkey && *subkey != '\\') ? TEXT("\\") : TEXT(""),
@@ -10886,7 +10810,7 @@ MSWRAlpineSetHandlers(int update, LPTSTR path_lptstr)
 	    *tmp_b = 0;
 	    RegQueryValueEx(hKey, MSWR_DLLPATH, NULL, &dType, tmp_b, &tmplen);
 	    tmp_lptstr = (LPTSTR)tmp_b;
-	    if(!(*tmp_lptstr) 
+	    if(!(*tmp_lptstr)
 	       || (can_access(tmp_utf8str = lptstr_to_utf8(tmp_lptstr), ACCESS_EXISTS) != 0)){
 	      if(*tmp_lptstr)
 		RegDeleteValue(hKey, MSWR_DLLPATH);
@@ -10973,7 +10897,7 @@ mswin_reg_default_browser(char *url_utf8)
 {
     TCHAR scheme[MSWR_KEY_MAX+1], *p;
     LPTSTR url_lptstr;
-    char cmdbuf[MSWR_DATA_MAX], *cmd;
+    char cmdbuf[MSWR_DATA_MAX], *cmd = NULL;
 
     url_lptstr = utf8_to_lptstr(url_utf8);
 
@@ -10982,15 +10906,21 @@ mswin_reg_default_browser(char *url_utf8)
 	scheme[p-url_lptstr] = '\0';
 
 	if(MSWRShellCanOpen(scheme, cmdbuf, MSWR_DATA_MAX, 0)){
-	    cmd = (char *) malloc((strlen(cmdbuf) + 3) * sizeof(char));
+	    size_t len;
+
+	    len = strlen(cmdbuf) + 2;
+	    cmd = (char *) fs_get((len+1) * sizeof(char));
 	    if(cmd){
 		if(strchr(cmdbuf, '*'))
-		  sprintf(cmd, "\"%s\"", cmdbuf);
-		else
-		  strcpy(cmd, cmdbuf);
+		  snprintf(cmd, len+1, "\"%s\"", cmdbuf);
+		else{
+		    strncpy(cmd, cmdbuf, len);
+		    cmd[len] = '\0';
+		}
 	    }
 	}
     }
+
     MemFree((void *)url_lptstr);
 
     return(cmd);
@@ -11006,13 +10936,13 @@ mswin_is_def_client(int type)
     if(type != MSWR_SDC_MAIL && type != MSWR_SDC_NEWS)
       return -1;
 
-    if(MSWRPeek(HKEY_CURRENT_USER, 
+    if(MSWRPeek(HKEY_CURRENT_USER,
 		type == MSWR_SDC_MAIL ? TEXT("Software\\Clients\\Mail")
 		: TEXT("Software\\Clients\\News"), NULL,
 		buf, &buflen) && !_tcscmp(buf, TEXT("Alpine")))
       return 1;
     buflen = MSWR_KEY_MAX;
-    if(MSWRPeek(HKEY_LOCAL_MACHINE, 
+    if(MSWRPeek(HKEY_LOCAL_MACHINE,
 		type == MSWR_SDC_MAIL ? TEXT("Software\\Clients\\Mail")
 		: TEXT("Software\\Clients\\News"), NULL,
 		buf, &buflen) && !_tcscmp(buf, TEXT("Alpine")))
@@ -11111,26 +11041,28 @@ MSWRProtocolSet(HKEY hKey, int type, LPTSTR path_lptstr)
 
 
 /* cmdbuf can stay char * since it's our string */
-LOCAL BOOL
-MSWRShellCanOpen(LPTSTR key, char *cmdbuf, DWORD clen, int allow_noreg)
+BOOL
+MSWRShellCanOpen(LPTSTR key, char *cmdbuf, int clen, int allow_noreg)
 {
     HKEY   hKey;
     BOOL   rv = FALSE;
-    DWORD  len = clen;
 
     /* See if Shell provides a method to open the thing... */
     if(RegOpenKeyEx(HKEY_CLASSES_ROOT, key,
 		    0, KEY_READ, &hKey) == ERROR_SUCCESS){
 
-	if(cmdbuf)
-	  strcpy(cmdbuf, "*Shell*");
+	if(cmdbuf){
+	    strncpy(cmdbuf, "*Shell*", clen);
+	    cmdbuf[clen-1] = '\0';
+	}
 
 	rv = TRUE;
 
 	RegCloseKey(hKey);
     }
     else if(allow_noreg && cmdbuf){
-	strcpy(cmdbuf, "*Shell*");
+	strncpy(cmdbuf, "*Shell*", clen);
+	cmdbuf[clen-1] = '\0';
 	rv = TRUE;
     }
 
@@ -11180,8 +11112,8 @@ MSWRPoke(HKEY hKey, LPTSTR subkey, LPTSTR valstr, LPTSTR data_lptstr)
 	   || _tcscmp((LPTSTR)olddata, data_lptstr)){
 	    (void) RegDeleteValue(hKey, valstr);
 	    rv = RegSetValueEx(hKey, valstr, 0, REG_SZ,
-			       (LPBYTE)data_lptstr, 
-			       (_tcslen(data_lptstr) + 1)*sizeof(TCHAR)) == ERROR_SUCCESS;
+			       (LPBYTE)data_lptstr,
+			       (DWORD)(_tcslen(data_lptstr) + 1)*sizeof(TCHAR)) == ERROR_SUCCESS;
 	}
 
 	if(subkey)
@@ -11209,7 +11141,7 @@ MSWRClear(HKEY hKey, LPTSTR pSubKey)
     if(RegOpenKeyEx(hKey, pSubKey, 0,
 		    KEY_READ, &hSubKey) == ERROR_SUCCESS){
       RegCloseKey(hSubKey);
-	if(RegOpenKeyEx(hKey, pSubKey, 0, 
+	if(RegOpenKeyEx(hKey, pSubKey, 0,
 			KEY_ALL_ACCESS, &hSubKey) == ERROR_SUCCESS){
 	    for(dwKeyIndex = 0L, dwKeyLen = MSWR_KEY_MAX + 1;
 		RegEnumKeyEx(hSubKey, dwKeyIndex, KeyBuf, &dwKeyLen,
@@ -11220,7 +11152,7 @@ MSWRClear(HKEY hKey, LPTSTR pSubKey)
 		    dwKeyIndex++;
 		}
 	    RegCloseKey(hSubKey);
-	    if(RegDeleteKey(hKey, pSubKey) != ERROR_SUCCESS || rv) 
+	    if(RegDeleteKey(hKey, pSubKey) != ERROR_SUCCESS || rv)
 	      return -1;
 	    return 0;
 	}
@@ -11235,179 +11167,10 @@ MSWRClear(HKEY hKey, LPTSTR pSubKey)
  *                  Text display Windows.
  *
  *++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-#define TW_TEXTBLOCK	1
-#define TW_TEXTLINES	2
-
-
-/*
- * TextWndInfo is used to keep track of each text window.
- *
- * Selections:
- *  The "dot" and the "mark" are used for the selection.  When the user
- *  pushes the mouse button down that sets the "dot".  As the user
- *  drags the mouse across text, that moves the "mark" Text between the
- *  two points is the selection.  dot and mark are not orderd.  The
- *  selection starts with the character pointed to by the first, and
- *  ends BEFORE the character pointed to be the second.
- *
- *  Each line has a logical line terminator character.  When the
- *  selection ends at the end of a line, the logical line terminator is
- *  NOT included When the selection ends at the beginning of the next
- *  line, the logical line terminator IS included.  For text with lines
- *  0 to N, a selection ending at line N+1, character 0 would include
- *  the last line and its logical line terminator.
- *
- */
-typedef struct char_widths {
-    int arrSize;
-    int *iArray;
-} CHWIDTHS;
-
-typedef struct text_wnd_info {
-    LPTSTR	text;		/* Pointer to big block of text. */
-    LPTSTR	*lines;	        /* Pointer to array of line starts. */
-    long	lineCount;	/* Count of lines. */
-    CHWIDTHS   *chwidths;       /* Pointer to char widths for UTF-8 */
-    long        chwidthsSize;   /* size of chwidths array */
-    UINT        maxCol;         /* Count of chars (for SB_HORZ) */
-    int		textAs;		/* How text stored in memory. */
-    int		flags;		/* Flag special behavior. */
-    long	curLine;	/* Current line (scroll position). */
-    long        curCol;         /* Current char (for SB_HORZ) */
-    int		xChar, yChar;	/* Size of a character. */
-    int		xSize, ySize;	/* Window size. */
-    int		nRows;		/* Number of rows fit on screen. */
-    int		nCols;		/* Number of columns fit on screen. */
-    long	dotLine;	/* Line on which dot is located. */
-    long	dotChar;	/* Char in line on which dot is located. */
-    long	markLine;	/* Line on which mark is located. */
-    long	markChar;	/* Char in line on which mark is located. */
-    BOOL	tracking;	/* TRUE when tracking mouse. */
-    int		scrollDirect;	/* Direction to scroll. */
-    HFONT	hFont;		/* Font in use. */
-    DWORD	rgbFGColor;	/* Normal forground color. */
-    DWORD	rgbBGColor;	/* Normal background color. */
-    DWORD	rgbRFGColor;	/* Reverse forground color. */
-    DWORD	rgbRBGColor;	/* Reverse background color */
-} TextWndInfo;
-
-
-int *get_char_widths(TextWndInfo *, long);
-
-
-
-#define TWS_UP		-1
-#define TWS_OFF		0
-#define TWS_DOWN	1
-#define TWS_TIMERID	1
-#define TWS_TIMEOUT	50
-
-#define TAB_SIZE        8
-
-/* 
- * We can no longer count on one column per char now that we have unicode.
- * This will fetch an array of ints to pass on to ExtTextOut in TWPaint.
- * Often we will build this just-in-time, but once it's there it stays.
- */
-int *
-get_char_widths(TextWndInfo *ptwInfo, long index)
-{
-    int i, lineLen;
-
-    lineLen = _tcslen(ptwInfo->lines[index]);
-
-    /* if we don't have enough space in the array, realloc */
-    if(index >= ptwInfo->chwidthsSize){
-	long oldsize = ptwInfo->chwidthsSize;
-	if(!ptwInfo->chwidthsSize)
-	  ptwInfo->chwidthsSize = 256;
-	while(ptwInfo->chwidthsSize <= index)
-	  ptwInfo->chwidthsSize *= 2;
-	if(ptwInfo->chwidths == NULL){
-	    ptwInfo->chwidths = (CHWIDTHS *)MemAlloc(ptwInfo->chwidthsSize*sizeof(CHWIDTHS));
-	    memset(ptwInfo->chwidths, 0, ptwInfo->chwidthsSize * sizeof(CHWIDTHS));
-	}
-	else{
-	    ptwInfo->chwidths = (CHWIDTHS *)realloc(ptwInfo->chwidths,
-						    ptwInfo->chwidthsSize*sizeof(CHWIDTHS));
-	    memset(ptwInfo->chwidths+oldsize, 0, 
-		   (ptwInfo->chwidthsSize - oldsize)*sizeof(CHWIDTHS));
-	}
-    }
-
-    /* check that we have an array already built. if not, build it */
-    if(lineLen && ((*(ptwInfo->chwidths+index)).iArray == NULL 
-		   || (*(ptwInfo->chwidths+index)).arrSize != lineLen)){
-
-	/*
-	 * This is just a sanity check, the length of the line 
-	 *  should never have changed.
-	 */
-	if(ptwInfo->chwidths[index].iArray)
-	  MemFree(ptwInfo->chwidths[index].iArray);
-
-	ptwInfo->chwidths[index].iArray = (int *)MemAlloc(lineLen*sizeof(int));
-	ptwInfo->chwidths[index].arrSize = lineLen;
-    }
-    else if(((*(ptwInfo->lines+index))[0] == '\t'
-	     && (*(ptwInfo->chwidths+index)).iArray[0] == ptwInfo->xChar * TAB_SIZE)
-	    || (((*(ptwInfo->chwidths+index)).iArray)
-	        && (*(ptwInfo->chwidths+index)).iArray[0] == 
-		   (ptwInfo->xChar * wcellwidth((*(ptwInfo->lines+index))[0])))){
-	/* 
-	 * This checks that the xChar font width hasn't changed on us.
-	 * If we get to this point we can safely return the int array.
-	 * If not the rest is where we build it.
-	 */
-	return((*(ptwInfo->chwidths+index)).iArray);
-    }
-
-    /* Now build the line of char widths and return it */
-    for(i = 0; i < lineLen; i++){
-	if((*(ptwInfo->lines+index))[i] == '\t')
-	  ((*(ptwInfo->chwidths+index))).iArray[i] = 
-	    (TAB_SIZE - (i % TAB_SIZE)) * ptwInfo->xChar;
-	else
-	  ((*(ptwInfo->chwidths+index))).iArray[i] = 
-	    ptwInfo->xChar * wcellwidth((*(ptwInfo->lines+index))[i]);
-    }
-
-    return((*(ptwInfo->chwidths+index)).iArray);
-}
-
-/*
- * Free text data associated with a TextWindInfo structure, but not the
- * structure itself.
- */
-LOCAL void
-TWFreeData (TextWndInfo *ptwInfo)
-{
-    LPTSTR *l;
-    
-    if (!(ptwInfo->flags & MSWIN_DT_NODELETE)) {
-	if (ptwInfo->textAs == TW_TEXTBLOCK) 
-	    MemFree (ptwInfo->text);
-	else {
-	    for (l = ptwInfo->lines; *l != NULL; ++l)
-		MemFree (*l);
-	}
-	MemFree (ptwInfo->lines);
-	if(ptwInfo->chwidthsSize){
-	    long i;
-	    for(i = 0; i < ptwInfo->chwidthsSize; i++)
-	      if(ptwInfo->chwidths[i].iArray)
-		MemFree(ptwInfo->chwidths[i].iArray);
-	    MemFree(ptwInfo->chwidths);
-	    ptwInfo->chwidths = NULL;
-	    ptwInfo->chwidthsSize = 0;
-	}
-    }
-}
-
 
 /*
  * Show a help message.
- * Help text comes as a null terminated array of pointers to lines of 
+ * Help text comes as a null terminated array of pointers to lines of
  * text.  Stuff these into a buffer and pass that to MessageBox.
  */
 void
@@ -11418,13 +11181,13 @@ mswin_showhelpmsg(WINHAND wnd, char **helplines)
     size_t	buflen;
     HWND	hWnd;
     LPTSTR      helptext_lpt;
-    
+
     hWnd = (HWND) wnd;
-    if(hWnd == NULL) 
+    if(hWnd == NULL)
       hWnd = ghTTYWnd;
-    
+
     buflen = 0;
-    for(l = helplines; *l != NULL; ++l) 
+    for(l = helplines; *l != NULL; ++l)
       buflen += (strlen(*l)+1);
 
     helptext_utf8 = (char *) fs_get((buflen + 1) * sizeof(char));
@@ -11441,82 +11204,130 @@ mswin_showhelpmsg(WINHAND wnd, char **helplines)
 
     helptext_lpt = utf8_to_lptstr(helptext_utf8);
 
-    MessageBox(hWnd, helptext_lpt, TEXT("Help"), 
+    MessageBox(hWnd, helptext_lpt, TEXT("Help"),
 	       MB_APPLMODAL | MB_ICONINFORMATION | MB_OK);
 
     fs_give((void **) &helptext_utf8);
     fs_give((void **) &helptext_lpt);
 }
 
-
-LOCAL int
-mswin_text_win_init(IMAPTelem **ppWin)
+/*
+ * Callback for when new mail or imap telem window gets canned.
+ */
+LOCAL void
+mswin_tw_close_imap_telem_or_new_mail(MSWIN_TEXTWINDOW *mswin_tw)
 {
-    IMAPTelem *pWin;
+    HMENU hMenu;
 
-    if(!ppWin)
-      return(1);
+    if((mswin_tw->id == IDM_OPT_IMAPTELEM) && gIMAPDebugOFFCallback)
+        (*gIMAPDebugOFFCallback)();
 
-    if(*ppWin){
+    if(hMenu = GetMenu(ghTTYWnd))
+        CheckMenuItem (hMenu, mswin_tw->id, MF_BYCOMMAND | MF_UNCHECKED);
+}
+
+/*
+ * Callback for when new mail or imap telem window gets cleared.
+ */
+LOCAL void
+mswin_tw_clear_imap_telem_or_new_mail(MSWIN_TEXTWINDOW *mswin_tw)
+{
+    char *tmtxt;
+    time_t now = time((time_t *)0);
+    LPCTSTR desc = (mswin_tw->id == IDM_OPT_IMAPTELEM) ?
+                TEXT("IMAP telemetry recorder") :
+                TEXT("New Mail window");
+
+    tmtxt = ctime(&now);
+
+    mswin_tw_printf(mswin_tw, TEXT("%s started at %.*S"),
+        desc, MIN(100, strlen(tmtxt)-1), tmtxt);
+
+    if(mswin_tw->id == IDM_OPT_NEWMAILWIN)
+    {
+        int i;
+        int fromlen, subjlen, foldlen, len;
+        TCHAR ring2[256];
+
+        foldlen = (int)(.18 * gNMW_width);
+        foldlen = foldlen > 5 ? foldlen : 5;
+        fromlen = (int)(.28 * gNMW_width);
+        subjlen = gNMW_width - 2 - foldlen - fromlen;
+
+        mswin_tw_printf(mswin_tw,
+	   TEXT("  %-*s%-*s%-*s"),
+	   fromlen, TEXT("From:"),
+	   subjlen, TEXT("Subject:"),
+	   foldlen, TEXT("Folder:"));
+
+        len = 2 + fromlen + subjlen + foldlen;
+        if(len >= ARRAYSIZE(ring2) + 1)
+            len = ARRAYSIZE(ring2) - 2;
+        for(i = 0; i < len; i++)
+            ring2[i] = '-';
+        ring2[i] = '\0';
+        mswin_tw_puts_lptstr(mswin_tw, ring2);
+    }
+}
+
+/*
+ * Init new mail or imap telem window
+ */
+LOCAL int
+mswin_tw_init(MSWIN_TEXTWINDOW *mswin_tw, int id, LPCTSTR title)
+{
+    if(mswin_tw->hwnd){
 	/* destroy it */
-	SendMessage((*ppWin)->hWnd, WM_CLOSE, 0, 0);
+	mswin_tw_close(mswin_tw);
     }
     else{
-	if(*ppWin = (IMAPTelem *)MemAlloc(sizeof(IMAPTelem))){
-	    time_t now = time((time_t *)0);
-	    char *tmtxt;
-	    int fromlen, subjlen, foldlen;
+        HMENU hMenu;
 
-	    pWin = *ppWin;
-	    memset(pWin, 0, sizeof(pWin));
+	mswin_tw->id = id;
+	mswin_tw->hInstance = ghInstance;
+	mswin_tw->print_callback = mswin_tw_print_callback;
+	mswin_tw->close_callback = mswin_tw_close_imap_telem_or_new_mail;
+	mswin_tw->clear_callback = mswin_tw_clear_imap_telem_or_new_mail;
 
-	    pWin->size = 256;
-	    pWin->ring = (LPTSTR *)MemAlloc(256*sizeof(LPTSTR));
-	    if(pWin->ring == NULL){
-		MemFree((void *) pWin);
-		return(1);
-	    }
+        // If the rcSize rect is empty, then init it to something resembling
+        //   the size of the current Pine window. Otherwise we just re-use
+        //   whatever the last position/size was.
+        if(IsRectEmpty(&mswin_tw->rcSize))
+        {
+            RECT cliRect;
+            RECT sizeRect;
 
-	    foldlen = .18 * gNMW_width;
-	    foldlen = foldlen > 5 ? foldlen : 5;
-	    fromlen = .28 * gNMW_width;
-	    subjlen = gNMW_width - 2 - foldlen - fromlen;
+	    GetClientRect(ghTTYWnd, &cliRect);
+	    sizeRect.left = CW_USEDEFAULT;
+	    sizeRect.top = CW_USEDEFAULT;
+	    sizeRect.right = cliRect.right;
+	    sizeRect.bottom = cliRect.bottom;
+            mswin_tw->rcSize = sizeRect;
+        }
 
-	    memset(pWin->ring, 0, 256 * sizeof(char *));
-	    pWin->ring[0] = (LPTSTR)MemAlloc(256*sizeof(TCHAR));
-	    pWin->count = 1;
-	    tmtxt = ctime(&now);
-	    _sntprintf(pWin->ring[0], 256,
-		       TEXT("%s started at %.*S"),
-		       pWin == gpIMAPTelem ? TEXT("IMAP telemetry recorder")
-		       : TEXT("New Mail window"),
-		       MIN(100, strlen(tmtxt)-1), tmtxt);
-	    if(pWin == gpNewMailWin){
-		int i;
+	if(!mswin_tw_create(mswin_tw, title))
+            return 1;
 
-		pWin->count += 2;
-		pWin->ring[1] = (LPTSTR)MemAlloc(256*sizeof(TCHAR));
-		_sntprintf(pWin->ring[1], 256,
-			   TEXT("  %-*s%-*s%-*s"),
-			   fromlen, TEXT("From:"),
-			   subjlen, TEXT("Subject:"),
-			   foldlen, TEXT("Folder:"));
-		pWin->ring[2] = (LPTSTR)MemAlloc(256*sizeof(TCHAR));
-		for(i = 0; i < 2 + fromlen + subjlen + foldlen; i++)
-		  (pWin->ring[2])[i] = '-';
-		(pWin->ring[2])[i] = '\0';
-	    }
+	mswin_tw_setfont(mswin_tw, gpTTYInfo->hTTYFont);
+        mswin_tw_setcolor(mswin_tw, gpTTYInfo->rgbFGColor, gpTTYInfo->rgbBGColor);
 
-	    pWin->title = (pWin == gpIMAPTelem)
-	      ? TEXT("IMAP Telemetry") : TEXT("New Mail View");
-	    pWin->hWnd = (HWND) mswin_displaytext_lptstr(
-		pWin->title,
-		NULL, 0,
-		pWin->ring,
-		0,
-		MSWIN_DT_NODELETE);
+	mswin_tw_clear(mswin_tw);
+
+        if(id == IDM_OPT_IMAPTELEM)
+        {
+	    if(gIMAPDebugONCallback)
+	      (*gIMAPDebugONCallback)();
+
+	    mswin_tw_showwindow(mswin_tw, SW_SHOWNA);
+        }
+	else if(id == IDM_OPT_NEWMAILWIN){
+	    mswin_tw_showwindow(mswin_tw, SW_SHOW);
 	}
+
+	if(hMenu = GetMenu(ghTTYWnd))
+	    CheckMenuItem (hMenu, mswin_tw->id, MF_BYCOMMAND | MF_CHECKED);
     }
+
     return(0);
 }
 
@@ -11529,9 +11340,9 @@ mswin_text_win_init(IMAPTelem **ppWin)
  *	textLen		- Length of text, in bytes.  Limited to 64K.
  *	pLines		- Array of pointers to lines of text.  Each
  *			  line is a sepreate allocation block.  The
- *			  entry in the array of pointers should be a 
+ *			  entry in the array of pointers should be a
  *			  NULL.
- *			  
+ *			
  * The text can be supplied as a buffer (pText and textLen) in which
  * lines are terminated by CRLF (including the last line in buffer).
  * This buffer should be NULL terminated, too.
@@ -11544,17 +11355,17 @@ mswin_text_win_init(IMAPTelem **ppWin)
  * freed.
  *
  * Returns:
- *	handle to the created window - SUCCESS
- *	-1			     - Failed.
+ *	mswin_tw  - SUCCESS
+ *	NULL      - Failed.
  */
-int
-mswin_displaytext(char *title_utf8, char *pText_utf8, size_t npText, char **pLines_utf8, 
-	int windRef, int flags)
+MSWIN_TEXTWINDOW *
+mswin_displaytext(char *title_utf8, char *pText_utf8, size_t npText,
+                  char **pLines_utf8, MSWIN_TEXTWINDOW *mswin_tw, int flags)
 {
     LPTSTR  title_lpt = NULL, pText_lpt = NULL, *pLines_lpt = NULL;
     char  **l;
     size_t  pText_lpt_len = 0;
-    int     i, ret, count;
+    int     i, count = 0;
 
     if(pLines_utf8 != NULL){
 	for(count=0, l = pLines_utf8; *l != NULL; ++l)
@@ -11567,8 +11378,6 @@ mswin_displaytext(char *title_utf8, char *pText_utf8, size_t npText, char **pLin
 
 	/*caller expects this to be freed */
 	if(!(flags & MSWIN_DT_NODELETE)){
-	    char **ll;
-
 	    for(l = pLines_utf8; *l != NULL; ++l)
 	      fs_give((void **) l);
 
@@ -11588,238 +11397,127 @@ mswin_displaytext(char *title_utf8, char *pText_utf8, size_t npText, char **pLin
     if(title_utf8 != NULL)
       title_lpt = utf8_to_lptstr(title_utf8);
 
-    ret = mswin_displaytext_lptstr(title_lpt, pText_lpt, pText_lpt_len,
-				   pLines_lpt, windRef, flags);
+    mswin_tw = mswin_tw_displaytext_lptstr(title_lpt, pText_lpt, pText_lpt_len,
+				           pLines_lpt, mswin_tw, flags);
 
-    /* if these weren't freed in mswin_displaytext_lptstr, do it here */
-    if(flags & MSWIN_DT_NODELETE){
-	if(pLines_lpt != NULL){
-	    for(i=0; i < count; ++i)
-	      if(pLines_lpt[i])
+    if(pLines_lpt != NULL){
+	for(i=0; i < count; ++i)
+	    if(pLines_lpt[i])
 		fs_give((void **) &pLines_lpt[i]);
 
 	    fs_give((void **) &pLines_lpt);
 	}
 
-	if(pText_lpt != NULL)
-	  fs_give((void **) &pText_lpt);
-    }
+    if(pText_lpt != NULL)
+        fs_give((void **) &pText_lpt);
 
     if(title_lpt != NULL)
       fs_give((void **) &title_lpt);
 
-    return(ret);
+    return(mswin_tw);
 }
 
-
-int
-mswin_displaytext_lptstr (LPTSTR title, LPTSTR pText, size_t textLen, LPTSTR *pLines, 
-	int windRef, int flags)
+/*
+ * Callback for when a generic mswin_tw gets killed.
+ */
+LOCAL void
+mswin_tw_close_callback(MSWIN_TEXTWINDOW *mswin_tw)
 {
-    TextWndInfo		*ptwInfo;
-    HWND		hWnd;
-    HDC			hDC;
-    TEXTMETRIC		tm;
-    LPTSTR		p_lptstr;
-    LPTSTR		*l;
-    UINT		lineCount;
-    UINT                longLine = 0;
-    int			textAs;
-    UINT		i;
-    RECT		rSize;
-    DWORD		dwStyle;
-    SCROLLINFO		scrollInfo;
+    if(mswin_tw->id != -1)
+        MemFree(mswin_tw);
+}
 
+/*
+ * Create a new mswin_tw window. If the MSWIN_DT_USEALTWINDOW flag is set,
+ *      then (re)use gMswinAltWin.
+ */
+LOCAL MSWIN_TEXTWINDOW *
+mswin_tw_displaytext_lptstr (LPTSTR title, LPTSTR pText, size_t textLen, LPTSTR *pLines,
+	MSWIN_TEXTWINDOW *mswin_tw, int flags)
+{
     if (pText == NULL && pLines == NULL)
-	return (-1);
+	return (NULL);
 
-    /* 
-     * How was text supplied?
-     */
-    if (pLines != NULL) {
-	    
-	/* Array of pointers to lines supplied. Count lines. */
-	lineCount = 0;
-	for (l = pLines; *l != NULL; ++l){
-	    ++lineCount;
-	    if(mswin_text_win_strlen(*l) > longLine)
-	      longLine = mswin_text_win_strlen(*l);
-	}
-	if (lineCount == 0)
-	    return (-1);
-        textAs = TW_TEXTLINES;
-    }
-    else {
-	    
-	/* Pointer to block of text supplied. */
-	if (textLen == 0)
-	    return (-1);
-	lineCount = 0;
-	for (p_lptstr = pText+1, i = textLen - 1; i > 0; ++p_lptstr, --i) {
-	    if (*(p_lptstr-1) == ASCII_CR && *p_lptstr == ASCII_LF) 
-		++lineCount;
-	}
-
-	if (lineCount == 0) 
-	    return (-1);
-
-
-	pLines = (LPTSTR *) MemAlloc (sizeof (LPTSTR) * (lineCount+1));
-	if (pLines == NULL) 
-	    return (-1);
-
-
-	/* Fill the lines array. */
-	l = pLines;
-	*l = pText;
-	for (p_lptstr = pText+1, i = textLen - 1; i > 0; ++p_lptstr, --i) {
-	    if (*(p_lptstr-1) == ASCII_CR && *p_lptstr == ASCII_LF) {
-		*(p_lptstr-1) = '\0';
-		if(mswin_text_win_strlen(*l) > longLine)
-		  longLine = mswin_text_win_strlen(*l);
-		*(++l) = p_lptstr+1;
-	    }
-	}
-	
-	/* Add a NULL terminator just for form. */
-	*(pLines + lineCount) = NULL;
-
-	textAs = TW_TEXTBLOCK;
-    }
-
-    
     /* Was a valid existing window supplied? */
-    if (IsWindow((HWND)windRef)) {
-	/* Get associated structure. */
-	ptwInfo = (TextWndInfo *) GetWindowLong ((HWND)windRef, GWL_PTEXTINFO);
-	if (ptwInfo != NULL) 
-	    hWnd = (HWND) windRef;	/* Valid window. */
-	else
-	    windRef = 0;		/* Invalid window. */
-    }
-    else 
-	windRef = 0;			/* Invalid window. */
-    
+    if(!mswin_tw)
+    {
+        int ctrl_down = GetKeyState(VK_CONTROL) < 0;
 
-    /* Allocate a control structrue for window, or free contents of
-     * existing structure. */
-    if (windRef == 0) {
-	ptwInfo = (TextWndInfo *) MemAlloc (sizeof (TextWndInfo));
-	if (ptwInfo == NULL) {
-	    if (textAs == TW_TEXTBLOCK)
-		MemFree (pLines);
-	    return (-1);
+        if((flags & MSWIN_DT_USEALTWINDOW) && !ctrl_down)
+        {
+            mswin_tw = &gMswinAltWin;
+            mswin_tw->id = (UINT)-1;  // Tell mswin_tw_close_callback not
+                                      //  to free this buffer.
+        }
+        else
+        {
+	    mswin_tw = (MSWIN_TEXTWINDOW *)MemAlloc (sizeof (MSWIN_TEXTWINDOW));
+	    if(!mswin_tw)
+	        return NULL;
+
+	    memset(mswin_tw, 0, sizeof(MSWIN_TEXTWINDOW));
+	    mswin_tw->id = 0;
+        }
+
+	mswin_tw->hInstance = ghInstance;
+	mswin_tw->print_callback = mswin_tw_print_callback;
+	mswin_tw->close_callback = mswin_tw_close_callback;
+	mswin_tw->clear_callback = NULL;
+    }
+
+    /* Create a new window. */
+    if (!mswin_tw->hwnd) {
+
+        if(IsRectEmpty(&mswin_tw->rcSize))
+        {
+	    RECT sizeRect;
+            RECT cliRect;
+
+	    GetClientRect(ghTTYWnd, &cliRect);
+	    sizeRect.left = CW_USEDEFAULT;
+	    sizeRect.top = CW_USEDEFAULT;
+	    sizeRect.right = cliRect.right;
+	    sizeRect.bottom = cliRect.bottom;
+            mswin_tw->rcSize = sizeRect;
+        }
+
+        if(!mswin_tw_create(mswin_tw, title)) {
+	    MemFree (mswin_tw);
+	    return (NULL);
 	}
-	memset (ptwInfo, 0, sizeof (TextWndInfo));
-    }
-    else {
-	TWFreeData (ptwInfo);
-	ptwInfo->dotLine = 0;
-	ptwInfo->dotChar = 0;
-	ptwInfo->markLine = 0;
-	ptwInfo->markChar = 0;
-	ptwInfo->tracking = FALSE;
-    }
-	
-	
-    
-    ptwInfo->flags = flags;
-    ptwInfo->text = pText;
-    ptwInfo->lines = pLines;
-    ptwInfo->lineCount = lineCount;
-    ptwInfo->textAs = textAs;
-    if(!windRef || 
-       !((gpIMAPTelem && gpIMAPTelem->hWnd == hWnd)
-	 || (gpNewMailWin && gpNewMailWin->hWnd == hWnd)))
-      ptwInfo->curLine = 0;
 
-    /* Create a new window or use existing. */
-    if (windRef == 0) {
-	int windowwidth;
-
-	windowwidth = longLine > 80 ? longLine : 80;
-	windowwidth = windowwidth < 170 ? windowwidth : 170;
-
-	rSize.left = 0;
-	rSize.right = (MARGINE_LEFT * 2) + (gpTTYInfo->xChar * windowwidth);
-	rSize.top = 0;
-	rSize.bottom = gpTTYInfo->ySize;
-	dwStyle = WS_OVERLAPPEDWINDOW | WS_VSCROLL;
-	AdjustWindowRect (&rSize, dwStyle, TRUE);
-	rSize.right += 16;
-	hWnd = CreateWindow (gszTextClass, title,
-			   dwStyle,
-			   CW_USEDEFAULT, CW_USEDEFAULT,
-			   ptwInfo->xSize = rSize.right - rSize.left, 
-			   ptwInfo->ySize = rSize.bottom - rSize.top,
-			   HWND_DESKTOP, NULL, ghInstance, ptwInfo);
-
-
-	if (hWnd == NULL) {
-	    MemFree (ptwInfo);
-	    if (textAs == TW_TEXTBLOCK)
-		MemFree (pLines);
-	    return (-1);
-	}
-	ptwInfo->hFont = gpTTYInfo->hTTYFont;
-
-	hDC = GetDC (hWnd);
-	SelectObject (hDC, ptwInfo->hFont);
-	GetTextMetrics (hDC, &tm);
-	ReleaseDC (hWnd, hDC);
-	ptwInfo->xChar = tm.tmAveCharWidth;
-	ptwInfo->yChar = tm.tmHeight + tm.tmExternalLeading;
-
-	ptwInfo->rgbFGColor = gpTTYInfo->rgbFGColor;	
-	ptwInfo->rgbBGColor = gpTTYInfo->rgbBGColor;	
-	ptwInfo->rgbRFGColor = gpTTYInfo->rgbRFGColor;
-	ptwInfo->rgbRBGColor = gpTTYInfo->rgbRBGColor;
+        mswin_tw_setfont(mswin_tw, gpTTYInfo->hTTYFont);
+        mswin_tw_setcolor(mswin_tw, gpTTYInfo->rgbFGColor, gpTTYInfo->rgbBGColor);
     }
     else {
 	/* Invalidate whole window, change title, and move to top. */
-	InvalidateRect (hWnd, NULL, TRUE);
-	SetWindowText (hWnd, title);
-	SetWindowPos (hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
-
-	scrollInfo.cbSize = sizeof(SCROLLINFO);
-	scrollInfo.fMask = SIF_PAGE | SIF_RANGE;
-
-	GetScrollInfo(ghTTYWnd, SB_VERT, &scrollInfo);
-
-	scrollInfo.fMask |= SIF_POS | SIF_DISABLENOSCROLL;
-	scrollInfo.nPos = (int)(gpTTYInfo->scrollPos = 0L);
-	SetScrollInfo(hWnd, SB_VERT, &scrollInfo, TRUE);
-    }
-    
-    
-    SetWindowLong (hWnd, GWL_PTEXTINFO, (LPARAM) ptwInfo);
-
-    scrollInfo.cbSize = sizeof(SCROLLINFO);
-    scrollInfo.fMask = SIF_DISABLENOSCROLL | SIF_PAGE | SIF_RANGE | SIF_POS;
-    scrollInfo.nMin = 0;
-    scrollInfo.nMax = (int) (ptwInfo->lineCount - 1L);
-    scrollInfo.nPage = ptwInfo->ySize / ptwInfo->yChar;
-    scrollInfo.nPos = ptwInfo->curLine;
-    SetScrollInfo(hWnd, SB_VERT, &scrollInfo, FALSE);
-
-    if(ptwInfo->maxCol = longLine){
-	scrollInfo.cbSize = sizeof(SCROLLINFO);
-	scrollInfo.fMask = SIF_PAGE | SIF_RANGE | SIF_POS;
-	scrollInfo.nMin = 0;
-	scrollInfo.nMax = (int) longLine - 1;
-	scrollInfo.nPage = ptwInfo->xSize / ptwInfo->xChar;
-	scrollInfo.nPos = 0;
-	SetScrollInfo(hWnd, SB_HORZ, &scrollInfo, FALSE);
+	SetWindowText (mswin_tw->hwnd, title);
+	SetWindowPos (mswin_tw->hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
     }
 
-    ShowWindow (hWnd, (gpIMAPTelem && gpIMAPTelem->hWnd == hWnd)
-		? SW_SHOWNA : SW_SHOW);
-    UpdateWindow (hWnd);
-    return ((int)hWnd);
+    mswin_tw_clear(mswin_tw);
+
+    /*
+     * How was text supplied?
+     */
+    if (pLines != NULL) {
+	LPTSTR *l;
+
+	/* Array of pointers to lines supplied. Count lines. */
+	for (l = pLines; *l != NULL; ++l){
+	    mswin_tw_puts_lptstr(mswin_tw, *l);
+	}
+    }
+    else {
+	/* Pointer to block of text supplied. */
+	mswin_tw_puts_lptstr(mswin_tw, pText);
+    }
+
+    mswin_tw_setsel(mswin_tw, 0, 0);
+
+    mswin_tw_showwindow(mswin_tw, SW_SHOW);
+    return mswin_tw;
 }
-
-
-
 
 void
 mswin_enableimaptelemetry(int state)
@@ -11874,114 +11572,17 @@ mswin_enableimaptelemetry(int state)
     }
 }
 
-
-LOCAL int
-mswin_text_win_strlen(LPTSTR str)
-{
-    int i = 0;
-    LPTSTR p;
-
-    for(p = str; *p; p++)
-      if(*p == '\t')
-	do {
-	    i++;
-	} while (i % TAB_SIZE != 0);
-      else
-	i += wcellwidth(*p);
-
-    return(i);
-}
-
-int
-mswin_text_win_puts(char *msg_utf8, IMAPTelem *pWin)
-{
-    LPTSTR msg_lptstr;
-    int ret = 0;
-
-    if(pWin){
-	/* called function makes a copy of this too, could be more efficient */
-	msg_lptstr = utf8_to_lptstr(msg_utf8);
-	ret = mswin_text_win_puts_lptstr(msg_lptstr, pWin);
-	fs_give((void **) &msg_lptstr);
-    }
-    return(ret);
-}
-
-int
-mswin_text_win_puts_lptstr(LPTSTR msg, IMAPTelem *pWin)
-{
-    if(pWin){
-	if(msg){		/* add it to ring */
-	    TextWndInfo		 *ptwInfo;
-	    SCROLLINFO		  scrollInfo;
-	    LPTSTR		 *p_lptstr;
-
-	    if(IsWindow(pWin->hWnd)
-	       && (ptwInfo = (TextWndInfo *)GetWindowLong (pWin->hWnd,
-							   GWL_PTEXTINFO))){
-	    }
-	    else
-	      return(0);
-
-	    if(pWin->count + 1 == pWin->size){
-		long oldsize = pWin->size;
-
-		if(!(pWin->ring = realloc(pWin->ring,
-					  pWin->size * 2 * sizeof(LPTSTR))))
-		  return(-1);
-
-		pWin->size *= 2;
-		/* NULL-set new memory offset of oldsize of size oldsize */
-		memset(pWin->ring + oldsize, 0, oldsize * sizeof(LPTSTR));
-	    }
-
-	    p_lptstr = &pWin->ring[pWin->count++];
-
-	    *p_lptstr = (LPTSTR) MemAlloc((_tcslen(msg) + 1) * sizeof(TCHAR));
-	    _tcscpy(*p_lptstr, msg);
-
-	    ptwInfo->lines = pWin->ring;
-	    ptwInfo->lineCount = pWin->count;
-	    if(ptwInfo->curLine < (int)(ptwInfo->lineCount - ptwInfo->nRows + 1))
-	      ptwInfo->curLine = (int)(ptwInfo->lineCount - ptwInfo->nRows + 1);
-
-	    InvalidateRect (pWin->hWnd, NULL, TRUE);
-
-
-	    scrollInfo.cbSize = sizeof(SCROLLINFO);
-	    scrollInfo.fMask = (SIF_DISABLENOSCROLL | SIF_PAGE
-				| SIF_RANGE | SIF_POS);
-	    scrollInfo.nMin = 0;
-	    scrollInfo.nMax = (int) (ptwInfo->lineCount - 1L);
-	    scrollInfo.nPage = ptwInfo->ySize / ptwInfo->yChar;
-	    scrollInfo.nPos = ptwInfo->curLine;
-	    SetScrollInfo(pWin->hWnd, SB_VERT, &scrollInfo, TRUE);
-
-
-	    if(mswin_text_win_strlen(msg) > ptwInfo->maxCol)
-	      ptwInfo->maxCol = mswin_text_win_strlen(msg);
-	    memset(&scrollInfo, 0, sizeof(SCROLLINFO));
-	    scrollInfo.cbSize = sizeof(SCROLLINFO);
-	    scrollInfo.fMask = SIF_POS | SIF_RANGE | SIF_PAGE;
-	    scrollInfo.nMin = 0;
-	    scrollInfo.nMax = ptwInfo->maxCol - 1;
-	    scrollInfo.nPos = ptwInfo->curCol;
-	    scrollInfo.nPage = ptwInfo->xSize / ptwInfo->xChar;
-	    SetScrollInfo(pWin->hWnd, SB_HORZ, &scrollInfo, TRUE);
-
-	    UpdateWindow (pWin->hWnd);
-	}
-
-	return(1);
-    }
-
-    return(0);
-}
-
 int
 mswin_imaptelemetry(char *msg)
 {
-    return(mswin_text_win_puts(msg, gpIMAPTelem));
+    if(gMswinIMAPTelem.hwnd){
+	LPTSTR msg_lptstr;
+	msg_lptstr = utf8_to_lptstr(msg);
+	mswin_tw_puts_lptstr(&gMswinIMAPTelem, msg_lptstr);
+	fs_give((void **) &msg_lptstr);
+	return(1);
+    }
+    return(0);
 }
 
 
@@ -12001,11 +11602,11 @@ format_newmail_string(LPTSTR orig_lptstr, int format_len)
 
     new_lptstr = (LPTSTR)MemAlloc((format_len+1)*sizeof(TCHAR));
 
-    /* 
+    /*
      * Fill up string till we reach the format_len, we can backtrack
      * if we need elipses.
      */
-    for(i = 0, colLen = 0; 
+    for(i = 0, colLen = 0;
 	i < format_len && colLen < format_len && orig_lptstr && orig_lptstr[i];
 	i++){
 	new_lptstr[i] = orig_lptstr[i];
@@ -12013,7 +11614,7 @@ format_newmail_string(LPTSTR orig_lptstr, int format_len)
     }
 
     if(colLen > format_len || (colLen == format_len && orig_lptstr[i])){
-	/* 
+	/*
 	 * If we hit the edge of the format and there's still stuff
 	 * to write, go back and add ".."
 	 */
@@ -12061,6 +11662,9 @@ mswin_newmailwin(int is_us, char *from_utf8, char *subject_utf8, char *folder_ut
     LPTSTR from_lptstr = NULL, subject_lptstr = NULL, folder_lptstr = NULL;
     LPTSTR from_format, subject_format, folder_format;
 
+    if(!gMswinNewMailWin.hwnd)
+        return 0;
+
     if(from_utf8)
       from_lptstr = utf8_to_lptstr(from_utf8);
     if(subject_utf8)
@@ -12069,16 +11673,16 @@ mswin_newmailwin(int is_us, char *from_utf8, char *subject_utf8, char *folder_ut
       folder_lptstr = utf8_to_lptstr(folder_utf8);
 
 
-    foldlen = .18 * gNMW_width;
+    foldlen = (int)(.18 * gNMW_width);
     foldlen = foldlen > 5 ? foldlen : 5;
-    fromlen = .28 * gNMW_width;
+    fromlen = (int)(.28 * gNMW_width);
     subjlen = gNMW_width - 2 - foldlen - fromlen;
 
 
-    from_format = format_newmail_string(from_lptstr 
-					 ? from_lptstr : TEXT(""), 
+    from_format = format_newmail_string(from_lptstr
+					 ? from_lptstr : TEXT(""),
 					 fromlen - 1);
-    subject_format = format_newmail_string(subject_lptstr 
+    subject_format = format_newmail_string(subject_lptstr
 					    ? subject_lptstr : TEXT("(no subject)"),
 					    subjlen - 1);
     folder_format = format_newmail_string(folder_lptstr
@@ -12098,1363 +11702,26 @@ mswin_newmailwin(int is_us, char *from_utf8, char *subject_utf8, char *folder_ut
     MemFree((void *)subject_format);
     MemFree((void *)folder_format);
 
-    return(mswin_text_win_puts_lptstr(tcbuf, gpNewMailWin));
+    mswin_tw_puts_lptstr(&gMswinNewMailWin, tcbuf);
+    return 1;
 }
-
-LRESULT FAR PASCAL __export 
-TWWndProc (HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-    TextWndInfo		*ptwInfo;
-    char		**l;
-    
-    
-    switch (uMsg) {
-    case WM_CREATE:
-	break;
-	
-    case WM_COMMAND:
-	switch ((WORD) wParam) {
-	case IDM_FILE_CLOSE:
-	    DestroyWindow (hWnd);
-	    break;
-	    
-	case IDM_FILE_PRINT:
-	    TWPrint (hWnd);
-	    break;
-	    
-	case IDM_EDIT_COPY:
-	    TWEditCopy (hWnd);
-	    break;
-
-	case IDM_EDIT_SEL_ALL:
-	    TWEditSelectAll (hWnd);
-	    break;
-
-	default:
-	    return (DefWindowProc (hWnd, uMsg, wParam, lParam));
-        }
-	break;
-	    
-	 
-    case WM_VSCROLL:
-	TWScroll (hWnd, LOWORD(wParam), HIWORD(wParam));
-	break;
-
-    case WM_HSCROLL:
-	TWHScroll (hWnd, LOWORD(wParam), HIWORD(wParam));
-	break;
-
-    case WM_MOUSEWHEEL:
-	TWMouseWheel (hWnd, LOWORD(lParam), HIWORD(lParam),
-		      LOWORD(wParam), (short) HIWORD(wParam));
-	break;
-
-    case WM_KEYDOWN:
-	if (TWKeyDown (hWnd, LOBYTE (wParam), (DWORD)lParam))
-	    return (0);
-        return( DefWindowProc( hWnd, uMsg, wParam, lParam ) ) ;
-
-    case WM_KEYUP:
-	if (TWKeyUp (hWnd, LOBYTE (wParam), (DWORD)lParam))
-	    return (0);
-        return( DefWindowProc( hWnd, uMsg, wParam, lParam ) ) ;
-	
-    case WM_SETFOCUS:
-    case WM_KILLFOCUS:
-	TWKeyControlDown = FALSE;
-	TWKeyShiftDown = FALSE;
-	return( DefWindowProc( hWnd, uMsg, wParam, lParam ) ) ;
-
-    case WM_CHAR:
-	TWChar (hWnd, wParam, lParam);
-	break;
-
-    case WM_LBUTTONDOWN:
-	TWMouseDown (hWnd, 1, LOWORD (lParam), HIWORD (lParam), wParam);
-	break;
-
-    case WM_LBUTTONUP:
-	TWMouseUp (hWnd, 1, LOWORD (lParam), HIWORD (lParam), wParam);
-	break;
-
-    case WM_RBUTTONUP:
-	TWMouseUp (hWnd, 2, LOWORD (lParam), HIWORD (lParam), wParam);
-	break;
-
-    case WM_MOUSEMOVE:
-	TWMouseTrack (hWnd, LOWORD (lParam), HIWORD (lParam));
-	break;
-
-    case WM_ERASEBKGND:
-	TWErase (hWnd, (HDC) wParam);
-	break;
-	
-    case WM_PAINT:
-	TWPaint (hWnd);
-	break;
-
-    case WM_SIZE:
-	TWSetSize (hWnd, wParam, HIWORD(lParam), LOWORD(lParam));
-        break ;
-	
-    case WM_TIMER:
-	TWScrollTimer (hWnd);
-	break;
-	
-    case WM_CLOSE:
-	DestroyWindow (hWnd);
-	break;
-	
-    case WM_DESTROY:
-        if((gpIMAPTelem && gpIMAPTelem->hWnd == hWnd)
-	   || (gpNewMailWin && gpNewMailWin->hWnd == hWnd)){
-	    long  n;
-	    HMENU hMenu;
-	    LOCAL IMAPTelem **ppWin;
-	    int is_imap_telem = 0;
-
-	    if(gpIMAPTelem && gpIMAPTelem->hWnd)
-	      is_imap_telem = 1;
-
-	    ppWin = is_imap_telem
-	      ? &gpIMAPTelem : &gpNewMailWin;
-
-	    if(hMenu = GetMenu(ghTTYWnd))
-	      CheckMenuItem (hMenu, 
-			     is_imap_telem ? IDM_OPT_IMAPTELEM
-			     : IDM_OPT_NEWMAILWIN,
-			     MF_BYCOMMAND | MF_UNCHECKED);
-
-	    for(n = 0; n < (*ppWin)->count; n++)
-	      MemFree((void *) (*ppWin)->ring[n]);
-
-	    if((*ppWin)->ring)
-	      MemFree((void *) (*ppWin)->ring);
-	    MemFree((void *) (*ppWin));
-	    *ppWin = NULL;
-	    if(is_imap_telem && gIMAPDebugOFFCallback)
-	      (*gIMAPDebugOFFCallback)();
-        }
-
-	ptwInfo = (TextWndInfo *) GetWindowLong (hWnd, GWL_PTEXTINFO);
-	if (ptwInfo != NULL) {
-	    TWFreeData (ptwInfo);
-	    MemFree (ptwInfo);
-        }
-	break;
-	 
-    default:
-        return (DefWindowProc (hWnd, uMsg, wParam, lParam));
-    }
-    return (0);
-}
-
-
-
-LOCAL BOOL
-TWErase (HWND hWnd, HDC hDC)
-{
-    RECT		erect;
-    HBRUSH		hBrush;
-    TextWndInfo		*ptwInfo;
-
-    ptwInfo = (TextWndInfo *) GetWindowLong (hWnd, GWL_PTEXTINFO);
-    if (ptwInfo == NULL) 
-	return (FALSE);
-    
-
-    GetClientRect (hWnd, &erect);
-    hBrush = CreateSolidBrush (ptwInfo->rgbBGColor);
-    if (hBrush != NULL) {
-	FillRect (hDC, &erect, hBrush);
-	DeleteObject (hBrush);
-    }
-    return (TRUE);
-}
-
-
-
-LOCAL void
-TWPaint (HWND hWnd)
-{
-    TextWndInfo		*ptwInfo;
-    PAINTSTRUCT		ps;
-    HDC			hDC;
-    HFONT		hOldFont;
-    HBRUSH		hBrush;
-    int			nRow, nEndRow;		/* screen row being painted.*/
-    RECT		rect;			/* Rect surrounding line. */
-    int			lineLen;		/* # chars in line. */
-    BOOL		selStart, selEnd;
-    int	                selStartLine, selEndLine;
-    int 		selStartChar, selEndChar;
-    long                selStartPos, selEndPos;
-    LPTSTR		text;			/* text being painted. */
-    int                 *chwidths;
-    int                 startChar, endChar;
-    int                 xLeftOffset;
-    int                 i;
-    long                curWidth;
-
-    /* If I got the window set up right I don't expect to be called to
-     * paint the ICON, but... */
-    if (IsIconic (hWnd))
-	return;
-
-    ptwInfo = (TextWndInfo *) GetWindowLong (hWnd, GWL_PTEXTINFO);
-    if (ptwInfo == NULL) 
-	return;
-
-    /* Scroll Position is top line in window */
-    hDC = BeginPaint (hWnd, &ps);
-    
-    
-    hOldFont = SelectObject (hDC, ptwInfo->hFont);
-    SetTextColor (hDC, ptwInfo->rgbFGColor);
-    SetBkColor (hDC, ptwInfo->rgbBGColor);
-    SetBkMode (hDC, OPAQUE);
-    
-    /* Get the Paint rectange and calculate start and end rows. */
-    rect = ps.rcPaint;
-    nRow = MAX(0, (rect.top - MARGINE_TOP) / ptwInfo->yChar);
-    nEndRow = MAX(0, (rect.bottom - MARGINE_TOP - 1) / ptwInfo->yChar);
-    
-    /* Order the dot and mark. */
-    if (ptwInfo->dotLine < ptwInfo->markLine || 
-	    (ptwInfo->dotLine == ptwInfo->markLine  &&
-	     ptwInfo->dotChar < ptwInfo->markChar)) {
-	selStartLine = ptwInfo->dotLine;
-	selStartChar = ptwInfo->dotChar;
-	selEndLine = ptwInfo->markLine;
-	selEndChar = ptwInfo->markChar;
-    }
-    else {
-	selStartLine = ptwInfo->markLine;
-	selStartChar = ptwInfo->markChar;
-	selEndLine = ptwInfo->dotLine;
-	selEndChar = ptwInfo->dotChar;
-    }
-
-    /*
-     * Loop through the displayable lines and paint line-by-line
-     */
-    for (; nRow <= nEndRow && (ptwInfo->curLine + nRow < ptwInfo->lineCount); nRow++) {
-
-	/* Which line? */
-	text = *(ptwInfo->lines + ptwInfo->curLine + nRow);
-	chwidths = get_char_widths(ptwInfo, ptwInfo->curLine + nRow);
-
-	lineLen = _tcslen (text);
-
-	startChar = endChar = -1;
-	selStart = selEnd = FALSE;
-	selStartPos = selEndPos = 0;
-	xLeftOffset = 0;
-	curWidth = 0;
-
-	/* 
-	 * Loop through a line and figure out at which character we start drawing and
-	 * which we end at.  If there's selectable text find the position for that as well.
-	 * Characters can vary by width, keep track of widths for rectangle building.
-	 * xLeftOffset can be negative because we could be painting a double-wide that starts
-	 * off the edge of a screen.
-	 */
-	for(i = 0; i < lineLen; i++){
-	    if(startChar == -1){
-		/* Find the point at which we start painting */
-		if(curWidth + chwidths[i] > ptwInfo->curCol * ptwInfo->xChar){
-		    startChar = i;
-
-		    /* the offset could be negative if startChar starts off-screen */
-		    xLeftOffset = curWidth - (ptwInfo->curCol * ptwInfo->xChar);
-
-		     /* Reset the width.  The end width is how wide the rectangle will be */
-		    curWidth = 0;
-		}
-	    }
-	    if(startChar != -1){
-		/*
-		 * If we're in the region we're drawing, start checking for
-		 * selectable text beginning and/or end, as well as the end
-		 * character.
-		 */
-		if(!selStart && (ptwInfo->curLine + nRow == selStartLine)
-		   && i >= selStartChar){
-		    selStart = TRUE;
-		    selStartPos = curWidth;
-		}
-		if(!selEnd && (ptwInfo->curLine + nRow == selEndLine)
-		   && i >= selEndChar){
-		    selEnd = TRUE;
-		    selEndPos = curWidth;
-		}
-		if(curWidth + xLeftOffset > ptwInfo->xSize - FRAME_3D_SIZE){
-		    endChar = i;
-		    break;
-		}
-	    }
-	    
-	    curWidth += chwidths[i];
-	}
-
-	/* This happens if we hit the end of the string */
-	if(endChar == -1)
-	  endChar = i;
-
-	rect.top = (nRow * ptwInfo->yChar) + MARGINE_TOP;
-	rect.bottom = MIN(rect.top + ptwInfo->yChar, 
-			  ptwInfo->ySize - FRAME_3D_SIZE);
-
-
-	/* First clear the whole line to start with a blank slate */
-	rect.left = MARGINE_LEFT;
-	rect.right = ptwInfo->xSize - FRAME_3D_SIZE;
-	hBrush = CreateSolidBrush(ptwInfo->rgbBGColor);
-	if (hBrush != NULL) {
-	    FillRect (hDC, &rect, hBrush);
-	    DeleteObject (hBrush);
-	}
-
-	if(startChar != -1){
-	    rect.left = xLeftOffset + MARGINE_LEFT;
-	    rect.right = xLeftOffset + curWidth + MARGINE_LEFT;
-	    if(nRow > selStartLine && nRow < selEndLine){
-		SetTextColor (hDC, ptwInfo->rgbRFGColor);
-		SetBkColor (hDC, ptwInfo->rgbRBGColor);
-	    }
-	    else{
-		SetTextColor (hDC, ptwInfo->rgbFGColor);
-		SetBkColor (hDC, ptwInfo->rgbBGColor);
-	    }
-
-
-	    /* 
-	     * This paints all of the text on a line in either normal color or
-	     * highlight color if the whole line is selected. In the case where
-	     * only part of the line is selected, we'll go back and redraw that
-	     * part in the highlight color.
-	     */
-	    ExtTextOut(hDC, rect.left, rect.top, ETO_OPAQUE | ETO_CLIPPED,
-		       &rect, text+startChar, endChar - startChar, chwidths+startChar);
-
-	    if((selStart || selEnd) && 
-	       !(selStart == TRUE && selEnd == TRUE && selStartChar == selEndChar)){
-		/*
-		 * If we're in here we redraw the text that should be highlighted.
-		 */
-		if(selStart)
-		  rect.left = xLeftOffset + selStartPos + MARGINE_LEFT;
-		if(selEnd)
-		  rect.right = xLeftOffset + selEndPos + MARGINE_LEFT;
-
-		SetTextColor (hDC, ptwInfo->rgbRFGColor);
-		SetBkColor (hDC, ptwInfo->rgbRBGColor);
-
-		ExtTextOut(hDC, rect.left, rect.top, ETO_OPAQUE | ETO_CLIPPED,
-			   &rect, 
-			   text+(selStart ? selStartChar : startChar), 
-			   (selEnd ? selEndChar : endChar) - (selStart ? selStartChar : startChar),
-			   chwidths+(selStart ? selStartChar : startChar));
-	    }
-	}
-    }
-    
-    
-    /* Erase any section of the screen that did not have a line draw
-     * on it. */
-    if (nRow <= nEndRow) {
-	rect.top = (nRow * ptwInfo->yChar) + MARGINE_TOP;
-	rect.right = FRAME_3D_SIZE;
-	rect.left = ptwInfo->xSize - FRAME_3D_SIZE;
-	rect.bottom = ptwInfo->ySize - FRAME_3D_SIZE;
-	FillRectColor (hDC, &rect, ptwInfo->rgbBGColor);
-    }
-	
-    
-    
-    /* draw an inset 3d frame. */
-    rect.top = 0;
-    rect.bottom = ptwInfo->ySize;
-    rect.left = 0;
-    rect.right = ptwInfo->xSize;
-    FrameRect3D (hDC, &rect, FRAME_3D_SIZE, FALSE);
-
-    SelectObject (hDC, hOldFont);
-    EndPaint (hWnd, &ps);
-    return;
-}
-
-
-
-/*
- * Scroll the text window vertically.
- */
-LOCAL void
-TWScroll (HWND hWnd, int wScrollCode, int nPos)
-{
-    TextWndInfo		*ptwInfo;
-    BOOL		fRepaint;
-    RECT		rect;
-
-    ptwInfo = (TextWndInfo *) GetWindowLong (hWnd, GWL_PTEXTINFO);
-    if (ptwInfo == NULL) 
-	return;
-    if(ptwInfo->lineCount < ptwInfo->nRows)
-      return;
-
-    rect.top = 0 + FRAME_3D_SIZE;
-    rect.bottom =  ptwInfo->ySize - FRAME_3D_SIZE;
-    rect.left = 0 + FRAME_3D_SIZE;
-    rect.right = ptwInfo->xSize - FRAME_3D_SIZE;
-
-
-
-    fRepaint = FALSE;
-    
-    switch (wScrollCode) {
-    case SB_BOTTOM:
-	ptwInfo->curLine = ptwInfo->lineCount - ptwInfo->nRows;
-	fRepaint = TRUE;
-	break;
-	
-    case SB_TOP:
-	ptwInfo->curLine = 0;
-	fRepaint = TRUE;
-	break;
-	
-    case SB_LINEDOWN:
-	if (ptwInfo->curLine < ptwInfo->lineCount - ptwInfo->nRows) {
-	    ++ptwInfo->curLine;
-	    ScrollWindow (hWnd, 0, -ptwInfo->yChar, NULL, &rect);
-        }
-        break;
-
-    case SB_LINEUP:
-	if (ptwInfo->curLine > 0) {
-	    --ptwInfo->curLine;
-	    ScrollWindow (hWnd, 0, ptwInfo->yChar, NULL, &rect);
-
-	    /*
-	     * ScrollWindow() invalidates part of the window, but does not
-	     * invalidate enough.  Do that here.
-	     */
-	    rect.top = 0;
-	    rect.bottom =  ptwInfo->yChar + MARGINE_TOP;
-	    rect.left = 0;
-	    rect.right = ptwInfo->xSize;
-	    InvalidateRect (hWnd, &rect, FALSE);
-        }
-        break;
-
-    case SB_PAGEDOWN:
-	ptwInfo->curLine += ptwInfo->nRows;
-	if (ptwInfo->curLine > ptwInfo->lineCount - ptwInfo->nRows)
-	    ptwInfo->curLine = ptwInfo->lineCount - ptwInfo->nRows;
-	fRepaint = TRUE;
-        break;
-
-    case SB_PAGEUP:
-	ptwInfo->curLine -= ptwInfo->nRows;
-	if (ptwInfo->curLine < 0)
-	    ptwInfo->curLine = 0;
-	fRepaint = TRUE;
-        break;
-	
-    case SB_THUMBPOSITION:
-    case SB_THUMBTRACK:
-	ptwInfo->curLine = nPos;
-	fRepaint = TRUE;
-        break;
-
-    }
-
-    SetScrollPos (hWnd, SB_VERT, (int)ptwInfo->curLine, TRUE);
-    if (fRepaint)
-	InvalidateRect (hWnd, NULL, TRUE);
-}
-
-/*
- * Scroll the text window horizontally.
- */
-LOCAL void
-TWHScroll (HWND hWnd, int wScrollCode, int nPos)
-{
-    TextWndInfo		*ptwInfo;
-    BOOL		fRepaint;
-    RECT		rect;
-
-    ptwInfo = (TextWndInfo *) GetWindowLong (hWnd, GWL_PTEXTINFO);
-    if (ptwInfo == NULL) 
-	return;
-    if(ptwInfo->maxCol < ptwInfo->nCols)
-      return;
-
-    rect.top = 0 + FRAME_3D_SIZE;
-    rect.bottom =  ptwInfo->ySize - FRAME_3D_SIZE;
-    rect.left = 0 + FRAME_3D_SIZE;
-    rect.right = ptwInfo->xSize - FRAME_3D_SIZE;
-
-
-
-    fRepaint = FALSE;
-    
-    switch (wScrollCode) {
-      case SB_LINERIGHT:
-	if(ptwInfo->curCol < ptwInfo->maxCol - ptwInfo->nCols){
-	    ptwInfo->curCol++;
-	    ScrollWindow (hWnd, -ptwInfo->xChar, 0, NULL, &rect);
-	}
-	break;
-
-    case SB_LINELEFT:
-	if (ptwInfo->curCol > 0) {
-	    --ptwInfo->curCol;
-	    ScrollWindow (hWnd, ptwInfo->xChar, 0, NULL, &rect);
-
-	    /* invalidate rect as is done in TWScroll */
-
-	    rect.top = 0;
-	    rect.bottom =  ptwInfo->ySize;
-	    rect.left = 0;
-	    rect.right = ptwInfo->xChar + MARGINE_LEFT;
-	    InvalidateRect (hWnd, &rect, FALSE);
-
-        }
-        break;
-
-    case SB_PAGERIGHT:
-	ptwInfo->curCol += ptwInfo->nCols;
-	if (ptwInfo->curCol > ptwInfo->maxCol - ptwInfo->nCols)
-	    ptwInfo->curCol = ptwInfo->maxCol - ptwInfo->nCols;
-	fRepaint = TRUE;
-        break;
-
-    case SB_PAGELEFT:
-	ptwInfo->curCol -= ptwInfo->nCols;
-	if (ptwInfo->curCol < 0)
-	    ptwInfo->curCol = 0;
-	fRepaint = TRUE;
-        break;
-	
-    case SB_THUMBPOSITION:
-    case SB_THUMBTRACK:
-	ptwInfo->curCol = nPos;
-	fRepaint = TRUE;
-        break;
-
-    }
-
-    SetScrollPos (hWnd, SB_HORZ, (int)ptwInfo->curCol, TRUE);
-    if (fRepaint)
-	InvalidateRect (hWnd, NULL, TRUE);
-}
-
-/*
- * Scroll the text window vis mousewheel input
- */
-LOCAL void
-TWMouseWheel (HWND hWnd, int xPos, int yPos, int fwKeys, int zDelta)
-{
-    TextWndInfo	*ptwInfo;
-    RECT	 rect;
-    int		 lines, n;
-    static int   zDelta_acc;
-
-    ptwInfo = (TextWndInfo *) GetWindowLong (hWnd, GWL_PTEXTINFO);
-    if (ptwInfo == NULL) 
-	return;
-
-    /* Don't scroll if the whole text is showing */
-    if(ptwInfo->lineCount < ptwInfo->nRows)
-      return;
-
-    rect.top = 0 + FRAME_3D_SIZE;
-    rect.bottom =  ptwInfo->ySize - FRAME_3D_SIZE;
-    rect.left = 0 + FRAME_3D_SIZE;
-    rect.right = ptwInfo->xSize - FRAME_3D_SIZE;
-
-    if(fwKeys == MK_MBUTTON)
-      zDelta *= 2;			/* double the effect */
-    
-    if(abs(zDelta += zDelta_acc) < WHEEL_DELTA){
-	zDelta_acc = zDelta;
-    }
-    else{
-	/* Remember any partial increments */
-	zDelta_acc = zDelta % WHEEL_DELTA;
-
-	lines = gsMWMultiplier * abs((zDelta / WHEEL_DELTA));
-
-	if(zDelta < 0){
-	    if (ptwInfo->curLine < ptwInfo->lineCount - ptwInfo->nRows) {
-		for(n = lines - 1;
-		    (++ptwInfo->curLine 
-		     != ptwInfo->lineCount - ptwInfo->nRows)
-		      && n > 0;
-		    n--)
-		  ;
-
-		ScrollWindow (hWnd, 0, -((lines - n) * ptwInfo->yChar),
-			      NULL, &rect);
-	    }
-	}
-	else{
-	    if (ptwInfo->curLine > 0) {
-		for(n = lines - 1; --ptwInfo->curLine != 0 && n > 0; n--)
-		  ;
-
-		ScrollWindow (hWnd, 0, (lines - n) * ptwInfo->yChar,
-			      NULL, &rect);
-
-		/*
-		 * ScrollWindow() invalidates part of the window, but
-		 * does not invalidate enough.  Do that here.
-		 */
-		rect.top = 0;
-		rect.bottom =  ((lines - n) * ptwInfo->yChar) + MARGINE_TOP;
-		rect.left = 0;
-		rect.right = ptwInfo->xSize;
-		InvalidateRect (hWnd, &rect, FALSE);
-	    }
-	}
-
-	SetScrollPos (hWnd, SB_VERT, (int)ptwInfo->curLine, TRUE);
-    }
-}
-
-
-/*
- * When the user presses the mouse button down to drag a selection, then
- * moves above or below the window we need to scroll the window.  
- * Mouse track events only occur when the mouse moves - they are not
- * adequate.  So, I install a timer, which sends a message to the window
- * which calls this function.
- *
- * ptwInfo->scrollDirect  indicates which direction the scrolling should
- * be done.
- */
-void
-TWScrollTimer (HWND hWnd)
-{
-    TextWndInfo		*ptwInfo;
-    long		newcurLine;
-    RECT		rect;
-    long		lineLen;
-    long		oldmarkLine, oldmarkChar;
-    RECT		frame;
-    
-    
-
-    ptwInfo = (TextWndInfo *) GetWindowLong (hWnd, GWL_PTEXTINFO);
-    if (ptwInfo == NULL) {
-	KillTimer (hWnd, TWS_TIMERID);
-	return;
-    }
-    
-    if (ptwInfo->scrollDirect == TWS_OFF) {
-	/* Timer should be off. */
-	KillTimer (hWnd, TWS_TIMERID);
-	return;
-    }
-    
-    frame.top = 0 + FRAME_3D_SIZE;
-    frame.bottom =  ptwInfo->ySize - FRAME_3D_SIZE;
-    frame.left = 0 + FRAME_3D_SIZE;
-    frame.right = ptwInfo->xSize - FRAME_3D_SIZE;
-
-    
-    /*
-     * Remember old mark.
-     */
-    oldmarkLine = ptwInfo->markLine;
-    oldmarkChar = ptwInfo->markChar;
-
-    
-    /* 
-     * Is scrolling going up or down?
-     */
-    if (ptwInfo->scrollDirect == TWS_UP) {
-	/* 
-	 * Find new top line and move mark to left of top line. 
-	 */
-	newcurLine = ptwInfo->curLine - 1;
-	if (newcurLine < 0)
-	    newcurLine = 0;
-	ptwInfo->markLine = newcurLine;
-	ptwInfo->markChar = 0;
-    }
-    else if (ptwInfo->scrollDirect == TWS_DOWN) {
-	/* 
-	 * Fine new top line and move mark to right of bottom line.
-	 */
-	newcurLine = ptwInfo->curLine + 1;
-	if (newcurLine > ptwInfo->lineCount - ptwInfo->nRows) 
-	    newcurLine = ptwInfo->lineCount - ptwInfo->nRows;
-	ptwInfo->markLine = newcurLine + ptwInfo->nRows;
-	
-	/*
-	 * Handle the last line correctly.
-	 */
-	if (ptwInfo->markLine >= ptwInfo->lineCount) {
-	    ptwInfo->markLine = ptwInfo->lineCount;
-	    ptwInfo->markChar = 0;
-	}
-	else 
-	    ptwInfo->markChar = TWMeasureLine (*(ptwInfo->lines+ptwInfo->markLine));
-    }
-    
-    /*
-     * If window can be scrolled do it here.
-     */
-    if (newcurLine != ptwInfo->curLine) {
-	    
-	/*
-	 * Update scroll bar and scroll the window.
-	 */
-	SetScrollPos (hWnd, SB_VERT, (int)newcurLine, TRUE);
-	ScrollWindow (hWnd, 0, 
-		(int)(ptwInfo->curLine - newcurLine) * ptwInfo->yChar, 
-		NULL, &frame);
-	ptwInfo->curLine = newcurLine;
-
-
-	/*
-	 * ScrollWindow() invalidates part of the window, but does not
-	 * invalidate enough.  Do that here.
-	 */
-	if (oldmarkLine < ptwInfo->markLine ||
-		(oldmarkLine == ptwInfo->markChar && 
-			oldmarkChar < ptwInfo->markChar)) {
-	    rect.top = ((oldmarkLine - ptwInfo->curLine) * ptwInfo->yChar) + 
-			    MARGINE_TOP;
-	    rect.bottom = ((ptwInfo->markLine - ptwInfo->curLine + 1) * 
-					    ptwInfo->yChar) + MARGINE_TOP;
-	}
-	else {
-	    rect.top = ((ptwInfo->markLine - ptwInfo->curLine) * 
-					    ptwInfo->yChar) + MARGINE_TOP;
-	    rect.bottom = ((oldmarkLine - ptwInfo->curLine + 1) * 
-					    ptwInfo->yChar) + MARGINE_TOP;
-	}
-		
-	rect.left = 0;
-	rect.right = ptwInfo->xSize;
-	InvalidateRect (hWnd, &rect, FALSE);
-
-	UpdateWindow (hWnd);
-    }
-}
-
-
-
-
-
-/*
- * Process a WM_CHAR message.
- * Allow the standard scrolling keys.
- */
-LOCAL void
-TWChar (HWND hWnd, WPARAM key, LPARAM keyData)
-{
-    switch (key) {
-	case 'k':
-	    TWScroll (hWnd, SB_LINEUP, 0);
-	    break;
-	    
-	case 'j':
-	    TWScroll (hWnd, SB_LINEDOWN, 0);
-	    break;
-	    
-	case '-':
-	case 'b':
-	    TWScroll (hWnd, SB_PAGEUP, 0);
-	    break;
-	
-	case ' ':
-	case 'f':
-	    TWScroll (hWnd, SB_PAGEDOWN, 0);
-	    break;
-    }
-}
-
-
-
-
-
-/*
- * Process a key down message.  Handle only virtual keys which can be
- * maped to scrolling operatons, as well as control sequences.
- */
-LOCAL BOOL  
-TWKeyDown (HWND hWnd, WORD key, DWORD keyData)
-{
-    BOOL	handled = TRUE;
-
-    if(key == VK_CONTROL)
-      TWKeyControlDown = TRUE;
-
-    if(key == VK_SHIFT)
-      TWKeyShiftDown = TRUE;
-
-    /* Special keys. */
-    if (keyData & 0X20000000)
-	return (FALSE);			/* Message NOT handled. */
-
-    switch (key) {
-	case VK_UP:
-	    TWScroll (hWnd, SB_LINEUP, 0);
-	    break;
-	    
-	case VK_DOWN:
-	    TWScroll (hWnd, SB_LINEDOWN, 0);
-	    break;
-
-        case VK_LEFT:
-	    TWHScroll(hWnd, SB_LINELEFT, 0);
-	    break;
-
-        case VK_RIGHT:
-	    TWHScroll(hWnd, SB_LINERIGHT, 0);
-	    break;
-
-	case VK_PRIOR:
-	    TWScroll (hWnd, SB_PAGEUP, 0);
-	    break;
-	
-	case VK_NEXT:
-	    TWScroll (hWnd, SB_PAGEDOWN, 0);
-	    break;
-	
-	case VK_HOME:
-	    TWScroll (hWnd, SB_TOP, 0);
-	    break;
-		
-	case VK_END:
-	    TWScroll (hWnd, SB_BOTTOM, 0);
-	    break;
-
-        case 'C':
-        case 'c':
-	    if(TWKeyControlDown && TWKeyShiftDown){
-		TWEditCopy (hWnd);
-	    }
-	    break;
-
-	default:
-	    handled = FALSE;
-	    break;
-    }
-    return (handled);
-}
-
-
-/*
- * Process a key up message.  Handle only control and shift
- */
-LOCAL BOOL  
-TWKeyUp (HWND hWnd, WORD key, DWORD keyData)
-{
-    if(key == VK_CONTROL)
-      TWKeyControlDown = FALSE;
-
-    if(key == VK_SHIFT)
-      TWKeyShiftDown = FALSE;
-
-    return (FALSE);
-}
-
-
-/*
- * Count how many screen cells a line will occupy with expanded tabs.
- */
-LOCAL int
-TWMeasureLine (LPTSTR text)
-{
-    int		c;
-
-    c = 0;
-    while (*text) {
-	if (*(text++) == '\t') {
-	    do {
-		++c;
-            } while (c % TAB_SIZE != 0);
-        }
-	else
-	    ++c;
-    }
-
-    return (c);
-}
-    
-
-
-
-/*
- * Convert a windows point to a Line and character.
- */
-LOCAL void
-TWPointToLC (TextWndInfo *ptwInfo, CORD xPos, CORD yPos, 
-				long *nLine, long *nChar)
-{
-    int			nRow, nCol;
-    int			lineLen;
-    BOOL		pastLast = FALSE;
-    
-    /*
-     * Convert to row and column, staying out of top and left margines.
-     */
-    nRow = MAX(0, (yPos - MARGINE_TOP) / ptwInfo->yChar);
-    nCol = MAX(0, (xPos - MARGINE_LEFT) / ptwInfo->xChar);
-    
-    /*
-     * Convert to line.   If mouse is past bottom then point to one
-     * past last line.
-     */
-    *nLine = ptwInfo->curLine + nRow;
-    if (*nLine >= ptwInfo->lineCount) {
-	*nLine = ptwInfo->lineCount - 1;
-	*nChar = TWMeasureLine (*(ptwInfo->lines + *nLine));
-	return;
-    }
-    lineLen = TWMeasureLine (*(ptwInfo->lines + *nLine));
-
-    
-    /* If past right end of line, then start at first char of next */
-    if (nCol > lineLen) {
-	if ((*nLine + 1) == ptwInfo->lineCount) {
-	    *nChar = lineLen;
-	}
-	else {
-	    ++*nLine;
-	    *nChar = 0;
-	}
-    }
-    else
-	*nChar = nCol;
-}
-
-
-
-/*
- * Mouse down.  Start selection.
- */
-LOCAL BOOL  
-TWMouseDown (HWND hWnd, int button, CORD xPos, CORD yPos, WPARAM keys)
-{
-    TextWndInfo		*ptwInfo;
-    long		nLine;
-    long		nChar;
-    BOOL		wasPrevSel;
-
-    
-    ptwInfo = (TextWndInfo *) GetWindowLong (hWnd, GWL_PTEXTINFO);
-    if (ptwInfo == NULL) 
-	return (FALSE);
-    
-    /*
-     * Only look at button 1.
-     */
-    if (button == 1) {
-	wasPrevSel = (ptwInfo->markLine != ptwInfo->dotLine) ||
-			(ptwInfo->markChar != ptwInfo->dotChar);
-	TWPointToLC (ptwInfo, xPos, yPos, &nLine, &nChar);
-	ptwInfo->markLine = nLine;
-	ptwInfo->markChar = nChar;
-	if (!(keys & MK_SHIFT)) {
-	    ptwInfo->dotLine = nLine;
-	    ptwInfo->dotChar = nChar;
-        }
-	SetCapture (hWnd);
-	ptwInfo->tracking = TRUE;
-	if (wasPrevSel || (keys & MK_SHIFT))
-	    InvalidateRect (hWnd, NULL, FALSE);
-	return (TRUE);
-    }
-    return (FALSE);
-}
-
-
-
-
 
 /*
  * Mouse up, end selection
  */
-LOCAL BOOL  
-TWMouseUp (HWND hWnd, int button, CORD xPos, CORD yPos, WPARAM keys)
-{
-    TextWndInfo		*ptwInfo;
-    long		nLine;
-    long		nChar;
-
-    
-    ptwInfo = (TextWndInfo *) GetWindowLong (hWnd, GWL_PTEXTINFO);
-    if (ptwInfo == NULL) 
-	return (FALSE);
-    
-    /*
-     * Only look at button 1.
-     */
-    switch(button){
-      case 1 :			/* tracked for selection? */
-	TWPointToLC (ptwInfo, xPos, yPos, &nLine, &nChar);
-	ptwInfo->markLine = nLine;
-	ptwInfo->markChar = nChar;
-	ReleaseCapture ();
-	if (ptwInfo->scrollDirect != TWS_OFF) {
-	    ptwInfo->scrollDirect = TWS_OFF;
-	    KillTimer (hWnd, TWS_TIMERID);
-        }
-	ptwInfo->tracking = FALSE;
-	return (TRUE);
-
-      case 2 :			/* offer popup? */
-	(void) CopyCutPopup(hWnd, 
-			    (ptwInfo->markLine != ptwInfo->dotLine
-			     || ptwInfo->markChar != ptwInfo->dotChar)
-				? (EM_CP | EM_CP_APPEND) : EM_SEL_ALL);
-	break;
-
-      default :
-	break;
-    }
-
-    return (FALSE);
-}
-
-
-
-/*
- * Track mouse down.  
- * If the mouse had gone above or below the window, enable the timer which
- * automatically scrolls the window.
- * If the mouse is in the window, move the mark and update the window.
- */
-LOCAL BOOL  
-TWMouseTrack (HWND hWnd, CORD xPos, CORD yPos)
-{
-    TextWndInfo		*ptwInfo;
-    int			nRow, nCol;
-    long		nLine, nChar;
-    long		oldmarkLine, oldmarkChar;
-    int			lineLen;
-    RECT		rect;
-
-    ptwInfo = (TextWndInfo *) GetWindowLong (hWnd, GWL_PTEXTINFO);
-    if (ptwInfo == NULL) 
-	return (FALSE);
-
-    if (!ptwInfo->tracking)
-	return (FALSE);
-
-    
-    
-    
-    /* 
-     * Decide if the mouse in ABOVE, IN, or BELOW the window.
-     */
-    if (yPos < 0) {
-	/* Mouse Above. */
-	if (ptwInfo->scrollDirect != TWS_UP) {
-	    if (SetTimer (hWnd, TWS_TIMERID, TWS_TIMEOUT, NULL) != 0) 
-		ptwInfo->scrollDirect = TWS_UP;
-        }
-    }
-    else if (yPos > ptwInfo->ySize) {
-	/* Mouse below. */
-	if (ptwInfo->scrollDirect != TWS_DOWN) {
-	    if (SetTimer (hWnd, TWS_TIMERID, TWS_TIMEOUT, NULL) != 0) 
-		ptwInfo->scrollDirect = TWS_DOWN;
-        }
-    }
-    else {
-	/* Mouse in window. */
-	if (ptwInfo->scrollDirect != TWS_OFF) {
-	    ptwInfo->scrollDirect = TWS_OFF;
-	    KillTimer (hWnd, TWS_TIMERID);
-        }
-	oldmarkLine = ptwInfo->markLine;
-	oldmarkChar = ptwInfo->markChar;
-	TWPointToLC (ptwInfo, xPos, yPos, &nLine, &nChar);
-	ptwInfo->markLine = nLine;
-	ptwInfo->markChar = nChar;
-
-
-	/*
-	 * Update just the line that changed. 
-	 */
-	if (oldmarkLine < nLine ||
-		(oldmarkLine == nLine && oldmarkChar < nChar)) {
-	    rect.top = ((oldmarkLine - ptwInfo->curLine) * ptwInfo->yChar) + 
-			    MARGINE_TOP;
-	    rect.bottom = ((nLine - ptwInfo->curLine + 1) * ptwInfo->yChar) + 
-			    MARGINE_TOP;
-	}
-	else {
-	    rect.top = ((nLine - ptwInfo->curLine) * ptwInfo->yChar) + 
-			    MARGINE_TOP;
-	    rect.bottom = ((oldmarkLine - ptwInfo->curLine + 1) * ptwInfo->yChar)+
-			    MARGINE_TOP;
-	}
-	rect.left = 0;
-	rect.right = ptwInfo->xSize - FRAME_3D_SIZE;
-	InvalidateRect (hWnd, &rect, FALSE);
-	UpdateWindow (hWnd);
-    }
-    return (TRUE);
-}
-
-
-
-
-
-/*
- * Convert a column position to a character offset in that line
- * taking tabs into account.
- */
-long
-TWCharInCol (LPTSTR line, long c)
-{
-    long	charPos;
-    long	colPos;
-
-    charPos = -1;
-    colPos = 0;
-    do {
-	if (*(line + ++charPos) == '\t') {
-	    do {
-	        ++colPos;
-	    } while (colPos % TAB_SIZE != 0);
-        }
-	else {
-	    ++colPos;
-        }
-    } while (colPos <= c);
-    return (charPos);
-}
-
-
-
-
-/*
- * Copy selection to clipboard.
- */
-LOCAL BOOL  
-TWEditCopy (HWND hWnd)
-{
-    TextWndInfo		*ptwInfo;
-    long		selStartLine, selEndLine;
-    long		selStartChar, selEndChar;
-    long		selSize;
-    long		len;
-    HANDLE		hCB;
-    char		*pCB;
-    long		l;
-
-    
-    ptwInfo = (TextWndInfo *) GetWindowLong (hWnd, GWL_PTEXTINFO);
-    if (ptwInfo == NULL) 
-	return (FALSE);
-
-
-    if (ptwInfo->dotLine < ptwInfo->markLine || 
-	    (ptwInfo->dotLine == ptwInfo->markLine  &&
-	     ptwInfo->dotChar < ptwInfo->markChar)) {
-	selStartLine = ptwInfo->dotLine;
-	selStartChar = TWCharInCol (*(ptwInfo->lines+ptwInfo->dotLine),
-					ptwInfo->dotChar);
-	selEndLine = ptwInfo->markLine;
-	selEndChar = TWCharInCol (*(ptwInfo->lines + ptwInfo->markLine),
-					ptwInfo->markChar);
-#if 0		
-	selStartLine = ptwInfo->dotLine;
-	selStartChar = ptwInfo->dotChar;
-	selEndLine = ptwInfo->markLine;
-	selEndChar = ptwInfo->markChar;
-#endif
-    }
-    else {
-	selStartLine = ptwInfo->markLine;
-	selStartChar = TWCharInCol (*(ptwInfo->lines + ptwInfo->markLine),
-					ptwInfo->markChar);
-	selEndLine = ptwInfo->dotLine;
-	selEndChar = TWCharInCol (*(ptwInfo->lines + ptwInfo->dotLine),
-					ptwInfo->dotChar);
-#if 0	
-	selStartLine = ptwInfo->markLine;
-	selStartChar = ptwInfo->markChar;
-	selEndLine = ptwInfo->dotLine;
-	selEndChar = ptwInfo->dotChar;
-#endif
-    }
-    /*
-     * Count bytes in selection.
-     */
-    if (selStartLine == selEndLine) {
-      selSize = selEndChar - selStartChar;
-    }
-    else {
-	selSize = _tcslen (*(ptwInfo->lines + selStartLine)) - selStartChar + 2;
-	for (l = selStartLine + 1; l < selEndLine; ++l) 
-	    selSize += _tcslen (*(ptwInfo->lines + l)) + 2;
-        selSize += selEndChar;
-    }
-    
-    if (selSize == 0)
-	return (TRUE);
-
-    if (OpenClipboard (ghTTYWnd)) {		/* ...and we get the CB. */
-	if (EmptyClipboard ()) {		/* ...and clear previous CB.*/
-	    hCB = GlobalAlloc (GMEM_MOVEABLE, selSize+2);
-	    if (hCB != NULL) {
-		pCB = GlobalLock (hCB);
-
-		if (selStartLine == selEndLine) {
-		    /* Singe line, no CRLF. */
-		    len = selEndChar - selStartChar;
-		    memcpy (pCB, 
-			    *(ptwInfo->lines + selStartLine) + selStartChar,
-			    (size_t)len);
-		    pCB += len;
-		}
-		else {
-		    /* Copy first line with CRLF. */
-		    len = _tcslen (*(ptwInfo->lines + selStartLine)) - 
-							    selStartChar;
-		    memcpy (pCB, 
-			    *(ptwInfo->lines + selStartLine) + selStartChar,
-			    (size_t)len);
-		    pCB += len;
-		    *pCB++ = ASCII_CR;
-		    *pCB++ = ASCII_LF;
-		    
-		    /* Copy middle lines with CRLF. */
-		    for (l = selStartLine + 1; l < selEndLine; ++l) {
-			len = _tcslen (*(ptwInfo->lines + l));
-			memcpy (pCB, *(ptwInfo->lines + l), (size_t)len);
-			pCB += len;
-			*pCB++ = ASCII_CR;
-			*pCB++ = ASCII_LF;
-		    }
-		    
-		    /* Copy last line without CRLF. */
-		    memcpy (pCB, *(ptwInfo->lines+selEndLine), 
-						    (size_t)selEndChar);
-		    pCB += selEndChar;
-		}
-		
-		/* Append null terminator. */
-		*pCB++ = '\0';
-		
-		GlobalUnlock (hCB);
-
-		if (SetClipboardData (CF_TEXT, hCB) == NULL)
-		  /* Failed!  Free the data. */
-		  GlobalFree (hCB);
-	    }
-	}
-	CloseClipboard (); 
-    }
-
-    return (FALSE);
-}
-
-
-
-
-LOCAL BOOL  
-TWEditSelectAll (HWND hWnd)
-{
-    TextWndInfo		*ptwInfo;
-
-    ptwInfo = (TextWndInfo *) GetWindowLong (hWnd, GWL_PTEXTINFO);
-    if (ptwInfo == NULL) 
-      return (FALSE);
-
-    if (ptwInfo->tracking)
-      return (FALSE);
-    
-    ptwInfo->dotLine = ptwInfo->dotChar = 0L;
-      
-    ptwInfo->markLine = ptwInfo->lineCount - 1;
-    ptwInfo->markChar = _tcslen (ptwInfo->lines[ptwInfo->markLine]);
-
-    InvalidateRect (hWnd, NULL, FALSE);
-    UpdateWindow (hWnd);
-    return (TRUE);
-}
-
-
-
 
 LOCAL void
-TWSetSize (HWND hWnd, UINT wParam, UINT height, UINT width)
+mswin_tw_print_callback(MSWIN_TEXTWINDOW *mswin_tw)
 {
-    TextWndInfo		*ptwInfo;
-    SCROLLINFO          scrollInfo;
-
-    if (wParam == SIZE_MINIMIZED)
-	return;
-    
-    ptwInfo = (TextWndInfo *) GetWindowLong (hWnd, GWL_PTEXTINFO);
-    if (ptwInfo == NULL) 
-	return;
-
-
-    /* Calculate new number of rows and columns. */
-    ptwInfo->xSize = width;
-    ptwInfo->ySize = height;
-    ptwInfo->nCols = (width  - (2 * MARGINE_LEFT)) / ptwInfo->xChar;
-    ptwInfo->nRows = (height - (2 * MARGINE_TOP))  / ptwInfo->yChar;
-
-    if(ptwInfo->curLine 
-       && (ptwInfo->curLine > ptwInfo->lineCount - ptwInfo->nRows))
-      ptwInfo->curLine = MAX(0, ptwInfo->lineCount - ptwInfo->nRows);
-    if(ptwInfo->curCol 
-       && (ptwInfo->curCol > ptwInfo->maxCol - ptwInfo->nCols))
-      ptwInfo->curCol = MAX(0, ptwInfo->maxCol - ptwInfo->nCols);
-
-    /* Update scrollbars that have likely changed */
-    memset(&scrollInfo, 0, sizeof(SCROLLINFO));
-    scrollInfo.cbSize = sizeof(SCROLLINFO);
-    scrollInfo.fMask = SIF_POS | SIF_RANGE | SIF_PAGE | SIF_DISABLENOSCROLL;
-    scrollInfo.nMin = 0;
-    scrollInfo.nMax = ptwInfo->lineCount - 1L;
-    scrollInfo.nPage = ptwInfo->ySize / ptwInfo->yChar;
-    scrollInfo.nPos = ptwInfo->curLine;
-    SetScrollInfo(hWnd, SB_VERT, &scrollInfo, TRUE);
-
-    memset(&scrollInfo, 0, sizeof(SCROLLINFO));
-    scrollInfo.cbSize = sizeof(SCROLLINFO);
-    scrollInfo.fMask = SIF_POS | SIF_RANGE | SIF_PAGE;
-    scrollInfo.nMin = 0;
-    scrollInfo.nMax = ptwInfo->maxCol - 1L;
-    scrollInfo.nPage = ptwInfo->xSize / ptwInfo->xChar;
-    scrollInfo.nPos = ptwInfo->curCol;
-    SetScrollInfo(hWnd, SB_HORZ, &scrollInfo, TRUE);
-
-    InvalidateRect (hWnd, NULL, FALSE);
-    return;
-}
-
-
-
-LOCAL void
-TWPrint(HWND hWnd)
-{
-    TextWndInfo	       *ptwInfo;
+    LPTSTR              text;
+    UINT                text_len;
     int			rc;
 #define DESC_LEN	180
     TCHAR		description[DESC_LEN+1];
-    LPTSTR	       *line;
-    UINT		i;
-    
-    
-    ptwInfo = (TextWndInfo *) GetWindowLong(hWnd, GWL_PTEXTINFO);
-    
-    GetWindowText(hWnd, description, DESC_LEN);
 
-    rc = mswin_print_ready((WINHAND)hWnd, description);
+    GetWindowText(mswin_tw->hwnd, description, DESC_LEN);
+
+    rc = mswin_print_ready((WINHAND)mswin_tw->hwnd, description);
     if (rc != 0) {
 	if (rc != PE_USER_CANCEL) {
 	    LPTSTR e;
@@ -13465,17 +11732,18 @@ TWPrint(HWND hWnd)
 		fs_give((void **) &e);
 	    }
 
-	    MessageBox(hWnd, description, TEXT("Print Failed"), MB_OK | MB_ICONEXCLAMATION);
+	    MessageBox(mswin_tw->hwnd, description, TEXT("Print Failed"),
+                MB_OK | MB_ICONEXCLAMATION);
 	}
 	return;
     }
-    
-    
-    for (line = ptwInfo->lines, i = 0; i < ptwInfo->lineCount; ++line, ++i) {
-	mswin_print_text(*line);
-	mswin_print_text(TEXT("\r\n"));
-    }
-    
+
+    text_len = mswin_tw_gettextlength(mswin_tw);
+    text = (LPTSTR) fs_get(text_len * sizeof(TCHAR));
+    mswin_tw_gettext(mswin_tw, text, text_len);
+    mswin_print_text(text);
+    fs_give((void **)&text);
+
     mswin_print_done();
 }
 		
@@ -13515,8 +11783,8 @@ CQInit (void)
 	CQTail = 0;
 	CQCount = 0;
 }
- 
- 
+
+
 /*---------------------------------------------------------------------------
  *  BOOL  CQAvailable (void)
  *
@@ -13533,9 +11801,9 @@ CQAvailable (void)
 {
 	return (CQCount > 0);
 }
- 
 
- 
+
+
 /*---------------------------------------------------------------------------
  *  BOOL  CQAdd (WORD c, DWORC keyData)
  *
@@ -13598,16 +11866,16 @@ CQAddUniq (UCS c, DWORD keyData)
 	}
 	return (CQAdd (c, keyData));
 }
- 
- 
 
- 
+
+
+
 /*---------------------------------------------------------------------------
  *  int  CQGet ()
  *
  *  Description:
  *		Return the next byte from the head of the queue.  If there is
- *		no byte available, returns 0, which is indistinquishable from 
+ *		no byte available, returns 0, which is indistinquishable from
  *		'\0'.  So it is a good idea to call CQAvailable first.
  *
  *  Parameters:
@@ -13662,8 +11930,8 @@ MQInit (void)
 	MQTail = 0;
 	MQCount = 0;
 }
- 
- 
+
+
 /*---------------------------------------------------------------------------
  *  BOOL  MQAvailable (void)
  *
@@ -13680,9 +11948,9 @@ MQAvailable (void)
 {
 	return (MQCount > 0);
 }
- 
 
- 
+
+
 /*---------------------------------------------------------------------------
  *  BOOL  MQAdd ()
  *
@@ -13697,18 +11965,18 @@ MQAvailable (void)
 LOCAL BOOL
 MQAdd (int mevent, int button, int nRow, int nColumn, int keys, int flags)
 {
-    int		i;
     int		c;
+    int		i = 0;
     BOOL	found = FALSE;
 
-    
+
     /*
      * Find a queue insertion point.
      */
     if (flags & MSWIN_MF_REPLACING) {
 	/* Search for same event on queue. */
-	for (   i = MQHead, c = MQCount; 
-	        c > 0; 
+	for (   i = MQHead, c = MQCount;
+	        c > 0;
 		i = (i + 1) % MOUSE_QUEUE_LENGTH, --c) {
 	    if (MQBuffer[i].event == mevent) {
 		found = TRUE;
@@ -13723,7 +11991,7 @@ MQAdd (int mevent, int button, int nRow, int nColumn, int keys, int flags)
 	MQTail = (MQTail + 1) % MOUSE_QUEUE_LENGTH;
 	++MQCount;
     }
-    
+
 
     /*
      * Record data.
@@ -13734,15 +12002,15 @@ MQAdd (int mevent, int button, int nRow, int nColumn, int keys, int flags)
     MQBuffer[i].nColumn = nColumn;
     MQBuffer[i].keys = keys;
     MQBuffer[i].flags = flags;
-    
+
     /*
      * Keep record of last mouse position.
      */
     gMTEvent = MQBuffer[i];
-    
+
     return (TRUE);
 }
- 
+
 
 
 
@@ -13752,7 +12020,7 @@ MQAdd (int mevent, int button, int nRow, int nColumn, int keys, int flags)
  *
  *  Description:
  *		Return the next byte from the head of the queue.  If there is
- *		no byte available, returns 0, which is indistinquishable from 
+ *		no byte available, returns 0, which is indistinquishable from
  *		'\0'.  So it is a good idea to call MQAvailable first.
  *
  *  Parameters:
@@ -13766,7 +12034,7 @@ MQGet (MEvent * pMouse)
     if (MQCount == 0)
 	return (FALSE);
 
-    
+
     *pMouse = MQBuffer[MQHead];
     MQHead = (MQHead + 1) % MOUSE_QUEUE_LENGTH;
     --MQCount;
@@ -13812,16 +12080,14 @@ ExplainSystemErr()
  * Called by mswin to scroll text in window in responce to the scrollbar.
  *
  *  Args: cmd - what type of scroll operation.
- * 	scroll_pos - paramter for operation.  
+ * 	scroll_pos - paramter for operation.
  *			used as position for SCROLL_TO operation.
- * 
+ *
  *  Returns: TRUE - did the scroll operation.
  *	   FALSE - was not able to do the scroll operation.
  */
 int
-pico_scroll_callback (cmd, scroll_pos)
-int	cmd;
-long	scroll_pos;
+pico_scroll_callback (int cmd, long scroll_pos)
 {
     switch (cmd) {
     case MSWIN_KEY_SCROLLUPLINE:
@@ -13839,12 +12105,12 @@ long	scroll_pos;
     case MSWIN_KEY_SCROLLDOWNPAGE:
 	forwpage (0, 1);
 	break;
-	    
+	
     case MSWIN_KEY_SCROLLTO:
 	scrollto (0, 0);
 	break;
     }
-    
+
     update ();
     return (TRUE);
 }
@@ -13942,7 +12208,7 @@ pscreen_offset_from_cord(int row, int col, PTTYINFO pTTYInfo)
      * fewer characters it would be <= desired width, one more would
      * be greater than desired width, this one is >= desired width.
      */
-    
+
     /* first go to some offset where width is > col */
     offset_due_to_col = col;
     width = scrwidth(pTTYInfo->pScreen+offset_due_to_row, offset_due_to_col);
@@ -13962,4 +12228,21 @@ pscreen_offset_from_cord(int row, int col, PTTYINFO pTTYInfo)
       offset_due_to_col++;
 
     return(offset_due_to_row + offset_due_to_col);
+}
+
+
+/*
+ *  Returns:
+ *   1 if store pass prompt is set in the registry to on
+ *   0 if set to off
+ *   -1 if not set to anything
+ */
+int
+mswin_store_pass_prompt(void)
+{
+    /* 
+     * We shouldn't need to prompt anymore, but always return 1 
+     * just in case
+     */
+    return(1);
 }

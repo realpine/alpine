@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: search.c 113 2006-09-01 21:54:31Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: search.c 343 2006-12-22 18:25:39Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -559,7 +559,7 @@ replace_all(UCS *orig, UCS *repl)
 	    chword(realpat, realpat);	       /* replace word by itself */
 	    update();
 	    if(status == ABORT){		/* if cancelled return */
-		emlwrite("Replace All cancelled after %d changes", (char *) n);
+		emlwrite("Replace All cancelled after %s changes", comatose(n));
 		return (ABORT);			/* ... else keep looking */
 	    }
 	}

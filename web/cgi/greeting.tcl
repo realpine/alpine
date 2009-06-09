@@ -1,7 +1,7 @@
 #!./tclsh
 
 # ========================================================================
-# Copyright 2006 University of Washington
+# Copyright 2006-2007 University of Washington
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.

@@ -1,5 +1,5 @@
 /*
- * $Id: repltype.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: repltype.h 394 2007-01-25 20:29:45Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington
@@ -38,8 +38,8 @@ typedef struct reply_s {
     union {
 	long	   pico_flags;	/* Flags to manage pico initialization */
 	struct {		/* UID information */
-	    unsigned long  validity;	/* validity token */
-	    unsigned long *msgs;	/* array of reply'd to msgs */
+	    imapuid_t      validity;	/* validity token */
+	    imapuid_t     *msgs;	/* array of reply'd to msgs */
 	} uid;
     } data;
 } REPLY_S;

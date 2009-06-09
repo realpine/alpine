@@ -1,8 +1,8 @@
 /*
- * $Id: color.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: color.h 380 2007-01-23 00:09:18Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -72,6 +72,7 @@ void	    pico_toggle_color(int);
 void	    pico_set_normal_color(void);
 void	    pico_set_color_options(unsigned);
 unsigned    pico_get_color_options(void);
+int         pico_trans_is_on(void);
 char	   *pico_get_last_fg_color(void);
 char	   *pico_get_last_bg_color(void);
 char	   *color_to_canonical_name(char *);

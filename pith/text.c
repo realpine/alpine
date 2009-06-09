@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: text.c 237 2006-11-16 04:08:15Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: text.c 388 2007-01-24 18:57:42Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -135,13 +135,16 @@ decode_text(ATTACH_S *att, long int msgno, gf_io_t pc, HANDLE_S **handlesp,
 
     if(flags & (FM_UTF8 | FM_DISPLAY)){
 	/* translate message text to UTF-8 */
+	flags |= FM_UTF8;
 	if(strucmp((char *) charset, "us-ascii") && strucmp((char *) charset, "utf-8")){
 	    if(utf8able(charset)){
-		flags |= FM_UTF8;
 		filters[filtcnt].filter = gf_utf8;
-		filters[filtcnt++].data = gf_utf8_opt(charset, att->body->size.bytes);
+		filters[filtcnt++].data = gf_utf8_opt(charset);
 	    }
-	    /* else, BUG: what to do if not transliterable? */
+	    else{
+		/* BUG: what to do if not transliterable? */
+		flags &= ~FM_UTF8;
+	    }
 	}
     }
     else

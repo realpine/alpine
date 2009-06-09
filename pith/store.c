@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: store.c 261 2006-11-22 22:50:13Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: store.c 370 2007-01-18 21:46:34Z mikes@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -494,7 +494,7 @@ so_file_writec_windows(int c, STORE_S *so)
     UCS ucs;
 
     /* result should be 1 or 0 (if in middle of a UTF-8 char) */
-    if(utf8_to_ucs4_oneatatime(c, so->cbuf, sizeof(so->cbuf), &so->cbufp, &ucs))
+    if(utf8_to_ucs4_oneatatime(c, so->cbuf, sizeof(so->cbuf), &so->cbufp, &ucs, NULL))
       if(write_a_wide_char(ucs, (FILE *) so->txt) == EOF)
 	rv = 0;
 

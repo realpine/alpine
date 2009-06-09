@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: utf8.c 265 2006-11-23 00:51:10Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: utf8.c 384 2007-01-24 01:22:15Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,8 @@ static char rcsid[] = "$Id: utf8.c 265 2006-11-23 00:51:10Z hubert@u.washington.
 #endif
 
 #include <system.h>
+
+#include "../../c-client/fs.h"
 
 /* includable WITHOUT dependency on pico */
 #include "../../pico/keydefs.h"
@@ -172,7 +174,7 @@ mbtow(void *input_cs, unsigned char **inputp, unsigned long *remaining_octets)
 	 * that is just not long enough and one that has characters that can't
 	 * be converted even though it is long enough. We return NEEDMORE in both cases.
 	 */
-	ret = mbstowcs(&w, *inputp, 1);
+	ret = mbstowcs(&w, (char *) (*inputp), 1);
 	if(ret == (size_t)(-1))
 	  return(CCONV_NEEDMORE);
 	else{
@@ -211,7 +213,7 @@ convert_to_utf8(char *str, char *fromcharset, int flags)
     const CHARSET *cs;
     int            try;
 
-    src.data = str;
+    src.data = (unsigned char *) str;
     src.size = strlen(str);
 
     /* already UTF-8, return NULL */
@@ -258,7 +260,7 @@ convert_to_utf8(char *str, char *fromcharset, int flags)
 	if(fcharset && utf8_text(&src, fcharset, &result, 0L)){
 	    if(!(result.size == src.size && result.data == src.data)){
 		ret = (char *) fs_get((result.size+1) * sizeof(char));
-		strncpy(ret, result.data, result.size);
+		strncpy(ret, (char *) result.data, result.size);
 		ret[result.size] = '\0';
 	    }
 	    /* else no conversion necessary */
@@ -632,7 +634,7 @@ ucs4_to_utf8_cpystr(UCS *ucs4src)
     for(i = 0; ucs4src[i]; i++)
       ;
 
-    ret = (char *) fs_get((6*i + 1) * sizeof(*ret));
+    ret = (unsigned char *) fs_get((6*i + 1) * sizeof(*ret));
     memset(ret, 0, (6*i + 1) * sizeof(*ret));
 
     writeptr = ret;
@@ -646,50 +648,96 @@ ucs4_to_utf8_cpystr(UCS *ucs4src)
 }
 
 
+/*
+ * Similar to above but copy a fixed number of source
+ * characters instead of going until null terminator.
+ */
+char *
+ucs4_to_utf8_cpystr_n(UCS *ucs4src, int ucs4src_len)
+{
+    unsigned char *ret = NULL;
+    unsigned char *writeptr;
+    int            i;
+
+    if(!ucs4src)
+      return NULL;
+
+    /*
+     * Over-allocate and then resize at the end.
+     */
+
+    ret = (unsigned char *) fs_get((6*ucs4src_len + 1) * sizeof(*ret));
+    memset(ret, 0, (6*ucs4src_len + 1) * sizeof(*ret));
+
+    writeptr = ret;
+    for(i = 0; i < ucs4src_len; i++)
+      writeptr = utf8_put(writeptr, (unsigned long) ucs4src[i]);
+
+    /* get rid of excess size */
+    fs_resize((void **) &ret, (writeptr - ret + 1) * sizeof(*ret));
+
+    return ((char *) ret);
+}
+
+
 #ifdef _WINDOWS
 /*
  * Convert a UTF-8 argument into an LPTSTR version
- * of that argument. The result is MemAlloc'd here
+ * of that argument. The result is allocated here
  * and should be freed by the caller.
  */
 LPTSTR
 utf8_to_lptstr(LPSTR arg_utf8)
 {
-    LPTSTR ret = NULL;
-    UCS   *u = NULL;
+     int lptstr_len;
+     LPTSTR lptstr_ret = NULL;
 
-    if(arg_utf8){
-	u = utf8_to_ucs4_cpystr((char *) arg_utf8);
-	if(u){
-	    ret = ucs4_to_lptstr(u);
-	    fs_give((void **) &u);
-	}
-    }
-    
-    return ret;
+     lptstr_len = MultiByteToWideChar( CP_UTF8, 0, arg_utf8, -1, NULL, 0 );
+     if(lptstr_len > 0)
+     {
+         lptstr_ret = (LPTSTR)fs_get(lptstr_len * sizeof(TCHAR));
+         lptstr_len = MultiByteToWideChar( CP_UTF8, 0,
+             arg_utf8, -1, lptstr_ret, lptstr_len );
+     }
+
+     if(!lptstr_len)
+     {
+         // check GetLastError()?
+         lptstr_ret = (LPTSTR)fs_get(sizeof(TCHAR));
+         lptstr_ret[0] = 0;
+     }
+
+     return lptstr_ret;
 }
 
 
 /*
  * Convert an LPTSTR argument into a UTF-8 version
- * of that argument. The result is MemAlloc'd here
+ * of that argument. The result is allocated here
  * and should be freed by the caller.
  */
 LPSTR
 lptstr_to_utf8(LPTSTR arg_lptstr)
 {
-    LPSTR ret = NULL;
-    UCS   *u = NULL;
+     int utf8str_len;
+     LPSTR utf8str_ret = NULL;
 
-    if(arg_lptstr){
-	u = lptstr_to_ucs4(arg_lptstr);
-	if(u){
-	    ret = ucs4_to_utf8_cpystr(u);
-	    fs_give((void **) &u);
-	}
-    }
-    
-    return ret;
+     utf8str_len = WideCharToMultiByte( CP_UTF8, 0, arg_lptstr, -1, NULL, 0, NULL, NULL );
+     if(utf8str_len > 0)
+     {
+         utf8str_ret = (LPSTR)fs_get(utf8str_len * sizeof(CHAR));
+         utf8str_len = WideCharToMultiByte( CP_UTF8, 0,
+             arg_lptstr, -1, utf8str_ret, utf8str_len, NULL, NULL );
+     }
+
+     if(!utf8str_len)
+     {
+         // check GetLastError()?
+         utf8str_ret = (LPSTR)fs_get(sizeof(CHAR));
+         utf8str_ret[0] = 0;
+     }
+
+     return utf8str_ret;
 }
 
 
@@ -756,7 +804,7 @@ lptstr_to_ucs4(LPTSTR arg_lptstr)
  */
 int
 utf8_to_ucs4_oneatatime(int c, unsigned char cbuf[], size_t cbuf_size,
-	     unsigned char **cbufp, UCS *obuf)
+			unsigned char **cbufp, UCS *obuf, int *obufwidth)
 {
     int  width = 0, outchars = 0, printable_ascii = 0;
     
@@ -800,6 +848,7 @@ utf8_to_ucs4_oneatatime(int c, unsigned char cbuf[], size_t cbuf_size,
 	    outchars++;
 	    *obuf = '?';
 	    *cbufp = cbuf;
+	    width = 1;
 	    break;
 
 	  case U8G_ENDSTRG:	/* incomplete character, wait */
@@ -859,7 +908,11 @@ utf8_to_ucs4_oneatatime(int c, unsigned char cbuf[], size_t cbuf_size,
     else{			/* error */
 	*obuf = '?';
 	outchars = 1;
+	width = 1;
     }
+
+    if(obufwidth)
+      *obufwidth = width;
 
     return(outchars);
 }
@@ -1207,7 +1260,8 @@ utf8_snprintf(char *dest, size_t size, char *fmt, ...)
     int     int_arg;
     double  double_arg;
     void   *ptr_arg;
-    int     more_flags, ret, w, got_width;
+    unsigned got_width;
+    int     more_flags, ret, w;
     int     min_field_width, field_precision, modifier;
     int     flags_minus, flags_plus, flags_space, flags_zero, flags_pound;
     va_list args;
@@ -1914,7 +1968,7 @@ setup_for_input_output(int use_system_routines, char **display_charmap,
     }
 
     if(use_system_routines){
-#if	(HAVE_WCHAR_H && HAVE_WCRTOMB && HAVE_WCWIDTH && HAVE_MBSTOWCS && !defined(_WINDOWS))
+#if	PREREQ_FOR_SYS_TRANSLATION
 	char *dcm;
 
 	dcm = nl_langinfo(CODESET);
@@ -2132,7 +2186,7 @@ utf8_to_charset(char *orig, char *charset, int report_err)
      * but not for other 2022 charsets.
      */
     if(utf8_cstext(&src, charset, &dst, report_err ? 0 : '?') && dst.size > 0 && dst.data)
-      ret = dst.data;		/* c-client already null terminates it */
+      ret = (char *) dst.data;		/* c-client already null terminates it */
     else
       ret = NULL;
 
@@ -2140,4 +2194,244 @@ utf8_to_charset(char *orig, char *charset, int report_err)
       fs_give((void **) &dst.data);
 
     return ret;
+}
+
+
+/*
+ *      Turn a number into a string with comma's
+ *
+ * Args: number -- The long to be turned into a string. 
+ *
+ * Result: pointer to static string representing number with commas
+ * Can use up to 3 comatose results at once.
+ */
+char *
+comatose(long int number)
+{
+    long        i, x, done_one;
+    static char buf[3][50];
+    static int whichbuf = 0;
+    char       *b;
+
+    whichbuf = (whichbuf + 1) % 3;
+
+    if(number == 0){
+        strncpy(buf[whichbuf], "0", sizeof(buf[0]));
+	buf[whichbuf][sizeof(buf[0])-1] = '\0';
+        return(buf[whichbuf]);
+    }
+    
+    done_one = 0;
+    b = buf[whichbuf];
+    for(i = 1000000000; i >= 1; i /= 1000) {
+	x = number / i;
+	number = number % i;
+	if(x != 0 || done_one) {
+	    if(b != buf[whichbuf] && (b-buf[whichbuf]) <  sizeof(buf[0]))
+	      *b++ = ',';
+
+	    snprintf(b, sizeof(buf[0])-(b-buf[whichbuf]), done_one ? "%03ld" : "%d", x);
+	    b += strlen(b);
+	    done_one = 1;
+	}
+    }
+
+    if(b-buf[whichbuf] < sizeof(buf[0]))
+      *b = '\0';
+
+    return(buf[whichbuf]);
+}
+
+
+/*
+ * line_paint - where the real work of managing what is displayed gets done.
+ *              The passwd variable is overloaded: if non-zero, don't
+ *              output anything, else only blat blank chars across line
+ *              once and use this var to tell us we've already written the 
+ *              line.
+ */
+void
+line_paint(int offset,			/* current dot offset into vl */
+	   struct display_line *displ,
+	   int *passwd)			/* flag to hide display of chars */
+{
+    int i, w, w2, already_got_one = 0;
+    int vfirst, vlast, dfirst, dlast, vi, di;
+    int new_vbase;
+
+    /*
+     * for now just leave line blank, but maybe do '*' for each char later
+     */
+    if(passwd && *passwd){
+	if(*passwd > 1)
+	  return;
+	else
+	  *passwd = 2;		/* only blat once */
+
+	i = 0;
+	(*displ->movecursor)(displ->row, displ->col);
+	while(i++ <= displ->dwid)
+	  (*displ->writechar)(' ');
+
+	(*displ->movecursor)(displ->row, displ->col);
+	return;
+    }
+
+    /*
+     * vl is the virtual line (the actual data). We operate on it by typing
+     * characters to be added and deleting and so forth. In this routine we
+     * copy a subset of those UCS-4 characters in vl into dl, the display
+     * array, and show that subset on the screen.
+     *
+     * Offset is the location of the cursor in vl.
+     *
+     * We will display the string starting from vbase.
+     * We have dwid screen cells to work in.
+     * We may have to adjust vbase in order to display the
+     * part of the string that contains the cursor.
+     *
+     * We'll make the display look like
+     *   vl    a b c d e f g h i j k l m
+     *             xxxxxxxxxxxxx  <- width dwid window
+     *             < d e f g h >
+     *               |
+     *             vbase
+     * The < will be there if vbase > 0.
+     * The > will be there if the string from vbase to the
+     * end can't all fit in the window.
+     */
+
+    memset(displ->dl, 0, displ->dlen * sizeof(UCS));
+
+    /*
+     * Adjust vbase so offset is not out of the window to the right.
+     * (The +2 in w + 2 is for a possible " >" if the string goes past
+     *  the right hand edge of the window and if the last visible character
+     * is double wide. We don't want the offset to be under that > character.)
+     */
+    for(w = ucs4_str_width_a_to_b(displ->vl, displ->vbase, offset);
+	w + 2 + (displ->vbase ? 1 : 0) > displ->dwid;
+        w = ucs4_str_width_a_to_b(displ->vl, displ->vbase, offset)){
+	/*
+	 * offset is off the window to the right
+	 * It looks like   a b c d e f g h
+	 *                   |         |
+	 *               vbase         offset
+	 * and offset is either past the right edge,
+	 * or right at the right edge (and maybe under >),
+	 * or one before right at the edge (and maybe on space
+	 * for half a character).
+	 *
+	 * Since the characters may be double width it is slightly
+	 * complicated to figure out how far to increase vbase.
+	 * We're going to scoot over past width w/2 characters and
+	 * then see if that's sufficient.
+	 */
+	new_vbase = displ->vbase + 1;
+	for(w2 = ucs4_str_width_a_to_b(displ->vl, displ->vbase+1, new_vbase);
+	    w2 < displ->dwid/2;
+	    w2 = ucs4_str_width_a_to_b(displ->vl, displ->vbase+1, new_vbase))
+	  new_vbase++;
+
+	displ->vbase = new_vbase;
+    }
+
+    /* adjust so offset is not out of the window to the left */
+    while(displ->vbase > 0 && displ->vbase >= offset){
+	/* add about dwid/2 more width */
+	new_vbase = displ->vbase - 1;
+	for(w2 = ucs4_str_width_a_to_b(displ->vl, new_vbase, displ->vbase);
+	    w2 < (displ->dwid+1)/2 && new_vbase > 0;
+	    w2 = ucs4_str_width_a_to_b(displ->vl, new_vbase, displ->vbase))
+	  new_vbase--;
+
+	/* but don't let it get too small, recheck off right end */
+	for(w = ucs4_str_width_a_to_b(displ->vl, new_vbase, offset);
+	    w + 2 + (new_vbase ? 1 : 0) > displ->dwid;
+	    w = ucs4_str_width_a_to_b(displ->vl, displ->vbase, offset))
+	  new_vbase++;
+
+	displ->vbase = MAX(new_vbase, 0);
+    }
+
+    if(displ->vbase == 1 && wcellwidth(displ->vl[0]) == 1)
+      displ->vbase = 0;
+	 
+    vfirst = displ->vbase;
+    dfirst = 0;
+    if(displ->vbase > 0){			/* off screen cue left */
+	dfirst = 1;				/* index which matches vfirst */
+	displ->dl[0] = '<';
+    }
+
+    vlast = displ->vused-1;			/* end */
+    w = ucs4_str_width_a_to_b(displ->vl, vfirst, vlast);
+
+    if(w + dfirst > displ->dwid){			/* off window right */
+
+	/* find last ucs character to be printed */
+	while(w + dfirst > displ->dwid - 1)	/* -1 for > */
+	  w = ucs4_str_width_a_to_b(displ->vl, vfirst, --vlast);
+
+	/* worry about double-width characters */
+	if(w + dfirst == displ->dwid - 1){	/* no prob, hit it exactly */
+	    dlast = dfirst + vlast - vfirst + 1;	/* +1 for > */
+	    displ->dl[dlast] = '>';
+	}
+	else{
+	    dlast = dfirst + vlast - vfirst + 1;
+	    displ->dl[dlast++] = ' ';
+	    displ->dl[dlast] = '>';
+	}
+    }
+    else
+      dlast = dfirst + vlast - vfirst;
+
+    /*
+     * Copy the relevant part of the virtual line into the display line.
+     */
+    for(vi = vfirst, di = dfirst; vi <= vlast; vi++, di++)
+      displ->dl[di] = displ->vl[vi];
+
+    /*
+     * Add spaces to clear the rest of the line.
+     * We have dwid total space to fill.
+     */
+    w = ucs4_str_width_a_to_b(displ->dl, 0, dlast);	/* width through dlast */
+    for(di = dlast+1, i = displ->dwid - w; i > 0 ; i--)
+      displ->dl[di++] = ' ';
+
+    /*
+     * Draw from left to right, skipping until we get to
+     * something that is different. Characters may be different
+     * widths than they were initially so paint from there the
+     * rest of the way.
+     */
+    for(di = 0; displ->dl[di]; di++){
+	if(already_got_one || displ->dl[di] != displ->olddl[di]){
+	    /* move cursor first time */
+	    if(!already_got_one++){
+		w = (di > 0) ? ucs4_str_width_a_to_b(displ->dl, 0, di-1) : 0;
+		(*displ->movecursor)(displ->row, displ->col + w);
+	    }
+
+	    (*displ->writechar)(displ->dl[di]);
+	    displ->olddl[di] = displ->dl[di];
+	}
+    }
+
+    memset(&displ->olddl[di], 0, (displ->dlen - di) * sizeof(UCS));
+
+    /*
+     * Move the cursor to the offset.
+     *
+     * The offset is relative to the start of the virtual array. We need
+     * to find the location on the screen. The offset into the display array
+     * will be offset-vbase+dfirst. We want to be at the start of that
+     * character, so we need to find the width of all the characters up
+     * to that point.
+     */
+    w = (offset > 0) ? ucs4_str_width_a_to_b(displ->dl, 0, offset-displ->vbase+dfirst-1) : 0;
+
+    (*displ->movecursor)(displ->row, displ->col + w);
 }

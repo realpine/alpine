@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailindx.c 301 2006-12-05 17:17:56Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailindx.c 394 2007-01-25 20:29:45Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -134,7 +134,7 @@ init_index_format(char *format, INDEX_COL_S **answer)
 	static INDEX_COL_S answer_default[] = {
 	    {iStatus, Fixed, 3},
 	    {iMessNo, WeCalculate},
-	    {iSDateTime, Fixed, 9},
+	    {iSDateTime, WeCalculate},
 	    {iFromTo, Percent, 33}, /* percent of rest */
 	    {iSizeNarrow, WeCalculate},
 	    {iSubjKey, Percent, 67},
@@ -203,6 +203,7 @@ init_index_format(char *format, INDEX_COL_S **answer)
 		break;
 	      case iSDate:
 	      case iSDateTime:
+	      case iSDateTime24:
 	        {
 		    /*
 		     * Format a date to see how long it is.
@@ -226,12 +227,17 @@ init_index_format(char *format, INDEX_COL_S **answer)
 	      case iSDateS1: case iSDateS2: case iSDateS3: case iSDateS4:
 	      case iSDateTimeIsoS:
 	      case iSDateTimeS1: case iSDateTimeS2: case iSDateTimeS3: case iSDateTimeS4:
+	      case iSDateTimeIsoS24:
+	      case iSDateTimeS124: case iSDateTimeS224: case iSDateTimeS324: case iSDateTimeS424:
 	      case iMonLong:
 	      case iDayOfWeek:
+	        /*
+		 * These SDates are 8 wide but they need to be 9 for "Yesterday".
+		 */
 		(*answer)[column].req_width = 9;
 		break;
 	      case iDateIso:
-	      case iSDateIso: case iSDateTimeIso:
+	      case iSDateIso: case iSDateTimeIso: case iSDateTimeIso24:
 		(*answer)[column].req_width = 10;
 		break;
 	      case iLDate:
@@ -308,19 +314,26 @@ static INDEX_PARSE_T itokens[] = {
     {"SHORTDATEISO",	iDateIsoS,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"SMARTDATE",	iSDate,		FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"SMARTTIME",	iSTime,		FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
-    {"SMARTDATETIME",	iSDateTime,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"SMARTDATEISO",	iSDateIso,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"SMARTDATESHORTISO",iSDateIsoS,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"SMARTDATES1",	iSDateS1,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"SMARTDATES2",	iSDateS2,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"SMARTDATES3",	iSDateS3,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"SMARTDATES4",	iSDateS4,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
+    {"SMARTDATETIME",	iSDateTime,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"SMARTDATETIMEISO",iSDateTimeIso,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"SMARTDATETIMESHORTISO",iSDateTimeIsoS,FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"SMARTDATETIMES1",	iSDateTimeS1,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"SMARTDATETIMES2",	iSDateTimeS2,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"SMARTDATETIMES3",	iSDateTimeS3,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"SMARTDATETIMES4",	iSDateTimeS4,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
+    {"SMARTDATETIME24",		iSDateTime24,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
+    {"SMARTDATETIMEISO24",	iSDateTimeIso24,FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
+    {"SMARTDATETIMESHORTISO24",iSDateTimeIsoS24,FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
+    {"SMARTDATETIMES124",	iSDateTimeS124,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
+    {"SMARTDATETIMES224",	iSDateTimeS224,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
+    {"SMARTDATETIMES324",	iSDateTimeS324,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
+    {"SMARTDATETIMES424",	iSDateTimeS424,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"TIME24",		iTime24,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"TIME12",		iTime12,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
     {"TIMEZONE",	iTimezone,	FOR_INDEX|FOR_REPLY_INTRO|FOR_TEMPLATE},
@@ -525,13 +538,15 @@ parse_index_format(char *format_str, INDEX_COL_S **answer)
  * list get space allocated sooner than the ones at the end of the list.
  */
 static IndexColType fixed_ctypes[] = {
-    iMessNo, iStatus, iFStatus, iIStatus, iDate, iSDate, iSDateTime,
+    iMessNo, iStatus, iFStatus, iIStatus, iDate, iSDate, iSDateTime, iSDateTime24,
     iSTime, iLDate,
     iS1Date, iS2Date, iS3Date, iS4Date, iDateIso, iDateIsoS,
     iSDateIso, iSDateIsoS,
     iSDateS1, iSDateS2, iSDateS3, iSDateS4,
     iSDateTimeIso, iSDateTimeIsoS,
     iSDateTimeS1, iSDateTimeS2, iSDateTimeS3, iSDateTimeS4,
+    iSDateTimeIso24, iSDateTimeIsoS24,
+    iSDateTimeS124, iSDateTimeS224, iSDateTimeS324, iSDateTimeS424,
     iSize, iSizeComma, iSizeNarrow, iKSize, iDescripSize,
     iAtt, iTime24, iTime12, iTimezone, iMonAbb, iYear, iYear2Digit,
     iDay2Digit, iMon2Digit, iDayOfWeekAbb, iScore
@@ -725,6 +740,7 @@ setup_index_header_widths(MAILSTREAM *stream)
 
 		  case iSDate:
 		  case iSDateTime:
+		  case iSDateTime24:
 		    cdesc->actual_length = cdesc->req_width;
 		    cdesc->adjustment = Left;
 		    break;
@@ -732,10 +748,14 @@ setup_index_header_widths(MAILSTREAM *stream)
 		  case iSDateIsoS:
 		  case iSDateS1: case iSDateS2: case iSDateS3: case iSDateS4:
 		  case iSDateTimeIsoS:
+		  case iSDateTimeIsoS24:
 		  case iSDateTimeS1: case iSDateTimeS2: case iSDateTimeS3: case iSDateTimeS4:
-		  case iSDateIso: case iSDateTimeIso:
+		  case iSDateTimeS124: case iSDateTimeS224: case iSDateTimeS324: case iSDateTimeS424:
+		  case iSDateIso: case iSDateTimeIso: case iSDateTimeIso24:
 		    set_format_includes_smartdate(stream);
-		    if(cdesc->ctype == iSDateIso || cdesc->ctype == iSDateTimeIso)
+		    if(cdesc->ctype == iSDateIso
+		       || cdesc->ctype == iSDateTimeIso
+		       || cdesc->ctype == iSDateTimeIso24)
 		      cdesc->actual_length = 10;
 		    else
 		      cdesc->actual_length = 9;
@@ -966,7 +986,7 @@ setup_thread_header_widths(MAILSTREAM *stream)
  *       if we're passed a zero obuf, mostly bogus overview data
  */
 void
-load_overview(MAILSTREAM *stream, long unsigned int uid, OVERVIEW *obuf, long unsigned int rawno)
+load_overview(MAILSTREAM *stream, imapuid_t uid, OVERVIEW *obuf, long unsigned int rawno)
 {
     if(obuf && rawno >= 1L && stream && rawno <= stream->nmsgs){
 	INDEXDATA_S  idata;
@@ -1073,7 +1093,7 @@ build_header_work(struct pine *state, MAILSTREAM *stream, MSGNO_S *msgmap,
        && ((THRD_INDX() && !(ice->tice && ice->tice->ifield))
            || (!THRD_INDX() && !ice->ifield))){
 	char	     *seq, *p;
-	long	      uid, next;
+	long	      next;
 	int	      count;
 	MESSAGECACHE *mc;
 	PINETHRD_S   *thrd;
@@ -1885,13 +1905,17 @@ format_index_index_line(INDEXDATA_S *idata)
 		break;
 
 	      case iDate: case iMonAbb: case iLDate:
-	      case iSDate: case iSTime: case iSDateTime:
+	      case iSDate: case iSTime:
 	      case iS1Date: case iS2Date: case iS3Date: case iS4Date:
 	      case iDateIso: case iDateIsoS: case iTime24: case iTime12:
 	      case iSDateIsoS: case iSDateIso:
 	      case iSDateS1: case iSDateS2: case iSDateS3: case iSDateS4:
-	      case iSDateTimeS1: case iSDateTimeS2: case iSDateTimeS3: case iSDateTimeS4:
+	      case iSDateTime:
 	      case iSDateTimeIsoS: case iSDateTimeIso:
+	      case iSDateTimeS1: case iSDateTimeS2: case iSDateTimeS3: case iSDateTimeS4:
+	      case iSDateTime24:
+	      case iSDateTimeIsoS24: case iSDateTimeIso24:
+	      case iSDateTimeS124: case iSDateTimeS224: case iSDateTimeS324: case iSDateTimeS424:
 	      case iTimezone: case iYear: case iYear2Digit:
 	      case iRDate: case iDay: case iDay2Digit: case iMon2Digit:
 	      case iDayOrdinal: case iMon: case iMonLong:
@@ -3253,7 +3277,7 @@ set_index_addr(INDEXDATA_S *idata, char *field, struct mail_address *addr,
 				    SIZEOF_20KBUF, buftmp, &dummy);
 
 	/* convert the text to UTF-8 if needed */
-	if(p == buftmp || !(dummy && !strucmp(dummy, "utf-8"))){
+	if(p == buftmp || (dummy && strucmp(dummy, "utf-8"))){
 	    free_this = convert_to_utf8(buftmp, dummy, 0);
 	    if(free_this)
 	      p = free_this;
@@ -3372,7 +3396,7 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
 		timezone[6];	/* timezone, like -0800 or +... */
     int		hr12;
     int         curtype, lastmonthtype, lastyeartype;
-    int         sdatetimetype;
+    int         sdatetimetype, sdatetime24type;
     struct	date d;
 #define TODAYSTR N_("Today")
 
@@ -3405,7 +3429,21 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
 	             type == iSDateTimeS1 ||
 	             type == iSDateTimeS2 ||
 	             type == iSDateTimeS3 ||
-	             type == iSDateTimeS4);
+	             type == iSDateTimeS4 ||
+		     type == iSDateTime24 ||
+	             type == iSDateTimeIso24 ||
+	             type == iSDateTimeIsoS24 ||
+	             type == iSDateTimeS124 ||
+	             type == iSDateTimeS224 ||
+	             type == iSDateTimeS324 ||
+	             type == iSDateTimeS424);
+    sdatetime24type = (type == iSDateTime24 ||
+	             type == iSDateTimeIso24 ||
+	             type == iSDateTimeIsoS24 ||
+	             type == iSDateTimeS124 ||
+	             type == iSDateTimeS224 ||
+	             type == iSDateTimeS324 ||
+	             type == iSDateTimeS424);
     if(str_len > 0)
       str[0] = '\0';
 
@@ -3431,10 +3469,6 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
     else
       parse_date(datesrc, &d);
 
-    strncpy(year4, (d.year >= 0 && d.year < 10000)
-		    ? int2string(d.year) : "", sizeof(year4));
-    year4[sizeof(year4)-1] = '\0';
-
     strncpy(monabb, (d.month > 0 && d.month < 13)
 		    ? month_abbrev(d.month) : "", sizeof(monabb));
 
@@ -3454,8 +3488,8 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
     day[sizeof(day)-1] = '\0';
     dayord[sizeof(dayord)-1] = '\0';
 
-    strncpy(year4, (d.year >= 0 && d.year < 10000)
-		    ? int2string(d.year) : "", sizeof(year4));
+    strncpy(year4, (d.year >= 1000 && d.year < 10000)
+		    ? int2string(d.year) : "????", sizeof(year4));
     year4[sizeof(year4)-1] = '\0';
 
     if(d.year >= 0){
@@ -3707,6 +3741,8 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
       case iSDateS1: case iSDateS2: case iSDateS3: case iSDateS4: 
       case iSDateTime: case iSDateTimeIso: case iSDateTimeIsoS:
       case iSDateTimeS1: case iSDateTimeS2: case iSDateTimeS3: case iSDateTimeS4: 
+      case iSDateTime24: case iSDateTimeIso24: case iSDateTimeIsoS24:
+      case iSDateTimeS124: case iSDateTimeS224: case iSDateTimeS324: case iSDateTimeS424: 
 	{ struct date now, last_day;
 	  char        dbuf[200];
 	  int         msg_day_of_year, now_day_of_year, today;
@@ -3721,7 +3757,9 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
 	      msg_day_of_year = day_of_year(&d);
 	      ydiff = now.year - d.year;
 
-	      if(ydiff == 0)
+	      if(msg_day_of_year == -1)
+		diff = -100;
+	      else if(ydiff == 0)
 		diff = now_day_of_year - msg_day_of_year;
 	      else if(ydiff == 1){
 		  last_day = d;
@@ -3767,20 +3805,23 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
 		    snprintf(str, str_len, "%3s %2s", monabb, day);
 	      }
 	      else{
+		  if(msg_day_of_year == -1 && (type == iSDate || type == iSDateTime))
+		    type = iSDateTimeIsoS;
+
 		  switch(type){
-		    case iSDate: case iSDateTime:
+		    case iSDate: case iSDateTime: case iSDateTime24:
 		      {
 			struct tm tm;
 
 			memset(&tm, 0, sizeof(tm));
-			tm.tm_year = d.year-1900;
+			tm.tm_year = MAX(d.year-1900, 0);
 			tm.tm_mon = d.month-1;
 			tm.tm_mday = d.day;
 			strftime(str, str_len, "%x", &tm);
 		      }
 
 		      break;
-		    case iSDateS1: case iSDateTimeS1:
+		    case iSDateS1: case iSDateTimeS1: case iSDateTimeS124:
 		      if(v)
 			snprintf(str, str_len, "%s/%s/%s%s", mon, day, yearzero,
 				 diff < 0 ? "!" : "");
@@ -3790,7 +3831,7 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
 				 mon, dayzero, yearzero,
 				 diff < 0 ? "!" : "");
 		      break;
-		    case iSDateS2: case iSDateTimeS2:
+		    case iSDateS2: case iSDateTimeS2: case iSDateTimeS224:
 		      if(v)
 			snprintf(str, str_len, "%s/%s/%s%s", day, mon, yearzero,
 				 diff < 0 ? "!" : "");
@@ -3800,7 +3841,7 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
 				 day, monzero, yearzero,
 				 diff < 0 ? "!" : "");
 		      break;
-		    case iSDateS3: case iSDateTimeS3:
+		    case iSDateS3: case iSDateTimeS3: case iSDateTimeS324:
 		      if(v)
 			snprintf(str, str_len, "%s.%s.%s%s", day, mon, yearzero,
 				 diff < 0 ? "!" : "");
@@ -3810,7 +3851,7 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
 				 day, monzero, yearzero,
 				 diff < 0 ? "!" : "");
 		      break;
-		    case iSDateS4: case iSDateTimeS4:
+		    case iSDateS4: case iSDateTimeS4: case iSDateTimeS424:
 		      if(v)
 			snprintf(str, str_len, "%s.%s.%s%s",
 				 yearzero, monzero, dayzero,
@@ -3820,11 +3861,11 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
 				 yearzero, monzero, dayzero,
 				 diff < 0 ? "!" : "");
 		      break;
-		    case iSDateIsoS: case iSDateTimeIsoS:
+		    case iSDateIsoS: case iSDateTimeIsoS: case iSDateTimeIsoS24:
 		      snprintf(str, str_len, "%2s-%2s-%2s",
 			    yearzero, monzero, dayzero);
 		      break;
-		    case iSDateIso: case iSDateTimeIso:
+		    case iSDateIso: case iSDateTimeIso: case iSDateTimeIso24:
 		      snprintf(str, str_len, "%4s-%2s-%2s",
 			    year4, monzero, dayzero);
 		      break;
@@ -3885,11 +3926,14 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
 	if(d.hour >= 0 && d.hour < 24){
 	    snprintf(hour12, sizeof(hour12), "%02d", (d.hour % 12 == 0) ? 12 : d.hour % 12);
 	    ampm = (d.hour < 12) ? "am" : "pm";
+	    snprintf(hour24, sizeof(hour24), "%02d", d.hour);
 	}
 	else{
 	    strncpy(hour12, "??", sizeof(hour12));
 	    hour12[sizeof(hour12)-1] = '\0';
 	    ampm = "__";
+	    strncpy(hour24, "??", sizeof(hour24));
+	    hour24[sizeof(hour24)-1] = '\0';
 	}
 
 	/* Build date/time in str, in format similar to that used by w(1) */
@@ -3902,7 +3946,8 @@ date_str(char *datesrc, IndexColType type, int v, char *str, size_t str_len)
 	      minzero[sizeof(minzero)-1] = '\0';
 	    }
 
-	    snprintf(str, str_len, "%s:%s%s", hour12, minzero, ampm);
+	    snprintf(str, str_len, "%s:%s%s", sdatetime24type ? hour24 : hour12,
+		     minzero, sdatetime24type ? "" : ampm);
 	}
 	else if(daydiff >= 1 && daydiff < 6){ /* If <1wk ago, "DddHHap" */
 
@@ -4137,7 +4182,7 @@ subj_str(INDEXDATA_S *idata, int width, char *str, SubjKW kwtype, int opening, I
 				 SIZEOF_20KBUF, rawsubj, &cset);
 
     /* convert the text to UTF-8 if needed */
-    if(sp == rawsubj || !(cset && !strucmp(cset, "UTF-8"))){
+    if(sp == rawsubj || (cset && strucmp(cset, "UTF-8"))){
 	free_this = convert_to_utf8(rawsubj, cset, 0);
 	if(free_this)
 	  sp = free_this;
@@ -4604,7 +4649,7 @@ prepend_keyword_subject(MAILSTREAM *stream, long int rawno, char *subject,
 		    unsigned char *inputp;
 
 		    remaining_octets = strlen(str);
-		    inputp = str;
+		    inputp = (unsigned char *) str;
 		    ucs = (UCS) utf8_get(&inputp, &remaining_octets);
 		    if(!(ucs & U8G_ERROR)){
 			len += (unsigned) (inputp - (unsigned char *) str);
@@ -4651,7 +4696,7 @@ prepend_keyword_subject(MAILSTREAM *stream, long int rawno, char *subject,
 		    unsigned char *inputp;
 
 		    remaining_octets = strlen(str);
-		    inputp = str;
+		    inputp = (unsigned char *) str;
 		    ucs = (UCS) utf8_get(&inputp, &remaining_octets);
 		    if(!(ucs & U8G_ERROR)){
 			if(len-(p-retsubj) > 0){

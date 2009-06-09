@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: spell.c 247 2006-11-20 21:19:36Z jpf@u.washington.edu $";
+static char rcsid[] = "$Id: spell.c 336 2006-12-20 00:20:33Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -76,16 +76,7 @@ static char *pinespellhelp[] = {
   NULL
 };
 
-#ifdef	_WINDOWS
-int
-spell(int f, int n)
-{
-    return(-1);
-}
-#else  /* UNIX */
-
-
-
+#ifndef	_WINDOWS
 /*
  * spell() - check for potentially missspelled words and offer them for
  *           correction

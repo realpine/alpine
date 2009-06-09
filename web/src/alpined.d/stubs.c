@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: stubs.c 267 2006-11-23 02:26:59Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: stubs.c 391 2007-01-25 03:53:59Z mikes@u.washington.edu $";
 #endif
 
 /* ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -88,7 +88,7 @@ exec_mailcap_test_cmd(cmd)
 
 /******  various other stuff ******/
 /*----------------------------------------------------------------------
-    Panic pine - call on detected programmatic errors to exit pine
+    panic - call on detected programmatic errors to exit pine
 
    Args: message -- message to record in debug file and to be printed for user
 
@@ -104,15 +104,16 @@ panic(message)
 {
     in_panic = 1;
 
+    syslog(LOG_ERR, message);	/* may not work, but try */
+
+#if	0
     if(ps_global)
       peDestroyUserContext(&ps_global);
+#endif
 
-    end_signals(1);
-
-    syslog(LOG_ERR, message);
-
-#ifdef DEBUG
-    coredump();   /*--- If we're debugging get a core dump --*/
+#ifdef	DEBUG
+    if(debug > 1)
+      coredump();   /*--- If we're debugging get a core dump --*/
 #endif
 
     exit(-1);

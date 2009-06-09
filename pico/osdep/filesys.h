@@ -1,8 +1,8 @@
 /*
- * $Id: filesys.h 119 2006-09-13 20:47:01Z hubert@u.washington.edu $
+ * $Id: filesys.h 380 2007-01-23 00:09:18Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@
 
 
 /* exported prototypes */
-int	 fallowc(UCS);
 int	 fexist(char *, char *, off_t *);
 int	 isdir(char *, long *, time_t *);
 char	*gethomedir(int *);

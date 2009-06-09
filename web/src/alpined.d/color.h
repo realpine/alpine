@@ -1,9 +1,9 @@
 /*-----------------------------------------------------------------------
- $Id: color.h 270 2006-11-27 21:18:06Z mikes@u.washington.edu $
+ $Id: color.h 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
   -----------------------------------------------------------------------*/
 
 /* ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.

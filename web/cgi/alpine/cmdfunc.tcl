@@ -1,5 +1,5 @@
 #!./tclsh
-
+# $Id: cmdfunc.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -29,7 +29,7 @@ proc WPTFTitle {{context {some page}} {newmail {}} {nologo 0} {aboutcancel {}}} 
   cgi_table border=0 cellspacing=0 cellpadding=0 width="100%" class=title  {
     cgi_table_row {
       if {!$nologo} {
-	cgi_table_data align=left height=$_wp(titleheight) {
+	cgi_table_data valign=top align=left height=$_wp(titleheight) {
 
 	  if {[string length $aboutcancel]} {
 	    cgi_put [cgi_url [cgi_imglink smalllogo] wp.tcl?page=help&topic=about&oncancel=$aboutcancel class=navbar target=_top]

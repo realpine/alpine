@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: file.c 205 2006-10-26 23:04:44Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: file.c 343 2006-12-22 18:25:39Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -745,7 +745,7 @@ filewrite(int f, int n)
 		}
 
 		if(s > 1)
-		  emlwrite(_("Wrote %d lines"), (void *)s);
+		  emlwrite(_("Wrote %s lines"), comatose(s));
 		else
 		  emlwrite(_("Wrote 1 line"), NULL);
         }
@@ -789,7 +789,7 @@ filesave(int f, int n)
                         wp = wp->w_wndp;
                 }
 		if(s > 1){
-		    emlwrite(_("Wrote %d lines"), (void *)s);
+		    emlwrite(_("Wrote %s lines"), comatose(s));
 		}
 		else
 		  emlwrite(_("Wrote 1 line"), NULL);

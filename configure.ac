@@ -14,7 +14,7 @@ dnl  */
 
 AC_PREREQ([2.57])
 
-AC_REVISION([$Id: configure.ac 307 2006-12-08 17:23:10Z mikes@u.washington.edu $])
+AC_REVISION([$Id: configure.ac 325 2006-12-13 18:10:16Z mikes@u.washington.edu $])
 
 dnl Alpine Version Number is in $srcdir/VERSION
 AC_INIT(alpine, m4_normalize(m4_include([VERSION])), [alpine-contact@cac.washington.edu])
@@ -65,11 +65,45 @@ localedir="\${datadir}/locale"
 AC_ARG_WITH(localedir,
   AC_HELP_STRING([--with-localedir=DIR], [Name of gettext locale directory]),
   [
-    if test "x$withval" != "xno" ; then
-      localedir=$withval
-    fi
+    case $withval in
+      yes)
+        ;;
+      no)
+        ;;
+      *)
+        localedir=$withval
+        ;;
+    esac
   ])
 AC_SUBST(localedir, "[$localedir]")
+
+AC_ARG_WITH(include-path,
+  AC_HELP_STRING([--with-include-path=PATHS], [Colon-separated list of directories used for include file search]),
+  [
+    case $withval in
+      no)
+        ;;
+      yes)
+        ;;
+      *)
+	CPPFLAGS="$CPPFLAGS -I `echo ${withval} | sed 's/:/ -I /g'`"
+	;;
+    esac
+  ])
+
+AC_ARG_WITH(lib-path,
+  AC_HELP_STRING([--with-lib-path=PATHS], [Colon-separated list of directories used for library search]),
+  [
+    case $withval in
+      no)
+        ;;
+      yes)
+        ;;
+      *)
+	LDFLAGS="-L `echo ${withval} | sed 's/:/ -L /g'`"
+	;;
+    esac
+  ])
 
 AC_ARG_WITH(pubcookie,
   AC_HELP_STRING([--with-pubcookie], [Include support for UW-Pubcookie Web Authentication]),
@@ -995,6 +1029,13 @@ case "$host" in
     alpine_local_maildir="/usr/spool/mail"
     alpine_mode_readonly="(0600)"
     alpine_c_client_target="a32"
+    ;;
+  *-*UNIX_SV|*-*-sysv5UnixWare7*|*-*OpenUNIX*)
+    systype="UW2"
+    alpine_path_delim="/"
+    alpine_local_maildir="/var/mail"
+    alpine_mode_readonly="(0600)"
+    alpine_c_client_target="uw2"
     ;;
   *)
     AC_ERROR([Unrecognized system: $host])

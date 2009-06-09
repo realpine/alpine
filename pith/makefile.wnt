@@ -1,7 +1,7 @@
 # $Id: makefile.wnt 14098 2005-10-03 18:54:13Z jpf@u.washington.edu $
 #
 # ========================================================================
-# Copyright 2006 University of Washington
+# Copyright 2006-2007 University of Washington
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -50,7 +50,7 @@ HFILES=	../include/system.h ../include/general.h \
 
 OFILES=	ablookup.obj abdlc.obj addrbook.obj addrstring.obj adrbklib.obj bldaddr.obj charset.obj \
 	color.obj conf.obj context.obj copyaddr.obj detoken.obj detach.obj editorial.obj escapes.obj \
-	filter.obj flag.obj folder.obj handle.obj help.obj helpindx.obj icache.obj imap.obj init.obj \
+	filter.obj flag.obj folder.obj handle.obj help.obj helptext.obj icache.obj imap.obj init.obj \
 	keyword.obj ldap.obj list.obj mailcap.obj mailcmd.obj mailindx.obj maillist.obj mailview.obj \
 	margin.obj mimedesc.obj mimetype.obj msgno.obj newmail.obj news.obj pattern.obj pipe.obj \
 	readfile.obj remote.obj reply.obj rfc2231.obj save.obj search.obj sequence.obj send.obj sort.obj state.obj \
@@ -59,13 +59,19 @@ OFILES=	ablookup.obj abdlc.obj addrbook.obj addrstring.obj adrbklib.obj bldaddr.
 
 all:		libpith.lib
 
-helpindx.exe:	helpindx.c charconv/utf8.obj ../c-client/utf8.obj
-		$(CC) $(CFLAGS) helpindx.c
+helptext.h:	help_h_gen.exe pine.hlp
+		help_h_gen.exe < pine.hlp > helptext.h
 
-alpine.ndx:	helpindx.exe pine.hlp
-		helpindx pine.hlp alpine.ndx helptext.h
+helptext.c:	help_c_gen.exe pine.hlp
+		help_c_gen.exe < pine.hlp > helptext.c
 
-helptext.h:	alpine.ndx
+help_h_gen.exe:
+	$(CC) /c $(CFLAGS) help_h_gen.c
+	link /subsystem:console /out:help_h_gen.exe $(LFLAGS) help_h_gen.obj
+
+help_c_gen.exe:
+	$(CC) /c $(CFLAGS) help_c_gen.c
+	link /subsystem:console /out:help_c_gen.exe $(LFLAGS) help_c_gen.obj
 
 .c.obj:
 	$(CC) -c $(CFLAGS) $(MAKEDIR)\$*.c
@@ -79,3 +85,4 @@ libpith.lib:	$(OFILES)
 clean:
 	$(RM) *.lib
 	$(RM) *.obj
+	$(RM) helptext.h helptext.c help_h_gen.exe help_c_gen.exe

@@ -1,3 +1,4 @@
+# $Id: index.tcl 395 2007-01-25 22:23:41Z mikes@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -200,10 +201,14 @@ proc uid_framed {u mv} {
   return 0
 }
 
-proc index_part_color {text color} {
+proc index_quote {text} {
   set text [cgi_quote_html $text]
   regsub -all { } $text {\&nbsp;} text
 
+  return $text
+}
+
+proc index_part_color {text color} {
   if {[llength $color] == 2} {
     set fg [lindex $color 0]
     set bg [lindex $color 1]
@@ -1029,7 +1034,7 @@ if {![info exists nopage]} {
       set uid 0
     }
 
-    set nv [WPCmd PEMailbox nextvector $first $ppg [list status statusbits indexparts]]
+    set nv [WPCmd PEMailbox nextvector $first $ppg [list indexparts indexcolor status statusbits]]
     set miv [lindex $nv 0]
     set charset [lindex $nv 1]
 
@@ -1038,7 +1043,7 @@ if {![info exists nopage]} {
       if {[catch {WPCmd PEMessage $uid number} n] == 0 && [uid_framed $uid $miv] == 0} {
 	set first $n
 	set top $uid
-	set nv [WPCmd PEMailbox nextvector $first $ppg [list status statusbits indexparts]]
+	set nv [WPCmd PEMailbox nextvector $first $ppg [list indexparts indexcolor status statusbits ]]
 	set miv [lindex $nv 0]
 	set charset [lindex $nv 1]
       }
@@ -1131,10 +1136,9 @@ if {![info exists nopage]} {
       cgi_put  ".aggop     { font-family: arial, sans-serif ; font-size: 7pt }"
       cgi_put  "A.aggop { color: white ; font-size: 7pt }"
       cgi_put  ".navbutton { font-family: arial, sans-serif ; font-size: 7pt; overflow: visible; width: auto; padding: 0 2px; margin-right: 2px }"
-      cgi_put  ".itable { table-layout: fixed ; font-family: geneva, arial, sans-serif }"
-#      cgi_put  ".itable { table-layout: auto ; font-family: geneva, arial, sans-serif }"
-      cgi_put  ".icell { white-space: nowrap; overflow: hidden ; padding-right: 8px }"
-      cgi_put  ".icell0 { white-space: nowrap; overflow: hidden }"
+      cgi_put  ".itable { font-family: geneva, arial, sans-serif }"
+      cgi_put  ".icell { white-space: nowrap; padding-right: 8px }"
+      cgi_put  ".icell0 { white-space: nowrap }"
       cgi_puts "</style>"
 
       cgi_script  type="text/javascript" language="JavaScript" {
@@ -1355,7 +1359,7 @@ if {![info exists nopage]} {
 		  cgi_submit_button "setflag=Undelete" class="navbutton"
 		  if {([info exists _wp(spamaddr)] && [string length $_wp(spamaddr)])
 		      || ([info exists _wp(spamfolder)] && [string length $_wp(spamfolder)])} {
-		    cgi_submit_button "spamit=Report Spam" class="navbutton"
+		    cgi_submit_button "spamit=Report Spam" class="navbutton" "style=\" color: white; background-color: black\""
 		  }
 		}
 
@@ -1492,8 +1496,6 @@ if {![info exists nopage]} {
 	      }
 	    }
 	  } else {
-	    # streamline index data fetching
-	    catch {WPCmd PEMailbox indexrange $first $ppg}
 
 	    # get the desired index item order and spacing
 	    set iformat [WPCmd PEMailbox indexformat]
@@ -1519,19 +1521,18 @@ if {![info exists nopage]} {
 	      switch -regexp -- [lindex $fmt 0] {
 		[Ss]tatus {
 		  # fixed with "envelope" icon
-		  set width "42px"
-		}
-		[Dd]ate {
-		  # figure out character width?
-#		  set width "[expr {6 * [WPGetTDFontSize [WPIndexLineHeight]]}]pt"
-		  set width "8em"
+		  if {[string length [lindex $fmt 2]]} {
+		    set width "1%"
+		  } else {
+		    set width "42px"
+		  }
 		}
 		default {
 		  # proportion computed by pith (may be user specified)
 		  if {[regexp {[0123456789]+[%]} [lindex $fmt 1]]} {
 		    set width [lindex $fmt 1]
 		  } else {
-		    set width ""
+		    set width "1%"
 		  }
 		}
 	      }
@@ -1610,7 +1611,7 @@ if {![info exists nopage]} {
 		    switch -regexp -- $title {
 		      [Ss]ubject { lappend extrasort OrderedSubj ; lappend extrasort Thread }
 		      [Ff]rom { lappend extrasort To }
-		      x[D]ate { lappend extrasort Arrival }
+		      x[Dd]ate { lappend extrasort Arrival }
 		    }
 
 		    if {[info exists extrasort]} {
@@ -1669,9 +1670,10 @@ if {![info exists nopage]} {
 	    foreach v $miv {
 	      set n [lindex $v 0]
 	      set u [lindex $v 1]
-	      set stat [lindex [lindex $v 2] 0]
-	      set statbits [lindex [lindex $v 2] 1]
-	      set msg [lindex [lindex $v 2] 2]
+	      set msg [lindex [lindex $v 2] 0]
+	      set linecolor [lindex [lindex $v 2] 1]
+	      set stat [lindex [lindex $v 2] 2]
+	      set statbits [lindex [lindex $v 2] 3]
 
 	      set class [lineclass [incr linenum]]
 
@@ -1679,29 +1681,37 @@ if {![info exists nopage]} {
 		break
 	      }
 
-	      cgi_table_row class=$class {
+	      if {[llength $linecolor] == 2 && [string compare [lindex $linecolor 0] [lindex $linecolor 1]]} {
+		set style "color: #[lindex $linecolor 0] ; background-color: #[lindex $linecolor 1]"
+	      } else {
+		set style ""
+	      }
+
+	      cgi_table_row class=$class "style=\"$style\"" {
 		if {$u == 0} {
 		  cgi_table_data colspan=$colspan height=$indexheight {
 		    cgi_put "Data for message $n no longer available"
 		  }
 		} else {
-		    if {$aggops} {
-		      cgi_table_data valign=middle align=center height=$indexheight {
-			if {[WPCmd PEMessage $u select]} {
-			  set checked checked
-			} else {
-			  set checked ""
-			}
-
-			cgi_checkbox "uidList=$u" $checked class=$class "style=\"margin-left: 16\""
+		  if {$aggops} {
+		    cgi_table_data valign=middle align=center height=$indexheight {
+		      if {[WPCmd PEMessage $u select]} {
+			set checked checked
+		      } else {
+			set checked ""
 		      }
-		    } else {
-		      cgi_td height=$indexheight width=2% [cgi_nbspace]
+
+		      cgi_checkbox "uidList=$u" $checked class=$class "style=\"$style; margin-left: 16\""
 		    }
+		  } else {
+		    cgi_td height=$indexheight width=2% [cgi_nbspace]
+		  }
 
 		  set deleted [string index $stat 0]
 		  set recent [expr {[string range $stat 0 2] == "010"}]
+
 		  foreach part $msg fmt $iformat {width class} $layout {
+
 		    set align ""
 
 		    switch -exact -- [lindex $fmt 0] {
@@ -1736,7 +1746,7 @@ if {![info exists nopage]} {
 			      }
 			    }
 			    default {
-			      append parttext [index_part_color [lindex $p 0] [lindex $p 1]]
+			      append parttext [index_part_color [index_quote [lindex $p 0]] [lindex $p 1]]
 			    }
 			  }
 			}
@@ -1750,9 +1760,31 @@ if {![info exists nopage]} {
 			if {![info exists do_status_icons] && $deleted} {
 			  set text [cgi_span "style=text-decoration: line-through" $text]
 			}
+
+			set text [cgi_buffer {
+			  cgi_division "style=\"height: $indexheight; overflow: hidden\"" {
+			    cgi_put $text
+			  }
+			}]
 		      }
 		      Status {
-			if {[info exists do_status_icons]} {
+			if {[string length [lindex $fmt 2]]} {
+			  set text ""
+			  foreach i $part {
+			    regsub -all { } [lindex $i 0] {\&nbsp;} statstr
+			    if {[llength [lindex $i 1]]} {
+			      append text [cgi_span "style=background-color: #[lindex [lindex $i 1] 1]; color: #[lindex [lindex $i 1] 0]" $statstr]
+			    } else {
+			      append text $statstr
+			    }
+			  }
+
+			  set text [cgi_buffer {
+			    cgi_division "style=\"font-family: monospace\"" {
+			      cgi_put $text
+			    }
+			  }]
+			} elseif {[info exists do_status_icons]} {
 			  set text [WPStatusImg $u]
 			} else {
 			  set text [lindex [WPStatusIcon $u gif $statbits] 2]
@@ -1762,26 +1794,30 @@ if {![info exists nopage]} {
 			if {$flagcmd} {
 			  set text [cgi_url $text fr_flags.tcl?uid=$u target=body]
 			}
+
 		      }
 		      Size {
-			set text [index_part_color [lindex [lindex $part 0] 0] [lindex $part 1]]
-			set class class=isize
+			set text [index_part_color [index_quote [lindex [lindex $part 0] 0]] [lindex $part 1]]
+			set class isize
 		      }
 		      Number {
-			set text [index_part_color [WPComma [lindex [lindex $part 0] 0]] [lindex $part 1]]
+			set text [index_part_color [index_quote [WPcomma [string trim [lindex [lindex $part 0] 0]]]] [lindex $part 1]]
 		      }
 		      From -
 		      To {
+			set t [index_quote [lindex [lindex $part 0] 0]]
 			if {$recent} {
-			  set t [cgi_bold [lindex [lindex $part 0] 0]]
-			} else {
-			  set t [lindex [lindex $part 0] 0]
+			  set t [cgi_bold $t]
 			}
 
-			set text [index_part_color $t [lindex $part 1]]
+			set text [cgi_buffer {
+			  cgi_division "style=\"height: $indexheight; overflow: hidden\"" {
+			    cgi_put [index_part_color $t [lindex $part 1]]
+			  }
+			}]
 		      }
 		      default {
-			set text [index_part_color [lindex [lindex $part 0] 0] [lindex $part 1]]
+			set text [index_part_color [index_quote [lindex [lindex $part 0] 0]] [lindex $part 1]]
 		      }
 		    }
 

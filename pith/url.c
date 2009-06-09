@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: url.c 140 2006-09-26 19:30:49Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: url.c 392 2007-01-25 18:56:49Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -267,11 +267,11 @@ rfc1738xchar(char *s)
 /*
  * rfc1738_num - return long value of a string of digits, possibly escaped
  */
-long
+unsigned long
 rfc1738_num(char **s)
 {
     register char *p = *s;
-    long n = 0L;
+    unsigned long n = 0L;
 
     for(; *p; p++)
       if(*p == '%' && isxpair(p+1)){

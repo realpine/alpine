@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: addrbook.c 220 2006-11-06 19:58:04Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: addrbook.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -529,7 +529,8 @@ paint_line(int line, long int global_row, int highlight, Pos *start_pos)
  *    | fld_width[0] chars |__| fld_width[1] |__| fld_width[2] | ...
  */
 char *
-get_abook_display_line(long int global_row, int continuation, char **s_hilite, char **e_hilite, int *retcol, char *lbuf, size_t lbufsize)
+get_abook_display_line(long int global_row, int continuation, char **s_hilite,
+		       char **e_hilite, int *retcol, char *lbuf, size_t lbufsize)
 {
     int		  fld_col[NFIELDS],
 		  fld_width[NFIELDS],
@@ -592,15 +593,23 @@ get_abook_display_line(long int global_row, int continuation, char **s_hilite, c
 	/* center it */
 	col = (screen_width - (int) utf8_width(string))/2;
 	col = MAX(col, 0);
+	width_consumed = 0;
 
 	/* col spaces to start */
 	if(col > 0 && LSPACE() >= col){
 	    memset(writeptr, ' ', col);
 	    writeptr += col;
+	    width_consumed += col;
 	}
 
-	/* then utf8_width slots followed by spaces */
-	utf8_pad_to_width(writeptr, string, LSPACE(), screen_width-col, 1);
+	if((width=utf8_width(string)) <= screen_width-col){
+	    strncpy(writeptr, string, LSPACE());
+	    width_consumed += width;
+	}
+	else{
+	    utf8_pad_to_width(writeptr, string, LSPACE(), screen_width-col, 1);
+	    width_consumed = screen_width;
+	}
 
 	if(s_hilite && *s_hilite == NULL){
 	    *s_hilite = writeptr;
@@ -608,6 +617,8 @@ get_abook_display_line(long int global_row, int continuation, char **s_hilite, c
 	}
 
 	writeptr += strlen(writeptr);
+	if(width_consumed < screen_width)
+	  memset(writeptr, ' ', screen_width-width_consumed);
 
 	if(retcol)
 	  *retcol = col;
@@ -627,7 +638,15 @@ get_abook_display_line(long int global_row, int continuation, char **s_hilite, c
 
 	/* left adjust it */
 	col = 0;
-	utf8_pad_to_width(writeptr, string, LSPACE(), screen_width, 1);
+	width_consumed = 0;
+	if((width=utf8_width(string)) <= screen_width){
+	    strncpy(writeptr, string, LSPACE());
+	    width_consumed += width;
+	}
+	else{
+	    utf8_pad_to_width(writeptr, string, LSPACE(), screen_width, 1);
+	    width_consumed = screen_width;
+	}
 
 	if(s_hilite && *s_hilite == NULL){
 	    *s_hilite = writeptr;
@@ -635,6 +654,8 @@ get_abook_display_line(long int global_row, int continuation, char **s_hilite, c
 	}
 
 	writeptr += strlen(writeptr);
+	if(width_consumed < screen_width)
+	  memset(writeptr, ' ', screen_width-width_consumed);
 
 	if(retcol)
 	  *retcol = col;
@@ -7007,8 +7028,8 @@ pcpine_help_addrbook(title)
      */
     if(title)
       strncpy(title, (as.config)
-		       ? _("PC-Pine CONFIGURING ADDRESS BOOKS Help")
-		       : _("PC-Pine ADDRESS_BOOK Help"), 256);
+		       ? _("Alpine CONFIGURING ADDRESS BOOKS Help")
+		       : _("Alpine ADDRESS_BOOK Help"), 256);
 
     return(pcpine_help(gAbookHelp));
 }

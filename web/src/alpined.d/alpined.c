@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: alpined.c 309 2006-12-08 21:18:44Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: alpined.c 395 2007-01-25 22:23:41Z mikes@u.washington.edu $";
 #endif
 
 /* ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -70,6 +70,7 @@ static char rcsid[] = "$Id: alpined.c 309 2006-12-08 21:18:44Z mikes@u.washingto
 #include "../../../pith/string.h"
 #include "../../../pith/send.h"
 #include "../../../pith/options.h"
+#include "../../../pith/charconv/utf8.h"
 
 #include "alpined.h"
 #include "color.h"
@@ -137,7 +138,7 @@ long	   peAbandonTimeout = 0;
 int	   peNoPassword, peCredentialError;
 char	   peCredentialRequestor[WP_MAXAUTHREQ];
 
-char	  *peSockName;
+char	  *peSocketName;
 
 char	  **peTSig;
 
@@ -263,55 +264,52 @@ int	     peSelectError(Tcl_Interp *, char *);
 int	     peApply(Tcl_Interp *, int, Tcl_Obj **);
 int	     peApplyError(Tcl_Interp *, char *);
 int	     peIndexFormat(Tcl_Interp *);
-int	     peAppendIndexParts(Tcl_Interp *, long, Tcl_Obj *);
-int	     peMessageStatusBits(Tcl_Interp *, long, int, Tcl_Obj **);
-char	    *peMsgStatBitString(struct pine *, MAILSTREAM *, MSGNO_S *, long, long, long);
+int	     peAppendIndexParts(Tcl_Interp *, imapuid_t, Tcl_Obj *, int *);
+int	     peAppendIndexColor(Tcl_Interp *, imapuid_t, Tcl_Obj *, int *);
+int	     peMessageStatusBits(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+char	    *peMsgStatBitString(struct pine *, MAILSTREAM *, MSGNO_S *, long, long, long, int *);
 int	     peNewMailResult(Tcl_Interp *);
 void	     peMarkInputTime(void);
-int	     peMessageSize(Tcl_Interp *, long, int, Tcl_Obj **);
-int	     peMessageDate(Tcl_Interp *, long, int, Tcl_Obj **);
-int	     peMessageSubject(Tcl_Interp *, long, int, Tcl_Obj **);
-int	     peMessageFromAddr(Tcl_Interp *, long, int, Tcl_Obj **);
-int	     peMessageToAddr(Tcl_Interp *, long, int, Tcl_Obj **);
-int	     peMessageCcAddr(Tcl_Interp *, long, int, Tcl_Obj **);
-int	     peMessageField(Tcl_Interp *, long, char *);
-int	     peMessageStatus(Tcl_Interp *, long, int, Tcl_Obj **);
-int	     peMessageCharset(Tcl_Interp *, long, int, Tcl_Obj **);
-int	     peMessageBounce(Tcl_Interp *, long, int, Tcl_Obj **);
-int	     peMessageSpam(Tcl_Interp *, long, int, Tcl_Obj **);
-int	     peMsgnoFromUID(Tcl_Interp *, long, int, Tcl_Obj **);
-int	     peMessageText(Tcl_Interp *, long, int, Tcl_Obj **);
-int	     peMessagePartFromCID(Tcl_Interp *, long, int, Tcl_Obj **);
+int	     peMessageSize(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+int	     peMessageDate(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+int	     peMessageSubject(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+int	     peMessageFromAddr(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+int	     peMessageToAddr(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+int	     peMessageCcAddr(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+int	     peMessageField(Tcl_Interp *, imapuid_t, char *);
+int	     peMessageStatus(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+int	     peMessageCharset(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+int	     peMessageBounce(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+int	     peMessageSpam(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+int	     peMsgnoFromUID(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+int	     peMessageText(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+int	     peMessagePartFromCID(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
 int	     peLocateBodyByCID(char *, char *, BODY *);
 char	    *peColorStr(char *, char *);
 int	     peInterpWritec(int);
 int	     peInterpFlush(void);
 int	     peNullWritec(int);
 void	     peGetMimeTyping(BODY *, Tcl_Obj **, Tcl_Obj **, Tcl_Obj **, Tcl_Obj **);
-int	     peGetFlag(Tcl_Interp *, long, int, Tcl_Obj **);
-int	     peSetFlag(Tcl_Interp *, long, int, Tcl_Obj **);
-int	     peMsgSelect(Tcl_Interp *, long, int, Tcl_Obj **);
-int	     peReplyHeaders(Tcl_Interp *, long, int, Tcl_Obj **);
-int	     peAppListStrStr(Tcl_Interp *, Tcl_Obj *, char *, char *);
-int	     peAppListStrPat(Tcl_Interp *, Tcl_Obj *, char *, PATTERN_S *);
-int	     peAppListStrPatstat(Tcl_Interp *, Tcl_Obj *, char *, int);
-int	     peAppListStrInt(Tcl_Interp *, Tcl_Obj *, char *, int);
-int	     peAppListIntStr(Tcl_Interp *, Tcl_Obj *, int, char *);
-int	     peAppListLongLong(Tcl_Interp *, Tcl_Obj *, long, long);
-int	     peAppListStrAddr(Tcl_Interp *, Tcl_Obj *, char *, ADDRESS *);
-int	     peReplyText(Tcl_Interp *, long, int, Tcl_Obj **);
+int	     peGetFlag(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+int	     peSetFlag(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+int	     peMsgSelect(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+int	     peReplyHeaders(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+int	     peAppListF(Tcl_Interp *, Tcl_Obj *, char *, ...);
+Tcl_Obj	    *peNewUtf8Obj(void *, int);
+char	    *pePatStatStr(int);
+int	     peReplyText(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
 int	     peSoStrToList(Tcl_Interp *, Tcl_Obj *, STORE_S *);
-int	     peForwardHeaders(Tcl_Interp *, long, int, Tcl_Obj **);
-int	     peForwardText(Tcl_Interp *, long, int, Tcl_Obj **);
-int	     peDetach(Tcl_Interp *, long, int, Tcl_Obj **);
-int	     peAttachInfo(Tcl_Interp *, long, int, Tcl_Obj **);
-int	     peSaveDefault(Tcl_Interp *, long, int, Tcl_Obj **);
-int	     peSave(Tcl_Interp *, long, int, Tcl_Obj **);
-int	     peGotoDefault(Tcl_Interp *, long, Tcl_Obj **);
-int	     peTakeaddr(Tcl_Interp *, long, int, Tcl_Obj **);
-int	     peReplyQuote(Tcl_Interp *, long, int, Tcl_Obj **);
-long	     peMessageNumber(long);
-long	     peSequenceNumber(long);
+int	     peForwardHeaders(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+int	     peForwardText(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+int	     peDetach(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+int	     peAttachInfo(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+int	     peSaveDefault(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+int	     peSave(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+int	     peGotoDefault(Tcl_Interp *, imapuid_t, Tcl_Obj **);
+int	     peTakeaddr(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+int	     peReplyQuote(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
+long	     peMessageNumber(imapuid_t);
+long	     peSequenceNumber(imapuid_t);
 int	     peMsgCollector(Tcl_Interp *, int, Tcl_Obj **,
 			    int (*)(METAENV *, BODY *, char *, CONTEXT_S **, char *));
 int	     peMsgCollected(Tcl_Interp  *, MSG_COL_S *, char *);
@@ -391,7 +389,6 @@ int	PEClistCmd(ClientData clientData, Tcl_Interp *interp,
 int	PELdapCmd(ClientData clientData, Tcl_Interp *interp,
 		  int objc, Tcl_Obj *CONST objv[]);
 
-
 /* Append package */
 typedef struct append_pkg {
   MAILSTREAM *stream;		/* source stream */
@@ -464,6 +461,16 @@ main(int argc, char *argv[])
 	exit(1);
     }
 
+    /*
+     * Set network timeouts so we don't hang forever
+     * The open timeout can be pretty short since we're
+     * just opening tcp connection.  The read timeout needs
+     * to be longer because the response to some actions can
+     * take awhile. Hopefully this is well within httpd's
+     * cgi timeout threshold.
+     */
+    mail_parameters(NULL, SET_OPENTIMEOUT, (void *)(long) 30);
+    mail_parameters(NULL, SET_READTIMEOUT, (void *)(long) 60);
 
     /*----------------------------------------------------------------------
            Initialize pith library
@@ -488,7 +495,6 @@ main(int argc, char *argv[])
 	fprintf(stderr, "Usage: %s [-d]\n", p ? p + 1 : argv[0]);
 	exit(1);
     }
-sleep(10);
 
     /*----------------------------------------------------------------------
            Hop into the Tcl processing loop
@@ -503,7 +509,7 @@ sleep(10);
 	if((s = socket(AF_UNIX, SOCK_STREAM, 0)) != -1){
 
 	    name.sun_family = AF_UNIX;
-	    strcpy(name.sun_path, peSockName = sname);
+	    strcpy(name.sun_path, peSocketName = sname);
 	    l = sizeof(name);
 
 	    if(bind(s, (struct sockaddr *) &name, l) == 0){
@@ -1292,7 +1298,7 @@ PEInfoCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 			char    **apval;
 
 			if(ps_global->restricted){
-			    err = "Pine demo can't change config file";
+			    err = "Alpine demo can't change config file";
 			}
 			else{
 			    /* BUG: no "exceptions file" support */
@@ -1916,12 +1922,8 @@ PEInfoCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 		      Tcl_SetResult(interp, tmperrmsg, TCL_VOLATILE);
 		      return(TCL_ERROR);
 		    }
-#ifdef HELPFILE
-		    if((help_text = get_help_text(text)) == NULL)
-		      return(TCL_OK);
-#else
+		    /* assumption here is that HelpType is char **  */
 		    help_text = text;
-#endif
 		    for(ptext = help_text; *ptext; ptext++){
 		      itemObj = Tcl_NewStringObj(*ptext, -1);
 		      Tcl_ListObjAppendElement(interp, 
@@ -2363,7 +2365,7 @@ PEConfigCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 		    char    **apval;
 
 		    if(ps_global->restricted){
-			err = "Pine demo can't change config file";
+			err = "Alpine demo can't change config file";
 		    }
 		    else{
 			/* BUG: no "exceptions file" support */
@@ -2440,12 +2442,15 @@ PEConfigCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 		    new_ctxt = new_context(vtmp->is_changed_val
 					   ? vtmp->changed_val.l[i]
 					   : vtmp->current_val.l[i], NULL);
-		    peAppListStrStr(interp, Tcl_GetObjResult(interp),
-				    new_ctxt->nickname ? new_ctxt->nickname
-				    : (new_ctxt->server ? new_ctxt->server
-				       : (new_ctxt->label ? new_ctxt->label
-					  : "Some Collection")),
-				    new_ctxt->label ? new_ctxt->label : "");
+		    peAppListF(interp, Tcl_GetObjResult(interp), "%s%s",
+			       new_ctxt->nickname
+			       ? new_ctxt->nickname
+			       : (new_ctxt->server
+				  ? new_ctxt->server
+				  : (new_ctxt->label
+				     ? new_ctxt->label
+				     : "Some Collection")),
+			       new_ctxt->label ? new_ctxt->label : "");
 		    free_context(&new_ctxt);
 		}
 		vtmp = &ps_global->vars[V_NEWS_SPEC];
@@ -2456,11 +2461,14 @@ PEConfigCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 		    new_ctxt = new_context(vtmp->is_changed_val
 					   ? vtmp->changed_val.l[i]
 					   : vtmp->current_val.l[i], NULL);
-		    peAppListStrStr(interp, Tcl_GetObjResult(interp),
-				    new_ctxt->nickname ? new_ctxt->nickname
-				    : (new_ctxt->server ? new_ctxt->server
-				       : (new_ctxt->label ? new_ctxt->label
-					  : "Some Collection")),
+		    peAppListF(interp, Tcl_GetObjResult(interp), "%s%s",
+			       new_ctxt->nickname
+			       ? new_ctxt->nickname
+			       : (new_ctxt->server
+				  ? new_ctxt->server
+				  : (new_ctxt->label
+				     ? new_ctxt->label
+				     : "Some Collection")),
 				    new_ctxt->label ? new_ctxt->label : "");
 		    free_context(&new_ctxt);
 		}
@@ -2690,7 +2698,7 @@ PEConfigCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 		    if(tmpf){
 			for(i = 0; tmpnv = (tmpf)(i); i++){
 			  if(tmpnv->shortname)
-			    peAppListStrStr(interp, secObj, tmpnv->name, tmpnv->shortname);
+			    peAppListF(interp, secObj, "%s%s", tmpnv->name, tmpnv->shortname);
 			  else
 			    Tcl_ListObjAppendElement(interp, secObj, 
 						     Tcl_NewStringObj(tmpnv->name, -1));
@@ -2726,6 +2734,8 @@ PEConfigCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 		if(Tcl_GetIntFromObj(interp, objv[2], &fl) == TCL_ERROR)
 		  return(TCL_ERROR);
 		if(any_patterns(rflags, &pstate)){
+		    ARBHDR_S *ah;
+
 		    for(pat = first_pattern(&pstate), i = 0;
 			pat && i != fl;
 			pat = next_pattern(&pstate), i++);
@@ -2733,35 +2743,55 @@ PEConfigCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 
 		    /* append the pattern */
 		    resObj = Tcl_NewListObj(0, NULL);
-		    peAppListStrStr(interp, resObj, "nickname", pat->patgrp->nick);
-		    peAppListStrPat(interp, resObj, "to", pat->patgrp->to);
-		    peAppListStrPat(interp, resObj, "from", pat->patgrp->from);
-		    peAppListStrPat(interp, resObj, "sender", pat->patgrp->sender);
-		    peAppListStrPat(interp, resObj, "cc", pat->patgrp->cc);
-		    peAppListStrPat(interp, resObj, "recip", pat->patgrp->recip);
-		    peAppListStrPat(interp, resObj, "partic", pat->patgrp->partic);
-		    peAppListStrPat(interp, resObj, "news", pat->patgrp->news);
-		    peAppListStrPat(interp, resObj, "subj", pat->patgrp->subj);
-		    peAppListStrPat(interp, resObj, "alltext", pat->patgrp->alltext);
+		    peAppListF(interp, resObj, "%s%s", "nickname", pat->patgrp->nick);
+		    peAppListF(interp, resObj, "%s%s", "comment", pat->patgrp->comment);
+		    peAppListF(interp, resObj, "%s%p", "to", pat->patgrp->to);
+		    peAppListF(interp, resObj, "%s%p", "from", pat->patgrp->from);
+		    peAppListF(interp, resObj, "%s%p", "sender", pat->patgrp->sender);
+		    peAppListF(interp, resObj, "%s%p", "cc", pat->patgrp->cc);
+		    peAppListF(interp, resObj, "%s%p", "recip", pat->patgrp->recip);
+		    peAppListF(interp, resObj, "%s%p", "partic", pat->patgrp->partic);
+		    peAppListF(interp, resObj, "%s%p", "news", pat->patgrp->news);
+		    peAppListF(interp, resObj, "%s%p", "subj", pat->patgrp->subj);
+		    peAppListF(interp, resObj, "%s%p", "alltext", pat->patgrp->alltext);
+		    peAppListF(interp, resObj, "%s%p", "bodytext", pat->patgrp->bodytext);
+		    peAppListF(interp, resObj, "%s%p", "keyword", pat->patgrp->keyword);
+		    peAppListF(interp, resObj, "%s%p", "charset", pat->patgrp->charsets);
+
+		    peAppListF(interp, resObj, "%s%v", "score", pat->patgrp->score);
+		    peAppListF(interp, resObj, "%s%v", "age", pat->patgrp->age);
+		    peAppListF(interp, resObj, "%s%v", "size", pat->patgrp->size);
+
+		    if(ah = pat->patgrp->arbhdr){
+			Tcl_Obj *hObj;
+
+			hObj = Tcl_NewListObj(0, NULL);
+			Tcl_ListObjAppendElement(interp, hObj, Tcl_NewStringObj("headers", -1));
+
+			for(; ah; ah = ah->next)
+			  peAppListF(interp, hObj, "%s%p", ah->field ? ah->field : "", ah->p);
+		    }
+
 		    switch(pat->patgrp->fldr_type){
 		      case FLDR_ANY:
-			peAppListStrStr(interp, resObj, "ftype", "any");
+			peAppListF(interp, resObj, "%s%s", "ftype", "any");
 			break;
 		      case FLDR_NEWS:
-			peAppListStrStr(interp, resObj, "ftype", "news");
+			peAppListF(interp, resObj, "%s%s", "ftype", "news");
 			break;
 		      case FLDR_EMAIL:
-			peAppListStrStr(interp, resObj, "ftype", "email");
+			peAppListF(interp, resObj, "%s%s", "ftype", "email");
 			break;
 		      case FLDR_SPECIFIC:
-			peAppListStrStr(interp, resObj, "ftype", "specific");
+			peAppListF(interp, resObj, "%s%s", "ftype", "specific");
 			break;
 		    }
-		    peAppListStrPat(interp, resObj, "folder", pat->patgrp->folder);
-		    peAppListStrPatstat(interp, resObj, "stat_new", pat->patgrp->stat_new);
-		    peAppListStrPatstat(interp, resObj, "stat_del", pat->patgrp->stat_del);
-		    peAppListStrPatstat(interp, resObj, "stat_imp", pat->patgrp->stat_imp);
-		    peAppListStrPatstat(interp, resObj, "stat_ans", pat->patgrp->stat_ans);
+
+		    peAppListF(interp, resObj, "%s%p", "folder", pat->patgrp->folder);
+		    peAppListF(interp, resObj, "%s%s", "stat_new", pePatStatStr(pat->patgrp->stat_new));
+		    peAppListF(interp, resObj, "%s%s", "stat_del", pePatStatStr(pat->patgrp->stat_del));
+		    peAppListF(interp, resObj, "%s%s", "stat_imp", pePatStatStr(pat->patgrp->stat_imp));
+		    peAppListF(interp, resObj, "%s%s", "stat_ans", pePatStatStr(pat->patgrp->stat_ans));
 		    tObj = Tcl_NewListObj(0, NULL);
 		    Tcl_ListObjAppendElement(interp, tObj, Tcl_NewStringObj("pattern", -1));
 		    Tcl_ListObjAppendElement(interp, tObj, resObj);
@@ -2769,10 +2799,10 @@ PEConfigCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 		    
 		    /* now append the filter action */
 		    resObj = Tcl_NewListObj(0, NULL);
-		    peAppListStrInt(interp, resObj, "kill", pat->action->folder ? 0 : 1);
-		    peAppListStrPat(interp, resObj, "folder", pat->action->folder);
-		    peAppListStrInt(interp, resObj, "move_only_if_not_deleted",
-				    pat->action->move_only_if_not_deleted);
+		    peAppListF(interp, resObj, "%s%i", "kill", pat->action->folder ? 0 : 1);
+		    peAppListF(interp, resObj, "%s%p", "folder", pat->action->folder);
+		    peAppListF(interp, resObj, "%s%i", "move_only_if_not_deleted",
+			       pat->action->move_only_if_not_deleted);
 		    tObj = Tcl_NewListObj(0, NULL);
 		    Tcl_ListObjAppendElement(interp, tObj, Tcl_NewStringObj("filtaction", -1));
 		    Tcl_ListObjAppendElement(interp, tObj, resObj);
@@ -4448,8 +4478,8 @@ PEFolderCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 		      
 		      *p = '\0';
 		      
-		      peAppListStrStr(interp, Tcl_GetObjResult(interp), type,
-				      f->nickname ? f->nickname : f->name);
+		      peAppListF(interp, Tcl_GetObjResult(interp), "%s%s", type,
+				 f->nickname ? f->nickname : f->name);
 		    }
 		  }
 		  
@@ -4773,6 +4803,13 @@ PEMailboxCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 		if(objc == 4 || objc == 5){
 		    if(Tcl_GetLongFromObj(interp, objv[2], &msgno) == TCL_OK){
 			if(Tcl_GetLongFromObj(interp, objv[3], &count) == TCL_OK){
+
+			    /* set index range for efficiency */
+			    if(msgno > 0L && msgno <= mn_get_total(ps_global->msgmap)){
+				peITop   = msgno;
+				peICount = count;
+			    }
+
 			    if(objc == 4 || Tcl_ListObjGetElements(interp, objv[4], &aObjN, &aObj) == TCL_OK){
 
 				if(count > 0
@@ -4782,13 +4819,14 @@ PEMailboxCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 				    mn_set_cur(ps_global->msgmap, msgno);
 
 				    for(countdown = count; countdown > 0; countdown--){
-					long  n = mn_get_cur(ps_global->msgmap);
-					long  uid = mail_uid(ps_global->mail_stream, mn_m2raw(ps_global->msgmap, n));
+					long	n = mn_get_cur(ps_global->msgmap);
+					imapuid_t  uid = mail_uid(ps_global->mail_stream, mn_m2raw(ps_global->msgmap, n));
+					int   fetched = 0;
 					char *cs;
 
 					if(vObj = Tcl_NewListObj(0, NULL)){
 					    Tcl_ListObjAppendElement(interp, vObj, Tcl_NewLongObj(n));
-					    Tcl_ListObjAppendElement(interp, vObj, Tcl_NewLongObj(uid));
+					    peAppListF(interp, vObj, "%lu", uid);
 
 					    if(aObjN){
 						if(avObj = Tcl_NewListObj(0, NULL)){
@@ -4797,7 +4835,7 @@ PEMailboxCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 							    if(!strcmp(s, "statusbits")){
 								char *s = peMsgStatBitString(ps_global, ps_global->mail_stream,
 											     ps_global->msgmap, peMessageNumber(uid),
-											     peITop, peICount);
+											     peITop, peICount, &fetched);
 								Tcl_ListObjAppendElement(interp, avObj, Tcl_NewStringObj(s, -1));
 							    }
 							    else if(!strcmp(s, "status")){
@@ -4809,7 +4847,7 @@ PEMailboxCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 
 								if(!((mc = mail_elt(ps_global->mail_stream, raw)) && mc->valid)){
 								    mail_fetch_flags(ps_global->mail_stream,
-										     long2string(uid), FT_UID);
+										     ulong2string(uid), FT_UID);
 								    mc = mail_elt(ps_global->mail_stream, raw);
 								}
 
@@ -4823,12 +4861,15 @@ PEMailboxCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 								Tcl_Obj *iObj;
 
 								if((iObj = Tcl_NewListObj(0, NULL)) != NULL
-								   && peAppendIndexParts(interp, uid, iObj) == TCL_OK
+								   && peAppendIndexParts(interp, uid, iObj, &fetched) == TCL_OK
 								   && Tcl_ListObjAppendElement(interp, avObj, iObj) == TCL_OK){
 								}
 								else
 								  return(TCL_ERROR);
-
+							    }
+							    else if(!strucmp(s, "indexcolor")){
+								if(peAppendIndexColor(interp, uid, avObj, &fetched) != TCL_OK)
+								  return(TCL_ERROR);
 							    }
 							}
 							else{
@@ -5244,37 +5285,7 @@ PEMailboxCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 		}
 	    }
 	    else if(objc == 4){
-		if(!strucmp(op, "indexrange")){
-		    long       msgnum, msgcount;
-		    STRLIST_S *sl;
-
-		    /*
-		     * Note: this isn't required before referring to
-		     *       index data, but it helps alot to eliminate
-		     *	     fetch rtt's
-		     * 
-		     * CMD: indexrange msgnumber msgcount
-		     */
-
-		    if(Tcl_GetLongFromObj(interp, objv[2], &msgnum) != TCL_OK)
-		      return(TCL_ERROR); /* conversion problem? */
-
-		    if(Tcl_GetLongFromObj(interp, objv[3], &msgcount) != TCL_OK)
-		      return(TCL_ERROR); /* conversion problem? */
-
-		    if(msgnum > 0L
-		       && msgnum <= mn_get_total(ps_global->msgmap)){
-			if(msgnum + msgcount > mn_get_total(ps_global->msgmap))
-			  msgcount = mn_get_total(ps_global->msgmap) - msgnum;
-			peITop   = msgnum;
-			peICount = msgcount;
-			/* BUG: shouldn't we be loading the cache here? */
-			return(TCL_OK);
-		    }
-		    else
-		      err = "Requested Preload out of range";
-		}
-		else if(!strucmp(op, "sort")){
+		if(!strucmp(op, "sort")){
 		    int	       i, reversed = 0;
 		    char      *sort;
 
@@ -5394,9 +5405,9 @@ PEMailboxCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 			    while(count--){
 				long n = mn_get_cur(ps_global->msgmap);
 
-				if(peAppListLongLong(interp, Tcl_GetObjResult(interp),
-						     n, mail_uid(ps_global->mail_stream,
-								 mn_m2raw(ps_global->msgmap, n))) != TCL_OK)
+				if(peAppListF(interp, Tcl_GetObjResult(interp),
+					      "%l%l", n, mail_uid(ps_global->mail_stream,
+							      mn_m2raw(ps_global->msgmap, n))) != TCL_OK)
 				  return(TCL_ERROR);
 
 				mn_inc_cur(ps_global->mail_stream, ps_global->msgmap, MH_NONE);
@@ -6055,16 +6066,18 @@ peIndexFormat(Tcl_Interp *interp)
 {
     INDEX_COL_S	    *cdesc = NULL;
     struct variable *vars = ps_global->vars;
-    char	    *name, wbuf[4];
+    char	    *name, wbuf[4], *dname;
     int		     remains = 0;
 
     for(cdesc = ps_global->index_disp_format;
 	cdesc->ctype != iNothing;
 	cdesc++) {
+	dname = NULL;
 	switch(cdesc->ctype){
-	  case iStatus:
 	  case iFStatus:
 	  case iIStatus:
+	    dname = "iStatus";
+	  case iStatus:
 	    name = "Status";
 	    break;
 
@@ -6072,15 +6085,20 @@ peIndexFormat(Tcl_Interp *interp)
 	    name = "Number";
 	    break;
 
-	  case iDate:     case iSDate:      case iSDateTime: case iSTime:     case iLDate:
+	  case iDate:     case iSDate:      case iSTime:     case iLDate:
 	  case iS1Date:   case iS2Date:     case iS3Date:    case iS4Date:    case iDateIso:
 	  case iDateIsoS: 
 	  case iSDateIso: case iSDateIsoS:
 	  case iSDateS1:  case iSDateS2:
 	  case iSDateS3:  case iSDateS4:
+	  case iSDateTime:
 	  case iSDateTimeIso:               case iSDateTimeIsoS:
 	  case iSDateTimeS1:                case iSDateTimeS2:
 	  case iSDateTimeS3:                case iSDateTimeS4:
+	  case iSDateTime24:
+	  case iSDateTimeIso24:             case iSDateTimeIsoS24:
+	  case iSDateTimeS124:              case iSDateTimeS224:
+	  case iSDateTimeS324:              case iSDateTimeS424:
 	    name = "Date";
 	    break;
 
@@ -6165,7 +6183,7 @@ peIndexFormat(Tcl_Interp *interp)
 	else
 	  wbuf[0] = '\0';
 
-	if(peAppListStrStr(interp, Tcl_GetObjResult(interp), name, wbuf) != TCL_OK)
+	if(peAppListF(interp, Tcl_GetObjResult(interp), "%s%s%s", name, wbuf, dname) != TCL_OK)
 	  return(TCL_ERROR);
     }
 
@@ -6245,7 +6263,7 @@ PEThreadCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 {
     char *err, errbuf[256], *cmd, *op;
     int   i, j;
-    long  uid;
+    imapuid_t  uid;
 
     dprint((2, "PEThreadCmd"));
 
@@ -6361,7 +6379,7 @@ static struct _message_cmds {
     int		 hcount;
     struct {
 	int	 argcount;
-	int    (*f)(Tcl_Interp *, long, int, Tcl_Obj **);
+	int    (*f)(Tcl_Interp *, imapuid_t, int, Tcl_Obj **);
     } h[2];
 } message_cmds[] = {
     {"size",		1,  {3, peMessageSize}},
@@ -6412,7 +6430,7 @@ PEMessageCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 {
     char *err, errbuf[256], *cmd;
     int   i, j;
-    long  uid;
+    imapuid_t  uid;
 
     dprint((5, "PEMessageCmd"));
 
@@ -6453,24 +6471,21 @@ PEMessageCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 
 
 long
-peMessageNumber(long uid)
+peMessageNumber(imapuid_t uid)
 {
     return(mn_raw2m(ps_global->msgmap, peSequenceNumber(uid)));
 }
 
 
 long
-peSequenceNumber(long uid)
+peSequenceNumber(imapuid_t uid)
 {
     return(mail_msgno(ps_global->mail_stream, uid));
 }
 
 
 int
-peMessageSize(Tcl_Interp *interp,
-	      long uid,
-	      int objc,
-	      Tcl_Obj **objv)
+peMessageSize(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 {
     long raw;
 
@@ -6489,10 +6504,7 @@ peMessageSize(Tcl_Interp *interp,
 
 
 int
-peMessageDate(Tcl_Interp *interp,
-	      long uid,
-	      int objc,
-	      Tcl_Obj **objv)
+peMessageDate(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 {
     char	 *cmd;
     long	 raw;
@@ -6541,50 +6553,35 @@ peMessageDate(Tcl_Interp *interp,
 
 
 int
-peMessageFromAddr(Tcl_Interp *interp,
-		  long uid,
-		  int objc,
-		  Tcl_Obj **objv)
+peMessageFromAddr(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 {
     return(peMessageField(interp, uid, "from"));
 }
 
 
 int
-peMessageToAddr(Tcl_Interp *interp,
-		long uid,
-		int objc,
-		Tcl_Obj **objv)
+peMessageToAddr(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 {
     return(peMessageField(interp, uid, "to"));
 }
 
 
 int
-peMessageCcAddr(Tcl_Interp *interp,
-		long uid,
-		int objc,
-		Tcl_Obj **objv)
+peMessageCcAddr(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 {
     return(peMessageField(interp, uid, "cc"));
 }
 
 
 int
-peMessageSubject(Tcl_Interp *interp,
-		 long uid,
-		 int objc,
-		 Tcl_Obj **objv)
+peMessageSubject(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 {
     return(peMessageField(interp, uid, "subject"));
 }
 
 
 int
-peMessageField(interp, uid, field)
-    Tcl_Interp	*interp;
-    long	 uid;
-    char	*field;
+peMessageField(Tcl_Interp *interp, imapuid_t uid, char *field)
 {
     long      raw;
     char     *s = "";
@@ -6628,10 +6625,7 @@ peMessageField(interp, uid, field)
 
 
 int
-peMessageStatus(Tcl_Interp *interp,
-		long uid,
-		int objc,
-		Tcl_Obj **objv)
+peMessageStatus(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 {
     long	  raw;
     MESSAGECACHE *mc;
@@ -6670,10 +6664,7 @@ peMessageStatus(Tcl_Interp *interp,
 
 
 int
-peMessageCharset(Tcl_Interp *interp,
-		 long uid,
-		 int objc,
-		 Tcl_Obj **objv)
+peMessageCharset(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 {
     /* everthing coming out of pith better be utf-8 */
     Tcl_SetResult(interp, "UTF-8", TCL_STATIC);
@@ -6682,10 +6673,7 @@ peMessageCharset(Tcl_Interp *interp,
 
 
 int
-peMsgnoFromUID(Tcl_Interp *interp,
-	       long uid,
-	       int objc,
-	       Tcl_Obj **objv)
+peMsgnoFromUID(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 {
     Tcl_SetResult(interp, long2string(peMessageNumber(uid)), TCL_VOLATILE);
     return(TCL_OK);
@@ -6749,7 +6737,7 @@ peInterpFlush(void)
 		*p = '\0';
 
 		if(p - line)
-		  peAppListStrStr(peED.interp, lobjp, "t", line);
+		  peAppListF(peED.interp, lobjp, "%s%s", "t", line);
 
 		switch(*++p){
 		  case TAG_HANDLE :
@@ -6868,7 +6856,7 @@ peInterpFlush(void)
 			    strcpy(peED.color.bg, peED.color.bgdef);
 			}
 			else
-			  peAppListStrStr(peED.interp, lobjp, "fgcolor", tp);
+			  peAppListF(peED.interp, lobjp, "%s%s", "fgcolor", tp);
 
 			strcpy(peED.color.fg, tp);
 		    }
@@ -6903,7 +6891,7 @@ peInterpFlush(void)
 			    strcpy(peED.color.fg, peED.color.fgdef);
 			}
 			else
-			  peAppListStrStr(peED.interp, lobjp, "bgcolor", tp);
+			  peAppListF(peED.interp, lobjp, "%s%s", "bgcolor", tp);
 
 			strcpy(peED.color.bg, tp);
 		    }
@@ -6912,69 +6900,69 @@ peInterpFlush(void)
 		    break;
 
 		  case TAG_ITALICON :
-		    peAppListStrStr(peED.interp, lobjp, "italic", "on");
+		    peAppListF(peED.interp, lobjp, "%s%s", "italic", "on");
 		    line = p + 1;
 		    break;
 
 		  case TAG_ITALICOFF :
-		    peAppListStrStr(peED.interp, lobjp, "italic", "off");
+		    peAppListF(peED.interp, lobjp, "%s%s", "italic", "off");
 		    line = p + 1;
 		    break;
 
 		  case TAG_BOLDON :
-		    peAppListStrStr(peED.interp, lobjp, "bold", "on");
+		    peAppListF(peED.interp, lobjp, "%s%s", "bold", "on");
 		    line = p + 1;
 		    break;
 
 		  case TAG_BOLDOFF :
-		    peAppListStrStr(peED.interp, lobjp, "bold", "off");
+		    peAppListF(peED.interp, lobjp, "%s%s", "bold", "off");
 		    line = p + 1;
 		    break;
 
 		  case TAG_ULINEON :
-		    peAppListStrStr(peED.interp, lobjp, "underline", "on");
+		    peAppListF(peED.interp, lobjp, "%s%s", "underline", "on");
 		    line = p + 1;
 		    break;
 
 		  case TAG_ULINEOFF :
-		    peAppListStrStr(peED.interp, lobjp, "underline", "off");
+		    peAppListF(peED.interp, lobjp, "%s%s", "underline", "off");
 		    line = p + 1;
 		    break;
 
 		  case TAG_STRIKEON :
-		    peAppListStrStr(peED.interp, lobjp, "strikethru", "on");
+		    peAppListF(peED.interp, lobjp, "%s%s", "strikethru", "on");
 		    line = p + 1;
 		    break;
 
 		  case TAG_STRIKEOFF :
-		    peAppListStrStr(peED.interp, lobjp, "strikethru", "off");
+		    peAppListF(peED.interp, lobjp, "%s%s", "strikethru", "off");
 		    line = p + 1;
 		    break;
 
 		  case TAG_BIGON :
-		    peAppListStrStr(peED.interp, lobjp, "bigfont", "on");
+		    peAppListF(peED.interp, lobjp, "%s%s", "bigfont", "on");
 		    line = p + 1;
 		    break;
 
 		  case TAG_BIGOFF :
-		    peAppListStrStr(peED.interp, lobjp, "bigfont", "off");
+		    peAppListF(peED.interp, lobjp, "%s%s", "bigfont", "off");
 		    line = p + 1;
 		    break;
 
 		  case TAG_SMALLON :
-		    peAppListStrStr(peED.interp, lobjp, "smallfont", "on");
+		    peAppListF(peED.interp, lobjp, "%s%s", "smallfont", "on");
 		    line = p + 1;
 		    break;
 
 		  case TAG_SMALLOFF :
-		    peAppListStrStr(peED.interp, lobjp, "smallfont", "off");
+		    peAppListF(peED.interp, lobjp, "%s%s", "smallfont", "off");
 		    line = p + 1;
 		    break;
 
 		  case TAG_INVOFF :
 		  case TAG_HANDLEOFF :
 		    if(peED.inhandle){
-			peAppListStrStr(peED.interp, lobjp, "urlend", "");
+			peAppListF(peED.interp, lobjp, "%s%s", "urlend", "");
 			peED.inhandle = 0;
 		    }
 		    /* fall thru and advance "line" */
@@ -6988,13 +6976,13 @@ peInterpFlush(void)
 	    while(p = strindex(line, TAG_EMBED));
 
 	    if(*line)
-	      peAppListStrStr(peED.interp, lobjp, "t", line);
+	      peAppListF(peED.interp, lobjp, "%s%s", "t", line);
 	}
 	else
-	  peAppListStrStr(peED.interp, lobjp, "t", line);
+	  peAppListF(peED.interp, lobjp, "%s%s", "t", line);
     }
     else
-      peAppListStrStr(peED.interp, lobjp, "t", "");
+      peAppListF(peED.interp, lobjp, "%s%s", "t", "");
 
     if(Tcl_ListObjAppendElement(peED.interp,
 				Tcl_GetObjResult(peED.interp),
@@ -7049,10 +7037,7 @@ peColorStr(char *s, char *b)
 
 
 int
-peMessageText(Tcl_Interp *interp,
-	      long uid,
-	      int objc,
-	      Tcl_Obj **objv)
+peMessageText(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 {
     MESSAGECACHE *mc;
     ENVELOPE	 *env;
@@ -7099,7 +7084,7 @@ peMessageText(Tcl_Interp *interp,
 	return(TCL_ERROR);
     }
 
-    flags = FM_DISPLAY | FM_NEW_MESS | FM_NOEDITORIAL | FM_NOHTMLREL | FM_HTMLRELATED;
+    flags = FM_DISPLAY | FM_NEW_MESS | FM_NOEDITORIAL | FM_UTF8 | FM_NOHTMLREL | FM_HTMLRELATED;
 
     init_handles(&peED.handles);
 
@@ -7117,10 +7102,7 @@ peMessageText(Tcl_Interp *interp,
  * peMessagePartFromCID - return part number assoc'd with given uid and CID
  */
 int
-peMessagePartFromCID(Tcl_Interp *interp,
-		     long uid,
-		     int objc,
-		     Tcl_Obj **objv)
+peMessagePartFromCID(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 {
     char     *cid, sect_buf[256];
     long      raw;
@@ -7190,11 +7172,7 @@ peLocateBodyByCID(char *cid, char *section, BODY *body)
  * Params: argv[0] == flagname
  */
 int
-peGetFlag(interp, uid, objc, objv)
-    Tcl_Interp	*interp;
-    long	 uid;
-    int		 objc;
-    Tcl_Obj    **objv;
+peGetFlag(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 {
     char	 *flagname;
     long	  raw;
@@ -7241,11 +7219,7 @@ peGetFlag(interp, uid, objc, objv)
  *         objv[1] == newvalue
  */
 int
-peSetFlag(interp, uid, objc, objv)
-    Tcl_Interp  *interp;
-    long	 uid;
-    int		 objc;
-    Tcl_Obj    **objv;
+peSetFlag(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 {
     char	 *flagname, *flagstr = NULL;
     int		  value;
@@ -7294,10 +7268,7 @@ peSetFlag(interp, uid, objc, objv)
  * Params: argv[0] == selected
  */
 int
-peMsgSelect(Tcl_Interp *interp,
-	    long uid,
-	    int objc,
-	    Tcl_Obj **objv)
+peMsgSelect(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 {
     int value;
 
@@ -7341,7 +7312,7 @@ peMsgSelect(Tcl_Interp *interp,
  *
  */
 int
-peAppendIndexParts(Tcl_Interp *interp, long uid, Tcl_Obj *aObj)
+peAppendIndexParts(Tcl_Interp *interp, imapuid_t uid, Tcl_Obj *aObj, int *fetched)
 {
     int		 rv = TCL_OK;
     Tcl_Obj	*objField, *objElement, *objp;
@@ -7353,7 +7324,7 @@ peAppendIndexParts(Tcl_Interp *interp, long uid, Tcl_Obj *aObj)
 
     if(h = build_header_work(ps_global, ps_global->mail_stream,
 			     ps_global->msgmap, peMessageNumber(uid),
-			     peITop, peICount, NULL)){
+			     peITop, peICount, fetched)){
 	for(f = h->ifield; f; f = f->next){
 
 	    if((objField = Tcl_NewListObj(0, NULL)) == NULL)
@@ -7375,11 +7346,7 @@ peAppendIndexParts(Tcl_Interp *interp, long uid, Tcl_Obj *aObj)
 		    /* and other stuff to pack trunc'd element into a new object */
 #endif
 
-#if	(TCL_MAJOR_VERSION >= 8 && TCL_MINOR_VERSION > 0)
-		    objp = Tcl_NewByteArrayObj(ie->data, ie->datalen);
-#else
-		    objp = Tcl_NewStringObj(ie->data, -1);
-#endif
+		    objp = peNewUtf8Obj(ie->data, ie->datalen);
 		}
 		else
 		  objp = Tcl_NewStringObj("", -1);
@@ -7389,15 +7356,18 @@ peAppendIndexParts(Tcl_Interp *interp, long uid, Tcl_Obj *aObj)
 
 		if(ie->color){
 		    Tcl_Obj *objColor;
-
+		    char     hexcolor[32];
+		    
 		    if((objp = Tcl_NewListObj(0, NULL)) == NULL)
 		      return(TCL_ERROR);
 
-		    objColor = Tcl_NewStringObj(color_to_asciirgb(ie->color->fg), -1);
+		    hex_colorstr(hexcolor, ie->color->fg);
+		    objColor = Tcl_NewStringObj(hexcolor, -1);
 		    if(Tcl_ListObjAppendElement(interp, objp, objColor) != TCL_OK)
 		      return(TCL_ERROR);
 
-		    objColor = Tcl_NewStringObj(color_to_asciirgb(ie->color->bg), -1);
+		    hex_colorstr(hexcolor, ie->color->bg);
+		    objColor = Tcl_NewStringObj(hexcolor, -1);
 		    if(Tcl_ListObjAppendElement(interp, objp, objColor) != TCL_OK)
 		      return(TCL_ERROR);
 		}
@@ -7444,6 +7414,35 @@ peAppendIndexParts(Tcl_Interp *interp, long uid, Tcl_Obj *aObj)
 
 
 /*
+ * peAppendIndexColor - append index line's foreground/background color
+ *
+ * Params: 
+ *
+ */
+int
+peAppendIndexColor(Tcl_Interp *interp, imapuid_t uid, Tcl_Obj *aObj, int *fetched)
+{
+    Tcl_Obj	*objColor, *objp;
+    char	 hexfg[32], hexbg[32];
+    ICE_S	*h;
+
+    if((h = build_header_work(ps_global, ps_global->mail_stream,
+			      ps_global->msgmap, peMessageNumber(uid),
+			      peITop, peICount, fetched))
+       && h->color_lookup_done
+       && h->linecolor){
+
+	hex_colorstr(hexfg, h->linecolor->fg);
+	hex_colorstr(hexbg, h->linecolor->bg);
+
+	return(peAppListF(interp, aObj, "%s%s", hexfg, hexbg));
+    }
+
+    return(peAppListF(interp, aObj, "%s", ""));
+}
+
+
+/*
  * peMessageStatusBits - return list flags indicating pine status bits
  *
  * Params: 
@@ -7456,17 +7455,14 @@ peAppendIndexParts(Tcl_Interp *interp, long uid, Tcl_Obj *aObj)
  *		   and background colors
  */
 int
-peMessageStatusBits(Tcl_Interp *interp,
-	     long uid,
-	     int objc,
-	     Tcl_Obj **objv)
+peMessageStatusBits(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 {
     long msgno;
 
     Tcl_SetResult(interp,
 		  peMsgStatBitString(ps_global, ps_global->mail_stream,
 				     ps_global->msgmap, peMessageNumber(uid),
-				     peITop, peICount),
+				     peITop, peICount, NULL),
 		  TCL_STATIC);
     return(TCL_OK);
 }
@@ -7478,7 +7474,8 @@ peMsgStatBitString(struct pine *state,
 		   MSGNO_S     *msgmap,
 		   long		msgno,
 		   long		top_msgno,
-		   long		msgcount)
+		   long		msgcount,
+		   int	       *fetched)
 {
     static char	  buf[36];
     int		  i;
@@ -7486,7 +7483,7 @@ peMsgStatBitString(struct pine *state,
     ICE_S	 *h;
 
     if((h = build_header_work(state, stream, msgmap,
-			      msgno, top_msgno, msgcount, NULL))
+			      msgno, top_msgno, msgcount, fetched))
        && (mc = mail_elt(stream, mn_m2raw(msgmap, msgno)))){
 	/* return a string representing a bit field where:
 	   index     meaning
@@ -7524,10 +7521,7 @@ peMsgStatBitString(struct pine *state,
  *
  */
 int
-peReplyHeaders(Tcl_Interp *interp,
-	       long uid,
-	       int objc,
-	       Tcl_Obj **objv)
+peReplyHeaders(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 {
     long	 raw;
     int		 flags = RSF_FORCE_REPLY_TO | RSF_FORCE_REPLY_ALL, err = FALSE;
@@ -7587,17 +7581,17 @@ peReplyHeaders(Tcl_Interp *interp,
 	outgoing->subject = reply_subject(env->subject, NULL, 0);
 	outgoing->in_reply_to = reply_in_reply_to(env);
 
-	err = !(peAppListStrAddr(interp, Tcl_GetObjResult(interp),
-				 "to", outgoing->to) == TCL_OK
-		&& peAppListStrAddr(interp, Tcl_GetObjResult(interp),
-				    "cc", outgoing->cc) == TCL_OK
-		&& peAppListStrStr(interp, Tcl_GetObjResult(interp),
-				   "in-reply-to", outgoing->in_reply_to) == TCL_OK
-		&& peAppListStrStr(interp, Tcl_GetObjResult(interp),
-				   "subject", 
-				   rfc1522_decode((unsigned char *) tmp_20k_buf,
-						  SIZEOF_20KBUF,
-						  outgoing->subject, NULL)) == TCL_OK
+	err = !(peAppListF(interp, Tcl_GetObjResult(interp),
+			   "%s%a", "to", outgoing->to) == TCL_OK
+		&& peAppListF(interp, Tcl_GetObjResult(interp),
+			      "%s%a", "cc", outgoing->cc) == TCL_OK
+		&& peAppListF(interp, Tcl_GetObjResult(interp),
+			      "%s%s", "in-reply-to", outgoing->in_reply_to) == TCL_OK
+		&& peAppListF(interp, Tcl_GetObjResult(interp),
+			      "%s%s", "subject", 
+			      rfc1522_decode((unsigned char *) tmp_20k_buf,
+					     SIZEOF_20KBUF,
+					     outgoing->subject, NULL)) == TCL_OK
 		&& (fcc ? peFccAppend(interp, Tcl_GetObjResult(interp), fcc, -1) : TRUE));
 
 
@@ -7612,8 +7606,8 @@ peReplyHeaders(Tcl_Interp *interp,
 
 	    fs_give((void **) &prefix);
 
-	    err = peAppListStrStr(interp, Tcl_GetObjResult(interp),
-				  "x-reply-uid", tmp_20k_buf) != TCL_OK;
+	    err = peAppListF(interp, Tcl_GetObjResult(interp), "%s%s",
+			     "x-reply-uid", tmp_20k_buf) != TCL_OK;
 	}
 
 	mail_free_envelope(&outgoing);
@@ -7638,10 +7632,7 @@ peReplyHeaders(Tcl_Interp *interp,
  *
  */
 int
-peReplyText(Tcl_Interp *interp,
-	    long uid,
-	    int objc,
-	    Tcl_Obj **objv)
+peReplyText(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 {
     long	   msgno;
     char	  *prefix, *sect = NULL;
@@ -7734,11 +7725,7 @@ peSoStrToList(Tcl_Interp *interp, Tcl_Obj *obj, STORE_S *so)
 	while(*ep && *ep != '\n')
 	  ep++;
 
-#if	(TCL_MAJOR_VERSION >= 8 && TCL_MINOR_VERSION > 0)
-	objp = Tcl_NewByteArrayObj(sp, ep - sp);
-#else
-	objp = Tcl_NewStringObj(sp, ep - sp);
-#endif
+	objp = peNewUtf8Obj(sp, ep - sp);
 
 	if(Tcl_ListObjAppendElement(interp, obj, objp) != TCL_OK)
 	  return(FALSE);
@@ -7757,10 +7744,7 @@ peSoStrToList(Tcl_Interp *interp, Tcl_Obj *obj, STORE_S *so)
  *
  */
 int
-peForwardHeaders(Tcl_Interp *interp,
-		 long uid,
-		 int objc,
-		 Tcl_Obj **objv)
+peForwardHeaders(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 {
 
     int	      result;
@@ -7789,8 +7773,8 @@ peForwardHeaders(Tcl_Interp *interp,
 
     if(env){
 	tmp = forward_subject(env, FS_NONE);
-	result = peAppListStrStr(interp, Tcl_GetObjResult(interp),
-				 "subject", tmp);
+	result = peAppListF(interp, Tcl_GetObjResult(interp),
+			    "%s%s", "subject", tmp);
 
 	fs_give((void **) &tmp);
 
@@ -7813,10 +7797,7 @@ peForwardHeaders(Tcl_Interp *interp,
  *
  */
 int
-peForwardText(Tcl_Interp *interp,
-	      long uid,
-	      int objc,
-	      Tcl_Obj **objv)
+peForwardText(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 {
     long	   msgno;
     char	  *bodtext, *p, *sect = NULL;
@@ -7871,11 +7852,7 @@ peForwardText(Tcl_Interp *interp,
 	    while(*p && *p != '\n')
 	      p++;
 
-#if	(TCL_MAJOR_VERSION >= 8 && TCL_MINOR_VERSION > 0)
-	    objp = Tcl_NewByteArrayObj(bodtext, p - bodtext);
-#else
-	    objp = Tcl_NewStringObj(bodtext, p - bodtext);
-#endif
+	    objp = peNewUtf8Obj(bodtext, p - bodtext);
 
 	    Tcl_ListObjAppendElement(interp, objBody, objp);
 	}
@@ -7915,10 +7892,7 @@ peForwardText(Tcl_Interp *interp,
  *		5) tmp file holding raw attachment data
  */
 int
-peDetach(Tcl_Interp *interp,
-	 long uid,
-	 int objc,
-	 Tcl_Obj **objv)
+peDetach(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 {
     char	 *part, *err, *tfd, *tfn = NULL, *filename;
     long	  raw;
@@ -8006,10 +7980,7 @@ peDetach(Tcl_Interp *interp,
  *		5) tmp file holding raw attachment data
  */
 int
-peAttachInfo(Tcl_Interp *interp,
-	     long uid,
-	     int objc,
-	     Tcl_Obj **objv)
+peAttachInfo(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 {
     char	 *part;
     long	  raw;
@@ -8082,10 +8053,7 @@ peAttachInfo(Tcl_Interp *interp,
  *
  */
 int
-peSaveDefault(Tcl_Interp *interp,
-	      long uid,
-	      int objc,
-	      Tcl_Obj **objv)
+peSaveDefault(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 {
     char      *folder;
     CONTEXT_S *cntxt, *cp;
@@ -8133,10 +8101,7 @@ peSaveDefault(Tcl_Interp *interp,
  *
  */
 int
-peSave(Tcl_Interp *interp,
-       long uid,
-       int objc,
-       Tcl_Obj **objv)
+peSave(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 {
     int	       flgs, i, colid;
     char      *folder, *err = NULL;
@@ -8212,7 +8177,7 @@ peSave(Tcl_Interp *interp,
  *
  */
 int
-peGotoDefault(Tcl_Interp *interp, long uid, Tcl_Obj **objv)
+peGotoDefault(Tcl_Interp *interp, imapuid_t uid, Tcl_Obj **objv)
 {
     char      *folder = NULL;
     CONTEXT_S *cntxt, *cp;
@@ -8245,10 +8210,7 @@ peGotoDefault(Tcl_Interp *interp, long uid, Tcl_Obj **objv)
  *
  */
 int
-peReplyQuote(Tcl_Interp *interp,
-	     long uid,
-	     int objc,
-	     Tcl_Obj **objv)
+peReplyQuote(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 {
     char     *quote;
     ENVELOPE *env;
@@ -8374,152 +8336,174 @@ peGetMimeTyping(BODY *body, Tcl_Obj **tObjp, Tcl_Obj **stObjp, Tcl_Obj **fnObjp,
 }
 
 
-
+/*
+ * peAppListF - generate a list of elements based on fmt string,
+ *              then append it to the given list object
+ *
+ */
 int
-peAppListStrStr(Tcl_Interp *interp, Tcl_Obj *lobjp, char *field, char *value)
+peAppListF(Tcl_Interp *interp, Tcl_Obj *lobjp, char *fmt, ...)
 {
-    Tcl_Obj *objv[2];
+    va_list	   args;
+    char	  *p, *sval, nbuf[128];
+    int		   ival, err = 0;
+    unsigned int   uval;
+    long	   lval;
+    unsigned long  luval;
+    PATTERN_S *pval;
+    ADDRESS   *aval;
+    INTVL_S   *vval;
+    Tcl_Obj   *lObj = NULL, *sObj, *aObj;
 
-    objv[0] = Tcl_NewStringObj(field ? field : "", -1);
-#if	(TCL_MAJOR_VERSION >= 8 && TCL_MINOR_VERSION > 0)
-    objv[1] = Tcl_NewByteArrayObj(value ? value : "", (value ? strlen(value) : 0));
-#else
-    objv[1] = Tcl_NewStringObj(value ? value : "", -1);
-#endif
+    if(lObj = Tcl_NewListObj(0, NULL)){
+	va_start(args, fmt);
+	for(p = fmt; *p && !err; p++){
+	    sObj = NULL;
 
-    return(Tcl_ListObjAppendElement(interp, lobjp,
-				    Tcl_NewListObj(2, objv)));
+	    if(*p == '%')
+	      switch(*++p){
+		case 'i' :	/* int value */
+		  ival = va_arg(args, int);
+		  if((sObj = Tcl_NewIntObj(ival)) == NULL)
+		    err++;
+
+		  break;
+
+		case 'u' :	/* unsigned int value */
+		  uval = va_arg(args, unsigned int);
+		  snprintf(nbuf, sizeof(nbuf), "%u", uval);
+		  if((sObj = Tcl_NewStringObj(nbuf, -1)) == NULL)
+		    err++;
+
+		  break;
+
+		case 'l' :	/* long value */
+		  if(*(p+1) == 'u'){
+		      p++;
+		      luval = va_arg(args, unsigned long);
+		      snprintf(nbuf, sizeof(nbuf), "%lu", luval);
+		      if((sObj = Tcl_NewStringObj(nbuf, -1)) == NULL)
+			err++;
+		  }
+		  else{
+		      lval = va_arg(args, long);
+		      if((sObj = Tcl_NewLongObj(lval)) == NULL)
+			err++;
+		  }
+
+		  break;
+
+		case 's' :	/* string value */
+		  sval = va_arg(args, char *);
+		  sObj = peNewUtf8Obj(sval ? sval : "", -1);
+		  if(sObj == NULL)
+		    err++;
+
+		  break;
+
+		case 'a':	/* ADDRESS list */
+		  aval = va_arg(args, ADDRESS *);
+		  if(aval){
+		      char	   *tmp, *p;
+		      RFC822BUFFER  rbuf;
+		      size_t	    len;
+
+		      len = est_size(aval);
+		      tmp = (char *) fs_get(len * sizeof(char));
+		      tmp[0] = '\0';
+		      rbuf.f   = dummy_soutr;
+		      rbuf.s   = NULL;
+		      rbuf.beg = tmp;
+		      rbuf.cur = tmp;
+		      rbuf.end = tmp+len-1;
+		      rfc822_output_address_list(&rbuf, aval, 0L, NULL);
+		      *rbuf.cur = '\0';
+		      p	   = rfc1522_decode((unsigned char *) tmp_20k_buf, SIZEOF_20KBUF, tmp, NULL);
+		      sObj = peNewUtf8Obj(p, strlen(p));
+		      fs_give((void **) &tmp);
+		  }
+		  else
+		    sObj = Tcl_NewStringObj("", -1);
+
+		  break;
+
+		case 'p':	/* PATTERN_S * */
+		  pval = va_arg(args, PATTERN_S *);
+		  sval = pattern_to_string(pval);
+		  sObj = peNewUtf8Obj(sval ? sval : "", -1);
+		  break;
+
+		case 'v':	/* INTVL_S * */
+		  vval = va_arg(args, INTVL_S *);
+		  if(vval){
+		      for(; vval != NULL; vval = vval->next){
+			  peAppListF(interp, sObj, "%l%l", vval->imin, vval->imax);
+		      }
+		  }
+		  else
+		    sObj = Tcl_NewListObj(0, NULL);
+
+		  break;
+
+	      }
+
+	    if(sObj)
+	      Tcl_ListObjAppendElement(interp, lObj, sObj);
+	}
+
+	va_end(args);
+    }
+
+    return(lObj ? Tcl_ListObjAppendElement(interp, lobjp, lObj) : TCL_ERROR);
 }
 
 
-
-int
-peAppListStrPat(Tcl_Interp *interp, Tcl_Obj *lobjp, char *field, PATTERN_S *value)
+Tcl_Obj *
+peNewUtf8Obj(void *sval, int l)
 {
-    Tcl_Obj *objv[2];
-    char *patstr;
-
-    patstr = pattern_to_string(value);
-
-    objv[0] = Tcl_NewStringObj(field ? field : "", -1);
 #if	(TCL_MAJOR_VERSION >= 8 && TCL_MINOR_VERSION > 0)
-    objv[1] = Tcl_NewByteArrayObj(patstr ? patstr : "", (patstr ? strlen(patstr) : 0));
+    /*
+     * Tcl versions > 8.0 are internal Unicode, and have routines
+     * to map in and out of UTF-8, but since text in and out of here is
+     * exclusively UTF-8, we'll just deal with byte arrays
+     */
+    if(l < 0)
+      l = (sval) ? strlen(sval) : 0;
+
+    return(Tcl_NewByteArrayObj((unsigned char *) (sval ? sval : ""), l));
 #else
-    objv[1] = Tcl_NewStringObj(patstr ? patstr : "", -1);
+    return(Tcl_NewStringObj((char *) sval, l));
 #endif
-
-    fs_give((void **)&patstr);
-
-    return(Tcl_ListObjAppendElement(interp, lobjp,
-				    Tcl_NewListObj(2, objv)));
 }
 
 
-int
-peAppListStrPatstat(Tcl_Interp *interp, Tcl_Obj *lobjp, char *field, int value)
+unsigned char *
+peGetUtf8FromObj(Tcl_Obj *sObj, int *sl)
 {
-    Tcl_Obj *objv[2];
+#if	(TCL_MAJOR_VERSION >= 8 && TCL_MINOR_VERSION > 0)
+    return(Tcl_GetByteArrayFromObj(sObj, sl));
+#else
+    return((unsigned char *) Tcl_GetStringFromObj(sObj, sl));
+#endif
+}
 
-    objv[0] = Tcl_NewStringObj(field ? field : "", -1);
+
+char *
+pePatStatStr(int value)
+{
     switch(value){
       case PAT_STAT_EITHER:
-	objv[1] = Tcl_NewStringObj("either", -1);
+	return("either");
 	break;
+
       case PAT_STAT_YES:
-	objv[1] = Tcl_NewStringObj("yes", -1);
+	return("yes");
 	break;
-      case PAT_STAT_NO:
-	objv[1] = Tcl_NewStringObj("no", -1);
+
+      default :
+	return("no");
 	break;
     }
-
-    return(Tcl_ListObjAppendElement(interp, lobjp,
-				    Tcl_NewListObj(2, objv)));
-}
-
-
-int
-peAppListStrInt(Tcl_Interp *interp, Tcl_Obj *lobjp, char *field, int value)
-{
-    Tcl_Obj *objv[2];
-
-    objv[0] = Tcl_NewStringObj(field, -1);
-    objv[1] = Tcl_NewIntObj(value);
-
-    return(Tcl_ListObjAppendElement(interp, lobjp,
-				    Tcl_NewListObj(2, objv)));
-}
-
-
-int
-peAppListIntStr(interp, lobjp, field, value)
-    Tcl_Interp *interp;
-    Tcl_Obj    *lobjp;
-    int		field;
-    char       *value;
-{
-    Tcl_Obj *objv[2];
-
-    objv[0] = Tcl_NewIntObj(field);
-    objv[1] = Tcl_NewStringObj(value, -1);
-
-    return(Tcl_ListObjAppendElement(interp, lobjp,
-				    Tcl_NewListObj(2, objv)));
-}
-
-
-int
-peAppListLongLong(Tcl_Interp *interp, Tcl_Obj *lobjp, long x, long y)
-{
-    Tcl_Obj *objv[2];
-
-    objv[0] = Tcl_NewLongObj(x);
-    objv[1] = Tcl_NewLongObj(y);
-    return(Tcl_ListObjAppendElement(interp, lobjp,
-				    Tcl_NewListObj(2, objv)));
-}
-
-
-int
-peAppListStrAddr(Tcl_Interp *interp, Tcl_Obj *lobjp, char *field, ADDRESS *addrs)
-{
-    char	*tmp, *p;
-    Tcl_Obj	*objList = NULL, *objp;
-
-    if(field){
-	objList = Tcl_NewListObj(0, NULL);
-	Tcl_ListObjAppendElement(interp, objList,
-				 Tcl_NewStringObj(field, -1));	 
-
-	if(addrs) {
-	    RFC822BUFFER rbuf;
-	    size_t len;
-
-	    len = est_size(addrs);
-	    tmp = (char *) fs_get(len * sizeof(char));
-	    tmp[0] = '\0';
-	    rbuf.f   = dummy_soutr;
-	    rbuf.s   = NULL;
-	    rbuf.beg = tmp;
-	    rbuf.cur = tmp;
-	    rbuf.end = tmp+len-1;
-	    rfc822_output_address_list(&rbuf, addrs, 0L, NULL);
-	    *rbuf.cur = '\0';
-	    p = rfc1522_decode((unsigned char *) tmp_20k_buf, SIZEOF_20KBUF, tmp, NULL);
-#if	(TCL_MAJOR_VERSION >= 8 && TCL_MINOR_VERSION > 0)
-	    objp = Tcl_NewByteArrayObj(p, strlen(p));
-#else
-	    objp = Tcl_NewStringObj(p, -1);
-#endif
-	    Tcl_ListObjAppendElement(interp, objList, objp);
-	    fs_give((void **) &tmp);
-	}
-	else
-	  Tcl_ListObjAppendElement(interp, objList,
-				   Tcl_NewStringObj("", -1));
-    }
-
-    return(Tcl_ListObjAppendElement(interp, lobjp, objList));
 }
 
 
@@ -8824,11 +8808,7 @@ peDestroyStream(struct pine *ps)
 
 
 int
-peMessageBounce(Tcl_Interp *interp,
-		long uid,
-		int objc,
-		Tcl_Obj **objv)
-
+peMessageBounce(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 {
     char      *errstr = NULL, *to, *subj = NULL, errbuf[WP_MAX_POST_ERROR + 1];
     long       rawno;
@@ -8894,10 +8874,7 @@ peMessageBounce(Tcl_Interp *interp,
 
 
 int
-peMessageSpam(Tcl_Interp *interp,
-	      long uid,
-	      int objc,
-	      Tcl_Obj **objv)
+peMessageSpam(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 {
     char	*errstr = NULL, *to, *subj = NULL, errbuf[WP_MAX_POST_ERROR + 1], *tmp_a_string;
     long	 rawno;
@@ -9037,7 +9014,7 @@ PEComposeCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 			  if(!strucmp(cp->name, standard[i]))
 			    p = cp->textbuf;
 
-			peAppListStrStr(interp, Tcl_GetObjResult(interp), standard[i], p);
+			peAppListF(interp, Tcl_GetObjResult(interp), "%s%s", standard[i], p);
 		    }
 
 		    for(cp = custom; cp != NULL; cp = cp->next){
@@ -9073,7 +9050,7 @@ PEComposeCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 			      continue;
 			}
 
-			peAppListStrStr(interp, Tcl_GetObjResult(interp), cp->name, p);
+			peAppListF(interp, Tcl_GetObjResult(interp), "%s%s", cp->name, p);
 		    }
 
 		    if(custom)
@@ -9086,7 +9063,7 @@ PEComposeCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 		    static char *extras[] = {"In-Reply-To", "X-Reply-UID", NULL};
 
 		    for(i = 0; extras[i]; i++)
-		      peAppListStrStr(interp, Tcl_GetObjResult(interp), extras[i], NULL);
+		      peAppListF(interp, Tcl_GetObjResult(interp), "%s%s", extras[i], NULL);
 
 		    return(TCL_OK);
 		}
@@ -9241,13 +9218,8 @@ PEComposeCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 		       && (remote = Tcl_GetStringFromObj(objv[5], NULL))){
 			int  dl;
 
-#if	(TCL_MAJOR_VERSION >= 8 && TCL_MINOR_VERSION > 0)
-			desc = Tcl_GetByteArrayFromObj(objv[6], &dl);
-			
-#else
-			desc = Tcl_GetStringFromObj(objv[6], NULL);
-			dl   = strlen(desc);
-#endif
+			desc = peGetUtf8FromObj(objv[6], &dl);
+
 			if(desc){
 			    Tcl_SetResult(interp, peFileAttachID(file, type, subtype, remote, desc, dl), TCL_VOLATILE);
 			    return(TCL_OK);
@@ -9532,7 +9504,7 @@ int
 PEPostponeCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     char *err = "PEPostpone: unknown request";
-    long  uid;
+    imapuid_t  uid;
 
     dprint((2, "PEPostponeCmd"));
 
@@ -9582,18 +9554,18 @@ PEPostponeCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONS
 			    if(env = pine_mail_fetchstructure(stream, n, NULL)){
 				objEnv = Tcl_NewListObj(0, NULL);
 
-				peAppListStrStr(interp, objEnv, "uid",
-						long2string(mail_uid(stream, n)));
+				peAppListF(interp, objEnv, "uid",
+					   "%s%s", long2string(mail_uid(stream, n)));
 
-				peAppListStrAddr(interp, objEnv, "to", env->to);
+				peAppListF(interp, objEnv, "%s%a", "to", env->to);
 
 				date_str(env->date, iSDate, 1, tmp_20k_buf, SIZEOF_20KBUF);
 
-				peAppListStrStr(interp, objEnv, "date", tmp_20k_buf);
+				peAppListF(interp, objEnv, "%s%s", "date", tmp_20k_buf);
 
-				peAppListStrStr(interp, objEnv, "subj",
-						rfc1522_decode((unsigned char *) tmp_20k_buf,
-							       SIZEOF_20KBUF, env->subject, &cs));
+				peAppListF(interp, objEnv, "%s%s", "subj",
+					   rfc1522_decode((unsigned char *) tmp_20k_buf,
+							  SIZEOF_20KBUF, env->subject, &cs));
 				if(cs){
 				    if(*cs && strucmp(cs, "us-ascii")){
 					if(charset){
@@ -9660,19 +9632,19 @@ PEPostponeCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONS
 				    /* determine body part's charset */
 				    if(charset = rfc2231_get_param(b->parameter,"charset",NULL,NULL)){
 					objOpts = Tcl_NewListObj(0, NULL);
-					peAppListStrStr(interp, objOpts, "charset", charset);
+					peAppListF(interp, objOpts, "%s%s", "charset", charset);
 					fs_give((void **) &charset);
 				    }
 				      
-				    peAppListStrAddr(interp, objHdr, "from",
+				    peAppListF(interp, objHdr, "%s%a", "from",
 						     role && role->from ? role->from : env->from);
-				    peAppListStrAddr(interp, objHdr, "to", env->to);
-				    peAppListStrAddr(interp, objHdr, "cc", env->cc);
-				    peAppListStrAddr(interp, objHdr, "bcc", env->bcc);
-				    peAppListStrStr(interp, objHdr, "in-reply-to", env->in_reply_to);
-				    peAppListStrStr(interp, objHdr, "subject",
-						    rfc1522_decode((unsigned char *) tmp_20k_buf,
-								   SIZEOF_20KBUF, env->subject, NULL));
+				    peAppListF(interp, objHdr, "%s%a", "to", env->to);
+				    peAppListF(interp, objHdr, "%s%a", "cc", env->cc);
+				    peAppListF(interp, objHdr, "%s%a", "bcc", env->bcc);
+				    peAppListF(interp, objHdr, "%s%s", "in-reply-to", env->in_reply_to);
+				    peAppListF(interp, objHdr, "%s%s", "subject",
+					       rfc1522_decode((unsigned char *) tmp_20k_buf,
+							      SIZEOF_20KBUF, env->subject, NULL));
 
 				    if(fcc)
 				      peFccAppend(interp, objHdr, fcc, -1);
@@ -9682,9 +9654,8 @@ PEPostponeCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONS
 					case Address :
 					  strncpy(tmp_20k_buf, cp->name, SIZEOF_20KBUF);
 					  tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
-					  peAppListStrAddr(interp, objHdr,
-							   lcase(tmp_20k_buf),
-							   *cp->addr);
+					  peAppListF(interp, objHdr, "%s%a",
+						     lcase(tmp_20k_buf), *cp->addr);
 					  break;
 
 					case Attachment :
@@ -9697,9 +9668,8 @@ PEPostponeCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONS
 					default :
 					  strncpy(tmp_20k_buf, cp->name, SIZEOF_20KBUF);
 					  tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
-					  peAppListStrStr(interp, objHdr,
-							  lcase(tmp_20k_buf),
-							  cp->textbuf ? cp->textbuf : cp->val);
+					  peAppListF(interp, objHdr, "%s%s",
+						     lcase(tmp_20k_buf), cp->textbuf ? cp->textbuf : cp->val);
 					  break;
 				      }
 
@@ -9723,7 +9693,7 @@ PEPostponeCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONS
 						    i, reply->data.uid.validity,
 						    tmp_20k_buf, reply->mailbox);
 
-					    peAppListStrStr(interp, objHdr, "x-reply-uid", uidbuf);
+					    peAppListF(interp, objHdr, "%s%s", "x-reply-uid", uidbuf);
 					}
 
 					fs_give((void **) &reply->mailbox);
@@ -9881,12 +9851,7 @@ peMsgCollector(Tcl_Interp *interp,
 
 		    Tcl_ListObjGetElements(interp, objField[1], &nBody, &objBody);
 		    for(j = 0; j < nBody; j++){
-#if	(TCL_MAJOR_VERSION >= 8 && TCL_MINOR_VERSION > 0)
-			value = Tcl_GetByteArrayFromObj(objBody[j], &vl);
-#else
-			if(value = Tcl_GetStringFromObj(objBody[j], NULL))
-			  vl = strlen(value);
-#endif
+			value = peGetUtf8FromObj(objBody[j], &vl);
 			if(value){
 			    so_nputs(md.msgtext, value, vl);
 			    so_puts(md.msgtext, "\n");
@@ -10013,13 +9978,7 @@ peMsgCollector(Tcl_Interp *interp,
 		    return(peMsgCollected(interp, &md, err));
 		}
 
-#if	(TCL_MAJOR_VERSION >= 8 && TCL_MINOR_VERSION > 0)
-		value = Tcl_GetByteArrayFromObj(objField[1], &vl);
-#else
-		if(value = Tcl_GetStringFromObj(objField[1], NULL))
-		  vl = strlen(value);
-#endif
-		if(value){
+		if(value = peGetUtf8FromObj(objField[1], &vl)){
 		    ADDRESS **addrp = NULL;
 		    char    **valp = NULL, *valcpy;
 
@@ -10119,9 +10078,7 @@ peMsgCollector(Tcl_Interp *interp,
  * peMsgCollected - Dispatch collected message data and cleanup
  */
 int
-peMsgCollected(Tcl_Interp  *interp,
-	       MSG_COL_S   *md,
-	       char	   *err)
+peMsgCollected(Tcl_Interp *interp, MSG_COL_S *md, char *err) 
 {
     int	       rv = TCL_OK;
     BODY      *body = NULL, *tbp = NULL;
@@ -10401,7 +10358,7 @@ peFccAppend(Tcl_Interp *interp, Tcl_Obj *obj, char *fcc, int colid)
 
     return((objfcc = Tcl_NewListObj(0, NULL))
 	   && Tcl_ListObjAppendElement(interp, objfcc, Tcl_NewStringObj("fcc", -1)) == TCL_OK
-	   && peAppListIntStr(interp, objfcc, colid, fcc) == TCL_OK
+	   && peAppListF(interp, objfcc, "%i%s", colid, fcc) == TCL_OK
 	   && Tcl_ListObjAppendElement(interp, obj, objfcc) == TCL_OK);
 }
 
@@ -12221,10 +12178,7 @@ PEClistCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST o
  * peTakeaddr - Take Address
  */
 int
-peTakeaddr(Tcl_Interp *interp,
-	   long uid,
-	   int objc,
-	   Tcl_Obj **objv)
+peTakeaddr(Tcl_Interp *interp, imapuid_t uid, int objc, Tcl_Obj **objv)
 {
     TA_S     *talist = NULL, *current, *head;
     Tcl_Obj  *itemObj, *secObj = NULL, *resObj = NULL;
@@ -12752,9 +12706,6 @@ PELdapCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 		  }
 		  }
 		  if(newadrs == NULL || curnewadr == NULL){
-		      // Tcl_SetResult(interp, "Ldap error 6", TCL_VOLATILE);
-		      // return TCL_ERROR;
-		      // now we just plug the unchosen handle back into the list
 		      snprintf(tmp_20k_buf, SIZEOF_20KBUF, "No Result Selected for \"%s\"", curadr->mailbox ? curadr->mailbox : "noname");
 		      q_status_message(SM_ORDER, 0, 3, tmp_20k_buf);
 		      newadr = copyaddr(curadr);
@@ -12992,7 +12943,14 @@ strqchr(char *s, int ch, int *q, int m)
 
 
 Tcl_Obj *
-wp_prune_folders(CONTEXT_S *ctxt, char *fcc, int cur_month, char *type, unsigned pr, int *ok, int moved_fldrs, Tcl_Interp *interp)
+wp_prune_folders(CONTEXT_S  *ctxt,
+		 char	    *fcc,
+		 int	     cur_month,
+		 char	    *type,
+		 unsigned    pr,
+		 int	    *ok,
+		 int	     moved_fldrs,
+		 Tcl_Interp *interp)
 {
     Tcl_Obj *resObj = NULL, *secObj = NULL;
     char     path2[MAXPATH+1], tmp[21];

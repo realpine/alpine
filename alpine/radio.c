@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: radio.c 254 2006-11-21 21:54:24Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: radio.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ static char rcsid[] = "$Id: radio.c 254 2006-11-21 21:54:24Z hubert@u.washington
 int       pre_screen_config_want_to(char *, int, int);
 ESCKEY_S *construct_combined_esclist(ESCKEY_S *, ESCKEY_S *);
 void      radio_help(int, int, HelpType);
-void      draw_radio_prompt(int, int, int, char *);
+void      draw_radio_prompt(int, unsigned, unsigned, char *);
 
 
 #define	RAD_BUT_COL	0
@@ -245,7 +245,8 @@ radio_buttons(char *utf8prompt, int line, ESCKEY_S *esc_list, int dflt,
     UCS              ucs;
     register int     ch, real_line;
     char            *q, *ds = NULL;
-    int              max_label, i, start, maxcol, fkey_table[12];
+    unsigned         maxcol;
+    int              max_label, i, start, fkey_table[12];
     int		     km_popped = 0;
     struct key	     rb_keys[12];
     struct key_menu  rb_keymenu;
@@ -294,10 +295,10 @@ radio_buttons(char *utf8prompt, int line, ESCKEY_S *esc_list, int dflt,
 
 	button_list[b].ch = -1;
 	
-	help = get_help_text(help_text);
+	/* assumption here is that HelpType is char **  */
+	help = help_text;
 
 	ret = mswin_select(utf8prompt, button_list, dflt, on_ctrl_C, help, flags);
-	free_list_array(&help);
 	for(i = 0; i < 25; i++){
 	    if(free_names[i])
 	      fs_give((void **) &free_names[i]);
@@ -326,7 +327,10 @@ radio_buttons(char *utf8prompt, int line, ESCKEY_S *esc_list, int dflt,
         max_label = MAX(max_label, utf8_width(esc_list[i].name));
     }
 
-    maxcol = ps_global->ttyo->screen_cols - max_label - 1;
+    if(ps_global->ttyo->screen_cols - max_label - 1 > 0)
+      maxcol = ps_global->ttyo->screen_cols - max_label - 1;
+    else
+      maxcol = 0;
 
     /*
      * We need to be able to truncate q, so copy it in case it is
@@ -647,7 +651,11 @@ radio_buttons(char *utf8prompt, int line, ESCKEY_S *esc_list, int dflt,
 	    if(FOOTER_ROWS(ps_global) == 3 || km_popped)
               redraw_keymenu();
 
-	    maxcol = ps_global->ttyo->screen_cols - max_label - 1;
+	    if(ps_global->ttyo->screen_cols - max_label - 1 > 0)
+	      maxcol = ps_global->ttyo->screen_cols - max_label - 1;
+	    else
+	      maxcol = 0;
+
 	    if(promptc)
 	      (void)pico_set_colorp(promptc, PSC_NONE);
 	    else
@@ -849,11 +857,8 @@ radio_help(int line, int column, HelpType help)
 {
     char **text;
 
-#if defined(HELPFILE)
-    text = get_help_text(help);
-#else
+    /* assumption here is that HelpType is char **  */
     text = help;
-#endif
     if(text == NULL)
       return;
     
@@ -867,9 +872,6 @@ radio_help(int line, int column, HelpType help)
     if(text[1])
       PutLine0(line + 2, column, text[1]);
 
-#if defined(HELPFILE)
-    free_list_array(&text);
-#endif
     fflush(stdout);
 }
 
@@ -878,10 +880,10 @@ radio_help(int line, int column, HelpType help)
    Paint the screen with the radio buttons prompt
   ----*/
 void
-draw_radio_prompt(int line, int start_c, int max_c, char *q)
+draw_radio_prompt(int line, unsigned start_c, unsigned max_c, char *q)
 {
     size_t len;
-    int    x, width, got_width;
+    unsigned x, width, got_width;
     char  *tmpq = NULL, *useq;
 
     width = utf8_width(q);

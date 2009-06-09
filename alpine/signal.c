@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: signal.c 310 2006-12-09 01:06:08Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: signal.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -266,7 +266,7 @@ user_input_timeout_exit(int to_hours)
     dprint((1,
 	   "\n\n** Exiting: user input timeout (%d hours) **\n\n\n\n",
 	   to_hours));
-    snprintf(msg, sizeof(msg), _("\n\nPine timed out (No user input for %d %s)\n"), to_hours,
+    snprintf(msg, sizeof(msg), _("\n\nAlpine timed out (No user input for %d %s)\n"), to_hours,
 	    to_hours > 1 ? "hours" : "hour");
     msg[sizeof(msg)-1] = '\0';
     fast_clean_up();
@@ -301,7 +301,7 @@ term_signal(void)
     if(debugfile)
       fclose(debugfile);
 #endif 
-    printf(_("\n\nPine finished. Received terminate signal\n\n"));
+    printf(_("\n\nAlpine finished. Received terminate signal\n\n"));
 #endif	/* !DOS */
     exit(0);
 }
@@ -795,7 +795,7 @@ do_suspend(void)
 
     if(F_OFF(F_CAN_SUSPEND, pine)){
 	q_status_message(SM_ORDER | SM_DING, 3, 3,
-			 _("Pine suspension not enabled - see help text"));
+			 _("Alpine suspension not enabled - see help text"));
 	return(NO_OP_COMMAND);
     }
 
@@ -894,7 +894,7 @@ do_suspend(void)
 void
 suspend_notice(char *s)
 {
-    printf(_("\nPine suspended. Give the \"%s\" command to come back.\n"), s);
+    printf(_("\nAlpine suspended. Give the \"%s\" command to come back.\n"), s);
     fflush(stdout);
 }
 
@@ -904,7 +904,7 @@ suspend_notice(char *s)
 void
 suspend_warning(void)
 {
-    puts(_("Warning: Your IMAP connection will be closed if Pine"));
+    puts(_("Warning: Your IMAP connection will be closed if Alpine"));
     puts(_("is suspended for more than 30 minutes\n"));
     fflush(stdout);
 }

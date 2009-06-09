@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailpart.c 229 2006-11-13 23:14:48Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailpart.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1237,7 +1237,7 @@ save_attachment(int qline, long int msgno, ATTACH_S *a)
 {
     if(ps_global->restricted){
         q_status_message(SM_ORDER | SM_DING, 0, 4,
-			 "Pine demo can't save attachments");
+			 "Alpine demo can't save attachments");
         return;
     }
 
@@ -1264,7 +1264,7 @@ export_attachment(int qline, long int msgno, ATTACH_S *a)
 {
     if(ps_global->restricted){
         q_status_message(SM_ORDER | SM_DING, 0, 4,
-			 "Pine demo can't export attachments");
+			 "Alpine demo can't export attachments");
         return;
     }
 
@@ -1354,7 +1354,7 @@ write_attachment(int qline, long int msgno, ATTACH_S *a, char *method)
     if(r < 0){
 	switch(r){
 	  case -1:
-	    cmd_cancelled(lcase((unsigned char *) title_buf + 1) - 1);
+	    cmd_cancelled((char *) lcase((unsigned char *) title_buf + 1) - 1);
 	    break;
 
 	  case -2:
@@ -1898,7 +1898,7 @@ print_attachment(int qline, long int msgno, ATTACH_S *a)
 
     if(ps_global->restricted){
         q_status_message(SM_ORDER | SM_DING, 0, 4,
-			 "Pine demo can't Print attachments");
+			 "Alpine demo can't Print attachments");
         return;
     }
 
@@ -2918,7 +2918,7 @@ display_attach_info(long int msgno, ATTACH_S *a)
 
     if(a->body->description && a->body->description[0]){
 	char buftmp[MAILTMPLEN];
-	char *q;
+	unsigned char *q;
 
 	utf8_snprintf(buf1, sizeof(buf1), "  %-*.*w: ", indent-4, indent-4, "Description");
 
@@ -2926,7 +2926,7 @@ display_attach_info(long int msgno, ATTACH_S *a)
 	buftmp[sizeof(buftmp)-1] = '\0';
 	q=rfc1522_decode((unsigned char *)tmp_20k_buf, SIZEOF_20KBUF, buftmp, NULL);
 
-	folded = fold(q, cols, cols, buf1, repeat_char(indent+1, ' '), FLD_NONE);
+	folded = fold((char *) q, cols, cols, buf1, repeat_char(indent+1, ' '), FLD_NONE);
 
 	if(folded){
 	  so_puts(store, folded);
@@ -2969,7 +2969,7 @@ display_attach_info(long int msgno, ATTACH_S *a)
 			 : "Unknown Encoding");
     }
     else if(!(a->can_display & MCD_EXTERNAL)){
-	so_puts(store, "Pine's Internal Pager");
+	so_puts(store, "Alpine's Internal Pager");
     }
     else{
 	int   nt, free_pretty_cmd;
@@ -3251,21 +3251,11 @@ forward_msg_att(MAILSTREAM *stream, long int msgno, ATTACH_S *a)
 			 * There is a non-ascii charset,
 			 * is there conversion happening?
 			 */
-#ifdef notdef
-			if(F_ON(F_DISABLE_CHARSET_CONVERSIONS, ps_global)
-			   || !(ct=conversion_table(charset,
-					            ps_global->posting_charmap))
-			   || !ct->table){
-			    reply.orig_charset = charset;
-			    charset = NULL;
-			}
-#else /* notdef */
 			if(!(ct=conversion_table(charset, ps_global->posting_charmap))
 			   || !ct->table){
 			    reply.orig_charset = charset;
 			    charset = NULL;
 			}
-#endif /* notdef */
 		    }
 
 		    if(charset)
@@ -3424,21 +3414,11 @@ reply_msg_att(MAILSTREAM *stream, long int msgno, ATTACH_S *a)
 		     * There is a non-ascii charset,
 		     * is there conversion happening?
 		     */
-#ifdef notdef
-		    if(F_ON(F_DISABLE_CHARSET_CONVERSIONS, ps_global)
-		       || !(ct=conversion_table(charset,
-						ps_global->posting_charmap))
-		       || !ct->table){
-			reply.orig_charset = charset;
-			charset = NULL;
-		    }
-#else /* notdef */
 		    if(!(ct=conversion_table(charset, ps_global->posting_charmap))
 		       || !ct->table){
 			reply.orig_charset = charset;
 			charset = NULL;
 		    }
-#endif /* notdef */
 		}
 
 		if(charset)
@@ -3515,7 +3495,7 @@ pipe_attachment(long int msgno, ATTACH_S *a)
     
     if(ps_global->restricted){
 	q_status_message(SM_ORDER | SM_DING, 0, 4,
-			 "Pine demo can't pipe attachments");
+			 "Alpine demo can't pipe attachments");
 	return;
     }
 
@@ -3808,7 +3788,7 @@ display_text_att_window(a)
 	if (mswin_displaytext("ATTACHED TEXT",
 			      so_text(store),
 			      strlen((char *) so_text(store)),
-			      NULL, 0, 0) >= 0)
+			      NULL, NULL, 0) >= 0)
 	  store->txt = (void *) NULL;	/* free'd in mswin_displaytext */
 
 	so_give(&store);	/* free resources associated with store */
@@ -3841,7 +3821,7 @@ display_msg_att_window(a)
 	if(format_msg_att(msgno, &ap, NULL, pc, FM_DISPLAY)
 	   && mswin_displaytext("ATTACHED MESSAGE", so_text(store),
 				strlen((char *) so_text(store)),
-				NULL, 0, 0) >= 0)
+				NULL, NULL, 0) >= 0)
 	  /* free'd in mswin_displaytext */
 	  store->txt = (void *) NULL;
 

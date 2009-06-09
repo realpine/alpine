@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mimetype.c 312 2006-12-11 18:06:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mimetype.c 343 2006-12-22 18:25:39Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -102,6 +102,8 @@ set_mime_extension_by_type (char *ext, char *mtype)
  * Separate and return a pointer to the first character in the 'filename'
  * character buffer that comes after the rightmost '.' character in the
  * filename. (What I mean is a pointer to the filename - extension).
+ *
+ * Returns 1 if an extension is found, 0 otherwise.
  */
 int
 mt_get_file_ext(char *filename, char **extension)
@@ -116,7 +118,7 @@ mt_get_file_ext(char *filename, char **extension)
     dprint((5, "extension=\"%s\"\n",
 	   (extension && *extension) ? *extension : "?"));
 
-    return((int) *extension);
+    return(*extension ? 1 : 0);
 }
 
 

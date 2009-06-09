@@ -1,10 +1,10 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: display.c 254 2006-11-21 21:54:24Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: display.c 384 2007-01-24 01:22:15Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ static char rcsid[] = "$Id: display.c 254 2006-11-21 21:54:24Z hubert@u.washingt
 
 #include	"headers.h"
 #include	"../pith/charconv/filesys.h"
+#include	"../pith/charconv/utf8.h"
 
 
 void     vtmove(int, int);
@@ -1111,13 +1112,6 @@ modeline(WINDOW *wp)
 	    menu_compose[UNCUT_KEY].label = (thisflag&CFFILL) ? N_("UnJustify")
 							      : N_("UnCut Text");
 	    wkeyhelp(menu_compose);
-#ifdef _WINDOWS
-	    /* When alt editor is available "Where is" is not on the menu
-	     * but the command is still available.  This call enables any
-	     * "Where is" menu items. */
-	    if (Pmaster->alt_ed)
-		mswin_menuitemadd (MENU|CTRL|'W', "", KS_WHEREIS, 0);
-#endif 
 	}
     }
     else{
@@ -1510,6 +1504,13 @@ mlreplyd_utf8(char *utf8prompt, char *utf8buf, int nbuf, int flg, EXTRAKEYS *ext
 }
 
 
+void
+writeachar(UCS ucs)
+{
+    pputc(ucs, 0);
+}
+
+
 /*
  * mlreplyd - write the prompt to the message line along with a default
  *	      answer already typed in.  Carriage return accepts the
@@ -1519,15 +1520,15 @@ mlreplyd_utf8(char *utf8prompt, char *utf8buf, int nbuf, int flg, EXTRAKEYS *ext
 int
 mlreplyd(UCS *prompt, UCS *buf, int nbuf, int flg, EXTRAKEYS *extras)
 {
-    UCS    c;				/* current char       */
-    UCS   *b;				/* pointer in buf     */
-    register int    i, j, w;
-    register int    maxl;
-    register int    plen;
+    UCS      c;				/* current char       */
+    UCS     *b;				/* pointer in buf     */
+    int      i, j, w;
+    int      plen;
     int      changed = FALSE;
     int      return_val = 0;
     KEYMENU  menu_mlreply[12];
     UCS	     extra_v[12];
+    struct   display_line dline;
 
 #ifdef _WINDOWS
     if(mswin_usedialog()){
@@ -1622,9 +1623,25 @@ mlreplyd(UCS *prompt, UCS *buf, int nbuf, int flg, EXTRAKEYS *extras)
 
     (*term.t_rev)(1);
 
-    maxl = (nbuf-1 < term.t_ncol - plen - 1) ? nbuf-1 : term.t_ncol - plen - 1;
+    dline.vused = ucs4_strlen(buf);
+    dline.dwid  = term.t_ncol - plen;
+    dline.row   = term.t_nrow - term.t_mrow;
+    dline.col   = plen;
 
-    pputs(buf, 1);
+    dline.dlen  = 2 * dline.dwid + 100;
+
+    dline.dl    = (UCS *) fs_get(dline.dlen * sizeof(UCS));
+    dline.olddl = (UCS *) fs_get(dline.dlen * sizeof(UCS));
+    memset(dline.dl,    0, dline.dlen * sizeof(UCS));
+    memset(dline.olddl, 0, dline.dlen * sizeof(UCS));
+
+    dline.movecursor = movecursor;
+    dline.writechar  = writeachar;
+
+    dline.vl    = buf;
+    dline.vlen  = nbuf-1;
+    dline.vbase = 0;
+
     b = &buf[(flg & QBOBUF) ? 0 : ucs4_strlen(buf)];
     
     (*term.t_rev)(0);
@@ -1632,15 +1649,16 @@ mlreplyd(UCS *prompt, UCS *buf, int nbuf, int flg, EXTRAKEYS *extras)
     sgarbk = 1;				/* mark menu dirty */
     (*term.t_rev)(1);
 
-    for (;;) {
-	movecursor(term.t_nrow - term.t_mrow, plen + ucs4_str_width_ptr_to_ptr(buf, b));
+    for(;;){
+
+	line_paint(b-buf, &dline, NULL);
 	(*term.t_flush)();
 
 #ifdef	MOUSE
 	mouse_in_content(KEY_MOUSE, -1, -1, 0x5, 0);
 	register_mfunc(mouse_in_content, 
 		       term.t_nrow - term.t_mrow, plen,
-		       term.t_nrow - term.t_mrow, plen + maxl);
+		       term.t_nrow - term.t_mrow, term.t_ncol-1);
 #endif
 #ifdef	_WINDOWS
 	mswin_allowpaste(MSWIN_PASTE_LINE);
@@ -1662,8 +1680,12 @@ mlreplyd(UCS *prompt, UCS *buf, int nbuf, int flg, EXTRAKEYS *extras)
 	    continue;
 
 	  case (CTRL|'B') :			/* CTRL-B back a char   */
-	    if(ttcol > plen)
-		b--;
+	  case KEY_LEFT:
+	    if(b <= buf)
+	      (*term.t_beep)();
+	    else
+	      b--;
+
 	    continue;
 
 	  case (CTRL|'C') :			/* CTRL-C abort		*/
@@ -1675,13 +1697,17 @@ mlreplyd(UCS *prompt, UCS *buf, int nbuf, int flg, EXTRAKEYS *extras)
 	    goto ret;
 
 	  case (CTRL|'E') :			/* CTRL-E end of line   */
-	  case KEY_END  :
+	  case KEY_END :
 	    b = &buf[ucs4_strlen(buf)];
 	    continue;
 
 	  case (CTRL|'F') :			/* CTRL-F forward a char*/
-	    if(*b != '\0')
-		b++;
+	  case KEY_RIGHT :
+	    if(*b == '\0')
+	      (*term.t_beep)();
+	    else
+	      b++;
+
 	    continue;
 
 	  case (CTRL|'G') :			/* CTRL-G help		*/
@@ -1707,20 +1733,23 @@ mlreplyd(UCS *prompt, UCS *buf, int nbuf, int flg, EXTRAKEYS *extras)
 
 	  case (CTRL|'H') :			/* CTRL-H backspace	*/
 	  case 0x7f :				/*        rubout	*/
-	    if (b <= buf)
+	    if (b <= buf){
+	      (*term.t_beep)();
 	      break;
-	    b--;
-	    w = wcellwidth(*b);
-	    w = (w >= 0 ? w : 1);
-	    for(i = 0; i < w; i++){
-		ttcol--;			/* cheating!  no pputc */
-		(*term.t_putchar)('\b');
 	    }
+	    else
+	      b--;
 
 	  case (CTRL|'D') :			/* CTRL-D delete char   */
 	  case KEY_DEL :
+	    if (!*b){
+	      (*term.t_beep)();
+	      break;
+	    }
+
 	    changed=TRUE;
 	    i = 0;
+	    dline.vused--;
 	    do					/* blat out left char   */
 	      b[i] = b[i+1];
 	    while(b[i++] != '\0');
@@ -1734,19 +1763,9 @@ mlreplyd(UCS *prompt, UCS *buf, int nbuf, int flg, EXTRAKEYS *extras)
 	  case (CTRL|'K') :			/* CTRL-K kill line	*/
 	    changed=TRUE;
 	    buf[0] = '\0';
+	    dline.vused = 0;
 	    b = buf;
-	    movecursor(ttrow, plen);
 	    break;
-
-	  case KEY_LEFT:
-	    if(ttcol > plen)
-	      b--;
-	    continue;
-
-	  case KEY_RIGHT:
-	    if(*b != '\0')
-	      b++;
-	    continue;
 
 	  case F1 :				/* sort of same thing */
 	    (*term.t_rev)(0);
@@ -1794,10 +1813,6 @@ mlreplyd(UCS *prompt, UCS *buf, int nbuf, int flg, EXTRAKEYS *extras)
 #endif
 
 	  default : 
-	    if(ucs4_strlen(buf) >= maxl){		/* contain the text      */
-		(*term.t_beep)();
-		continue;
-	    }
 
 	    /* look for match in extra_v */
 	    for(i = 0; i < 12; i++)
@@ -1809,45 +1824,31 @@ mlreplyd(UCS *prompt, UCS *buf, int nbuf, int flg, EXTRAKEYS *extras)
 
 	    changed=TRUE;
 
-	    if(c & (CTRL | FUNC			/* bag ctrl_special chars */
-#if defined(DOS) || defined(OS2)
-	                        | MENU
-#endif
-				      )){
+	    if(c & (CTRL | FUNC)){		/* bag ctrl_special chars */
 		(*term.t_beep)();
 	    }
 	    else{
 		i = ucs4_strlen(b);
-		if(flg&QFFILE){
-		    if(!fallowc(c)){ 		/* c OK in filename? */
-			(*term.t_beep)();
-			continue;
-		    }
-		}
 		if(flg&QNODQT){	                /* reject double quotes? */
 		    if(c == '"'){
 			(*term.t_beep)();
 			continue;
 		    }
 		}
-		
+
+		if(dline.vused >= nbuf-1){
+		    (*term.t_beep)();
+		    continue;
+		}
 
 		do				/* blat out left char   */
 		  b[i+1] = b[i];
 		while(i-- > 0);
 
-		pputc(*b++ = c, 0);
+		dline.vused++;
+		*b++ = c;
 	    }
 	}
-
-	pputs(b, 1);				/* show default */
-	i = term.t_ncol-1;
-	while(i >= 0 && pscreen[ttrow]->v_text[i].c == ' ' 
-	      && pscreen[ttrow]->v_text[i].a == 0)
-	  i--;
-
-	while(ttcol <= i)
-	  pputc(' ', 0);
     }
 
 ret:
@@ -1858,6 +1859,12 @@ ret:
 	sgarbf = 1;
 	km_popped = 0;
     }
+
+    if(dline.dl)
+      fs_give((void **) &dline.dl);
+
+    if(dline.olddl)
+      fs_give((void **) &dline.olddl);
 
     return(return_val);
 }
@@ -3037,8 +3044,6 @@ pico_config_menu_items (KEYMENU *keymenu)
 		key = '\r';
 	    else
 		key = k->name[0];
-
-	    key |= MENU;	/* Flag it as comming from a menu selection */
 
 	    mswin_menuitemadd (key, k->label, k->menuitem, 0);
 	}

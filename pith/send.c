@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: send.c 248 2006-11-20 22:54:38Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: send.c 394 2007-01-25 20:29:45Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1025,10 +1025,9 @@ build_reply_uid(char *s)
 
 				if((nseq = atoi(seq)) && isdigit(*(seq = p))
 				   && (p = strchr(p, ')')) && *(mbox = ++p)){
-				    unsigned long *uidl;
+				    imapuid_t *uidl;
 
-				    uidl = (unsigned long *) fs_get
-					      ((nseq+1)*sizeof(unsigned long));
+				    uidl = (imapuid_t *) fs_get ((nseq+1)*sizeof(imapuid_t));
 				    for(i = 0; i < nseq; i++)
 				      if(p = strchr(seq,',')){
 					  *p = '\0';
@@ -1190,7 +1189,7 @@ pine_new_env(ENVELOPE *outgoing, char **fccp, char ***tobufpp, PINEFIELD *custom
 
               default:
                 q_status_message1(SM_ORDER,3,3,
-		    "Internal error: 1)FreeText header %d", (void *)i);
+		    "Internal error: 1)FreeText header %s", comatose(i));
                 break;
             }
 
@@ -1246,7 +1245,7 @@ pine_new_env(ENVELOPE *outgoing, char **fccp, char ***tobufpp, PINEFIELD *custom
 
               default:
                 q_status_message1(SM_ORDER,3,3,
-		    "Internal error: Address header %d", (void *) i);
+		    "Internal error: Address header %s", comatose(i));
                 break;
             }
             break;
@@ -1383,7 +1382,7 @@ check_addresses(METAENV *header)
 	    else if(ps_global->restricted
 		    && !address_is_us(*pf->addr, ps_global)){
 		q_status_message(SM_ORDER, 3, 3,
-	"Restricted demo version of Pine. You may only send mail to yourself");
+	"Restricted demo version of Alpine. You may only send mail to yourself");
 		return(CA_BAD);
 	    }
 	    else if(a->mailbox && strucmp(a->mailbox, "mailer-daemon") == 0 && !send_daemon){
@@ -1474,7 +1473,7 @@ update_answered_flags(REPLY_S *reply)
 		    tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
 		}
 
-		sstrncpy(&p, long2string(reply->data.uid.msgs[i]),
+		sstrncpy(&p, ulong2string(reply->data.uid.msgs[i]),
 			 SIZEOF_20KBUF-(p-tmp_20k_buf));
 		tmp_20k_buf[SIZEOF_20KBUF-1] = '\0';
 	    }
@@ -3061,7 +3060,7 @@ pine_address_line(char *field, METAENV *header, struct mail_address *alist,
 {
     char     tmp[MAX_SINGLE_ADDR], *tmpptr = NULL;
     size_t   alloced = 0, sz;
-    char    *delim, *ptmp, buftmp[MAILTMPLEN];
+    char    *delim, *ptmp, *mtmp, buftmp[MAILTMPLEN];
     char    *converted, *cs;
     ADDRESS *atmp;
     int      i, count;
@@ -3077,7 +3076,26 @@ pine_address_line(char *field, METAENV *header, struct mail_address *alist,
     if(!alist->host && alist->mailbox){ /* c-client group convention */
         in_group++;
 	was_start_of_group++;
+	/* encode mailbox of group */
+	mtmp	    = alist->mailbox;
+	if(mtmp){
+	    snprintf(buftmp, sizeof(buftmp), "%s", mtmp);
+	    buftmp[sizeof(buftmp)-1] = '\0';
+	    converted = utf8_to_charset(buftmp, cs = posting_characterset(buftmp, HdrText), 0);
+	    if(converted){
+		alist->mailbox = cpystr(rfc1522_encode(tmp_20k_buf, SIZEOF_20KBUF,
+							(unsigned char *) converted, cs));
+		if(converted != buftmp)
+		  fs_give((void **) &converted);
+	    }
+	    else{
+		failed++;
+		goto bail_out;
+	    }
+	}
     }
+    else
+      mtmp = NULL;
 
     ptmp	    = alist->personal;	/* remember personal name */
     /* make sure personal name is encoded */
@@ -3125,6 +3143,13 @@ pine_address_line(char *field, METAENV *header, struct mail_address *alist,
       fs_give((void **) &alist->personal);
 
     alist->personal = ptmp;		/* in case it changed, restore name */
+
+    if(mtmp){
+	if(alist->mailbox && alist->mailbox != mtmp)
+	  fs_give((void **) &alist->mailbox);
+
+	alist->mailbox = mtmp;
+    }
 
     if((count = strlen(tmpptr)) > 2){	/* back over CRLF */
 	count -= 2;

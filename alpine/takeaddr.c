@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: takeaddr.c 245 2006-11-18 02:46:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: takeaddr.c 380 2007-01-23 00:09:18Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2663,7 +2663,7 @@ export_vcard_att(struct pine *ps, int qline, long int msgno, ATTACH_S *a)
 
     if(ps->restricted){
 	q_status_message(SM_ORDER, 0, 3,
-	    "Pine demo can't export addresses to files");
+	    "Alpine demo can't export addresses to files");
 	return;
     }
 

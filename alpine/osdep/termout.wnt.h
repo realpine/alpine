@@ -2,7 +2,7 @@
  * $Id: termout.unx.h 159 2006-10-02 22:00:13Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -58,7 +58,7 @@ int BeginScroll(int, int);
 /* dialog stuff */
 int init_install_get_vars(void);
 int os_argsdialog(char **);
-int os_login_dialog(NETMBX *, char *, int, char *, int, int, int);
+int os_login_dialog(NETMBX *, char *, int, char *, int, int, int, int *);
 int os_flagmsgdialog(struct flag_table *);
 int os_sortdialog(DLG_SORTPARAM *);
 int os_config_dialog(char *, int, int *, int);

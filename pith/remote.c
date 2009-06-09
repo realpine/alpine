@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: remote.c 238 2006-11-16 18:07:53Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: remote.c 394 2007-01-25 20:29:45Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1619,7 +1619,7 @@ rd_add_hdr_msg(REMDATA_S *rd, char *date)
     /* Write the dummy message */
     if(!strucmp(rd->t.i.special_hdr, REMOTE_ABOOK_SUBTYPE)){
 	if(!err && so_puts(rd->so,
-	    "This folder contains a single Pine addressbook.\015\012") == 0)
+	    "This folder contains a single Alpine addressbook.\015\012") == 0)
 	  err = -1;
 	if(!err && so_puts(rd->so,
 	    "This message is just an explanatory message.\015\012") == 0)
@@ -1639,7 +1639,7 @@ rd_add_hdr_msg(REMDATA_S *rd, char *date)
     }
     else if(!strucmp(rd->t.i.special_hdr, REMOTE_PINERC_SUBTYPE)){
 	if(!err && so_puts(rd->so,
-	    "This folder contains a Pine config file.\015\012") == 0)
+	    "This folder contains a Alpine config file.\015\012") == 0)
 	  err = -1;
 	if(!err && so_puts(rd->so,
 	    "This message is just an explanatory message.\015\012") == 0)
@@ -1659,7 +1659,7 @@ rd_add_hdr_msg(REMDATA_S *rd, char *date)
     }
     else{
 	if(!err && so_puts(rd->so,
-	    "This folder contains remote Pine data.\015\012") == 0)
+	    "This folder contains remote Alpine data.\015\012") == 0)
 	  err = -1;
 	if(!err && so_puts(rd->so,
 	    "This message is just an explanatory message.\015\012") == 0)
@@ -2143,7 +2143,7 @@ else
 	    dprint((5,
 		   "in rd_update_local, setting chk_date to ->%s<-\n",
 		   env->date ? (char *)env->date : "?"));
-	    rd_update_metadata(rd, env->date);
+	    rd_update_metadata(rd, (char *) env->date);
 
 	    /* turn off out of date flag */
 	    rd->flags &= ~REM_OUTOFDATE;
@@ -2588,7 +2588,7 @@ try_looking_in_stream:
 		ps_global->noshow_error = 1;
 		if(rd->t.i.stream = context_open(NULL, NULL, rd->rn, openmode,
 						 NULL)){
-		    unsigned long last_msg_uid;
+		    imapuid_t last_msg_uid;
 
 		    if(rd->t.i.stream->rdonly)
 		      rd->read_status = 'R';
@@ -2717,7 +2717,7 @@ try_looking_in_stream:
 	else if(rd->t.i.stream->nmsgs > 1){
 	    env = pine_mail_fetchenvelope(rd->t.i.stream,rd->t.i.stream->nmsgs);
 	
-	    if(!env || (env->date && strucmp(env->date, rd->t.i.chk_date))){
+	    if(!env || (env->date && strucmp((char *) env->date, rd->t.i.chk_date))){
 		rd->flags |= REM_OUTOFDATE;
 		dprint((2,
 		      "rd_check_remvalid: remote data %s changed (%s)\n",

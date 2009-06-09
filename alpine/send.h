@@ -1,8 +1,8 @@
 /*
- * $Id: send.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: send.h 380 2007-01-23 00:09:18Z hubert@u.washington.edu $
  *
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2006-2007 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ void	    pine_send(ENVELOPE *, BODY **, char *, ACTION_S *, char *, REPLY_S *,
 		      REDRAFT_POS_S *, char *, PINEFIELD *, int);
 int	    upload_msg_to_pico(char *, size_t, long *);
 void	    phone_home(char *);
-void        create_message_body(BODY **, PATMT *, char *, int);
+void        create_message_body(BODY **, PATMT *, int);
 char	   *pine_send_status(int, char *, char *, size_t, int *);
 int	    confirm_daemon_send(void);
 

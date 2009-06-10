@@ -3719,8 +3719,8 @@ void imap_parse_unsolicited (MAILSTREAM *stream,IMAPPARSEDREPLY *reply)
       mail_expunged (stream,msgno);
     }
 
-    else if ((!strcmp (s,"FETCH") || !strcmp (s,"STORE")) &&
-	     msgno && (msgno <= stream->nmsgs)) {
+    else if ((!strcmp (s,"FETCH") || !strcmp (s,"STORE")) && t &&
+	msgno && (msgno <= stream->nmsgs)) {
       char *prop;
       GETS_DATA md;
       ENVELOPE **e;
@@ -3731,7 +3731,11 @@ void imap_parse_unsolicited (MAILSTREAM *stream,IMAPPARSEDREPLY *reply)
       ++t;			/* skip past open parenthesis */
 				/* parse Lisp-form property list */
       while (prop = (strtok_r (t," )",&r))) {
-	t = strtok_r (NIL,"\n",&r);
+	if((t = strtok_r (NIL,"\n",&r)) == NIL){
+	  mm_notify (stream,"Missing data for property", WARN);
+	  stream->unhealthy = T;
+	  continue;
+	}
 	INIT_GETS (md,stream,elt->msgno,NIL,0,0);
 	e = NIL;		/* not pointing at any envelope yet */
 				/* canonicalize property, parse it */

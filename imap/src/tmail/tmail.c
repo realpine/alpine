@@ -23,7 +23,7 @@
  *		Internet: MRC@CAC.Washington.EDU
  *
  * Date:	5 April 1993
- * Last Edited:	17 September 2007
+ * Last Edited:	30 October 2008
  */
 
 #include <stdio.h>
@@ -39,7 +39,7 @@ extern int errno;		/* just in case */
 
 /* Globals */
 
-char *version = "21";		/* tmail edit version */
+char *version = "22";		/* tmail edit version */
 int debug = NIL;		/* debugging (don't fork) */
 int trycreate = NIL;		/* flag saying gotta create before appending */
 int critical = NIL;		/* flag saying in critical code */
@@ -275,7 +275,7 @@ int main (int argc,char *argv[])
 
 int deliver (FILE *f,unsigned long msglen,char *user)
 {
-  MAILSTREAM *ds;
+  MAILSTREAM *ds = NIL;
   char *s,*t,*mailbox,tmp[MAILTMPLEN],path[MAILTMPLEN];
   struct passwd *pwd;
   STRING st;
@@ -328,7 +328,7 @@ int deliver (FILE *f,unsigned long msglen,char *user)
 		 ((inbox[2] == 'B') || (inbox[2] == 'b')) &&
 		 ((inbox[3] == 'O') || (inbox[3] == 'o')) &&
 		 ((inbox[4] == 'X') || (inbox[4] == 'x')) && !inbox[5])) {
-    DRIVER *dv;
+    DRIVER *dv = NIL;
 				/* "-I #driver.xxx/name"? */
     if ((*inbox == '#') && ((inbox[1] == 'd') || (inbox[1] == 'D')) &&
 	((inbox[2] == 'r') || (inbox[2] == 'R')) &&
@@ -602,11 +602,10 @@ int fail (char *string,int code)
 
 char *getusername (char *s,char **t)
 {
-  char tmp[MAILTMPLEN];
   if (*t = strchr (s,'+')) {	/* have a mailbox specifier? */
     *(*t)++ = '\0';		/* yes, tie off user name */
 				/* user+ and user+INBOX same as user */
-    if (!**t || !strcmp ("INBOX",ucase (strcpy (tmp,*t)))) *t = NIL;
+    if (!**t || !compare_cstring ((unsigned char *) *t,"INBOX")) *t = NIL;
   }
   return s;			/* return user name */
 }

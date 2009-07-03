@@ -463,8 +463,10 @@ replace_pat(UCS *defpat, int *wrapt)
 	    break;
 
 	  default:
-	    if(status == ABORT)
+	    if(status == ABORT){
 	      emlwrite(_("Replacement Cancelled"), NULL);
+	      pico_refresh(FALSE, 1);
+	    }
 	    else{
 		mlerase();
 		chword(defpat, origpat);

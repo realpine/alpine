@@ -433,8 +433,9 @@ uh_oh:
 	  /*
 	   * ROLE_DO_OTHER is made up of a bunch of different variables
 	   * that may have changed. Assume they all changed and fix them.
+	   * Similarly for ROLE_DO_INCOLS.
 	   */
-	  if(rflags & ROLE_DO_OTHER){
+	  if(rflags & (ROLE_DO_OTHER|ROLE_DO_INCOLS)){
 	      reset_index_format();
 	      clear_index_cache(ps_global->mail_stream, 0);
 	      if(!mn_get_mansort(ps_global->msgmap))

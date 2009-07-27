@@ -1,0 +1,15 @@
+# Files for git to ignore
+# Backup files
+*~
+# subversion administrative data
+.svn/
+# compiler output
+*.[ao]
+.deps/
+po/Makefile.in
+TAGS
+regex/Makefile
+web/src/Makefile
+web/src/pubcookie/Makefile
+po/stamp-po
+imap/ip6

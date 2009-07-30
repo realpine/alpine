@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: smime.c 1124 2008-08-06 17:40:12Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: smime.c 1176 2008-09-29 21:16:42Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -389,7 +389,7 @@ setup_storage_locations(void)
 
 	if(ps_global->smime->privatetype == Directory){
 	    char buf2[MAXPATH];
-	    struct direct *d;
+	    struct dirent *d;
 	    DIR *dirp;
 
 	    ps_global->smime->privatepath = cpystr(path);
@@ -543,7 +543,7 @@ copy_dir_to_container(WhichCerts which)
     char srcpath[MAXPATH+1], dstpath[MAXPATH+1], emailaddr[MAXPATH], file[MAXPATH], line[4096];
     char *tempfile = NULL;
     DIR *dirp;
-    struct direct *d;
+    struct dirent *d;
     REMDATA_S *rd = NULL;
     char *configdir = NULL;
     char *configpath = NULL;
@@ -2051,9 +2051,9 @@ sign_outgoing_message(METAENV *header, BODY **bodyP, int dont_detach)
     BIO *out = NULL;
     PKCS7   *p7 = NULL;
     int result = 0;
-    
-    dprint((9, "sign_outgoing_message()"));
     int flags = dont_detach ? 0 : PKCS7_DETACHED;
+
+    dprint((9, "sign_outgoing_message()"));
 
     smime_init();
 

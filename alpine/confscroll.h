@@ -1,5 +1,5 @@
 /*
- * $Id: confscroll.h 809 2007-11-09 21:13:47Z hubert@u.washington.edu $
+ * $Id: confscroll.h 812 2007-11-10 01:00:15Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington

@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: ablookup.c 1110 2008-07-11 22:01:11Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: ablookup.c 1266 2009-07-14 18:39:12Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2008 University of Washington
+ * Copyright 2006-2009 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1053,7 +1053,9 @@ addr_lookup(char *nickname, int *which_addrbook, int not_here)
  * that match the query string. The matches can be for the nickname,
  * for the fullname, or for the address@host part of the address.
  * All of the matches are at the starts of the strings, not a general
- * substring match. If flags has ALC_INCLUDE_LDAP defined then LDAP
+ * substring match. This is not true anymore. Fullname matches can be
+ * at the start of the fullname or starting after a space in the fullname.
+ * If flags has ALC_INCLUDE_LDAP defined then LDAP
  * entries are added to the end of the list. The LDAP queries are done
  * only for those servers that have the 'impl' feature turned on, which
  * means that lookups should be done implicitly. This feature also
@@ -1077,7 +1079,7 @@ adrbk_list_of_completions(char *query, MAILSTREAM *stream, imapuid_t uid, int fl
     BuildTo toaddr;
     ADDRESS *addr;
     char buf[1000];
-    char *newaddr = NULL, *simple_addr = NULL;
+    char *newaddr = NULL, *simple_addr = NULL, *fcc = NULL;
     ENVELOPE *env = NULL;
     BODY *body = NULL;
 
@@ -1112,9 +1114,10 @@ adrbk_list_of_completions(char *query, MAILSTREAM *stream, imapuid_t uid, int fl
     /* build the return list */
     for(list = biglist; list; list = list->next)
       if(list->entrynum != NO_NEXT){
+	  fcc = NULL;
 	  toaddr.type = Abe;
 	  toaddr.arg.abe = adrbk_get_ae(list->ab, list->entrynum);
-	  if(our_build_address(toaddr, &newaddr, NULL, NULL, NULL) == 0){
+	  if(our_build_address(toaddr, &newaddr, NULL, &fcc, NULL) == 0){
 	      char    *reverse_fullname = NULL;
 
 	      /*
@@ -1157,7 +1160,7 @@ adrbk_list_of_completions(char *query, MAILSTREAM *stream, imapuid_t uid, int fl
 	      }
 
 	      new = new_complete_s(toaddr.arg.abe ? toaddr.arg.abe->nickname : NULL,
-				   newaddr, simple_addr, reverse_fullname,
+				   newaddr, simple_addr, reverse_fullname, fcc,
 				   list->matches_bitmap | ALC_ABOOK);
 
 	      /* add to end of list */
@@ -1227,20 +1230,20 @@ adrbk_list_of_completions(char *query, MAILSTREAM *stream, imapuid_t uid, int fl
 
     /* from the envelope addresses */
     if(env){
-	if(env->from)
-	  add_addr_to_return_list(env->from, ALC_CURR, query, flags, &return_list);
+	for(addr = env->from; addr; addr = addr->next)
+	  add_addr_to_return_list(addr, ALC_CURR, query, flags, &return_list);
 
-	if(env->reply_to)
-	  add_addr_to_return_list(env->reply_to, ALC_CURR, query, flags, &return_list);
+	for(addr = env->reply_to; addr; addr = addr->next)
+	  add_addr_to_return_list(addr, ALC_CURR, query, flags, &return_list);
 
-	if(env->sender)
-	  add_addr_to_return_list(env->sender, ALC_CURR, query, flags, &return_list);
+	for(addr = env->sender; addr; addr = addr->next)
+	  add_addr_to_return_list(addr, ALC_CURR, query, flags, &return_list);
 
-	if(env->to)
-	  add_addr_to_return_list(env->to, ALC_CURR, query, flags, &return_list);
+	for(addr = env->to; addr; addr = addr->next)
+	  add_addr_to_return_list(addr, ALC_CURR, query, flags, &return_list);
 
-	if(env->cc)
-	  add_addr_to_return_list(env->cc, ALC_CURR, query, flags, &return_list);
+	for(addr = env->cc; addr; addr = addr->next)
+	  add_addr_to_return_list(addr, ALC_CURR, query, flags, &return_list);
 
 	/*
 	 * May as well search the body for addresses.
@@ -1317,10 +1320,14 @@ add_addr_to_return_list(ADDRESS *addr, unsigned bitmap, char *query,
     char *newaddr = NULL;
     char *simple_addr = NULL;
     COMPLETE_S *new = NULL, *cp;
+    ADDRESS *savenext;
 
     if(return_list && query && addr && addr->mailbox && addr->host){
 
+	savenext = addr->next;
+	addr->next = NULL;
 	newaddr = addr_list_string(addr, NULL, 0);
+	addr->next = savenext;
 
 	/*
 	 * If the start of the full_address actually matches the query
@@ -1343,11 +1350,14 @@ add_addr_to_return_list(ADDRESS *addr, unsigned bitmap, char *query,
 	}
 
 	/*
-	 * Require the bitmap match so that we don't include it
-	 * when we don't really know why it matches.
+	 * We used to require && bitmap & (ALC_FULL | ALC_ADDR) before
+	 * we would add a match but we think that we should match
+	 * other stuff that matches (like middle names), too, unless we
+	 * are adding an address from the current message.
 	 */
-	if(newaddr && newaddr[0] && bitmap & (ALC_FULL | ALC_ADDR)){
-	    new = new_complete_s(NULL, newaddr, simple_addr, NULL, bitmap);
+	if((newaddr && newaddr[0])
+	   && (!(bitmap & ALC_CURR) || bitmap & (ALC_FULL | ALC_ADDR))){
+	    new = new_complete_s(NULL, newaddr, simple_addr, NULL, NULL, bitmap);
 
 	    /* add to end of list */
 	    if(*return_list == NULL){
@@ -1374,7 +1384,7 @@ add_addr_to_return_list(ADDRESS *addr, unsigned bitmap, char *query,
  */
 COMPLETE_S *
 new_complete_s(char *nick, char *full, char *addr,
-	       char *rev_fullname, unsigned matches_bitmap)
+	       char *rev_fullname, char *fcc, unsigned matches_bitmap)
 {
     COMPLETE_S *new = NULL;
 
@@ -1384,6 +1394,7 @@ new_complete_s(char *nick, char *full, char *addr,
     new->full_address = full ? cpystr(full) : NULL;
     new->addr = addr ? cpystr(addr) : NULL;
     new->rev_fullname = rev_fullname ? cpystr(rev_fullname) : NULL;
+    new->fcc = fcc ? cpystr(fcc) : NULL;
     new->matches_bitmap = matches_bitmap;
 
     return(new);
@@ -1408,6 +1419,9 @@ free_complete_s(COMPLETE_S **compptr)
 
 	if((*compptr)->rev_fullname)
 	  fs_give((void **) &(*compptr)->rev_fullname);
+
+	if((*compptr)->fcc)
+	  fs_give((void **) &(*compptr)->fcc);
 
 	fs_give((void **) compptr);
     }

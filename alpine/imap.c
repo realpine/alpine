@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: imap.c 1030 2008-04-10 21:26:20Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: imap.c 1266 2009-07-14 18:39:12Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2008 University of Washington
+ * Copyright 2006-2009 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2180,11 +2180,19 @@ read_passfile(pinerc, l)
 		    strncpy(blobcopy, (char *) blob, blength);
 		    blobcopy[blength] = '\0';
 
+		    /*
+		     * I'm not real clear on how this works. It seems to be
+		     * necessary to combine the attributes from two passes
+		     * (attrList->count == 2) in order to get the full set
+		     * of attributes we inserted into the keychain in the
+		     * first place. So, we reset host...orighost outside of
+		     * the following for loop, not inside.
+		     */
+		    host = user = sflags = passwd = orighost = NULL;
+		    ui[0] = ui[1] = ui[2] = ui[3] = ui[4] = NULL;
+
 		    for(k = 0; k < attrList->count; k++){
 
-			host = user = sflags = passwd = orighost = NULL;
-			ui[0] = ui[1] = ui[2] = ui[3] = ui[4] = NULL;
-		
 			if(attrList->attr[k].length){
 			    strncpy(target,
 				    (char *) attrList->attr[k].data,
@@ -2201,9 +2209,14 @@ read_passfile(pinerc, l)
 			      tmp[i++] = '\0';		/* tie off data */
 			}
 
-			host   = ui[0];
-			user   = ui[1];
-			sflags = ui[2];
+			if(ui[0])
+			  host   = ui[0];
+
+			if(ui[1])
+			  user   = ui[1];
+
+			if(ui[2])
+			  sflags = ui[2];
 
 		        for(i = 0, j = 3; blobcopy[i] && j < 5; j++){
 			    for(ui[j] = &blobcopy[i]; blobcopy[i] && blobcopy[i] != '\t'; i++)
@@ -2213,8 +2226,13 @@ read_passfile(pinerc, l)
 			      blobcopy[i++] = '\0';			/* tie off data */
 		        }
 
-			passwd   = ui[3];
-			orighost = ui[4];
+			if(ui[3])
+			  passwd   = ui[3];
+			
+			if(ui[4])
+			  orighost = ui[4];
+
+			dprint((10, "read_passfile: host=%s user=%s sflags=%s passwd=%s orighost=%s\n", host?host:"", user?user:"", sflags?sflags:"", passwd?passwd:"", orighost?orighost:""));
 		    }
 
 		    if(passwd && host && user){		/* valid field? */
@@ -2395,6 +2413,9 @@ write_passfile(pinerc, l)
 			 ? "\t" : "",
 		 (l->hosts && l->hosts->next && l->hosts->next->name)
 			 ? l->hosts->next->name : "");
+
+	dprint((10, "write_passfile: SecKeychainAddGenericPassword(NULL, %d, %s, %d, %s, %d, %s, NULL)\n", strlen(target), target, strlen(TNAME), TNAME, strlen(blob), blob));
+
 	rc = SecKeychainAddGenericPassword(NULL,
 				  	   strlen(target), target,
 					   strlen(TNAME), TNAME,

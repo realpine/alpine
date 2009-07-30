@@ -1,5 +1,5 @@
 /*
- * $Id: hist.h 589 2007-06-04 22:35:52Z hubert@u.washington.edu $
+ * $Id: hist.h 768 2007-10-24 00:10:03Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington

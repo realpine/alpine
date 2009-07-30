@@ -1,5 +1,5 @@
 /*
- * $Id: mailcap.h 971 2008-03-18 17:24:31Z hubert@u.washington.edu $
+ * $Id: mailcap.h 1012 2008-03-26 00:44:22Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2008 University of Washington

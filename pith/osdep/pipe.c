@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pipe.c 922 2008-02-01 18:42:29Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pipe.c 1204 2009-02-02 19:54:23Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -123,7 +123,7 @@ open_system_pipe(char *command, char **outfile, char **errfile, int mode,
     char cmdbuf[1024];
     unsigned flags = 0;
 #else
-    char    shellpath[32], *shell;
+    char    shellpath[MAXPATH+1], *shell;
     int     p[2], oparentd = -1, ochildd = -1, iparentd = -1, ichildd = -1;
 #endif
 

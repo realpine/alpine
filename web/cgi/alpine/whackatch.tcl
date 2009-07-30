@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: whackatch.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: whackatch.tcl 1266 2009-07-14 18:39:12Z hubert@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #

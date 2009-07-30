@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: brk2pine.sh 137 2006-09-22 21:34:06Z mikes@u.washington.edu $
+# $Id: brk2pine.sh 761 2007-10-23 22:35:18Z hubert@u.washington.edu $
 #
 #            T H E    P I N E    M A I L   S Y S T E M
 #

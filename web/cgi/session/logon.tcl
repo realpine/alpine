@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: logon.tcl 1104 2008-07-02 17:40:27Z mikes@u.washington.edu $
+# $Id: logon.tcl 1142 2008-08-13 17:22:21Z hubert@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #

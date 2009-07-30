@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: ldap.c 1006 2008-03-21 21:31:58Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: ldap.c 1266 2009-07-14 18:39:12Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -54,55 +54,32 @@ ldap_addr_select(ps, ac, result, style, wp_err, srchstr)
 	    got_n_entries++;
 	}
     }
-    if(style == DisplayIfTwo && got_n_entries < 2){
-        if(got_n_entries == 0){
-	  retval = -3;
-	}
-	else {
-	    for(a = ldap_first_attribute(tmp_rl->ld, tmp_e, &ber);
-		a != NULL;
-		a = ldap_next_attribute(tmp_rl->ld, tmp_e, ber)){
-	        if(strcmp(a, tmp_rl->info_used->mailattr) == 0){
-		    mail = ldap_get_values(tmp_rl->ld, tmp_e, a);
-		    break;
-		}
-	    }
-	    if(mail && mail[0] && mail[0][0]){
-	        retval = 0;
-		if(result){
-		    (*result) =
-		      (LDAP_CHOOSE_S *)fs_get(sizeof(LDAP_CHOOSE_S));
-		    (*result)->ld    = tmp_rl->ld;
-		    (*result)->selected_entry   = tmp_e;
-		    (*result)->info_used = tmp_rl->info_used;
-		    (*result)->serv  = tmp_rl->serv;
-		}
-	    }
-	    else{
-	      retval = -2;
+    if(got_n_entries == 1){
+	for(a = ldap_first_attribute(tmp_rl->ld, tmp_e, &ber);
+	    a != NULL;
+	    a = ldap_next_attribute(tmp_rl->ld, tmp_e, ber)){
+	    if(strcmp(a, tmp_rl->info_used->mailattr) == 0){
+		mail = ldap_get_values(tmp_rl->ld, tmp_e, a);
+		break;
 	    }
 	}
-    }
-    else if(got_n_entries == 0)
-      retval = -3;
-    else{
-        WPLDAPRES_S *new_ldap_sl, *tmp_ldap_sl;
-
-	new_ldap_sl = (WPLDAPRES_S *)fs_get(sizeof(WPLDAPRES_S));
-	new_ldap_sl->next = NULL;
-	new_ldap_sl->reslist = ac->res_head;
-	new_ldap_sl->str = cpystr(srchstr);
-	if(wpldap_global->ldap_search_list == NULL){
-	    wpldap_global->ldap_search_list = new_ldap_sl;
+	if(mail && mail[0] && mail[0][0]){
+	    retval = 0;
+	    if(result){
+		(*result) =
+		  (LDAP_CHOOSE_S *)fs_get(sizeof(LDAP_CHOOSE_S));
+		(*result)->ld    = tmp_rl->ld;
+		(*result)->selected_entry   = tmp_e;
+		(*result)->info_used = tmp_rl->info_used;
+		(*result)->serv  = tmp_rl->serv;
+	    }
 	}
 	else{
-	    for(tmp_ldap_sl = wpldap_global->ldap_search_list;
-		tmp_ldap_sl->next; tmp_ldap_sl = tmp_ldap_sl->next);
-	    tmp_ldap_sl->next = new_ldap_sl;
+	    retval = -2;
 	}
-	retval = -5;
     }
-    dprint((7, "calling ldap_addr_select, returning(%d)", retval));
+    else
+      retval = -3;
 
     return(retval);
 }

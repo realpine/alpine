@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: smkeys.c 1070 2008-06-03 19:27:23Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: smkeys.c 1266 2009-07-14 18:39:12Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -43,7 +43,6 @@ static char rcsid[] = "$Id: smkeys.c 1070 2008-06-03 19:27:23Z hubert@u.washingt
 /* internal prototypes */
 static char     *emailstrclean(char *string);
 static int       add_certs_in_dir(X509_LOOKUP *lookup, char *path);
-static char     *get_x509_name_entry(const char *key, X509_NAME *name);
 static int       certlist_to_file(char *filename, CertList *certlist);
 static int       mem_add_extra_cacerts(char *contents, X509_LOOKUP *lookup);
 
@@ -216,6 +215,7 @@ load_key(PERSONAL_CERT *pc, char *pass)
 }
 
 
+#ifdef notdef
 static char *
 get_x509_name_entry(const char *key, X509_NAME *name)
 {
@@ -263,6 +263,26 @@ get_x509_subject_email(X509 *x)
 	result = get_x509_name_entry("emailAddress", X509_get_subject_name(x));
     }
 
+    return result;
+}
+#endif /* notdef */
+
+#include <openssl/x509v3.h>
+/*
+ * This newer version is from Adrian Vogel. It looks for the email
+ * address not only in the email address field, but also in an
+ * X509v3 extension field, Subject Altenative Name.
+ */
+char *
+get_x509_subject_email(X509 *x)
+{
+    char *result = NULL;
+    STACK *emails = X509_get1_email(x);
+    if (sk_num(emails) > 0) {
+	/* take the first one on the stack */
+	result = cpystr(sk_value(emails, 0));
+    }
+    X509_email_free(emails);
     return result;
 }
 

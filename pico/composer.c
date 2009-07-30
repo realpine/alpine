@@ -1,10 +1,10 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: composer.c 1006 2008-03-21 21:31:58Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: composer.c 1266 2009-07-14 18:39:12Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2008 University of Washington
+ * Copyright 2006-2009 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -903,6 +903,15 @@ HeaderEditor(int f, int n)
 		     */
 		    ambiguity = (*(headents[ods.cur_e].nickcmpl))(prefix,
 					    &new_nickname, (lastch == ch), 0);
+
+		    /*
+		     * Don't fall through on no-match TAB unless
+		     * it is the second TAB.
+		     */
+		    if(ambiguity == 0 && lastch != ch){
+			lastch = 0;
+			break;
+		    }
 
 		    if(ambiguity != 1)
 		      lastch = 0;

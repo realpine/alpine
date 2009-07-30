@@ -1,5 +1,5 @@
 /*
- * $Id: filter.h 1164 2008-08-22 19:46:13Z mikes@u.washington.edu $
+ * $Id: filter.h 1169 2008-08-27 06:42:06Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington

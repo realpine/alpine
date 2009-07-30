@@ -1,7 +1,7 @@
 
                             Alpine Technical Notes
 
-   Version 2.00, August 2008
+   Version 2.01, January 2009
 
 Table of Contents
 
@@ -11764,8 +11764,12 @@ Spell Checker
    the  speller  configuration  variable.  A common choice for a superior
    replacement is _ispell_.
 
-   _PC-Alpine_ relies on the _aspell_ library being installed. The library code
-   can be obtained from http://aspell.net/win32/. It is fairly easy to install.
+   _PC-Alpine_  relies  on  the  aspell  library being installed. Aspell is
+   independent of Alpine. The Windows version has traditionally been available
+   at http://aspell.net/win32/. You'll need to download and install both Aspell
+   and a precompiled dictionary. Aspell is provided in an installer package.
+   Dictionaries, to be installed after Aspell, are in '.exe' files to download
+   and run.
      _________________________________________________________________
 
 Terminal Emulation and Key Mapping

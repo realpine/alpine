@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: logout.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: logout.tcl 1204 2009-02-02 19:54:23Z hubert@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -61,7 +61,7 @@ WPEval $logout_vars {
       append parms "&logerr=[WPPercentQuote $logouterr]"
     }
 
-    cgi_redirect [cgi_root]/${verdir}/farewell.tcl${parms}
+    cgi_redirect $_wp(serverpath)/$_wp(appdir)/farewell.tcl${parms}
   }
 }
 

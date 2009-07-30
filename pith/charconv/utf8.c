@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: utf8.c 1019 2008-04-02 22:09:20Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: utf8.c 1184 2008-12-16 23:52:15Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -2139,6 +2139,7 @@ nl_langinfo_codeset_wrapper(void)
      */
     if(ret && *ret && !output_charset_is_supported(ret)){
 	if(!strcmp("ANSI_X3.4-1968", ret)
+	   || !strcmp("646", ret)
 	   || !strcmp("ASCII", ret)
 	   || !strcmp("C", ret)
 	   || !strcmp("POSIX", ret))

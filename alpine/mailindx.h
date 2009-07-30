@@ -1,5 +1,5 @@
 /*
- * $Id: mailindx.h 749 2007-10-15 21:02:56Z hubert@u.washington.edu $
+ * $Id: mailindx.h 770 2007-10-24 00:23:09Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington

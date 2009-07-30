@@ -1,1 +1,0 @@
-/usr/local/libexec/alpine/config/alpine.tcl

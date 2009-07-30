@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: usage.tcl 1157 2008-08-21 23:50:47Z mikes@u.washington.edu $
+# $Id: usage.tcl 1169 2008-08-27 06:42:06Z hubert@u.washington.edu $
 # ========================================================================
 # Copyright 2008 University of Washington
 #

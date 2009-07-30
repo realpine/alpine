@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: wpcomm.c 901 2008-01-07 22:01:34Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: wpcomm.c 1266 2009-07-14 18:39:12Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -76,7 +76,7 @@ WPSendCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 
     if(objc == 3
        && (fname = Tcl_GetStringFromObj(objv[1], NULL))
-       && (cmd = Tcl_GetStringFromObj(objv[2], NULL))){
+       && (cmd = Tcl_GetByteArrayFromObj(objv[2], &wlen))){
 	if((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1){
 	    snprintf(errbuf = buf, sizeof(buf), "WPC: socket: %s", strerror(errno));
 	}
@@ -90,7 +90,7 @@ WPSendCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 		else
 		  snprintf(errbuf = buf, sizeof(buf), "WPC: connect: %s", strerror(errno));
 	    }
-	    else if((wlen = n = strlen(cmd)) != 0){
+	    else if((n = wlen) != 0){
 		if(n < 0x7fffffff){
 		    snprintf(lbuf, sizeof(lbuf), "%d\n", n);
 		    i = strlen(lbuf);

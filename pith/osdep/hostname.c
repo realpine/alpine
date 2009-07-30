@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: hostname.c 312 2006-12-11 18:06:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: hostname.c 1176 2008-09-29 21:16:42Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,7 +47,18 @@ hostname(char *hostname, int size)
 {
 #if	HAVE_GETHOSTNAME
 
-    return(gethostname(hostname, size));
+    if (gethostname(hostname, size))
+      return -1;
+
+    /* sanity check of hostname string */
+    for (*dn = hname; (*dn > 0x20) && (*dn < 0x7f); ++dn)
+      ;
+
+    if (*dn)		/* non-ascii in hostname */
+      strncpy(hostname, "unknown", size-1);
+
+    hostname[size - 1] = '\0';
+    return 0;
 
 #elif	HAVE_UNAME
 

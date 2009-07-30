@@ -244,8 +244,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 2,00,0,0
- PRODUCTVERSION 2,00,0,0
+ FILEVERSION 2,01,0,0
+ PRODUCTVERSION 2,01,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -267,12 +267,12 @@ BEGIN
 #else
             VALUE "FileDescription", "Alpine\0"
 #endif
-            VALUE "FileVersion", "2.00\0"
+            VALUE "FileVersion", "2.01\0"
             VALUE "InternalName", "alpine\0"
-            VALUE "LegalCopyright", "Copyright 2006-2008\0"
+            VALUE "LegalCopyright", "Copyright 2006-2009\0"
             VALUE "OriginalFilename", "alpine.exe\0"
             VALUE "ProductName", "alpine\0"
-            VALUE "ProductVersion", "2.00\0"
+            VALUE "ProductVersion", "2.01\0"
         END
     END
     BLOCK "VarFileInfo"
@@ -583,7 +583,7 @@ END
 
 STRINGTABLE DISCARDABLE 
 BEGIN
-    IDS_BYLINE              "Copyright 2006-2008 University of Washington"
+    IDS_BYLINE              "Copyright 2006-2009 University of Washington"
     IDS_APPNAME             "Alpine"
     IDS_APPIDENT            "alpine"
 END

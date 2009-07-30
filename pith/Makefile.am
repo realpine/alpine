@@ -42,6 +42,6 @@ helptext.c: help_c_gen pine.hlp
 helptext.h: help_h_gen pine.hlp
 	./help_h_gen < pine.hlp > $@
 
-AM_CPPFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/include
+AM_CPPFLAGS = -I@top_builddir@/include -I@top_srcdir@/include
 
 CLEANFILES = helptext.c helptext.h help_h_gen help_c_gen

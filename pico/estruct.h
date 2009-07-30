@@ -1,5 +1,5 @@
 /*
- * $Id: estruct.h 513 2007-04-05 21:45:30Z hubert@u.washington.edu $
+ * $Id: estruct.h 767 2007-10-24 00:03:59Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington

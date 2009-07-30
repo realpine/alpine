@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: roleconf.c 937 2008-02-28 01:04:46Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: roleconf.c 1266 2009-07-14 18:39:12Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -139,7 +139,7 @@ role_select_screen(struct pine *ps, ACTION_S **role, int alt_compose)
 
     if(!(nonempty_patterns(rflags, &pstate) &&
          first_pattern(&pstate))){
-	q_status_message(SM_ORDER, 0, 3,
+	q_status_message(SM_ORDER, 3, 3,
 			 _("No roles available. Use Setup/Rules to add roles."));
 	return(ret);
     }
@@ -433,9 +433,8 @@ uh_oh:
 	  /*
 	   * ROLE_DO_OTHER is made up of a bunch of different variables
 	   * that may have changed. Assume they all changed and fix them.
-	   * Similarly for ROLE_DO_INCOLS.
 	   */
-	  if(rflags & (ROLE_DO_OTHER|ROLE_DO_INCOLS)){
+	  if(rflags & ROLE_DO_OTHER){
 	      reset_index_format();
 	      clear_index_cache(ps_global->mail_stream, 0);
 	      if(!mn_get_mansort(ps_global->msgmap))

@@ -81,6 +81,7 @@ extern void (*pith_opt_save_and_restore)(int, SAVE_STATE_S *);
  * optional hooks in newmail.c:new_mail to allow for various indicators
  * during the new mail check/arrival and checkpoint process
  */
+extern void (*pith_opt_newmail_announce)(MAILSTREAM *, long, long);
 extern void (*pith_opt_newmail_check_cue)(int);
 extern void (*pith_opt_checkpoint_cue)(int);
 extern void (*pith_opt_icon_text)(char *, int);

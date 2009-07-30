@@ -1,6 +1,6 @@
 /*
  * ========================================================================
- * Copyright 2006-2008 University of Washington
+ * Copyright 2006-2009 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
  */
 
 #define VER_MAJOR 5
-#define VER_MINOR 4
+#define VER_MINOR 5
 extern char datestamp[];
 
 

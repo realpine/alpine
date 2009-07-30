@@ -1,5 +1,5 @@
 /*
- * $Id: signals.h 215 2006-11-02 01:43:37Z jpf@u.washington.edu $
+ * $Id: signals.h 761 2007-10-23 22:35:18Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington

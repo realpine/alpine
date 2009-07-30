@@ -16,4 +16,4 @@ noinst_LIBRARIES = libregex.a
 
 libregex_a_SOURCES = regcomp.c regerror.c regexec.c regfree.c
 
-AM_CPPFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/include
+AM_CPPFLAGS = -I@top_builddir@/include -I@top_srcdir@/include

@@ -1,0 +1,147 @@
+<!--
+# $Id: compose.html 1204 2009-02-02 19:54:23Z hubert@u.washington.edu $
+# ========================================================================
+# Copyright 2006 University of Washington
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# ========================================================================
+-->
+<form action="alpine/wp.tcl" target="noop" method=get>
+<input name="page" value="noop" type=hidden notab>
+<font size="+2"><b>Message Compose</b></font>
+
+<p>The Message Compose screen is where you will write and send your email 
+messages.</p>
+
+<p>
+<ul type="square">
+ <li><a href="#header"><b>Using your header fields</b></a></li>
+ <li><a href="#write"><b>Writing your messages</b></a></li>
+ <li><a href="#send"><b>Sending, postponing and canceling</b></a></li>
+ <li><a href="#note"><b>Differences from Pine and PC-Pine</b></a></li>
+</ul>
+
+<a name="header"><b>Using your headers</b></a><p>
+
+The message header area is used for addressing your message and providing
+other information that may be useful to you or the message recipient.
+
+<p>By default, your messages headers will include: To, Cc, 
+Attachments, Subject. Go to <b>Configure</b> from the Message View or List
+page and click the Composer tab to change 
+the defaults or customize your settings.  If you have additional headers 
+configured, click <img src="../../images/hdrmore.gif" alt="More Headers" 
+style="background-color:#ffffcc;padding:4;vertical-align:middle; xborder: 1px solid brown"> to 
+display them.
+Below is a description of commonly used headers:
+
+<ul>
+<li>
+<b>To:</b> Use this field to specify intended email recipients.  This can 
+be done in any of three ways:
+<ul type="square">
+ <li>Type the full email address of the intended message recipient. 
+Separate multiple addresses with a comma.</li>
+
+ <li>Type a name or nickname specified in your address book and click 
+<input type=submit value="Expand">. Alpine will not automatically expand 
+your addresses without this step.  Separate multiple names or nicknames 
+with a comma.</li>
+
+ <li>Click <img src="../../images/book.gif" alt="Address book icon" 
+style="vertical-align:middle"> to go to your address book to select an 
+address.</li>
+</ul></p></li>
+
+<li> <b>Attachments:</b> Use this field to attach files (such as 
+documents,
+images, audio clips) to your message.  Click <input type=submit 
+value="Attach"> to find and attach a file
+from your local system.  If you have attached a file that you do not want 
+to send,
+click the corresponding <img src="../../images/but_remove.gif" alt="remove 
+icon" style="vertical-align:middle"> to
+remove it. <p></li>
+
+<li><b>Subject:</b> Use this field to provide a few words that summarize 
+the message.<p></li>
+
+<li><b>Cc:</b> (Carbon copy) This field is similar to the "To:" field, but 
+it is used to send a copy of the message to one or more people.  These 
+email
+addresses will be seen by all message recipients.<p></li>
+
+<li><b>Bcc:</b> (Blind carbon copy) This field is similar to the "To:" and 
+"Cc:" fields, but it is 
+used to send a copy of the message to one or more people whose
+addresses you do not want disclosed to other message recipients.<p></li>
+
+<li><b>Fcc:</b> (File carbon copy) Use this field  to specify the folder 
+to which a copy of your
+outgoing message will be saved.  When this header is visible, you can
+change or remove the Fcc by editing the folder name.<p></li>
+
+<li><b>Reply-To:</b> Use this field when you would like replies to your
+messages to be directed to an address other than your usual "From:"  
+address.<p></li>
+
+</ul>
+
+<a name="write"><b>Writing your messages</b></a><p>
+
+Type your message in the large text box beneath the headers.  Depending on
+your browser, messages you send may contain a single long line rather than
+the nicely wrapping text shown in the text box.  In those cases,
+recipients will have to scroll horizontally to read your message.  To
+avoid this problem, use the Return key at the end of each line.
+
+<p>To spell check your message, click the
+<input type=submit value="Spell Check"> button.  The resulting page will list each
+potentially misspelled word.  Each word will have a text box for you to 
+enter a correction.  Additionally, some words will also have
+a list of suggested corrections.  Click the <i>Apply</i> button to have 
+your changes appear in the composer, or
+<i>Cancel</i> to return to the composer with the original text.
+</p>
+
+<p>Do you want to add a personalized signature line to your messages?  Go
+to <b>Configure</b> from the Message View or List page and click the Composer tab.</p>
+
+
+<a name="send"><b>Sending, postponing, canceling</b></a><p>
+To send your message, postpone it to resume later, or to cancel it 
+completely, click the appropriate radio button and then click <input 
+type=submit value="OK">.
+<ul>
+ <li><b>Send</b> - Use this option to send your message to the 
+recipients.<p></li>
+ <li><b>Postpone</b> - Use this option to store an unfinished message 
+without sending it.   To finish the message at a later time, click 
+<b>Resume</b> in the far left column of the Message List.<p></li>
+ <li><b>Cancel</b> - Use this option to throw out the current composition.  
+The message will not be sent and you will not be able to resume 
+it.<p></li>
+</ul>
+
+<p><a name="note"><b>Differences from Pine and PC-Pine</b></a><p>
+
+<p>Alpine is designed primarily for easy access to email.  It is not
+intended to replace any other heavy duty email programs.  Accordingly, it
+is missing some of the more advanced features you will find in Pine and
+PC-Pine. As development continues, features will be added as long as they
+do not make a large impact on Alpine's speed or efficiency.
+
+<p> Some of the features you will not currently find in Alpine Compose:
+<ul>
+<li>Lcc (List carbon copy)
+<li>Where is (instead, use your browser's "find" command)
+<li>Read a file into the composition
+</ul>
+
+</ul>
+</form>

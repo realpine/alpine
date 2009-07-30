@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailview.c 1122 2008-08-02 00:32:26Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailview.c 1266 2009-07-14 18:39:12Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -3125,6 +3125,9 @@ scrolltool(SCROLL_S *sparms)
 	     int  start_index, key = 0;
 	     char *report = NULL;
 
+	     start_row = cur_top_line;
+	     start_index = 0;
+
 	     if(F_ON(F_SHOW_CURSOR,ps_global)){
 		 if(found_on < 0
 		    || found_on >= scroll_text_lines()
@@ -3164,6 +3167,11 @@ scrolltool(SCROLL_S *sparms)
 		      */
 		     start_row = h->loc->where.row;
 		     start_index = scroll_handle_index(start_row, h->loc->where.col);
+		 }
+		 else{
+		     /* last handle, start over at top */
+		     start_row = cur_top_line;
+		     start_index = 0;
 		 }
 	     }
 	     else{

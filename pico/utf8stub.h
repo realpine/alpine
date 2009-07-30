@@ -1,5 +1,5 @@
 /*
- * $Id: utf8stub.h 380 2007-01-23 00:09:18Z hubert@u.washington.edu $
+ * $Id: utf8stub.h 764 2007-10-23 23:44:49Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington

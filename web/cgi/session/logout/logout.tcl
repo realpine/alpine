@@ -33,18 +33,8 @@ cgi_eval {
     } else {
       set perpage "&ppg=$ppg"
     }
-    if {$serverid >= 0 && $serverid < [llength $_wp(hosts)]} {
-      set start_url [file join / $_wp(cgidir) session logon.tcl?Server=${serverid}]
 
-      if {[info exists env(REMOTE_USER)]} {
-	append start_url "&User=[cgi_quote_url $env(REMOTE_USER)]"
-      }
-
-      append log_text "<li>[cgi_url "restart WebPine" $start_url]"
-    } else {
-      set start_url 
-      append log_text "<li>[cgi_url "restart WebPine" [file join / $_wp(cgi) session greeting.tcl]]"
-    }
+    append log_text "<li>[cgi_url "restart Web Alpine" "http://alpine.washington.edu"]"
     append log_text "<li>[cgi_url "go to MyUW" "http://myuw.washington.edu"]"
     append log_text "</ul></center>"
     set log_url ""

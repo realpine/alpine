@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: greeting.tcl 1160 2008-08-22 01:12:33Z mikes@u.washington.edu $
+# $Id: greeting.tcl 1204 2009-02-02 19:54:23Z hubert@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -339,7 +339,7 @@ cgi_eval {
 		    }
 
 		    cgi_table_data {
-		      cgi_put [cgi_font size=-1 face=Helvetica "Use [cgi_url "SSL Session Encryption" "$_wp(serverpath)/$_wp(appdir)/help/secure.html" target=_blank]"]
+		      cgi_put [cgi_font size=-1 face=Helvetica "Use [cgi_url "SSL Session Encryption" "$_wp(serverpath)/$_wp(appdir)/$_wp(ui1dir)/help/secure.html" target=_blank]"]
 		      cgi_br
 		      set t "Session encryption over low-speed connections may slow WebPine, but prevents eavesdropping. Passwords are safely encrypted though."
 

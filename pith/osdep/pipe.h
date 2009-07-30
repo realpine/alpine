@@ -1,5 +1,5 @@
 /*
- * $Id: pipe.h 666 2007-08-10 23:25:17Z hubert@u.washington.edu $
+ * $Id: pipe.h 769 2007-10-24 00:15:40Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington

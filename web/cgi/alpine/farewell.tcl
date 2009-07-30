@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: farewell.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: farewell.tcl 764 2007-10-23 23:44:49Z hubert@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #

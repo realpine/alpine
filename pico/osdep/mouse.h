@@ -1,5 +1,5 @@
 /*
- * $Id: mouse.h 193 2006-10-20 17:09:26Z mikes@u.washington.edu $
+ * $Id: mouse.h 761 2007-10-23 22:35:18Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington

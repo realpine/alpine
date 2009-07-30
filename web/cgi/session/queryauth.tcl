@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: queryauth.tcl 1096 2008-06-30 22:03:35Z hubert@u.washington.edu $
+# $Id: queryauth.tcl 1204 2009-02-02 19:54:23Z hubert@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -35,7 +35,7 @@ set query_vars {
 
 # inherit global config
 source ./alpine.tcl
-source ../$_wp(appdir)/cmdfunc.tcl
+source ../$_wp(appdir)/$_wp(ui1dir)/cmdfunc.tcl
 
 
 set query_menu {

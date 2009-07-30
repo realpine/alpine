@@ -1,5 +1,5 @@
 /*
- * $Id: newmail.h 113 2006-09-01 21:54:31Z hubert@u.washington.edu $
+ * $Id: newmail.h 761 2007-10-23 22:35:18Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington

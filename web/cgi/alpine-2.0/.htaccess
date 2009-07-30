@@ -1,7 +1,0 @@
-# set up default page
-DirectoryIndex ./browse
-
-# extensionless files are scripts
-<FilesMatch "^([^\.]+)$">
-  SetHandler cgi-script
-</FilesMatch>

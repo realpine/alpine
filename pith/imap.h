@@ -1,5 +1,5 @@
 /*
- * $Id: imap.h 1033 2008-04-24 02:00:26Z mikes@u.washington.edu $
+ * $Id: imap.h 1074 2008-06-04 00:08:43Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington

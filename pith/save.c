@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: save.c 1047 2008-05-02 21:58:34Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: save.c 1204 2009-02-02 19:54:23Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2008 University of Washington
+ * Copyright 2006-2009 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -864,7 +864,8 @@ save(struct pine *state, MAILSTREAM *stream, CONTEXT_S *context, char *folder,
 	    STRING msg;
 
 	    pkg.stream = stream;
-	    pkg.flags = NULL;
+	    /* tell save_fetch_append_cb whether or not to leave deleted flag */
+	    pkg.flags = flgs & SV_FIX_DELS ? NULL : cpystr("\\DELETED");
 	    pkg.date = date;
 	    pkg.msg = &msg;
 	    pkg.msgmap = msgmap;
@@ -932,13 +933,19 @@ save(struct pine *state, MAILSTREAM *stream, CONTEXT_S *context, char *folder,
 	}
 	else 
 	  for(i = mn_first_cur(msgmap); so && i > 0L; i = mn_next_cur(msgmap)){
+	    int preserve_these_flags;
+
 	    so_truncate(so, 0L);
 
 	    rawno = mn_m2raw(msgmap, i);
 	    mc = (rawno > 0L && stream && rawno <= stream->nmsgs)
 		    ? mail_elt(stream, rawno) : NULL;
 
-	    flags = flag_string(stream, rawno, F_ANS|F_FWD|F_FLAG|F_SEEN|F_KEYWORD);
+	    /* always preserve these flags */
+	    preserve_these_flags = F_ANS|F_FWD|F_FLAG|F_SEEN|F_KEYWORD;
+	    /* maybe preserve deleted flag */
+	    preserve_these_flags |= flgs & SV_FIX_DELS ? 0 : F_DEL;
+	    flags = flag_string(stream, rawno, preserve_these_flags);
 	      
 	    if(mc && mc->day)
 	      mail_date(date, mc);
@@ -1050,11 +1057,24 @@ long save_fetch_append_cb(MAILSTREAM *stream, void *data, char **flags,
 	mc = (raw > 0L && pkg->stream && raw <= pkg->stream->nmsgs)
 		? mail_elt(pkg->stream, raw) : NULL;
 	if(mc){
-	    size = mc->rfc822_size;
-	    if(pkg->flags)
-	      fs_give((void **) &pkg->flags);
+	    int preserve_these_flags = F_ANS|F_FWD|F_FLAG|F_SEEN|F_KEYWORD;
 
-	    pkg->flags = flag_string(pkg->stream, raw, F_ANS|F_FWD|F_FLAG|F_SEEN|F_KEYWORD);
+	    size = mc->rfc822_size;
+
+	    /*
+	     * If the caller wants us to preserve the state of the
+	     * \DELETED flag then pkg->flags will be \DELETED, otherwise
+	     * let it be undeleted. Fix from Eduardo Chappa.
+	     */
+	    if(pkg->flags){
+		if(strstr(pkg->flags,"\\DELETED"))
+		  preserve_these_flags |= F_DEL;
+
+		/* not used anymore */
+		fs_give((void **) &pkg->flags);
+	    }
+
+	    pkg->flags = flag_string(pkg->stream, raw, preserve_these_flags);
 	}
 
 	if(mc && mc->day)

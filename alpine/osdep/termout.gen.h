@@ -1,5 +1,5 @@
 /*
- * $Id: termout.gen.h 673 2007-08-16 22:25:10Z hubert@u.washington.edu $
+ * $Id: termout.gen.h 769 2007-10-24 00:15:40Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington

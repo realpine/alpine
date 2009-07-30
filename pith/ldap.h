@@ -1,5 +1,5 @@
 /*
- * $Id: ldap.h 1007 2008-03-24 19:35:31Z hubert@u.washington.edu $
+ * $Id: ldap.h 1012 2008-03-26 00:44:22Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2008 University of Washington

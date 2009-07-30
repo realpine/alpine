@@ -1,5 +1,5 @@
 /*
- * $Id: filttype.h 543 2007-04-26 04:06:02Z mikes@u.washington.edu $
+ * $Id: filttype.h 767 2007-10-24 00:03:59Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington

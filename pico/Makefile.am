@@ -33,5 +33,5 @@ libpico_a_SOURCES = attach.c basic.c bind.c browse.c buffer.c composer.c display
 	fileio.c line.c pico.c random.c region.c search.c window.c word.c \
 	ebind.h edef.h efunc.h estruct.h headers.h keydefs.h mode.h pico.h
 
-AM_CPPFLAGS = -I$(top_srcdir)/include
+AM_CPPFLAGS = -I@top_srcdir@/include
 

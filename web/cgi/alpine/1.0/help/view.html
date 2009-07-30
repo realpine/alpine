@@ -1,0 +1,195 @@
+<!--
+# $Id: view.html 1204 2009-02-02 19:54:23Z hubert@u.washington.edu $
+# ========================================================================
+# Copyright 2006 University of Washington
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# ========================================================================
+-->
+<form action="alpine/wp.tcl" target="noop" method=get>
+<input name="page" value="noop" type=hidden notab>
+<font size="+2"><b>Message View</b></font>
+
+<p>The Message View is where you will read, forward, and reply to your mail.</p>
+
+<UL TYPE=square>
+ <li><a href="#navigate"><b>Navigating your messages</b></a></li>
+ <li><a href="#attach"><b>Viewing attachments</b></a></li>
+ <li><a href="#reply"><b>Replying to the message</b></a></li>
+ <li><a href="#forward"><b>Forwarding the message</b></a></li>
+ <li><a href="#save"><b>Saving the message to another folder</b></a></li>
+ <li><a href="#take"><b>Adding addresses directly to address book</b></a></li>
+ <li><a href="#header"><b>Displaying full headers</b></a></li>
+ <li><a href="#print"><b>Printing</b></a></li>
+ <li><a href="#jump"><b>Jump Command (optional)</b></a></li>
+ <li><a href="#note"><b>Differences from Pine and PC-Pine</b></a></li>
+</ul>
+
+<a name="navigate"><b>Navigating your messages</b></a><p>
+In the far left column of the Message View screen, there are four navigation options: <b>Previous</b>, <b>First</b>, <b>Next</b>,
+<b>Last</b>.  Click:
+<table border=0 cellpadding=4 style="margin-left:24">
+ <tr>
+   <td><img src="../../images/but_rnd_prev3.gif" alt="Previous"></td>
+   <td>to go to the previous message in this folder</td>
+ </tr>
+ <tr>
+  <td><img src="../../images/but_rnd_first3.gif" alt="First"></td>
+  <td>to go to the first message in this folder</td>
+ </tr>
+ <tr>
+   <td><img src="../../images/but_rnd_next3.gif" alt="Next"></td>
+   <td>to go the next message in this folder</td>
+ </tr>
+ <tr>
+  <td><img src="../../images/but_rnd_last3.gif" alt="Last"></td>
+  <td> to go to the last message in this folder</td>
+ </tr>
+</table>
+<p>
+
+With most broswsers and the usual settings, you also have the option of
+using keyboard controls for some of your navigation.  You may, however,
+need to first click in your Alpine window to make sure that your system
+knows which screen is active.
+
+<p>The keyboard controls are:
+<table border=0 cellspacing=12 cellpadding=3>
+<tr><td text align="center">n</td>
+  <td>next message</td></tr>
+<tr><td text align="center">p</td>
+  <td>previous message</td></tr>
+<tr><td text align="center">i</td>
+  <td>return to message index</td></tr>
+<tr><td text align="center">c</td>
+  <td>compose new message</td></tr>
+<tr><td text align="center">l</td>
+  <td>list folder</td></tr>
+<tr><td text align="center">d</td>
+  <td>flag message as deleted</td></tr>
+<tr><td text align="center">u</td>
+  <td>unflag message as deleted</td></tr>
+<tr><td text align="center">a</td>
+  <td>go to address book</td></tr>
+<tr><td text align="center">r</td>
+  <td>reply to current message</td></tr>
+<tr><td text align="center">f</td>
+  <td>forward current message</td></tr>
+</table>
+
+<p>
+<a name="attach"><b>Viewing attachments</b></a><p> 
+When a message includes an attachment, you will see highlighted links
+under the heading "Parts/Attachments."  Click either "View" or the link
+description to see the attachment. Click "Save" to
+download the attachment.
+
+<p>The attachment links also allow you to read messages delivered as HTML.  
+Simply view the second attachment to display the message as intended.
+
+<p>If you cannot view your attachments, go to 
+<b>Configuration</b>
+ and click the Message View tab.  Make sure "Enable Attachments View" is marked.</p>
+<p>
+
+<a name="reply"><b>Replying to the message</b></a><p>
+Use <input type=submit value="Reply"> to respond to the author of the message and/or to the
+other recipients who were sent the original message.
+
+<p>To respond to all original recipients, check "<input type=checkbox checked> To All" and then click 
+<input type=submit value="Reply">.</p>
+
+<p>By default, "Include text" will be checked.  If you do not want to
+include the previous text in your reply, remove that checkmark before you
+click  <input type=submit value="Reply">.</p>
+
+
+<a name="forward"><b>Forwarding the message</b></a><p>
+Use <input type=submit value="Forward"> to send the message you are
+viewing to someone else.
+You will need to supply the email address of the new recipient on the
+subsequent Message Compose screen.</p>
+
+
+
+<a name="save"><b>Saving the message to another folder</b></a><p>
+
+Save the message you are viewing to another folder by choosing from
+the options in the dropdown menu next to the
+<input type=submit value="Save"> button.  Among the Save options,
+you'll find
+
+<ul>
+ <li> The name of the default folder to save to, typically <font face="courier">saved-messages</font>.
+ <li> Several, typically six, names of folders you have most recently saved messages to
+ <li> An option to type in directly the name of the folder you wish to save to (either a new folder you wish to create, or one
+already containing messages)
+ <li> An option to choose the folder from the list of all your folders
+</ul>
+
+If Alpine does not act on your choice immediately, click the <input type=submit value="Save">
+button to initiate saving.  Once saved, the chosen messages will be marked for deletion.
+
+
+<p>
+<a name="take"><b>Adding addresses directly to address book</b></a></p>
+Click <input type=submit value="Take"> on the top panel of 
+your screen to go to a listing of all the email addresses contained within 
+this message.  Click next to any or all of those addresses to add them 
+to your addressbook.<p>
+
+<a name="header"><b>Displaying full headers</b></a><p> 
+Click the <img src="../../images/hdr.gif" alt="display full headers"> icon 
+near the top right of your screen to view your full headers.  The full
+headers contain information about the path taken by this email message. To
+return to digested headers, click <img src="../../images/hdrnon.gif" alt="display digested headers">.<p>
+
+
+<a name="print"><b>Printing</b></a><p>
+Click the <img src="../../images/printer2.gif" alt="print"> icon near the top 
+right 
+of your screen to print your message.
+
+<p>If you lose the right edge of your message, you may want to decrease 
+your font size:
+
+<ol>
+<li>Click <b>Configure</b>
+<li>Click the "General" tab on the subsequent screen
+<li>Choose "small font" or "smallest font" from the drop down box next to 
+<b>Font Size?</b>
+</ol>
+
+
+<p><a name="jump"><b>Jump Command (optional)</b></a><p>
+
+Depending on your configuration, you may also see a text box next to a 
+<input type=submit value="Jump"> button on the left side of the page.  Enter a
+message number into the text box and click the button to have that message
+number's text displayed.
+
+
+<p><a name="note"><b>Differences from Pine and PC-Pine</b></a><p>
+
+<p>Alpine is designed primarily for easy access to email.  It is not
+intended to replace any other heavy duty email programs.  Accordingly, it
+is missing some of the more advanced features you will find in Pine and
+PC-Pine. As development continues, features will be added as long as they
+do not make a large impact on Alpine's speed or efficiency.
+
+<p> Some of the features you will not currently find in Alpine Message 
+View:
+<ul>
+<li>Change message status (available on Message List page)
+<li>Bounce
+<li>Go directly to a specific folder (may be added soon)
+<li>Where is (instead, use your browser's "find" command)
+<li>Export message
+</ul>
+</form>
+

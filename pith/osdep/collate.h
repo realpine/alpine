@@ -1,5 +1,5 @@
 /*
- * $Id: collate.h 922 2008-02-01 18:42:29Z hubert@u.washington.edu $
+ * $Id: collate.h 925 2008-02-06 02:03:01Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2008 University of Washington

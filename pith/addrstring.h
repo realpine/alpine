@@ -1,5 +1,5 @@
 /*
- * $Id: addrstring.h 725 2007-09-25 21:03:06Z hubert@u.washington.edu $
+ * $Id: addrstring.h 770 2007-10-24 00:23:09Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington

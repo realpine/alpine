@@ -1,4 +1,4 @@
-# $Id: pine.hlp 1167 2008-08-23 00:07:05Z hubert@u.washington.edu $
+# $Id: pine.hlp 1266 2009-07-14 18:39:12Z hubert@u.washington.edu $
 #
 #        T H E   A L P I N E    M E S S A G E   S Y S T E M
 #
@@ -140,7 +140,7 @@ reasonable place to be called from.
 Dummy change to get revision in pine.hlp
 
 ============= h_revision =================
-$Id: pine.hlp 1167 2008-08-23 00:07:05Z hubert@u.washington.edu $
+$Id: pine.hlp 1266 2009-07-14 18:39:12Z hubert@u.washington.edu $
 ============= h_news =================
 <HTML>
 <HEAD>
@@ -177,6 +177,75 @@ Additions include:
 <P>
 
 <UL>
+   <LI> Fixed non-ASCII web alpine handling
+   <LI> Added web alpine help.
+   <LI> Allow web alpine inbox on second IMAP server.
+   <LI> Allow web alpine config reset after bad inbox-path gets set.
+   <LI> Added web alpine ability to create group contact from contact list members.
+   <LI> Backed out web alpine coercing of default sort-key of arrival to date/reverse.
+   <LI> Tidied up web alpine script layout.
+   <LI> Fixed web alpine status message ordering
+   <LI> Added web alpine Fcc setting via Contacts in Compose
+   <LI> Fixed web alpine autodraft attachment issues
+   <LI> Fixed web alpine problems with recent count maintenance
+   <LI> Fixed web alpine newmail arrival display in message list
+   <LI> Added web alpine confirmation to folder create for Move/Copy
+   <LI> Added web alpine user-domain support
+   <LI> Fixed web alpine to support INBOX-within-a-collection deletion
+</UL>
+
+<P>
+Bugs that have been addressed include:
+<P>
+
+<UL>
+   <LI> In web alpine fixed delete all selected within a search result to reorient
+	correctly to whole-mailbox message list.
+   <LI> Fixed web alpine delete in view page to be sensitive to sort
+   <LI> Fixed web alpine open of folder within directory from folder manager page.
+   <LI> Fixed web alpine open of folder within directory from left column's recent cache.
+   <LI> Fixed web alpine problems with spaces in special folder names like Drafts
+   <LI> Fixed web alpine adding contacts from message list and view
+   <LI> Fixed web alpine create of non-existent fcc
+   <LI> Remove mistakenly left debugger statement in web alpine javascript.
+   <LI> Some UNIX alpine build problems fixed
+   <LI> Crash in pico and pilot when nl_langinfo returned something unrecognizable
+	or NULL. Add recognition of "646" to nl_langinfo wrapper. This is returned
+	by locale charmap call on some Solaris 8 systems.
+   <LI> MacOS Keychain logins were not working correctly with generic host names, like
+	imap.gmail.com, as opposed to specific instances like rx-in-209.google.com, causing
+	new password requests when not needed
+   <LI> Possible crash in WhereIs command while in FOLDER LIST when cursor is located on the
+	last folder in the list
+   <LI> Change to S/MIME get_x509_subject_email so that X509v3 alternative names are
+	looked for along with the email address
+   <LI> Changes to configure to get spellcheck options with work with arguments.
+   <LI> Add change from Mark Crispin of panda.com to at least minimally handle non-ascii hostname
+	returned by gethostname (iPhone can do this)
+   <LI> Fixed a bug that prevents a filter that moves a message into a local folder
+	from also setting the DELETE flag in that moved message. Fix from Eduardo Chappa.
+   <LI> Changed size of shellpath in open_system_pipe from 32 to MAXPATH. Fix from
+	Jake Scott of marganstanley.com.
+   <LI> Buffer overflow bug in c-client's tmail/dmail, fix from Mark Crispin. This
+	is not used in alpine.
+   <LI> Imapd server crash from unguarded fs_give in IDLE code, fix from Crispin.
+	Apparently this causes RIM Blackberry BIS service problems. This is not
+	used in alpine.
+   <LI> Tmail uninitialized pointer fix from Neil Hoggarth. Not used in alpine.
+   <LI> Buffer overflow possibility in RFC822BUFFER routines in c-client library.
+	Fix from Ludwig Nussel of SUSE and from Crispin.
+   <LI> Include whole filename in export filename history
+   <LI> Fix display bug in pico when Replace command is canceled. Fix from Eduardo Chappa.
+</UL>
+
+<P>
+Version 2.00
+addressed bugs found in previous releases and had a few additions as well.
+<P>
+Additions included:
+<P>
+
+<UL>
    <LI> Redesigned Web Alpine interface
    <LI> Experimental <A HREF="h_mainhelp_smime">S/MIME support</A> added
 	in UNIX versions of Alpine
@@ -206,7 +275,7 @@ Additions include:
 </UL>
 
 <P>
-Bugs that have been addressed include:
+Bugs addressed in the 2.00 release included:
 <P>
 
 <UL>
@@ -240,10 +309,8 @@ Bugs that have been addressed include:
 </UL>
 
 <P>
-
 Version 1.10(962)
 addressed bugs found in previous releases and had a few additions as well.
-
 <P>
 Additions included:
 <P>
@@ -1206,14 +1273,13 @@ select Setup/Config to see many of the options available to you. Also note
 that all screens have context-sensitive help text available.<P>
 <!--chtml if pinemode="phone_home"-->
 SPECIAL REQUEST:
-This software is made available world-wide as a public service of the
-University of Washington in Seattle.  In order to justify continuing
-development, it is helpful to have an idea of how many people are using
-Alpine.  Are you willing to be counted as an Alpine user?  Pressing 
+This software is made available as a public service of the
+University of Washington in Seattle. We are no longer actively developing
+the software, but it is still helpful to us to have an idea of how many
+people are using Alpine. Are you willing to be counted as an Alpine user? Pressing 
 <A HREF="X-Alpine-Phone-Home:">Return</A>
 will send an anonymous (meaning, your real email address will not be revealed) 
-message to the Alpine development team at the University of Washington for 
-purposes of tallying.
+message to the Alpine team at the University of Washington for purposes of tallying.
 <P>
 <!--To Exit this screen and continue your Alpine session press "E".-->
 <!--chtml else-->
@@ -1240,14 +1306,13 @@ The Release Notes may be viewed by pressing
 <P>
 <!--chtml if pinemode="phone_home"-->
 SPECIAL REQUEST:
-This software is made available world-wide as a public service of the
-University of Washington in Seattle.  In order to justify continuing
-development, it is helpful to have an idea of how many people are using
-Alpine.  Are you willing to be counted as an Alpine user?  Pressing 
+This software is made available as a public service of the
+University of Washington in Seattle. We are no longer actively developing
+the software, but it is still helpful to us to have an idea of how many
+people are using Alpine. Are you willing to be counted as an Alpine user? Pressing 
 <A HREF="X-Alpine-Phone-Home:">Return</A>
 will send an anonymous (meaning, your real email address will not be revealed) 
-message to the Alpine development team at the University of Washington for 
-purposes of tallying.
+message to the Alpine team at the University of Washington for purposes of tallying.
 <P>
 <!--To Exit this screen and continue your Alpine session press "E".-->
 <!--chtml else-->
@@ -1270,15 +1335,14 @@ documented in the Release Notes, which may be viewed by pressing
 &quot;R&quot; now or while in the MAIN MENU.
 <P>
 <!--chtml if pinemode="phone_home"-->
-SPECIAL REQUEST: 
-This software is made available world-wide as a public service of the
-University of Washington in Seattle.  In order to justify continuing
-development, it is helpful to have an idea of how many people are using
-Alpine.  Are you willing to be counted as an Alpine user?  Pressing 
+SPECIAL REQUEST:
+This software is made available as a public service of the
+University of Washington in Seattle. We are no longer actively developing
+the software, but it is still helpful to us to have an idea of how many
+people are using Alpine. Are you willing to be counted as an Alpine user? Pressing 
 <A HREF="X-Alpine-Phone-Home:">Return</A>
 will send an anonymous (meaning, your real email address will not be revealed) 
-message to the Alpine development team at the University of Washington for 
-purposes of tallying.
+message to the Alpine team at the University of Washington for purposes of tallying.
 
 <!--To Exit this screen and continue your Alpine session press "E".-->
 <!--chtml else-->
@@ -2976,6 +3040,7 @@ There are also additional details on
 <li><a href="h_abook_top">ADDRESS BOOK LIST COMMANDS</a>
 <li><a href="h_main_addrbook">Address Book Command</a>
 <li><a href="h_abook_view">Address Book View Explained</a>
+<li><a href="h_compose_addrcomplete">Address Completion</a>
 <li><a href="h_abook_select_listmode">Address Listmode Selection from Composer Explained</a>
 <li><a href="h_abook_select_checks">Address Selection from Composer Explained</a>
 <li><a href="h_composer_abook_comment">Addressbook Comment Explained</a>
@@ -3587,6 +3652,7 @@ There are also additional details on
 <li><a href="h_index_cmd_sort">Sort Command</a>
 <li><a href="h_compose_spell">Spell Check Command</a>
 <li><a href="h_common_suspend">Suspend Command</a>
+<li><a href="h_compose_addrcomplete">THE MESSAGE COMPOSER'S ADDRESS COMPLETION</a>
 <li><a href="h_composer_attachment">THE MESSAGE COMPOSER'S ATTCHMNT FIELD</a>
 <li><a href="h_composer_bcc">THE MESSAGE COMPOSER'S BCC FIELD</a>
 <li><a href="h_composer_cc">THE MESSAGE COMPOSER'S CC FIELD</a>
@@ -6366,6 +6432,42 @@ If you unintentionally cancel a message, look there for its text.
 &lt;End of help on this topic&gt;
 </BODY>
 </HTML>
+======= h_compose_addrcomplete =======
+<HTML>
+<HEAD>
+<TITLE>Address Completion</TITLE>
+</HEAD>
+<BODY>
+<H1>Address Completion</H1>
+
+When entering addresses in the address fields of the composer (To, Cc, etc.)
+the TAB key may be used to help complete the address.
+Type a partial nickname and tap the TAB key to complete the typing.
+The unambiguous part of the name will be filled in automatically.
+Typing TAB twice in succession will bring up a selection list of possibilities,
+making it easy to find and choose the correct address.
+
+<P>
+The matching algorithm is rather ad hoc.
+The search starts with a search of your address book.
+It counts as a match if the nickname, address, or fullname field of an
+entry begins with the text typed in so far. It is also a match if
+a later word in the fullname (for example, the middle name or last name)
+begins with the entered text.
+<P>
+Next comes an LDAP search.
+The search will happen for any servers that have the
+<A HREF="h_config_ldap_opts_impl">&quot;Use-Implicitly-From-Composer&quot;</A>
+feature set. You can set or unset the feature for each server independently
+in the Setup/Directory screen.
+<P>
+Finally, if you are replying to or forwarding a message, that message is
+searched for likely candidate addresses that match the typed-in text.
+
+<P>
+&lt;End of help on this topic&gt;
+</BODY>
+</HTML>
 ======= h_compose_richhdr =======
 <HTML>
 <HEAD>
@@ -6572,25 +6674,21 @@ The &quot;To Spell&quot;
 (^T) 
 <!--chtml endif-->
 command calls an external spell checking program to look over the
-message you are composing.  By default, Alpine uses a simple Unix
-spell checker.
+message you are composing.  By default, Alpine uses
+<P>
+<CENTER><SAMP>aspell --dont-backup --mode=email check</SAMP></CENTER>
+<P>
+if it knows where to find &quot;aspell&quot;.
+If there is no &quot;aspell&quot; command available but the command &quot;ispell&quot; is available
+then the command used is
+<P>
+<CENTER><SAMP>ispell -l</SAMP></CENTER>
+<P>
+Otherwise, the ancient &quot;spell&quot; command is used.
+<P>
 For PC-Alpine, you must install the aspell library code that you
 may get from
 <A HREF="http://aspell.net/win32/">http://aspell.net/win32/</A>.
-
-<P>
-Under the default configuration, there are no suggested alternative
-spellings, but Alpine
-will show you the &quot;incorrect&quot; word and let you fix it or
-move on.  If a word is misspelled more than once, then you will be
-prompted to confirm the correction of each occurrence of it.  Lines
-beginning with &quot;&gt; &quot; (included messages) will not be checked.
-
-<P>
-If your Unix system has a spell checking utility that does offer alternatives
-or otherwise improves on the default, the Setup/Config Menu's
-&quot;<A HREF="h_config_speller"><!--#echo var="VAR_speller"--></A>&quot; option will tell
-Alpine to use it instead.
 
 <P>
 &lt;End of help on this topic&gt;
@@ -12936,11 +13034,11 @@ CURSOR&nbsp;MOTION&nbsp;KEYS----------------------|EDITING&nbsp;KEYS------------
 ^Y&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Previous&nbsp;page&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<BR>
 ^V&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Next&nbsp;page&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|-------------------------------------<BR>
 ^@&nbsp;(Ctrl-SPACE)&nbsp;&nbsp;&nbsp;&nbsp;Next&nbsp;word&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|SCREEN/COMPOSITION&nbsp;COMMANDS<BR>
-----------------------------------------|<BR>
+----------------------------------------|&nbsp;^R&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<A HREF="h_compose_richhdr">Rich&nbsp;Headers</A><BR>
 MESSAGE&nbsp;COMMANDS&nbsp;&nbsp;|&nbsp;GENERAL&nbsp;COMMANDS&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;^T&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;To&nbsp;Addressbook/Browser<BR>
 ^C&nbsp;&nbsp;&nbsp;<A HREF="h_compose_cancel">Cancel</A>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;^G&nbsp;&nbsp;&nbsp;&nbsp;Get&nbsp;help&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;^J&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Attach&nbsp;File<BR>
 ^O&nbsp;&nbsp;&nbsp;<A HREF="h_common_postpone">Postpone</A>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;^Z&nbsp;&nbsp;&nbsp;&nbsp;<A HREF="h_common_suspend">Suspend</A>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;^L&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Redraw&nbsp;Screen<BR>
-^X&nbsp;&nbsp;&nbsp;<A HREF="h_compose_send">Send</A>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;^R&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<A HREF="h_compose_richhdr">Rich&nbsp;Headers</A><BR>
+^X&nbsp;&nbsp;&nbsp;<A HREF="h_compose_send">Send</A>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;TAB&nbsp;&nbsp;&nbsp;&nbsp;<A HREF="h_compose_addrcomplete">Address&nbsp;Completion</A><BR>
 <!--chtml endif-->
 
 <P>
@@ -22565,25 +22663,29 @@ may get from
 <A HREF="http://aspell.net/win32/">http://aspell.net/win32/</A>.
 <P>
 This option affects the behavior of the ^T (spell check) command in the
-Composer.  It specifies the program invoked by ^T in the Composer.  By
-default, Alpine uses the system's &quot;spell&quot; command.  Alpine will use the
-command defined by this option (if any) instead.  When invoking the
+Composer.  It specifies the program invoked by ^T in the Composer.
+By default, Alpine uses
+<P>
+<CENTER><SAMP>aspell --dont-backup --mode=email check</SAMP></CENTER>
+<P>
+if it knows where to find &quot;aspell&quot;.
+If there is no &quot;aspell&quot; command available but the command &quot;ispell&quot; is available
+then the command used is
+<P>
+<CENTER><SAMP>ispell -l</SAMP></CENTER>
+<P>
+Otherwise, the ancient &quot;spell&quot; command is used.
+<P>
+If you specify a value for this command (with full pathname) then that is what
+will be used instead of any of the defaults.
+When invoking this
 spell-checking program, Alpine appends a tempfile name (where the message is
 passed) to the command line. Alpine expects the speller to correct the
 spelling in that file. When you exit from that program Alpine will read the
 tempfile back into the composer.
-
 <P>
-If you are using Unix Alpine and your system has the &quot;ispell&quot; command,
-it is a reasonable choice for a speller program.
-
-<P>
-If this option is not set, then the system's &quot;spell&quot; command is used.
-The spell command does not work the same as the alternate speller.
-It produces a list of misspelled words on its standard output, instead.
 Don't set this speller option to the standard Unix spell command.
-That won't work. If you want to use the standard Unix spell command,
-set the speller option to nothing.
+That won't work because spell works in a different way.
 
 <P>
 <UL>   

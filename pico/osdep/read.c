@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: read.c 308 2006-12-08 20:14:42Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: read.c 763 2007-10-23 23:37:34Z hubert@u.washington.edu $";
 #endif
 
 /*

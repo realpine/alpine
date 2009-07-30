@@ -1,5 +1,5 @@
 /*
- * $Id: mimetype.h 701 2007-08-31 18:52:30Z hubert@u.washington.edu $
+ * $Id: mimetype.h 769 2007-10-24 00:15:40Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington

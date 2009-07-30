@@ -1,5 +1,5 @@
 /*
- * $Id: repltype.h 660 2007-07-31 20:49:58Z mikes@u.washington.edu $
+ * $Id: repltype.h 769 2007-10-24 00:15:40Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington

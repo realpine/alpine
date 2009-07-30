@@ -1,5 +1,5 @@
 /*
- * $Id: newuser.h 565 2007-05-14 19:23:26Z hubert@u.washington.edu $
+ * $Id: newuser.h 768 2007-10-24 00:10:03Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington

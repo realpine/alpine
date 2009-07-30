@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailcmd.c 1156 2008-08-21 22:14:45Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailcmd.c 1266 2009-07-14 18:39:12Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2008 University of Washington
+ * Copyright 2006-2009 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -4516,23 +4516,29 @@ get_export_filename(struct pine *ps, char *filename, char *deefault,
         else if(r == 4){
 	    continue;
 	}
-	else if(r == 30){
-	    char *p;
+	else if(r == 30 || r == 31){
+	    char *p = NULL;
 
-	    if(history && (p = get_prev_hist(*history, filename, 0, NULL)) != NULL){
-		strncpy(filename, p, len);
-		filename[len-1] = '\0';
+	    if(history){
+		if(r == 30)
+		  p = get_prev_hist(*history, filename, 0, NULL);
+		else
+		  p = get_next_hist(*history, filename, 0, NULL);
 	    }
-	    else
-	      Writechar(BELL, 0);
 
-	    continue;
-	}
-	else if(r == 31){
-	    char *p;
+	    if(p != NULL){
+		fn = last_cmpnt(p);
+		strncpy(dir, p, MIN(fn - p, sizeof(dir)-1));
+		dir[MIN(fn - p, sizeof(dir)-1)] = '\0';
+		if(fn - p > 1)
+		  dir[fn - p - 1] = '\0';
+		
+		if(!strcmp(dir, ps->home_dir)){
+		    dir[0] = '~';
+		    dir[1] = '\0';
+		}
 
-	    if(history && (p = get_next_hist(*history, filename, 0, NULL)) != NULL){
-		strncpy(filename, p, len);
+		strncpy(filename, fn, len-1);
 		filename[len-1] = '\0';
 	    }
 	    else
@@ -4556,9 +4562,6 @@ get_export_filename(struct pine *ps, char *filename, char *deefault,
 	    strncpy(filename, def, len-1);
 	    filename[len-1] = '\0';
 	}
-
-	if(history)
-	  save_hist(*history, filename, 0, NULL);
 
 #if	defined(DOS) || defined(OS2)
 	if(is_absolute_path(filename)){
@@ -4691,6 +4694,9 @@ get_export_filename(struct pine *ps, char *filename, char *deefault,
     }
 
 done:
+    if(history && ret == 0)
+      save_hist(*history, full_filename, 0, NULL);
+
     if(opts && opts != optsarg)
       fs_give((void **) &opts);
 

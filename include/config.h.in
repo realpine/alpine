@@ -117,6 +117,14 @@
 /* Default configuration value */
 #undef DF_SORT_KEY
 
+/* set default value of ssh command string (usually "%s %s -l %s exec
+   /etc/r%sd") */
+#undef DF_SSHCMD
+
+/* set default value of ssh command path (defining should cause ssh to be
+   preferred to rsh) */
+#undef DF_SSHPATH
+
 /* Default configuration value */
 #undef DF_STANDARD_PRINTER
 
@@ -546,13 +554,13 @@
 /* Posting agent to use when no nntp-servers defined */
 #undef SENDNEWS
 
-/* The size of `unsigned int', as computed by sizeof. */
+/* The size of a `unsigned int', as computed by sizeof. */
 #undef SIZEOF_UNSIGNED_INT
 
-/* The size of `unsigned long', as computed by sizeof. */
+/* The size of a `unsigned long', as computed by sizeof. */
 #undef SIZEOF_UNSIGNED_LONG
 
-/* The size of `unsigned short', as computed by sizeof. */
+/* The size of a `unsigned short', as computed by sizeof. */
 #undef SIZEOF_UNSIGNED_SHORT
 
 /* Enable S/MIME code */
@@ -624,7 +632,7 @@
 /* qsort compare function argument type */
 #undef qsort_t
 
-/* Define to `unsigned int' if <sys/types.h> does not define. */
+/* Define to `unsigned' if <sys/types.h> does not define. */
 #undef size_t
 
 /* Define to `int' if <sys/types.h> doesn't define. */

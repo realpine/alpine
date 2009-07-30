@@ -1,5 +1,5 @@
 /*
- * $Id: news.h 136 2006-09-22 20:06:05Z hubert@u.washington.edu $
+ * $Id: news.h 761 2007-10-23 22:35:18Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington

@@ -1,5 +1,5 @@
 /*
- * $Id: edef.h 898 2008-01-05 00:41:49Z hubert@u.washington.edu $
+ * $Id: edef.h 900 2008-01-05 01:13:26Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington

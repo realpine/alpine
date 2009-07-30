@@ -17,4 +17,4 @@ noinst_LIBRARIES = libpicoosd.a
 libpicoosd_a_SOURCES = altedit.c chkpoint.c color.c filesys.c fsync.c getkey.c mouse.c \
 	newmail.c popen.c raw.c read.c shell.c signals.c spell.c terminal.c truncate.c tty.c
 
-AM_CPPFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/include
+AM_CPPFLAGS = -I@top_builddir@/include -I@top_srcdir@/include

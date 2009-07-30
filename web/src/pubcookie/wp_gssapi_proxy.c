@@ -154,6 +154,7 @@ int main(int argc,char *argv[])
 {
   char *user = 0;
   char userbuf[WP_BUF_SIZE];
+  char *prog;
   OM_uint32 smj,smn,dsmn,mctx;
   gss_name_t crname = GSS_C_NO_NAME;
   gss_ctx_id_t ctx = GSS_C_NO_CONTEXT;
@@ -162,8 +163,13 @@ int main(int argc,char *argv[])
   gss_qop_t qop;
   gss_OID oid;
   int calling_uid,eff_uid;
-  
-  openlog(argv[0],LOG_PID,LOG_MAIL);
+
+  if((prog = strrchr(argv[0], '/')) == NULL)
+    prog = argv[0];
+  else
+    prog++;
+
+  openlog(prog,LOG_PID,LOG_MAIL);
 
   calling_uid = getuid();
   eff_uid = geteuid();

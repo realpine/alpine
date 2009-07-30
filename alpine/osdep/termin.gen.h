@@ -1,5 +1,5 @@
 /*
- * $Id: termin.gen.h 881 2007-12-18 18:29:24Z mikes@u.washington.edu $
+ * $Id: termin.gen.h 890 2007-12-21 05:34:43Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington

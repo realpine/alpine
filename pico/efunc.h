@@ -1,5 +1,5 @@
 /*
- * $Id: efunc.h 788 2007-11-06 23:51:13Z hubert@u.washington.edu $
+ * $Id: efunc.h 807 2007-11-09 01:21:33Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington

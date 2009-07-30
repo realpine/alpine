@@ -1,5 +1,5 @@
 # Web Alpine Config options
-# $Id: alpine.tcl 1160 2008-08-22 01:12:33Z mikes@u.washington.edu $
+# $Id: alpine.tcl 1266 2009-07-14 18:39:12Z hubert@u.washington.edu $
 # ========================================================================
 # Copyright 2006-2008 University of Washington
 #
@@ -34,11 +34,12 @@ set _wp(tmpdir)		/tmp
 # NOTE: Make SURE tclsh and alpine.tcl symlinks in this directory
 set _wp(cgipath)	[file join $_wp(fileroot) cgi]
 
-# place for CGI scripts that execute the interface
+# CGI scripts implementing U/I, session cookie scope
 set _wp(appdir)		alpine
 
-# place for CGI scripts supporting alternative UI
-set _wp(appdir2)     [file join alpine 2.0]
+# UI versions
+set _wp(ui1dir)		1.0
+set _wp(ui2dir)		2.0
 
 # place for CGI scripts not requiring session-key
 set _wp(pubdir)		pub
@@ -128,8 +129,8 @@ set _wp(menuargs)	{width="112" nowrap valign=top}
 set _wp(ispell)		/usr/local/bin/ispell
 
 # Yahoo! User Interface Library location
-#set _wp(yui)		$_wp(serverpath)/$_wp(appdir2)/lib/yui
-set _wp(yui)		"http://yui.yahooapis.com/2.5.2"
+#set _wp(yui)		$_wp(serverpath)/$_wp(appdir)/$_wp(ui2dir)/lib/yui
+set _wp(yui)		"http://yui.yahooapis.com/2.7.0"
 
 # usage reporter - input: username as first command line argument
 #                  output: space separated integers usage and total
@@ -171,9 +172,6 @@ set _wp(indexheight) [expr {$_wp(indexheight) <= 20 ? 20 : $_wp(indexheight) >= 
 
 # external vacation config link
 #set _wp(vacation_link)	http://vacation.sample-domain.edu/vacation/config
-
-# default command evaluator DO NOT MESS WITH THIS
-set _wp(eval)		{}
 
 #
 # Nickname server bindings.  If not present, prompt for the
@@ -331,9 +329,8 @@ proc WPValidId {{sessid {}}} {
     set _wp(sockname) [WPSocketName $_wp(sessid)]
 
     if {[info exists _wp(cumulative)]} {
-      set _wp(eval) WPSendCmdTimed
-    } else {
-      set _wp(eval) WPSendCmd
+      rename WPCmd WPCmd.orig
+      rename WPCmdTimed WPCmd
     }
 
     if {[info exists _wp(hostcheck)] && $_wp(hostcheck) == 1 && ![info exists created]
@@ -500,16 +497,19 @@ proc WPGetInputAndID {_sessid} {
       cgi_root $serverroot
     }
   }
-
 }
 
-proc WPSendCmd {args} {
+proc WPCmdEval {args} {
+  return [eval $args]
+}
+
+proc WPCmd {args} {
   global _wp
 
   return [WPSend $_wp(sockname) $args]
 }
 
-proc WPSendCmdTimed {args} {
+proc WPCmdTimed {args} {
   global _wp
 
   set t [lindex [time {set r [WPSend $_wp(sockname) $args]}] 0]
@@ -520,12 +520,6 @@ proc WPSendCmdTimed {args} {
   }
 
   return $r
-}
-
-proc WPCmd {args} {
-  global _wp
-
-  return [eval "$_wp(eval) $args"]
 }
 
 proc WPLoadCGIVar {_var} {

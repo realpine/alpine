@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: launch.tcl 391 2007-01-25 03:53:59Z mikes@u.washington.edu $
+# $Id: launch.tcl 1266 2009-07-14 18:39:12Z hubert@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -29,6 +29,10 @@ if {[info exists env(REMOTE_USER)]} {
 }
 
 set cmd "exec -- echo $_wp(sockname) | [file join $_wp(bin) $servlet]"
+
+# set debug level and configure dmalloc
+#append cmd " -d -d -d -d -d -d -d"
+#set env(DMALLOC_OPTIONS) "check-fence,check-heap,check-blank,log=/tmp/logfile.%d"
 
 if {[catch {eval $cmd} errmsg]} {
     puts stderr "Unable to Launch servlet: $errmsg"

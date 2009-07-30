@@ -1,0 +1,471 @@
+<html>
+<head>
+<!--
+# $Id: tech-notes.html 1204 2009-02-02 19:54:23Z hubert@u.washington.edu $
+# ========================================================================
+# Copyright 2006 University of Washington
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# ========================================================================
+-->
+</head>
+<body>
+<font size=+3><b>Web Alpine Technical Notes</b></font>
+
+<!-- history: originally prepared for AIT, 22 October 2002 -->
+<!-- history: updated for initial campus release, 19 Apr 2004 -->
+
+<h2>Why Web Alpine</h2>
+
+Web Alpine was originally conceived as a means of providing reliable,
+ubiquitous, and consistent access to UW email facilites via the Interactive
+Message Access Protocol (IMAP).  As with Pine, it is intended to present a
+simple, approachable interface that can be easily navigated with
+minimal familiarity.  It is also intended to be as efficient as
+possible, in both page-service and user navigation while meshing
+as neatly as possible with the central campus IMAP infrastructure.
+
+<p>
+
+<h2>How Web Alpine</h2>
+
+<p>
+
+Web Alpine's foundation rests firmly on Unix Alpine's many years of
+development and deployment.  It's core element is a per-session server
+(or serverette) that provides data to the scripts generating the web
+pages the users sees and manages the connection to the IMAP mail
+server where the user's mail resides.  This serverette is literally
+built from the same Alpine sources used to build the Unix Alpine and
+PC-Alpine mail user agents.  Thus, it inherits most of the efficiency,
+such as data caching and request ordering and grouping, that has been
+built into Alpine, as well as many of the features and functions.
+
+<p>
+
+<h3>Components</h3>
+<p>
+
+<table width=80% align=center border=0 cellpadding=8>
+<tr>
+ <td valign=top align=left><b>Browser</b></td>
+ <td>Performs usual browser role: sends requests, renders responses and displays or hands off for display non-HTML data</td>
+</tr>
+<tr>
+ <td valign=top align=left nowrap><b>Web Server</b></td>
+ <td>Performs extraordinary web server role: produces HTML responses to requests, maintains relationship between user's browser and IMAP server for the life of the user's session.</td>
+</tr>
+<tr>
+ <td valign=top align=left nowrap><b>IMAP Server</b></td>
+ <td>Performs usual mail server role: provides access to the various bits and pieces of mail data via Interactive Message Access Protocol</td>
+</tr>
+</table>
+<p>
+<div align=center>
+<img src=wpsys.jpeg>
+</div>
+<p>
+
+<h3>Protocols, Services, Technologies</h3>
+<p>
+
+<table width=80% align=center>
+<tr><td>
+ <dl>
+  <dt><b>HTTP(s)</b></dt>
+  <dd>Protocol between browser and web server.  Common language allowing users to get at their mail from the widest variety of platforms and locations.</dd>
+  <dt><b>IMAP(s)</b></dt>
+  <dd>Broadly implemented distributed mail protocol which permits users to access mail from a variety of
+     clients: web alpine, pine, pc-pine, outlook express, eudora.</dd>
+  <dt><b>Pubcookie</b></dt>
+  <dd>Secure, distributed web-based authentication service optionally used as the mechanism to authenticate users in the Web Alpine login process.</dd>
+  <dt><b>GSSAPI</b></dt>
+  <dd>SASL authentication mechanism used to establish session between Web Alpine serverette and IMAP server on behalf of Pubcookie authenticated user.</dd>
+  <dt><b>Tcl</b></dt>
+  <dd>Tool Command Language.  Chosen CGI scripting language for the Web Alpine page templates.   Reasonable
+    language, reasonably implemented, reasonably supported, particularly well suited for exporting functionality
+    in pre-existing C-based tools.</dd>
+  <dt><b>Unix Domain Sockets</b></dt>
+  <dd>Communication channel used to pass requests/responses between Tcl interpreters processing scripts and web alpine serverette.</dd>
+</dl>
+</td></tr>
+</table>
+<p>
+
+<h3>Web Alpine Distribution Layout</h3>
+<p>
+The Web Alpine application consists of three main components; the CGI scripts that generate pages containing the user's email data,
+a serverette running on the http server spanning the life of the user's session, and a couple of libraries
+to aid page generation and serverette communciation.
+
+<p>
+Web Alpine is packaged as part of the Alpine Distribution and it's source resides
+within the <tt>web/</tt> subdirectory.  Subdirectories are organized by the service
+the provide, and breakdown as follows:
+<p>
+<table border=0 xbgcolor="#dddddd" align=center width="90%" cellpadding=2>
+<tr>
+ <td valign=top><tt>bin/</tt></td>
+ <td></td>
+ <td></td>
+ <td valign=top>Contains scripts and generated binaries that initiate and maintain Web Alpine sessions.
+ </td>
+</tr>
+<tr>
+ <td valign=top><tt>cgi/</tt></td>
+ <td></td>
+ <td></td>
+ <td valign=top>Contains scripts referenced by the browser to generate the Web Alpine interface.
+   Subdirectories within organize scripts by function, and allow for suitable scoping
+    of session key.
+ </td>
+</tr>
+<tr>
+ <td></td>
+ <td valign=top><tt>alpine/</tt></td>
+ <td></td>
+ <td valign=top>Browser's view of Web Alpine application.  Contains scripts to generate pages
+ the user interacts with.
+ </td>
+</tr>
+<tr>
+ <td></td>
+ <td valign=top><tt>session/</tt></td>
+ <td></td>
+ <td valign=top>Scripts referenced by the browser to manage session initiation.
+ </td>
+</tr>
+<tr>
+ <td></td>
+ <td valign=top><tt>images/</tt><br><tt>sounds/</tt><br><tt>pub/</tt></td>
+ <td></td>
+ <td valign=top>Scripts and data that don't require restricted access control.
+ </td>
+</tr>
+<tr>
+ <td valign=top><tt>config/</tt></td>
+ <td></td>
+ <td></td>
+ <td valign=top>Server configuration scripts, default settings.
+ </td>
+</tr>
+<tr>
+ <td valign=top><tt>lib/</tt></td>
+ <td></td>
+ <td></td>
+ <td valign=top>Contains components to support IPC, CGI processing and HTML generation.
+ </td>
+</tr>
+<tr>
+ <td valign=top><tt>src/</tt></td>
+ <td></td>
+ <td></td>
+ <td valign=top>Contains source files for Web Alpine's binary components which will be linked
+ against the <tt>pith/</tt> libarary components.
+ </td>
+ </td>
+</tr>
+<tr>
+ <td></td>
+ <td valign=top><tt>alpined.d/</tt></td>
+ <td></td>
+ <td valign=top>Source files for <tt>alpined</tt> serverette.  This is a per-user, per-session
+ server that services requests for email data from the CGI scripts via UNIX domain
+ socket.
+ </td>
+</tr>
+<tr>
+ <td></td>
+ <td valign=top><tt>pubcookie/</tt></td>
+ <td></td>
+ <td valign=top>Source files providing UW Pubcookie web authentication support.
+ </td>
+</tr>
+<tr>
+ <td></td>
+ <td valign=top><tt>cgi.tcl-1.10/</tt></td>
+ <td></td>
+ <td valign=top>Source for TCL library providing CGI/HTML support
+ </td>
+</tr>
+<tr>
+ <td valign=top><tt>detach@</tt></td>
+ <td></td>
+ <td></td>
+ <td valign=top>Typically a symbolic link to a subdirectory within <tt>/tmp</tt>.  It is used to hold temporary
+     copies of message attachments as they're downloaded to the browser.
+<table width="100%" align=center bgcolor="#dddddd"><tr><td>
+In the pubcookie case, it must have world read/write/execute mode set due to
+<tt>alpined</tt> pseudo-uid partitioning.
+</td></tr></table>
+
+</tr>
+</table>
+
+<p>
+
+<h2>Web Alpine Configuration</h2>
+<h3>CGI Script Configuration</h3>
+<p>
+Most Web Alpine configuration is contained in the <tt>config/alpine.tcl</tt> configuration file.
+Most of the interesting settings are toward the top of the file and pretty much suggest
+what they set.  The most important settings, though, are probably:
+
+<table width="80%" align=center>
+<tr><td>
+<dl width=80%>
+<dt>
+ <tt>_wp(fileroot)</tt>
+</dt>
+<dd>
+that defines where the Web Alpine application was unpacked on your system, and 
+</dd>
+<dt>
+<tt>_wp(urlprefix)</tt>
+</dt>
+<dd>
+which defines where browsers can find Web Alpine's CGI scripts.  This is set to
+the null string if the server's DocumentRoot is synonymous with the root of
+Web Alpine's CGI directory.  Othewise, it's typically set to the Alias accessed
+subdirectory in the web server's configuration.
+
+</dd>
+</dl>
+</td></tr>
+</table>
+
+
+<h3>Web Server Configuration</h3>
+<p>
+Typically, a Web Alpine server is used solely to serve Web Alpine pages.  That is, no other hosting is
+done by the server.  Thus, it is usually convenient to configure the web server to treat
+the <tt>web/cgi/</tt> directory within the distribution as the root directory of the pages
+it serves (or to move those files and directories into the web server's document root).
+Similarly, it may be necessary to configure the web server to process CGI scripts from
+it's root (since this <em>should</em> be a dedicated server this shouldn't matter).
+
+<h3>IMAP Server Configuration</h3>
+<p>
+Genarally, no configuration is required of the IMAP server.
+<table width="75%" align=center bgcolor="#dddddd"><tr><td>
+However, in the Pubcookie case the Web and IMAP servers need to coordinate the
+existence of a meta-user, such as <tt>webalpine</tt>, used for SASL proxy authentication.  For UW imapd this
+means creating an account on the IMAP server that is a member of the <tt>&quot;mailadm&quot;</tt>
+group.  A SASL GSSAPI authentication handshake is used between the
+Web and IMAP server when the web server initiates a session on behalf of
+a particular user.
+</td></tr></table>
+
+<h3>User Configuration</h3>
+<p>
+Since no user-initiated local file or mailbox access is permitted by (much less compiled into) the <tt>alpined</tt>,
+user configuration and data files are stored using Pine's remote pinerc and address book capabilites.  The configuration
+settings in <tt>web/config/</tt> are used to set per-user defaults and direct Web Alpine toward the user's configuration
+settings on the IMAP server.  Similarly, the default addressbook is stored as an IMAP folder on the server as well.
+Concurrent Web Alpine, Unix Pine and PC-Pine users that would like a consistent mail environment can easily configure their
+other Pine's to use the <tt>remote_pinerc</tt> and <tt>remote_addrbook</tt> on their IMAP server.
+
+<h3>Browser Configuration</h3>
+<p>
+A Web Alpine goal is to run reasonably on as many browsers as possible.  Toward that end, little beyond basic table and form support
+is required of the browser.  And while Javascript is not a requirement to access Web Alpine functions, when enabled in the browser
+some enhanced capability is available such as keyboard accessible commands and implicit selection of various listbox choices.
+
+<h2>Session Lifecycle</h2>
+<p>
+
+<ol>
+ <li>User requests <tt>greeting.tcl</tt> which consists of a form to be filled out with any necessary authentication tokens and mail server choice.
+ <table width="75%" align=center bgcolor="#dddddd"><tr><td>
+In Pubcookie case user is not presented the username/password option unless they have chosen to
+connect to a mail server outside the locally managed, predefined set.
+ </td></tr></table>
+ <li>User submits form with authentication tokens and initial mail server
+ <table width="75%" align=center bgcolor="#dddddd"><tr><td>
+By default, the submitted authentication tokens consist of a username/password pair.  When Pubcookie is
+in use, the browser sends the pubcookie-specific authentication token with the form submission.
+ </td></tr></table>
+
+ <li>Web Alpine CGI logon script processes form and instantiates serverette.  The logon script:
+  <ol>
+   <li>validates form data
+   <li>generates session key
+   <li>launches the Web Alpine serverette, <tt>alpined</tt>, passing session key via stdin
+ <table width="75%" align=center bgcolor="#dddddd"><tr><td>
+<tt>serverette</tt> reads session key, creates Unix domain socket, and enters command loop
+waiting for input on the fresh socket
+ </td></tr></table>
+   <li>sends serverette the command to establish a session with the requested IMAP server on behalf of the given user
+ <table width="75%" align=center bgcolor="#dddddd"><tr><td>
+By default, the login script simply passes the username/password pair to the serverette where
+it's the serverette's job to present them to the IMAP server for validation.  If the IMAP server
+declines, a "bad user or password" error page is generated and sent to the browser and the serverette
+ exits.
+<p>
+The Pubcookie case is a bit more involved.  The CGI scripts rely on the netid specified in the REMOTE_USER
+environment variable which is set as a side effect of pubcookie module processing.  The trusted netid
+is not passed directly to the serverette, rather all CGI processing is done via a setuid Tcl interpreter.
+The uid is unique to each netid on the system, but not related to any netid/uid binding on general access
+systems.  Running the CGI scripts and serverette under a netid-bound uid provides a convenient way to implement
+the authentication mechanism between the serverette and the IMAP server as well as a useful way to partition
+serverettes such that one compromised serverette can't affect others.
+ </td></tr></table>
+
+   <li>With a valid IMAP session established, the logon script redirects the user's browser to the initial
+    Message List page.
+  </ol>
+ <li>The user navigates/manipulates their email environment based on web pages generated by Tcl script
+templates which were fleshed out via requests to the <tt>alpined</tt> serverette.  The serverette in turn
+may draw on its cache of IMAP data, make new requests of the IMAP server, post messages via SMTP or
+the local mail queue, formulate LDAP queries, or perform other tasks as required.
+ <table width="75%" align=center bgcolor="#dddddd"><tr><td>
+Note: Web Alpine sessions run as long as the user's browser requests pages.  In the absense of user interaction
+Web Alpine will self-refresh every few minutes to mainain the session.  Sessions only end when the user logs out
+or closes the browser.
+ </td></tr></table>
+ <li>User ends session and confirms 
+ <table width="75%" align=center bgcolor="#dddddd"><tr><td>
+  Note: If the user simply closes their browser, the serverette will self-exit after 30 minutes.
+ </td></tr></table>
+</ol>
+
+<h3>Web Server Considerations</h3>
+<p>
+Web Alpine has been developed under Apache (versions 1.x thru 2.x).  However, because the intent was to be as flexible
+and manageable as possible, little aside from SSL and basic CGI services are required of the web server.  It's
+conceivable Web Alpine could be made to run under another server, or even Windows and IIS modulo the UNIX-Sockets communication 
+issues between the CGI scripts and <tt>alpined</tt>.
+
+<p>
+The downside, of course, is that this requires somewhat redundant 
+parses of the configuration and CGI-helper library with each page request.  It's a trade-off.  A slightly more efficient approach might be to create
+an apache module that understands requests and passes them directly to the corresponding <tt>alpined</tt> which would execute the script and return
+HTML directly. However, the additional cost in installation and management complexity stands to offset those gains.
+
+<p>
+Similarly, it is <bold>assumed</bold> that the Web Alpine service is provided on a black box server.  That is, a host
+that has no general user accounts.  Unmodified, Web Alpine creates the UNIX-domain sockets corresponding 
+pretty directly to the user's session key in the <tt>/tmp</tt> directory.  In addition, depending on the nature
+of the connection, the session key may also be exposed via oridinary httpd logging.  <em>Important safety tip:</em> make
+sure ordinary users do not have access to the Web Alpine system or httpd log files.  In the future those sockets may be moved into 
+a access-restricted subdirectory, but the httpd log file record may be harder, and less reliably concealed.
+
+<h3>CGI Considerations</h3>
+<p>
+
+Most Web Alpine pages are generated via CGI scripts written in Tcl.  A
+library of Tcl functions called <tt>cgi.tcl</tt> is used heavily to
+help with the HTML generation.  Of course, this means that a web 
+developer that might wish to change or enhance Web Alpine pages, will have
+to acquire some Tcl knowledge.  Additionally, the library has one or two
+interface inconsistencies (not unlike Tcl, but that's another
+discussion), which will mean a bit steeper learning curve, but we 
+think this is only slightly more difficult than the amount of Tcl
+one would have to learn in a more template-oriented approach.  We think
+the scipt's logic flow and such is much easier to understand
+and maintain than the substitution and recursion necessary in an
+html-template approach.
+
+<p>
+
+
+<h3><span style="font-family: monospace; font-size: big">alpined</span> Considerations</h3>
+<p>
+Tcl, incidentally, is also the language used to move data in and out
+of the Web Alpine serverette, <tt>alpined</tt>.  Tcl lends itself nicely
+to string oriented data, and provides a convenient, simple interface
+to export functionality contained in C-based utilities.
+
+<h3>HTML Considerations</h3>
+<p>
+Much of the HTML generated by Web Alpine does layout based on tables.  This somewhat sub-optimal state
+mostly has to do with when the Web Alpine development effort was initiated and the concurrent browser
+chaos.  The goal is to move scripts toward generating more CSS-oriented layout over time.
+
+<p>
+Similarly, earlier versions of Web Alpine relied heavily on Javascript in a misguided attempt to make the
+browser-based experience feel as familiar as possible to a dedicated desktop application.  Beyond the fact that
+Javascript support varied widely across browsers at the time, it should have also been obvious that
+by presenting a familiar desktop-like interface, we also set desktop-like performance
+expectations which we had no hope of meeting.
+
+<h3>Clustering Considerations</h3>
+<p>
+Since <tt>alpined</tt> persists for the life of the user's session, the session is bound to the particular
+server that initiated it.  In order to provide service to a sizeable constituency, it may be necessary to spread usage across
+a group or cluster of servers.  There exist numerous strategies to distribute connecting users across a cluster, such
+as an initial server that redirects randomly to one of the servers in a cluster, DNS-based randomizing, or load-balancing 
+strategies.  The former can lead to web server names users find distracting (though this doesn't appear to be to 
+much of an issue) and the latter, of course, could lead to misdirected requests over time (or as loads change) so
+it is necessary for servers to either redirect or proxy requests to the appropriate server.
+<p>
+As a basic allowance for such installations, Web Alpine's session key
+contains the hostname of the server that created it.  Similarly, the
+access routines that parse the key for access to the appropriate
+<tt>alpined</tt> are aware of the hostname and will redirect
+misguided requests to the appropriate server.  This isn't particularly
+satisfying in terms of network RTTs.
+<p>
+One alternative that saves network performance
+at the expense of slightly increased server load is to introduce a
+directory above the <tt>web alpine/</tt> script directory and then add one
+along side that new directory for each server in the cluster.  It's then possible to use the Apache
+directive to proxy requests within the scope of those directories to
+the corresponding server.
+
+<h3>Security Considerations</h3>
+<p>
+<ul>
+<li>Session keys only valid for life of session.  Can't acquire increased or prolonged rights based on key.
+<li>Link layer (ssl) encryption available (and likely the default in most situations)
+<li><tt>alpined</tt> pseudo-uid partitioning is employed in the pubcookie context
+</ul>
+<p>
+
+<h2>Future Plans</h2>
+<p>
+Through the semi-formal usability testing process, early testing
+phases and regular campus use, overall response has been very  favorable.
+Usability testing concurrent with ongoing feature development and interface adjustments 
+continues to hone rough edges, particularly where the drive for performance has led to
+less intuitive interface choices.  We plan to continue emphasis on the refine/feedback
+loop as we roll in many of the features Pine users have come to appreciate.
+
+<p>
+Performance in terms of both user perceived response time and users per web server are 
+always a concern, but must, of course, be balanced against additional maintenance and complexity costs.
+Less obvious complicating factors must be considered, such as <tt>alpined</tt> process partitioning
+and session-key containing cookie exposure in the face of malicous HTML attachments.
+We plan, of course, to continue exploring various methods to improve performance.
+
+<h2>Appendix: Installation Tests</h2>
+<p>
+For the most part, if you can get the login greeting page and
+then log into a session, things should be working for the
+most part. Some things you might try to verify
+a complete installation include:
+
+<ul>
+<li>Open a secondary folder</li>
+<li>Go back to Inbox</li>
+<li>View or Save an attachment</li>
+<li>Send a message</li>
+<li>Send a message with an attachment</li>
+<li>Spell check a message (if is ispell installed on the web server)</li>
+<li>Create an address book entry</li>
+<li>Delete an address book entry</li>
+<li>Save a message to a new folder</li>
+<li>Verify the new folder appears in the cached folder drop down</li>
+<li>Logout, Verify the folder appears in drop down list of subsequent session</li>
+<li>Try configuration settings such as Enable Full Headers</li>
+<li>Logout, Verify the setting change in subsequent session</li>
+</ul>
+
+
+</body>
+</html>

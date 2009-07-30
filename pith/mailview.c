@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailview.c 1111 2008-07-11 23:20:32Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailview.c 1266 2009-07-14 18:39:12Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2008 University of Washington
+ * Copyright 2006-2009 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -538,7 +538,8 @@ format_attachment_list(long int msgno, BODY *body, HANDLE_S **handlesp, int flgs
     /*----- First do the list of parts/attachments if needed ----*/
     if((flgs & FM_DISPLAY)
        && (ps_global->atmts[1].description
-	   || ps_global->atmts[0].body->type != TYPETEXT)){
+	   || (ps_global->atmts[0].body
+	       && ps_global->atmts[0].body->type != TYPETEXT))){
 	char tmp[6*MAX_SCREEN_COLS + 1], *tmpp;
 	int  i, n, maxnumwid = 0, maxsizewid = 0, *margin;
 	int  avail, m1, m2, hwid, s1, s2, s3, s4, s5, dwid, shownwid;

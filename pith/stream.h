@@ -1,5 +1,5 @@
 /*
- * $Id: stream.h 600 2007-06-15 23:23:02Z hubert@u.washington.edu $
+ * $Id: stream.h 768 2007-10-24 00:10:03Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington

@@ -1,5 +1,5 @@
 /*
- * $Id: abdlc.h 671 2007-08-15 20:28:09Z hubert@u.washington.edu $
+ * $Id: abdlc.h 769 2007-10-24 00:15:40Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington

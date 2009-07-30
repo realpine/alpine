@@ -1,5 +1,5 @@
 /*
- * $Id: foldertype.h 583 2007-05-29 23:10:02Z hubert@u.washington.edu $
+ * $Id: foldertype.h 768 2007-10-24 00:10:03Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington

@@ -1,5 +1,5 @@
 /*
- * $Id: msgno.h 1108 2008-07-10 05:01:13Z mikes@u.washington.edu $
+ * $Id: msgno.h 1142 2008-08-13 17:22:21Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington

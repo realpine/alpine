@@ -1,5 +1,5 @@
 /*
- * $Id: remote.h 1069 2008-06-03 15:54:15Z hubert@u.washington.edu $
+ * $Id: remote.h 1074 2008-06-04 00:08:43Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2008 University of Washington

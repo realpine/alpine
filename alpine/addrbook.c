@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: addrbook.c 1009 2008-03-25 18:57:53Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: addrbook.c 1266 2009-07-14 18:39:12Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2008 University of Washington
+ * Copyright 2006-2009 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -7026,6 +7026,8 @@ abook_nickname_complete(char *prefix, char **answer, int tabtab, unsigned flags)
     char *saved_beginning = NULL;
     char *potential_answer = NULL;
 
+    wp_exit = wp_nobail = 0;
+
     /* there shouldn't be a case where answer is NULL */
     if(answer)
       *answer = NULL;
@@ -7060,7 +7062,7 @@ abook_nickname_complete(char *prefix, char **answer, int tabtab, unsigned flags)
 
     completions = adrbk_list_of_completions(prefix,
 			ps_global->cur_uid_stream, ps_global->cur_uid,
-			ALC_INCLUDE_ADDRS | ((strlen(prefix) >= 5) ? ALC_INCLUDE_LDAP : 0));
+			ALC_INCLUDE_ADDRS | ((strlen(prefix) >= 3) ? ALC_INCLUDE_LDAP : 0));
 
     if(!completions)
       ambiguity = 0;

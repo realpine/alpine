@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: conf.c 1167 2008-08-23 00:07:05Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: conf.c 1266 2009-07-14 18:39:12Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006-2008 University of Washington
+ * Copyright 2006-2009 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1633,6 +1633,14 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
     GLO_SMTP_SERVER		= parse_list(DF_SMTP_SERVER, 1,
 					     PL_REMSURRQUOT, NULL);
 #endif
+
+#ifdef	DF_SSHPATH
+    GLO_SSHPATH			= cpystr(DF_SSHPATH);
+#endif
+#ifdef	DF_SSHCMD
+    GLO_SSHCMD			= cpystr(DF_SSHCMD);
+#endif
+
 #ifndef	_WINDOWS
     GLO_COLOR_STYLE		= cpystr("no-color");
     GLO_NORM_FORE_COLOR		= cpystr(DEFAULT_NORM_FORE_RGB);
@@ -1692,6 +1700,26 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
      */
     if(!GLO_STANDARD_PRINTER && !FIX_STANDARD_PRINTER)
       GLO_STANDARD_PRINTER = parse_list(DF_STANDARD_PRINTER, 1, 0, NULL);
+
+/*
+ * Defining this default sshpath should cause ssh to be preferred over rsh
+ * when attempting imapd preauth calls.
+ */
+#ifdef	DF_SSHPATH
+    if(DF_SSHPATH
+       && is_absolute_path(DF_SSHPATH)
+       && can_access(DF_SSHPATH, EXECUTE_ACCESS) == 0){
+	mail_parameters(NULL, SET_SSHPATH, (void *) DF_SSHPATH);
+    }
+#endif
+/*
+ * It isn't usually necessary to define this.
+ */
+#ifdef	DF_SSHCMD
+    if(DF_SSHCMD){
+	mail_parameters(NULL, SET_SSHCOMMAND, (void *) DF_SSHCMD);
+    }
+#endif
 
 #if !defined(DOS) && !defined(OS2)
     /*
@@ -2274,15 +2302,24 @@ init_vars(struct pine *ps, void (*cmds_f) (struct pine *, char **))
     }
 
     set_current_val(&vars[V_SSHPATH], TRUE, TRUE);
-    if(VAR_SSHPATH
-       && is_absolute_path(VAR_SSHPATH)
-       && can_access(VAR_SSHPATH, EXECUTE_ACCESS) == 0){
-	mail_parameters(NULL, SET_SSHPATH, (void *) VAR_SSHPATH);
+    if(VAR_SSHPATH) {
+	if(is_absolute_path(VAR_SSHPATH)
+	   && can_access(VAR_SSHPATH, EXECUTE_ACCESS) == 0){
+	    mail_parameters(NULL, SET_SSHPATH, (void *) VAR_SSHPATH);
+	}
+	else {
+	    mail_parameters(NULL, SET_SSHPATH, (void *) NULL);
+	}
     }
 
     set_current_val(&vars[V_SSHCMD], TRUE, TRUE);
-    if(VAR_SSHCMD){
-	mail_parameters(NULL, SET_SSHCOMMAND, (void *) VAR_SSHCMD);
+    if(VAR_SSHCMD) {
+	if(VAR_SSHCMD[0]) {
+	    mail_parameters(NULL, SET_SSHCOMMAND, (void *) VAR_SSHCMD);
+	}
+	else {
+	    mail_parameters(NULL, SET_SSHCOMMAND, (void *) NULL);
+	}
     }
 
 #if	defined(DOS) || defined(OS2)

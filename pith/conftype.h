@@ -1,5 +1,5 @@
 /*
- * $Id: conftype.h 1150 2008-08-20 00:27:11Z mikes@u.washington.edu $
+ * $Id: conftype.h 1155 2008-08-21 18:33:21Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2008 University of Washington

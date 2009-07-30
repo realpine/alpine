@@ -14,7 +14,7 @@ dnl  */
 
 AC_PREREQ([2.57])
 
-AC_REVISION([$Id: configure.ac 1128 2008-08-08 17:11:31Z hubert@u.washington.edu $])
+AC_REVISION([$Id: configure.ac 1266 2009-07-14 18:39:12Z hubert@u.washington.edu $])
 
 dnl Alpine Version Number is in $srcdir/VERSION
 AC_INIT(alpine, m4_normalize(m4_include([VERSION])), [alpine-contact@u.washington.edu])
@@ -154,6 +154,7 @@ AC_ARG_WITH(lib-path,
       *)
       	new_ldflags="-L`echo ${withval} | ${SED} 's/:/ -L/g'`"
       	LDFLAGS="$LDFLAGS $new_ldflags"
+        alpine_c_client_ldflags="$alpine_c_client_ldflags ${new_ldflags}"
 	;;
     esac
   ])
@@ -354,73 +355,83 @@ fi
 
 dnl OPTION: basic spell checking program
 AC_ARG_WITH(simple-spellcheck,
-  AC_HELP_STRING([--with-simple-spellcheck=PATH],[Spellcheck program reads stdin, emits misspellings on stdout]),
+  AC_HELP_STRING([--with-simple-spellcheck=PROG],[Spellcheck program reads stdin, emits misspellings on stdout]),
     [
       if test "x$withval" != "xno" ; then
         SPELLPROG=$withval
       fi
     ],
     [
-      SPELLPROG=yes
+      AC_CHECK_PROG([SPELLPROG], [hunspell], [hunspell], [])
+      if test -z "$SPELLPROG" ; then
+        AC_CHECK_PROG([SPELLPROG], [aspell], [aspell], [])
+        if test -z "$SPELLPROG" ; then
+          AC_CHECK_PROG([SPELLPROG], [ispell], [ispell], [])
+          if test -z "$SPELLPROG" ; then
+           SPELLPROG="spell"
+          fi
+        fi
+      fi
     ])
 
-case "$SPELLPROG" in
-  no)
-    ;;
-  yes)
-    AC_PATH_PROG(alpine_simple_spellcheck, [aspell])
-    if test -n "$alpine_simple_spellcheck" ; then
-      alpine_simple_spellcheck="$alpine_simple_spellcheck --dont-backup --mode=email list"
-    else
-      AC_PATH_PROG(alpine_simple_spellcheck, [ispell])
-      if test -n "$alpine_simple_spellcheck" ; then
+if test "x$SPELLPROG" != "xno" ; then
+  AC_PATH_PROG(alpine_simple_spellcheck, $SPELLPROG)
+  if test -n "$alpine_simple_spellcheck" ; then
+    case "$SPELLPROG" in
+      hunspell)
         alpine_simple_spellcheck="$alpine_simple_spellcheck -l"
-      else
-        AC_PATH_PROG(alpine_simple_spellcheck, [spell])
-      fi
-    fi
-    ;;
-  *)
-    AC_PATH_PROG(alpine_simple_spellcheck, $SPELLPROG)
-    ;;
-esac
+        ;;
+      aspell)
+        alpine_simple_spellcheck="$alpine_simple_spellcheck --dont-backup --mode=email list"
+        ;;
+      ispell)
+        alpine_simple_spellcheck="$alpine_simple_spellcheck -l"
+        ;;
+      *)
+        ;;
+    esac
+  fi
+fi
 
 dnl OPTION: interactive spell checking program
 AC_ARG_WITH(interactive-spellcheck,
-  AC_HELP_STRING([--with-interactive-spellcheck=PATH],[Interactive, filewise spell checker]),
+  AC_HELP_STRING([--with-interactive-spellcheck=PROG],[Interactive, filewise spell checker]),
     [
       if test "x$withval" != "xno" ; then
         ISPELLPROG=$withval
       fi
     ],
     [
-      ISPELLPROG=yes
+      AC_CHECK_PROG([ISPELLPROG], [hunspell], [hunspell], [])
+      if test -z "$ISPELLPROG" ; then
+        AC_CHECK_PROG([ISPELLPROG], [aspell], [aspell], [])
+        if test -z "$SPELLPROG" ; then
+          ISPELLPROG="ispell"
+        fi
+      fi
     ])
 
-case "$ISPELLPROG" in
-  no)
-    ;;
-  yes)
-    AC_PATH_PROG(alpine_interactive_spellcheck, [aspell])
-    if test -n "$alpine_interactive_spellcheck" ; then
-      alpine_interactive_spellcheck="$alpine_interactive_spellcheck --dont-backup --mode=email check"
-    else
-      AC_PATH_PROG(alpine_interactive_spellcheck, [ispell])
-    fi
-    ;;
-  *)
-    AC_PATH_PROG(alpine_interactive_spellcheck, $withval)
-    ;;
-esac
+if test "x$ISPELLPROG" != "xno" ; then
+  AC_PATH_PROG(alpine_interactive_spellcheck, $ISPELLPROG)
+  if test -n "$alpine_interactive_spellcheck" ; then
+    case "$ISPELLPROG" in
+      aspell)
+        alpine_interactive_spellcheck="$alpine_interactive_spellcheck --dont-backup --mode=email check"
+        ;;
+      *)
+        ;;
+    esac
+  fi
+fi
+
+if test -n "$alpine_interactive_spellcheck" ; then
+    AC_DEFINE_UNQUOTED([DF_VAR_SPELLER], "$alpine_interactive_spellcheck", [Interactive, filewise spell checker])
+fi
 
 if test -z "$alpine_simple_spellcheck" -a -n "$alpine_interactive_spellcheck" ; then
   alpine_simple_spellcheck=test
 fi
 AC_DEFINE_UNQUOTED([SPELLER], "$alpine_simple_spellcheck", [Simple spell checker: reads stdin, emits misspellings on stdout])
-
-if test -n "$alpine_interactive_spellcheck" ; then
-    AC_DEFINE_UNQUOTED([DF_VAR_SPELLER], "$alpine_interactive_spellcheck", [Interactive, filewise spell checker])
-fi
 
 dnl OPTION: system-pinerc
 dnl NOTE: historically we used /lib for the config dir.
@@ -585,6 +596,36 @@ if test -n "$alpine_PASSFILE" ; then
   esac
   AC_DEFINE_UNQUOTED([PASSFILE], "$alpine_PASSFILE", [Password cache file (NOT secure. NOT recommended)])
 fi
+
+dnl set DF_SSHPATH?
+AC_ARG_WITH(default-sshpath,
+  AC_HELP_STRING([--with-default-sshpath=FILENAME],[set default value of ssh command path (defining should cause ssh to be preferred to rsh)]),
+    [
+      case "$withval" in
+	no)
+	  ;;
+	yes)
+	  ;;
+	*)
+	  AC_DEFINE_UNQUOTED([DF_SSHPATH], "$withval", [set default value of ssh command path (defining should cause ssh to be preferred to rsh)])
+	  ;;
+      esac
+    ])
+
+dnl set DF_SSHCMD?
+AC_ARG_WITH(default-sshcmd,
+  AC_HELP_STRING([--with-default-sshcmd=PERCENT_S_STRING],[set default value of ssh command string (usually "%s %s -l %s exec /etc/r%sd")]),
+    [
+      case "$withval" in
+	no)
+	  ;;
+	yes)
+	  ;;
+	*)
+	  AC_DEFINE_UNQUOTED([DF_SSHCMD], "$withval", [set default value of ssh command string (usually "%s %s -l %s exec /etc/r%sd")])
+	  ;;
+      esac
+    ])
 
 dnl Include SSL?
 dnl Set SSLDIR for c-client make
@@ -867,21 +908,28 @@ AC_CHECK_LIB(tinfo, setupterm,
         LIBS="$LIBS -lncurses"
       ],
       [
-	AC_CHECK_LIB(termlib, tgetent,
-	  [
-	    alpine_termdata=cap
-	    LIBS="$LIBS -ltermlib"
-	  ],
-	  [
-	    AC_CHECK_LIB(termcap, tgetent,
-	      [
-		alpine_termdata=cap
-		LIBS="$LIBS -ltermcap"
-	      ],
-	      [
-		AC_ERROR([Terminfo/termcap not found])
-	      ])
-	  ])
+        AC_CHECK_LIB(curses, setupterm,
+          [
+            alpine_termdata=info
+            LIBS="$LIBS -lcurses"
+          ],
+          [
+            AC_CHECK_LIB(termlib, tgetent,
+              [
+                alpine_termdata=cap
+                LIBS="$LIBS -ltermlib"
+              ],
+              [
+                AC_CHECK_LIB(termcap, tgetent,
+                  [
+                    alpine_termdata=cap
+                    LIBS="$LIBS -ltermcap"
+                  ],
+                  [
+                    AC_ERROR([Terminfo/termcap not found])
+                  ])
+              ])
+          ])
       ])
   ])
 case $alpine_termdata in
@@ -1411,6 +1459,12 @@ case "$host" in
     alpine_c_client_target="bso"
     LIBS="$LIBS $LIBINTL"
     ;;
+  *-*-aix5*)
+    systype="A52"
+    alpine_path_delim="/"
+    alpine_mode_readonly="(0600)"
+    alpine_c_client_target="a52"
+    ;;
   *-*-aix4*)
     systype="A41"
     alpine_path_delim="/"
@@ -1536,8 +1590,22 @@ if test "x$alpine_GSSTYPE" != "xnone" ; then
   AC_MSG_NOTICE([* * * Including Kerberos5 functionality])
 fi
 
+if test -n "$CPPFLAGS" ; then
+  alpine_c_client_cflags="$alpine_c_client_cflags ${CPPFLAGS}"
+fi
+if test -n "$CFLAGS" ; then
+  alpine_c_client_cflags="$alpine_c_client_cflags ${CFLAGS}"
+fi
+
 if test -n "$alpine_c_client_cflags" ; then
   AC_SUBST(C_CLIENT_CFLAGS, EXTRACFLAGS=\"$alpine_c_client_cflags\")
+fi
+
+if test -n "$LDFLAGS" ; then
+  alpine_c_client_ldflags="$alpine_c_client_ldflags ${LDFLAGS}"
+fi
+if test -n "$LIBS" ; then
+  alpine_c_client_ldflags="$alpine_c_client_ldflags ${LIBS}"
 fi
 
 if test -n "$alpine_c_client_ldflags" ; then

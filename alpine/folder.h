@@ -1,5 +1,5 @@
 /*
- * $Id: folder.h 529 2007-04-18 22:41:05Z hubert@u.washington.edu $
+ * $Id: folder.h 767 2007-10-24 00:03:59Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington

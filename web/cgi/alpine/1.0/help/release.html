@@ -1,0 +1,83 @@
+<HTML>
+<HEAD>
+
+<!--
+# $Id: release.html 1204 2009-02-02 19:54:23Z hubert@u.washington.edu $
+# ========================================================================
+# Copyright 2006 University of Washington
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# ========================================================================
+-->
+
+<TITLE>Alpine Release Information</TITLE>
+
+<STYLE TYPE='TEXT/CSS'>
+BODY { background-color: #FEFAC9 ; font-family: Arial, sans-serif }
+DL   { padding: 0 18 }
+DT   { font-weight: bold }
+DD   { padding-bottom: 12 }
+</STYLE>
+
+</HEAD>
+
+<BODY>
+
+<DIV STYLE="font-weight: bold; font-size: 16pt ; padding: 12" ALIGN="CENTER">
+<IMG SRC="../../images/logo/alpine/small.gif" STYLE="float: left; padding-left: 20">
+Alpine Release Highlights
+</DIV>
+
+<DIV STYLE="background-color: white; padding: 24; margin: 20; border: 1px solid black">
+This page is used to publish the highlights of periodic updates.  Bug fixes, explanations
+for new features and so forth can typically be found here.
+<P>
+<H2>December 2007:</H2>
+
+<DL>
+<DT>Web Alpine General Release</DT>
+<DD>
+<P>
+This is the first release to the general public of the Web Alpine IMAP
+client.  It's built on the Alpine Mail System which itself is derived
+from the Pine Mail System.  Externally, besides numerous new features,
+the most significant change is likely the new licensing.  The Alpine Mail System 
+has been release under the Apache 2.0 license.
+
+<P>
+Internally, there are significant changes.  The code has been
+restructured to partition mail data access routines from those
+functions that provide the user interface.  This allows development on
+the mail engine proper to be easily reflected across the supported
+interfaces.  Similarly, each interface, Unix, Windows, and Web, can be
+developed reasponably independently.
+<P>
+Similarly, significant work has been done to make Alpine more
+international. Internally, message text and so forth is represented in
+Unicode, and the groundwork has been laid to support status and
+command translations.
+
+<P>
+As for the Web Alpine IMAP client, it is an updated, evolutionary
+improvement upon the Pine-based version that has been serving tens of
+thousands of users daily on the University of Washington campus for
+several years.  It is not quite as fully featured as the other Alpine
+mail tools, but is a reasonably solid and complete IMAP client.  We
+also tend to agree with many of its critics that it is a somewhat homely
+interface, and we are taking significant steps toward addressing that
+criticism. Stay tuned!
+
+</DD>
+</DL>
+
+<P>
+
+</DIV>
+
+</BODY>
+</HTML>

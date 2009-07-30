@@ -1,5 +1,5 @@
 /*
- * $Id: ablookup.h 1110 2008-07-11 22:01:11Z hubert@u.washington.edu $
+ * $Id: ablookup.h 1266 2009-07-14 18:39:12Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2008 University of Washington
@@ -57,6 +57,7 @@
 #define ALC_ABOOK   0x10
 #define ALC_LDAP    0x20
 #define ALC_CURR    0x40
+#define ALC_FCC     0x80
 
 
 typedef struct abook_entry_list {
@@ -72,6 +73,7 @@ typedef struct completelist {
     char                *full_address;	/* Some Body <someb@there.org> */
     char                *addr;		/* someb@there.org (costs extra) */
     char                *rev_fullname;	/* optional Last, First version of fullname */
+    char		*fcc;		/* optional fcc associated with address */
     unsigned             matches_bitmap;
     struct completelist *next;
 } COMPLETE_S;
@@ -92,7 +94,7 @@ AdrBk_Entry   *adrbk_lookup_with_opens_by_nick(char *, int, int *, int);
 AdrBk_Entry   *address_to_abe(ADDRESS *);
 int            contains_regex_special_chars(char *str);
 COMPLETE_S    *adrbk_list_of_completions(char *, MAILSTREAM *, imapuid_t, int);
-COMPLETE_S    *new_complete_s(char *, char *, char *, char *, unsigned);
+COMPLETE_S    *new_complete_s(char *, char *, char *, char *, char *, unsigned);
 void           free_complete_s(COMPLETE_S **);
 ABOOK_ENTRY_S *new_abook_entry_s(AdrBk *, a_c_arg_t, unsigned);
 void           free_abook_entry_s(ABOOK_ENTRY_S **);

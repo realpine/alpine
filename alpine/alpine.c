@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: alpine.c 1071 2008-06-03 22:31:05Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: alpine.c 1266 2009-07-14 18:39:12Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -60,6 +60,7 @@ static char rcsid[] = "$Id: alpine.c 1071 2008-06-03 22:31:05Z hubert@u.washingt
 #include "print.h"
 #include "after.h"
 #include "smime.h"
+#include "newmail.h"
 #ifndef _WINDOWS
 #include "../pico/osdep/raw.h"	/* for STD*_FD */
 #endif
@@ -165,6 +166,7 @@ main(int argc, char **argv)
     pith_opt_condense_thread_cue   = condensed_thread_cue;
     pith_opt_truncate_sfstr        = truncate_subj_and_from_strings;
     pith_opt_save_and_restore	   = save_and_restore;
+    pith_opt_newmail_announce	   = newmail_status_message;
     pith_opt_newmail_check_cue	   = newmail_check_cue;
     pith_opt_checkpoint_cue	   = newmail_check_point_cue;
     pith_opt_icon_text		   = icon_text;

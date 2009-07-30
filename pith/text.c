@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: text.c 971 2008-03-18 17:24:31Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: text.c 1266 2009-07-14 18:39:12Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -268,7 +268,7 @@ decode_text(ATTACH_S	    *att,
 	wrapit = 0;		/* wrap already handled! */
 	filters[filtcnt].filter = gf_html2plain;
 	filters[filtcnt++].data = gf_html2plain_opt(NULL, column,
-						    (flags & FM_NOINDENT)
+						    (flags & (FM_NOINDENT | FM_HTML))
 						      ? 0
 						      : format_view_margin(),
 						    handlesp, set_html_risk, opts);

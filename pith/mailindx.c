@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: mailindx.c 939 2008-03-03 17:52:11Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: mailindx.c 1266 2009-07-14 18:39:12Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -914,7 +914,7 @@ static IndexColType fixed_ctypes[] = {
     iSDateTimeIso24, iSDateTimeIsoS24,
     iSDateTimeS124, iSDateTimeS224, iSDateTimeS324, iSDateTimeS424,
     iSize, iSizeComma, iSizeNarrow, iKSize, iDescripSize,
-    iPrio, iPrioBang, iPrioAlpha,
+    iPrio, iPrioBang, iPrioAlpha, iInit,
     iAtt, iTime24, iTime12, iTimezone, iMonAbb, iYear, iYear2Digit,
     iDay2Digit, iMon2Digit, iDayOfWeekAbb, iScore, iMonLong, iDayOfWeek
 };
@@ -1056,6 +1056,7 @@ setup_index_header_widths(MAILSTREAM *stream)
 		    break;
 
 		  case iStatus:
+		  case iInit:
 		    cdesc->actual_length = 3;
 		    cdesc->adjustment = Left;
 		    break;

@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: adrbklib.c 1069 2008-06-03 15:54:15Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: adrbklib.c 1266 2009-07-14 18:39:12Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
- * Copyright 2006-2008 University of Washington
+ * Copyright 2006-2009 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1046,8 +1046,24 @@ build_abook_tries(AdrBk *ab, char *warning)
 		else
 		  forward = ae->fullname;
 
-		if(forward)
-		  add_entry_to_trie(&ab->full_trie, forward, (a_c_arg_t) entry_num);
+		if(forward){
+		    char *addthis;
+
+		    /*
+		     * Make this add not only the full name as is (forward) but
+		     * also add the middle name and last name (names after spaces).
+		     * so that they'll be found.
+		     */
+		    for(addthis=forward;
+			addthis && (*addthis);
+			addthis = strindex(addthis, ' ')){
+			while(*addthis == ' ')
+			  addthis++;
+
+			if(*addthis)
+			  add_entry_to_trie(&ab->full_trie, addthis, (a_c_arg_t) entry_num);
+		    }
+		}
 
 		if(reverse)
 		  add_entry_to_trie(&ab->revfull_trie, reverse, (a_c_arg_t) entry_num);

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: titlebar.c 1070 2008-06-03 19:27:23Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: titlebar.c 1075 2008-06-04 00:19:39Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -444,7 +444,9 @@ format_titlebar(void)
 
     is_context        = as.context_name ? strlen(as.context_name) : 0;
 
-    snprintf(version, sizeof(version), "ALPINE %s", ALPINE_VERSION);
+    {char revision[10];
+    snprintf(version, sizeof(version), "ALPINE %s(%s)", ALPINE_VERSION, get_alpine_revision_number(revision, sizeof(revision)));
+    }
     version[sizeof(version)-1] = '\0';
     ver_len = (int) utf8_width(version);	/* fixed version field width */
 

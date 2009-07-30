@@ -1,5 +1,5 @@
 /*
- * $Id: setup.h 810 2007-11-10 00:45:59Z hubert@u.washington.edu $
+ * $Id: setup.h 812 2007-11-10 01:00:15Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington

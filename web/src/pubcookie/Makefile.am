@@ -34,4 +34,4 @@ wp_gssapi_proxy_SOURCES = wp_gssapi_proxy.c wp_uidmapper_lib.c
 
 wp_umc_SOURCES = wp_umc.c wp_uidmapper_lib.c
 
-AM_CPPFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/include
+AM_CPPFLAGS = -I@top_builddir@/include -I@top_srcdir@/include

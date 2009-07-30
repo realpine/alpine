@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: alpineldap.c 1096 2008-06-30 22:03:35Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: alpineldap.c 1204 2009-02-02 19:54:23Z hubert@u.washington.edu $";
 #endif
 
 /* ========================================================================
@@ -106,6 +106,7 @@ main(argc, argv)
     pine_state = new_pine_struct();
     ps_global  = pine_state;
     vars = ps_global->vars;
+    debug = 0;
 
     for(i = 1 ; i < argc; i++){
         if(*argv[i] == '-'){

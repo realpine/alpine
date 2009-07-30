@@ -28,10 +28,10 @@ alpineldap_SOURCES = alpineldap.c busy.c color.c imap.c ldap.c remote.c \
 		   alpined.h color.h ldap.h
 
 LDADD = local.o \
-	$(top_srcdir)/pith/libpith.a \
-	$(top_srcdir)/pith/osdep/libpithosd.a \
-	$(top_srcdir)/pith/charconv/libpithcc.a \
-	$(top_srcdir)/c-client/c-client.a \
+	@top_srcdir@/pith/libpith.a \
+	@top_srcdir@/pith/osdep/libpithosd.a \
+	@top_srcdir@/pith/charconv/libpithcc.a \
+	@top_srcdir@/c-client/c-client.a \
 	$(WEB_PUBCOOKIE_LIB)
 
 loclib_LTLIBRARIES = libwpcomm.la
@@ -40,9 +40,9 @@ libwpcomm_la_SOURCES = wpcomm.c
 
 libwpcomm_la_LDFLAGS = -rpath '$(loclibdir)' -version-info 1:0:0
 
-AM_CPPFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/include
+AM_CPPFLAGS = -I@top_builddir@/include -I@top_srcdir@/include
 
-AM_LDFLAGS = `cat $(top_srcdir)/c-client/LDFLAGS`
+AM_LDFLAGS = `cat @top_srcdir@/c-client/LDFLAGS`
 
 CLEANFILES = local.c
 

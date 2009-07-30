@@ -1,0 +1,119 @@
+<HTML>
+<HEAD>
+<!--
+# $Id: secure.html 1204 2009-02-02 19:54:23Z hubert@u.washington.edu $
+# ========================================================================
+# Copyright 2006 University of Washington
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# ========================================================================
+-->
+<TITLE>Alpine with Session Encryption</TITLE>
+<STYLE TYPE='TEXT/CSS'>
+BODY { background-color: #F3F3F3 ; font-family: Arial, sans-serif }
+</STYLE>
+</HEAD>
+
+<BODY>
+
+<DIV STYLE="font-weight: bold; font-size: 16pt ; padding: 12" ALIGN="CENTER">
+<IMG SRC="../../images/logo/alpine-w-logo-small.gif" STYLE="float: left; padding-left: 20">
+Alpine with Session Encryption
+</DIV>
+
+<DIV STYLE="background-color: white; padding: 24; margin: 20">
+
+Web browser access to email is inherently slower than a desktop email
+application.&nbsp; And while Alpine is designed to be as efficient as
+possible, there remain certain performance obstacles that cannot be
+easily overcome.&nbsp;
+
+<p>
+
+One obstacle is session encryption (also known as 
+<a href="http://www.washington.edu/computing/web/publishing/ssl.html">Secure
+Socket Layer</a> or SSL).&nbsp; When session encryption is enabled, all
+communication between the browser and the Alpine server is scrambled
+such that an eavesdropper would find it extremely difficult to observe
+the contents.&nbsp;  When disabled, all communication, except for your
+username and password, between the browser and Alpine server takes
+place in clear text and is easily observable.&nbsp;
+
+<p>
+
+While encryption and decryption require some extra computing
+resources, the heaviest performance cost has to do with default
+browser behavior.&nbsp; Usually browsers retain a copy of pages and
+their various elements, such as images, for a time with the intent of
+avoiding costly network communication next time that page or a page
+containing the same elements is requested.&nbsp; However, to be extra
+careful of potentially exposing sensitive information, many browsers
+default behavior is not to retain copies of elements retrieved over
+encrypted connections.&nbsp; Thus, Alpine's performance cost has to
+do with the browser re-requesting common elements on the various
+Alpine pages.&nbsp;
+
+<p>
+
+Typically, from a computer connected directly to the campus network
+(or other high-speed network such as DSL or cable-modem) this
+performance cost is not noticeable.&nbsp;  However, a user on a slower,
+modem-connected computer can be severely effected.&nbsp;
+
+<p>
+
+There are two ways to work around this situation.&nbsp;  One is to alter the
+browser's configuration to retain elements on pages served securely.&nbsp;
+The downside is that this setting often will then apply to all secure
+pages, not just Alpine.&nbsp;  The other work around is to disable session
+encryption for Alpine.&nbsp;  The downside is that communication between
+the Alpine server and your computer, except for passwords, is
+visible.&nbsp;
+
+<p>
+
+The likelihood that the communication will be observed depends on the
+path the communication takes over the network.&nbsp;  For example, while
+using a computer in a campus lab or laptop connected to a wireless
+hub, it is not unthinkable that someone on the local network may be
+watching traffic.&nbsp;  In such situations the communication speed is high
+enough to offset the performance cost, so session encryption is a pretty
+good idea.&nbsp;  Similarly, communication between the Alpine server and a
+computer connected to a campus modem, is not likely to travel
+over a publicly accessible network, so malicious eavesdropping is much
+less likely.&nbsp;  Given the slower communication speed and reduced risk of
+observation, disabling session encryption while connected via modem
+is reasonable.&nbsp;
+
+<p>
+
+Alpine knows about the campus modem pools, and will adjust the
+&quot;Session Encryption&quot; default setting based on whether or not
+the browser you are using appears to be running on a computer
+connected to a campus modem pool.&nbsp;  Modem pool connections will
+default to <b>not</b> using session encryption.&nbsp; All other connections
+will default to using session encryption.&nbsp; That is, a computer on the
+campus network or connected to a network or dial-in service outside
+the UW will have its Alpine session encrypted unless you uncheck the
+box labelled "SSL Session Encryption."&nbsp; If you are on a slow
+connection and confident that your connection is not likely to travel
+any hostile path, or otherwise decide the performance benefit
+outweighs the risk of observation, then unchecking the box may be a
+reasonable option for you.&nbsp;
+
+<p>
+
+Please note: Session encryption <i>only</i> ensures that communication
+between your browser and the Alpine server is secure.  It does not
+mean email messages you send from Alpine are in any way safe from
+observation or otherwise confidential.
+
+
+</DIV>
+</BODY>
+</HTML>

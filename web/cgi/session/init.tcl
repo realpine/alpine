@@ -1,5 +1,5 @@
 #!./tclsh
-# $Id: init.tcl 1160 2008-08-22 01:12:33Z mikes@u.washington.edu $
+# $Id: init.tcl 1204 2009-02-02 19:54:23Z hubert@u.washington.edu $
 # ========================================================================
 # Copyright 2006 University of Washington
 #
@@ -149,7 +149,7 @@ cgi_eval {
   lappend parms $defconf
   lappend parms startpage
 
-  lappend parms "$_wp(appdir2)/browse/0/INBOX"
+  lappend parms "$_wp(appdir)/$_wp(ui2dir)/browse/0/INBOX"
   lappend parms prunepage
   lappend parms ""
 

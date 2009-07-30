@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: filter.c 1157 2008-08-21 23:50:47Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: filter.c 1266 2009-07-14 18:39:12Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -2849,7 +2849,7 @@ typedef	struct collector_s {
     unsigned	overrun:1;		/* Overran buf above */
     unsigned	proc_inst:1;		/* XML processing instructions */
     unsigned	empty:1;		/* empty element */
-	char	was_quoted:1;		/* basically to catch null string */
+    unsigned	was_quoted:1;		/* basically to catch null string */
     char	quoted;			/* quoted element param value */
     char       *element;		/* element's collected name */
     PARAMETER  *attribs;		/* element's collected attributes */
@@ -4892,8 +4892,12 @@ html_body(HANDLER_S *hd, int ch, int cmd)
 		    style = &p->value;
 		  else if(!strucmp(p->attribute, "text"))
 		    text = p->value;
+		  /*
+		   * bgcolor NOT passed since user setting takes precedence
+		   *
 		  else if(!strucmp(p->attribute, "bgcolor"))
 		    bgcolor = p->value;
+		  */
 	      }
 
 	    /* colors pretty much it */
@@ -6842,7 +6846,7 @@ html_style(HANDLER_S *hd, int ch, int cmd)
 	}
 	else if(cmd == GF_EOD){
 	    /*
-	     * SOMEDAY: strip anything mischievous and pass on
+	     * TODO: strip anything mischievous and pass on
 	     */
 
 	    so_give(&css_stuff);
@@ -6870,7 +6874,10 @@ rss_rss(HANDLER_S *hd, int ch, int cmd)
 	  }
 
 	gf_error("Incompatible RSS version");
+	/* NO RETURN */
     }
+
+    return(0);	/* not linked or error means we never get here */
 }
 
 /*
@@ -6887,8 +6894,6 @@ rss_channel(HANDLER_S *hd, int ch, int cmd)
 
 	feed = RSS_FEED(hd->html_data) = fs_get(sizeof(RSS_FEED_S));
 	memset(feed, 0, sizeof(RSS_FEED_S));
-    }
-    else if(cmd == GF_EOD){
     }
 
     return(1);			/* link in */

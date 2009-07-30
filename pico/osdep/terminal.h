@@ -1,5 +1,5 @@
 /*
- * $Id: terminal.h 530 2007-04-19 02:37:54Z mikes@u.washington.edu $
+ * $Id: terminal.h 767 2007-10-24 00:03:59Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington

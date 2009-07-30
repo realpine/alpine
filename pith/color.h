@@ -1,5 +1,5 @@
 /*
- * $Id: color.h 558 2007-05-08 23:38:08Z hubert@u.washington.edu $
+ * $Id: color.h 768 2007-10-24 00:10:03Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington

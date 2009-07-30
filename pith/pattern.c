@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pattern.c 1113 2008-07-14 18:01:54Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pattern.c 1204 2009-02-02 19:54:23Z hubert@u.washington.edu $";
 #endif
 /*
  * ========================================================================
- * Copyright 2006-2008 University of Washington
+ * Copyright 2006-2009 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -7500,6 +7500,14 @@ process_filter_patterns(MAILSTREAM *stream, MSGNO_S *msgmap, long int recent)
 		    /*
 		     * Remove already deleted messages from the tmp
 		     * message map.
+		     * There is a bug with this. If a filter moves a
+		     * message to another folder _and_ sets the deleted
+		     * status, then the setting of the deleted status
+		     * will already have happened above in set_some_flags.
+		     * So if the move_only_if_not_deleted bit is set that
+		     * message will never be moved. A workaround for the
+		     * user is to not set the move-only-if-not-deleted
+		     * option.
 		     */
 		    if(n && pat->action->move_only_if_not_deleted){
 			char         *seq;

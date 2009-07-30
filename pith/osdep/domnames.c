@@ -1,10 +1,10 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: domnames.c 245 2006-11-18 02:46:41Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: domnames.c 1176 2008-09-29 21:16:42Z hubert@u.washington.edu $";
 #endif
 
 /*
  * ========================================================================
- * Copyright 2006 University of Washington
+ * Copyright 2008 University of Washington
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,7 +51,21 @@ getdomainnames(char *hostname, int hsize, char *domainname, int dsize)
     char          **alias;
     char           *maybe = NULL;
 
-    gethostname(hname, MAX_ADDRESS);
+    if(gethostname(hname, MAX_ADDRESS))
+      hname[0] = 0xff;
+
+    /* sanity check of hostname string */
+    for(dn = hname; (*dn > 0x20) && (*dn < 0x7f); ++dn)
+      ;
+
+    if(*dn){		/* if invalid string returned, return "unknown" */
+      strncpy(domainname, "unknown", dsize-1);
+      domainname[dsize-1] = '\0';
+      strncpy(hostname, "unknown", hsize-1);
+      hostname[hsize-1] = '\0';
+      return;
+    }
+
     he = gethostbyname(hname);
     hostname[0] = '\0';
 

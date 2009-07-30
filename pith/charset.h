@@ -1,5 +1,5 @@
 /*
- * $Id: charset.h 409 2007-02-01 22:44:01Z mikes@u.washington.edu $
+ * $Id: charset.h 765 2007-10-23 23:51:37Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington

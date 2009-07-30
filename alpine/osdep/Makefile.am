@@ -19,4 +19,4 @@ libpineosd_a_SOURCES = chnge_pw.c debuging.c diskquot.non.c execview.c fltrname.
 	debuging.h execview.h fltrname.h jobcntrl.h print.h resource.h termin.gen.h \
 	termin.unx.h termout.gen.h termout.unx.h windlg.h
 
-AM_CPPFLAGS = -I$(top_builddir)/include -I$(top_srcdir)/include
+AM_CPPFLAGS = -I@top_builddir@/include -I@top_srcdir@/include

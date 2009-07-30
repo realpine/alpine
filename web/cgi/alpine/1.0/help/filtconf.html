@@ -1,0 +1,62 @@
+<HTML>
+<!--
+# $Id: filtconf.html 1204 2009-02-02 19:54:23Z hubert@u.washington.edu $
+# ========================================================================
+# Copyright 2006 University of Washington
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# ========================================================================
+-->
+<BODY>
+<FONT SIZE=+2><B>Message Filtering</B></FONT>
+
+
+<p>Filtering is a way to automatically move certain messages from one
+folder to another or to delete messages, according to rules that you
+define.  For each filtering rule you define, you will provide a
+<i>Pattern</i> to establish the messages you want filtered, and an
+<i>Action</i>, to control what to do with those messages.</p>
+
+<p>Click <img src="../../images/cf_add.gif" alt="Add" align=middle> to go to a screen where you can define a set of
+new filter rules.
+
+<p>Click <img src="../../images/cf_edit.gif" alt="Edit" align=middle> next to a filter that you would like to change. You
+will go to an edit screen.  You will only see this option if you have
+already created filters.</p>
+
+
+<p>Click <img src="../../images/cf_delete.gif" alt="Delete" align=middle> next to a filter rule you would like to remove. 
+That filter will disappear.  You will only see this option if 
+you have already created filter rules.</p>
+
+<p>When you have more than one filter defined, you will see the  <img src="../../images/cf_shup.gif" xalign=middle> (shuffle up),
+and <img src="../../images/cf_shdown.gif" xalign=middle> (shuffle down), options next to each filter.  Use these to
+move your filters up or down in the list. The order is important. Your
+messages will be checked for filtering against the top filter first and,
+if the filter is set up for that message, it will be filtered.  If no
+matching information is found, the message will be checked against the
+second filter and so on down the list.  Messages that do not match any
+filter rules will be delivered to your Inbox.</p>
+
+<p>Performance considerations:</p>
+<ul>
+  <li>The more filters you have defined the longer it will take to run 
+      down the list. Deleting unused filters is a good
+      idea.
+  <li>Filtering in newsgroups served by an NNTP server will be slow if your 
+      patterns include tests other than "From:" or
+      "Subject:".
+  <li>Filtering a folder served by an IMAP server based on protocol 
+      versions prior to 4.
+</ul>
+
+
+
+</BODY>
+</HTML>
+

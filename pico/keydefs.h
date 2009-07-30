@@ -1,5 +1,5 @@
 /*
- * $Id: keydefs.h 480 2007-03-09 22:34:47Z hubert@u.washington.edu $
+ * $Id: keydefs.h 766 2007-10-23 23:59:00Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2007 University of Washington

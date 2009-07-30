@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: newuser.c 1028 2008-04-10 16:50:54Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: newuser.c 1266 2009-07-14 18:39:12Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -60,7 +60,7 @@ new_user_or_version(struct pine *ps)
 				  && isdigit((unsigned char) vers[0])
 				  && vers[1] == '.'
 				  && ps->pine_pre_vers[0] < '5'	/* it was Pine */
-				  && vers[0] == '5'));		/* 1.x Alpine */
+				  && vers[0] >= '5'));		/* Alpine */
 
     text = ps->first_time_user    ? new_user_greeting :
             first_time_alpine_user ? new_alpine_user_greeting : new_version_greeting;

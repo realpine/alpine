@@ -1,5 +1,5 @@
 /*
- * $Id: indxtype.h 1058 2008-05-28 20:19:56Z hubert@u.washington.edu $
+ * $Id: indxtype.h 1074 2008-06-04 00:08:43Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2008 University of Washington

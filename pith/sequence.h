@@ -1,5 +1,5 @@
 /*
- * $Id: sequence.h 1008 2008-03-25 01:25:48Z mikes@u.washington.edu $
+ * $Id: sequence.h 1012 2008-03-26 00:44:22Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington

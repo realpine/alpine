@@ -128,12 +128,13 @@ long auth_gssapi_proxy_client (authchallenge_t challenger,
 {
   char err[MAILTMPLEN];
   int status, ipipe[2], opipe[2];
-  unsigned long len,cmd[2];
+  unsigned long len,cmd[2],maxlogintrials;
   char *buf;
   pid_t pid;
   long ret = NIL;
   
-  *trial = 0;
+  imap_parameters(GET_MAXLOGINTRIALS, (void *) &maxlogintrials);
+  *trial = maxlogintrials + 1;
   err[0] = 0;
   strcpy (user,mb->user[0] ? mb->user : myusername ());
   

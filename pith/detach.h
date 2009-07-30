@@ -1,5 +1,5 @@
 /*
- * $Id: detach.h 1024 2008-04-07 22:58:40Z hubert@u.washington.edu $
+ * $Id: detach.h 1025 2008-04-08 22:59:38Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006-2008 University of Washington

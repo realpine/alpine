@@ -1,5 +1,5 @@
 /*
- * $Id: chkpoint.h 775 2007-10-24 22:55:29Z hubert@u.washington.edu $
+ * $Id: chkpoint.h 776 2007-10-24 23:14:26Z hubert@u.washington.edu $
  *
  * ========================================================================
  * Copyright 2006 University of Washington

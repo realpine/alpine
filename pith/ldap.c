@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: ldap.c 1024 2008-04-07 22:58:40Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: ldap.c 1204 2009-02-02 19:54:23Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -332,8 +332,8 @@ ldap_lookup_all_work(char *string, int who, int recursing,
 			       ps_global->VAR_LDAP_SERVERS[i][0]; i++){
 	    LDAP_SERV_S *info;
 
-	    dprint((1, "jpf, cycling through LDAP_SERVERS (%s)\n",
-		       ps_global->VAR_LDAP_SERVERS[i]));
+	    dprint((6, "ldap_lookup_all_work: lookup on server (%.256s)\n",
+		    ps_global->VAR_LDAP_SERVERS[i]));
 	    info = NULL;
 	    if(who == -1 || who == i || who == as.n_serv)
 	      info = break_up_ldap_server(ps_global->VAR_LDAP_SERVERS[i]);
@@ -355,8 +355,8 @@ ldap_lookup_all_work(char *string, int who, int recursing,
 		continue;
 	    }
 
-	    dprint((1, "jpf, calling ldap_lookup (server: %.20s...)(string: %s)\n",
-		       ps_global->VAR_LDAP_SERVERS[i], string));
+	    dprint((6, "ldap_lookup_all_work: ldap_lookup (server: %.20s...)(string: %s)\n",
+		    ps_global->VAR_LDAP_SERVERS[i], string));
 	    serv_res = ldap_lookup(info, string, cust,
 				   wp_err, how_many_servers > 1);
 	    if(serv_res){
@@ -453,8 +453,7 @@ ldap_lookup(LDAP_SERV_S *info, char *string, CUSTOM_FILT_S *cust,
      * now, re-open them every time.
      */
 
-    dprint((2, "ldap_lookup(%s,%d)\n", serv ? serv : "?",
-	   info->port));
+    dprint((3, "ldap_lookup(%s,%d)\n", serv ? serv : "?", info->port));
 
     snprintf(ebuf, sizeof(ebuf), "Searching%s%s%s on %s",
 	    (string && *string) ? " for \"" : "",
@@ -834,7 +833,7 @@ try_password_again:
 
 	  start_time = time((time_t *)0);
 
-	  dprint((1, "jpf, calling ldap_search\n"));
+	  dprint((6, "ldap_lookup: calling ldap_search\n"));
 	  msgid = ldap_search(ld, base, info->scope, filter, NULL, 0);
 
 	  if(msgid == -1)

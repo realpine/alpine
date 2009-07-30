@@ -1,5 +1,5 @@
 #if	!defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: pilot.c 1019 2008-04-02 22:09:20Z hubert@u.washington.edu $";
+static char rcsid[] = "$Id: pilot.c 1184 2008-12-16 23:52:15Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -104,7 +104,7 @@ main(int argc, char *argv[])
     char  filename[NSTRING];
     char  filedir[NSTRING];
     char *dir;
-    char *display_charmap = NULL;
+    char *display_charmap = NULL, *dc;
     char *keyboard_charmap = NULL;
     int   use_system = 0;
     char *err = NULL;
@@ -142,8 +142,8 @@ main(int argc, char *argv[])
     if(display_character_set)
       display_charmap = cpstr(display_character_set);
 #if   HAVE_LANGINFO_H && defined(CODESET)
-    else
-      display_charmap = cpstr(nl_langinfo_codeset_wrapper());
+    else if((dc = nl_langinfo_codeset_wrapper()) != NULL)
+      display_charmap = cpstr(dc);
 #endif
 
     if(!display_charmap)

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(DOS)
-static char rcsid[] = "$Id: send.c 1125 2008-08-06 18:25:58Z mikes@u.washington.edu $";
+static char rcsid[] = "$Id: send.c 1204 2009-02-02 19:54:23Z hubert@u.washington.edu $";
 #endif
 
 /*
@@ -2216,25 +2216,26 @@ write_postponed(METAENV *header, struct mail_bodystruct *body)
 
 	if(sz){
 	    int i;
-	    char *p;
+	    char *pstart, *pend;
 
 	    for(i = 0, pf = header->local; i != N_OURHDRS; i++, pf = pf->next)
 	      ;
 
 	    pf->writehdr  = 1;
 	    pf->localcopy = 1;
-	    pf->textbuf = (char *) fs_get(sz);
+	    pf->textbuf = pstart = pend = (char *) fs_get(sz + 1);
 	    pf->text = &pf->textbuf;
-	    memset(pf->textbuf, 0, sz);
-	    p = pf->textbuf;
+	    pf->textbuf[sz] = '\0';			/* tie off overflow */
+            /* note: "pf" overloaded */
 	    for(pf = header->custom; pf && pf->name; pf = pf->next){
-		if(pf != header->custom){
-		    sstrncpy(&p, ",", sz-(p-pf->textbuf));
-		    pf->textbuf[sz-1] = '\0';
+		int r = sz - (pend - pstart);		/* remaining buffer */
+
+		if(r > 0 && r != sz){
+		    r--;
+		    *pend++ = ',';
 		}
 
-		sstrncpy(&p, pf->name, sz-(p-pf->textbuf));
-		pf->textbuf[sz-1] = '\0';
+		sstrncpy(&pend, pf->name, r);
 	    }
 	}
 

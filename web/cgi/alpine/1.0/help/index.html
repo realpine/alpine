@@ -1,0 +1,281 @@
+<!--
+# $Id: index.html 1204 2009-02-02 19:54:23Z hubert@u.washington.edu $
+# ========================================================================
+# Copyright 2006 University of Washington
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# ========================================================================
+-->
+<form action="alpine/wp.tcl" target="noop" method=get>
+<input name="page" value="noop" type=hidden notab>
+<font size="+2"><b>Message List</b></font>
+
+<p>Your Message List contains summary information about each of the messages in
+your current Alpine folder and provides ways for you to take actions on
+those messages.</p>
+
+<p>To compose a new message, resume a postponed one, or go to another folder,
+click the appropriate option in the far left column of your page.
+You will also see options to change your Alpine configuration and to
+manage your address book.</p>
+
+<ul type="square">
+ <li><a href="#read"><b>Reading your mail</b></a></li>
+ <li><a href="#navigate"><b>Navigating your list</b></a></li>
+ <li><a href="#scroll"><b>Scrolling through messages</b></a></li>
+ <li><a href="#sort"><b>Sorting your mail</b></a></li>
+ <li><a href="#delete"><b>Deleting messages</b></a></li>
+ <li><a href="#expunge"><b>Removing deleted messages</b></a></li>
+ <li><a href="#save"><b>Saving messages to another folder</b></a></li>
+ <li><a href="#flags"><b>Setting status flags</b></a></li>
+ <li><a href="#search"><b>Searching</b></a></li>
+ <li><a href="#jump"><b>Jump Command (optional)</b></a></li>
+ <li><a href="#note"><b>Differences in Pine and PC-Pine</b></a></li>
+</ul>
+
+<a name="read"><b>Reading your mail</b></a><p>
+
+After logging into Alpine, you will see your Message List INBOX.  This is the default folder for new
+mail. To read a message, click its subject.
+
+<p>Click <b>Folder List</b> if you want to read mail within a different folder.</p>
+
+
+<a name="navigate"><b>Navigating your list</b></a><p>
+In the column on the left side of your Message List page, you will
+see four navigation options: <b>Previous</b>, <b>First</b>, <b>Next</b>,
+<b>Last</b>.
+<table border=0 cellpadding=4 style="margin-left:24">
+ <tr>
+  <td><img src="../../images/but_rnd_prev3.gif" alt="Previous"></td>
+  <td>to display messages in the current folder before those currently listed</td>
+ </tr>
+ <tr>
+  <td><img src="../../images/but_rnd_first3.gif" alt="First"></td>
+  <td>to display messages in the current folder beginning with message 1</td>
+ </tr>
+ <tr>
+  <td><img src="../../images/but_rnd_next3.gif" alt="Next"></td>
+  <td>to display messages in the current folder after those currently listed</td>
+ </tr>
+ <tr>
+ <td><img src="../../images/but_rnd_last3.gif" alt="Last"></td>
+ <td>to display messages in the current folder at the end of the list</td>
+ </tr>
+</table>
+
+<p>With most browsers and the usual settings, you also have the option of 
+using keyboard controls for some of your navigation. You may, however, 
+need to first click in your Alpine window to make sure that your system 
+knows which screen is active. 
+
+<p>The keyboard controls are: 
+<table border=0 cellspacing=12 cellpadding=3>
+<tr><td text align="center">n</td>
+  <td>next message</td></tr>
+<tr><td text align="center">p</td>
+  <td>previous message</td></tr>
+<tr><td text align="center">i</td>
+  <td>return to message index</td></tr>
+<tr><td text align="center">c</td>
+  <td>compose new message</td></tr>
+<tr><td text align="center">l</td>
+  <td>list folder</td></tr>
+<tr><td text align="center">d</td>
+  <td>flag message as deleted</td></tr>
+<tr><td text align="center">u</td>
+  <td>unflag message as deleted</td></tr>
+<tr><td text align="center">a</td>
+  <td>go to address book</td></tr>
+<tr><td text align="center">r</td>
+  <td>reply to current message</td></tr>
+<tr><td text align="center">f</td>
+  <td>forward current message</td></tr>
+</table>
+
+
+<a name="scroll"><b>Scrolling through messages</b></a><p>
+You have the option of scrolling, rather than paging using <i>Next</i> and
+<i>Previous</i>, through most of your messages in your Message List.  Go
+to <b>Configure</b> on the left side of your Message List page, click the
+Message List tab and enter a higher number in the <i>Message Lines
+Displayed</i> field.  Bear in mind that the higher
+number you choose, the longer it may take Alpine to open your folders.
+
+
+<p><a name="sort"><b>Sorting your mail</b></a><p>
+To sort your mail, the List Headers Bar must first be displayed.  Display the bar by clicking
+the <img src="../../images/baropen.gif" alt="small arrow"> icon
+near the top of the screen.
+
+<p>Using the Sort options, you can arrange your mail by <b>Date</b>,
+<b>From</b>, <b>To</b>, <b>Size</b>, <b>Subject</b>, <b>Ordered
+Subject</b>, and <b>Thread</b>.  Click:
+<ul>
+ <li><b>Date</b> to sort by the date your messages were sent.</li>
+ <li><b>From</b> to sort alphabetically by the email address of the sender of the message.</li>
+ <li><b>To</b> to sort alphabetically according to the "To:" line.</li>
+ <li><b>Size</b> to sort by the number of characters in the message.</li>
+ <li><b>Subject</b> to sort alphabetically according to the "Subject:" line.</li>
+ <li><b>Ordered Subject</b> to group messages with the same "Subject:" line and put them into date order.</li>
+ <li><b>Thread</b> to present messages as a continuous chain grouped by "Subject:" line.  This sort is particularly helpful when viewing newsgroups.</li>
+</ul>
+
+<p>Once you have sorted your mail, the name of that sort (i.e. the column
+heading) will be highlighted and an arrow will appear next to the name. To
+reverse the sort order, click the arrow.
+By default, your Message List is set to sort your mail by arrival time.
+</p>
+
+<!--<p><i>{Do you want to change your default sort order? <a href="">Click 
+here</a> for that configuration option.[not implemented yet]}</i></p>-->
+
+<a name="delete"><b>Deleting messages</b></a><p>
+<ul>
+ <li>Click the checkboxes next to the appropriate messages</li>
+ <li>Click <input type=submit value="Delete">.  All messages with a mark in the checkbox will be flagged for deletion.  (If you notice that some messages are  mistakenly flagged for deletion,  click their associated checkboxes and click <input type=submit value="Undelete">)</li>
+ <li>Click <input type=submit value="Expunge"> to permanently remove from your folder all the messages that have been flagged for deletion</li>
+</ul>
+
+<p>If you want to delete several messages at once that share a similar
+attribute, you might want to first perform a search.  See the 
+<a href="#search">Searching</a> text for more information.</p>
+
+<p>Note: if marking a message for deletion fails to work it may be because
+you recently used your browser's "Back" button.  To avoid this, be sure to 
+Alpine links and navigation options.
+
+
+<!-- <p><i>{Do you want to Expunge without being prompted for a
+confirmation? <a href="">Click here</a> to change that configuration
+option. [not implemented yet]}</i>
+<p>{<i><a href="">Click here</a> to enable aggregate commands to have
+this option available on this page. [not implemented yet]</i>}</p> -->
+
+<p>
+<a name="expunge"><b>Removing deleted messages</b></a><p>
+Flagging messages for deletion is only half the process of actually removing the messages from the folder altogether.
+Click <input type=submit value="Expunge"> to permanently remove messages flagged for deletion.  Because removed messages cannot
+be restored, you will be prompted to confirm your desire.  At the prompting click:</p>
+
+<p><input type=submit value="Expunge"> to permanently remove the messages you have flagged for deletion.  You will
+not be able to retrieve your messages once you have expunged them. </p>
+
+<p><input type=submit value="Cancel"> to return to your list of messages.  The messages you previously flagged for
+deletion will remain in your folder, still flagged for deletion.</p>
+
+
+<p> <a name="save"><b>Saving messages to another folder</b></a>
+<p>
+
+To save messages from your Message List, the Message Command Bar must
+first be displayed.  Display the bar by clicking the <img
+src="../../images/baropen.gif" alt="small arrow"> icon near the top of the
+screen.  Then, click the checkboxes next to the messages you want to
+save to another folder (or click just one checkbox if you are only
+saving that one message).
+
+<p>
+Save the chosen messages by choosing from the options in the dropdown menu next to the
+<input type=submit value="Save"> button.  Among the Save options, you'll find:
+
+<ul>
+ <li> The name of the default folder to save to, typically <font face="courier">saved-messages</font>.
+ <li> Several, typically six, names of folders you have most recently saved messages to
+ <li> An option to type in directly the name of the folder you wish to save to (either a new folder you wish to create, or one
+already containing messages)
+ <li> An option to choose the folder from the list of all your folders
+</ul>
+
+If Alpine does not act on your choice immediately, click the <input type=submit value="Save">
+button to initiate saving.  Once saved, the chosen messages will be marked for deletion.
+
+<p>
+
+<!---Config option for Collection lists?-->
+
+<a name="flags"><b>Setting status flags</b></a><p>
+By default, the area immediatly to the left of the message numbers is reserved for the following status flags:
+<table border=0 cellpadding=4 style="margin-left:24">
+ <tr>
+  <td><font face=Courier><b>+</b></font></td>
+  <td>message has your address in the To: line [Note: this is a fixed value]</td>
+ </tr>
+ <tr>
+  <td><font face=Courier><b>*</b></font></td>
+  <td>(Important) - You have previously set the status of this message to important</td>
+ <tr>
+ </tr>
+  <td><font face=Courier><b>A</b></font></td>
+  <td>(answered) - You have replied to this message</td>
+ </tr>
+ <tr>
+  <td><font face=Courier><b>N</b></font></td>
+  <td>(new) - You have not yet looked at the text of this message</td>
+ </tr>
+ <tr>
+ <td><font face=Courier><b>D</b></font></td>
+ <td>(deleted) - You have marked this message for deletion, but not yet expunged it</td>
+ </tr>
+</table>
+
+To add or remove the status flags, the Message Command Bar must first be
+displayed.  Display the bar by clicking the <img src="../../images/baropen.gif"
+alt="small arrow"> icon near the top of the screen. Then: <ul>
+ <li>Click the checkboxes next to the appropriate messages</li>
+ <li>Choose the appropriate value from the dropdown menu</li>
+ <li>Click <input type=submit value="Set"></li>
+</ul>
+
+
+<!--Config option for enabling status w/click-->
+
+<a name="search"><b>Searching</b></a><p>
+
+To search, the Message Command Bar must first be displayed.  Display the bar
+by clicking the <img src="../../images/baropen.gif" alt="small arrow"> icon
+near the top of the screen.
+
+<p>Click <input type=submit value="Search"> to get to a page where you can find messages by
+text, date, or status.</p>
+
+After you specify your search criteria, you will be returned to your
+Message List.  If matches were found, your Message List will display your
+found messages and those messages will be marked. (Be aware: by default
+Search will include messages marked before the search along with your
+search results.)  Click <input type=submit value="Show All Messages"> to display your entire Message 
+List.
+
+<p><a name="jump"><b>Jump Command (optional)</b></a><p>
+
+Depending on your configuration, you may also see a text box next to a 
+<input type=submit value="Jump"> button on the left side of the page.  Enter a
+message number into the text box and click the button to redisplay
+the Message List with the chosen message at the top of the page.
+
+<p>
+You may find message numbers on the Message List lines make this command more useful.
+If not displayed in the Message List, you can add message numbers to each line by
+going to <b>Configure</b> on the left of the Message List page, clicking the
+Message List tab and adjusting the Message Line Format accordingly.
+
+<p><a name="note"><b>Differences from Alpine and PC-Alpine</b></a><p>
+
+<p>Alpine is designed primarily for easy access to email.  It is not
+intended to replace any other heavy duty email programs.  Accordingly, it
+is missing some of the more advanced features you will find in Pine and
+PC-Pine. As development continues, features will be added as long as they
+do not make a large impact on Alpine's speed or efficiency.
+
+<p> Some of the features you will not currently find in Alpine Message
+List: <ul> 
+<li>Go directly to a folder you type in (may be added soon)
+<li>Export message
+
+</ul>
+<!--Go to Configure to change the view display after search default-->

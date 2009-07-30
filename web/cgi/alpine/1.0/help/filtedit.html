@@ -1,0 +1,240 @@
+<html>
+<head>
+<!--
+# $Id: filtedit.html 1204 2009-02-02 19:54:23Z hubert@u.washington.edu $
+# ========================================================================
+# Copyright 2006 University of Washington
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# ========================================================================
+-->
+</head>
+<body>
+<font size="+2"><b>Filter Configuration</b></font>
+<p>This Filter Configuration screen is where you can add new filters 
+or modify existing ones.</p>
+
+<p>In order to determine whether or not a message matches a filter, the
+message is compared with the Filter's Pattern.  Once a filter match is
+found for a particular message, there are some actions which may be 
+taken.</p>
+
+<p>NOTE: When you set up a Pattern to delete messages, it is recommended
+that you test the Pattern first with a "Move" folder in case unintended
+matches occur. Messages that are deleted will be removed from the folder
+and may be unrecoverable.</p>
+
+<ul type="square">
+<li><a href="#patterns"><b>Filter Patterns</b></a>
+</li><li><a href="#actions"><b>Filter Actions</b></a>
+</li><li><a href="#examples"><b>Examples</b></a>
+</li></ul>
+
+<a name="patterns"><b>Filter Patterns</b></a><br>
+
+<ul>
+<li><b>Nickname:</b><br>
+This is a nickname to help you. You should have a different nickname for
+each filtering rule you define. The nickname will be used in the Message
+Filtering screen to allow you to pick a rule to edit.<p></p>
+
+</li><li><b>To:</b><br>
+Any text you enter as the "To pattern" will be compared to the recipients 
+from the To: line of messages when WebPine
+opens folders. When the text you entered matches all or part of the To: 
+line of a message, then the Filter Action you
+have specified will be carried out. (Any other non-blank parts of the 
+Pattern must match, too.)
+
+<p>You may enter a complete email address, part of an address, or a 
+comma-separated list of addresses or partial
+addresses. For example:</p>
+
+<pre> To: = friend@public.com
+ To: = rated.net
+ To: = admin@public.com, admin@msn.com, fool@motleyfool.com
+</pre>
+
+<p>Each of those are valid "To patterns".</p>
+
+<p>Messages match those patterns if any of the addresses in the To: line
+of the message contains the pattern. If the pattern is a comma-separated
+list of patterns (like the last example above) then it is a match if any
+of the patterns in the list match any of the addresses in the To: line.
+(It is not possible to specify two addresses which must BOTH be present
+for a match. It is only possible to specify that EITHER address1 OR
+address2 must be present. That is exactly what the comma-separated list
+does.)</p>
+
+<p>Some messages may be "bounced" to you, and will have a "Resent-To:"  
+header line. If the message contains a Resent-To: line, WebPine will look
+for matches to your "To: patterns" there, and NOT in the original To:
+line.</p>
+
+</li><li><b>From:</b><br>
+This is just like the "To pattern" except that it is compared with the
+address in the From: line of the message instead of the addresses from the
+To: line. See the help for the To pattern for more information on header
+patterns.<p></p>
+
+</li><li><b>Sender:</b><br>
+This is just like the "To pattern" except that it is compared with the 
+address from the Sender: line of the message
+instead of the addresses from the To: line. See the help for the To 
+pattern for more information on header patterns.<p></p>
+
+</li><li>Cc:</li><br>
+This is just like the "To pattern" except that it is compared with the
+addresses from the Cc: line of the message instead of the addresses from
+the To: line. See the help for the To pattern for more information on
+header patterns.<p></p>
+
+
+<li><b>Recipient:</b><br>
+This is just like the "To pattern" except that it is compared with the
+addresses from both the To: line and the Cc:
+line of the message instead of just the addresses from the To: line. In
+other words, it is considered a match if the
+pattern matches EITHER an address in the To: line OR an address in the Cc:
+line. (Notice that defining the Recipient
+pattern does not have the same effect as defining both the To and Cc
+patterns. Recipient is To OR Cc; not To AND Cc.
+It is equivalent to having two different rules; one with a To pattern and
+the other with the same Cc pattern.)<p></p>
+
+
+</li><li><b>Participants:</b><br>
+This is just like the "To pattern" except that it is compared with the
+addresses from the From: line, the To: line, and the Cc: line of the
+message instead of just the addresses from the To: line. In other words,
+it is considered a match if the pattern matches EITHER an address in the
+From: line, OR an address in the To: line, OR an address in the Cc: line.
+(Notice that defining the Participant pattern does not have the same
+effect as defining all of the From, To, and Cc patterns. Participant is
+From OR To OR Cc; not From AND To AND Cc. It is equivalent to having
+three different rules; one with a From pattern, another with the same To
+pattern, and a third with the same Cc pattern.)<p></p>
+
+
+</li><li><b>Newsgroups:</b><br>
+If this pattern is non-blank, then for this rule to be considered a match, 
+at least one of the newsgroups from the
+Newsgroups line of the message must match this pattern. If this pattern is 
+a comma-separated list of patterns, then at
+least one of the newsgroups must match at least one of the patterns. (Any 
+other non-blank parts of the Pattern must
+match, too.)<p></p>
+
+</li><li><b>Subject:</b><br>
+This is similar to the other parts of the Pattern. It is compared with the 
+contents from the Subject of the message.
+
+<p>If you enter non-ASCII characters in this field then the search will be
+done using the character set you have defined with the "character-set"
+configuration variable. (The truly sophisticated may use an alternate
+character set for a search by entering the MIME encoding of the header
+string here.)</p>
+
+
+</li><li><b>All Text:</b><br>
+This is similar to the header patterns. Instead of comparing with text in
+a particular header field it is compared with all of the text in the
+message header and body.
+
+<p>If you enter non-ASCII characters in this field then the search will be 
+done using the character set you have defined
+with the "character-set" configuration variable. (The truly sophisticated 
+may use an alternate character set for a
+search by entering the MIME encoding of the header string here.)</p>
+
+<p>It is possible that you may notice degraded performance when using
+AllText Patterns.</p>
+
+
+</li><li><b>Message is New</b><br>
+This part of the Pattern may have one of three possible values. The
+default value is "Don't care", which matches any message. The other two
+values are "Yes", which means the message must be "New" in order to be a
+match; or "No", which means the message must not be "New" in order to be a
+match. "New" is the same as Unseen and not "New" is the same as Seen.<p></p>
+
+</li><li><b>Message is Deleted</b><br>
+This part of the Pattern may have one of three possible values. The
+default value is "Don't care", which matches any message. The other two
+values are "Yes", which means the message must be marked "Deleted" in
+order to be a match; or "No", which means the message must not be marked
+"Deleted" in order to be a match.
+
+<p>If you are thinking of using this part of the Pattern as a way to
+prevent messages from being filtered more than once in a Filter Pattern,
+take a look at the Filter Option "move-only-if-not-deleted" instead. It
+should work better than using this field since it will hide the filtered
+messages even if they are already Deleted. That option is at the bottom of
+the Filter configuration screen.</p>
+
+</li><li><b>Message is Important</b><br>
+This part of the Pattern may have one of three possible values. The
+default value is "Don't care", which matches any message. The other two
+values are "Yes", which means the message must be flagged "Important" in
+order to be a match; or "No", which means the message must not be flagged
+"Important" in order to be a match.<p></p>
+
+</li><li><b>Message is Answered</b><br>
+This part of the Pattern may have one of three possible values. The
+default value is "Don't care", which matches any message. The other two
+values are "Yes", which means the message must be marked "Answered" in
+order to be a match; or "No", which means the message must not be marked
+"Answered" in order to be a match.
+</li></ul>
+
+<a name="actions"><b>Filter Actions</b></a><br>
+The Filter Action specifies the action to be taken when the Pattern is a
+match. It may be either <b>Delete</b> or <b>Move</b>
+
+<p>If you set it to "Move", then provide the name of the folder to which
+the matching message should be moved in the corresponding text box. You
+may type a list of folders separated by commas, in which case the message
+will be copied to all of the folders in the list before it is deleted.</p>
+
+<b>Move only if not deleted</b><br> If you set this option then a message
+will be moved into the specified folder only if it is not marked for
+deletion. This is useful if you have multiple Pine or WebPine sessions
+running simultaneously and you don't want messages to be filtered into a
+folder more than once. It is also useful if you want to filter only the
+"undeleted" messages in a newsgroup into a folder. This method is not
+foolproof. There may be cases where a message gets marked deleted and so
+it is never filtered into the folder. For example, if you deleted it in
+another Pine or WebPine session or another mail program that didn't use
+the filtering rule.<br>
+
+This option has no effect if the Filter Action is not set to Move.<p></p>
+
+<a name="examples"><b>Examples</b></a><br>
+To create a filter to move all incoming messages from
+"sue@travelworld.com" to your "Vacation" folder, add the following to the
+Filter Configuration screen:<br>
+<b>Nickname:</b> Travelworld<br>
+<b>From:</b> sue@travelworld.com<br>
+<b>Move filter action:</b>Vacation<br>
+
+Click <b>Save</b> to add the filter.<br>
+
+<p>To create a filter to delete all incoming messages that contain the 
+text "Make Money fast!" in the subject line, add the following to your 
+Filter Configuration screen:<br>
+<b>Nickname:</b> Make Money<br>
+<b>Subject:</b> Make Money Fast!<br>
+<b>Delete:</b> (Click next to this option)<br>
+Reminder: It is a very good idea to test this with the "Move to Folder" 
+option in case unintended matches occur.<br>
+
+Click <b>Save</b> to add the filter.
+
+
+
+</p></body></html>

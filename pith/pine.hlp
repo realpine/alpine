@@ -4,6 +4,7 @@
 #
 #/* ========================================================================
 # * Copyright 2006-2008 University of Washington
+# * Copyright 2009 Re-Alpine Project
 # *
 # * Licensed under the Apache License, Version 2.0 (the "License");
 # * you may not use this file except in compliance with the License.
@@ -144,10 +145,10 @@ $Id: pine.hlp 1266 2009-07-14 18:39:12Z hubert@u.washington.edu $
 ============= h_news =================
 <HTML>
 <HEAD>
-<TITLE>RELEASE NOTES for Alpine</TITLE>
+<TITLE>RELEASE NOTES for Re-Alpine</TITLE>
 </HEAD>
 <BODY>                 
-<H1>Alpine Release Notes</H1>
+<H1>Re-Alpine Release Notes</H1>
 <DIV ALIGN=CENTER>
 Version <!--#echo var="ALPINE_VERSION"-->(<!--#echo var="ALPINE_REVISION"-->)
 <BR>
@@ -167,7 +168,7 @@ variety of Unix&reg; operating systems.  A version for Microsoft Windows&reg;
 is available as is a world wide web based version designed to run under the
 Apache web server.
 
-<H2>New in Alpine <!--#echo var="ALPINE_VERSION"-->(<!--#echo var="ALPINE_REVISION"-->)</H2>
+<H2>New in Re-Alpine <!--#echo var="ALPINE_VERSION"-->(<!--#echo var="ALPINE_REVISION"-->)</H2>
 
 Version <!--#echo var="ALPINE_VERSION"-->(<!--#echo var="ALPINE_REVISION"-->)
 addresses bugs found in previous releases and has a few additions as well.
@@ -495,6 +496,7 @@ page at
 
 <P>
 Alpine Copyright 2006-2008 University of Washington
+Re-Alpine Copyright 2009 Re-Alpine Project
 
 <P>
 Additional legal notices can be found <A HREF="h_news_legal">here</A>

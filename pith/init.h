@@ -26,6 +26,9 @@
 #define	LEGAL_NOTICE \
    "Copyright 2006-2008 University of Washington"
 
+#define	LEGAL_NOTICE2 \
+   "Copyright 2009 Re-Alpine Project"
+
 
 /* exported protoypes */
 int               init_username(struct pine *);

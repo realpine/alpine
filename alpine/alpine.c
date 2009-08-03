@@ -2216,6 +2216,13 @@ do_menu(int quick_draw, Pos *cursor_pos, struct key_menu *km)
     if(!quick_draw && FOOTER_ROWS(ps)+1 < ps->ttyo->screen_rows){
 	utf8_to_width(buf2, LEGAL_NOTICE, sizeof(buf2),
 		      ps->ttyo->screen_cols-3, NULL);
+	PutLine0(ps->ttyo->screen_rows - (FOOTER_ROWS(ps)+2),
+		 MAX(0, ((ps->ttyo->screen_cols-utf8_width(buf2))/2)),
+		 buf2);
+    }
+    if(!quick_draw && FOOTER_ROWS(ps)+1 < ps->ttyo->screen_rows){
+	utf8_to_width(buf2, LEGAL_NOTICE2, sizeof(buf2),
+		      ps->ttyo->screen_cols-3, NULL);
 	PutLine0(ps->ttyo->screen_rows - (FOOTER_ROWS(ps)+1),
 		 MAX(0, ((ps->ttyo->screen_cols-utf8_width(buf2))/2)),
 		 buf2);

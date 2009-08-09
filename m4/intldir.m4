@@ -1,5 +1,5 @@
-# nls.m4 serial 3 (gettext-0.15)
-dnl Copyright (C) 1995-2003, 2005-2006 Free Software Foundation, Inc.
+# intldir.m4 serial 1 (gettext-0.16)
+dnl Copyright (C) 2006 Free Software Foundation, Inc.
 dnl This file is free software; the Free Software Foundation
 dnl gives unlimited permission to copy and/or distribute it,
 dnl with or without modifications, as long as this notice is preserved.
@@ -13,19 +13,7 @@ dnl by the GNU Library General Public License, and the rest of the GNU
 dnl gettext package package is covered by the GNU General Public License.
 dnl They are *not* in the public domain.
 
-dnl Authors:
-dnl   Ulrich Drepper <drepper@cygnus.com>, 1995-2000.
-dnl   Bruno Haible <haible@clisp.cons.org>, 2000-2003.
+AC_PREREQ(2.52)
 
-AC_PREREQ(2.50)
-
-AC_DEFUN([AM_NLS],
-[
-  AC_MSG_CHECKING([whether NLS is requested])
-  dnl Default is enabled NLS
-  AC_ARG_ENABLE(nls,
-    [  --disable-nls           do not use Native Language Support],
-    USE_NLS=$enableval, USE_NLS=yes)
-  AC_MSG_RESULT($USE_NLS)
-  AC_SUBST(USE_NLS)
-])
+dnl Tells the AM_GNU_GETTEXT macro to consider an intl/ directory.
+AC_DEFUN([AM_GNU_GETTEXT_INTL_SUBDIR], [])

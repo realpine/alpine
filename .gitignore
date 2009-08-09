@@ -39,7 +39,7 @@ imap/tmail/
 # auto[make,configure] output
 #
 autom4te.cache/
-po/Makefile.in
+#po/Makefile.in
 TAGS
 regex/Makefile
 web/src/Makefile
@@ -49,13 +49,13 @@ imap/ip6
 Makefile
 config.log
 config.status
-libtool
+#libtool
 include/config.h
 include/stamp-h1
 po/POTFILES
-ltmain.sh
-Makefile.in
-aclocal.m4
+#ltmain.sh
+#Makefile.in
+#aclocal.m4
 # for now let's leave it in
 # config.guess
 # config.sub

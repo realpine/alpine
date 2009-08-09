@@ -466,6 +466,10 @@
 /* Define if you use OpenLDAP 2.3.x deprecated functions */
 #undef LDAP_DEPRECATED
 
+/* Define to the sub-directory in which libtool stores uninstalled libraries.
+   */
+#undef LT_OBJDIR
+
 /* Path to local inboxes for pico newmail check */
 #undef MAILDIR
 
@@ -554,13 +558,13 @@
 /* Posting agent to use when no nntp-servers defined */
 #undef SENDNEWS
 
-/* The size of a `unsigned int', as computed by sizeof. */
+/* The size of `unsigned int', as computed by sizeof. */
 #undef SIZEOF_UNSIGNED_INT
 
-/* The size of a `unsigned long', as computed by sizeof. */
+/* The size of `unsigned long', as computed by sizeof. */
 #undef SIZEOF_UNSIGNED_LONG
 
-/* The size of a `unsigned short', as computed by sizeof. */
+/* The size of `unsigned short', as computed by sizeof. */
 #undef SIZEOF_UNSIGNED_SHORT
 
 /* Enable S/MIME code */
@@ -632,7 +636,7 @@
 /* qsort compare function argument type */
 #undef qsort_t
 
-/* Define to `unsigned' if <sys/types.h> does not define. */
+/* Define to `unsigned int' if <sys/types.h> does not define. */
 #undef size_t
 
 /* Define to `int' if <sys/types.h> doesn't define. */

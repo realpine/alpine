@@ -58,4 +58,5 @@ config.sub
 ltmain.sh
 Makefile.in
 aclocal.m4
-configure
+# for now let's leave it in
+# configure

@@ -53,10 +53,10 @@ libtool
 include/config.h
 include/stamp-h1
 po/POTFILES
-config.guess
-config.sub
 ltmain.sh
 Makefile.in
 aclocal.m4
 # for now let's leave it in
+# config.guess
+# config.sub
 # configure

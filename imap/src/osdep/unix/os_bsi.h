@@ -34,6 +34,8 @@
 #include <fcntl.h>
 #include <syslog.h>
 #include <sys/file.h>
+#include <time.h>
+#include <utime.h>
 
 
 #include "env_unix.h"

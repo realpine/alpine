@@ -27,6 +27,7 @@
  */
 
 #define crypt ssl_private_crypt
+#define STRING ssl_private_STRING
 #include <x509v3.h>
 #include <ssl.h>
 #include <err.h>
@@ -36,6 +37,7 @@
 #include <crypto.h>
 #include <rand.h>
 #undef crypt
+#undef STRING
 
 #define SSLBUFLEN 8192
 #define SSLCIPHERLIST "ALL:!LOW"

@@ -277,26 +277,11 @@ char *
 get_x509_subject_email(X509 *x)
 {
     char *result = NULL;
-#if OPENSSL_VERSION_NUMBER >= 0x1000000f /* OpenSSL 1.0.0 */
-    STACK_OF(OPENSSL_STRING) *emails;
-#else /* OpenSSL 0.x and 1.0.0-dev/beta */
-    STACK *emails;
-#endif
-
-    emails = X509_get1_email(x);
-
-#if OPENSSL_VERSION_NUMBER >= 0x1000000f /* OpenSSL 1.0.0 */
-    if (sk_OPENSSL_STRING_num(emails) > 0) {
-	/* take the first one on the stack */
-	result = cpystr(sk_OPENSSL_STRING_value(emails, 0));
-    }
-#else /* OpenSSL 0.x and 1.0.0-dev/beta */
+    STACK *emails = X509_get1_email(x);
     if (sk_num(emails) > 0) {
 	/* take the first one on the stack */
 	result = cpystr(sk_value(emails, 0));
     }
-#endif
-
     X509_email_free(emails);
     return result;
 }

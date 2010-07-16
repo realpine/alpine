@@ -27,7 +27,7 @@
    "Copyright 2006-2008 University of Washington"
 
 #define	LEGAL_NOTICE2 \
-   "Copyright 2009 Re-Alpine Project"
+   "Copyright 2009-2010 Re-Alpine Project"
 
 
 /* exported protoypes */

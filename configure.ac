@@ -1387,6 +1387,10 @@ case "$host" in
       [
         alpine_c_client_target="osx"
       ])
+    AC_CHECK_HEADER(/usr/include/security/pam_appl.h,
+      [
+        alpine_c_client_target="oxs"
+      ])
     ;;
   *-*-solaris*)
     if test x$GCC = "xyes" ; then

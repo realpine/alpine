@@ -446,6 +446,14 @@ osxwarn:
 	@echo % make clean
 	@echo % make oxp
 
+oxs:	an
+	$(TOUCH) ip6
+	$(BUILD) BUILDTYPE=osx IP=$(IP6) EXTRAAUTHENTICATORS="$(EXTRAAUTHENTICATORS) gss" \
+	PASSWDTYPE=pam \
+	EXTRACFLAGS="$(EXTRACFLAGS)" \
+	SPECIALS="SSLINCLUDE=/usr/include/openssl SSLLIB=/usr/lib SSLCERTS=/System/Library/OpenSSL/certs SSLKEYS=/System/Library/OpenSSL/private GSSINCLUDE=/usr/include GSSLIB=/usr/lib PAMDLFLAGS=-lpam"
+
+
 
 # Linux shadow password support doesn't build on traditional systems, but most
 # Linux systems are shadow these days.

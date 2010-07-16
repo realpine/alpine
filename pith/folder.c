@@ -1182,17 +1182,17 @@ mail_list_filter(MAILSTREAM *stream, char *mailbox, int delim, long int attribs,
 		      this_inbox_is_in_incoming++;
 		}
 	    }
-
-	    if(this_inbox_is_in_incoming){
+// UNFIX
+/*	    if(this_inbox_is_in_incoming){
 		/*
 		 * Don't add a folder for this, only a directory if called for.
 		 * If it isn't a directory, skip it.
 		 */
-		if(!(delim && !(attribs & LATT_NOINFERIORS)))
+/*		if(!(delim && !(attribs & LATT_NOINFERIORS)))
 		  return;
 
 		suppress_folder_add++;
-	    }
+	    }*/
 	}
 	else{
 	    int inbox_is_in_this_collection = 0;
@@ -1211,8 +1211,9 @@ mail_list_filter(MAILSTREAM *stream, char *mailbox, int delim, long int attribs,
 		 * Inbox is already inserted in this collection. Unless
 		 * it is also a directory, we are done.
 		 */
-		if(!(delim && !(attribs & LATT_NOINFERIORS)))
-		  return;
+// UNFIX
+/*		if(!(delim && !(attribs & LATT_NOINFERIORS)))
+		  return;*/
 
 		/*
 		 * Since it is also a directory, what we do depends on
@@ -1267,17 +1268,17 @@ mail_list_filter(MAILSTREAM *stream, char *mailbox, int delim, long int attribs,
 			   && !strcmp(l1,l2)))
 		      this_inbox_is_primary_inbox++;
 		}
-
+/* UNFIX
 		if(this_inbox_is_primary_inbox){
 		    /*
 		     * Don't add a folder for this, only a directory if called for.
 		     * If it isn't a directory, skip it.
 		     */
-		    if(!(delim && !(attribs & LATT_NOINFERIORS)))
+/*		    if(!(delim && !(attribs & LATT_NOINFERIORS)))
 		      return;
 
 		    suppress_folder_add++;
-		}
+		}*/
 	    }
 	}
     }

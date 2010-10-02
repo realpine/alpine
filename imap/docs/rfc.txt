@@ -1,3 +1,15 @@
+To understand IMAP, you should read the Request for Comments files
+that are its official documentation.
+
+We don't distribute them in the Alpine source tree because they are
+non-free. See http://wiki.debian.org/NonFreeIETFDocuments and
+http://josefsson.org/bcp78broken/ for information on that. Most
+importantly, they are not under the Apache 2.0 License that applies
+to the rest of the code.
+
+To download RFC files, visit http://www.ietf.org/rfc/ and find the
+file you want.
+
 The following documents are necessary to understand the syntax rules
 most of the remaining documents.  Note that some documents refer to
 RFC 2234 which has been replaced by RFC 5234:

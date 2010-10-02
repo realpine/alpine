@@ -169,9 +169,22 @@ is available as is a world wide web based version designed to run under the
 Apache web server.
 
 <H2>New in Re-Alpine <!--#echo var="ALPINE_VERSION"-->(<!--#echo var="ALPINE_REVISION"-->)</H2>
+<P>
+Fixes
+<UL>
+   <LI> Removed RFCs from the sources and replaced with a link to them
+   <LI> Fixes building on more recent MacOS systems - untested
+   <LI> Fixes folder collection behavior with dual-use mailboxes
+   <LI> Fixes for OpenSSL 1.0+
+   <LI> Fixes for OpenSSL
+   <LI> Fixes for BSD systems
+</UL>
 
-Version <!--#echo var="ALPINE_VERSION"-->(<!--#echo var="ALPINE_REVISION"-->)
+
+<P>
+Version 2.01
 addresses bugs found in previous releases and has a few additions as well.
+<P>
 
 <P>
 Additions include:

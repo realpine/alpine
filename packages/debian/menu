@@ -1,2 +1,0 @@
-?package(alpine):needs="text" section="Apps/Net" title="Alpine" command="/usr/bin/alpine"
-?package(alpine):needs="text" section="Apps/Editors" title="Pico" command="/usr/bin/pico"

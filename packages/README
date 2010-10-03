@@ -5,8 +5,6 @@ Building packages for Alpine
 Files in this directory:
   alpine.spec - spec file for building RPMs on RedHat and Fedora.
 		It should also work with Mandrake.
-  debian/*    - files containing instructions for building .deb files
-                for use with dpkg
   windows/*   - files used to build the Windows Alpine installer. Upon
 		release, we set up directory dist.wnt.d with all of the
 		files to be installed, and we then run the command
@@ -56,26 +54,3 @@ the command:
 
 rpm -ivh alpine-{version}-1.i386.rpm
 
-
-Building .deb files:
-
-For building .deb files, dpkg, the program that builds them, looks in 
-the "debian" directory for various control files and build scripts.  This
-directory should reside in the top level of the alpine directory, in the
-same directory as the "build" file.  This requires copying the
-debian directory contained here to the next level up, which can be
-done via the command:
-
-cp -pr debian ../
-
-Then, from alpine's root directory, you would issue the command:
-
-dpkg-buildpackage
-
-Note that you must be root in order to build .deb packages.  After
-running the above command, the .deb will have been built in the
-directory above the alpine root directory, and it would be of the form
-alpine_{version}_i386.deb.  You can then install this package by
-running the command:
-
-dpkg -i alpine_{version}_i386.deb

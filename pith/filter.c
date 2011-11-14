@@ -7515,8 +7515,6 @@ html_element_comment(FILTER_S *f, char *s)
 		      HD(f)->bitbucket = 0;
 		    else if(!strucmp(s, "running"))
 		      HD(f)->bitbucket = 0;
-		    else if(!strucmp(s, "phone_home") && ps_global->phone_home)
-		      HD(f)->bitbucket = 0;
 #ifdef	_WINDOWS
 		    else if(!strucmp(s, "os_windows"))
 		      HD(f)->bitbucket = 0;

@@ -177,7 +177,6 @@ int	    url_local_imap(char *);
 int	    url_local_nntp(char *);
 int	    url_local_news(char *);
 int	    url_local_file(char *);
-int	    url_local_phone_home(char *);
 static int  print_to_printer(SCROLL_S *);
 int	    search_text(int, long, int, char **, Pos *, int *);
 void	    update_scroll_titlebar(long, int);
@@ -1697,7 +1696,6 @@ url_local_handler(char *s)
 	{"news:", 5, url_local_news},
 	{"x-alpine-gripe:", 15, gripe_gripe_to},
 	{"x-alpine-help:", 14, url_local_helper},
-	{"x-alpine-phone-home:", 20, url_local_phone_home},
 	{"x-alpine-config:", 16, url_local_config},
 	{"x-alpine-cert:", 14, url_local_certdetails},
 	{"#", 1, url_local_fragment},
@@ -2249,14 +2247,6 @@ url_local_fragment(char *fragment)
 			"Can't find fragment: %s", fragment);
 
     return(1);
-}
-
-
-int
-url_local_phone_home(char *url)
-{
-    phone_home(url + strlen("x-alpine-phone-home:"));
-    return(2);
 }
 
 

@@ -68,20 +68,6 @@ new_user_or_version(struct pine *ps)
     shown_text = text;
 
     /*
-     * Set it if the major revision number
-     * (the first after the dot) has changed.
-     */
-    ps->phone_home = (first_time_alpine_user
-		      || (ps->pine_pre_vers
-			  && isdigit((unsigned char) ps->pine_pre_vers[0])
-			  && ps->pine_pre_vers[1] == '.'
-			  && isdigit((unsigned char) ps->pine_pre_vers[2])
-			  && isdigit((unsigned char) vers[0])
-			  && vers[1] == '.'
-			  && isdigit((unsigned char) vers[2])
-			  && strncmp(ps->pine_pre_vers, vers, 3) < 0));
-
-    /*
      * At this point, shown_text is a charstarstar with html
      * Turn it into a charstar with digested html
      */
@@ -139,15 +125,9 @@ new_user_or_version(struct pine *ps)
 		       (nuov_keymenu.how_many * 12) * sizeof(struct key));
 		setbitmap(sargs.keys.bitmap);
 
-		if(ps->phone_home){
-		    km.keys[NUOV_EXIT].label = "Exit this greeting";
-		    km.keys[NUOV_EXIT].bind.nch = 1;
-		}
-		else{
-		    km.keys[NUOV_EXIT].label	= "[Exit this greeting]";
-		    km.keys[NUOV_EXIT].bind.nch = 3;
-		    clrbitn(NUOV_VIEW, sargs.keys.bitmap);
-		}
+		km.keys[NUOV_EXIT].label	= "[Exit this greeting]";
+		km.keys[NUOV_EXIT].bind.nch = 3;
+		clrbitn(NUOV_VIEW, sargs.keys.bitmap);
 
 		if(ps->first_time_user)
 		  clrbitn(NUOV_RELNOTES, sargs.keys.bitmap);

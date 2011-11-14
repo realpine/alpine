@@ -187,7 +187,6 @@ struct pine {
     unsigned	 force_prefer_plain:1;
     unsigned	 force_no_prefer_plain:1;
 
-    unsigned	 phone_home:1;
     unsigned     painted_body_on_startup:1;
     unsigned     painted_footer_on_startup:1;
     unsigned     open_readonly_on_startup:1;

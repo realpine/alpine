@@ -3148,9 +3148,12 @@ generate_message_id(void)
 	osec = now_x->tm_sec;
     }
 
+    hostpart = ps_global->userdomain
+		 ? ps_global->userdomain
+		 : ps_global->hostname;
     hostpart = F_ON(F_ROT13_MESSAGE_ID, ps_global)
-		 ? rot13(ps_global->hostname)
-		 : cpystr(ps_global->hostname);
+		 ? rot13(hostpart)
+		 : cpystr(hostpart);
     
     if(!hostpart)
       hostpart = cpystr("huh");

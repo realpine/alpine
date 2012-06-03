@@ -1736,7 +1736,6 @@ do_decoding(BODY *b, long msgno, const char *section)
     PERSONAL_CERT 	*pcert = NULL;
     char    *what_we_did = "";
     char     null[1];
-    char     newSec[100];
 
     dprint((9, "do_decoding(msgno=%ld type=%d subtype=%s section=%s)", msgno, b->type, b->subtype ? b->subtype : "NULL", (section && *section) ? section : (section != NULL) ? "Top" : "NULL"));
     null[0] = '\0';
@@ -1751,8 +1750,25 @@ do_decoding(BODY *b, long msgno, const char *section)
     }
     else{
 
-	snprintf(newSec, sizeof(newSec), "%s%s1", section ? section : "", (section && *section) ? "." : "");
-	p7 = get_pkcs7_from_part(msgno, newSec);
+	/*
+	 * Fix for signed-then-encrypted messages.
+	 *
+	 * If we're on the Top part (section == ""), then we need to bump it to "1".
+	 * Otherwise, we already know we're in a pkcs7-mime subpart and called
+	 * from do_fiddle_smime_message at the top, and the MULTIPART handline
+	 * has already bumped the section per-part.
+	 *
+	 * This allows signed-then-encrypted emails to work.
+	 * It *may* break signed or encrypted parts that are buried down in
+	 * a multi-part message (untested). Those are, IMO, far less common,
+	 * and I'd rather the signed+encrypted work.
+	 *
+	 * This used to do:
+	 * snprintf(newSec, sizeof(newSec), "%s%s1", section ? section : "", (section && *section) ? "." : "");
+	 * and pass the newSec to get_pkcs7_from_part
+	 *
+	 */
+	p7 = get_pkcs7_from_part(msgno, (section && *section) ? section : "1");
 	if(!p7){
             q_status_message1(SM_ORDER, 2, 2, "Couldn't load PKCS7 object: %s",
 			     (char*) openssl_error_string());

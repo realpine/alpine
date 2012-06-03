@@ -1330,7 +1330,9 @@ encrypt_outgoing_message(METAENV *header, BODY **bodyP)
     dprint((9, "encrypt_outgoing_message()"));
     smime_init();
 
-    cipher = EVP_des_cbc();
+//    cipher = EVP_des_cbc();
+// AJB 20111025 - upgrade to 128 bit AES as per RFC5751
+    cipher = EVP_aes_128_cbc();
 
     encerts = sk_X509_new_null();
 

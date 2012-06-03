@@ -510,7 +510,7 @@ type_desc(int type, char *subtype, PARAMETER *params, PARAMETER *disp_params, in
 {
     static char  type_d[200];
     int		 i;
-    char	*p, *parmval;
+    char	*p, *parmval, *decoded_parmval;
 
     p = type_d;
     sstrncpy(&p, body_type_names(type), sizeof(type_d)-(p-type_d));
@@ -579,11 +579,15 @@ type_desc(int type, char *subtype, PARAMETER *params, PARAMETER *disp_params, in
 
     if(full && type != TYPEMULTIPART && type != TYPEMESSAGE){
 	if((parmval = parameter_val(params, "name")) != NULL){
-	    snprintf(p, sizeof(type_d)-(p-type_d), " (Name: \"%s\")", parmval);
+		decoded_parmval = (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+								    SIZEOF_20KBUF, parmval);
+	    snprintf(p, sizeof(type_d)-(p-type_d), " (Name: \"%s\")", decoded_parmval);
 	    fs_give((void **) &parmval);
 	}
 	else if((parmval = parameter_val(disp_params, "filename")) != NULL){
-	    snprintf(p, sizeof(type_d)-(p-type_d), " (Filename: \"%s\")", parmval);
+		decoded_parmval = (char *)rfc1522_decode_to_utf8((unsigned char *)tmp_20k_buf,
+								    SIZEOF_20KBUF, parmval);
+	    snprintf(p, sizeof(type_d)-(p-type_d), " (Filename: \"%s\")", decoded_parmval);
 	    fs_give((void **) &parmval);
 	}
     }

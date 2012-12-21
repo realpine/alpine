@@ -4,6 +4,7 @@
                 Alpine/Pico/Pilot/Web Alpine/Imapd Distribution
 -----------------------------------------------------------------------
 
+NOTE: Windows support disabled due to removal of unlicensed file pico/msmem.c
 
 /* ====================================================================
  * Copyright 2006-2009 University of Washington
